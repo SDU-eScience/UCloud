@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.api
+package dk.sdu.cloud.tus.api
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator

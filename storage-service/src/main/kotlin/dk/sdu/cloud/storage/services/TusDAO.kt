@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.SensitivityLevel
+import dk.sdu.cloud.file.api.SensitivityLevel
 
 sealed class TusException(why: String) : RuntimeException(why) {
     class NotFound : TusException("Not found")

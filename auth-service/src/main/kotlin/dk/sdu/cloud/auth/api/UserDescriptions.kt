@@ -17,7 +17,7 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
     override fun toString() = "ChangePasswordRequest()"
 }
 
-object UserDescriptions : RESTDescriptions(AuthServiceDescription) {
+object UserDescriptions : RESTDescriptions("auth/users") {
     const val baseContext = "/auth/users"
 
     val createNewUser = callDescription<CreateUserRequest, Unit, CommonErrorMessage> {

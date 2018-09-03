@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.FileChecksum
-import dk.sdu.cloud.storage.api.StorageEvent
+import dk.sdu.cloud.file.api.FileChecksum
+import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.unwrap
 import dk.sdu.cloud.storage.util.windowed

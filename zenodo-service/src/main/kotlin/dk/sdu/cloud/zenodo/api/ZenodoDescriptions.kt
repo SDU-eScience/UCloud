@@ -5,7 +5,7 @@ import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.storage.api.WithPagination
+import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
 data class ZenodoAccessRequest(val returnTo: String)
@@ -44,9 +44,9 @@ typealias ZenodoPublicationWithFiles = ZenodoPublication
 data class ZenodoListPublicationsRequest(
     override val itemsPerPage: Int?,
     override val page: Int?
-) : WithPagination
+) : WithPaginationRequest
 
-object ZenodoDescriptions : RESTDescriptions(ZenodoServiceDescription) {
+object ZenodoDescriptions : RESTDescriptions("zenodo") {
     const val baseContext = "/api/zenodo"
 
     val requestAccess = callDescription<ZenodoAccessRequest, ZenodoAccessRedirectURL, CommonErrorMessage> {

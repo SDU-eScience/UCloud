@@ -1,9 +1,9 @@
 package dk.sdu.cloud.storage.util
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.storage.api.LongRunningResponse
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSResult
 import dk.sdu.cloud.storage.services.FSUserContext
@@ -14,8 +14,6 @@ import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.selects.select
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.net.URI
-import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
 

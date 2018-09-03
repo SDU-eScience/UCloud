@@ -6,14 +6,13 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.api.FindByShareId
-import dk.sdu.cloud.storage.api.ShareDescriptions
-import dk.sdu.cloud.storage.api.ShareState
+import dk.sdu.cloud.share.api.FindByShareId
+import dk.sdu.cloud.share.api.ShareDescriptions
+import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.application.ApplicationCall
 import io.ktor.routing.Route
-import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
 class ShareController<Ctx : FSUserContext>(
@@ -30,7 +29,7 @@ class ShareController<Ctx : FSUserContext>(
             logEntry(log, it)
             tryWithFS(commandRunnerFactory, call.user) { ctx ->
                 tryWithShareService {
-                    ok(shareService.list(ctx, it.pagination))
+                    ok(shareService.list(ctx, it.normalize()))
                 }
             }
         }

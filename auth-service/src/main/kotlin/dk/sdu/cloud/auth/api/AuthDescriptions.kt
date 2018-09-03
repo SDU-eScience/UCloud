@@ -8,7 +8,7 @@ data class OneTimeAccessToken(val accessToken: String, val jti: String)
 data class RequestOneTimeToken(val audience: String)
 data class ClaimOneTimeToken(val jti: String)
 
-object AuthDescriptions : RESTDescriptions(AuthServiceDescription) {
+object AuthDescriptions : RESTDescriptions("auth") {
     private const val baseContext = "/auth"
 
     val refresh = callDescription<Unit, AccessToken, Unit> {

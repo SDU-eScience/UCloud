@@ -12,7 +12,7 @@ import dk.sdu.cloud.metadata.services.ProjectHibernateDAO
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.storage.api.StorageEvents
+import dk.sdu.cloud.file.api.StorageEvents
 import io.ktor.application.install
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine

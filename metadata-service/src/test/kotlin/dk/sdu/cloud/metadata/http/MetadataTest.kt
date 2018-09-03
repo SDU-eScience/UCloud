@@ -3,7 +3,7 @@ package dk.sdu.cloud.metadata.http
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.metadata.services.*
 import dk.sdu.cloud.metadata.utils.withAuthMock
-import dk.sdu.cloud.storage.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileDescriptions
 import io.ktor.application.Application
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode

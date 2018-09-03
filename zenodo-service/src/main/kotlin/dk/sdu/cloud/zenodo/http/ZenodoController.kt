@@ -70,7 +70,7 @@ class ZenodoController<DBSession>(
             logEntry(log, req)
 
             ok(db.withTransaction {
-                publicationService.findForUser(it, call.request.currentUsername, req.pagination)
+                publicationService.findForUser(it, call.request.currentUsername, req.normalize())
             })
         }
 

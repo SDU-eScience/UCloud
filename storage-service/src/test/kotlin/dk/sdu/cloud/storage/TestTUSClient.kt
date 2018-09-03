@@ -1,9 +1,9 @@
 package dk.sdu.cloud.storage
 
 import dk.sdu.cloud.client.*
-import dk.sdu.cloud.storage.api.TusDescriptions
-import dk.sdu.cloud.storage.api.UploadCreationCommand
-import dk.sdu.cloud.storage.api.start
+import dk.sdu.cloud.tus.api.TusDescriptions
+import dk.sdu.cloud.tus.api.UploadCreationCommand
+import dk.sdu.cloud.tus.api.start
 import kotlinx.coroutines.experimental.runBlocking
 import java.io.File
 import java.net.ConnectException
@@ -11,12 +11,8 @@ import java.net.ConnectException
 // TODO Write a proper test
 fun main(args: Array<String>) {
     val context = object : CloudContext {
-        override fun resolveEndpoint(call: PreparedRESTCall<*, *>): String {
-            return "http://localhost:42000"
-        }
-
-        override fun resolveEndpoint(service: ServiceDescription): String {
-            return "http://localhost:42000"
+        override fun resolveEndpoint(namespace: String): String {
+            return "http://localhost:8080"
         }
 
         override fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean {

@@ -1,8 +1,8 @@
 package dk.sdu.cloud.storage.services.cephfs
 
-import dk.sdu.cloud.storage.api.AccessRight
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.StorageEvent
+import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.joinPath
 import dk.sdu.cloud.storage.util.normalize

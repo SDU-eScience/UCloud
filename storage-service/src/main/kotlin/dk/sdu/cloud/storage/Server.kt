@@ -5,8 +5,8 @@ import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.storage.api.StorageEvents
-import dk.sdu.cloud.storage.api.TusHeaders
+import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.storage.http.*
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.*

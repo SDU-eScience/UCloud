@@ -1,12 +1,12 @@
-package dk.sdu.cloud.indexing.api
+package dk.sdu.cloud.filesearch.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.SensitivityLevel
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
 import io.ktor.http.HttpMethod
 
 data class SimpleSearchRequest(
@@ -33,7 +33,7 @@ data class SearchResult(
     val fileType: FileType
 )
 
-object FileSearchDescriptions : RESTDescriptions(IndexingServiceDescription) {
+object FileSearchDescriptions : RESTDescriptions("fileSearch") {
     const val baseContext: String = "/api/file-search"
 
     val simpleSearch = callDescription<SimpleSearchRequest, Page<SearchResult>, CommonErrorMessage> {

@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.api
+package dk.sdu.cloud.file.api
 
 enum class AccessRight {
     READ,

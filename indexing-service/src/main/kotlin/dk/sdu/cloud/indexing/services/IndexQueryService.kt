@@ -1,11 +1,11 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.indexing.api.TimestampQuery
+import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.storage.api.EventMaterializedStorageFile
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.SensitivityLevel
+import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
 
 interface IndexQueryService {
     fun simpleQuery(

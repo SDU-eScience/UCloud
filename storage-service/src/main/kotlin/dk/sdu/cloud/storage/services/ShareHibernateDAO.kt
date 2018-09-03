@@ -1,11 +1,15 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.asEnumSet
 import dk.sdu.cloud.service.asInt
 import dk.sdu.cloud.service.db.*
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.share.api.Share
+import dk.sdu.cloud.share.api.ShareState
+import dk.sdu.cloud.share.api.SharesByPath
+import dk.sdu.cloud.share.api.minimalize
 import java.util.*
 import javax.persistence.*
 import javax.persistence.criteria.Predicate

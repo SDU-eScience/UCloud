@@ -17,7 +17,8 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.withCausedBy
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.experimental.runBlocking

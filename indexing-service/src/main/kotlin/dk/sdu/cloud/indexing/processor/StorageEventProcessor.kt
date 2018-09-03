@@ -2,7 +2,7 @@ package dk.sdu.cloud.indexing.processor
 
 import dk.sdu.cloud.indexing.services.IndexingService
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.storage.api.StorageEvents
+import dk.sdu.cloud.file.api.StorageEvents
 import org.slf4j.Logger
 
 class StorageEventProcessor(

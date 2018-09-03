@@ -2,11 +2,10 @@ package dk.sdu.cloud.metadata.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.metadata.services.Project
-import dk.sdu.cloud.storage.api.FindByPath
+import dk.sdu.cloud.file.api.FindByPath
 import io.ktor.http.HttpMethod
 
 data class CreateProjectRequest(val fsRoot: String)
@@ -14,7 +13,7 @@ data class CreateProjectResponse(val id: Long)
 
 typealias FindByProjectId = FindByLongId
 
-object ProjectDescriptions : RESTDescriptions(MetadataServiceDescription) {
+object ProjectDescriptions : RESTDescriptions("projects") {
     const val baseContext = "/api/projects"
 
     val create = callDescription<CreateProjectRequest, CreateProjectResponse, CommonErrorMessage> {

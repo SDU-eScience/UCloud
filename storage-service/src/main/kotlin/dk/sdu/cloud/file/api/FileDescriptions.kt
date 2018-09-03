@@ -1,13 +1,14 @@
-package dk.sdu.cloud.storage.api
+package dk.sdu.cloud.file.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.annotation.JsonUnwrapped
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.WithPaginationRequest
+
 import io.ktor.http.HttpMethod
 
 data class FindByPath(val path: String)
@@ -40,7 +41,7 @@ data class ListDirectoryRequest(
     override val page: Int?,
     val order: SortOrder?,
     val sortBy: FileSortBy?
-) : WithPagination
+) : WithPaginationRequest
 
 data class LookupFileInDirectoryRequest(
     val path: String,
@@ -85,21 +86,7 @@ const val DOWNLOAD_FILE_SCOPE = "downloadFile"
 
 data class DownloadByURI(val path: String, val token: String)
 
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = FavoriteCommand.Grant::class, name = "grant"),
-    JsonSubTypes.Type(value = FavoriteCommand.Revoke::class, name = "revoke")
-)
-sealed class FavoriteCommand {
-    abstract val path: String
-
-    data class Grant(override val path: String) : FavoriteCommand()
-    data class Revoke(override val path: String) : FavoriteCommand()
-}
+data class FavoriteCommand(val path: String)
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -125,19 +112,17 @@ data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 
 data class DeliverMaterializedFileSystemRequest(
     val rootsToMaterialized: Map<String, List<EventMaterializedStorageFile>>
-): WithPrettyToString {
-    override fun toString() = toPrettyString()
-}
+)
 
 data class DeliverMaterializedFileSystemResponse(
     val shouldContinue: Map<String, Boolean>
 )
 
-object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
+object FileDescriptions : RESTDescriptions("files") {
     val baseContext = "/api/files"
 
     val listAtPath = callDescription<ListDirectoryRequest, Page<StorageFile>, CommonErrorMessage> {
-        prettyName = "filesListAtPath"
+        prettyName = "listAtPath"
         path { using(baseContext) }
         params {
             +boundTo(ListDirectoryRequest::path)
@@ -176,8 +161,8 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
     }
 
-    val markAsFavorite = callDescription<FavoriteCommand.Grant, LongRunningResponse<Unit>, CommonErrorMessage> {
-        prettyName = "filesMarkAsFavorite"
+    val markAsFavorite = callDescription<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage> {
+        prettyName = "markAsFavorite"
         method = HttpMethod.Post
 
         path {
@@ -186,12 +171,12 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
 
         params {
-            +boundTo(FavoriteCommand.Grant::path)
+            +boundTo(FavoriteCommand::path)
         }
     }
 
-    val removeFavorite = callDescription<FavoriteCommand.Revoke, LongRunningResponse<Unit>, CommonErrorMessage> {
-        prettyName = "filesRemoveAsFavorite"
+    val removeFavorite = callDescription<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage> {
+        prettyName = "removeFavorite"
         method = HttpMethod.Delete
 
         path {
@@ -200,7 +185,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
         }
 
         params {
-            +boundTo(FavoriteCommand.Revoke::path)
+            +boundTo(FavoriteCommand::path)
         }
     }
 
@@ -232,7 +217,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     val download = callDescription<DownloadByURI, Unit, CommonErrorMessage> {
-        prettyName = "filesDownload"
+        prettyName = "download"
         path {
             using(baseContext)
             +"download"
@@ -275,7 +260,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     val bulkDownload = callDescription<BulkDownloadRequest, Unit, CommonErrorMessage> {
-        prettyName = "filesBulkDownload"
+        prettyName = "bulkDownload"
         method = HttpMethod.Post
 
         path {
@@ -287,7 +272,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
     }
 
     val syncFileList = callDescription<SyncFileListRequest, Unit, CommonErrorMessage> {
-        prettyName = "filesSyncFileList"
+        prettyName = "syncFileList"
         method = HttpMethod.Post
 
         path {
@@ -302,7 +287,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
      * Annotates a file with metadata. Privileged API.
      */
     val annotate = callDescription<AnnotateFileRequest, Unit, CommonErrorMessage> {
-        prettyName = "filesAnnotate"
+        prettyName = "annotate"
         method = HttpMethod.Post
 
         path {
@@ -318,7 +303,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
             VerifyFileKnowledgeResponse,
             CommonErrorMessage>
     {
-        prettyName = "filesVerifyKnowledge"
+        prettyName = "verifyFileKnowledge"
         method = HttpMethod.Post
 
         path {
@@ -334,7 +319,7 @@ object FileDescriptions : RESTDescriptions(StorageServiceDescription) {
             DeliverMaterializedFileSystemResponse,
             CommonErrorMessage>
     {
-        prettyName = "filesDeliverMaterializedFileSystem"
+        prettyName = "deliverMaterializedFileSystem"
         method = HttpMethod.Post
 
         path {

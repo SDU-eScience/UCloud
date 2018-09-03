@@ -32,7 +32,7 @@ fun TestApplicationRequest.setUser(username: String = "user", role: Role = dk.sd
 }
 
 private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-    HibernateSessionFactory.create(H2_TEST_CONFIG).use(closure)
+    HibernateSessionFactory.create(H2_TEST_CONFIG.copy(showSQLInStdout = true)).use(closure)
 }
 
 fun Application.configureBaseServer(vararg controllers: Controller) {
@@ -87,8 +87,9 @@ class NotificationTest {
                                     "user":"user",
                                     "notification":{
                                         "type":"type",
-                                        "message":"You Got MAIL!!!"
-                                    }
+                                        "message":"You Got MAIL!!!",
+                                        "meta": { "a": 42 }
+                                    },
                                 }
                             """.trimIndent()
                                 )

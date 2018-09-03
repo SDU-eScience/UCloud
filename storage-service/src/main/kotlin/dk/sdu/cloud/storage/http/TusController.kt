@@ -1,14 +1,17 @@
 package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.KafkaHttpRouteLogger
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.joinPath
+import dk.sdu.cloud.tus.api.TusDescriptions
+import dk.sdu.cloud.tus.api.TusExtensions
+import dk.sdu.cloud.tus.api.TusHeaders
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
@@ -25,6 +28,7 @@ import io.ktor.response.respondText
 import io.ktor.routing.Route
 import io.ktor.routing.method
 import io.ktor.routing.route
+import kotlinx.coroutines.experimental.io.readAvailable
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.util.*

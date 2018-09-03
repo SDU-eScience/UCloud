@@ -12,9 +12,9 @@ import dk.sdu.cloud.metadata.services.Project
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.metadata.services.tryWithProject
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.storage.api.AnnotateFileRequest
-import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.api.FindByPath
+import dk.sdu.cloud.file.api.AnnotateFileRequest
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindByPath
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory

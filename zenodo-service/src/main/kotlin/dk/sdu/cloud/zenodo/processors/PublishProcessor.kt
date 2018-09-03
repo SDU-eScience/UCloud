@@ -13,9 +13,9 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.stream
 import dk.sdu.cloud.service.withCausedBy
-import dk.sdu.cloud.storage.api.DOWNLOAD_FILE_SCOPE
-import dk.sdu.cloud.storage.api.DownloadByURI
-import dk.sdu.cloud.storage.api.FileDescriptions
+import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
+import dk.sdu.cloud.file.api.DownloadByURI
+import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.api.ZenodoPublicationStatus
 import dk.sdu.cloud.zenodo.api.ZenodoPublishCommand

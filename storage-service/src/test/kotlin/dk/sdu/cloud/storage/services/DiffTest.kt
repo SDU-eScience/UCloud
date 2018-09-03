@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.storage.SERVICE_USER
-import dk.sdu.cloud.storage.api.*
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
@@ -26,20 +26,21 @@ class DiffTest {
         val indexingService: IndexingService<Ctx>,
         val commandRunnerFactory: FSCommandRunnerFactory<Ctx>
     ) {
-        fun File.asMaterialized(): EventMaterializedStorageFile = EventMaterializedStorageFile(
-            inode(),
-            absolutePath.removePrefix(fsRoot.absolutePath).removePrefix("/").let { "/$it" },
-            FILE_OWNER,
-            if (isDirectory) FileType.DIRECTORY else FileType.FILE,
-            timestamps(),
-            length(),
-            FileChecksum("", ""),
-            false,
-            null,
-            null,
-            emptySet(),
-            SensitivityLevel.CONFIDENTIAL
-        )
+        fun File.asMaterialized(): EventMaterializedStorageFile =
+            EventMaterializedStorageFile(
+                inode(),
+                absolutePath.removePrefix(fsRoot.absolutePath).removePrefix("/").let { "/$it" },
+                FILE_OWNER,
+                if (isDirectory) FileType.DIRECTORY else FileType.FILE,
+                timestamps(),
+                length(),
+                FileChecksum("", ""),
+                false,
+                null,
+                null,
+                emptySet(),
+                SensitivityLevel.CONFIDENTIAL
+            )
     }
 
     private fun ctx(

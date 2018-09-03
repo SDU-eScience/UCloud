@@ -3,10 +3,10 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.SERVICE_USER
-import dk.sdu.cloud.storage.api.EventMaterializedStorageFile
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.StorageEvent
-import dk.sdu.cloud.storage.api.StorageEventProducer
+import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.parent
 import kotlinx.coroutines.experimental.Job

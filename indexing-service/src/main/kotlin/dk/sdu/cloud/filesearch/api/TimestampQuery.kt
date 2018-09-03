@@ -1,4 +1,4 @@
-package dk.sdu.cloud.indexing.api
+package dk.sdu.cloud.filesearch.api
 
 data class TimestampQuery(val after: Long?, val before: Long?) {
     init {

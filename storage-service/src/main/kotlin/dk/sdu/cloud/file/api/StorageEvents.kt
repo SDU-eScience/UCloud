@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.api
+package dk.sdu.cloud.file.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
@@ -193,9 +193,7 @@ data class EventMaterializedStorageFile(
     val annotations: Set<String>,
 
     val sensitivityLevel: SensitivityLevel
-): WithPrettyToString {
-    override fun toString() = toPrettyString()
-}
+)
 
 typealias StorageEventProducer = MappedEventProducer<String, StorageEvent>
 typealias StoraveEventStream = KStream<String, StorageEvent>

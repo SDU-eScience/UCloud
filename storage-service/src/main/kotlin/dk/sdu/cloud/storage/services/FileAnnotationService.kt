@@ -1,8 +1,8 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.api.StorageEvent
-import dk.sdu.cloud.storage.api.StorageEventProducer
-import dk.sdu.cloud.storage.api.validateAnnotation
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageEventProducer
+import dk.sdu.cloud.file.api.validateAnnotation
 import dk.sdu.cloud.storage.util.unwrap
 import kotlinx.coroutines.experimental.launch
 import java.util.*

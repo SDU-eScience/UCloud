@@ -5,11 +5,11 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.indexing.util.*
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.storage.api.DeliverMaterializedFileSystemRequest
-import dk.sdu.cloud.storage.api.EventMaterializedStorageFile
-import dk.sdu.cloud.storage.api.FileDescriptions
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.StorageEvent
+import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemRequest
+import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.StorageEvent
 import kotlinx.coroutines.experimental.*
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.term.terms

@@ -12,15 +12,15 @@ import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
-import io.ktor.content.CachingOptions
-import io.ktor.content.files
-import io.ktor.content.resource
-import io.ktor.content.static
 import io.ktor.features.CachingHeaders
 import io.ktor.html.respondHtml
 import io.ktor.http.CacheControl
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.CachingOptions
+import io.ktor.http.content.files
+import io.ktor.http.content.resource
+import io.ktor.http.content.static
 import io.ktor.request.header
 import io.ktor.response.header
 import io.ktor.response.respond
@@ -372,9 +372,27 @@ class CoreAuthController<DBSession>(
 
             implement(AuthDescriptions.claim) { req ->
                 logEntry(log, req)
-                if (!protect(PRIVILEGED_ROLES)) return@implement
+                val token = call.request.bearer
+                    ?.let { TokenValidation.validateOrNull(it) }
+                        ?: return@implement run {
+                            error(HttpStatusCode.Unauthorized)
+                        }
 
-                val tokenWasClaimed = db.withTransaction { ottDao.claim(it, req.jti, call.request.currentUsername) }
+                val userRole = token.getClaim("role")?.let {
+                    try {
+                        Role.valueOf(it.asString())
+                    } catch (_: Exception) {
+                        null
+                    }
+                } ?: return@implement run {
+                    error(HttpStatusCode.Unauthorized)
+                }
+
+                if (userRole !in PRIVILEGED_ROLES) return@implement
+
+                val tokenWasClaimed = db.withTransaction {
+                    ottDao.claim(it, req.jti, token.subject)
+                }
 
                 if (tokenWasClaimed) {
                     ok(HttpStatusCode.NoContent)

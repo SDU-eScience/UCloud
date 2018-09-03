@@ -8,8 +8,7 @@ import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.metadata.utils.withAuthMock
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.file.api.*
 import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.http.HttpMethod

@@ -1,8 +1,11 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.share.api.Share
+import dk.sdu.cloud.share.api.ShareState
+import dk.sdu.cloud.share.api.SharesByPath
 
 /**
  * Provides an interface to the [Share] data layer

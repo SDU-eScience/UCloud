@@ -2,7 +2,7 @@ package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.indexing.api.TimestampQuery
+import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.indexing.util.isNullOrEmpty
 import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.indexing.util.term
@@ -10,9 +10,9 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.storage.api.EventMaterializedStorageFile
-import dk.sdu.cloud.storage.api.FileType
-import dk.sdu.cloud.storage.api.SensitivityLevel
+import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.range
