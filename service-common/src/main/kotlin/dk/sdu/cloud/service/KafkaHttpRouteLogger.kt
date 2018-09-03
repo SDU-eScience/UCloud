@@ -3,11 +3,11 @@ package dk.sdu.cloud.service
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import io.ktor.application.*
-import io.ktor.content.OutgoingContent
 import io.ktor.features.origin
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.OutgoingContent
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.*
 import io.ktor.response.ApplicationSendPipeline

@@ -2,7 +2,7 @@ package dk.sdu.cloud.client
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.apache.Apache
-import io.ktor.client.features.json.GsonSerializer
+import io.ktor.client.features.json.JacksonSerializer
 import io.ktor.client.features.json.JsonFeature
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
@@ -19,10 +19,7 @@ import java.net.ConnectException
 
 internal val httpClient = HttpClient(Apache) {
     install(JsonFeature) {
-        // TODO WE SHOULD BE USING JACKSON
-        // TODO WE SHOULD BE USING JACKSON
-        // TODO WE SHOULD BE USING JACKSON
-        serializer = GsonSerializer()
+        serializer = JacksonSerializer()
     }
 }
 
