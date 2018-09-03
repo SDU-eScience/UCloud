@@ -49,6 +49,7 @@
     "uppy": "0.23.3"
   },
   "devDependencies": {
+    "@babel/core": "^7.0.0",
     "@types/jest": "^23.3.1",
     "@types/react": "^16.4.13",
     "@types/react-datepicker": "^1.1.7",
@@ -57,9 +58,8 @@
     "@types/react-router": "^4.0.30",
     "@types/react-router-dom": "^4.3.0",
     "@types/react-test-renderer": "16.0.2",
-    "babel-core": "^6.26.3",
     "babel-jest": "23.4.2",
-    "babel-loader": "8.0.0",
+    "babel-loader": "8.0.2",
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-plugin-transform-runtime": "6.23.0",
     "babel-preset-env": "1.7.0",
