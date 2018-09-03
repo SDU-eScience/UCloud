@@ -21,22 +21,12 @@ import org.slf4j.LoggerFactory
     property = "type"
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(value = HttpProxyCallLogEntry::class, name = "proxy"),
     JsonSubTypes.Type(value = HttpRequestHandledEntry::class, name = "request")
 )
 sealed class HttpCallLogEntry {
     abstract val jobId: String
     abstract val handledBy: ServiceInstance
 }
-
-// Added by the gateway. If we see a proxy entry but no request entry we know that something went wrong between them
-data class HttpProxyCallLogEntry(
-    override val jobId: String,
-    override val handledBy: ServiceInstance,
-
-    val userAgent: String?,
-    val origin: String
-) : HttpCallLogEntry()
 
 // Hide sensitive information (i.e. the signature) and keep just the crucial information
 // We can still infer which JWT was used (from sub, iat, and exp should limit the number of JWTs to one). From this
@@ -72,11 +62,6 @@ data class HttpRequestHandledEntry(
     val responseSize: Long,
     val responseJson: Any?
 ) : HttpCallLogEntry()
-
-// TODO(Dan): The amount of data we send through these are going to be rather large.
-// This will likely become a problem. However, as we have discussed this is likely to be very useful during early
-// phases development. Thus, for now, we will just emit the data and think about dealing with the large amount of data
-// later.
 
 class KafkaHttpRouteLogger {
     lateinit var requestName: String

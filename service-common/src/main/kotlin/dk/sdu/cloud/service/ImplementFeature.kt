@@ -44,8 +44,8 @@ private var didComplainAboutMissingKafkaLogger = false
 
 fun <P : Any, S : Any, E : Any> Route.implement(
     restCall: RESTCallDescription<P, S, E>,
-    logPayload: Boolean = true,
-    logResponse: Boolean = true,
+    logRequest: Boolean = true,
+    logResponse: Boolean = false,
     payloadTransformerForLog: (P) -> Any = { it },
     handler: suspend RESTHandler<P, S, E>.(P) -> Unit
 ) {
@@ -190,7 +190,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     }
                 }
 
-                if (logPayload) {
+                if (logRequest) {
                     val transformedPayload = payloadTransformerForLog(payload)
                     call.attributes.put(KafkaHttpRouteLogger.requestPayloadToLogKey, transformedPayload)
                 }
@@ -212,6 +212,8 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                         @Suppress("UNCHECKED_CAST")
                         restHandler.error(CommonErrorMessage(message) as E, ex.httpStatusCode)
                     } else {
+                        log.info(ex.stackTraceToString())
+
                         log.info("Cannot auto-complete exception message when error type is not " +
                                 "CommonErrorMessage. Please catch exceptions yourself.")
                         call.respond(ex.httpStatusCode)
@@ -262,7 +264,7 @@ private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): P
 
 class RESTHandler<P : Any, S : Any, E : Any>(
     val boundTo: PipelineContext<*, ApplicationCall>,
-    val shouldLogResponse: Boolean = true,
+    val shouldLogResponse: Boolean = false,
     val restCall: RESTCallDescription<P, S, E>
 ) {
     val call: ApplicationCall get() = boundTo.call
