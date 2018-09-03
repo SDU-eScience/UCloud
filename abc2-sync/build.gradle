@@ -1,5 +1,5 @@
 buildscript {
-    ext.kotlin_version = '1.2.51'
+    ext.kotlin_version = '1.2.61'
     ext.dokka_version = "0.9.16"
 
     repositories {
@@ -27,6 +27,9 @@ dokka {
 }
 repositories {
     mavenCentral()
+    maven { url("https://kotlin.bintray.com/ktor") }
+    maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
         credentials {
@@ -46,7 +49,12 @@ repositories {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
-    compile "dk.sdu.cloud:client-core:0.3.1-SNAPSHOT"
+    compile group: 'org.asynchttpclient', name: 'async-http-client', version: '2.4.8'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.2'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.2'
+    compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.9.2'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
+
     compile "org.apache.logging.log4j:log4j-slf4j-impl:2.9.1"
     compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
 

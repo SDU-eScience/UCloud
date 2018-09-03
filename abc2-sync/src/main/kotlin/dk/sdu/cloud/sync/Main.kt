@@ -4,9 +4,7 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.client.HttpClient
-import dk.sdu.cloud.client.asJson
-import dk.sdu.cloud.client.setJsonBody
+import io.netty.handler.codec.http.HttpHeaders.addHeader
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.runBlocking
