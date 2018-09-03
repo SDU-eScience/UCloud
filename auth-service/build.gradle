@@ -1,7 +1,7 @@
 group 'dk.sdu.cloud'
-version '1.4.1-SNAPSHOT'
+version '1.4.2-SNAPSHOT'
 
-apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
+apply from: "../shared-gradle/sdu-cloud.gradle"
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"

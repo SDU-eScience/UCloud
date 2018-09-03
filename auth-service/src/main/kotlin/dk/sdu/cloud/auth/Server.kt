@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth
 import com.auth0.jwt.algorithms.Algorithm
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.auth.api.AuthStreams
+import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
@@ -12,6 +13,7 @@ import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
+import io.ktor.application.install
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -57,6 +59,7 @@ class Server(
             log.info("Configuring HTTP server")
 
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
+            install(JWTProtection)
 
             log.info("Creating HTTP controllers")
             val coreController = CoreAuthController(
