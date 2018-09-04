@@ -9,25 +9,43 @@ import org.slf4j.LoggerFactory
 abstract class RESTDescriptions(val namespace: String) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val _descriptions: MutableList<RESTCallDescription<*, *, *>> = ArrayList()
-    val descriptions: List<RESTCallDescription<*, *, *>> get() = _descriptions.toList()
+    private val _descriptions: MutableList<RESTCallDescription<*, *, *, *>> = ArrayList()
+    val descriptions: List<RESTCallDescription<*, *, *, *>> get() = _descriptions.toList()
 
     /**
      * Creates a [RESTCallDescription] and registers it in the container.
      *
      * To do this manually create a description and call [register] with the template.
      */
-    protected inline fun <reified Request : Any, reified Success : Any, reified E : Any> callDescription(
+    protected inline fun <reified Request : Any, reified Success : Any, reified Error : Any> callDescription(
         mapper: ObjectMapper = defaultMapper,
         noinline additionalRequestConfiguration: (HttpRequestBuilder.(Request) -> Unit)? = null,
-        body: RESTCallDescriptionBuilder<Request, Success, E>.() -> Unit
-    ): RESTCallDescription<Request, Success, E> {
+        body: RESTCallDescriptionBuilder<Request, Success, Error, Request>.() -> Unit
+    ): RESTCallDescription<Request, Success, Error, Request> {
+        return callDescriptionWithAudit(mapper, additionalRequestConfiguration, body)
+    }
+
+    /**
+     * Creates a [RESTCallDescription] and registers it in the container.
+     *
+     * To do this manually create a description and call [register] with the template.
+     */
+    protected inline fun <
+            reified Request : Any,
+            reified Success : Any,
+            reified Error : Any,
+            reified AuditEntry : Any> callDescriptionWithAudit(
+        mapper: ObjectMapper = defaultMapper,
+        noinline additionalRequestConfiguration: (HttpRequestBuilder.(Request) -> Unit)? = null,
+        body: RESTCallDescriptionBuilder<Request, Success, Error, AuditEntry>.() -> Unit
+    ): RESTCallDescription<Request, Success, Error, AuditEntry> {
         val builder = RESTCallDescriptionBuilder(
             requestType = jacksonTypeRef<Request>(),
             responseTypeSuccess = jacksonTypeRef<Success>(),
-            responseTypeFailure = jacksonTypeRef<E>(),
+            responseTypeFailure = jacksonTypeRef<Error>(),
+            normalizedRequestTypeForAudit = jacksonTypeRef<AuditEntry>(),
             deserializerSuccess = mapper.readerFor(jacksonTypeRef<Success>()),
-            deserializerError = mapper.readerFor(jacksonTypeRef<E>())
+            deserializerError = mapper.readerFor(jacksonTypeRef<Error>())
         )
         builder.body()
         return builder.build(namespace, additionalRequestConfiguration).also { register(it) }
@@ -41,7 +59,8 @@ abstract class RESTDescriptions(val namespace: String) {
         // Do nothing. Not backwards compatible
     }
 
-    protected fun register(description: RESTCallDescription<*, *, *>) {
+    @PublishedApi
+    internal fun register(description: RESTCallDescription<*, *, *, *>) {
         log.info("Registering new ktor template: ${description.path.toKtorTemplate(true)}")
         _descriptions.add(description)
     }

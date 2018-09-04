@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory
 import java.net.URLEncoder
 import kotlin.reflect.KProperty1
 
-data class RESTCallDescription<Request : Any, Success : Any, Error : Any>(
+data class RESTCallDescription<Request : Any, Success : Any, Error : Any, AuditEntry : Any>(
     val method: HttpMethod,
     val path: RESTPath<Request>,
     val body: RESTBody<Request, *>?,
@@ -22,6 +22,7 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any>(
     val requestType: TypeReference<Request>,
     val responseTypeSuccess: TypeReference<Success>,
     val responseTypeFailure: TypeReference<Error>,
+    val normalizedRequestTypeForAudit: TypeReference<AuditEntry>,
 
     val deserializerSuccess: ObjectReader,
     val deserializerError: ObjectReader,
@@ -133,9 +134,9 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any>(
     }
 }
 
-fun <S : Any, E : Any> RESTCallDescription<Unit, S, E>.prepare(): PreparedRESTCall<S, E> = prepare(Unit)
+fun <S : Any, E : Any> RESTCallDescription<Unit, S, E, *>.prepare(): PreparedRESTCall<S, E> = prepare(Unit)
 
-suspend fun <S : Any, E : Any> RESTCallDescription<Unit, S, E>.call(cloud: AuthenticatedCloud): RESTResponse<S, E> =
+suspend fun <S : Any, E : Any> RESTCallDescription<Unit, S, E, *>.call(cloud: AuthenticatedCloud): RESTResponse<S, E> =
     call(Unit, cloud)
 
 sealed class RESTBody<Request : Any, Property : Any> {

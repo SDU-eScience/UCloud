@@ -5,17 +5,18 @@ import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.http.HttpMethod
-import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
 @DslMarker
 annotation class RESTCallDSL
 
 @RESTCallDSL
-class RESTCallDescriptionBuilder<Request : Any, Success : Any, Error : Any>(
+class RESTCallDescriptionBuilder<Request : Any, Success : Any, Error : Any, AuditEntry : Any>(
     private val requestType: TypeReference<Request>,
     private val responseTypeSuccess: TypeReference<Success>,
     private val responseTypeFailure: TypeReference<Error>,
+    private val normalizedRequestTypeForAudit: TypeReference<AuditEntry>,
+
     private val deserializerSuccess: ObjectReader,
     private val deserializerError: ObjectReader
 ) {
@@ -43,7 +44,7 @@ class RESTCallDescriptionBuilder<Request : Any, Success : Any, Error : Any>(
     fun build(
         namespace: String,
         additionalConfiguration: (HttpRequestBuilder.(Request) -> Unit)?
-    ): RESTCallDescription<Request, Success, Error> {
+    ): RESTCallDescription<Request, Success, Error, AuditEntry> {
         val path = path ?: throw RESTDSLException("Missing path { ... }!")
         val fullName = prettyName?.let { pretty -> "$namespace.$pretty" }
 
@@ -55,6 +56,7 @@ class RESTCallDescriptionBuilder<Request : Any, Success : Any, Error : Any>(
             requestType,
             responseTypeSuccess,
             responseTypeFailure,
+            normalizedRequestTypeForAudit,
             deserializerSuccess,
             deserializerError,
             namespace,
@@ -84,7 +86,7 @@ class RESTCallQueryParamsBuilder<R : Any> {
 }
 
 @RESTCallDSL
-class RESTCallPathBuilder<R : Any>(private val parent: RESTCallDescriptionBuilder<R, *, *>) {
+class RESTCallPathBuilder<R : Any>(private val parent: RESTCallDescriptionBuilder<R, *, *, *>) {
     private var basePath = ""
     private val segments = ArrayList<RESTPathSegment<R>>()
 
@@ -166,7 +168,7 @@ class RESTCallPathBuilder<R : Any>(private val parent: RESTCallDescriptionBuilde
 }
 
 @RESTCallDSL
-class RESTCallBodyBuilder<R : Any>(private val parent: RESTCallDescriptionBuilder<R, *, *>) {
+class RESTCallBodyBuilder<R : Any>(private val parent: RESTCallDescriptionBuilder<R, *, *, *>) {
     internal var body: RESTBody<R, *>? = null
 
     fun bindEntireRequestFromBody(ref: TypeReference<R>) {
