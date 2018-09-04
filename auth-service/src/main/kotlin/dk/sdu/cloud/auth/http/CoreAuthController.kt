@@ -388,7 +388,9 @@ class CoreAuthController<DBSession>(
                     error(HttpStatusCode.Unauthorized)
                 }
 
-                if (userRole !in PRIVILEGED_ROLES) return@implement
+                if (userRole !in PRIVILEGED_ROLES) return@implement run {
+                    error(HttpStatusCode.Unauthorized)
+                }
 
                 val tokenWasClaimed = db.withTransaction {
                     ottDao.claim(it, req.jti, token.subject)

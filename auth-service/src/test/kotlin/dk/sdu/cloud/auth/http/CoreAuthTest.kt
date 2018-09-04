@@ -304,13 +304,14 @@ class CoreAuthTest {
     fun `Claim test - Unauthorized not ADMIN or SERVICE`() {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.USER
+            val jti = "givenJTI"
             ctx.db.withTransaction { session ->
                 ctx.createUser(session, username, role)
                 ctx.createRefreshToken(session, username, role)
             }
 
             val response =
-                sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", user = username, role = role).response
+                sendRequest(HttpMethod.Post, "/auth/claim/$jti", user = username, role = role).response
             assertEquals(HttpStatusCode.Unauthorized, response.status())
         }
     }
