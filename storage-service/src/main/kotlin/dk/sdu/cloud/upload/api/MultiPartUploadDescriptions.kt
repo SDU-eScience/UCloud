@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.WriteConflictPolicy
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.defaultForFilePath
@@ -16,12 +17,15 @@ import java.util.*
 
 data class BulkUploadErrorMessage(val message: String, val rejectedUploads: List<String>)
 
+data class MultiPartUploadAudit(val path: String, val sensitivityLevel: SensitivityLevel, val owner: String)
+data class BulkUploadAudit(val path: String, val policy: WriteConflictPolicy, val owner: String)
+
 object MultiPartUploadDescriptions : RESTDescriptions("upload") {
     const val baseContext = "/api/upload"
     private val client = OkHttpClient()
 
     // TODO FIXME Really need that multi-part support
-    val upload = callDescription<Unit, Unit, CommonErrorMessage>(
+    val upload = callDescriptionWithAudit<Unit, Unit, CommonErrorMessage, MultiPartUploadAudit> (
         body = {
             method = HttpMethod.Post
             prettyName = "upload"
@@ -33,7 +37,7 @@ object MultiPartUploadDescriptions : RESTDescriptions("upload") {
     )
 
     // TODO FIXME Really need that multi-part support
-    val bulkUpload = callDescription<Unit, BulkUploadErrorMessage, CommonErrorMessage> {
+    val bulkUpload = callDescriptionWithAudit<Unit, BulkUploadErrorMessage, CommonErrorMessage, BulkUploadAudit> {
         prettyName = "bulkUpload"
         method = HttpMethod.Post
 
