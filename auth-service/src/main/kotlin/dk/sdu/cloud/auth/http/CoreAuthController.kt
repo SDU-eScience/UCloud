@@ -45,7 +45,7 @@ class CoreAuthController<DBSession>(
 ) {
     private val log = LoggerFactory.getLogger(CoreAuthController::class.java)
 
-    private suspend fun RESTHandler<*, *, CommonErrorMessage>.requestOriginIsTrusted(): Boolean {
+    private suspend fun RESTHandler<*, *, CommonErrorMessage, *>.requestOriginIsTrusted(): Boolean {
         // TODO Don't hardcode this
         fun isValidHostname(hostname: String): Boolean = hostname in setOf("localhost", "cloud.sdu.dk")
 

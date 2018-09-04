@@ -9,9 +9,13 @@ data class LookupUsersRequest(val users: List<String>)
 data class UserLookup(val subject: String, val role: Role)
 data class LookupUsersResponse(val results: Map<String, UserLookup?>)
 
+data class CreateUserAudit(val username: String, val role: Role?)
+
 data class CreateUserRequest(val username: String, val password: String, val role: Role?) {
     override fun toString() = "CreateUserRequest(username = $username, role = $role)"
 }
+
+class ChangePasswordAudit
 
 data class ChangePasswordRequest(val currentPassword: String, val newPassword: String) {
     override fun toString() = "ChangePasswordRequest()"
@@ -20,7 +24,7 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
 object UserDescriptions : RESTDescriptions("auth/users") {
     const val baseContext = "/auth/users"
 
-    val createNewUser = callDescription<CreateUserRequest, Unit, CommonErrorMessage> {
+    val createNewUser = callDescriptionWithAudit<CreateUserRequest, Unit, CommonErrorMessage, CreateUserAudit> {
         method = HttpMethod.Post
         prettyName = "createNewUser"
 
@@ -32,17 +36,18 @@ object UserDescriptions : RESTDescriptions("auth/users") {
         body { bindEntireRequestFromBody() }
     }
 
-    val changePassword = callDescription<ChangePasswordRequest, Unit, CommonErrorMessage> {
-        method = HttpMethod.Post
-        prettyName = "changePassword"
+    val changePassword =
+        callDescriptionWithAudit<ChangePasswordRequest, Unit, CommonErrorMessage, ChangePasswordAudit> {
+            method = HttpMethod.Post
+            prettyName = "changePassword"
 
-        path {
-            using(baseContext)
-            +"password"
+            path {
+                using(baseContext)
+                +"password"
+            }
+
+            body { bindEntireRequestFromBody() }
         }
-
-        body { bindEntireRequestFromBody() }
-    }
 
     val lookupUsers = callDescription<LookupUsersRequest, LookupUsersResponse, CommonErrorMessage> {
         method = HttpMethod.Post

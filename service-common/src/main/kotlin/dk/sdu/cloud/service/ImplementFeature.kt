@@ -231,6 +231,19 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                         )
                         call.respond(ex.httpStatusCode)
                     }
+
+                    restHandler.okContentDeliveredExternally()
+                }
+
+                if (!restHandler.finalized) {
+                    log.warn("implement(${restCall.fullName}) has not been finalized!")
+                    log.warn("implement(${restCall.fullName}) has not been finalized!")
+                    log.warn("implement(${restCall.fullName}) has not been finalized!")
+                    log.warn("implement(${restCall.fullName}) has not been finalized!")
+                    log.warn("")
+                    log.warn("No audit entries for ${restCall.fullName} was made.")
+                    log.warn("We potentially did not send any request (was this handled externally?).")
+                    log.warn("If the request was handled externally, you must call okContentDeliveredExternally()")
                 }
             }
         }
@@ -286,9 +299,9 @@ class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
 
     private var auditRequest: A? = null
 
-    fun audit(transformedRequest: A) {
-        if (auditRequest != null) log.info("Calling audit twice!")
+    internal var finalized = false
 
+    fun audit(transformedRequest: A) {
         auditRequest = transformedRequest
     }
 
@@ -306,6 +319,16 @@ class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
 
         if (error == Unit) call.respond(status)
         else call.respond(status, error)
+    }
+
+    /**
+     * Signals the implement system that this call is handled externally (by using call.respond)
+     *
+     * This will trigger logic that is required for finalizing an RPC call. This includes triggering
+     * auditing procedures.
+     */
+    fun okContentDeliveredExternally() {
+        finalize(Unit)
     }
 
     private fun finalize(response: Any) {
@@ -326,6 +349,8 @@ class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
         }
 
         call.attributes.put(KafkaHttpRouteLogger.requestPayloadToLogKey, auditRequest)
+
+        finalized = true
     }
 }
 

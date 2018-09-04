@@ -92,6 +92,10 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                             }
                         }
                     }
+
+                    else -> {
+                        // Do nothing
+                    }
                 }
                 part.dispose()
             }
@@ -173,6 +177,10 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
                                 ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)
                             }
+                        }
+
+                        else -> {
+                            // Do nothing
                         }
                     }
                 }

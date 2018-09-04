@@ -174,6 +174,8 @@ class ImplementFeatureTest {
         withTestApplication(
             moduleFunction = simpleEchoServer,
             test = {
+                records.clear()
+
                 val response = handleRequest(HttpMethod.Post, "/echo") {
                     addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                     addHeader("Job-Id", "1234")
@@ -208,6 +210,8 @@ class ImplementFeatureTest {
         withTestApplication(
             moduleFunction = simpleEchoServer,
             test = {
+                records.clear()
+
                 val response = handleRequest(HttpMethod.Post, "/echo/audit") {
                     addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                     addHeader("Job-Id", "1234")
@@ -239,5 +243,4 @@ class ImplementFeatureTest {
     private fun <T> deserialize(serde: Serde<T>, record: ProducerRecord<String, String>): T {
         return serde.deserializer().deserialize(record.topic(), record.value().toByteArray())
     }
-
 }

@@ -33,7 +33,7 @@ sealed class ShareException(override val message: String) : RuntimeException(mes
 
 private val log = LoggerFactory.getLogger(ShareService::class.java)
 
-suspend fun RESTHandler<*, *, CommonErrorMessage>.handleShareException(ex: Exception) {
+suspend fun RESTHandler<*, *, CommonErrorMessage, *>.handleShareException(ex: Exception) {
     when (ex) {
         is ShareException -> {
             @Suppress("UNUSED_VARIABLE")
@@ -76,7 +76,7 @@ suspend fun RESTHandler<*, *, CommonErrorMessage>.handleShareException(ex: Excep
     }
 }
 
-suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithShareService(body: () -> Unit) {
+suspend inline fun RESTHandler<*, *, CommonErrorMessage, *>.tryWithShareService(body: () -> Unit) {
     try {
         body()
     } catch (ex: Exception) {
