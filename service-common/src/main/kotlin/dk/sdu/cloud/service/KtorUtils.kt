@@ -69,6 +69,10 @@ fun Application.installDefaultFeatures(
         baseCloud = cloud
     }
 
+    interceptJobId(requireJobId)
+}
+
+fun Application.interceptJobId(requireJobId: Boolean) {
     intercept(ApplicationCallPipeline.Infrastructure) {
         val jobId = call.request.headers["Job-Id"]
         if (jobId == null) {
@@ -152,7 +156,7 @@ fun PipelineContext<*, ApplicationCall>.logEntry(
     log.info("$method $uri jobId=$jobId causedBy=$causedBy payload={$parameterString $headerString}")
 }
 
-fun <R : Any> RESTHandler<R, *, *>.logEntry(
+fun <R : Any> RESTHandler<R, *, *, *>.logEntry(
     log: Logger,
     payload: R,
     requestToString: (R) -> String = { it.toString() }

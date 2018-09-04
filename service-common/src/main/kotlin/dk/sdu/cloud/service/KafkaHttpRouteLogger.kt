@@ -1,7 +1,5 @@
 package dk.sdu.cloud.service
 
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.service.JsonSerde.jsonSerdeFromJavaType
@@ -18,19 +16,6 @@ import io.ktor.util.AttributeKey
 import kotlinx.coroutines.experimental.async
 import org.slf4j.LoggerFactory
 
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = "type"
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = HttpRequestHandledEntry::class, name = "request")
-)
-sealed class HttpCallLogEntry {
-    abstract val jobId: String
-    abstract val handledBy: ServiceInstance
-}
-
 // Hide sensitive information (i.e. the signature) and keep just the crucial information
 // We can still infer which JWT was used (from sub, iat, and exp should limit the number of JWTs to one). From this
 // we can determine which refreshToken was used to generate it.
@@ -43,9 +28,9 @@ data class LogEntryPrincipal(
 )
 
 // Added by the server
-data class HttpRequestHandledEntry(
-    override val jobId: String,
-    override val handledBy: ServiceInstance,
+data class HttpCallLogEntry(
+    val jobId: String,
+    val handledBy: ServiceInstance,
     val causedBy: String?,
 
     val requestName: String,
@@ -64,13 +49,14 @@ data class HttpRequestHandledEntry(
     val responseContentType: String,
     val responseSize: Long,
     val responseJson: Any?
-) : HttpCallLogEntry()
+)
 
 class KafkaHttpRouteLogger {
-    lateinit var requestName: String
+    lateinit var description: RESTCallDescription<*, *, *, Any>
     private lateinit var serviceDescription: ServiceInstance
     private lateinit var kafka: KafkaServices
-    private lateinit var producer: EventProducer<String, HttpCallLogEntry>
+    private lateinit var httpProducer: EventProducer<String, HttpCallLogEntry>
+    private lateinit var auditProducer: MappedEventProducer<String, AuditEvent<*>>
 
     private val ApplicationRequest.bearer: String?
         get() {
@@ -87,7 +73,17 @@ class KafkaHttpRouteLogger {
                     ?: throw IllegalStateException("Could not find the KafkaHttpLogger feature on the application")
             serviceDescription = feature.serverDescription
             kafka = feature.kafka
-            producer = kafka.producer.forStream(KafkaHttpLogger.httpLogsStream)
+            httpProducer = kafka.producer.forStream(KafkaHttpLogger.httpLogsStream)
+
+            if (!::description.isInitialized) {
+                throw IllegalStateException(
+                    "REST call description has not been initialized for KafkaHttpRouteLogger"
+                )
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            auditProducer =
+                    kafka.producer.forStream(description.auditStream) as MappedEventProducer<String, AuditEvent<*>>
         }
     }
 
@@ -110,7 +106,9 @@ class KafkaHttpRouteLogger {
         val requestContentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull() ?: 0
         val method = call.request.httpMethod.value
         val uri = call.request.uri
-        val requestPayload = call.attributes.getOrNull(requestPayloadToLogKey)
+        val requestPayload = call.attributes.getOrNull(requestPayloadToLogKey) ?: return@with run {
+            log.warn("No request payload")
+        }
         val causedBy = call.request.causedBy
         val remoteOrigin = call.request.origin.remoteHost
         val userAgent = call.request.userAgent()
@@ -155,21 +153,36 @@ class KafkaHttpRouteLogger {
                 null
             }
 
-            val entry = HttpRequestHandledEntry(
-                jobId, serviceDescription, causedBy, requestName, method, uri, userAgent, remoteOrigin, principal,
-                requestContentType, requestContentLength, requestPayload, statusCode, responseTime,
-                responseContentType, responseSize, responsePayload
+            val entry = HttpCallLogEntry(
+                jobId,
+                serviceDescription,
+                causedBy,
+                description.fullName!!,
+                method,
+                uri,
+                userAgent,
+                remoteOrigin,
+                principal,
+                requestContentType,
+                requestContentLength,
+                requestPayload,
+                statusCode,
+                responseTime,
+                responseContentType,
+                responseSize,
+                responsePayload
             )
 
-            producer.emit(jobId, entry)
+            httpProducer.emit(jobId, entry)
+            auditProducer.emit(AuditEvent(entry, requestPayload))
         }
     }
 
     companion object Feature : ApplicationFeature<ApplicationCallPipeline, KafkaHttpRouteLogger, KafkaHttpRouteLogger> {
         private val log = LoggerFactory.getLogger(KafkaHttpRouteLogger::class.java)
         private val requestStartTime = AttributeKey<Long>("request-start-time")
-        val requestPayloadToLogKey = AttributeKey<Any>("request-payload")
-        val responsePayloadToLogKey = AttributeKey<Any>("response-payload")
+        internal val requestPayloadToLogKey = AttributeKey<Any>("request-payload")
+        internal val responsePayloadToLogKey = AttributeKey<Any>("response-payload")
 
         override val key: AttributeKey<KafkaHttpRouteLogger> = AttributeKey("kafka-http-route-log")
 
@@ -179,7 +192,6 @@ class KafkaHttpRouteLogger {
         ): KafkaHttpRouteLogger {
             val feature = KafkaHttpRouteLogger()
             feature.configure()
-            feature.requestName
 
             pipeline.intercept(ApplicationCallPipeline.Infrastructure) { feature.interceptBefore(this) }
             pipeline.sendPipeline.intercept(ApplicationSendPipeline.After) { feature.interceptAfter(this, it) }
@@ -217,7 +229,7 @@ class KafkaHttpLogger {
 }
 
 data class AuditEvent<A>(
-    val http: HttpRequestHandledEntry,
+    val http: HttpCallLogEntry,
     val request: A
 )
 

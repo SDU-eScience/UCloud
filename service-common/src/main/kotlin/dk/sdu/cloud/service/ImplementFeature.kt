@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.*
@@ -22,6 +23,7 @@ import io.ktor.util.DataConversionException
 import org.slf4j.LoggerFactory
 import java.io.PrintWriter
 import java.io.StringWriter
+import kotlin.reflect.KClass
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaType
 
@@ -42,12 +44,10 @@ object RESTServerSupport {
 
 private var didComplainAboutMissingKafkaLogger = false
 
-fun <P : Any, S : Any, E : Any> Route.implement(
-    restCall: RESTCallDescription<P, S, E>,
-    logRequest: Boolean = true,
+fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
+    restCall: RESTCallDescription<P, S, E, A>,
     logResponse: Boolean = false,
-    payloadTransformerForLog: (P) -> Any = { it },
-    handler: suspend RESTHandler<P, S, E>.(P) -> Unit
+    handler: suspend RESTHandler<P, S, E, A>.(P) -> Unit
 ) {
     val template = restCall.path.toKtorTemplate(fullyQualified = false)
     route(template) {
@@ -76,7 +76,8 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                 val fullName = restCall.fullName
                 if (fullName != null) {
                     install(KafkaHttpRouteLogger) {
-                        requestName = fullName
+                        @Suppress("UNCHECKED_CAST")
+                        description = restCall as RESTCallDescription<*, *, *, Any>
                     }
                 }
             }
@@ -140,8 +141,23 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     val allValuesFromRequest = valuesFromPath + valuesFromParams
 
                     if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
+                        val requestClass = restCall.requestType.type as? Class<*> ?: throw IllegalStateException(
+                            "${restCall.fullName}'s request type is not a simple class. " +
+                                    "This is required."
+                        )
+
+                        val requestClassKotlin = if (requestClass.isKotlinClass()) {
+                            @Suppress("UNCHECKED_CAST")
+                            requestClass.kotlin as KClass<P>
+                        } else {
+                            throw IllegalStateException(
+                                "${restCall.fullName}'s request type is not a kotlin " +
+                                        "class. This is required."
+                            )
+                        }
+
                         val constructor =
-                            restCall.requestType.primaryConstructor ?: restCall.requestType.constructors.single()
+                            requestClassKotlin.primaryConstructor ?: requestClassKotlin.constructors.single()
 
                         val resolvedArguments = constructor.parameters.map {
                             val name = it.name ?: run {
@@ -190,12 +206,7 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     }
                 }
 
-                if (logRequest) {
-                    val transformedPayload = payloadTransformerForLog(payload)
-                    call.attributes.put(KafkaHttpRouteLogger.requestPayloadToLogKey, transformedPayload)
-                }
-
-                val restHandler = RESTHandler(this, logResponse, restCall)
+                val restHandler = RESTHandler(payload, this, logResponse, restCall)
                 try {
                     // Call the handler with the payload
                     restHandler.handler(payload)
@@ -214,8 +225,10 @@ fun <P : Any, S : Any, E : Any> Route.implement(
                     } else {
                         log.info(ex.stackTraceToString())
 
-                        log.info("Cannot auto-complete exception message when error type is not " +
-                                "CommonErrorMessage. Please catch exceptions yourself.")
+                        log.info(
+                            "Cannot auto-complete exception message when error type is not " +
+                                    "CommonErrorMessage. Please catch exceptions yourself."
+                        )
                         call.respond(ex.httpStatusCode)
                     }
                 }
@@ -262,19 +275,26 @@ private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): P
     }
 }
 
-class RESTHandler<P : Any, S : Any, E : Any>(
+class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
+    private val payload: P,
     val boundTo: PipelineContext<*, ApplicationCall>,
     val shouldLogResponse: Boolean = false,
-    val restCall: RESTCallDescription<P, S, E>
+    val restCall: RESTCallDescription<P, S, E, A>
 ) {
     val call: ApplicationCall get() = boundTo.call
     val application: Application get() = boundTo.application
 
+    private var auditRequest: A? = null
+
+    fun audit(transformedRequest: A) {
+        if (auditRequest != null) log.info("Calling audit twice!")
+
+        auditRequest = transformedRequest
+    }
+
     suspend fun ok(result: S, status: HttpStatusCode = HttpStatusCode.OK) {
         assert(status.value in 200..299)
-        if (shouldLogResponse) {
-            call.attributes.put(KafkaHttpRouteLogger.responsePayloadToLogKey, result)
-        }
+        finalize(result)
 
         if (result == Unit) call.respond(status)
         else call.respond(status, result)
@@ -282,20 +302,38 @@ class RESTHandler<P : Any, S : Any, E : Any>(
 
     suspend fun error(error: E, status: HttpStatusCode) {
         assert(status.value !in 200..299)
-        if (shouldLogResponse) {
-            call.attributes.put(KafkaHttpRouteLogger.responsePayloadToLogKey, error)
-        }
+        finalize(error)
 
         if (error == Unit) call.respond(status)
         else call.respond(status, error)
     }
+
+    private fun finalize(response: Any) {
+        if (shouldLogResponse) {
+            call.attributes.put(KafkaHttpRouteLogger.responsePayloadToLogKey, response)
+        }
+
+        val auditRequest = if (auditRequest == null) {
+            if (restCall.requestType.type == restCall.normalizedRequestTypeForAudit.type) {
+                // Safe to just default to the request
+                @Suppress("UNCHECKED_CAST")
+                payload as A
+            } else {
+                throw IllegalStateException("Audit request type != request type. You must call audit().")
+            }
+        } else {
+            auditRequest!!
+        }
+
+        call.attributes.put(KafkaHttpRouteLogger.requestPayloadToLogKey, auditRequest)
+    }
 }
 
-suspend fun RESTHandler<*, Unit, *>.ok(status: HttpStatusCode) {
+suspend fun RESTHandler<*, Unit, *, *>.ok(status: HttpStatusCode) {
     ok(Unit, status)
 }
 
-suspend fun RESTHandler<*, *, Unit>.error(status: HttpStatusCode) {
+suspend fun RESTHandler<*, *, Unit, *>.error(status: HttpStatusCode) {
     error(Unit, status)
 }
 
