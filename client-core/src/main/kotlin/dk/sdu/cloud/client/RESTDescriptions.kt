@@ -6,48 +6,27 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.http.HttpMethod
 import org.slf4j.LoggerFactory
 
-sealed class ProxyDescription {
-    abstract val template: String
-    abstract val method: HttpMethod
-
-    data class Manual(
-        override val template: String,
-        override val method: HttpMethod
-    ) : ProxyDescription()
-
-    data class FromDescription(
-        val description: RESTCallDescription<*, *, *>
-    ) : ProxyDescription() {
-        override val method: HttpMethod
-            get() = description.method
-
-        override val template: String
-            get() = description.path.toKtorTemplate(fullyQualified = true)
-    }
-}
-
-
 abstract class RESTDescriptions(val namespace: String) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val _descriptions: MutableList<ProxyDescription> = ArrayList()
-    val descriptions: List<ProxyDescription> get() = _descriptions.toList()
+    private val _descriptions: MutableList<RESTCallDescription<*, *, *>> = ArrayList()
+    val descriptions: List<RESTCallDescription<*, *, *>> get() = _descriptions.toList()
 
     /**
      * Creates a [RESTCallDescription] and registers it in the container.
      *
      * To do this manually create a description and call [register] with the template.
      */
-    protected inline fun <reified R : Any, reified S : Any, reified E : Any> callDescription(
+    protected inline fun <reified Request : Any, reified Success : Any, reified E : Any> callDescription(
         mapper: ObjectMapper = defaultMapper,
-        noinline additionalRequestConfiguration: (HttpRequestBuilder.(R) -> Unit)? = null,
-        body: RESTCallDescriptionBuilder<R, S, E>.() -> Unit
-    ): RESTCallDescription<R, S, E> {
+        noinline additionalRequestConfiguration: (HttpRequestBuilder.(Request) -> Unit)? = null,
+        body: RESTCallDescriptionBuilder<Request, Success, E>.() -> Unit
+    ): RESTCallDescription<Request, Success, E> {
         val builder = RESTCallDescriptionBuilder(
-            requestType = jacksonTypeRef<R>(),
-            responseTypeSuccess = jacksonTypeRef<S>(),
+            requestType = jacksonTypeRef<Request>(),
+            responseTypeSuccess = jacksonTypeRef<Success>(),
             responseTypeFailure = jacksonTypeRef<E>(),
-            deserializerSuccess = mapper.readerFor(jacksonTypeRef<S>()),
+            deserializerSuccess = mapper.readerFor(jacksonTypeRef<Success>()),
             deserializerError = mapper.readerFor(jacksonTypeRef<E>())
         )
         builder.body()
@@ -57,14 +36,14 @@ abstract class RESTDescriptions(val namespace: String) {
     /**
      * Registers a ktor style template in this container.
      */
+    @Deprecated(message = "Deprecated. Use register with a description instead.")
     protected fun register(template: String, method: HttpMethod) {
-        log.info("Registering new ktor template: $template")
-        _descriptions.add(ProxyDescription.Manual(template, method))
+        // Do nothing. Not backwards compatible
     }
 
     protected fun register(description: RESTCallDescription<*, *, *>) {
         log.info("Registering new ktor template: ${description.path.toKtorTemplate(true)}")
-        _descriptions.add(ProxyDescription.FromDescription(description))
+        _descriptions.add(description)
     }
 }
 
