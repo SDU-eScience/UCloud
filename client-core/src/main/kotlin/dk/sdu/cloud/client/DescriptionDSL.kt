@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.http.HttpMethod
-import org.asynchttpclient.BoundRequestBuilder
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
@@ -13,38 +12,38 @@ import kotlin.reflect.KProperty1
 annotation class RESTCallDSL
 
 @RESTCallDSL
-class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
-    private val requestType: KClass<R>,
-    private val responseTypeSuccess: KClass<S>,
-    private val responseTypeFailure: KClass<E>,
+class RESTCallDescriptionBuilder<Request : Any, Success : Any, Error : Any>(
+    private val requestType: TypeReference<Request>,
+    private val responseTypeSuccess: TypeReference<Success>,
+    private val responseTypeFailure: TypeReference<Error>,
     private val deserializerSuccess: ObjectReader,
     private val deserializerError: ObjectReader
 ) {
     var method: HttpMethod = HttpMethod.Get
     var prettyName: String? = null
-    internal var path: RESTPath<R>? = null
-    internal var body: RESTBody<R, *>? = null
-    internal var params: RESTParams<R>? = null
+    internal var path: RESTPath<Request>? = null
+    internal var body: RESTBody<Request, *>? = null
+    internal var params: RESTParams<Request>? = null
 
-    fun path(body: RESTCallPathBuilder<R>.() -> Unit) {
+    fun path(body: RESTCallPathBuilder<Request>.() -> Unit) {
         if (path != null) throw RESTDSLException("Cannot supply two path blocks!")
         path = RESTCallPathBuilder(this).also { it.body() }.build()
     }
 
-    fun body(builderBody: RESTCallBodyBuilder<R>.() -> Unit) {
+    fun body(builderBody: RESTCallBodyBuilder<Request>.() -> Unit) {
         if (body != null) throw RESTDSLException("Cannot supply two body blocks!")
         body = RESTCallBodyBuilder(this).also(builderBody).body ?: throw RESTDSLException("Missing entries in body{}")
     }
 
-    fun params(builderBody: RESTCallQueryParamsBuilder<R>.() -> Unit) {
+    fun params(builderBody: RESTCallQueryParamsBuilder<Request>.() -> Unit) {
         if (params != null) throw RESTDSLException("Cannot supply two param blocks!")
-        params = RESTCallQueryParamsBuilder<R>().also(builderBody).build()
+        params = RESTCallQueryParamsBuilder<Request>().also(builderBody).build()
     }
 
     fun build(
         namespace: String,
-        additionalConfiguration: (HttpRequestBuilder.(R) -> Unit)?
-    ): RESTCallDescription<R, S, E> {
+        additionalConfiguration: (HttpRequestBuilder.(Request) -> Unit)?
+    ): RESTCallDescription<Request, Success, Error> {
         val path = path ?: throw RESTDSLException("Missing path { ... }!")
         val fullName = prettyName?.let { pretty -> "$namespace.$pretty" }
 
@@ -63,7 +62,6 @@ class RESTCallDescriptionBuilder<R : Any, S : Any, E : Any>(
             additionalConfiguration
         )
     }
-
 }
 
 @RESTCallDSL
@@ -119,7 +117,7 @@ class RESTCallPathBuilder<R : Any>(private val parent: RESTCallDescriptionBuilde
                             bindToSubProperty(MyRequest::bodyBound)
                         }
                     }
-                """.trimIndent()
+                    """.trimIndent()
                 )
             }
 
@@ -138,7 +136,7 @@ class RESTCallPathBuilder<R : Any>(private val parent: RESTCallDescriptionBuilde
                         // ...
                         +boundTo(MyRequest::${segment.property.name}) // <-- Second call not OK
                     }
-                """.trimIndent()
+                    """.trimIndent()
                 )
             }
         }
@@ -201,7 +199,7 @@ class RESTCallBodyBuilder<R : Any>(private val parent: RESTCallDescriptionBuilde
                         bindToSubProperty(MyRequest::bodyBound)
                     }
                 }
-            """.trimIndent()
+                """.trimIndent()
             )
         }
 

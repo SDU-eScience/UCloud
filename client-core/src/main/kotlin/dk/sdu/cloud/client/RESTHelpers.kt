@@ -1,9 +1,7 @@
 package dk.sdu.cloud.client
 
 import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.ObjectReader
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.response.HttpResponse
 import io.ktor.content.TextContent
@@ -13,22 +11,21 @@ import io.ktor.http.contentType
 import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import org.slf4j.LoggerFactory
 import java.net.URLEncoder
-import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 
-data class RESTCallDescription<R : Any, S : Any, E : Any>(
+data class RESTCallDescription<Request : Any, Success : Any, Error : Any>(
     val method: HttpMethod,
-    val path: RESTPath<R>,
-    val body: RESTBody<R, *>?,
-    val params: RESTParams<R>?,
-    val requestType: KClass<R>,
-    val responseTypeSuccess: KClass<S>,
-    val responseTypeFailure: KClass<E>,
+    val path: RESTPath<Request>,
+    val body: RESTBody<Request, *>?,
+    val params: RESTParams<Request>?,
+    val requestType: TypeReference<Request>,
+    val responseTypeSuccess: TypeReference<Success>,
+    val responseTypeFailure: TypeReference<Error>,
     val deserializerSuccess: ObjectReader,
     val deserializerError: ObjectReader,
     val namespace: String,
     var fullName: String?,
-    val requestConfiguration: (HttpRequestBuilder.(R) -> Unit)? = null
+    val requestConfiguration: (HttpRequestBuilder.(Request) -> Unit)? = null
 ) {
     init {
         if (fullName == null) {
@@ -36,29 +33,27 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
         }
     }
 
-    fun prepare(payload: R): PreparedRESTCall<S, E> {
+    fun prepare(payload: Request): PreparedRESTCall<Success, Error> {
         val primaryPath = path.segments.mapNotNull {
             when (it) {
                 is RESTPathSegment.Simple -> it.text
                 is RESTPathSegment.Remaining -> ""
-                is RESTPathSegment.Property<R, *> -> {
+                is RESTPathSegment.Property<Request, *> -> {
                     val value = it.property.get(payload)
                     value?.toString()
                 }
             }
         }.joinToString("/")
 
-        val queryPathMap = params?.let {
-            it.parameters.mapNotNull {
-                when (it) {
-                    is RESTQueryParameter.Property<R, *> -> {
-                        it.property.get(payload)?.let { value ->
-                            Pair(it.property.name, value.toString())
-                        }
+        val queryPathMap = params?.parameters?.mapNotNull {
+            when (it) {
+                is RESTQueryParameter.Property<Request, *> -> {
+                    it.property.get(payload)?.let { value ->
+                        Pair(it.property.name, value.toString())
                     }
                 }
-            }.toMap()
-        } ?: emptyMap()
+            }
+        }?.toMap() ?: emptyMap()
 
         fun String.urlEncode() = URLEncoder.encode(this, "UTF-8")
 
@@ -69,11 +64,11 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
             ?.let { "?$it" } ?: ""
 
         val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
-        return object : PreparedRESTCall<S, E>(resolvedPath, namespace) {
-            override fun deserializeSuccess(response: HttpResponse): S {
+        return object : PreparedRESTCall<Success, Error>(resolvedPath, namespace) {
+            override fun deserializeSuccess(response: HttpResponse): Success {
                 return if (responseTypeSuccess == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
-                    Unit as S
+                    Unit as Success
                 } else {
                     // TODO Don't use blocking API
                     // TODO Don't use blocking API
@@ -82,10 +77,10 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
                 }
             }
 
-            override fun deserializeError(response: HttpResponse): E? {
+            override fun deserializeError(response: HttpResponse): Error? {
                 return if (responseTypeFailure == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
-                    Unit as E
+                    Unit as Error
                 } else {
                     // TODO Don't use blocking API
                     // TODO Don't use blocking API
@@ -123,9 +118,9 @@ data class RESTCallDescription<R : Any, S : Any, E : Any>(
     }
 
     suspend fun call(
-        payload: R,
+        payload: Request,
         cloud: AuthenticatedCloud
-    ): RESTResponse<S, E> {
+    ): RESTResponse<Success, Error> {
         return prepare(payload).call(cloud)
     }
 
@@ -139,30 +134,33 @@ fun <S : Any, E : Any> RESTCallDescription<Unit, S, E>.prepare(): PreparedRESTCa
 suspend fun <S : Any, E : Any> RESTCallDescription<Unit, S, E>.call(cloud: AuthenticatedCloud): RESTResponse<S, E> =
     call(Unit, cloud)
 
-sealed class RESTBody<R : Any, T : Any> {
-    abstract val ref: TypeReference<T>
+sealed class RESTBody<Request : Any, Property : Any> {
+    abstract val ref: TypeReference<Property>
 
-    data class BoundToSubProperty<R : Any, T : Any>(
-        val property: KProperty1<R, *>,
-        override val ref: TypeReference<T>
-    ) : RESTBody<R, T>()
+    data class BoundToSubProperty<Request : Any, Property : Any>(
+        val property: KProperty1<Request, *>,
+        override val ref: TypeReference<Property>
+    ) : RESTBody<Request, Property>()
 
-    data class BoundToEntireRequest<R : Any>(
-        override val ref: TypeReference<R>
-    ) : RESTBody<R, R>()
+    data class BoundToEntireRequest<Request : Any>(
+        override val ref: TypeReference<Request>
+    ) : RESTBody<Request, Request>()
 }
 
 data class RESTPath<R : Any>(val basePath: String, val segments: List<RESTPathSegment<R>>)
 
-sealed class RESTPathSegment<R : Any> {
-    data class Simple<R : Any>(val text: String) : RESTPathSegment<R>()
-    data class Property<R : Any, P>(val property: KProperty1<R, P>) : RESTPathSegment<R>()
-    class Remaining<R : Any> : RESTPathSegment<R>()
+sealed class RESTPathSegment<Request : Any> {
+    data class Simple<Request : Any>(val text: String) : RESTPathSegment<Request>()
+    data class Property<Request : Any, Property>(val property: KProperty1<Request, Property>) :
+        RESTPathSegment<Request>()
+
+    class Remaining<Request : Any> : RESTPathSegment<Request>()
 }
 
-data class RESTParams<R : Any>(val parameters: List<RESTQueryParameter<R>>)
+data class RESTParams<Request : Any>(val parameters: List<RESTQueryParameter<Request>>)
 
-sealed class RESTQueryParameter<R : Any> {
-    data class Property<R : Any, P>(val property: KProperty1<R, P>) : RESTQueryParameter<R>()
+sealed class RESTQueryParameter<Request : Any> {
+    data class Property<Request : Any, Property>(val property: KProperty1<Request, Property>) :
+        RESTQueryParameter<Request>()
 }
 

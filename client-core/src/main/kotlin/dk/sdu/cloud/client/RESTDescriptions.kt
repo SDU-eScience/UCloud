@@ -44,9 +44,9 @@ abstract class RESTDescriptions(val namespace: String) {
         body: RESTCallDescriptionBuilder<R, S, E>.() -> Unit
     ): RESTCallDescription<R, S, E> {
         val builder = RESTCallDescriptionBuilder(
-            requestType = R::class,
-            responseTypeSuccess = S::class,
-            responseTypeFailure = E::class,
+            requestType = jacksonTypeRef<R>(),
+            responseTypeSuccess = jacksonTypeRef<S>(),
+            responseTypeFailure = jacksonTypeRef<E>(),
             deserializerSuccess = mapper.readerFor(jacksonTypeRef<S>()),
             deserializerError = mapper.readerFor(jacksonTypeRef<E>())
         )
