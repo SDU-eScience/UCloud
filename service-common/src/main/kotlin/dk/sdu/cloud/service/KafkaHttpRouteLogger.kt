@@ -2,6 +2,9 @@ package dk.sdu.cloud.service
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.client.RESTCallDescription
+import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.service.JsonSerde.jsonSerdeFromJavaType
 import io.ktor.application.*
 import io.ktor.features.origin
 import io.ktor.http.ContentType
@@ -88,7 +91,8 @@ class KafkaHttpRouteLogger {
         }
     }
 
-    private suspend fun interceptBefore(context: PipelineContext<Unit, ApplicationCall>) = with(context) { loadFromParentFeature()
+    private suspend fun interceptBefore(context: PipelineContext<Unit, ApplicationCall>) = with(context) {
+        loadFromParentFeature()
         val jobId = call.request.safeJobId
         if (jobId != null) {
             call.attributes.put(requestStartTime, System.currentTimeMillis())
@@ -211,3 +215,21 @@ class KafkaHttpLogger {
         }
     }
 }
+
+data class AuditEvent<A>(
+    val http: HttpRequestHandledEntry,
+    val request: A
+)
+
+val <A : Any> RESTCallDescription<*, *, *, A>.auditStream: MappedStreamDescription<String, AuditEvent<A>>
+    get() = MappedStreamDescription(
+        name = "audit.$fullName",
+        keySerde = defaultSerdeOrJson(),
+        valueSerde = jsonSerdeFromJavaType(
+            defaultMapper.typeFactory.constructParametricType(
+                AuditEvent::class.java,
+                defaultMapper.typeFactory.constructType(normalizedRequestTypeForAudit)
+            )
+        ),
+        mapper = { it.http.jobId }
+    )
