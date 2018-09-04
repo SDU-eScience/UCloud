@@ -1,0 +1,30 @@
+def initialize() {
+
+  stage('build') {
+    sh '''cd metadata-service
+    ./gradlew clean
+    ./gradlew build -x test'''
+  }
+
+  try {
+    stage('test') {
+      sh '''cd metadata-service
+      ./gradlew test'''
+    } 
+  } catch (e) {
+      echo "Test FAILED"
+  } finally {
+      junit '**/metadata-service/build/test-results/**/*.xml'      
+      def currentResult = currentBuild.result ?: 'SUCCESS'
+      if (currentResult == 'UNSTABLE') {
+        echo "Build is unstable"
+      }
+      if (currentResult == 'SUCCESS') {
+        jacoco  execPattern: '**/**.exec',
+                exclusionPattern: '**/metadata-service/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class', 
+                sourcePattern: '**/metadata-service/src/main/kotlin/**'   
+      }
+  }
+}
+
+return this

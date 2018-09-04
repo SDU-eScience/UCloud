@@ -1,0 +1,11 @@
+def initialize() {
+
+  stage('build') {
+    sh '''cd service-common
+    ./gradlew clean
+    ./gradlew build -x test'''
+  }
+
+}
+
+return this

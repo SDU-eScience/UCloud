@@ -1,0 +1,31 @@
+def initialize() {
+
+  stage('build') {
+    sh '''cd client-core
+    ./gradlew clean
+    ./gradlew build -x test'''
+  }
+
+  try {
+    stage('test') {
+      sh '''cd client-core
+      ./gradlew test'''
+    } 
+  } catch (e) {
+      echo "Test FAILED"
+  } finally {
+      junit '**/client-core/build/test-results/**/*.xml'      
+      def currentResult = currentBuild.result ?: 'SUCCESS'
+      if (currentResult == 'UNSTABLE') {
+        echo "Build is unstable"
+      }
+      if (currentResult == 'SUCCESS') {
+        jacoco  execPattern: '**/**.exec',
+                exclusionPattern: '**/client-core/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class', 
+                sourcePattern: '**/client-core/src/main/kotlin/**'   
+      }
+  }
+  
+}
+
+return this

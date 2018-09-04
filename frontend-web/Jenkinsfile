@@ -1,0 +1,6 @@
+def initialize() {
+
+  echo "different setup needed"
+}
+
+return this
