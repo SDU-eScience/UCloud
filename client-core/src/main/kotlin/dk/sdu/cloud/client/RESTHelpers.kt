@@ -70,7 +70,7 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any>(
         val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
         return object : PreparedRESTCall<Success, Error>(resolvedPath, namespace) {
             override fun deserializeSuccess(response: HttpResponse): Success {
-                return if (responseTypeSuccess.type == Unit::class) {
+                return if (responseTypeSuccess.type == Unit::class.java) {
                     @Suppress("UNCHECKED_CAST")
                     Unit as Success
                 } else {
@@ -82,7 +82,7 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any>(
             }
 
             override fun deserializeError(response: HttpResponse): Error? {
-                return if (responseTypeFailure.type == Unit::class) {
+                return if (responseTypeFailure.type == Unit::class.java) {
                     @Suppress("UNCHECKED_CAST")
                     Unit as Error
                 } else {
