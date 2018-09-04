@@ -18,13 +18,17 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any>(
     val path: RESTPath<Request>,
     val body: RESTBody<Request, *>?,
     val params: RESTParams<Request>?,
+
     val requestType: TypeReference<Request>,
     val responseTypeSuccess: TypeReference<Success>,
     val responseTypeFailure: TypeReference<Error>,
+
     val deserializerSuccess: ObjectReader,
     val deserializerError: ObjectReader,
+
     val namespace: String,
     var fullName: String?,
+
     val requestConfiguration: (HttpRequestBuilder.(Request) -> Unit)? = null
 ) {
     init {
@@ -66,7 +70,7 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any>(
         val resolvedPath = path.basePath.removeSuffix("/") + "/" + primaryPath + queryPath
         return object : PreparedRESTCall<Success, Error>(resolvedPath, namespace) {
             override fun deserializeSuccess(response: HttpResponse): Success {
-                return if (responseTypeSuccess == Unit::class) {
+                return if (responseTypeSuccess.type == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
                     Unit as Success
                 } else {
@@ -78,7 +82,7 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any>(
             }
 
             override fun deserializeError(response: HttpResponse): Error? {
-                return if (responseTypeFailure == Unit::class) {
+                return if (responseTypeFailure.type == Unit::class) {
                     @Suppress("UNCHECKED_CAST")
                     Unit as Error
                 } else {
