@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { toLowerCaseAndCapitalize } from "UtilityFunctions";
-import { favoriteFileFromPage, fileSizeToString } from "Utilities/FileUtilities";
+import { toLowerCaseAndCapitalize, removeTrailingSlash } from "UtilityFunctions";
+import { favoriteFileFromPage, fileSizeToString, getParentPath } from "Utilities/FileUtilities";
 import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "./Redux/FilesActions";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel } from "DefaultObjects";
@@ -13,38 +13,43 @@ import { List as ShareList } from "Shares/List";
 import { File, Annotation, SortOrder, SortBy, FileInfoProps } from "Files";
 import { annotationToString } from "Utilities/FileUtilities";
 
-const FileInfo = ({ dispatch, page, loading, match, filesPath }: FileInfoProps) => {
-    dispatch(updatePageTitle("File Info"));
-    let file;
-    const path = match.params[0];
-    if (path === filesPath) {
-        const filePath = path.endsWith("/") ? path.slice(0, path.length - 1) : path;
-        file = page.items.find(file => file.path === filePath);
-    } else { // FIXME MapDispatchToProps
-        dispatch(setLoading(true));
-        if (loading) return null;
-        dispatch(fetchPageFromPath(path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH));
-        dispatch(updatePath(path));
+class FileInfo extends React.Component<FileInfoProps> {
+
+    componentDidMount() {
+        const { match, filesPath, dispatch, loading, page } = this.props;
+        dispatch(updatePageTitle("File Info"));
+        const path = match.params[0];
+        console.log(getParentPath(path), filesPath);
+        if (!(getParentPath(path) === filesPath)) {
+            dispatch(setLoading(true));
+            if (loading) return;
+            dispatch(fetchPageFromPath(path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH));
+            dispatch(updatePath(path));
+        }
     }
 
-    if (!file) { return (<DefaultLoading loading={true} />) }
-    return (
-        <Container className="container-margin">
-            <Header as="h2" icon textAlign="center">
-                <Header.Content>
-                    {file.path}
-                </Header.Content>
-                <Header.Subheader>
-                    {toLowerCaseAndCapitalize(file.type)}
-                </Header.Subheader>
-            </Header>                               {/* MapDispatchToProps */}
-            <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, file.path, Cloud)))} />
-            {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
-            <ShareList keepTitle={false} byPath={file.path} />
-            <DefaultLoading loading={loading} />
-        </Container>
-    );
-};
+    render() {
+        const { match, page, dispatch, loading } = this.props;
+        const file = page.items.find(file => file.path === removeTrailingSlash(match.params[0]));
+        if (!file) { return (<DefaultLoading loading={true} />) }
+        return (
+            <Container className="container-margin" >
+                <Header as="h2" icon textAlign="center">
+                    <Header.Content>
+                        {file.path}
+                    </Header.Content>
+                    <Header.Subheader>
+                        {toLowerCaseAndCapitalize(file.type)}
+                    </Header.Subheader>
+                </Header>                               {/* MapDispatchToProps */}
+                <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, [file], Cloud)))} />
+                {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
+                <ShareList byPath={file.path} />
+                <DefaultLoading loading={loading} />
+            </Container >
+        );
+    };
+}
 
 const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
     !file ? null : (
@@ -63,7 +68,7 @@ const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
                                 {dateToString(file.modifiedAt)}
                             </List.Content>
                             Modified at:
-                            </List.Item>
+                        </List.Item>
                         <List.Item className="itemPadding">
                             <List.Content floated="right">
                                 <Icon
@@ -73,7 +78,7 @@ const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
                                 />
                             </List.Content>
                             Favorite file:
-                            </List.Item>
+                        </List.Item>
                     </List>
                 </Card.Content>
             </Card>

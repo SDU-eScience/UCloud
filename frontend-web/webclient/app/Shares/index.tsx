@@ -11,7 +11,7 @@ export interface ListState {
 }
 
 export interface ListProps {
-    keepTitle: boolean
+    keepTitle?: boolean
     byPath?: string
 }
 
