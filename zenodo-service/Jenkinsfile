@@ -1,13 +1,13 @@
 def initialize() {
 
-  stage('build') {
+  stage('build zenodo-service') {
     sh '''cd zenodo-service
     ./gradlew clean
     ./gradlew build -x test'''
   }
 
   try {
-    stage('test') {
+    stage('test zenodo-service') {
       sh '''cd zenodo-service
       ./gradlew test'''
     } 

@@ -1,13 +1,13 @@
 def initialize() {
 
-  stage('build') {
+  stage('build indexing-service') {
     sh '''cd indexing-service
     ./gradlew clean
     ./gradlew build -x test'''
   }
 
   try {
-    stage('test') {
+    stage('test indexing-service') {
       sh '''cd indexing-service
       ./gradlew test'''
     } 

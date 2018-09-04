@@ -1,13 +1,13 @@
 def initialize() {
 
-  stage('build') {
+  stage('build client-core') {
     sh '''cd client-core
     ./gradlew clean
     ./gradlew build -x test'''
   }
 
   try {
-    stage('test') {
+    stage('test client-core') {
       sh '''cd client-core
       ./gradlew test'''
     } 

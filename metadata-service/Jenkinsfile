@@ -1,13 +1,13 @@
 def initialize() {
 
-  stage('build') {
+  stage('build metadata-service') {
     sh '''cd metadata-service
     ./gradlew clean
     ./gradlew build -x test'''
   }
 
   try {
-    stage('test') {
+    stage('test metadata-service') {
       sh '''cd metadata-service
       ./gradlew test'''
     } 

@@ -1,6 +1,6 @@
 def initialize() {
 
-  stage('build') {
+  stage('build app-service') {
     sh '''cd app-service
     ./gradlew clean
     ./gradlew build -x test'''
