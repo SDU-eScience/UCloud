@@ -1,0 +1,80 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`File Selector Modal Minimal FileSelector 1`] = `
+<div
+  className="ui action input readonly mobile-padding"
+>
+  <input
+    onChange={[Function]}
+    onClick={[Function]}
+    placeholder="No file selected"
+    type="text"
+    value="/home/Folder/Fawlder"
+  />
+</div>
+`;
+
+exports[`File Selector Modal Minimal FileSelector, allow upload 1`] = `
+<div
+  className="ui action input readonly mobile-padding"
+>
+  <input
+    onChange={[Function]}
+    onClick={[Function]}
+    placeholder="No file selected"
+    type="text"
+    value="/home/Folder/Fawlder"
+  />
+  <button
+    className="ui button"
+    onClick={[Function]}
+    role="button"
+    type="button"
+  >
+    Upload File
+  </button>
+</div>
+`;
+
+exports[`File Selector Modal Minimal FileSelector, can select folders 1`] = `
+<div
+  className="ui action input readonly mobile-padding"
+>
+  <input
+    onChange={[Function]}
+    onClick={[Function]}
+    placeholder="No file selected"
+    type="text"
+    value="/home/Folder/Fawlder"
+  />
+</div>
+`;
+
+exports[`File Selector Modal Minimal FileSelector, is required 1`] = `
+<div
+  className="ui action input readonly mobile-padding"
+>
+  <input
+    onChange={[Function]}
+    onClick={[Function]}
+    placeholder="No file selected"
+    required={true}
+    type="text"
+    value="/home/Folder/Fawlder"
+  />
+</div>
+`;
+
+exports[`File Selector Modal Minimal FileSelector, only allow folders 1`] = `
+<div
+  className="ui action input readonly mobile-padding"
+>
+  <input
+    onChange={[Function]}
+    onClick={[Function]}
+    placeholder="No file selected"
+    type="text"
+    value="/home/Folder/Fawlder"
+  />
+</div>
+`;

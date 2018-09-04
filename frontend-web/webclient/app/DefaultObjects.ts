@@ -29,6 +29,8 @@ export enum KeyCode {
     B = 66
 };
 
+export const KCValues = [38, 76, 116, 156, 193, 232, 269, 308, 374, 439];
+
 export const emptyPage: Page<any> = { items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0 };
 
 export enum AnalysesStatusMap {
@@ -129,6 +131,7 @@ interface StatusReduxObject {
 interface SidebarReduxObject {
     loading: boolean
     open: boolean
+    pp: boolean
     options: SidebarOption[]
 }
 
@@ -226,6 +229,7 @@ const initZenodo = () => ({
 const initSidebar = () => ({
     open: false,
     loading: false,
+    pp: false,
     options: [] as SidebarOption[]
 });
 

@@ -104,7 +104,7 @@ export interface FileSelectorProps {
     onFileSelect: Function
     uppy?: any
     path: string
-    isRequired: boolean
+    isRequired?: boolean
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean
     remove?: Function

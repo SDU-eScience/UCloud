@@ -31,7 +31,7 @@ const Core = () => (
     <>
         <Header />
         <Uploader />
-        <Sidebar open={false} setSidebarState={(o) => null}>
+        <Sidebar>
             <Switch>
                 <Route path="/files/*" component={Files} />
                 <Route exact path="/dashboard" component={Dashboard} />

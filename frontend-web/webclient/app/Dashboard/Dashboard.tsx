@@ -9,7 +9,7 @@ import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, r
 import { connect } from "react-redux";
 import { Card, List, Icon, Message } from "semantic-ui-react";
 import * as moment from "moment";
-import { FileIcon } from "UtilityComponents";
+import { FileIcon, PP } from "UtilityComponents";
 import {
     DASHBOARD_FAVORITE_ERROR,
     DASHBOARD_RECENT_ANALYSES_ERROR,

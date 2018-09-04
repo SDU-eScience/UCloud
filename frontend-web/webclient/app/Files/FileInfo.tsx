@@ -19,7 +19,6 @@ class FileInfo extends React.Component<FileInfoProps> {
         const { match, filesPath, dispatch, loading, page } = this.props;
         dispatch(updatePageTitle("File Info"));
         const path = match.params[0];
-        console.log(getParentPath(path), filesPath);
         if (!(getParentPath(path) === filesPath)) {
             dispatch(setLoading(true));
             if (loading) return;
@@ -35,12 +34,8 @@ class FileInfo extends React.Component<FileInfoProps> {
         return (
             <Container className="container-margin" >
                 <Header as="h2" icon textAlign="center">
-                    <Header.Content>
-                        {file.path}
-                    </Header.Content>
-                    <Header.Subheader>
-                        {toLowerCaseAndCapitalize(file.type)}
-                    </Header.Subheader>
+                    <Header.Content content={file.path}/>
+                    <Header.Subheader content={toLowerCaseAndCapitalize(file.type)}/>
                 </Header>                               {/* MapDispatchToProps */}
                 <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, [file], Cloud)))} />
                 {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
