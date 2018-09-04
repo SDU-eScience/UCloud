@@ -14,16 +14,16 @@ def initialize() {
   } catch (e) {
       echo "Test FAILED"
   } finally {
-      junit '**/indexing-service/build/test-results/**/*.xml'      
-      def currentResult = currentBuild.result ?: 'SUCCESS'
-      if (currentResult == 'UNSTABLE') {
-        echo "Build is unstable"
-      }
-      if (currentResult == 'SUCCESS') {
-        jacoco  execPattern: '**/**.exec',
-                exclusionPattern: '**/indexing-service/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class', 
-                sourcePattern: '**/indexing-service/src/main/kotlin/**'   
-      }
+    junit '**/indexing-service/build/test-results/**/*.xml'      
+    def currentResult = currentBuild.result ?: 'SUCCESS'
+    if (currentResult == 'UNSTABLE') {
+      echo "Build is unstable"
+    }
+    if (currentResult == 'SUCCESS') {
+      jacoco  execPattern: '**/**.exec',
+              exclusionPattern: '**/indexing-service/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class', 
+              sourcePattern: '**/indexing-service/src/main/kotlin/**'   
+    }
   }
 }
 
