@@ -5,7 +5,6 @@ import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.metadata.utils.withAuthMock
 import dk.sdu.cloud.notification.http.NotificationController
-import dk.sdu.cloud.notification.services.InMemoryNotificationDAO
 import dk.sdu.cloud.notification.services.NotificationHibernateDAO
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
@@ -20,7 +19,6 @@ import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
-import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
 import java.util.*
@@ -217,7 +215,7 @@ class NotificationTest {
                                 setUser(role = Role.ADMIN)
                             }.response
 
-                        assertEquals(HttpStatusCode.BadRequest, response.status())
+                        assertEquals(HttpStatusCode.NotFound, response.status())
 
                     }
                 )
@@ -242,7 +240,7 @@ class NotificationTest {
                                 setUser(role = Role.ADMIN)
                             }.response
 
-                        assertEquals(HttpStatusCode.BadRequest, response.status())
+                        assertEquals(HttpStatusCode.NotFound, response.status())
 
                     }
                 )

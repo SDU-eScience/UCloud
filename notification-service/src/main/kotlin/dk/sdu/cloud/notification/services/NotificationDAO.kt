@@ -71,15 +71,15 @@ class NotificationEntity(
     var read: Boolean,
 
     @Temporal(TemporalType.TIMESTAMP)
-    var createdAt: Date,
+    override var createdAt: Date,
 
     @Temporal(TemporalType.TIMESTAMP)
-    var modifiedAt: Date,
+    override var modifiedAt: Date,
 
     @Id
     @GeneratedValue
     var id: Long = 0
-) {
+): WithTimestamps {
     companion object : HibernateEntity<NotificationEntity>, WithId<Long>
 }
 
@@ -134,73 +134,5 @@ class NotificationHibernateDAO : NotificationDAO<HibernateSession> {
         entity.read = true
         session.update(entity)
         return true
-    }
-}
-
-class InMemoryNotificationDAO : NotificationDAO<Any> {
-    private val inMemoryDb = HashMap<String, List<Notification>>()
-
-    override fun findNotifications(
-        session: Any,
-        user: String,
-        type: String?,
-        since: Long?,
-        paginationRequest: NormalizedPaginationRequest
-    ): Page<Notification> {
-        val notificationsForUser = inMemoryDb[user] ?: return Page(0, 10, 0, emptyList())
-        val allNotifications = notificationsForUser
-            .filter {
-                if (type == null) true
-                else type == it.type
-            }
-            .filter {
-                if (since == null) true
-                else it.ts >= since
-            }
-            .sortedByDescending { it.ts }
-
-        val startIndex = paginationRequest.itemsPerPage * paginationRequest.page
-        val page =
-            if (startIndex > allNotifications.size) emptyList()
-            else allNotifications.subList(
-                startIndex,
-                min(allNotifications.size, startIndex + paginationRequest.itemsPerPage)
-            )
-
-        return Page(allNotifications.size, paginationRequest.itemsPerPage, paginationRequest.page, page)
-    }
-
-    override fun create(session: Any, user: String, notification: Notification): NotificationId {
-        val id = UUID.randomUUID().mostSignificantBits
-        val list = inMemoryDb[user] ?: emptyList()
-        inMemoryDb[user] = list + listOf(notification.copy(id = id))
-        return id
-    }
-
-    override fun delete(session: Any, id: NotificationId): Boolean {
-        var found = false
-        for ((user, list) in inMemoryDb) {
-            val size = inMemoryDb[user]?.size ?: 0
-            inMemoryDb[user] = list.filter { it.id != id }
-            val newSize = inMemoryDb[user]?.size ?: 0
-            if (size != newSize) {
-                found = true
-                break
-            }
-        }
-        return found
-    }
-
-    override fun markAsRead(session: Any, user: String, id: NotificationId): Boolean {
-        var found = false
-        inMemoryDb[user] = (inMemoryDb[user] ?: emptyList()).map {
-            if (it.id == id) {
-                found = true
-                it.copy(read = true)
-            } else {
-                it
-            }
-        }
-        return found
     }
 }
