@@ -404,6 +404,7 @@ class CoreAuthController<DBSession>(
             // TODO This stuff won't work with cookie based auth
             implement(AuthDescriptions.logout) { _ ->
                 logEntry(log, Unit) { "refresh = ${call.request.bearer}" }
+                okContentDeliveredExternally()
 
                 val refreshToken = call.request.bearer ?: return@implement run {
                     call.respond(HttpStatusCode.Unauthorized)
@@ -431,6 +432,7 @@ class CoreAuthController<DBSession>(
                     return@implement
                 }
 
+                okContentDeliveredExternally()
                 tokenService.logout(refreshToken, csrfToken)
                 call.response.cookies.appendExpired(REFRESH_WEB_REFRESH_TOKEN_COOKIE, path = "/")
                 call.respond(HttpStatusCode.NoContent)

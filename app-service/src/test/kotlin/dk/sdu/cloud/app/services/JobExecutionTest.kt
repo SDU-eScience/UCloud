@@ -12,10 +12,10 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpStatusCode
@@ -1034,7 +1034,8 @@ class JobExecutionTest {
     fun testShippingResultsWithDirectoryFailure() {
         objectMockk(FileDescriptions).use {
             val directoryCall =
-                mockk<RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage>>()
+                mockk<RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage,
+                        CreateDirectoryRequest>>()
             every { FileDescriptions.createDirectory } returns directoryCall
 
             coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Err(mockk(relaxed = true))
@@ -1050,7 +1051,8 @@ class JobExecutionTest {
     fun testShippingResultsWithNoOutputFiles() {
         withMockScopes(objectMockk(FileDescriptions), sftpScope()) {
             val directoryCall =
-                mockk<RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage>>()
+                mockk<RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage,
+                        CreateDirectoryRequest>>()
             every { FileDescriptions.createDirectory } returns directoryCall
             coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Ok(
                 mockk(relaxed = true),
@@ -1277,9 +1279,10 @@ class JobExecutionTest {
 
     private fun mockCreateDirectoryCall(
         success: Boolean
-    ): RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
+    ): RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage, CreateDirectoryRequest> {
         val directoryCall =
-            mockk<RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage>>()
+            mockk<RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage,
+                    CreateDirectoryRequest>>()
         every { FileDescriptions.createDirectory } returns directoryCall
         if (success) {
             coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Ok(

@@ -83,7 +83,7 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
             }
 
             handle {
-                val payload: P = if (restCall.requestType == Unit::class) {
+                val payload: P = if (restCall.requestType.type == Unit::class.java) {
                     @Suppress("UNCHECKED_CAST")
                     Unit as P
                 } else {
