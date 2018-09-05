@@ -32,6 +32,7 @@ def commitHashForBuild( build ) {
 
 node{
   branch = local()
+  println("This is the current branch: " + branch)
   checkout(
     [$class: 'GitSCM', 
     branches: [
