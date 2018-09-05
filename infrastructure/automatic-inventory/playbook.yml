@@ -1,0 +1,45 @@
+---
+- hosts: all
+
+  tasks:
+  - name: find interface facts
+    debug:
+      msg: "{{ hostvars[inventory_hostname]['ansible_%s' | format(item)] }}"
+    register: interfaces_detailed
+    with_items: "{{ ansible_interfaces }}"
+
+  - name: yum_command 
+    yum:
+      list: installed
+    register: yum_packages
+
+  - name: Write JSON
+    local_action: copy content="{{ item | to_json }}" dest=output/inventory-{{ inventory_hostname }}.json
+    with_items:
+      - software: "{{ yum_packages.results }}"
+        default_ipv4: "{{ ansible_default_ipv4.address }}"
+        ipv4_addresses: "{{ ansible_all_ipv4_addresses }}"
+        architecture: "{{ ansible_architecture }}"
+        bios:
+          date: "{{ ansible_bios_date }}"
+          version: "{{ ansible_bios_version }}"
+        devices: "{{ ansible_devices }}"
+        distribution:
+          name: "{{ ansible_distribution }}"
+          release: "{{ ansible_distribution_release }}"
+          version: "{{ ansible_distribution_version }}"
+        fqdn: "{{ ansible_fqdn }}"
+        hostname: "{{ ansible_hostname }}"
+        network_interfaces: "{{ ansible_interfaces }}"
+        kernel: "{{ ansible_kernel }}"
+        memory_mb: "{{ ansible_memtotal_mb }}"
+        processors: "{{ ansible_processor }}"
+        processor_cores: "{{ ansible_processor_cores }}"
+        system: "{{ ansible_system }}"
+        vendor: "{{ ansible_system_vendor }}"
+        interfaces_detailed: "{{ interfaces_detailed.results }}"
+        virtualization:
+          role: "none"
+          type: "{{ ansible_virtualization_type }}"
+
+# role: "{{ ansible_virtualization_role }}"
