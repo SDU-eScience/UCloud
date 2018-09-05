@@ -32,7 +32,12 @@ def commitHashForBuild( build ) {
 
 node{
   branch = local()
+  if(branch.equals("")){
+    println("DEBUG: hit equals")
+    branch = "master"
+  }
   println("This is the current branch: " + branch)
+
   checkout(
     [$class: 'GitSCM', 
     branches: [

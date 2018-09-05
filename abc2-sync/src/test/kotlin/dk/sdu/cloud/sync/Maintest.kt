@@ -1,6 +1,5 @@
 package dk.sdu.cloud.sync
 
-import dk.sdu.cloud.client.HttpClient
 import io.mockk.*
 import kotlinx.coroutines.experimental.runBlocking
 import org.asynchttpclient.Response
@@ -11,11 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import java.io.ByteArrayInputStream
 import java.io.FileInputStream
-import java.io.InputStream
-import java.util.zip.GZIPInputStream
 import kotlin.test.assertNotEquals
-import java.util.zip.GZIPOutputStream
-import java.io.FileOutputStream
 
 
 

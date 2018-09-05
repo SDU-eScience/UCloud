@@ -61,6 +61,7 @@ dependencies {
     testCompile "junit:junit:4.12"
     testCompile "io.mockk:mockk:1.8"
     testCompile group: 'com.h2database', name: 'h2', version: '1.4.196'
+    testCompile "org.jetbrains.kotlin:kotlin-test:$kotlin_version"
 }
 
 compileKotlin {
