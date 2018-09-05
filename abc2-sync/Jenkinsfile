@@ -1,6 +1,6 @@
 def initialize() {
 
-  stage('build abc2-sync') {
+  stage('build ABC2-sync') {
     sh '''cd abc2-sync
     ./gradlew clean
     ./gradlew build -x test'''

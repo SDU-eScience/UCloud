@@ -61,7 +61,7 @@ node{
   def needToBuild = []
   
   def serviceList = [
-    //"abc2-sync",
+    "abc2-sync",
     "client-core",
     "frontend-web",
     "service-common"
