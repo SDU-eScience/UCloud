@@ -2,9 +2,7 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByIntId
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.ServiceDescription
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.client.*
 import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.features.ContentNegotiation
@@ -28,6 +26,7 @@ import org.junit.Test
 import java.util.*
 import java.util.concurrent.FutureTask
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 object MyServiceDescription : ServiceDescription {
     override val name: String = "service"
@@ -192,10 +191,10 @@ class ImplementFeatureTest {
                     records.find { it.topic() == httpStream.name } ?: throw AssertionError("http event missing")
                 val deserializedHttpEvent = deserialize(httpStream.valueSerde, httpEvent)
 
-                val auditStream = TestDescriptions.echoId.auditStream
+                val auditStream = TestDescriptions.auditStream
                 val auditEvent =
                     records.find { it.topic() == auditStream.name } ?: throw AssertionError("audit missing")
-                val deserializedAuditEvent = deserialize(auditStream.valueSerde, auditEvent)
+                val deserializedAuditEvent = deserializeAudit(auditEvent, TestDescriptions.echoId)
 
 
                 assertEquals(TestDescriptions.echoId.fullName, deserializedHttpEvent.requestName)
@@ -228,16 +227,84 @@ class ImplementFeatureTest {
                     records.find { it.topic() == httpStream.name } ?: throw AssertionError("http event missing")
                 val deserializedHttpEvent = deserialize(httpStream.valueSerde, httpEvent)
 
-                val auditStream = TestDescriptions.echoWithAudit.auditStream
+                val auditStream = TestDescriptions.auditStream
                 val auditEvent =
                     records.find { it.topic() == auditStream.name } ?: throw AssertionError("audit missing")
-                val deserializedAuditEvent = deserialize(auditStream.valueSerde, auditEvent)
+                val deserializedAuditEvent = deserializeAudit(auditEvent, TestDescriptions.echoWithAudit)
 
                 assertEquals(TestDescriptions.echoWithAudit.fullName, deserializedHttpEvent.requestName)
                 assertEquals("POST", deserializedAuditEvent.http.httpMethod.toUpperCase())
                 assertEquals(SomeAudit(AUDIT_STRING), deserializedAuditEvent.request)
             }
         )
+    }
+
+    @Test
+    fun `test audit deserialization of multiple messages`() {
+        // TODO Should probably move this to another file. But just one test (for now)
+        withTestApplication(
+            moduleFunction = simpleEchoServer,
+            test = {
+                records.clear()
+
+                val requestId = 1337
+
+                // Send two different messages
+                val response1 = handleRequest(HttpMethod.Post, "/echo") {
+                    addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                    addHeader("Job-Id", "1234")
+                    setBody(""" { "id": $requestId } """)
+                }.response
+                assertEquals(HttpStatusCode.OK, response1.status())
+
+                val response2 = handleRequest(HttpMethod.Post, "/echo/audit") {
+                    addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                    addHeader("Job-Id", "1234")
+                    setBody(""" { "id": $requestId } """)
+                }.response
+                assertEquals(HttpStatusCode.OK, response2.status())
+
+                // Still need to wait for the messages to appear
+                Thread.sleep(250)
+
+                // Retrieve all audit messages (from mocked producer)
+                val auditRecords = records.filter { it.topic() == TestDescriptions.auditStream.name }
+                assertEquals(2, auditRecords.size)
+
+
+                // We track that both records have been hit
+                var echoWithAuditRecorded = false
+                var echoWithoutAuditRecorded = false
+
+                // Run the parser, like an ordinary consumer would
+                for (record in auditRecords) {
+                    val tree = defaultMapper.readTree(record.value())
+
+                    TestDescriptions.echoWithAudit.parseAuditMessageOrNull(tree)?.let {
+                        assertEquals(TestDescriptions.echoWithAudit.fullName, it.http.requestName)
+                        assertEquals(AUDIT_STRING, it.request.audit)
+                        echoWithAuditRecorded = true
+                    }
+
+                    TestDescriptions.echoId.parseAuditMessageOrNull(tree)?.let {
+                        assertEquals(TestDescriptions.echoId.fullName, it.http.requestName)
+                        assertEquals(requestId, it.request.id)
+                        echoWithoutAuditRecorded = true
+                    }
+                }
+
+                assertTrue(echoWithAuditRecorded)
+                assertTrue(echoWithoutAuditRecorded)
+            }
+        )
+    }
+
+    private fun <A : Any> deserializeAudit(
+        record: ProducerRecord<String, String>,
+        description: RESTCallDescription<*, *, *, A>
+    ): AuditEvent<A> {
+        val tree = defaultMapper.readTree(record.value())
+        return description.parseAuditMessageOrNull(tree)!!
     }
 
     private fun <T> deserialize(serde: Serde<T>, record: ProducerRecord<String, String>): T {

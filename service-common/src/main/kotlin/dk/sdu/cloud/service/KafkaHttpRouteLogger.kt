@@ -1,6 +1,10 @@
 package dk.sdu.cloud.service
 
+import com.fasterxml.jackson.core.JsonPointer
+import com.fasterxml.jackson.databind.JavaType
+import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.client.RESTCallDescription
+import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.service.JsonSerde.jsonSerdeFromJavaType
 import io.ktor.application.*
@@ -14,7 +18,10 @@ import io.ktor.request.*
 import io.ktor.response.ApplicationSendPipeline
 import io.ktor.util.AttributeKey
 import kotlinx.coroutines.experimental.async
+import org.apache.kafka.common.serialization.Serde
+import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
+import java.util.*
 
 // Hide sensitive information (i.e. the signature) and keep just the crucial information
 // We can still infer which JWT was used (from sub, iat, and exp should limit the number of JWTs to one). From this
@@ -83,7 +90,7 @@ class KafkaHttpRouteLogger {
 
             @Suppress("UNCHECKED_CAST")
             auditProducer =
-                    kafka.producer.forStream(description.auditStream) as MappedEventProducer<String, AuditEvent<*>>
+                    kafka.producer.forStream(description.auditStreamProducersOnly) as MappedEventProducer<String, AuditEvent<*>>
         }
     }
 
@@ -233,15 +240,79 @@ data class AuditEvent<A>(
     val request: A
 )
 
-val <A : Any> RESTCallDescription<*, *, *, A>.auditStream: MappedStreamDescription<String, AuditEvent<A>>
+/**
+ * Audit stream with correct serdes for a single [RESTCallDescription]
+ *
+ *
+ * __Strictly__ for producers. The topic is shared with all other [RESTCallDescription]s in that namespace, as a result
+ * slightly more care must be taken when de-serializing the stream.
+ */
+private val <A : Any> RESTCallDescription<*, *, *, A>.auditStreamProducersOnly:
+        MappedStreamDescription<String, AuditEvent<A>>
     get() = MappedStreamDescription(
-        name = "audit.$fullName",
+        name = "audit.$namespace",
         keySerde = defaultSerdeOrJson(),
-        valueSerde = jsonSerdeFromJavaType(
-            defaultMapper.typeFactory.constructParametricType(
-                AuditEvent::class.java,
-                defaultMapper.typeFactory.constructType(normalizedRequestTypeForAudit)
-            )
-        ),
+        valueSerde = auditSerde,
         mapper = { it.http.jobId }
     )
+
+private val auditSerdeCache: MutableMap<String, Serde<AuditEvent<*>>> =
+    Collections.synchronizedMap(HashMap<String, Serde<AuditEvent<*>>>())
+
+private val auditJavaTypeCache: MutableMap<String, JavaType> = Collections.synchronizedMap(HashMap<String, JavaType>())
+
+@Suppress("UNCHECKED_CAST")
+private val <A : Any> RESTCallDescription<*, *, *, A>.auditSerde: Serde<AuditEvent<A>>
+    get() {
+        val fullName = fullName ?: throw IllegalStateException("missing fullName cannot audit")
+        val cached = auditSerdeCache[fullName]
+        if (cached != null) return cached as Serde<AuditEvent<A>>
+
+        val newSerde = jsonSerdeFromJavaType<AuditEvent<A>>(auditJavaType)
+        auditSerdeCache[fullName] = newSerde as Serde<AuditEvent<*>>
+        return newSerde
+    }
+
+private val <A : Any> RESTCallDescription<*, *, *, A>.auditJavaType: JavaType
+    get () {
+        val fullName = fullName ?: throw IllegalStateException("missing fullName cannot audit")
+        val cached = auditJavaTypeCache[fullName]
+        if (cached != null) return cached
+
+        val newJavaType = defaultMapper.typeFactory.constructParametricType(
+            AuditEvent::class.java,
+            defaultMapper.typeFactory.constructType(normalizedRequestTypeForAudit)
+        )
+
+        auditJavaTypeCache[fullName] = newJavaType
+        return newJavaType
+    }
+
+val RESTDescriptions.auditStream: StreamDescription<String, String>
+    get() = SimpleStreamDescription("audit.$namespace", Serdes.String(), Serdes.String())
+
+private val requestNamePointer = JsonPointer.compile(
+    JsonPointer.SEPARATOR +
+            AuditEvent<*>::http.name +
+            JsonPointer.SEPARATOR +
+            HttpCallLogEntry::requestName.name
+)
+
+fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(tree: JsonNode): AuditEvent<A>? {
+    val incomingRequestName =
+        tree.at(requestNamePointer)?.takeIf { !it.isMissingNode && it.isTextual }?.textValue() ?: run {
+            auditLog.warn("Could not find requestName field in message.")
+            auditLog.warn("Message was: $tree")
+            return null
+        }
+
+    if (incomingRequestName == fullName) {
+        val type = auditJavaType
+        val reader = defaultMapper.readerFor(type)
+        return reader.readValue<AuditEvent<A>>(tree)
+    }
+
+    return null
+}
+
+private val auditLog = LoggerFactory.getLogger("dk.sdu.cloud.service.Audit")
