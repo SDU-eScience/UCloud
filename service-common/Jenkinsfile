@@ -5,6 +5,27 @@ def initialize() {
     ./gradlew clean
     ./gradlew build -x test'''
   }
+
+  try {
+    stage('test service-common') {
+      sh '''cd service-common
+      ./gradlew test'''
+    } 
+  } catch (e) {
+      echo "Test FAILED"
+  } finally {
+    junit '**/service-common/build/test-results/**/*.xml'      
+    def currentResult = currentBuild.result ?: 'SUCCESS'
+    if (currentResult == 'UNSTABLE') {
+      echo "Build is unstable"
+    }
+    if (currentResult == 'SUCCESS') {
+      jacoco  execPattern: '**/**.exec',
+              exclusionPattern: '**/service-common/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class', 
+              sourcePattern: '**/service-common/src/main/kotlin/**'   
+    }
+  }
+
 }
 
 return this

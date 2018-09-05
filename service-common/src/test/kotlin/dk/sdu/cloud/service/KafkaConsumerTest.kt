@@ -4,6 +4,7 @@ import dk.sdu.cloud.client.ServiceDescription
 import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.launch
 import kotlinx.coroutines.experimental.runBlocking
+import org.junit.Ignore
 import org.junit.Test
 import java.nio.file.Files
 import kotlin.test.assertEquals
@@ -52,6 +53,7 @@ class KafkaConsumerTest {
         val testStream = stream<String, Advanced>("kafka-consumer-test-stream") { it.id.toString() }
     }
 
+    @Ignore
     @Test
     fun testSimpleConsumption() {
         /*
@@ -103,6 +105,7 @@ class KafkaConsumerTest {
         )
     }
 
+    @Ignore
     @Test
     fun testLongRunningBatch() {
         var caughtException: Throwable? = null
@@ -130,6 +133,7 @@ class KafkaConsumerTest {
         if (caughtException != null) throw caughtException!!
     }
 
+    @Ignore
     @Test
     fun testOverflow() {
         var caughtException: Throwable? = null
