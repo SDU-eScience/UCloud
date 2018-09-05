@@ -5,6 +5,7 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 data class KafkaConsumedEvent<V>(
     override val value: V,
@@ -59,12 +60,19 @@ class KafkaEventConsumer<K, V>(
 
     private val processingThread = Thread {
         while (isRunning) {
-            val next = queue.take() // Block for first available element
-            val nextBatch = ArrayList<KafkaConsumedEvent<Pair<K, V>>>(queue.remainingCapacity() + 1)
-            nextBatch.add(next)
-            queue.drainTo(nextBatch) // Drain immediately if there are several elements in queue
+            // Block for first available element
+            val next: KafkaConsumedEvent<Pair<K, V>>? = queue.poll(100, TimeUnit.MILLISECONDS)
+            if (next != null) {
+                val nextBatch = ArrayList<KafkaConsumedEvent<Pair<K, V>>>(queue.remainingCapacity() + 1)
+                nextBatch.add(next)
+                queue.drainTo(nextBatch) // Drain immediately if there are several elements in queue
 
-            rootProcessor.accept(nextBatch)
+                rootProcessor.accept(nextBatch)
+            } else {
+                // If no element was available before deadline we just notify the root processor that we found nothing.
+                // This can then trigger emission of events that might be collecting in a buffer (for batch processing)
+                rootProcessor.accept(emptyList())
+            }
         }
     }
 
@@ -72,16 +80,15 @@ class KafkaEventConsumer<K, V>(
         configure: (processor: EventStreamProcessor<*, Pair<K, V>>) -> Unit
     ): EventConsumer<Pair<K, V>> {
         if (isRunning) throw IllegalStateException("Already running")
-        val root = rootProcessor
-        configure(root)
+        configure(rootProcessor)
         isRunning = true
 
-        executor.submit { internalPoll(root) }
+        executor.submit { internalPoll() }
         processingThread.start()
         return this
     }
 
-    private fun internalPoll(root: EventStreamProcessor<Pair<K, V>, *>) {
+    private fun internalPoll() {
         try {
             val events = kafkaConsumer
                 .poll(pollTimeoutInMs)
@@ -158,7 +165,7 @@ class KafkaEventConsumer<K, V>(
             }
 
             executor.submit {
-                if (isRunning) internalPoll(root)
+                if (isRunning) internalPoll()
             }
         } catch (ex: Exception) {
             log.warn("Caught internal exception in KafkaConsumer")

@@ -13,6 +13,11 @@ import kotlin.test.assertTrue
 class KafkaConsumerTest {
     private val kafkaService = run {
         val micro = Micro().apply {
+            init(object : ServiceDescription {
+                override val name: String = "Foo"
+                override val version: String = "1.0.0"
+            }, emptyArray())
+
             install(ConfigurationFeature)
             install(KafkaFeature, KafkaFeatureConfiguration())
 
@@ -30,13 +35,6 @@ class KafkaConsumerTest {
             }
 
             feature(ConfigurationFeature).injectFile(configuration, configFile)
-
-            val description = object : ServiceDescription {
-                override val name: String = "kafka-consumer-test"
-                override val version: String = "1.0.0"
-            }
-
-            init(description, emptyArray())
         }
 
         micro.kafka
@@ -94,10 +92,13 @@ class KafkaConsumerTest {
         }
         runBlocking { producerJob.join() }
 
-        Thread.sleep(10000)
+        Thread.sleep(20000)
         consumers.forEach { it.close() }
 
-        println(consumedItems)
+        consumedItems.flatMap { it }.map { it.second.id }.toSortedSet().forEach {
+            println(it)
+        }
+
         assertEquals(
             1000,
             // We have at-least-once delivery. But we still want to make sure all of them are actually delivered
