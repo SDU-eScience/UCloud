@@ -1,7 +1,12 @@
 package dk.sdu.cloud.service
 
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.core.JsonPointer
+import com.fasterxml.jackson.databind.JavaType
+import com.fasterxml.jackson.databind.JsonNode
+import dk.sdu.cloud.client.RESTCallDescription
+import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.service.JsonSerde.jsonSerdeFromJavaType
 import io.ktor.application.*
 import io.ktor.features.origin
 import io.ktor.http.ContentType
@@ -13,30 +18,10 @@ import io.ktor.request.*
 import io.ktor.response.ApplicationSendPipeline
 import io.ktor.util.AttributeKey
 import kotlinx.coroutines.experimental.async
+import org.apache.kafka.common.serialization.Serde
+import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
-
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = "type"
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = HttpProxyCallLogEntry::class, name = "proxy"),
-    JsonSubTypes.Type(value = HttpRequestHandledEntry::class, name = "request")
-)
-sealed class HttpCallLogEntry {
-    abstract val jobId: String
-    abstract val handledBy: ServiceInstance
-}
-
-// Added by the gateway. If we see a proxy entry but no request entry we know that something went wrong between them
-data class HttpProxyCallLogEntry(
-    override val jobId: String,
-    override val handledBy: ServiceInstance,
-
-    val userAgent: String?,
-    val origin: String
-) : HttpCallLogEntry()
+import java.util.*
 
 // Hide sensitive information (i.e. the signature) and keep just the crucial information
 // We can still infer which JWT was used (from sub, iat, and exp should limit the number of JWTs to one). From this
@@ -50,9 +35,9 @@ data class LogEntryPrincipal(
 )
 
 // Added by the server
-data class HttpRequestHandledEntry(
-    override val jobId: String,
-    override val handledBy: ServiceInstance,
+data class HttpCallLogEntry(
+    val jobId: String,
+    val handledBy: ServiceInstance,
     val causedBy: String?,
 
     val requestName: String,
@@ -71,18 +56,14 @@ data class HttpRequestHandledEntry(
     val responseContentType: String,
     val responseSize: Long,
     val responseJson: Any?
-) : HttpCallLogEntry()
-
-// TODO(Dan): The amount of data we send through these are going to be rather large.
-// This will likely become a problem. However, as we have discussed this is likely to be very useful during early
-// phases development. Thus, for now, we will just emit the data and think about dealing with the large amount of data
-// later.
+)
 
 class KafkaHttpRouteLogger {
-    lateinit var requestName: String
+    lateinit var description: RESTCallDescription<*, *, *, Any>
     private lateinit var serviceDescription: ServiceInstance
     private lateinit var kafka: KafkaServices
-    private lateinit var producer: EventProducer<String, HttpCallLogEntry>
+    private lateinit var httpProducer: EventProducer<String, HttpCallLogEntry>
+    private lateinit var auditProducer: MappedEventProducer<String, AuditEvent<*>>
 
     private val ApplicationRequest.bearer: String?
         get() {
@@ -99,11 +80,22 @@ class KafkaHttpRouteLogger {
                     ?: throw IllegalStateException("Could not find the KafkaHttpLogger feature on the application")
             serviceDescription = feature.serverDescription
             kafka = feature.kafka
-            producer = kafka.producer.forStream(KafkaHttpLogger.httpLogsStream)
+            httpProducer = kafka.producer.forStream(KafkaHttpLogger.httpLogsStream)
+
+            if (!::description.isInitialized) {
+                throw IllegalStateException(
+                    "REST call description has not been initialized for KafkaHttpRouteLogger"
+                )
+            }
+
+            @Suppress("UNCHECKED_CAST")
+            auditProducer =
+                    kafka.producer.forStream(description.auditStreamProducersOnly) as MappedEventProducer<String, AuditEvent<*>>
         }
     }
 
-    private suspend fun interceptBefore(context: PipelineContext<Unit, ApplicationCall>) = with(context) { loadFromParentFeature()
+    private suspend fun interceptBefore(context: PipelineContext<Unit, ApplicationCall>) = with(context) {
+        loadFromParentFeature()
         val jobId = call.request.safeJobId
         if (jobId != null) {
             call.attributes.put(requestStartTime, System.currentTimeMillis())
@@ -121,7 +113,9 @@ class KafkaHttpRouteLogger {
         val requestContentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull() ?: 0
         val method = call.request.httpMethod.value
         val uri = call.request.uri
-        val requestPayload = call.attributes.getOrNull(requestPayloadToLogKey)
+        val requestPayload = call.attributes.getOrNull(requestPayloadToLogKey) ?: return@with run {
+            log.warn("No request payload")
+        }
         val causedBy = call.request.causedBy
         val remoteOrigin = call.request.origin.remoteHost
         val userAgent = call.request.userAgent()
@@ -166,21 +160,36 @@ class KafkaHttpRouteLogger {
                 null
             }
 
-            val entry = HttpRequestHandledEntry(
-                jobId, serviceDescription, causedBy, requestName, method, uri, userAgent, remoteOrigin, principal,
-                requestContentType, requestContentLength, requestPayload, statusCode, responseTime,
-                responseContentType, responseSize, responsePayload
+            val entry = HttpCallLogEntry(
+                jobId,
+                serviceDescription,
+                causedBy,
+                description.fullName!!,
+                method,
+                uri,
+                userAgent,
+                remoteOrigin,
+                principal,
+                requestContentType,
+                requestContentLength,
+                requestPayload,
+                statusCode,
+                responseTime,
+                responseContentType,
+                responseSize,
+                responsePayload
             )
 
-            producer.emit(jobId, entry)
+            httpProducer.emit(jobId, entry)
+            auditProducer.emit(AuditEvent(entry, requestPayload))
         }
     }
 
     companion object Feature : ApplicationFeature<ApplicationCallPipeline, KafkaHttpRouteLogger, KafkaHttpRouteLogger> {
         private val log = LoggerFactory.getLogger(KafkaHttpRouteLogger::class.java)
         private val requestStartTime = AttributeKey<Long>("request-start-time")
-        val requestPayloadToLogKey = AttributeKey<Any>("request-payload")
-        val responsePayloadToLogKey = AttributeKey<Any>("response-payload")
+        internal val requestPayloadToLogKey = AttributeKey<Any>("request-payload")
+        internal val responsePayloadToLogKey = AttributeKey<Any>("response-payload")
 
         override val key: AttributeKey<KafkaHttpRouteLogger> = AttributeKey("kafka-http-route-log")
 
@@ -190,7 +199,6 @@ class KafkaHttpRouteLogger {
         ): KafkaHttpRouteLogger {
             val feature = KafkaHttpRouteLogger()
             feature.configure()
-            feature.requestName
 
             pipeline.intercept(ApplicationCallPipeline.Infrastructure) { feature.interceptBefore(this) }
             pipeline.sendPipeline.intercept(ApplicationSendPipeline.After) { feature.interceptAfter(this, it) }
@@ -226,3 +234,85 @@ class KafkaHttpLogger {
         }
     }
 }
+
+data class AuditEvent<A>(
+    val http: HttpCallLogEntry,
+    val request: A
+)
+
+/**
+ * Audit stream with correct serdes for a single [RESTCallDescription]
+ *
+ *
+ * __Strictly__ for producers. The topic is shared with all other [RESTCallDescription]s in that namespace, as a result
+ * slightly more care must be taken when de-serializing the stream.
+ */
+private val <A : Any> RESTCallDescription<*, *, *, A>.auditStreamProducersOnly:
+        MappedStreamDescription<String, AuditEvent<A>>
+    get() = MappedStreamDescription(
+        name = "audit.$namespace",
+        keySerde = defaultSerdeOrJson(),
+        valueSerde = auditSerde,
+        mapper = { it.http.jobId }
+    )
+
+private val auditSerdeCache: MutableMap<String, Serde<AuditEvent<*>>> =
+    Collections.synchronizedMap(HashMap<String, Serde<AuditEvent<*>>>())
+
+private val auditJavaTypeCache: MutableMap<String, JavaType> = Collections.synchronizedMap(HashMap<String, JavaType>())
+
+@Suppress("UNCHECKED_CAST")
+private val <A : Any> RESTCallDescription<*, *, *, A>.auditSerde: Serde<AuditEvent<A>>
+    get() {
+        val fullName = fullName ?: throw IllegalStateException("missing fullName cannot audit")
+        val cached = auditSerdeCache[fullName]
+        if (cached != null) return cached as Serde<AuditEvent<A>>
+
+        val newSerde = jsonSerdeFromJavaType<AuditEvent<A>>(auditJavaType)
+        auditSerdeCache[fullName] = newSerde as Serde<AuditEvent<*>>
+        return newSerde
+    }
+
+private val <A : Any> RESTCallDescription<*, *, *, A>.auditJavaType: JavaType
+    get () {
+        val fullName = fullName ?: throw IllegalStateException("missing fullName cannot audit")
+        val cached = auditJavaTypeCache[fullName]
+        if (cached != null) return cached
+
+        val newJavaType = defaultMapper.typeFactory.constructParametricType(
+            AuditEvent::class.java,
+            defaultMapper.typeFactory.constructType(normalizedRequestTypeForAudit)
+        )
+
+        auditJavaTypeCache[fullName] = newJavaType
+        return newJavaType
+    }
+
+val RESTDescriptions.auditStream: StreamDescription<String, String>
+    get() = SimpleStreamDescription("audit.$namespace", Serdes.String(), Serdes.String())
+
+private val requestNamePointer = JsonPointer.compile(
+    JsonPointer.SEPARATOR +
+            AuditEvent<*>::http.name +
+            JsonPointer.SEPARATOR +
+            HttpCallLogEntry::requestName.name
+)
+
+fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(tree: JsonNode): AuditEvent<A>? {
+    val incomingRequestName =
+        tree.at(requestNamePointer)?.takeIf { !it.isMissingNode && it.isTextual }?.textValue() ?: run {
+            auditLog.warn("Could not find requestName field in message.")
+            auditLog.warn("Message was: $tree")
+            return null
+        }
+
+    if (incomingRequestName == fullName) {
+        val type = auditJavaType
+        val reader = defaultMapper.readerFor(type)
+        return reader.readValue<AuditEvent<A>>(tree)
+    }
+
+    return null
+}
+
+private val auditLog = LoggerFactory.getLogger("dk.sdu.cloud.service.Audit")

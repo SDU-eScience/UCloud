@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.1.1'
+version '1.2.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.zenodo.MainKt"
@@ -7,9 +7,9 @@ mainClassName = "dk.sdu.cloud.zenodo.MainKt"
 apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
 
 dependencies {
-    compile 'dk.sdu.cloud:service-common:0.16.0-SNAPSHOT'
-    compile "dk.sdu.cloud:auth-api:1.4.1-SNAPSHOT"
-    compile "dk.sdu.cloud:file-api:0.7.1-SNAPSHOT"
+    compile 'dk.sdu.cloud:service-common:0.17.0-SNAPSHOT'
+    compile "dk.sdu.cloud:auth-api:1.5.0-SNAPSHOT"
+    compile "dk.sdu.cloud:file-api:0.8.0-SNAPSHOT"
 }
 
 sduCloud.createTasksForApiJar("zenodo", [])

@@ -34,7 +34,7 @@ fun Route.protect(rolesAllowed: List<Role> = Role.values().toList()) {
 }
 
 // TODO We should not just copy & paste this
-suspend fun RESTHandler<*, *, *>.protect(rolesAllowed: List<Role> = Role.values().toList()): Boolean {
+suspend fun RESTHandler<*, *, *, *>.protect(rolesAllowed: List<Role> = Role.values().toList()): Boolean {
     if (call.attributes.getOrNull(jwtKey) == null) {
         log.debug("Could not find JWT")
         call.respond(HttpStatusCode.Unauthorized)

@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.auth.api.PRIVILEGED_ROLES
 import dk.sdu.cloud.auth.api.protect
+import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemAudit
 import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemResponse
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse
@@ -30,17 +31,14 @@ class IndexingController<Ctx : FSUserContext>(
             if (!protect(PRIVILEGED_ROLES)) return@implement
 
             tryWithFS(commandRunnerFactory, req.user) {
-                ok(
-                    VerifyFileKnowledgeResponse(
-                        indexingService.verifyKnowledge(it, req.files)
-                    )
-                )
+                ok(VerifyFileKnowledgeResponse(indexingService.verifyKnowledge(it, req.files)))
             }
         }
 
         implement(FileDescriptions.deliverMaterializedFileSystem) { req ->
             logEntry(log, req)
             if (!protect(PRIVILEGED_ROLES)) return@implement
+            audit(DeliverMaterializedFileSystemAudit( req.rootsToMaterialized.keys.toList()))
 
             tryWithFS {
                 val result = indexingService.runDiffOnRoots(req.rootsToMaterialized)

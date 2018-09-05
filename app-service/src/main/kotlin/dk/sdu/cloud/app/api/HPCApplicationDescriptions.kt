@@ -14,7 +14,7 @@ data class FindApplicationAndOptionalDependencies(
     val version: String
 )
 
-object HPCApplicationDescriptions : RESTDescriptions("hpc/apps") {
+object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
     val findByName = callDescription<FindByNameAndPagination, Page<Application>, CommonErrorMessage> {

@@ -85,7 +85,7 @@ sealed class FSException(override val message: String, val isCritical: Boolean =
     class IOException : FSException("Internal server error (IO)", true)
 }
 
-suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(
+suspend inline fun RESTHandler<*, *, CommonErrorMessage, *>.tryWithFS(
     body: () -> Unit
 ) {
     try {
@@ -97,7 +97,7 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithFS(
     }
 }
 
-suspend inline fun <Ctx : FSUserContext> RESTHandler<*, *, CommonErrorMessage>.tryWithFS(
+suspend inline fun <Ctx : FSUserContext> RESTHandler<*, *, CommonErrorMessage, *>.tryWithFS(
     factory: FSCommandRunnerFactory<Ctx>,
     user: String,
     body: (Ctx) -> Unit
@@ -116,7 +116,7 @@ sealed class CallResult<S, E>(val status: HttpStatusCode) {
     class Error<S, E>(val item: E, status: HttpStatusCode) : CallResult<S, E>(status)
 }
 
-suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, CommonErrorMessage>.tryWithFSAndTimeout(
+suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, CommonErrorMessage, *>.tryWithFSAndTimeout(
     factory: FSCommandRunnerFactory<Ctx>,
     user: String,
     job: suspend (Ctx) -> CallResult<S, CommonErrorMessage>
