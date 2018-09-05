@@ -4,6 +4,7 @@ def initialize() {
     sh '''cd abc2-sync
     ./gradlew clean
     ./gradlew build -x test'''
+    
   }
 }
 
