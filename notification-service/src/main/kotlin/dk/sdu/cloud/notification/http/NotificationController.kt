@@ -16,7 +16,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 
-
 class NotificationController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val source: NotificationDAO<DBSession>
@@ -53,7 +52,6 @@ class NotificationController<DBSession>(
             val success = db.withTransaction { source.delete(it, req.id) }
             if (success) ok(Unit) else error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
         }
-
     }
 
     companion object {

@@ -4,13 +4,11 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.application.ApplicationCall
@@ -49,6 +47,8 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                             HttpStatusCode.Unauthorized
                         )
 
+            audit(SingleFileAudit(null, FindByPath(request.path)))
+
             tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
                 val stat =
                     fs.stat(
@@ -56,6 +56,8 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                         request.path,
                         setOf(FileAttribute.PATH, FileAttribute.INODE, FileAttribute.SIZE, FileAttribute.FILE_TYPE)
                     )
+
+                audit(SingleFileAudit(stat.inode, FindByPath(request.path)))
 
                 when {
                     stat.fileType == FileType.DIRECTORY -> {
@@ -153,15 +155,21 @@ class SimpleDownloadController<Ctx : FSUserContext>(
             }
         }
 
-        implement(FileDescriptions.bulkDownload) {
-            logEntry(log, it)
+        implement(FileDescriptions.bulkDownload) { request ->
+            logEntry(log, request)
+
+            audit(BulkFileAudit(request.files.map { null }, request))
 
             commandRunnerFactory.withContext(call.request.validatedPrincipal.subject) { ctx ->
+                val files = request.files.map { fs.statOrNull(ctx, it, setOf(FileAttribute.INODE))?.inode }
+                audit(BulkFileAudit(files, request))
+                okContentDeliveredExternally()
+
                 call.respondDirectWrite(contentType = ContentType.Application.GZip) {
                     bulkDownloadService.downloadFiles(
                         ctx,
-                        it.prefix,
-                        it.files,
+                        request.prefix,
+                        request.files,
                         toOutputStream()
                     )
                 }

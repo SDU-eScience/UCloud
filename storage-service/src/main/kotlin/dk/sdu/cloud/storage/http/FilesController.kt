@@ -29,52 +29,65 @@ class FilesController<Ctx : FSUserContext>(
         implement(FileDescriptions.listAtPath) { request ->
             logEntry(log, request)
             if (!protect()) return@implement
+            audit(SingleFileAudit(null, request))
 
             tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                ok(
-                    fileLookupService.listDirectory(
-                        it,
-                        request.path,
-                        request.normalize(),
-                        request.sortBy ?: FileSortBy.TYPE,
-                        request.order ?: SortOrder.ASCENDING
-                    )
+                val stat = fileLookupService.stat(it, request.path)
+                val result = fileLookupService.listDirectory(
+                    it,
+                    request.path,
+                    request.normalize(),
+                    request.sortBy ?: FileSortBy.TYPE,
+                    request.order ?: SortOrder.ASCENDING
                 )
+
+                audit(SingleFileAudit(stat.fileId, request))
+                ok(result)
             }
         }
 
         implement(FileDescriptions.lookupFileInDirectory) { request ->
             logEntry(log, request)
             if (!protect()) return@implement
+            audit(SingleFileAudit(null, request))
 
-            tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                ok(
-                    fileLookupService.lookupFileInDirectory(
-                        it,
-                        request.path,
-                        request.itemsPerPage,
-                        request.sortBy,
-                        request.order
-                    )
+            tryWithFS(commandRunnerFactory, call.request.currentUsername) { ctx ->
+                val result = fileLookupService.lookupFileInDirectory(
+                    ctx,
+                    request.path,
+                    request.itemsPerPage,
+                    request.sortBy,
+                    request.order
                 )
+
+                val fileId = result.items.find { it.path == request.path }!!
+                audit(SingleFileAudit(fileId.fileId, request))
+                ok(result)
             }
         }
 
         implement(FileDescriptions.stat) { request ->
             logEntry(log, request)
             if (!protect()) return@implement
+            audit(SingleFileAudit(null, request))
 
             tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                ok(fileLookupService.stat(it, request.path))
+                val result = fileLookupService.stat(it, request.path)
+                audit(SingleFileAudit(result.fileId, request))
+                ok(result)
             }
         }
 
         implement(FileDescriptions.markAsFavorite) { req ->
             logEntry(log, req)
             if (!protect()) return@implement
+            audit(SingleFileAudit(null, req))
 
             tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                val stat = fileLookupService.stat(it, req.path)
                 favoriteService.markAsFavorite(it, req.path)
+
+                audit(SingleFileAudit(stat.fileId, req))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
@@ -82,9 +95,13 @@ class FilesController<Ctx : FSUserContext>(
         implement(FileDescriptions.removeFavorite) { req ->
             logEntry(log, req)
             if (!protect()) return@implement
+            audit(SingleFileAudit(null, req))
 
             tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                val stat = fileLookupService.stat(it, req.path)
                 favoriteService.removeFavorite(it, req.path)
+
+                audit(SingleFileAudit(stat.fileId, req))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
@@ -112,9 +129,13 @@ class FilesController<Ctx : FSUserContext>(
         implement(FileDescriptions.deleteFile) { req ->
             logEntry(log, req)
             if (!protect()) return@implement
+            audit(SingleFileAudit(null, req))
 
             tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                val stat = fileLookupService.stat(it, req.path)
                 coreFs.delete(it, req.path)
+
+                audit(SingleFileAudit(stat.fileId, req))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
@@ -122,8 +143,12 @@ class FilesController<Ctx : FSUserContext>(
         implement(FileDescriptions.move) { req ->
             logEntry(log, req)
             if (!protect()) return@implement
+            audit(SingleFileAudit(null, req))
             tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                val stat = fileLookupService.stat(it, req.path)
                 coreFs.move(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
+
+                audit(SingleFileAudit(stat.fileId, req))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
@@ -131,9 +156,12 @@ class FilesController<Ctx : FSUserContext>(
         implement(FileDescriptions.copy) { req ->
             logEntry(log, req)
             if (!protect()) return@implement
+            audit(SingleFileAudit(null, req))
 
             tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                val stat = fileLookupService.stat(it, req.path)
                 coreFs.copy(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
+                audit(SingleFileAudit(stat.fileId, req))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
@@ -156,6 +184,7 @@ class FilesController<Ctx : FSUserContext>(
 
             logEntry(log, req)
             if (!protect()) return@implement
+            audit(SingleFileAudit(null, req))
 
             fun StringBuilder.appendToken(token: Any?) {
                 append(token.toString())
@@ -175,6 +204,10 @@ class FilesController<Ctx : FSUserContext>(
             )
 
             tryWithFS(commandRunnerFactory, call.request.currentUsername) {
+                val inode = coreFs.stat(it, req.path, setOf(FileAttribute.INODE)).inode
+                audit(SingleFileAudit(inode, req))
+                okContentDeliveredExternally()
+
                 call.respondDirectWrite(status = HttpStatusCode.OK, contentType = ContentType.Text.Plain) {
                     coreFs.tree(it, req.path, attributes).forEach {
                         writeStringUtf8(StringBuilder().apply {
@@ -211,9 +244,12 @@ class FilesController<Ctx : FSUserContext>(
         implement(FileDescriptions.annotate) { req ->
             logEntry(log, req)
             if (!protect(PRIVILEGED_ROLES)) return@implement
+            audit(SingleFileAudit(null, req))
 
             tryWithFS(commandRunnerFactory, req.proxyUser) {
+                val stat = fileLookupService.stat(it, req.path)
                 annotationService.annotateFiles(it, req.path, req.annotatedWith)
+                audit(SingleFileAudit(stat.fileId, req))
                 ok(Unit)
             }
         }

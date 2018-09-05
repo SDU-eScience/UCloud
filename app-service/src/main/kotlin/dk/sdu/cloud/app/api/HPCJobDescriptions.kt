@@ -11,7 +11,7 @@ import io.ktor.http.HttpMethod
 /**
  * Call descriptions for the endpoint `/api/hpc/jobs`
  */
-object HPCJobDescriptions : RESTDescriptions("hpc/jobs") {
+object HPCJobDescriptions : RESTDescriptions("hpc.jobs") {
     const val baseContext = "/api/hpc/jobs"
 
     /**

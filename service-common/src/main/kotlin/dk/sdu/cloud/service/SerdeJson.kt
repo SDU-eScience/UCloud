@@ -3,6 +3,7 @@ package dk.sdu.cloud.service
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JavaType
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.databind.ObjectWriter
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -21,6 +22,8 @@ import org.apache.kafka.common.serialization.Serializer
 
 const val SERIALIZER_POJO_CLASS = "JsonPOJOClass"
 const val SERIALIZER_TYPE_REF = "JsonPOJOTypeRef"
+const val SERIALIZER_JAVATYPE_REF = "JsonPOJOJavaTypeRef"
+
 private val objectMapper by lazy {
     jacksonObjectMapper().apply {
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -34,11 +37,13 @@ private val objectMapper by lazy {
 class JsonPOJODeserializer<T> : Deserializer<T> {
     private var typeReference: TypeReference<T>? = null
     private var klass: Class<T>? = null
+    private var javaType: JavaType? = null
 
     @Suppress("UNCHECKED_CAST")
     override fun configure(props: Map<String, *>, isKey: Boolean) {
         klass = props[SERIALIZER_POJO_CLASS] as? Class<T>
         typeReference = props[SERIALIZER_TYPE_REF] as? TypeReference<T>
+        javaType = props[SERIALIZER_JAVATYPE_REF] as? JavaType
     }
 
     override fun deserialize(topic: String, bytes: ByteArray?): T? {
@@ -46,6 +51,7 @@ class JsonPOJODeserializer<T> : Deserializer<T> {
 
         return try {
             when {
+                javaType != null -> objectMapper.readValue(bytes, javaType)
                 typeReference != null -> objectMapper.readValue(bytes, typeReference)
                 klass != null -> objectMapper.readValue(bytes, klass)
                 else -> throw IllegalStateException("Serde is not configured. No type reference or class reference")
@@ -114,6 +120,16 @@ object JsonSerde {
         return Pair(serializer, deserializer)
     }
 
+    fun <Type> createJsonSerializersFromJavaType(ref: JavaType): Pair<Serializer<Type>, Deserializer<Type>> {
+        val deserializer: Deserializer<Type> = JsonPOJODeserializer()
+        val props = mapOf(SERIALIZER_JAVATYPE_REF to ref)
+        deserializer.configure(props, false)
+
+        val serializer: Serializer<Type> = JsonPOJOSerializer()
+        serializer.configure(props, false)
+        return Pair(serializer, deserializer)
+    }
+
     @Suppress("UNCHECKED_CAST")
     fun <T> jsonSerdeFromClass(klass: Class<T>): Serde<T> {
         val existing = cachedSerdes[klass]
@@ -129,6 +145,16 @@ object JsonSerde {
         val existing = cachedSerdes[ref]
         if (existing != null) return existing as Serde<T>
         val (serializer, deserializer) = createJsonSerializersFromTypeRef(ref)
+        val newSerde = Serdes.serdeFrom(serializer, deserializer)
+        cachedSerdes[ref] = newSerde
+        return newSerde
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    fun <T> jsonSerdeFromJavaType(ref: JavaType): Serde<T> {
+        val existing = cachedSerdes[ref]
+        if (existing != null) return existing as Serde<T>
+        val (serializer, deserializer) = createJsonSerializersFromJavaType<T>(ref)
         val newSerde = Serdes.serdeFrom(serializer, deserializer)
         cachedSerdes[ref] = newSerde
         return newSerde

@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.7.1-SNAPSHOT'
+version '0.8.0-SNAPSHOT'
 
 apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
 
@@ -12,9 +12,9 @@ dependencies {
     compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
     compile 'io.tus.java.client:tus-java-client:0.3.1'
 
-    compile "dk.sdu.cloud:service-common:0.16.0-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.4.1-SNAPSHOT"
-    compile "dk.sdu.cloud:notification-api:0.4.1-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.17.0-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.5.0-SNAPSHOT"
+    compile "dk.sdu.cloud:notification-api:0.5.0-SNAPSHOT"
 
     compile group: 'com.h2database', name: 'h2', version: '1.4.196'
 }

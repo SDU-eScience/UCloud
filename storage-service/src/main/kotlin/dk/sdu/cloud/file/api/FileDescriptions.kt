@@ -35,6 +35,33 @@ enum class SortOrder {
     DESCENDING
 }
 
+/**
+ * Audit entry for operations that work with a single file
+ *
+ * The original request is stored in [SingleFileAudit.request].
+ *
+ * The ID of the file is stored in [SingleFileAudit.fileId], this ID will correspond to the file targeted by this
+ * operation. This file is typically found via some kind of query (for example, by path).
+ */
+data class SingleFileAudit<Request>(
+    val fileId: String?,
+    val request: Request
+)
+
+/**
+ * Audit entry for operations that work with bulk files
+ *
+ * The original request is stored in [BulkFileAudit.request].
+ *
+ * The IDs of the files are stored in [BulkFileAudit.fileIds]. These IDs will correspond to the files targeted by the
+ * operation. There will be an entry per query. It is assumed that the query is ordered, the IDs will be returned
+ * in the same order. Files that cannot be resolved have an ID of null.
+ */
+data class BulkFileAudit<Request>(
+    val fileIds: List<String?>,
+    val request: Request
+)
+
 data class ListDirectoryRequest(
     val path: String,
     override val itemsPerPage: Int?,
@@ -110,6 +137,7 @@ sealed class LongRunningResponse<T> {
 data class VerifyFileKnowledgeRequest(val user: String, val files: List<String>)
 data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 
+data class DeliverMaterializedFileSystemAudit(val roots: List<String>)
 data class DeliverMaterializedFileSystemRequest(
     val rootsToMaterialized: Map<String, List<EventMaterializedStorageFile>>
 )
@@ -121,7 +149,8 @@ data class DeliverMaterializedFileSystemResponse(
 object FileDescriptions : RESTDescriptions("files") {
     val baseContext = "/api/files"
 
-    val listAtPath = callDescription<ListDirectoryRequest, Page<StorageFile>, CommonErrorMessage> {
+    val listAtPath = callDescriptionWithAudit<ListDirectoryRequest, Page<StorageFile>, CommonErrorMessage,
+            SingleFileAudit<ListDirectoryRequest>> {
         prettyName = "listAtPath"
         path { using(baseContext) }
         params {
@@ -133,7 +162,8 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val lookupFileInDirectory = callDescription<LookupFileInDirectoryRequest, Page<StorageFile>, CommonErrorMessage> {
+    val lookupFileInDirectory = callDescriptionWithAudit<LookupFileInDirectoryRequest, Page<StorageFile>,
+            CommonErrorMessage, SingleFileAudit<LookupFileInDirectoryRequest>> {
         prettyName = "lookupFileInDirectory"
 
         path {
@@ -149,7 +179,7 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val stat = callDescription<FindByPath, StorageFile, CommonErrorMessage> {
+    val stat = callDescriptionWithAudit<FindByPath, StorageFile, CommonErrorMessage, SingleFileAudit<FindByPath>> {
         prettyName = "stat"
         path {
             using(baseContext)
@@ -161,7 +191,8 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val markAsFavorite = callDescription<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage> {
+    val markAsFavorite = callDescriptionWithAudit<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage,
+            SingleFileAudit<FavoriteCommand>> {
         prettyName = "markAsFavorite"
         method = HttpMethod.Post
 
@@ -175,7 +206,8 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val removeFavorite = callDescription<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage> {
+    val removeFavorite = callDescriptionWithAudit<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage,
+            SingleFileAudit<FavoriteCommand>> {
         prettyName = "removeFavorite"
         method = HttpMethod.Delete
 
@@ -203,7 +235,8 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val deleteFile = callDescription<DeleteFileRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
+    val deleteFile = callDescriptionWithAudit<DeleteFileRequest, LongRunningResponse<Unit>, CommonErrorMessage,
+            SingleFileAudit<DeleteFileRequest>> {
         prettyName = "deleteFile"
         method = HttpMethod.Delete
 
@@ -216,7 +249,7 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val download = callDescription<DownloadByURI, Unit, CommonErrorMessage> {
+    val download = callDescriptionWithAudit<DownloadByURI, Unit, CommonErrorMessage, SingleFileAudit<FindByPath>> {
         prettyName = "download"
         path {
             using(baseContext)
@@ -229,7 +262,8 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val move = callDescription<MoveRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
+    val move = callDescriptionWithAudit<MoveRequest, LongRunningResponse<Unit>, CommonErrorMessage,
+            SingleFileAudit<MoveRequest>> {
         prettyName = "move"
         method = HttpMethod.Post
         path {
@@ -244,7 +278,8 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val copy = callDescription<CopyRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
+    val copy = callDescriptionWithAudit<CopyRequest, LongRunningResponse<Unit>, CommonErrorMessage,
+            SingleFileAudit<CopyRequest>> {
         prettyName = "copy"
         method = HttpMethod.Post
         path {
@@ -259,7 +294,8 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val bulkDownload = callDescription<BulkDownloadRequest, Unit, CommonErrorMessage> {
+    val bulkDownload = callDescriptionWithAudit<BulkDownloadRequest, Unit, CommonErrorMessage,
+            BulkFileAudit<BulkDownloadRequest>> {
         prettyName = "bulkDownload"
         method = HttpMethod.Post
 
@@ -271,7 +307,8 @@ object FileDescriptions : RESTDescriptions("files") {
         body { bindEntireRequestFromBody() }
     }
 
-    val syncFileList = callDescription<SyncFileListRequest, Unit, CommonErrorMessage> {
+    val syncFileList = callDescriptionWithAudit<SyncFileListRequest, Unit, CommonErrorMessage,
+            SingleFileAudit<SyncFileListRequest>> {
         prettyName = "syncFileList"
         method = HttpMethod.Post
 
@@ -286,7 +323,8 @@ object FileDescriptions : RESTDescriptions("files") {
     /**
      * Annotates a file with metadata. Privileged API.
      */
-    val annotate = callDescription<AnnotateFileRequest, Unit, CommonErrorMessage> {
+    val annotate = callDescriptionWithAudit<AnnotateFileRequest, Unit, CommonErrorMessage,
+            SingleFileAudit<AnnotateFileRequest>> {
         prettyName = "annotate"
         method = HttpMethod.Post
 
@@ -314,10 +352,11 @@ object FileDescriptions : RESTDescriptions("files") {
         body { bindEntireRequestFromBody() }
     }
 
-    val deliverMaterializedFileSystem = callDescription<
+    val deliverMaterializedFileSystem = callDescriptionWithAudit<
             DeliverMaterializedFileSystemRequest,
             DeliverMaterializedFileSystemResponse,
-            CommonErrorMessage>
+            CommonErrorMessage,
+            DeliverMaterializedFileSystemAudit>
     {
         prettyName = "deliverMaterializedFileSystem"
         method = HttpMethod.Post

@@ -26,23 +26,24 @@ class UserController<DBSession>(
     override fun configure(routing: Route): Unit = with(routing) {
         install(JWTProtection)
 
-        implement(UserDescriptions.createNewUser) {
-            logEntry(log, it)
+        implement(UserDescriptions.createNewUser) { req ->
+            logEntry(log, req)
             if (!protect(PRIVILEGED_ROLES)) return@implement
 
-            if (it.role != Role.SERVICE) {
+            if (req.role != Role.SERVICE) {
                 val person = PersonUtils.createUserByPassword(
-                    firstNames = it.username,
+                    firstNames = req.username,
                     lastName = "N/A",
-                    email = it.username,
-                    role = it.role ?: Role.USER,
-                    password = it.password
+                    email = req.username,
+                    role = req.role ?: Role.USER,
+                    password = req.password
                 )
 
                 userCreationService.createUser(person)
+                audit(CreateUserAudit(req.username, req.role))
                 ok(Unit)
             } else {
-                val user = ServicePrincipal(it.username, Role.SERVICE)
+                val user = ServicePrincipal(req.username, Role.SERVICE)
                 userCreationService.createUser(user)
 
                 call.respond(tokenService.createAndRegisterTokenFor(user))
@@ -52,6 +53,7 @@ class UserController<DBSession>(
         implement(UserDescriptions.changePassword) {
             logEntry(log, it)
             if (!protect()) return@implement
+            audit(ChangePasswordAudit())
 
             db.withTransaction { session ->
                 userDAO.updatePassword(session, call.request.currentUsername, it.newPassword, it.currentPassword)

@@ -15,7 +15,9 @@ import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.util.tryWithFS
+import dk.sdu.cloud.upload.api.BulkUploadAudit
 import dk.sdu.cloud.upload.api.BulkUploadErrorMessage
+import dk.sdu.cloud.upload.api.MultiPartUploadAudit
 import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
@@ -77,6 +79,9 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                                 return@forEachPart
                             }
 
+                            audit(MultiPartUploadAudit(location!!, sensitivity, owner))
+                            okContentDeliveredExternally()
+
                             assert(
                                 owner == call.request.validatedPrincipal.subject ||
                                         call.request.principalRole.isPrivileged()
@@ -91,6 +96,10 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                                 ok(Unit)
                             }
                         }
+                    }
+
+                    else -> {
+                        // Do nothing
                     }
                 }
                 part.dispose()
@@ -153,6 +162,9 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                                 @Suppress("NAME_SHADOWING") val policy = policy!!
                                 @Suppress("NAME_SHADOWING") val format = format!!
 
+                                audit(BulkUploadAudit(path, policy, format))
+                                okContentDeliveredExternally()
+
                                 val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
                                 part.streamProvider().copyTo(outputFile.outputStream())
                                 launch {
@@ -173,6 +185,10 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
                                 ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)
                             }
+                        }
+
+                        else -> {
+                            // Do nothing
                         }
                     }
                 }

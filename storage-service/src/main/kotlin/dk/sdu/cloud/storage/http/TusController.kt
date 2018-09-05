@@ -1,6 +1,10 @@
 package dk.sdu.cloud.storage.http
 
-import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.auth.api.currentUsername
+import dk.sdu.cloud.auth.api.principalRole
+import dk.sdu.cloud.auth.api.protect
+import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.KafkaHttpRouteLogger
@@ -75,8 +79,9 @@ class TusController<DBSession, Ctx : FSUserContext>(
                 protect()
 
                 method(HttpMethod.Head) {
-                    TusDescriptions.findUploadStatusById.fullName?.let { reqName ->
-                        install(KafkaHttpRouteLogger) { requestName = reqName }
+                    install(KafkaHttpRouteLogger) {
+                        @Suppress("UNCHECKED_CAST")
+                        description = TusDescriptions.findUploadStatusById as RESTCallDescription<*, *, *, Any>
                     }
 
                     handle {
@@ -101,8 +106,9 @@ class TusController<DBSession, Ctx : FSUserContext>(
                 }
 
                 method(HttpMethod.Post) {
-                    TusDescriptions.uploadChunkViaPost.fullName?.let { reqName ->
-                        install(KafkaHttpRouteLogger) { requestName = reqName }
+                    install(KafkaHttpRouteLogger) {
+                        @Suppress("UNCHECKED_CAST")
+                        description = TusDescriptions.uploadChunkViaPost as RESTCallDescription<*, *, *, Any>
                     }
 
                     handle {
@@ -116,8 +122,9 @@ class TusController<DBSession, Ctx : FSUserContext>(
                 }
 
                 method(HttpMethod.Patch) {
-                    TusDescriptions.uploadChunk.fullName?.let { reqName ->
-                        install(KafkaHttpRouteLogger) { requestName = reqName }
+                    install(KafkaHttpRouteLogger) {
+                        @Suppress("UNCHECKED_CAST")
+                        description = TusDescriptions.uploadChunk as RESTCallDescription<*, *, *, Any>
                     }
 
                     handle {
@@ -128,8 +135,9 @@ class TusController<DBSession, Ctx : FSUserContext>(
             }
 
             method(HttpMethod.Post) {
-                TusDescriptions.create.fullName?.let { reqName ->
-                    install(KafkaHttpRouteLogger) { requestName = reqName }
+                install(KafkaHttpRouteLogger) {
+                    @Suppress("UNCHECKED_CAST")
+                    description = TusDescriptions.create as RESTCallDescription<*, *, *, Any>
                 }
 
                 handle {
@@ -178,8 +186,8 @@ class TusController<DBSession, Ctx : FSUserContext>(
                     }
 
                     val location = metadata["location"] ?: "/home/$user/Uploads"
-                    val fileName = metadata["filename"] ?: metadata["name"] ?:
-                        return@handle call.respond(HttpStatusCode.BadRequest)
+                    val fileName = metadata["filename"] ?: metadata["name"]
+                    ?: return@handle call.respond(HttpStatusCode.BadRequest)
 
                     val id = db.withTransaction {
                         tusDao.create(
@@ -198,8 +206,9 @@ class TusController<DBSession, Ctx : FSUserContext>(
             }
 
             method(HttpMethod.Options) {
-                TusDescriptions.probeTusConfiguration.fullName?.let { reqName ->
-                    install(KafkaHttpRouteLogger) { requestName = reqName }
+                install(KafkaHttpRouteLogger) {
+                    @Suppress("UNCHECKED_CAST")
+                    description = TusDescriptions.probeTusConfiguration as RESTCallDescription<*, *, *, Any>
                 }
 
                 handle {

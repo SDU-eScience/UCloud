@@ -23,7 +23,7 @@ sealed class ProjectException : RuntimeException() {
     class NotFound : ProjectException()
 }
 
-suspend inline fun RESTHandler<*, *, CommonErrorMessage>.tryWithProject(closure: () -> Unit) {
+suspend inline fun RESTHandler<*, *, CommonErrorMessage, *>.tryWithProject(closure: () -> Unit) {
     try {
         closure()
     } catch (ex: ProjectException) {
