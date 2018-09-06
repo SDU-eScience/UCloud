@@ -430,8 +430,6 @@ const parameterTypeToComponent = (type) => {
     }
 };
 
-
-
 const Parameter = (props) => {
     let Component = parameterTypeToComponent(props.parameter.type);
     return (<Component {...props} />);

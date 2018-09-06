@@ -25,7 +25,6 @@ fullPageStore.getState().files.page = mockFiles_SensitivityConfidential;
 
 const fileOperations = AllFileOperations(true, false, () => null, mockHistory);
 
-
 describe("FilesTable", () => {
     test("Render empty", () => {
         expect(Renderer.create(

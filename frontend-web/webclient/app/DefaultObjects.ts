@@ -174,7 +174,7 @@ const initHeader = (): HeaderSearch => ({
     prioritizedSearch: "files"
 });
 
-const initApplications = () => ({
+export const initApplications = () => ({
     page: emptyPage,
     loading: false,
     error: undefined
