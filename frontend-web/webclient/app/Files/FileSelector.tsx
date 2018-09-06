@@ -150,7 +150,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     }
 }
 
-export const FileSelectorModal = ({ canSelectFolders = false, ...props }: FileSelectorModalProps) => (
+export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorModalProps) => (
     <Modal open={props.show} onClose={props.onHide} closeOnDimmerClick size="large">
         <Modal.Header>
             File selector
@@ -165,7 +165,7 @@ export const FileSelectorModal = ({ canSelectFolders = false, ...props }: FileSe
                 onErrorDismiss={props.onErrorDismiss}
                 pageRenderer={(page) =>
                     <FileSelectorBody
-                        canSelectFolders={canSelectFolders}
+                        canSelectFolders={!!canSelectFolders}
                         {...props}
                         page={page}
                         fetchFiles={(path) => props.fetchFiles(path, page.pageNumber, page.itemsPerPage)}
