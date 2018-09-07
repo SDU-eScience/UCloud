@@ -4,7 +4,6 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 

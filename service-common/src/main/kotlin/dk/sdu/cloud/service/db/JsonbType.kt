@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JavaType
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import org.hibernate.collection.internal.PersistentList
 import org.hibernate.collection.spi.PersistentCollection
+import org.hibernate.dialect.Dialect
+import org.hibernate.engine.jdbc.spi.JdbcServices
 import org.hibernate.engine.spi.SharedSessionContractImplementor
 import org.hibernate.persister.collection.CollectionPersister
 import org.hibernate.usertype.DynamicParameterizedType
@@ -43,16 +45,27 @@ open class JsonbType : UserType, DynamicParameterizedType {
         return klass
     }
 
+    private fun dialectFromSession(session: SharedSessionContractImplementor): Dialect {
+        return session.factory.serviceRegistry.getService(JdbcServices::class.java).dialect
+    }
+
     override fun nullSafeSet(
         st: PreparedStatement,
         value: Any?,
         index: Int,
         session: SharedSessionContractImplementor?
     ) {
-        st.setObject(index, PGobject().apply {
-            type = "json"
-            if (value != null) this.value = mapper.writeValueAsString(value)
-        })
+        val dialect = dialectFromSession(session!!)
+
+        if (dialect is PostgresDialectWithJson) {
+            st.setObject(index, PGobject().apply {
+                type = "json"
+                if (value != null) this.value = mapper.writeValueAsString(value)
+            })
+        } else {
+            val jsonString = value?.let { mapper.writeValueAsString(it) }
+            st.setString(index, jsonString)
+        }
     }
 
     override fun nullSafeGet(
@@ -61,8 +74,14 @@ open class JsonbType : UserType, DynamicParameterizedType {
         session: SharedSessionContractImplementor?,
         owner: Any?
     ): Any? {
-        val rawValue = rs.getObject(names[0]) as? PGobject ?: return null
-        return mapper.readValue(rawValue.value, createType())
+        val dialect = dialectFromSession(session!!)
+        if (dialect is PostgresDialectWithJson) {
+            val rawValue = rs.getObject(names[0]) as? PGobject ?: return null
+            return mapper.readValue(rawValue.value, createType())
+        } else {
+            val rawValue = rs.getString(names[0])
+            return mapper.readValue(rawValue, createType())
+        }
     }
 
     override fun isMutable(): Boolean = true
