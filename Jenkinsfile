@@ -33,7 +33,7 @@ def commitHashForBuild( build ) {
 node{
   branch = local()
   println(branch.length())
-  if(branch.equals(" ")){
+  if(branch.length == 1){
     println("DEBUG: hit equals")
     branch = "master"
   }
