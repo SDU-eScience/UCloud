@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.withTestApplication
+import org.junit.Ignore
 import org.junit.Test
 import org.slf4j.LoggerFactory
 import kotlin.test.assertEquals
@@ -15,6 +16,7 @@ import kotlin.test.assertTrue
 class ListAtPathTests {
     private val mapper = jacksonObjectMapper()
 
+    @Ignore
     @Test
     fun `list files at path`() {
         withAuthMock {

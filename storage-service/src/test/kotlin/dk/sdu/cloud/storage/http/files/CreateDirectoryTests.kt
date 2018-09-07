@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.http.files
 import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.withTestApplication
+import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -41,6 +42,7 @@ class CreateDirectoryTests {
         }
     }
 
+    @Ignore
     @Test
     fun `make directory with missing permissions`() {
         withAuthMock {
