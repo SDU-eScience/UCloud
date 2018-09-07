@@ -264,7 +264,7 @@ private val auditJavaTypeCache: MutableMap<String, JavaType> = Collections.synch
 @Suppress("UNCHECKED_CAST")
 private val <A : Any> RESTCallDescription<*, *, *, A>.auditSerde: Serde<AuditEvent<A>>
     get() {
-        val fullName = fullName ?: throw IllegalStateException("missing fullName cannot audit")
+        val fullName = fullName
         val cached = auditSerdeCache[fullName]
         if (cached != null) return cached as Serde<AuditEvent<A>>
 
@@ -275,7 +275,7 @@ private val <A : Any> RESTCallDescription<*, *, *, A>.auditSerde: Serde<AuditEve
 
 private val <A : Any> RESTCallDescription<*, *, *, A>.auditJavaType: JavaType
     get () {
-        val fullName = fullName ?: throw IllegalStateException("missing fullName cannot audit")
+        val fullName = fullName
         val cached = auditJavaTypeCache[fullName]
         if (cached != null) return cached
 

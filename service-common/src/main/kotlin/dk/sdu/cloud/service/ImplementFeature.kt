@@ -44,6 +44,36 @@ object RESTServerSupport {
 
 private var didComplainAboutMissingKafkaLogger = false
 
+private fun warnMissingKafkaLogger() {
+    log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
+    log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
+    log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
+    log.debug("Use RESTServerSupport.allowMissingKafkaHttpLogger = true to suppress this message")
+    log.warn(
+        "NO Kafka logging will be performed without this feature present. The implement " +
+                "call was placed here:"
+    )
+    try {
+        throw RuntimeException()
+    } catch (ex: RuntimeException) {
+        log.warn(ex.stackTraceToString())
+    }
+
+    log.warn("We will not complain about further violations.")
+    didComplainAboutMissingKafkaLogger = true
+}
+
+private fun warnMissingFinalize(restCall: RESTCallDescription<*, *, *, *>) {
+    log.warn("implement(${restCall.fullName}) has not been finalized!")
+    log.warn("implement(${restCall.fullName}) has not been finalized!")
+    log.warn("implement(${restCall.fullName}) has not been finalized!")
+    log.warn("implement(${restCall.fullName}) has not been finalized!")
+    log.warn("")
+    log.warn("No audit entries for ${restCall.fullName} was made.")
+    log.warn("We potentially did not send any request (was this handled externally?).")
+    log.warn("If the request was handled externally, you must call okContentDeliveredExternally()")
+}
+
 fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
     restCall: RESTCallDescription<P, S, E, A>,
     logResponse: Boolean = false,
@@ -55,34 +85,20 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
             val logger = application.featureOrNull(KafkaHttpLogger)
             if (logger == null) {
                 if (!didComplainAboutMissingKafkaLogger && !RESTServerSupport.allowMissingKafkaHttpLogger) {
-                    log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
-                    log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
-                    log.warn("implement() calls require the KafkaHttpLogger feature to be installed!")
-                    log.debug("Use RESTServerSupport.allowMissingKafkaHttpLogger = true to suppress this message")
-                    log.warn(
-                        "NO Kafka logging will be performed without this feature present. The implement " +
-                                "call was placed here:"
-                    )
-                    try {
-                        throw RuntimeException()
-                    } catch (ex: RuntimeException) {
-                        log.warn(ex.stackTraceToString())
-                    }
-
-                    log.warn("We will not complain about further violations.")
-                    didComplainAboutMissingKafkaLogger = true
+                    warnMissingKafkaLogger()
                 }
             } else {
-                val fullName = restCall.fullName
-                if (fullName != null) {
-                    install(KafkaHttpRouteLogger) {
-                        @Suppress("UNCHECKED_CAST")
-                        description = restCall as RESTCallDescription<*, *, *, Any>
-                    }
+                install(KafkaHttpRouteLogger) {
+                    @Suppress("UNCHECKED_CAST")
+                    description = restCall as RESTCallDescription<*, *, *, Any>
+                }
+
+                install(ImplementAuthCheck) {
+                    call(restCall)
                 }
             }
 
-            handle {
+            handle { _ ->
                 val payload: P = if (restCall.requestType.type == Unit::class.java) {
                     @Suppress("UNCHECKED_CAST")
                     Unit as P
@@ -129,9 +145,12 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
 
                     // Retrieve arguments from query parameters (if any)
                     val valuesFromParams = try {
-                        restCall.params?.let {
-                            it.parameters.mapNotNull { it.bindValuesFromCall(call) }.toMap()
-                        }
+                        restCall
+                            .params
+                            ?.parameters
+                            ?.mapNotNull {
+                                it.bindValuesFromCall(call)
+                            }?.toMap()
                     } catch (ex: IllegalArgumentException) {
                         log.debug("Caught illegal argument exception when constructing values from params")
                         log.debug(ex.stackTraceToString())
@@ -236,14 +255,7 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                 }
 
                 if (!restHandler.finalized) {
-                    log.warn("implement(${restCall.fullName}) has not been finalized!")
-                    log.warn("implement(${restCall.fullName}) has not been finalized!")
-                    log.warn("implement(${restCall.fullName}) has not been finalized!")
-                    log.warn("implement(${restCall.fullName}) has not been finalized!")
-                    log.warn("")
-                    log.warn("No audit entries for ${restCall.fullName} was made.")
-                    log.warn("We potentially did not send any request (was this handled externally?).")
-                    log.warn("If the request was handled externally, you must call okContentDeliveredExternally()")
+                    warnMissingFinalize(restCall)
                 }
             }
         }

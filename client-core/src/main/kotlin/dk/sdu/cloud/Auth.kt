@@ -49,7 +49,7 @@ object Roles {
     val PRIVILEDGED = setOf(Role.ADMIN, Role.SERVICE)
     val ADMIN = setOf(Role.ADMIN)
     val THIRD_PARTY_APP = setOf(Role.THIRD_PARTY_APP)
-    val ANY = setOf(*Role.values())
+    val PUBLIC = setOf(*Role.values())
 }
 
 /**
@@ -108,12 +108,62 @@ data class SecurityPrincipalToken(
     val expiresAt: Long
 )
 
-enum class AccessRight {
-    READ,
-    READ_WRITE
+enum class AccessRight(val scopeName: String) {
+    READ("read"),
+    READ_WRITE("write")
 }
 
-data class SecurityScope(
+data class SecurityScope internal constructor(
     val segments: List<String>,
     val access: AccessRight
-)
+) {
+    init {
+        if (segments.isEmpty()) throw IllegalArgumentException("segments cannot be empty")
+    }
+
+    fun isCoveredBy(other: SecurityScope): Boolean {
+        val accessLevelMatch = other.access == AccessRight.READ_WRITE || access == AccessRight.READ
+        if (!accessLevelMatch) return false
+
+        if (other.segments.first() == ALL_SCOPE && segments.first() != SPECIAL_SCOPE) {
+            return true
+        }
+
+        // We need complete matching otherwise
+        if (other.segments.size < segments.size) return false
+
+        for (i in other.segments.indices) {
+            val otherSegment = other.segments[i]
+            val thisSegment = segments[i]
+
+            if (otherSegment != thisSegment) return false
+        }
+
+        return true
+    }
+
+    companion object {
+        private val segmentRegex = Regex("[a-zA-Z0-9]+")
+
+        const val ALL_SCOPE = "all"
+        const val SPECIAL_SCOPE = "special"
+
+        fun parseFromString(value: String): SecurityScope {
+            if (value == "api") return SecurityScope(listOf("all"), AccessRight.READ_WRITE)
+
+            val parts = value.split(':')
+            if (parts.size != 2) throw IllegalArgumentException("Too many parts")
+            val segments = parts.first().split('.')
+            val firstInvalidSegment = segments.find { !it.matches(segmentRegex) }
+            if (firstInvalidSegment != null) {
+                throw IllegalArgumentException("Invalid segment found '$firstInvalidSegment' from '$value'")
+            }
+
+            val normalizedAccess = parts.last().toLowerCase()
+            val access = AccessRight.values().find { it.scopeName == normalizedAccess }
+                    ?: throw IllegalArgumentException("Bad access right in audience")
+
+            return SecurityScope(segments, access)
+        }
+    }
+}
