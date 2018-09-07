@@ -1,0 +1,50 @@
+# Host Summary for '{{fqdn}}'
+
+## Name
+
+- __Hostname:__ {{hostname}}
+- __FQDN:__ {{fqdn}}
+- __Processor Cores:__ {{processor_cores}}
+- __RAM (MB):__ {{memory_mb}}
+- __Default IPv4 Address:__ {{default_ipv4}}
+
+## Operating System and BIOS
+
+- __OS:__ {{distribution.name}} {{distribution.version}}
+- __Kernel:__ {{kernel}}
+- __System:__ {{system}}
+- __Vendor:__ {{vendor}}
+- __Architechture:__ {{architecture}}
+- __BIOS:__
+  - __Date:__ {{bios.date}}
+  - __Version:__ {{bios.version}}
+
+## Virtualization
+
+- __Type:__ {{virtualization.type}}
+- __Role:__ {{virtualization.role}}
+
+## Network
+
+- __IP Addresses (v4):__
+{{#ipv4_addresses}}  - {{ . }}
+{{/ipv4_addresses}}
+- __Interfaces:__
+{{#network_interfaces}}  - {{ . }}
+{{/network_interfaces}}
+
+## Devices
+
+| ID | Host | Model | Size |
+| --- | --- | --- | --- |
+{{#each devices}}| {{ @key }} | {{ host }} | {{ model }} | {{ size }} |
+{{/each}}
+
+## Software
+
+__Number of installed packages:__ {{software.length}}
+
+| Name | Version |
+| --- | --- |
+{{#software}}| {{ name }} | {{ version }} |
+{{/software}}
