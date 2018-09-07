@@ -2,12 +2,9 @@ import * as ApplicationsActions from "Applications/Redux/ApplicationsActions";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initApplications, emptyPage } from "DefaultObjects";
 import { applicationsPage } from "../../mock/Applications"
-import { createMemoryHistory } from "history";
 import applications from "Applications/Redux/ApplicationsReducer";
 
 const emptyPageStore = configureStore({ applications: initApplications() }, { applications });
-
-const mockHistory = createMemoryHistory();
 
 const fullPageStore = {
     ...emptyPageStore

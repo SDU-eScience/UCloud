@@ -29,7 +29,7 @@ describe("FileInfo", () => {
     });
 
     // Can't be tested as long as 
-/*     test("Correct page", () => {
+    test.skip("Correct page for file to be shown", () => {
         expect(Renderer.create(
             <Provider store={pageStore}>
                 <MemoryRouter>
@@ -39,10 +39,10 @@ describe("FileInfo", () => {
                 </MemoryRouter>
             </Provider>
         ).toJSON()).toMatchSnapshot();
-    }); */
+    });
 
     // Issue as long as fetch is done on incorrect page
-/*     test("Wrong page", () => {
+    test.skip("Wrong page for file to be shown", () => {
         expect(Renderer.create(
             <Provider store={pageStore}>
                 <MemoryRouter>
@@ -52,5 +52,5 @@ describe("FileInfo", () => {
                 </MemoryRouter>
             </Provider>
         ).toJSON()).toMatchSnapshot();
-    }); */
+    });
 });

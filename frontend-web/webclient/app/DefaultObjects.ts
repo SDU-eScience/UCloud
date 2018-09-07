@@ -149,6 +149,22 @@ interface UploaderReduxObject {
     onFilesUploaded: () => void
 }
 
+
+// FIXME Add typesafety
+export interface Reducers {
+    dashboard?: any
+    files?: any
+    uploader?: any
+    uppy?: any
+    status?: any
+    applications?: any
+    notifications?: any
+    analyses?: any
+    zenodo?: any
+    header?: any
+    sidebar?: any
+}
+
 export interface ReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
@@ -212,7 +228,7 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     uploader: initUploads()
 });
 
-const initAnalyses = (): ComponentWithPage<Analysis> => ({
+export const initAnalyses = (): ComponentWithPage<Analysis> => ({
     page: emptyPage,
     loading: false,
     error: undefined

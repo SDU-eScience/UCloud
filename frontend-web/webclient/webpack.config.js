@@ -3,7 +3,6 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
 const path = require("path");
 const UglifyJsPlugin = require("uglifyjs-webpack-plugin");
-//var baseHref = process.env.REACT_BASE_HREF ? process.env.REACT_BASE_HREF : '/';
 const baseHref = "/app";
 
 module.exports = {

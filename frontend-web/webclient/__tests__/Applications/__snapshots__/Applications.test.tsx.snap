@@ -1,0 +1,430 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Applications component Render empty component 1`] = `
+Array [
+  <i
+    aria-hidden="true"
+    className="sync small circular link loading icon pagination-float-right"
+    onClick={[Function]}
+  />,
+  <span
+    className="items-per-page-padding pagination-float-right"
+  >
+    <span>
+      Items per page 
+    </span>
+    <div
+      aria-expanded={false}
+      className="ui compact inline dropdown"
+      onBlur={[Function]}
+      onChange={[Function]}
+      onClick={[Function]}
+      onFocus={[Function]}
+      onMouseDown={[Function]}
+      role="listbox"
+      tabIndex={0}
+    >
+      <div
+        aria-live="polite"
+        className="text"
+        role="alert"
+      >
+        25
+      </div>
+      <i
+        aria-hidden="true"
+        className="dropdown icon"
+        onClick={[Function]}
+      />
+      <div
+        className="menu transition"
+      >
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            10
+          </span>
+        </div>
+        <div
+          aria-checked={true}
+          aria-selected={true}
+          className="active selected item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            25
+          </span>
+        </div>
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            50
+          </span>
+        </div>
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            100
+          </span>
+        </div>
+      </div>
+    </div>
+  </span>,
+  <div
+    className="ui centered middle aligned one column grid"
+  >
+    <div
+      className="pagination-loader"
+    >
+      <i
+        aria-hidden="true"
+        className="circle notched loading icon pagination-list-loading"
+      />
+    </div>
+  </div>,
+  <div />,
+]
+`;
+
+exports[`Applications component Render full component 1`] = `
+Array [
+  <div
+    className="ui red message"
+  >
+    <i
+      aria-hidden="true"
+      className="close icon"
+      onClick={[Function]}
+    />
+    An error occurred while retrieving applications.
+  </div>,
+  <i
+    aria-hidden="true"
+    className="sync small circular link loading icon pagination-float-right"
+    onClick={[Function]}
+  />,
+  <span
+    className="items-per-page-padding pagination-float-right"
+  >
+    <span>
+      Items per page 
+    </span>
+    <div
+      aria-expanded={false}
+      className="ui compact inline dropdown"
+      onBlur={[Function]}
+      onChange={[Function]}
+      onClick={[Function]}
+      onFocus={[Function]}
+      onMouseDown={[Function]}
+      role="listbox"
+      tabIndex={0}
+    >
+      <div
+        aria-live="polite"
+        className="text"
+        role="alert"
+      >
+        25
+      </div>
+      <i
+        aria-hidden="true"
+        className="dropdown icon"
+        onClick={[Function]}
+      />
+      <div
+        className="menu transition"
+      >
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            10
+          </span>
+        </div>
+        <div
+          aria-checked={true}
+          aria-selected={true}
+          className="active selected item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            25
+          </span>
+        </div>
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            50
+          </span>
+        </div>
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            100
+          </span>
+        </div>
+      </div>
+    </div>
+  </span>,
+  <div
+    className="ui centered middle aligned one column grid"
+  >
+    <div
+      className="pagination-loader"
+    >
+      <i
+        aria-hidden="true"
+        className="circle notched loading icon pagination-list-loading"
+      />
+    </div>
+  </div>,
+  <div />,
+]
+`;
+
+exports[`Single Application Component Render Single Application 1`] = `
+<div
+  className="ui card"
+  onClick={[Function]}
+>
+  <div
+    style={
+      Object {
+        "background": "#D4E157",
+      }
+    }
+  >
+    <a
+      href="/appDetails/palms/1.0.0/"
+      onClick={[Function]}
+    >
+      <div
+        style={
+          Object {
+            "backgroundImage": "url('function loader(content) {
+  if (!this.emitFile) throw new Error('File Loader\\\\n\\\\nemitFile is required from module system');
+
+  const options = _loaderUtils2.default.getOptions(this) || {};
+
+  (0, _schemaUtils2.default)(_options2.default, options, 'File Loader');
+
+  const context = options.context || this.rootContext || this.options && this.options.context;
+
+  const url = _loaderUtils2.default.interpolateName(this, options.name, {
+    context,
+    content,
+    regExp: options.regExp
+  });
+
+  let outputPath = url;
+
+  if (options.outputPath) {
+    if (typeof options.outputPath === 'function') {
+      outputPath = options.outputPath(url);
+    } else {
+      outputPath = _path2.default.posix.join(options.outputPath, url);
+    }
+  }
+
+  if (options.useRelativePath) {
+    const filePath = this.resourcePath;
+
+    const issuer = options.context ? context : this._module && this._module.issuer && this._module.issuer.context;
+
+    const relativeUrl = issuer && _path2.default.relative(issuer, filePath).split(_path2.default.sep).join('/');
+
+    const relativePath = relativeUrl && \`\${_path2.default.dirname(relativeUrl)}/\`;
+    // eslint-disable-next-line no-bitwise
+    if (~relativePath.indexOf('../')) {
+      outputPath = _path2.default.posix.join(outputPath, relativePath, url);
+    } else {
+      outputPath = _path2.default.posix.join(relativePath, url);
+    }
+  }
+
+  let publicPath = \`__webpack_public_path__ + \${JSON.stringify(outputPath)}\`;
+
+  if (options.publicPath) {
+    if (typeof options.publicPath === 'function') {
+      publicPath = options.publicPath(url);
+    } else if (options.publicPath.endsWith('/')) {
+      publicPath = options.publicPath + url;
+    } else {
+      publicPath = \`\${options.publicPath}/\${url}\`;
+    }
+
+    publicPath = JSON.stringify(publicPath);
+  }
+
+  // eslint-disable-next-line no-undefined
+  if (options.emitFile === undefined || options.emitFile) {
+    this.emitFile(outputPath, content);
+  }
+  // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
+  return \`module.exports = \${publicPath};\`;
+}')",
+            "backgroundPosition": "center",
+            "backgroundSize": "cover",
+            "height": "200px",
+            "opacity": 0.3,
+            "width": "100%",
+          }
+        }
+      />
+    </a>
+  </div>
+  <div
+    className="content"
+  >
+    <div
+      className="ui horizontal right floated list"
+      role="list"
+    >
+      <div
+        className="item"
+        onClick={[Function]}
+        role="listitem"
+      >
+        <div
+          className="ui star rating"
+          onClick={[Function]}
+          onMouseLeave={[Function]}
+          role="radiogroup"
+        >
+          <i
+            aria-checked={false}
+            aria-posinset={1}
+            aria-setsize={1}
+            className="icon"
+            onClick={[Function]}
+            onKeyUp={[Function]}
+            onMouseEnter={[Function]}
+            role="radio"
+            tabIndex={0}
+          />
+        </div>
+      </div>
+      <div
+        className="item"
+        onClick={[Function]}
+        role="listitem"
+      >
+        <a
+          href="/applications/palms/1.0.0/"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="green play icon"
+          />
+        </a>
+      </div>
+    </div>
+    <a
+      className="header"
+      href="/appDetails/palms/1.0.0/"
+      onClick={[Function]}
+    >
+      PALMS
+    </a>
+    <div
+      className="meta"
+    >
+      1.0.0
+    </div>
+  </div>
+  <div
+    className="extra content"
+  >
+    The central role of places in which physical activity (PA) is done is no...
+  </div>
+</div>
+`;

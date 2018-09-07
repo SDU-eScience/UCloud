@@ -25,9 +25,6 @@ const COLORS_KEYS = Object.keys(MaterialColors);
 const blurOverlay = require("Assets/Images/BlurOverlayByDan.png");
 
 class Applications extends React.Component<ApplicationsProps> {
-    constructor(props: ApplicationsProps) {
-        super(props);
-    }
 
     componentDidMount() {
         const { props } = this;
@@ -112,7 +109,7 @@ export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) 
     );
 }
 
-function toHashCode(name: string) {
+function toHashCode(name: string): number {
     let hash = 0;
     if (name.length == 0) {
         return hash;

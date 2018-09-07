@@ -8,7 +8,6 @@ import { History } from "history";
 export interface ApplicationsProps extends ApplicationsStateProps, ApplicationsOperations { }
 
 export interface Analysis {
-    name: string
     status: string
     state: string
     jobId: string
