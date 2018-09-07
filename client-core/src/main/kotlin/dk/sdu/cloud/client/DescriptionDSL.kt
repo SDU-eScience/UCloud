@@ -3,6 +3,9 @@ package dk.sdu.cloud.client
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
+import dk.sdu.cloud.AccessRight
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.http.HttpMethod
 import kotlin.reflect.KProperty1
@@ -21,10 +24,18 @@ class RESTCallDescriptionBuilder<Request : Any, Success : Any, Error : Any, Audi
     private val deserializerError: ObjectReader
 ) {
     var method: HttpMethod = HttpMethod.Get
-    var prettyName: String? = null
+    var name: String? = null
+    @Deprecated(message = "Use name instead", replaceWith = ReplaceWith("name"))
+    var prettyName: String?
+        get() = name
+        set(value) {
+            name = value
+        }
+
     internal var path: RESTPath<Request>? = null
     internal var body: RESTBody<Request, *>? = null
     internal var params: RESTParams<Request>? = null
+    internal var auth: RESTAuth? = null
 
     fun path(body: RESTCallPathBuilder<Request>.() -> Unit) {
         if (path != null) throw RESTDSLException("Cannot supply two path blocks!")
@@ -41,18 +52,26 @@ class RESTCallDescriptionBuilder<Request : Any, Success : Any, Error : Any, Audi
         params = RESTCallQueryParamsBuilder<Request>().also(builderBody).build()
     }
 
+    fun auth(builderBody: RESTAuthBuilder.() -> Unit) {
+        if (auth != null) throw RESTDSLException("Cannot supply two auth blocks!")
+        auth = RESTAuthBuilder().also(builderBody).build()
+    }
+
     fun build(
         namespace: String,
         additionalConfiguration: (HttpRequestBuilder.(Request) -> Unit)?
     ): RESTCallDescription<Request, Success, Error, AuditEntry> {
         val path = path ?: throw RESTDSLException("Missing path { ... }!")
-        val fullName = prettyName?.let { pretty -> "$namespace.$pretty" }
+        val name = name ?: throw RESTDSLException("Missing name = ...!")
+        val fullName = "$namespace.$name"
+        val auth = auth ?: throw RESTDSLException("Missing auth { ... }!")
 
         return RESTCallDescription(
             method,
             path,
             body,
             params,
+            auth,
             requestType,
             responseTypeSuccess,
             responseTypeFailure,
@@ -63,6 +82,50 @@ class RESTCallDescriptionBuilder<Request : Any, Success : Any, Error : Any, Audi
             fullName,
             additionalConfiguration
         )
+    }
+}
+
+@RESTCallDSL
+class RESTAuthBuilder {
+    var roles: Set<Role> = Roles.END_USER
+    var access: AccessRight? = null
+
+    fun build(): RESTAuth {
+        val access = access ?: throw RESTDSLException("""
+                Missing auth.access!
+
+                This property describes if the operation is read or read/write.
+                In cases where it can be both it should be set to read. This property is
+                enforced through authorization scopes.
+
+                Each authentication token contains a number of scopes. A scope describes what a
+                user can do with a certain resource, and only reads are allowed or if read/writes
+                is possible.
+
+                These scopes are used for third party applications (OAuth) and internally for token extensions.
+
+                Examples:
+
+                callDescription<..., ..., ...> {
+                    name = "uploadFile"
+
+                    auth {
+                        // Uploading a file will write new data into the system
+                        access = AccessRight.READ_WRITE
+                    }
+                }
+
+                callDescription<..., ..., ...> {
+                    name = "listDirectory"
+
+                    auth {
+                        // Listing files in a directory will not modify any data in the system
+                        access = AccessRight.READ
+                    }
+                }
+            """.trimIndent())
+
+        return RESTAuth(roles, access)
     }
 }
 

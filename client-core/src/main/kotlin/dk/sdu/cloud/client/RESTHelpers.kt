@@ -2,6 +2,8 @@ package dk.sdu.cloud.client
 
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectReader
+import dk.sdu.cloud.AccessRight
+import dk.sdu.cloud.Role
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.response.HttpResponse
 import io.ktor.content.TextContent
@@ -9,7 +11,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
 import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
-import org.slf4j.LoggerFactory
 import java.net.URLEncoder
 import kotlin.reflect.KProperty1
 
@@ -18,6 +19,7 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any, AuditE
     val path: RESTPath<Request>,
     val body: RESTBody<Request, *>?,
     val params: RESTParams<Request>?,
+    val auth: RESTAuth,
 
     val requestType: TypeReference<Request>,
     val responseTypeSuccess: TypeReference<Success>,
@@ -28,16 +30,10 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any, AuditE
     val deserializerError: ObjectReader,
 
     val namespace: String,
-    var fullName: String?,
+    var fullName: String,
 
     val requestConfiguration: (HttpRequestBuilder.(Request) -> Unit)? = null
 ) {
-    init {
-        if (fullName == null) {
-            log.info("RESTCallDescription (${path.toKtorTemplate(true)}) has no name")
-        }
-    }
-
     fun prepare(payload: Request): PreparedRESTCall<Success, Error> {
         val primaryPath = path.segments.mapNotNull {
             when (it) {
@@ -116,7 +112,7 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any, AuditE
             }
 
             override fun toString(): String {
-                val name = (fullName ?: "$method $resolvedPath") + " ($namespace)"
+                val name = "$fullName ($namespace)"
                 return "$name($payload)"
             }
         }
@@ -127,10 +123,6 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any, AuditE
         cloud: AuthenticatedCloud
     ): RESTResponse<Success, Error> {
         return prepare(payload).call(cloud)
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(RESTDescriptions::class.java)
     }
 }
 
@@ -169,3 +161,7 @@ sealed class RESTQueryParameter<Request : Any> {
         RESTQueryParameter<Request>()
 }
 
+data class RESTAuth(
+    val roles: Set<Role>,
+    val access: AccessRight
+)
