@@ -18,7 +18,7 @@ dependencies {
     compile group: 'com.jcraft', name: 'jsch', version: '0.1.54'
     compile 'com.google.guava:guava:23.4-jre'
 
-    compile 'dk.sdu.cloud:service-common:0.17.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:service-common:0.17.4-SNAPSHOT'
     compile "dk.sdu.cloud:file-api:0.8.0-SNAPSHOT"
     compile "dk.sdu.cloud:upload-api:0.8.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.5.0-SNAPSHOT"

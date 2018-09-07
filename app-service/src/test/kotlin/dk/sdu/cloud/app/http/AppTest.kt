@@ -6,8 +6,8 @@ import dk.sdu.cloud.app.services.ApplicationHibernateDAO
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.metadata.utils.withAuthMock
-import dk.sdu.cloud.metadata.utils.withDatabase
+import dk.sdu.cloud.app.utils.withAuthMock
+import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.configureControllers

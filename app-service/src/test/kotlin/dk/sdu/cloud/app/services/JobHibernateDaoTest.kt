@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.metadata.utils.withDatabase
+import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
 import io.mockk.*

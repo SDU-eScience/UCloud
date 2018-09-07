@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.metadata.utils.withDatabase
+import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
 import io.mockk.mockk
@@ -45,11 +45,12 @@ class ApplicationHibernateDaoTest{
 
                 val appDAO = ApplicationHibernateDAO(toolDAO)
                 appDAO.create(it, user, normAppDesc)
+
                 val hits = appDAO.findAllByName(it, user, "name", NormalizedPaginationRequest(10,0))
+
                 val result = hits.items.first().description.description
                 assertEquals("app description", result)
                 assertEquals(1, hits.itemsInTotal)
-
                 val result2 = appDAO.findByNameAndVersion(it, user, "name", "2.2")
                 assertEquals("app description", result2.description.description)
 
