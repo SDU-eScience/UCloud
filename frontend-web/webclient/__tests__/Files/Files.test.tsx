@@ -1,8 +1,9 @@
 import * as React from "react";
 import * as Renderer from "react-test-renderer";
-import { emptyPage } from "DefaultObjects";
+import { emptyPage, KeyCode } from "DefaultObjects";
 import Files, { FilesTable, FileOperations } from "Files/Files";
-import { DropdownItem } from "semantic-ui-react";
+import { DropdownItem, Table, Input } from "semantic-ui-react";
+import { setLoading } from "Files/Redux/FilesActions"
 import { SortOrder, SortBy, Operation, PredicatedOperation } from "Files";
 import { mockFiles_SensitivityConfidential } from "../mock/Files"
 import { MemoryRouter } from "react-router-dom";
@@ -279,19 +280,24 @@ describe("FilesTable Operations being mounted", () => {
 });
 
 describe("FilesTable Operations being used", () => {
-    test("Clicking rename", () => {
-        const firstBeingRenamedCount = fullPageStore.getState().files.page.items.filter(it => it.beingRenamed).length;
-        expect(firstBeingRenamedCount).toBe(0);
-        const node = Enzyme.mount(
+    test("Start and stop renaming", () => {
+        let node = Enzyme.mount(
             <Provider store={fullPageStore}>
                 <MemoryRouter>
                     <Files
                         history={mockHistory}
-                        match={{ params: [], isExact: false, path: "", url: "home" }}
+                        match={{ params: [], isExact: false, path: "/This/Is/A/Path", url: "home" }}
                     />
                 </MemoryRouter>
             </Provider>);
+        const firstBeingRenamedCount = fullPageStore.getState().files.page.items.filter(it => it.beingRenamed).length;
+        expect(firstBeingRenamedCount).toBe(0);
         node.find(DropdownItem).findWhere(it => it.props().content === "Rename").first().simulate("click");
-        expect(fullPageStore.getState().files.page.items.filter(it => it.beingRenamed).length).toBe(1);     
+        fullPageStore.dispatch(setLoading(false));
+        expect(fullPageStore.getState().files.page.items.filter(it => it.beingRenamed).length).toBe(1);
+        node = node.update();
+        node.find("input").findWhere(it => it.props().type === "text").simulate("keydown", { target: { value: "New folder Name" }, keyCode: KeyCode.ESC });
+        node = node.update();
+        expect(fullPageStore.getState().files.page.items.filter(it => it.beingRenamed).length).toBe(0);
     });
 });
