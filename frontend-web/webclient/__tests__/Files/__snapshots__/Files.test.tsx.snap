@@ -27,6 +27,28 @@ Array [
     Download
   </button>,
   <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="copy icon"
+    />
+    Copy
+  </button>,
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="move icon"
+    />
+    Move
+  </button>,
+  <button
     className="ui red basic fluid button context-button-margin"
     onClick={[Function]}
     role="button"
@@ -81,6 +103,40 @@ Array [
   <div
     basic={true}
     className="item context-button-margin"
+    fluid={true}
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="copy icon"
+    />
+    <span
+      className="text"
+    >
+      Copy
+    </span>
+  </div>,
+  <div
+    basic={true}
+    className="item context-button-margin"
+    fluid={true}
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="move icon"
+    />
+    <span
+      className="text"
+    >
+      Move
+    </span>
+  </div>,
+  <div
+    basic={true}
+    className="item context-button-margin"
     color="red"
     fluid={true}
     onClick={[Function]}
@@ -124,6 +180,28 @@ Array [
       className="download icon"
     />
     Download
+  </button>,
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="copy icon"
+    />
+    Copy
+  </button>,
+  <button
+    className="ui basic fluid button context-button-margin"
+    onClick={[Function]}
+    role="button"
+  >
+    <i
+      aria-hidden="true"
+      className="move icon"
+    />
+    Move
   </button>,
   <button
     className="ui red basic fluid button context-button-margin"
@@ -171,6 +249,36 @@ Array [
       className="text"
     >
       Download
+    </span>
+  </div>,
+  <div
+    className="item context-button-margin"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="copy icon"
+    />
+    <span
+      className="text"
+    >
+      Copy
+    </span>
+  </div>,
+  <div
+    className="item context-button-margin"
+    onClick={[Function]}
+    role="option"
+  >
+    <i
+      aria-hidden="true"
+      className="move icon"
+    />
+    <span
+      className="text"
+    >
+      Move
     </span>
   </div>,
   <div

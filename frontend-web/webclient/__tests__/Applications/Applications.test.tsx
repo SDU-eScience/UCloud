@@ -7,6 +7,7 @@ import applicationsReducer from "Applications/Redux/ApplicationsReducer";
 import { Provider } from "react-redux";
 import { applicationsPage } from "../mock/Applications";
 import { MemoryRouter } from "react-router";
+import { favoriteApplication } from "UtilityFunctions";
 
 const emptyPageStore = configureStore({ applications: initApplications() }, { applications: applicationsReducer });
 const fullPageStore = {
@@ -46,5 +47,17 @@ describe("Single Application Component", () => {
                     favoriteApp={() => null}
                 />
             </MemoryRouter>).toJSON()).toMatchSnapshot();
+    });
+});
+
+describe("Single Applications", () => {
+    // FIXME Cloud relies on this
+    test.skip("Favorite application", () => {
+        const application = applicationsPage.items[0];
+        const foo = <SingleApplication
+            app={application}
+            favoriteApp={() => null}
+        />;
+        // console.log(foo.props.favoriteApp());
     });
 });
