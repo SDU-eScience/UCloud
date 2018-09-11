@@ -23,4 +23,11 @@ describe("Analyses Actions", () => {
         emptyPageStore.dispatch(AnalysesActions.setErrorMessage());
         expect(emptyPageStore.getState().analyses.error).toBeUndefined();
     });
+
+    test("Set as loading and not loading", () => {
+        emptyPageStore.dispatch(AnalysesActions.setLoading(true));
+        expect(emptyPageStore.getState().analyses.loading).toBe(true);
+        emptyPageStore.dispatch(AnalysesActions.setLoading(false));
+        expect(emptyPageStore.getState().analyses.loading).toBe(false);
+    });
 });
