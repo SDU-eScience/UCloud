@@ -48,12 +48,19 @@ class Server(
             kafka.producer.forStream(AuthStreams.UserUpdateStream)
         )
 
+        val associatedByService = config.tokenExtension.groupBy { it.serviceName }
+        val mergedExtensions = associatedByService.map { (service, lists) ->
+            service to lists.flatMap { it.parsedScopes }.toSet()
+        }.toMap()
+
+
         val tokenService = TokenService(
             db,
             userDao,
             refreshTokenDao,
             jwtAlg,
-            userCreationService
+            userCreationService,
+            mergedExtensions
         )
 
         log.info("Core services constructed!")
@@ -94,6 +101,7 @@ class Server(
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
 
             log.info("Creating HTTP controllers")
+
             val coreController = CoreAuthController(
                 db,
                 ottDao,

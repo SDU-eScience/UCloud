@@ -1,7 +1,11 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.auth.api.AccessToken
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.TokenExtensionAudit
+import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.services.OneTimeTokenDAO
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
@@ -359,6 +363,26 @@ class CoreAuthController<DBSession>(
                 ok(tokenService.refresh(refreshToken, csrfToken))
             }
 
+            implement(AuthDescriptions.tokenExtension) { req ->
+                logEntry(log, req)
+
+                val auditMessage = TokenExtensionAudit(
+                    call.securityPrincipal.username, null, null, req.requestedScopes,
+                    req.expiresIn
+                )
+
+                audit(auditMessage)
+
+                val token = TokenValidation.validateOrNull(req.validJWT)?.toSecurityToken() ?: return@implement error(
+                    CommonErrorMessage("Unauthorized"),
+                    HttpStatusCode.Unauthorized
+                )
+
+                audit(auditMessage.copy(username = token.sessionId, role = token.principal.role))
+
+                ok(tokenService.extendToken(token, req.expiresIn, req.requestedScopes, call.securityPrincipal.username))
+            }
+
             // TODO This will change!!!
             implement(AuthDescriptions.requestOneTimeTokenWithAudience) {
                 logEntry(log, it)
@@ -426,5 +450,7 @@ class CoreAuthController<DBSession>(
     companion object {
         const val REFRESH_WEB_CSRF_TOKEN = "X-CSRFToken"
         const val REFRESH_WEB_REFRESH_TOKEN_COOKIE = "refreshToken"
+
+        const val MAX_EXTENSION_TIME_IN_MS = 1000 * 60 * 60 * 24
     }
 }

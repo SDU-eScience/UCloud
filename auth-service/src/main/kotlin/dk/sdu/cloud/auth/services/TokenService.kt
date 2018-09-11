@@ -2,17 +2,22 @@ package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
+import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.requireScope
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.security.SecureRandom
+import java.security.cert.Extension
 import java.util.*
 
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
@@ -22,7 +27,8 @@ class TokenService<DBSession>(
     private val userDao: UserDAO<DBSession>,
     private val refreshTokenDao: RefreshTokenDAO<DBSession>,
     private val jwtAlg: JWTAlgorithm,
-    private val userCreationService: UserCreationService<*>
+    private val userCreationService: UserCreationService<*>,
+    private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap()
 ) {
     private val log = LoggerFactory.getLogger(TokenService::class.java)
 
@@ -98,6 +104,27 @@ class TokenService<DBSession>(
         withClaim("principalType", type)
     }
 
+    private fun createExtensionToken(
+        user: Principal,
+        expiresIn: Long,
+        scopes: List<SecurityScope>,
+        requestedBy: String
+    ): AccessToken {
+        val iat = Date(System.currentTimeMillis())
+        val exp = Date(System.currentTimeMillis() + expiresIn)
+
+        return AccessToken(
+            JWT.create().run {
+                writeStandardClaims(user)
+                withIssuedAt(iat)
+                withExpiresAt(exp)
+                withClaim(CLAIM_EXTENDED_BY, requestedBy)
+                withAudience(*scopes.map { it.toString() }.toTypedArray())
+                sign(jwtAlg)
+            }
+        )
+    }
+
     fun createAndRegisterTokenFor(
         user: Principal,
         expiresIn: Long = 1000 * 60 * 10
@@ -115,6 +142,46 @@ class TokenService<DBSession>(
         }
 
         return tokens
+    }
+
+    fun extendToken(
+        token: SecurityPrincipalToken,
+        expiresIn: Long,
+        rawSecurityScopes: List<String>,
+        requestedBy: String
+    ): AccessToken {
+        // We must ensure that the token we receive has enough permissions. For this we require all:write.
+        // This is needed since we would otherwise have privilege escalation here
+        token.requireScope(SecurityScope.ALL_WRITE)
+
+        val requestedScopes = rawSecurityScopes.map {
+            try {
+                SecurityScope.parseFromString(it)
+            } catch (ex: IllegalArgumentException) {
+                throw ExtensionException.BadRequest("Bad scope: $it")
+            }
+        }
+
+        // Request and scope validation
+        val extensions = allowedServiceExtensionScopes[requestedBy] ?: emptySet()
+        if (!requestedScopes.all { it in extensions }) {
+            throw ExtensionException.Unauthorized(
+                "Service $requestedBy is not allowed to ask for one " +
+                        "of the requested permissions"
+            )
+
+        }
+
+        if (expiresIn < 0 || expiresIn > MAX_EXTENSION_TIME_IN_MS) {
+            throw ExtensionException.BadRequest("Bad request (expiresIn)")
+        }
+
+        // Find user
+        val user = db.withTransaction {
+            userDao.findByIdOrNull(it, token.principal.username)
+        } ?: throw ExtensionException.InternalError("Could not find user in database")
+
+        return createExtensionToken(user, expiresIn, requestedScopes, requestedBy)
     }
 
     fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
@@ -209,9 +276,19 @@ class TokenService<DBSession>(
         }
     }
 
+    sealed class ExtensionException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
+        class BadRequest(why: String) : ExtensionException(why, HttpStatusCode.BadRequest)
+        class Unauthorized(why: String) : ExtensionException(why, HttpStatusCode.Unauthorized)
+        class InternalError(why: String) : ExtensionException(why, HttpStatusCode.InternalServerError)
+    }
+
     sealed class RefreshTokenException(why: String, httpStatusCode: HttpStatusCode) :
         RPCException(why, httpStatusCode) {
         class InvalidToken : RefreshTokenException("Invalid token", HttpStatusCode.Unauthorized)
         class InternalError : RefreshTokenException("Internal server error", HttpStatusCode.InternalServerError)
+    }
+
+    companion object {
+        const val CLAIM_EXTENDED_BY = "extendedBy"
     }
 }

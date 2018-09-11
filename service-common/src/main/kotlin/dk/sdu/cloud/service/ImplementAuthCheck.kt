@@ -52,80 +52,24 @@ class ImplementAuthCheck {
                 ctx.finish()
                 return
             } else if (validatedToken != null) {
-                val firstNames = validatedToken.requiredClaim(ctx, "firstNames") { it.asString() } ?: return
-                val lastName = validatedToken.requiredClaim(ctx, "lastName") { it.asString() } ?: return
-                val role = validatedToken.requiredClaim(ctx, "role") { Role.valueOf(it.asString()) } ?: return
+                try {
+                    val token = validatedToken.toSecurityToken()
+                    call.securityToken = token
 
-                val principal = SecurityPrincipal(
-                    validatedToken.subject,
-                    role,
-                    firstNames,
-                    lastName
-                )
+                    if (call.securityPrincipal.role !in description.auth.roles) {
+                        log.debug("Security principal is not authorized for this call")
+                        call.respond(HttpStatusCode.Unauthorized)
+                        ctx.finish()
+                        return
+                    }
 
-                val issuedAt = validatedToken.issuedAt.time
-                val expiresAt = validatedToken.expiresAt.time
-
-                val scopes = try {
-                    validatedToken.audience.map { SecurityScope.parseFromString(it) }
-                } catch (ex: Exception) {
-                    log.warn(ex.stackTraceToString())
-                    call.respond(HttpStatusCode.InternalServerError)
-                    ctx.finish()
-                    return
-                }
-
-                val token = SecurityPrincipalToken(
-                    principal,
-                    "", // TODO
-                    scopes,
-                    issuedAt,
-                    expiresAt
-                )
-
-                call.securityToken = token
-
-                if (call.securityPrincipal.role !in description.auth.roles) {
-                    log.debug("Security principal is not authorized for this call")
-                    call.respond(HttpStatusCode.Unauthorized)
-                    ctx.finish()
-                    return
-                }
-
-                val requiredScope = description.requiredAuthScope
-                val isCovered = scopes.any { requiredScope.isCoveredBy(it) }
-
-                if (!isCovered) {
-                    log.debug("Missing scope: $requiredScope in $scopes")
-                    call.respond(HttpStatusCode.Unauthorized)
+                    token.requireScope(description.requiredAuthScope)
+                } catch (ex: RPCException) {
+                    call.respond(ex.httpStatusCode, ex.why)
                     ctx.finish()
                     return
                 }
             }
-        }
-    }
-
-    private suspend fun <T> DecodedJWT.requiredClaim(
-        ctx: PipelineContext<*, ApplicationCall>,
-        name: String,
-        mapper: (Claim) -> T
-    ): T? {
-        val call = ctx.context
-        val claim = getClaim(name)
-        if (claim == null) {
-            log.warn("Could not find claim '$name'")
-            call.respond(HttpStatusCode.InternalServerError)
-            ctx.finish()
-            return null
-        }
-
-        return try {
-            mapper(claim)!!
-        } catch (ex: Exception) {
-            log.warn("Could not transform claim '$name'")
-            log.warn(ex.stackTraceToString())
-            ctx.finish()
-            null
         }
     }
 
@@ -163,7 +107,6 @@ val ApplicationCall.nullableSecurityToken: SecurityPrincipalToken?
 
 var ApplicationCall.securityToken: SecurityPrincipalToken
     get() = attributes[securityTokenKey]
-
     internal set(value) {
         attributes.put(securityTokenKey, value)
     }
@@ -180,4 +123,58 @@ suspend fun RESTHandler<*, *, *, *>.protect(
     }
 
     return true
+}
+
+sealed class JWTException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
+    class InternalError(why: String) : JWTException(why, HttpStatusCode.InternalServerError)
+    class MissingScope : JWTException("Missing scope", HttpStatusCode.Unauthorized)
+}
+
+private fun <T> DecodedJWT.requiredClaim(
+    name: String,
+    mapper: (Claim) -> T
+): T {
+    val claim = getClaim(name) ?: throw JWTException.InternalError("Could not find claim '$name'")
+
+    return try {
+        mapper(claim)!!
+    } catch (ex: Exception) {
+        throw JWTException.InternalError("Could not transform claim '$name'")
+    }
+}
+
+fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
+    val validatedToken = this
+    val firstNames = validatedToken.requiredClaim("firstNames") { it.asString() }
+    val lastName = validatedToken.requiredClaim("lastName") { it.asString() }
+    val role = validatedToken.requiredClaim("role") { Role.valueOf(it.asString()) }
+
+    val principal = SecurityPrincipal(
+        validatedToken.subject,
+        role,
+        firstNames,
+        lastName
+    )
+
+    val issuedAt = validatedToken.issuedAt.time
+    val expiresAt = validatedToken.expiresAt.time
+
+    val scopes = try {
+        validatedToken.audience.map { SecurityScope.parseFromString(it) }
+    } catch (ex: Exception) {
+        throw JWTException.InternalError(ex.stackTraceToString())
+    }
+
+    return SecurityPrincipalToken(
+        principal,
+        "", // TODO
+        scopes,
+        issuedAt,
+        expiresAt
+    )
+}
+
+fun SecurityPrincipalToken.requireScope(requiredScope: SecurityScope) {
+    val isCovered = scopes.any { requiredScope.isCoveredBy(it) }
+    if (!isCovered) throw JWTException.MissingScope()
 }

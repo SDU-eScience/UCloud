@@ -142,11 +142,15 @@ data class SecurityScope internal constructor(
         return true
     }
 
+    override fun toString() = segments.joinToString(".") + ':' + access.scopeName
+
     companion object {
         private val segmentRegex = Regex("[a-zA-Z0-9]+")
-
         const val ALL_SCOPE = "all"
         const val SPECIAL_SCOPE = "special"
+
+        val ALL_WRITE = SecurityScope.construct(listOf(ALL_SCOPE), AccessRight.READ_WRITE)
+        val ALL_READ = SecurityScope.construct(listOf(ALL_SCOPE), AccessRight.READ)
 
         fun parseFromString(value: String): SecurityScope {
             if (value == "api") return SecurityScope(listOf("all"), AccessRight.READ_WRITE)
@@ -162,6 +166,15 @@ data class SecurityScope internal constructor(
             val normalizedAccess = parts.last().toLowerCase()
             val access = AccessRight.values().find { it.scopeName == normalizedAccess }
                     ?: throw IllegalArgumentException("Bad access right in audience")
+
+            return SecurityScope(segments, access)
+        }
+
+        fun construct(segments: List<String>, access: AccessRight): SecurityScope {
+            val firstInvalidSegment = segments.find { !it.matches(segmentRegex) }
+            if (firstInvalidSegment != null) {
+                throw IllegalArgumentException("Invalid segment found '$firstInvalidSegment'")
+            }
 
             return SecurityScope(segments, access)
         }
