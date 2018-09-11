@@ -30,7 +30,7 @@ object AuthDescriptions : RESTDescriptions("auth") {
 
     val webRefresh = callDescription<Unit, AccessTokenAndCsrf, CommonErrorMessage> {
         method = HttpMethod.Post
-        name = "refresh-web"
+        name = "refreshWeb"
 
         auth {
             roles = Roles.PUBLIC
@@ -61,7 +61,7 @@ object AuthDescriptions : RESTDescriptions("auth") {
 
     val webLogout = callDescription<Unit, Unit, CommonErrorMessage> {
         method = HttpMethod.Post
-        name = "logout-web"
+        name = "logoutWeb"
 
         auth {
             roles = Roles.PUBLIC

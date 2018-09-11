@@ -74,6 +74,7 @@ fun main(args: Array<String>) {
         instance = micro.serviceInstance,
         kafka = micro.kafka,
         ktor = micro.serverProvider,
-        cloud = micro.refreshingJwtCloud
+        cloud = micro.refreshingJwtCloud,
+        developmentMode = micro.developmentModeEnabled
     ).start()
 }
