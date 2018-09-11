@@ -156,7 +156,7 @@ object AuthDescriptions : RESTDescriptions("auth") {
 
         path {
             using(baseContext)
-            +"exted"
+            +"extend"
         }
 
         body { bindEntireRequestFromBody() }
