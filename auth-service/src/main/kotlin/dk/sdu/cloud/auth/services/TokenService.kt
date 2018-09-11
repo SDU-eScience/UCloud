@@ -2,6 +2,7 @@ package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
+import com.sun.org.apache.xml.internal.resolver.readers.ExtendedXMLCatalogReader
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.*
@@ -17,7 +18,6 @@ import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.security.SecureRandom
-import java.security.cert.Extension
 import java.util.*
 
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
@@ -174,6 +174,14 @@ class TokenService<DBSession>(
 
         if (expiresIn < 0 || expiresIn > MAX_EXTENSION_TIME_IN_MS) {
             throw ExtensionException.BadRequest("Bad request (expiresIn)")
+        }
+
+        // Require, additionally, that no all or special scopes are requested
+        val noSpecialScopes = requestedScopes.all { it.segments.first() != SecurityScope.ALL_SCOPE &&
+                it.segments.first() != SecurityScope.SPECIAL_SCOPE }
+
+        if (!noSpecialScopes) {
+            throw ExtensionException.Unauthorized("Cannot request special scopes")
         }
 
         // Find user
