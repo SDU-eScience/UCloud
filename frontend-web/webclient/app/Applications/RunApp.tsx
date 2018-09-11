@@ -607,9 +607,6 @@ const mapDispatchToProps = (dispatch) => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application"))
 });
 
-const mapStateToProps = ({ uppy }) => {
-    const { uppyRunApp, uppyRunAppOpen } = uppy;
-    return { uppy: uppyRunApp, uppyOpen: uppyRunAppOpen };
-}
+const mapStateToProps = ({ uppy }) => uppy;
 
 export default connect(mapStateToProps, mapDispatchToProps)(RunApp);
