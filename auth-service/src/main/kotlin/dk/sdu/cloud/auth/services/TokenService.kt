@@ -33,17 +33,20 @@ class TokenService<DBSession>(
         return Base64.getEncoder().encodeToString(array)
     }
 
-    private fun createAccessTokenForExistingSession(user: Principal): AccessToken {
+    private fun createAccessTokenForExistingSession(
+        user: Principal,
+        expiresIn: Long = 1000 * 60 * 10
+    ): AccessToken {
         log.debug("Creating access token for existing session user=$user")
         val currentTimeMillis = System.currentTimeMillis()
         val iat = Date(currentTimeMillis)
-        val exp = Date(currentTimeMillis + 1000 * 60 * 30)
+        val exp = Date(currentTimeMillis + expiresIn)
 
         val token = JWT.create().run {
             writeStandardClaims(user)
             withExpiresAt(exp)
             withIssuedAt(iat)
-            withAudience("api", "irods")
+            withAudience("api")
             sign(jwtAlg)
         }
 
@@ -95,9 +98,12 @@ class TokenService<DBSession>(
         withClaim("principalType", type)
     }
 
-    fun createAndRegisterTokenFor(user: Principal): AuthenticationTokens {
+    fun createAndRegisterTokenFor(
+        user: Principal,
+        expiresIn: Long = 1000 * 60 * 10
+    ): AuthenticationTokens {
         log.debug("Creating and registering token for $user")
-        val accessToken = createAccessTokenForExistingSession(user).accessToken
+        val accessToken = createAccessTokenForExistingSession(user, expiresIn).accessToken
         val refreshToken = UUID.randomUUID().toString()
         val csrf = generateCsrfToken()
 
