@@ -1,5 +1,6 @@
 package dk.sdu.cloud.auth.http
 
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.AuthConfiguration
 import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.Role
@@ -265,8 +266,12 @@ class CoreAuthTest {
                 ctx.createRefreshToken(it, username, role)
             }
 
-            val response =
-                sendRequest(HttpMethod.Post, "/auth/request?audience=user", user = username, role = role).response
+            val response = sendRequest(
+                HttpMethod.Post,
+                "/auth/request?audience=${SecurityScope.ALL_WRITE}",
+                user = username,
+                role = role
+            ).response
             assertEquals(HttpStatusCode.OK, response.status())
         }
     }

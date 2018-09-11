@@ -65,6 +65,7 @@ class ImplementAuthCheck {
 
                     token.requireScope(description.requiredAuthScope)
                 } catch (ex: RPCException) {
+                    log.debug(ex.stackTraceToString())
                     call.respond(ex.httpStatusCode, ex.why)
                     ctx.finish()
                     return

@@ -38,10 +38,7 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
         requireJobId = true
     )
 
-    install(JWTProtection)
-
     routing {
-        protect()
         configureControllers(*controllers)
     }
 }

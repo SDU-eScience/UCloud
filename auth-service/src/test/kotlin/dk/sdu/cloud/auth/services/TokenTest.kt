@@ -2,6 +2,8 @@ package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import dk.sdu.cloud.AccessRight
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
@@ -138,7 +140,10 @@ class TokenTest {
                 with(createTokenService(db, jwtAlg)) {
                     val jwtParser = JWT.require(jwtAlg).build()
 
-                    val result = tokenService.requestOneTimeToken(email, "Audience")
+                    val result = tokenService.requestOneTimeToken(
+                        email,
+                        listOf(SecurityScope.construct(listOf("a", "b", "c"), AccessRight.READ_WRITE))
+                    )
 
                     val parsedJwt = jwtParser.verify(result.accessToken)
                     assertEquals(email, parsedJwt.subject)

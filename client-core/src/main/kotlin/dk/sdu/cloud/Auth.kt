@@ -156,7 +156,7 @@ data class SecurityScope internal constructor(
             if (value == "api") return SecurityScope(listOf("all"), AccessRight.READ_WRITE)
 
             val parts = value.split(':')
-            if (parts.size != 2) throw IllegalArgumentException("Too many parts")
+            if (parts.size != 2) throw IllegalArgumentException("Too many parts. Value was: '$value'")
             val segments = parts.first().split('.')
             val firstInvalidSegment = segments.find { !it.matches(segmentRegex) }
             if (firstInvalidSegment != null) {
