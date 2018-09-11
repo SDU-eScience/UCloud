@@ -7,7 +7,7 @@ import * as PropTypes from "prop-types";
 import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory, createFolder } from "Utilities/FileUtilities";
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
-import { openUppy} from "Uppy/Redux/UppyActions";
+import { openUppy } from "Uppy/Redux/UppyActions";
 import { KeyCode } from "DefaultObjects";
 import { FileIcon } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
@@ -158,7 +158,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             <CreateFolderButton createFolder={props.createFolder} />
         </Modal.Header>
         <Modal.Content scrolling>
-            <BreadCrumbs currentPath={props.path} navigate={(path) => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />
+            <BreadCrumbs homeFolder={Cloud.homeFolder} currentPath={props.path} navigate={(path) => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />
             <PaginationList
                 errorMessage={props.errorMessage}
                 onErrorDismiss={props.onErrorDismiss}

@@ -148,7 +148,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     onSubmit(event) {
         event.preventDefault();
         let maxTime: MaxTime = this.extractJobInfo(this.state.jobInfo).maxTime;
-        if (maxTime) 
+        if (maxTime)
             if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
         let job = {
             application: {
@@ -358,10 +358,10 @@ const JobMetaParams = (props) => {
 
 const JobSchedulingParams = (props) => {
     if (!props.tool) return null;
-    
+
     // TODO refactor fields, very not DRY compliant
     const { maxTime, numberOfNodes, tasksPerNode } = props.jobInfo;
-    
+
     return (
         <>
             <Form.Group widths="equal">

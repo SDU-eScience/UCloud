@@ -14,10 +14,10 @@ import { Button, Dropdown } from "semantic-ui-react";
 import { AllFileOperations } from "Utilities/FileUtilities";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initFiles } from "DefaultObjects";
-import * as Enzyme from "enzyme";
+import { configure, mount } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 
-Enzyme.configure({ adapter: new Adapter() });
+configure({ adapter: new Adapter() });
 
 const emptyPageStore = configureStore({ files: initFiles({ homeFolder: "/home/user@test.abc/" }) }, { files });
 
@@ -281,7 +281,7 @@ describe("FilesTable Operations being mounted", () => {
 
 describe("FilesTable Operations being used", () => {
     test("Start and stop renaming", () => {
-        let node = Enzyme.mount(
+        let node = mount(
             <Provider store={fullPageStore}>
                 <MemoryRouter>
                     <Files
@@ -293,18 +293,18 @@ describe("FilesTable Operations being used", () => {
         const firstBeingRenamedCount = fullPageStore.getState().files.page.items.filter(it => it.beingRenamed).length;
         expect(firstBeingRenamedCount).toBe(0);
         node.find(DropdownItem).findWhere(it => it.props().content === "Rename").first().simulate("click");
-        
+
         // FIXME Must set loading as false as the component tries to fetch new page, I think
         fullPageStore.dispatch(setLoading(false));
 
         expect(fullPageStore.getState().files.page.items.filter(it => it.beingRenamed).length).toBe(1);
         node = node.update();
-        
+
         node.find("input").findWhere(it => it.props().type === "text").simulate("keydown", {
-             target: { value: "New folder Name" }, keyCode: KeyCode.ESC }
-        );
+            target: { value: "New folder Name" }, keyCode: KeyCode.ESC
+        });
         node = node.update();
-        
+
         expect(fullPageStore.getState().files.page.items.filter(it => it.beingRenamed).length).toBe(0);
     });
 });

@@ -110,7 +110,7 @@ class Files extends React.Component<FilesProps> {
                             currentPath={path}
                             showUploader={this.props.showUploader}
                         />
-                        <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
+                        <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} homeFolder={Cloud.homeFolder} />
                     </Grid.Row>
                     <Pagination.List
                         loading={loading}

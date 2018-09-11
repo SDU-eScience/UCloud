@@ -1,0 +1,105 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Breadcrumbs Build breadcrumbs from empty string 1`] = `null`;
+
+exports[`Breadcrumbs Build breadcrumbs from string with home in it 1`] = `
+<div
+  className="ui large breadcrumb breadcrumb-margin"
+>
+  <a
+    className="section"
+    onClick={[Function]}
+  >
+    Home
+  </a>
+  <div
+    className="divider"
+  >
+    /
+  </div>
+  <a
+    className="section"
+    onClick={[Function]}
+  >
+    followed
+  </a>
+  <div
+    className="divider"
+  >
+    /
+  </div>
+  <a
+    className="section"
+    onClick={[Function]}
+  >
+    by
+  </a>
+  <div
+    className="divider"
+  >
+    /
+  </div>
+  <a
+    className="section"
+    onClick={[Function]}
+  >
+    something
+  </a>
+  <div
+    className="divider"
+  >
+    /
+  </div>
+  <div
+    className="active section"
+    onClick={[Function]}
+  >
+    more
+  </div>
+  <div
+    className="divider"
+  >
+    /
+  </div>
+</div>
+`;
+
+exports[`Breadcrumbs Build breadcrumbs from string without home in it 1`] = `
+<div
+  className="ui large breadcrumb breadcrumb-margin"
+>
+  <a
+    className="section"
+    onClick={[Function]}
+  >
+    Not
+  </a>
+  <div
+    className="divider"
+  >
+    /
+  </div>
+  <a
+    className="section"
+    onClick={[Function]}
+  >
+    Home
+  </a>
+  <div
+    className="divider"
+  >
+    /
+  </div>
+  <div
+    className="active section"
+    onClick={[Function]}
+  >
+    Folder
+  </div>
+  <div
+    className="divider"
+  >
+    /
+  </div>
+</div>
+`;
