@@ -99,7 +99,8 @@ class Server(
                 ottDao,
                 tokenService,
                 config.enablePasswords,
-                config.enableWayf
+                config.enableWayf,
+                config.trustedOrigins.toSet()
             )
 
             val samlController = SAMLController(

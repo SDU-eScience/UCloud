@@ -41,13 +41,13 @@ class CoreAuthController<DBSession>(
     private val ottDao: OneTimeTokenDAO<DBSession>,
     private val tokenService: TokenService<DBSession>,
     private val enablePasswords: Boolean,
-    private val enableWayf: Boolean
+    private val enableWayf: Boolean,
+    private val trustedOrigins: Set<String> = setOf("localhost", "cloud.sdu.dk")
 ) {
     private val log = LoggerFactory.getLogger(CoreAuthController::class.java)
 
     private suspend fun RESTHandler<*, *, CommonErrorMessage, *>.requestOriginIsTrusted(): Boolean {
-        // TODO Don't hardcode this
-        fun isValidHostname(hostname: String): Boolean = hostname in setOf("localhost", "cloud.sdu.dk")
+        fun isValidHostname(hostname: String): Boolean = hostname in trustedOrigins
 
         // First validate referer/origin headers (according to recommendations from OWASP)
         val referer = call.request.header(HttpHeaders.Referrer)

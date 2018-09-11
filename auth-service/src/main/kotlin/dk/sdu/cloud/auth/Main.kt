@@ -1,8 +1,10 @@
 package dk.sdu.cloud.auth
 
 import com.auth0.jwt.algorithms.Algorithm
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.onelogin.saml2.settings.SettingsBuilder
 import com.onelogin.saml2.util.Util
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.auth.api.refreshingJwtCloud
@@ -41,11 +43,21 @@ private fun loadKeysAndInsertIntoProps(
     )
 }
 
+data class ServiceTokenExtension(
+    val serviceName: String,
+    val allowedScopes: List<String>
+) {
+    @get:JsonIgnore
+    val parsedScopes = allowedScopes.map { SecurityScope.parseFromString(it) }
+}
+
 data class AuthConfiguration(
     val certsLocation: String = "./certs",
     val enablePasswords: Boolean = true,
     val enableWayf: Boolean = false,
-    val production: Boolean = true
+    val production: Boolean = true,
+    val tokenExtension: List<ServiceTokenExtension> = emptyList(),
+    val trustedOrigins: List<String> = listOf("cloud.sdu.dk", "localhost")
 )
 
 fun main(args: Array<String>) {
