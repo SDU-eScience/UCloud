@@ -14,6 +14,9 @@ import { File, Annotation, SortOrder, SortBy, FileInfoProps } from "Files";
 import { annotationToString } from "Utilities/FileUtilities";
 
 class FileInfo extends React.Component<FileInfoProps> {
+    constructor(props) {
+        super(props);
+    }
 
     componentDidMount() {
         const { match, filesPath, dispatch, loading, page } = this.props;

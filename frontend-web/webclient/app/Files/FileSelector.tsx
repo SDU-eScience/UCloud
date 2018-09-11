@@ -7,7 +7,7 @@ import * as PropTypes from "prop-types";
 import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory, createFolder } from "Utilities/FileUtilities";
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
-import { changeUppyRunAppOpen } from "Uppy/Redux/UppyActions";
+import { openUppy} from "Uppy/Redux/UppyActions";
 import { KeyCode } from "DefaultObjects";
 import { FileIcon } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
@@ -30,7 +30,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
 
     static contextTypes = {
         store: PropTypes.object.isRequired
-    }
+    };
 
     // FIXME Find better name
     handleKeyDown = (key, name) => {
@@ -59,7 +59,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         Cloud.head(apiEndpoint).then(it => {
             console.log("Got a response back!");
             let path = it.request.getResponseHeader("File-Location");
-            path.lastSlash
             let lastSlash = path.lastIndexOf("/");
             if (lastSlash === -1) throw `Could not parse name of path: ${path}`;
             let name = path.substring(lastSlash + 1);
@@ -110,7 +109,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     render() {
         const onUpload = () => {
             if (!this.props.allowUpload) return;
-            this.context.store.dispatch(changeUppyRunAppOpen(true));
+            this.context.store.dispatch(openUppy());
             let uppy = this.props.uppy;
             uppy.reset();
             uppy.once("upload-success", this.uppyOnUploadSuccess);

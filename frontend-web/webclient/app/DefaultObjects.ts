@@ -65,7 +65,7 @@ interface UppyRestriction {
     allowedFileTypes: false | number
 }
 
-const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud) =>
+const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud): Uppy =>
     Uppy.Core({
         autoProceed: false,
         debug: false,
@@ -169,7 +169,7 @@ export interface ReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
     uploader: UploaderReduxObject
-    uppy: any
+    uppy: { uppy: any, uppyOpen: boolean }
     status: StatusReduxObject,
     applications: ComponentWithPage<Application>
     notifications: NotificationsReduxObject
@@ -327,9 +327,7 @@ export const initFiles = ({ homeFolder }: { homeFolder: string }): FilesReduxObj
 
 })
 
-const initUppy = (cloud: SDUCloud) => ({
-    uppyFiles: initializeUppy({ maxNumberOfFiles: false } as UppyRestriction, cloud),
-    uppyFilesOpen: false,
-    uppyRunApp: initializeUppy({ maxNumberOfFiles: 1 } as UppyRestriction, cloud),
-    uppyRunAppOpen: false
+export const initUppy = (cloud: SDUCloud) => ({
+    uppy: initializeUppy({ maxNumberOfFiles: 1 } as UppyRestriction, cloud),
+    uppyOpen: false
 });

@@ -132,16 +132,6 @@ Array [
 
 exports[`Applications component Render full component 1`] = `
 Array [
-  <div
-    className="ui red message"
-  >
-    <i
-      aria-hidden="true"
-      className="close icon"
-      onClick={[Function]}
-    />
-    An error occurred while retrieving applications.
-  </div>,
   <i
     aria-hidden="true"
     className="sync small circular link loading icon pagination-float-right"
