@@ -124,7 +124,6 @@ object AuthDescriptions : RESTDescriptions("auth") {
         }
     }
 
-    // TODO This will change!!!
     val requestOneTimeTokenWithAudience = callDescription<RequestOneTimeToken, OneTimeAccessToken, Unit> {
         method = HttpMethod.Post
         name = "requestOneTimeTokenWithAudience"

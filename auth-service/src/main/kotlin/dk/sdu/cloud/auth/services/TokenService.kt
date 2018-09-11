@@ -2,19 +2,15 @@ package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
-import com.sun.org.apache.xml.internal.resolver.readers.ExtendedXMLCatalogReader
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.requireScope
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.security.SecureRandom
@@ -61,7 +57,7 @@ class TokenService<DBSession>(
 
     private fun createOneTimeAccessTokenForExistingSession(
         user: Principal,
-        vararg audience: String
+        audience: List<SecurityScope>
     ): OneTimeAccessToken {
         val currentTimeMillis = System.currentTimeMillis()
         val iat = Date(currentTimeMillis)
@@ -72,7 +68,7 @@ class TokenService<DBSession>(
             writeStandardClaims(user)
             withExpiresAt(exp)
             withIssuedAt(iat)
-            withAudience(*audience)
+            withAudience(*audience.map { it.toString() }.toTypedArray())
             withJWTId(jti)
             sign(jwtAlg)
         }
@@ -177,8 +173,10 @@ class TokenService<DBSession>(
         }
 
         // Require, additionally, that no all or special scopes are requested
-        val noSpecialScopes = requestedScopes.all { it.segments.first() != SecurityScope.ALL_SCOPE &&
-                it.segments.first() != SecurityScope.SPECIAL_SCOPE }
+        val noSpecialScopes = requestedScopes.all {
+            it.segments.first() != SecurityScope.ALL_SCOPE &&
+                    it.segments.first() != SecurityScope.SPECIAL_SCOPE
+        }
 
         if (!noSpecialScopes) {
             throw ExtensionException.Unauthorized("Cannot request special scopes")
@@ -230,16 +228,22 @@ class TokenService<DBSession>(
         return null
     }
 
-    fun requestOneTimeToken(jwt: String, vararg audience: String): OneTimeAccessToken {
+    fun requestOneTimeToken(jwt: String, audience: List<SecurityScope>): OneTimeAccessToken {
         log.debug("Requesting one-time token: audience=$audience jwt=$jwt")
 
         val validated = TokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
-        val user =
-            db.withTransaction {
-                userDao.findByIdOrNull(it, validated.subject) ?: throw RefreshTokenException.InternalError()
-            }
+        val user = db.withTransaction {
+            userDao.findByIdOrNull(it, validated.subject) ?: throw RefreshTokenException.InternalError()
+        }
 
-        return createOneTimeAccessTokenForExistingSession(user, *audience)
+        val currentScopes = validated.toSecurityToken().scopes
+        val allScopesCovered = audience.all { requestedScope ->
+            currentScopes.any { requestedScope.isCoveredBy(it) }
+        }
+
+        if (!allScopesCovered) throw RefreshTokenException.InvalidToken()
+
+        return createOneTimeAccessTokenForExistingSession(user, audience)
     }
 
     fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {

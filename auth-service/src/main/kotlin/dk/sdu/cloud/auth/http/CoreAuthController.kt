@@ -1,11 +1,11 @@
 package dk.sdu.cloud.auth.http
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionAudit
-import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.services.OneTimeTokenDAO
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
@@ -383,15 +383,29 @@ class CoreAuthController<DBSession>(
                 ok(tokenService.extendToken(token, req.expiresIn, req.requestedScopes, call.securityPrincipal.username))
             }
 
-            // TODO This will change!!!
-            implement(AuthDescriptions.requestOneTimeTokenWithAudience) {
-                logEntry(log, it)
+            implement(AuthDescriptions.requestOneTimeTokenWithAudience) { req ->
+                logEntry(log, req)
 
                 val bearerToken = call.request.bearer ?: return@implement run {
                     error(HttpStatusCode.Unauthorized)
                 }
 
-                val token = tokenService.requestOneTimeToken(bearerToken, *it.audience.split(",").toTypedArray())
+                val audiences = req.audience.split(",")
+                    .mapNotNull {
+                        // Backwards compatible transformation of audiences
+                        // Can be deleted when clients no longer use it. Progress tracked in #286
+                        when (it) {
+                            "downloadFile" -> SecurityScope.construct(
+                                listOf("files", "download"),
+                                AccessRight.READ_WRITE
+                            ).toString()
+                            "irods" -> null
+                            else -> it
+                        }
+                    }
+                    .map { SecurityScope.parseFromString(it) }
+
+                val token = tokenService.requestOneTimeToken(bearerToken, audiences)
                 ok(token)
             }
 
