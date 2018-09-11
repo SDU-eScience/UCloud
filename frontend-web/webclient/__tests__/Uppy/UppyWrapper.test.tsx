@@ -21,7 +21,6 @@ describe("UppyWrapper", () => {
 
     test("Opening and closing Uppy", () => {
         uppyStore.dispatch(UppyActions.openUppy());
-        console.error(uppyStore.getState().uppy);
         expect(uppyStore.getState().uppy.uppyOpen).toBeTruthy();
         uppyStore.dispatch(UppyActions.closeUppy(uppyStore.getState().uppy.uppy));
     });

@@ -30,8 +30,8 @@ class Applications extends React.Component<ApplicationsProps> {
         const { props } = this;
         props.updatePageTitle();
         props.prioritizeApplicationSearch();
-        props.setLoading(true);
         if (this.props.page.items.length === 0) {
+            props.setLoading(true);
             props.fetchApplications(props.page.pageNumber, props.page.itemsPerPage);
         }
     }
