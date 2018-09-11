@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectReader
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityScope
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.response.HttpResponse
 import io.ktor.content.TextContent
@@ -34,6 +35,16 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any, AuditE
 
     val requestConfiguration: (HttpRequestBuilder.(Request) -> Unit)? = null
 ) {
+    val requiredAuthScope: SecurityScope
+
+    init {
+        try {
+            requiredAuthScope = SecurityScope.parseFromString(fullName + ':' + auth.access.scopeName)
+        } catch (ex: Exception) {
+            throw IllegalArgumentException("Invalid namespace or request name")
+        }
+    }
+
     fun prepare(payload: Request): PreparedRESTCall<Success, Error> {
         val primaryPath = path.segments.mapNotNull {
             when (it) {

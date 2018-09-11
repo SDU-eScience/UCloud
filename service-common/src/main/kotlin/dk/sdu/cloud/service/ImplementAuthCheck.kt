@@ -171,5 +171,13 @@ var ApplicationCall.securityToken: SecurityPrincipalToken
 val ApplicationCall.securityPrincipal: SecurityPrincipal
     get() = securityToken.principal
 
-val RESTCallDescription<*, *, *, *>.requiredAuthScope: SecurityScope
-    get() = SecurityScope.parseFromString(fullName + ':' + auth.access.scopeName)
+suspend fun RESTHandler<*, *, *, *>.protect(
+    rolesAllowed: List<dk.sdu.cloud.Role> = dk.sdu.cloud.Role.values().toList()
+): Boolean {
+    if (call.nullableSecurityToken?.principal?.role !in rolesAllowed) {
+        call.respond(HttpStatusCode.Unauthorized)
+        return false
+    }
+
+    return true
+}

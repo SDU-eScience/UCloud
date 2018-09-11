@@ -359,6 +359,7 @@ class CoreAuthController<DBSession>(
                 ok(tokenService.refresh(refreshToken, csrfToken))
             }
 
+            // TODO This will change!!!
             implement(AuthDescriptions.requestOneTimeTokenWithAudience) {
                 logEntry(log, it)
 
@@ -372,28 +373,8 @@ class CoreAuthController<DBSession>(
 
             implement(AuthDescriptions.claim) { req ->
                 logEntry(log, req)
-                val token = call.request.bearer
-                    ?.let { TokenValidation.validateOrNull(it) }
-                        ?: return@implement run {
-                            error(HttpStatusCode.Unauthorized)
-                        }
-
-                val userRole = token.getClaim("role")?.let {
-                    try {
-                        Role.valueOf(it.asString())
-                    } catch (_: Exception) {
-                        null
-                    }
-                } ?: return@implement run {
-                    error(HttpStatusCode.Unauthorized)
-                }
-
-                if (userRole !in PRIVILEGED_ROLES) return@implement run {
-                    error(HttpStatusCode.Unauthorized)
-                }
-
                 val tokenWasClaimed = db.withTransaction {
-                    ottDao.claim(it, req.jti, token.subject)
+                    ottDao.claim(it, req.jti, call.securityPrincipal.username)
                 }
 
                 if (tokenWasClaimed) {

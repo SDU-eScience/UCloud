@@ -164,7 +164,7 @@ class KafkaHttpRouteLogger {
                 jobId,
                 serviceDescription,
                 causedBy,
-                description.fullName!!,
+                description.fullName,
                 method,
                 uri,
                 userAgent,

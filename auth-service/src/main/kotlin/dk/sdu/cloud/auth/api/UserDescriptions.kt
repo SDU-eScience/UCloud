@@ -1,6 +1,9 @@
 package dk.sdu.cloud.auth.api
 
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
@@ -21,12 +24,17 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
     override fun toString() = "ChangePasswordRequest()"
 }
 
-object UserDescriptions : RESTDescriptions("auth/users") {
+object UserDescriptions : RESTDescriptions("auth.users") {
     const val baseContext = "/auth/users"
 
     val createNewUser = callDescriptionWithAudit<CreateUserRequest, Unit, CommonErrorMessage, CreateUserAudit> {
         method = HttpMethod.Post
-        prettyName = "createNewUser"
+        name = "createNewUser"
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -39,7 +47,12 @@ object UserDescriptions : RESTDescriptions("auth/users") {
     val changePassword =
         callDescriptionWithAudit<ChangePasswordRequest, Unit, CommonErrorMessage, ChangePasswordAudit> {
             method = HttpMethod.Post
-            prettyName = "changePassword"
+            name = "changePassword"
+
+            auth {
+                roles = Roles.END_USER
+                access = AccessRight.READ_WRITE
+            }
 
             path {
                 using(baseContext)
@@ -51,7 +64,12 @@ object UserDescriptions : RESTDescriptions("auth/users") {
 
     val lookupUsers = callDescription<LookupUsersRequest, LookupUsersResponse, CommonErrorMessage> {
         method = HttpMethod.Post
-        prettyName = "lookupUsers"
+        name = "lookupUsers"
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)

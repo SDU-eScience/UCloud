@@ -4,32 +4,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaRequest
 
-enum class Role {
-    USER,
-    ADMIN,
-    SERVICE
-}
-
-/**
- * Represents another person's details when viewed by another person. In these cases we may hide some or nearly all
- * details about that person. Note that the ID of a person is always public, as a result, no person should be assigned
- * an ID with identifiable information.
- *
- * This is also guaranteed to have all authentication details, such as passwords, removed. Making it suitable for
- * display in front-ends. This object should generally be returned by any service which isn't doing authentication.
- *
- * @see [Person]
- */
-class PublicPerson(
-    val id: String,
-    val title: String?,
-    val firstNames: String?,
-    val lastName: String?,
-    val phoneNumber: String?,
-    val orcId: String?,
-    val emailAddresses: List<String>,
-    val preferredEmailAddress: String?
-)
+@Deprecated(message = "Built into client-core", replaceWith = ReplaceWith("Role", imports = ["dk.sdu.cloud.Role"]))
+typealias Role = dk.sdu.cloud.Role
 
 /**
  * Represents a security principal, i.e., any entity which can authenticate with the system. A security principal

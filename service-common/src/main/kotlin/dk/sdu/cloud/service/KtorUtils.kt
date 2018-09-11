@@ -167,9 +167,7 @@ fun <R : Any> RESTHandler<R, *, *, *>.logEntry(
     val jobId = call.request.safeJobId
     val causedBy = call.request.causedBy
 
-    var name = "$method $uri"
-    if (requestName != null) name += " ($requestName)"
-
+    val name = "$method $uri ($requestName)"
 
     log.info("$name jobId=$jobId causedBy=$causedBy payload=${requestToString(payload)}")
 }
