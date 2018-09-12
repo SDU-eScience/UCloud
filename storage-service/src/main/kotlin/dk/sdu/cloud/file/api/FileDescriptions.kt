@@ -286,6 +286,7 @@ object FileDescriptions : RESTDescriptions("files") {
         name = "download"
 
         auth {
+            roles = Roles.PUBLIC
             access = AccessRight.READ
         }
 
