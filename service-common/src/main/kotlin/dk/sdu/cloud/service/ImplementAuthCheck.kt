@@ -2,10 +2,7 @@ package dk.sdu.cloud.service
 
 import com.auth0.jwt.interfaces.Claim
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.Role
-import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.*
 import dk.sdu.cloud.client.RESTCallDescription
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
@@ -147,9 +144,11 @@ private fun <T> DecodedJWT.requiredClaim(
 
 fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
     val validatedToken = this
-    val firstNames = validatedToken.requiredClaim("firstNames") { it.asString() }
-    val lastName = validatedToken.requiredClaim("lastName") { it.asString() }
     val role = validatedToken.requiredClaim("role") { Role.valueOf(it.asString()) }
+    val firstNames =
+        if (role in Roles.END_USER) validatedToken.requiredClaim("firstNames") { it.asString() } else subject
+    val lastName = if (role in Roles.END_USER) validatedToken.requiredClaim("lastName") { it.asString() } else subject
+
     val publicSessionReference = validatedToken
         .getClaim("publicSessionReference")
         .takeIf { !it.isNull }?.asString()

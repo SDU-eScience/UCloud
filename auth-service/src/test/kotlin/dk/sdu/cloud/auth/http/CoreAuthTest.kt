@@ -420,7 +420,7 @@ class CoreAuthTest {
 
     private fun webRefreshVerifySuccess(
         response: TestApplicationResponse,
-        sessionReference: String
+        sessionReference: String?
     ) {
         assertEquals(HttpStatusCode.OK, response.status())
         val tree = defaultMapper.readTree(response.content!!)

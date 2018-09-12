@@ -38,7 +38,19 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) {
             writeStandardClaims(user)
             withExpiresAt(exp)
             withIssuedAt(iat)
-            withAudience(*audience.map { it.toString() }.toTypedArray())
+
+            // Legacy code. Progress tracked in #286 (this can be removed when issue has been solved)
+            val legacyAudiences = run {
+                val result = ArrayList<String>()
+
+                val hasDownload = audience.any { it.toString() == "files.download:write" }
+                if (hasDownload) result.add("downloadFile")
+
+                result.add("irods")
+                result
+            }
+
+            withAudience(*(audience.map { it.toString() } + legacyAudiences).toTypedArray())
             if (extendedBy != null) withClaim(CLAIM_EXTENDED_BY, extendedBy)
             if (jwtId != null) withJWTId(jwtId)
             if (sessionReference != null) withClaim(CLAIM_SESSION_REFERENCE, sessionReference)
@@ -97,7 +109,7 @@ class TokenService<DBSession>(
 
     private fun createAccessTokenForExistingSession(
         user: Principal,
-        sessionReference: String,
+        sessionReference: String?,
         expiresIn: Long = 1000 * 60 * 10
     ): AccessToken {
         return jwtFactory.create(user, expiresIn, listOf(SecurityScope.ALL_WRITE), sessionReference = sessionReference)

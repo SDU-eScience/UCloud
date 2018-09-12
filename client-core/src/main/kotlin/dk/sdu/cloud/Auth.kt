@@ -158,6 +158,7 @@ data class SecurityScope internal constructor(
 
         fun parseFromString(value: String): SecurityScope {
             if (value == "api") return SecurityScope(listOf("all"), AccessRight.READ_WRITE)
+            if (value == "irods") return parseFromString("irods:write") // Remove with #286
 
             val parts = value.split(':')
             if (parts.size != 2) throw IllegalArgumentException("Too many parts. Value was: '$value'")

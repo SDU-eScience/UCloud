@@ -20,7 +20,7 @@ data class RefreshTokenAndUser(
      * This makes them readable by the end-user. It is __very__ important that we do not leak refresh tokens into
      * the JWT. This reference is added solely for the purpose of auditing.
      */
-    val publicSessionReference: String = UUID.randomUUID().toString()
+    val publicSessionReference: String? = UUID.randomUUID().toString()
 )
 
 interface RefreshTokenDAO<Session> {
@@ -49,7 +49,7 @@ data class RefreshTokenEntity(
 
     var csrf: String,
 
-    var publicSessionReference: String
+    var publicSessionReference: String?
 ) {
     companion object : HibernateEntity<RefreshTokenEntity>, WithId<String>
 }
