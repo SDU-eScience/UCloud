@@ -85,6 +85,7 @@ sealed class AppEvent {
         override val jobDirectory: String,
         override val workingDirectory: String,
 
+        val jwt: String,
         val success: Boolean,
         val slurmId: Long
     ) : AppEvent(), NeedsRemoteCleaning

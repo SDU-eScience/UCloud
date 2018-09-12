@@ -1,6 +1,8 @@
 package dk.sdu.cloud.app.api
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
@@ -17,7 +19,12 @@ object HPCToolDescriptions : RESTDescriptions("hpc.tools") {
     val baseContext = "/api/hpc/tools"
 
     val findByNameAndVersion = callDescription<FindByNameAndVersion, Tool, CommonErrorMessage> {
-        prettyName = "toolsByNameAndVersion"
+        name = "toolsByNameAndVersion"
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path {
             using(baseContext)
             +boundTo(FindByNameAndVersion::name)
@@ -26,7 +33,12 @@ object HPCToolDescriptions : RESTDescriptions("hpc.tools") {
     }
 
     val findByName = callDescription<FindByNameAndPagination, Page<Tool>, CommonErrorMessage> {
-        prettyName = "toolsByName"
+        name = "toolsByName"
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path {
             using(baseContext)
             +boundTo(FindByNameAndPagination::name)
@@ -39,7 +51,12 @@ object HPCToolDescriptions : RESTDescriptions("hpc.tools") {
     }
 
     val listAll = callDescription<PaginationRequest, Page<Tool>, CommonErrorMessage> {
-        prettyName = "toolsListAll"
+        name = "toolsListAll"
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path {
             using(baseContext)
         }
@@ -51,8 +68,13 @@ object HPCToolDescriptions : RESTDescriptions("hpc.tools") {
     }
 
     val create = callDescription<Unit, Unit, CommonErrorMessage> {
-        prettyName = "toolsCreate"
+        name = "toolsCreate"
         method = HttpMethod.Put
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)

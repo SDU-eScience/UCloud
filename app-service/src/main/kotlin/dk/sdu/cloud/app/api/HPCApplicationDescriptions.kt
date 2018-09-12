@@ -2,7 +2,9 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
@@ -18,7 +20,12 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
     val findByName = callDescription<FindByNameAndPagination, Page<Application>, CommonErrorMessage> {
-        prettyName = "appsFindByName"
+        name = "appsFindByName"
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path {
             using(baseContext)
             +boundTo(FindByNameAndPagination::name)
@@ -34,7 +41,12 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
             FindApplicationAndOptionalDependencies,
             Application,
             CommonErrorMessage> {
-        prettyName = "appsFindByNameAndVersion"
+        name = "appsFindByNameAndVersion"
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path {
             using(baseContext)
             +boundTo(FindApplicationAndOptionalDependencies::name)
@@ -43,8 +55,12 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     }
 
     val listAll = callDescription<PaginationRequest, Page<Application>, CommonErrorMessage> {
-        prettyName = "appsListAll"
+        name = "appsListAll"
         path { using(baseContext) }
+
+        auth {
+            access = AccessRight.READ
+        }
 
         params {
             +boundTo(PaginationRequest::itemsPerPage)
@@ -53,8 +69,14 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     }
 
     val create = callDescription<Unit, Unit, CommonErrorMessage> {
-        prettyName = "appsCreate"
+        name = "appsCreate"
         method = HttpMethod.Put
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
         path { using(baseContext) }
         // body { //YAML Body TODO Implement support }
     }

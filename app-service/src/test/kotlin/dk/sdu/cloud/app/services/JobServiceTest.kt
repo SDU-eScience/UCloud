@@ -4,25 +4,23 @@ import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.AppState
 import dk.sdu.cloud.app.api.FollowStdStreamsRequest
 import dk.sdu.cloud.app.api.JobWithStatus
-import dk.sdu.cloud.app.services.ssh.SSHConnection
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
-import dk.sdu.cloud.app.services.ssh.SimpleSSHConfig
-import dk.sdu.cloud.app.services.ssh.linesInRange
-import dk.sdu.cloud.metadata.utils.mockedUser
-import dk.sdu.cloud.metadata.utils.withAuthMock
+import dk.sdu.cloud.app.utils.mockedUser
+import dk.sdu.cloud.app.utils.withAuthMock
 import dk.sdu.cloud.metadata.utils.withDatabase
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
-import dk.sdu.cloud.service.db.FakeDBSessionFactory
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.experimental.runBlocking
 import org.hibernate.Session
 import org.junit.Test
 import java.nio.file.Paths
-import kotlin.test.assertNull
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
-class JobServiceTest{
+class JobServiceTest {
 
     private val jobWithStatus = JobWithStatus(
         "JobID",
@@ -34,8 +32,9 @@ class JobServiceTest{
         123457,
         1234567
     )
-    private fun createJobInfo(appState: AppState) :JobInformation{
-        val path = Paths.get(".").toAbsolutePath().normalize().toString();
+
+    private fun createJobInfo(appState: AppState): JobInformation {
+        val path = Paths.get(".").toAbsolutePath().normalize().toString()
         return JobInformation(
             "systemId",
             "owner",
@@ -47,7 +46,8 @@ class JobServiceTest{
             "jobDirectory",
             path,
             1234,
-            appState
+            appState,
+            "owner/USER"
         )
     }
 
@@ -66,9 +66,9 @@ class JobServiceTest{
                     val page = Page(1, 10, 0, listOf(returnJob))
                     page
                 }
-                assertEquals(1, jService.recentJobs(mockedUser(), PaginationRequest(10,0)).itemsInTotal)
-                assertEquals(10, jService.recentJobs(mockedUser(), PaginationRequest(10,0)).itemsPerPage)
-                assertEquals("JobID", jService.recentJobs(mockedUser(), PaginationRequest(10,0)).items.first().jobId)
+                assertEquals(1, jService.recentJobs("user", PaginationRequest(10, 0)).itemsInTotal)
+                assertEquals(10, jService.recentJobs("user", PaginationRequest(10, 0)).itemsPerPage)
+                assertEquals("JobID", jService.recentJobs("user", PaginationRequest(10, 0)).items.first().jobId)
 
             }
         }
@@ -85,7 +85,7 @@ class JobServiceTest{
 
                 every { jobDao.findJobById(any(), any(), any()) } returns jobWithStatus
 
-                assertEquals("JobID", jService.findJobById(mockedUser(), "JobID")?.jobId)
+                assertEquals("JobID", jService.findJobById("user", "JobID")?.jobId)
 
             }
         }
@@ -102,7 +102,7 @@ class JobServiceTest{
 
                 every { jobDao.findJobById(any(), any(), any()) } returns null
 
-                assertNull(jService.findJobById(mockedUser(), "JobID"))
+                assertNull(jService.findJobById("user", "JobID"))
             }
         }
     }
@@ -118,7 +118,7 @@ class JobServiceTest{
 
                 every { jobDao.findJobInformationByJobId(any(), any(), any()) } returns createJobInfo(AppState.SUCCESS)
 
-                assertEquals("2.2", jService.findJobForInternalUseById(mockedUser(), "JobID")?.appVersion.toString())
+                assertEquals("2.2", jService.findJobForInternalUseById("user", "JobID")?.appVersion.toString())
             }
         }
     }
@@ -163,14 +163,22 @@ class JobServiceTest{
                 )
 
                 //Testing when SUCCESS, FAILURE, PREPARED, VALIDATED
-                assertEquals("2.2",
-                    jService.followStdStreams(streamRequest, createJobInfo(AppState.SUCCESS)).application.version)
-                assertEquals("2.2",
-                    jService.followStdStreams(streamRequest, createJobInfo(AppState.FAILURE)).application.version)
-                assertEquals("2.2",
-                    jService.followStdStreams(streamRequest, createJobInfo(AppState.PREPARED)).application.version)
-                assertEquals("2.2",
-                    jService.followStdStreams(streamRequest, createJobInfo(AppState.VALIDATED)).application.version)
+                assertEquals(
+                    "2.2",
+                    jService.followStdStreams(streamRequest, createJobInfo(AppState.SUCCESS)).application.version
+                )
+                assertEquals(
+                    "2.2",
+                    jService.followStdStreams(streamRequest, createJobInfo(AppState.FAILURE)).application.version
+                )
+                assertEquals(
+                    "2.2",
+                    jService.followStdStreams(streamRequest, createJobInfo(AppState.PREPARED)).application.version
+                )
+                assertEquals(
+                    "2.2",
+                    jService.followStdStreams(streamRequest, createJobInfo(AppState.VALIDATED)).application.version
+                )
 
                 //Testing When RUNNING, SCHEDULED
                 /*assertEquals("2.2",

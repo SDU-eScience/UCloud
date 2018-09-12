@@ -8,35 +8,29 @@ import dk.sdu.cloud.app.api.ApplicationDescription
 import dk.sdu.cloud.app.api.HPCApplicationDescriptions
 import dk.sdu.cloud.app.services.ApplicationDAO
 import dk.sdu.cloud.app.util.yamlMapper
-import dk.sdu.cloud.auth.api.PRIVILEGED_ROLES
-import dk.sdu.cloud.auth.api.currentUsername
-import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.receiveText
 import io.ktor.routing.Route
-import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.reader.ReaderException
 
 class AppController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val source: ApplicationDAO<DBSession>
-): Controller {
+) : Controller {
     override val baseContext = HPCApplicationDescriptions.baseContext
 
-    override fun configure(routing: Route):Unit = with(routing) {
-        protect()
-
+    override fun configure(routing: Route): Unit = with(routing) {
         implement(HPCApplicationDescriptions.findByNameAndVersion) { req ->
             logEntry(log, req)
 
             val app = db.withTransaction {
                 source.findByNameAndVersion(
                     it,
-                    call.request.currentUsername,
+                    call.securityPrincipal.username,
                     req.name,
                     req.version
                 )
@@ -49,7 +43,7 @@ class AppController<DBSession>(
             logEntry(log, req)
 
             val result = db.withTransaction {
-                source.findAllByName(it, call.request.currentUsername, req.name, req.normalize())
+                source.findAllByName(it, call.securityPrincipal.username, req.name, req.normalize())
             }
 
             ok(result)
@@ -60,14 +54,13 @@ class AppController<DBSession>(
 
             ok(
                 db.withTransaction {
-                    source.listLatestVersion(it, call.request.currentUsername, req.normalize())
+                    source.listLatestVersion(it, call.securityPrincipal.username, req.normalize())
                 }
             )
         }
 
         implement(HPCApplicationDescriptions.create) { req ->
             logEntry(log, req)
-            if (!protect(PRIVILEGED_ROLES)) return@implement
 
             val content = try {
                 call.receiveText()
@@ -103,7 +96,7 @@ class AppController<DBSession>(
             }
 
             db.withTransaction {
-                source.create(it, call.request.currentUsername, yamlDocument.normalize(), content)
+                source.create(it, call.securityPrincipal.username, yamlDocument.normalize(), content)
             }
 
             ok(Unit)

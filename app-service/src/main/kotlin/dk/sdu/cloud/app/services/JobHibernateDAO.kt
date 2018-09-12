@@ -46,7 +46,8 @@ class JobHibernateDAO(
         user: String,
         systemId: String,
         applicationName: String,
-        applicationVersion: String
+        applicationVersion: String,
+        jwt: String
     ) {
         val appEntity = applicationDAO.internalByNameAndVersion(session, applicationName, applicationVersion)
                 ?: throw JobBadApplication()
@@ -63,7 +64,8 @@ class JobHibernateDAO(
                 status = null,
                 sshUser = null,
                 jobDirectory = null,
-                workingDirectory = null
+                workingDirectory = null,
+                jwt = jwt
             )
         )
     }
@@ -120,6 +122,7 @@ class JobHibernateDAO(
         jobDirectory,
         workingDirectory,
         createdAt.time,
-        state
+        state,
+        jwt
     )
 }

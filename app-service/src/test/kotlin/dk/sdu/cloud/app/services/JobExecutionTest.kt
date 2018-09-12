@@ -556,7 +556,8 @@ class JobExecutionTest {
                 dummyTokenSubject,
                 result,
                 app.info.name,
-                app.info.version
+                app.info.version,
+                dummyToken.token
             )
         }
 
@@ -1026,6 +1027,7 @@ class JobExecutionTest {
         dummyTokenSubject,
         jobDirectiory,
         workingDirectory,
+        dummyToken.token,
         true,
         123L
     )

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.api
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.RESTDescriptions
@@ -27,7 +28,12 @@ object HPCJobDescriptions : RESTDescriptions("hpc.jobs") {
      * __Example:__ `http :42200/api/hpc/jobs/<jobId>`
      */
     val findById = callDescription<FindByStringId, JobWithStatus, CommonErrorMessage> {
-        prettyName = "jobsFindById"
+        name = "jobsFindById"
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path {
             using(baseContext)
             +boundTo(FindByStringId::id)
@@ -44,7 +50,12 @@ object HPCJobDescriptions : RESTDescriptions("hpc.jobs") {
      * __Example:__ `http :42200/api/hpc/jobs?page=0&itemsPerPage=10`
      */
     val listRecent = callDescription<PaginationRequest, Page<JobWithStatus>, CommonErrorMessage> {
-        prettyName = "jobsListRecent"
+        name = "jobsListRecent"
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path {
             using(baseContext)
         }
@@ -65,8 +76,12 @@ object HPCJobDescriptions : RESTDescriptions("hpc.jobs") {
      * __Example:__ `http :42200/api/hpc/jobs?page=0&itemsPerPage=10`
      */
     val start = callDescription<AppRequest.Start, JobStartedResponse, CommonErrorMessage> {
-        prettyName = "jobsStart"
+        name = "jobsStart"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -85,8 +100,12 @@ object HPCJobDescriptions : RESTDescriptions("hpc.jobs") {
      * __Response:__ [FollowStdStreamsResponse]
      */
     val follow = callDescription<FollowStdStreamsRequest, FollowStdStreamsResponse, CommonErrorMessage> {
-        prettyName = "followStdStreams"
+        name = "followStdStreams"
         method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)

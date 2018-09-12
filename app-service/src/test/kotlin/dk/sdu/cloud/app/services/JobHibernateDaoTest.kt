@@ -73,7 +73,7 @@ class JobHibernateDaoTest{
             db.withTransaction {
                 toolDao.create(it, user, normToolDesc)
                 appDao.create(it, user, normAppDesc)
-                jobHibDao.createJob(it, user, systemId, appName, version)
+                jobHibDao.createJob(it, user, systemId, appName, version, "$user/USER")
 
                 val result = jobHibDao.findJobInformationByJobId(it, user, systemId)
                 assertEquals(AppState.VALIDATED, result?.state)
@@ -110,7 +110,7 @@ class JobHibernateDaoTest{
 
         withDatabase { db ->
             db.withTransaction {
-                jobHibDao.createJob(it, user, systemId, appName, version)
+                jobHibDao.createJob(it, user, systemId, appName, version, "$user/USER")
             }
         }
     }

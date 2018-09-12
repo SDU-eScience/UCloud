@@ -45,7 +45,7 @@ class JobExecutionService<DBSession>(
     private val sshConnectionPool: SSHConnectionPool,
     private val sshUser: String // TODO This won't be needed in final version
 ) {
-    private val __cloudDoNotUseDirectly = cloud
+    private val cloudContext: CloudContext = cloud.parent
     private var slurmListener: SlurmEventListener? = null
 
     fun initialize() {
@@ -125,6 +125,7 @@ class JobExecutionService<DBSession>(
                             sshUser,
                             jobDirectory,
                             workingDirectory,
+                            job.jwt,
                             success,
                             slurmId
                         )
@@ -137,8 +138,6 @@ class JobExecutionService<DBSession>(
     fun handleAppEvent(event: AppEvent) {
         try {
             runBlocking {
-                val cloud = __cloudDoNotUseDirectly.withCausedBy(event.systemId)
-
                 // First we update DB state depending on the event
                 // TODO Test updateJobBySystemId
                 val nextState: AppState? = when (event) {
@@ -164,14 +163,14 @@ class JobExecutionService<DBSession>(
 
                 // Then we handle the event (and potentially emit new events)
                 val eventToEmit: AppEvent? = when (event) {
-                    is AppEvent.Validated -> prepareJob(event, cloud.parent)
+                    is AppEvent.Validated -> prepareJob(event, cloudContext)
 
                     is AppEvent.Prepared -> scheduleJob(event)
 
                     is AppEvent.ScheduledAtSlurm -> handleScheduledEvent(event)
 
                     is AppEvent.CompletedInSlurm ->
-                        if (event.success) shipResults(event, cloud)
+                        if (event.success) shipResults(event)
                         else goToCleanupState(event, "Failure in Slurm or non-zero exit code")
 
                     is AppEvent.ExecutionCompleted -> cleanUp(event)
@@ -235,8 +234,6 @@ class JobExecutionService<DBSession>(
         }
     }
 
-    // TODO This shouldn't accept a cloud. This service already has one
-    // TODO We shouldn't require the JWT of user, but rather rely entirely on pre-authenticated messages
     suspend fun startJob(req: AppRequest.Start, principal: DecodedJWT, cloud: AuthenticatedCloud): String {
         val validatedJob = validateJob(req, principal, cloud)
         db.withTransaction {
@@ -245,7 +242,8 @@ class JobExecutionService<DBSession>(
                 principal.subject,
                 validatedJob.systemId,
                 validatedJob.appWithDependencies.description.info.name,
-                validatedJob.appWithDependencies.description.info.version
+                validatedJob.appWithDependencies.description.info.version,
+                principal.token
             )
         }
         runBlocking { producer.emit(validatedJob) }
@@ -570,12 +568,13 @@ class JobExecutionService<DBSession>(
     }
 
     private fun shipResults(
-        event: AppEvent.CompletedInSlurm,
-        cloud: AuthenticatedCloud
+        event: AppEvent.CompletedInSlurm
     ): AppEvent.ExecutionCompleted {
         val jobId = event.systemId
         val owner = event.owner
         val outputDirectory = "/home/$owner/Jobs/$jobId"
+        val cloud = JWTAuthenticatedCloud(cloudContext, event.jwt)
+
         sshConnectionPool.use {
             log.debug("Creating directory...")
             val directoryCreation = runBlocking {
@@ -661,9 +660,9 @@ class JobExecutionService<DBSession>(
                     try {
                         scpDownload(fileToTransferFromHPC) { ins ->
                             MultiPartUploadDescriptions.callUpload(
-                                __cloudDoNotUseDirectly, // We know what we are doing
+                                cloudContext,
+                                event.jwt,
                                 outputDirectory.removeSuffix("/") + "/" + fileToTransferFromHPC.substringAfterLast('/'),
-                                owner = event.owner,
                                 writer = { out ->
                                     // Closing 'out' is not something the HTTP client likes.
                                     val buffer = ByteArray(1024 * 64)

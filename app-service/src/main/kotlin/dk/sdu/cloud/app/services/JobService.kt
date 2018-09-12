@@ -18,14 +18,14 @@ class JobService<DBSession>(
     private val sshPool: SSHConnectionPool,
     private val jobExecutionService: JobExecutionService<DBSession>
 ) {
-    fun recentJobs(who: DecodedJWT, paginationRequest: PaginationRequest): Page<JobWithStatus> =
-        db.withTransaction { dao.findAllJobsWithStatus(it, who.subject, paginationRequest.normalize()) }
+    fun recentJobs(who: String, paginationRequest: PaginationRequest): Page<JobWithStatus> =
+        db.withTransaction { dao.findAllJobsWithStatus(it, who, paginationRequest.normalize()) }
 
-    fun findJobById(who: DecodedJWT, jobId: String): JobWithStatus? =
-        db.withTransaction { dao.findJobById(it, who.subject, jobId) }
+    fun findJobById(who: String, jobId: String): JobWithStatus? =
+        db.withTransaction { dao.findJobById(it, who, jobId) }
 
-    fun findJobForInternalUseById(who: DecodedJWT, jobId: String): JobInformation? =
-        db.withTransaction { dao.findJobInformationByJobId(it, who.subject, jobId) }
+    fun findJobForInternalUseById(who: String, jobId: String): JobInformation? =
+        db.withTransaction { dao.findJobInformationByJobId(it, who, jobId) }
 
     fun followStdStreams(lines: FollowStdStreamsRequest, job: JobInformation): FollowStdStreamsResponse {
         fun respond(stdout: String = "", stdoutNext: Int = 0, stderr: String = "", stderrNext: Int = 0) =

@@ -2,10 +2,9 @@ package dk.sdu.cloud.app.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.app.services.JobService
 import dk.sdu.cloud.app.services.ToolHibernateDAO
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.metadata.utils.withAuthMock
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.app.utils.withAuthMock
 import dk.sdu.cloud.metadata.utils.withDatabase
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateSession

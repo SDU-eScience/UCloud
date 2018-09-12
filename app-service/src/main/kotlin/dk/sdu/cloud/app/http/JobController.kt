@@ -6,28 +6,26 @@ import dk.sdu.cloud.app.api.JobStartedResponse
 import dk.sdu.cloud.app.services.JobException
 import dk.sdu.cloud.app.services.JobService
 import dk.sdu.cloud.app.services.JobServiceException
-import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
+import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
-import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 
 class JobController<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
     private val jobService: JobService<DBSession>
 ): Controller {
     override val baseContext = HPCJobDescriptions.baseContext
 
     override fun configure(routing: Route): Unit  = with(routing) {
-        protect()
-
         implement(HPCJobDescriptions.findById) {
             logEntry(log, it)
-            val user = call.request.validatedPrincipal
+            val user = call.securityPrincipal.username
             val result = jobService.findJobById(user, it.id)
             if (result == null) {
                 error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
@@ -38,19 +36,38 @@ class JobController<DBSession>(
 
         implement(HPCJobDescriptions.listRecent) {
             logEntry(log, it)
-            val user = call.request.validatedPrincipal
+            val user = call.securityPrincipal.username
             ok(jobService.recentJobs(user, it))
         }
 
         implement(HPCJobDescriptions.start) { req ->
             logEntry(log, req)
             try {
+                val extensionResponse = AuthDescriptions.tokenExtension.call(
+                    TokenExtensionRequest(
+                        call.request.bearer!!,
+                        listOf(
+                            MultiPartUploadDescriptions.upload.requiredAuthScope.toString(),
+                            FileDescriptions.download.requiredAuthScope.toString()
+                        ),
+                        1000 * 60 * 60 * 24L
+                    ),
+                    call.cloudClient
+                )
+
+                if (extensionResponse !is RESTResponse.Ok) {
+                    error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
+                    return@implement
+                }
+
+                val extendedToken = TokenValidation.validate(extensionResponse.result.accessToken)
+
                 val userCloud = JWTAuthenticatedCloud(
                     call.cloudClient.parent,
-                    call.request.validatedPrincipal.token
+                    extendedToken.token
                 ).withCausedBy(call.request.jobId)
 
-                val uuid = jobService.startJob(call.request.validatedPrincipal, req, userCloud)
+                val uuid = jobService.startJob(extendedToken, req, userCloud)
                 ok(JobStartedResponse(uuid))
             } catch (ex: JobException) {
                 if (ex.statusCode.value in 500..599) log.warn(ex.stackTraceToString())
@@ -61,7 +78,7 @@ class JobController<DBSession>(
         implement(HPCJobDescriptions.follow) { req ->
             logEntry(log, req)
 
-            val user = call.request.validatedPrincipal
+            val user = call.securityPrincipal.username
             val job = jobService.findJobForInternalUseById(user, req.jobId) ?: return@implement run {
                 log.debug("Could not find job id: ${req.jobId}")
                 error(CommonErrorMessage("Job not found"), HttpStatusCode.NotFound)

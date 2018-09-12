@@ -2,38 +2,36 @@ package dk.sdu.cloud.app.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.app.services.JobException
 import dk.sdu.cloud.app.services.JobInformation
 import dk.sdu.cloud.app.services.JobService
 import dk.sdu.cloud.app.services.JobServiceException
-import dk.sdu.cloud.metadata.utils.withAuthMock
+import dk.sdu.cloud.app.utils.withAuthMock
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.TokenExtensionResponse
+import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.metadata.utils.withDatabase
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.HibernateSessionFactory
 import io.ktor.application.Application
+import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
+import io.mockk.*
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 private fun Application.configureJobServer(
-    db: HibernateSessionFactory,
     jobService: JobService<HibernateSession>
 ) {
-    configureBaseServer(JobController(db, jobService))
+    configureBaseServer(JobController(jobService))
 }
 
 class JobTest {
-
     private val mapper = jacksonObjectMapper()
 
     private val job = JobWithStatus(
@@ -58,7 +56,8 @@ class JobTest {
         "job dir",
         "work dir",
         12345678,
-        AppState.RUNNING
+        AppState.RUNNING,
+        "owner/USER"
     )
 
     private val followStdResponse = FollowStdStreamsResponse(
@@ -80,7 +79,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureJobServer(db, jobService)
+                        configureJobServer(jobService)
 
                         every { jobService.findJobById(any(), any()) } returns job
 
@@ -112,7 +111,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureJobServer(db, jobService)
+                        configureJobServer(jobService)
 
                         every { jobService.findJobById(any(), any()) } returns null
 
@@ -139,7 +138,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureJobServer(db, jobService)
+                        configureJobServer(jobService)
                         every { jobService.recentJobs(any(), any()) } answers {
                             Page(1,10,0, listOf(job))
                         }
@@ -168,21 +167,27 @@ class JobTest {
     fun `start test`() {
         withDatabase { db ->
             withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val jobService = mockk<JobService<HibernateSession>>()
-                        configureJobServer(db, jobService)
+                objectMockk(AuthDescriptions).use {
+                    withTestApplication(
+                        moduleFunction = {
+                            val jobService = mockk<JobService<HibernateSession>>()
+                            configureJobServer(jobService)
 
-                        coEvery { jobService.startJob(any(), any(), any()) } returns "Job started"
+                            coEvery { jobService.startJob(any(), any(), any()) } returns "Job started"
+                            coEvery { AuthDescriptions.tokenExtension.call(any(), any()) } answers {
+                                val httpResponse = mockk<HttpResponse>(relaxed = true)
+                                every { httpResponse.status } returns HttpStatusCode.OK
+                                RESTResponse.Ok(httpResponse, TokenExtensionResponse("user/USER"))
+                            }
+                        },
 
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/api/hpc/jobs") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                                setBody("""
+                        test = {
+                            val response =
+                                handleRequest(HttpMethod.Post, "/api/hpc/jobs") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                    setBody(
+                                        """
                                     {
                                     "application" : {
                                         "name":"name Of App",
@@ -200,12 +205,14 @@ class JobTest {
                                         },
                                     "type": "start"
                                     }
-                                """.trimIndent())
-                            }.response
+                                """.trimIndent()
+                                    )
+                                }.response
 
-                        assertEquals(HttpStatusCode.OK, response.status())
-                    }
-                )
+                            assertEquals(HttpStatusCode.OK, response.status())
+                        }
+                    )
+                }
             }
         }
     }
@@ -217,7 +224,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureJobServer(db, jobService)
+                        configureJobServer(jobService)
                     },
 
                     test = {
@@ -249,7 +256,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureJobServer(db, jobService)
+                        configureJobServer(jobService)
 
                         every { jobService.findJobForInternalUseById(any(), any()) } answers {
                             jobInfo
@@ -288,7 +295,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureJobServer(db, jobService)
+                        configureJobServer(jobService)
 
                         every { jobService.findJobForInternalUseById(any(), any()) } answers {
                             null
@@ -318,7 +325,7 @@ class JobTest {
                 withTestApplication(
                     moduleFunction = {
                         val jobService = mockk<JobService<HibernateSession>>()
-                        configureJobServer(db, jobService)
+                        configureJobServer(jobService)
 
                         every { jobService.findJobForInternalUseById(any(), any()) } answers {
                             jobInfo

@@ -3,10 +3,8 @@ package dk.sdu.cloud.app.http
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ApplicationHibernateDAO
-import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.metadata.utils.withAuthMock
+import dk.sdu.cloud.app.utils.withAuthMock
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.metadata.utils.withDatabase
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
@@ -14,7 +12,6 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
-import io.ktor.application.install
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -22,7 +19,8 @@ import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.withTestApplication
-import io.mockk.*
+import io.mockk.every
+import io.mockk.mockk
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -40,10 +38,7 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
         requireJobId = true
     )
 
-    install(JWTProtection)
-
     routing {
-        protect()
         configureControllers(*controllers)
     }
 }

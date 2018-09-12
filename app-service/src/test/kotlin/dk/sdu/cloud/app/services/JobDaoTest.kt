@@ -19,7 +19,8 @@ class JobDaoTest{
             "jobDir",
             "workDir",
             123456,
-            AppState.SUCCESS
+            AppState.SUCCESS,
+            "owner/USER"
         )
 
         assertEquals("SystemID", jobinfo.systemId)

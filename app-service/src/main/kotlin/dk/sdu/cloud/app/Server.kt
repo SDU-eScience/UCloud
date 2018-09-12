@@ -6,11 +6,9 @@ import dk.sdu.cloud.app.http.JobController
 import dk.sdu.cloud.app.http.ToolController
 import dk.sdu.cloud.app.services.*
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
-import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import io.ktor.application.install
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -69,7 +67,6 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
             installDefaultFeatures(cloud, kafka, instance)
-            install(JWTProtection)
 
             routing {
                 configureControllers(
@@ -79,7 +76,6 @@ class Server(
                     ),
 
                     JobController(
-                        db,
                         jobService
                     ),
 

@@ -16,28 +16,26 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.receiveText
 import io.ktor.routing.Route
-import io.ktor.routing.route
 import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.reader.ReaderException
 
 class ToolController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val source: ToolDAO<DBSession>
-): Controller {
+) : Controller {
     override val baseContext = HPCToolDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
-        protect()
-
         implement(HPCToolDescriptions.findByName) { req ->
             logEntry(log, req)
             val result = db.withTransaction {
                 source.findAllByName(
                     it,
-                    call.request.currentUsername,
+                    call.securityPrincipal.username,
                     req.name,
                     req.normalize()
                 )
@@ -51,7 +49,7 @@ class ToolController<DBSession>(
             val result = db.withTransaction {
                 source.findByNameAndVersion(
                     it,
-                    call.request.currentUsername,
+                    call.securityPrincipal.username,
                     req.name,
                     req.version
                 )
@@ -64,14 +62,13 @@ class ToolController<DBSession>(
             logEntry(log, req)
             ok(
                 db.withTransaction {
-                    source.listLatestVersion(it, call.request.currentUsername, req.normalize())
+                    source.listLatestVersion(it, call.securityPrincipal.username, req.normalize())
                 }
             )
         }
 
         implement(HPCToolDescriptions.create) { req ->
             logEntry(log, req)
-            if (!protect(PRIVILEGED_ROLES)) return@implement
 
             val content = try {
                 call.receiveText()
@@ -106,7 +103,7 @@ class ToolController<DBSession>(
             }
 
             db.withTransaction {
-                source.create(it, call.request.currentUsername, yamlDocument.normalize(), content)
+                source.create(it, call.securityPrincipal.username, yamlDocument.normalize(), content)
             }
 
             ok(Unit)
