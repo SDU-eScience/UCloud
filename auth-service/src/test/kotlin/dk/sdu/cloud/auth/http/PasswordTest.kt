@@ -1,8 +1,8 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.services.*
+import dk.sdu.cloud.auth.utils.testJwtFactory
 import dk.sdu.cloud.auth.utils.withAuthMock
 import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.*
@@ -26,26 +26,23 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-
 class PasswordTest{
-
     private data class TestContext(
         val userDao: UserHibernateDAO,
         val refreshTokenDao: RefreshTokenHibernateDAO,
-        val jwtAlg: JWTAlgorithm,
+        val jwtFactory: JWTFactory,
         val tokenService: TokenService<HibernateSession>
     )
 
     private fun Application.createPasswordController(db: HibernateSessionFactory): TestContext {
         val userDao = UserHibernateDAO()
         val refreshTokenDao = RefreshTokenHibernateDAO()
-        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
 
         val tokenService = TokenService(
             db,
             userDao,
             refreshTokenDao,
-            jwtAlg,
+            testJwtFactory,
             mockk(relaxed = true)
         )
 
@@ -56,8 +53,6 @@ class PasswordTest{
             requireJobId = true
         )
 
-        install(JWTProtection)
-
         routing {
             PasswordController(
                 db,
@@ -66,8 +61,7 @@ class PasswordTest{
             ).configure(this)
         }
 
-        return TestContext(userDao, refreshTokenDao, jwtAlg, tokenService)
-
+        return TestContext(userDao, refreshTokenDao, testJwtFactory, tokenService)
     }
 
     private val person = PersonUtils.createUserByPassword(

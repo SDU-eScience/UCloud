@@ -1,18 +1,17 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.protect
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
+import dk.sdu.cloud.auth.utils.createJWTWithTestAlgorithm
+import dk.sdu.cloud.auth.utils.testJwtFactory
 import dk.sdu.cloud.auth.utils.withAuthMock
 import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
-import io.ktor.application.install
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.routing
@@ -26,8 +25,11 @@ import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 
-fun TestApplicationRequest.setUser(username: String = "user", role: Role = dk.sdu.cloud.auth.api.Role.USER) {
-    addHeader(io.ktor.http.HttpHeaders.Authorization, "Bearer $username/$role")
+fun createTokenForUser(username: String = "user", role: Role = Role.USER): String =
+    createJWTWithTestAlgorithm(username, role).token
+
+fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
+    addHeader(io.ktor.http.HttpHeaders.Authorization, "Bearer ${createTokenForUser(username, role)}")
 }
 
 fun Application.configureBaseServer(vararg controllers: Controller) {
@@ -43,9 +45,11 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
     }
 }
 
-private fun Application.configureAuthServer(userDao: UserHibernateDAO,
-                                            hsfactory: HibernateSessionFactory = mockk(relaxed = true),
-                                            userCreationService: UserCreationService<Session> = mockk(relaxed = true)) {
+private fun Application.configureAuthServer(
+    userDao: UserHibernateDAO,
+    hsfactory: HibernateSessionFactory = mockk(relaxed = true),
+    userCreationService: UserCreationService<Session> = mockk(relaxed = true)
+) {
     @Suppress("UNCHECKED_CAST")
     configureBaseServer(
         UserController(
@@ -66,7 +70,7 @@ class UserTest {
                 withTestApplication(
                     moduleFunction = {
                         val userDao = UserHibernateDAO()
-                        val userCreationService = UserCreationService(db,userDao, mockk(relaxed = true))
+                        val userCreationService = UserCreationService(db, userDao, mockk(relaxed = true))
                         configureAuthServer(userDao, db, userCreationService)
                     },
 

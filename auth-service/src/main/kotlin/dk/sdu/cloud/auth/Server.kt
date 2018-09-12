@@ -58,7 +58,7 @@ class Server(
             db,
             userDao,
             refreshTokenDao,
-            jwtAlg,
+            JWTFactory(jwtAlg),
             userCreationService,
             mergedExtensions
         )

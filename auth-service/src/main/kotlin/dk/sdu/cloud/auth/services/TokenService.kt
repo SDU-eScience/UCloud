@@ -18,62 +18,29 @@ import java.util.*
 
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
 
-class TokenService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val userDao: UserDAO<DBSession>,
-    private val refreshTokenDao: RefreshTokenDAO<DBSession>,
-    private val jwtAlg: JWTAlgorithm,
-    private val userCreationService: UserCreationService<*>,
-    private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap()
-) {
-    private val log = LoggerFactory.getLogger(TokenService::class.java)
-
-    private val secureRandom = SecureRandom()
-    private fun generateCsrfToken(): String {
-        val array = ByteArray(64)
-        secureRandom.nextBytes(array)
-        return Base64.getEncoder().encodeToString(array)
-    }
-
-    private fun createAccessTokenForExistingSession(
+class JWTFactory(private val jwtAlg: JWTAlgorithm) {
+    fun create(
         user: Principal,
-        expiresIn: Long = 1000 * 60 * 10
+        expiresIn: Long,
+        audience: List<SecurityScope>,
+        extendedBy: String? = null,
+        jwtId: String? = null
     ): AccessToken {
-        log.debug("Creating access token for existing session user=$user")
-        val currentTimeMillis = System.currentTimeMillis()
-        val iat = Date(currentTimeMillis)
-        val exp = Date(currentTimeMillis + expiresIn)
-
-        val token = JWT.create().run {
-            writeStandardClaims(user)
-            withExpiresAt(exp)
-            withIssuedAt(iat)
-            withAudience("api")
-            sign(jwtAlg)
-        }
-
-        return AccessToken(token)
-    }
-
-    private fun createOneTimeAccessTokenForExistingSession(
-        user: Principal,
-        audience: List<SecurityScope>
-    ): OneTimeAccessToken {
-        val currentTimeMillis = System.currentTimeMillis()
-        val iat = Date(currentTimeMillis)
-        val exp = Date(currentTimeMillis + 1000 * 30)
-        val jti = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        val iat = Date(now)
+        val exp = Date(now + expiresIn)
 
         val token = JWT.create().run {
             writeStandardClaims(user)
             withExpiresAt(exp)
             withIssuedAt(iat)
             withAudience(*audience.map { it.toString() }.toTypedArray())
-            withJWTId(jti)
+            if (extendedBy != null) withClaim(CLAIM_EXTENDED_BY, extendedBy)
+            if (jwtId != null) withJWTId(jwtId)
             sign(jwtAlg)
         }
 
-        return OneTimeAccessToken(token, jti)
+        return AccessToken(token)
     }
 
     private fun JWTCreator.Builder.writeStandardClaims(user: Principal) {
@@ -100,25 +67,58 @@ class TokenService<DBSession>(
         withClaim("principalType", type)
     }
 
+    companion object {
+        const val CLAIM_EXTENDED_BY = "extendedBy"
+    }
+}
+
+class TokenService<DBSession>(
+    private val db: DBSessionFactory<DBSession>,
+    private val userDao: UserDAO<DBSession>,
+    private val refreshTokenDao: RefreshTokenDAO<DBSession>,
+    private val jwtFactory: JWTFactory,
+    private val userCreationService: UserCreationService<*>,
+    private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap()
+) {
+    private val log = LoggerFactory.getLogger(TokenService::class.java)
+
+    private val secureRandom = SecureRandom()
+    private fun generateCsrfToken(): String {
+        val array = ByteArray(64)
+        secureRandom.nextBytes(array)
+        return Base64.getEncoder().encodeToString(array)
+    }
+
+    private fun createAccessTokenForExistingSession(
+        user: Principal,
+        expiresIn: Long = 1000 * 60 * 10
+    ): AccessToken {
+        return jwtFactory.create(user, expiresIn, listOf(SecurityScope.ALL_WRITE))
+    }
+
+    private fun createOneTimeAccessTokenForExistingSession(
+        user: Principal,
+        audience: List<SecurityScope>
+    ): OneTimeAccessToken {
+        val jti = UUID.randomUUID().toString()
+        return OneTimeAccessToken(
+            jwtFactory.create(
+                user = user,
+                audience = audience,
+                expiresIn = 30 * 1000,
+                jwtId = jti
+            ).accessToken,
+            jti
+        )
+    }
+
     private fun createExtensionToken(
         user: Principal,
         expiresIn: Long,
         scopes: List<SecurityScope>,
         requestedBy: String
     ): AccessToken {
-        val iat = Date(System.currentTimeMillis())
-        val exp = Date(System.currentTimeMillis() + expiresIn)
-
-        return AccessToken(
-            JWT.create().run {
-                writeStandardClaims(user)
-                withIssuedAt(iat)
-                withExpiresAt(exp)
-                withClaim(CLAIM_EXTENDED_BY, requestedBy)
-                withAudience(*scopes.map { it.toString() }.toTypedArray())
-                sign(jwtAlg)
-            }
-        )
+        return jwtFactory.create(user, expiresIn, scopes, extendedBy = requestedBy)
     }
 
     fun createAndRegisterTokenFor(
@@ -300,7 +300,4 @@ class TokenService<DBSession>(
         class InternalError : RefreshTokenException("Internal server error", HttpStatusCode.InternalServerError)
     }
 
-    companion object {
-        const val CLAIM_EXTENDED_BY = "extendedBy"
-    }
 }

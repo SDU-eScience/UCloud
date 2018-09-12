@@ -3,11 +3,11 @@ package dk.sdu.cloud.auth.http
 import com.onelogin.saml2.model.Organization
 import com.onelogin.saml2.settings.Saml2Settings
 import com.onelogin.saml2.util.Util
-import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
+import dk.sdu.cloud.auth.utils.testJwtFactory
 import dk.sdu.cloud.auth.utils.withAuthMock
 import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.db.HibernateSession
@@ -27,7 +27,6 @@ import io.mockk.*
 import org.junit.Test
 import java.net.URL
 import java.util.*
-import kotlin.collections.HashMap
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -36,7 +35,7 @@ class SAMLTest {
     private data class TestContext(
         val userDao: UserHibernateDAO,
         val refreshTokenDao: RefreshTokenHibernateDAO,
-        val jwtAlg: JWTAlgorithm,
+        val jwtFactory: JWTFactory,
         val tokenService: TokenService<HibernateSession>,
         val authSettings: Saml2Settings,
         val samlRequestProcessorFactory: SAMLRequestProcessorFactory
@@ -45,13 +44,12 @@ class SAMLTest {
     private fun Application.createSamlController(db: HibernateSessionFactory): TestContext {
         val userDao = UserHibernateDAO()
         val refreshTokenDao = RefreshTokenHibernateDAO()
-        val jwtAlg = JWTAlgorithm.HMAC256("foobar")
 
         val tokenService = TokenService(
             db,
             userDao,
             refreshTokenDao,
-            jwtAlg,
+            testJwtFactory,
             UserCreationService(db, userDao, mockk(relaxed = true))
         )
 
@@ -61,8 +59,6 @@ class SAMLTest {
             mockk(relaxed = true),
             requireJobId = true
         )
-
-        install(JWTProtection)
 
         val authSettings = mockk<Saml2Settings>()
         val samlRequestProcessorFactory = mockk<SAMLRequestProcessorFactory>()
@@ -75,7 +71,7 @@ class SAMLTest {
             ).configure(this)
         }
 
-        return TestContext(userDao, refreshTokenDao, jwtAlg, tokenService, authSettings, samlRequestProcessorFactory)
+        return TestContext(userDao, refreshTokenDao, testJwtFactory, tokenService, authSettings, samlRequestProcessorFactory)
     }
 
     private val samlResponse = Util.base64encoder(

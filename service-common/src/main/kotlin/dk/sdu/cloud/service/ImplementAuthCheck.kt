@@ -58,6 +58,7 @@ class ImplementAuthCheck {
 
                     if (call.securityPrincipal.role !in description.auth.roles) {
                         log.debug("Security principal is not authorized for this call")
+                        log.debug("Principal is: ${call.securityPrincipal}")
                         call.respond(HttpStatusCode.Unauthorized)
                         ctx.finish()
                         return
