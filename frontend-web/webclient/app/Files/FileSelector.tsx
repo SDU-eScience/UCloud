@@ -279,7 +279,7 @@ const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: File
                                 <FolderSelection canSelectFolders={canSelectFolders} setSelectedFile={() => setSelectedFile(file)} />
                             </List.Content>
                             <List.Content onClick={() => fetchFiles(file.path)}>
-                                <FileIcon size={null} name="folder" link={file.link} color="blue" />
+                                <FileIcon size={undefined} name="folder" link={file.link} color="blue" />
                                 {getFilenameFromPath(file.path)}
                             </List.Content>
                         </List.Item>
