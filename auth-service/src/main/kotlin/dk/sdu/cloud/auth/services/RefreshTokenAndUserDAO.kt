@@ -2,6 +2,7 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.service.db.*
 import org.hibernate.annotations.NaturalId
+import java.util.*
 import javax.persistence.Entity
 import javax.persistence.Id
 import javax.persistence.ManyToOne
@@ -10,7 +11,16 @@ import javax.persistence.Table
 data class RefreshTokenAndUser(
     val associatedUser: String,
     val token: String,
-    val csrf: String
+    val csrf: String,
+
+    /**
+     * An opaque token that uniquely identifies a refresh token.
+     *
+     * This session reference __must not__ be used by any client. This session reference will be embedded in JWTs.
+     * This makes them readable by the end-user. It is __very__ important that we do not leak refresh tokens into
+     * the JWT. This reference is added solely for the purpose of auditing.
+     */
+    val publicSessionReference: String = UUID.randomUUID().toString()
 )
 
 interface RefreshTokenDAO<Session> {
@@ -36,7 +46,9 @@ data class RefreshTokenEntity(
     @ManyToOne
     var associatedUser: PrincipalEntity,
 
-    var csrf: String
+    var csrf: String,
+
+    var publicSessionReference: String
 ) {
     companion object : HibernateEntity<RefreshTokenEntity>, WithId<String>
 }
@@ -51,7 +63,14 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
 
     override fun insert(session: HibernateSession, tokenAndUser: RefreshTokenAndUser) {
         val principal = PrincipalEntity[session, tokenAndUser.associatedUser] ?: throw UserException.NotFound()
-        session.save(RefreshTokenEntity(tokenAndUser.token, principal, tokenAndUser.csrf))
+        session.save(
+            RefreshTokenEntity(
+                tokenAndUser.token,
+                principal,
+                tokenAndUser.csrf,
+                tokenAndUser.publicSessionReference
+            )
+        )
     }
 
     override fun updateCsrf(session: HibernateSession, token: String, newCsrf: String) {
@@ -67,5 +86,5 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
 }
 
 fun RefreshTokenEntity.toModel(): RefreshTokenAndUser {
-    return RefreshTokenAndUser(associatedUser.id, token, csrf)
+    return RefreshTokenAndUser(associatedUser.id, token, csrf, publicSessionReference)
 }
