@@ -1,5 +1,6 @@
 package dk.sdu.cloud.tus.api
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
@@ -71,21 +72,35 @@ object TusDescriptions : RESTDescriptions("tus") {
         },
 
         body = {
-            prettyName = "create"
+            name = "create"
+
+            auth {
+                access = AccessRight.READ_WRITE
+            }
+
             path { using(baseContext) }
             method = HttpMethod.Post
         }
     )
 
     val probeTusConfiguration = callDescription<Unit, Unit, Unit> {
-        prettyName = "probeTusConfiguration"
+        name = "probeTusConfiguration"
         path { using(baseContext) }
         method = HttpMethod.Options
+
+        auth {
+            access = AccessRight.READ
+        }
     }
 
     val findUploadStatusById = callDescription<FindByStringId, Unit, Unit> {
-        prettyName = "findUploadStatusById"
+        name = "findUploadStatusById"
         method = HttpMethod.Head
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path {
             using(baseContext)
             +boundTo(FindByStringId::id)
@@ -93,8 +108,13 @@ object TusDescriptions : RESTDescriptions("tus") {
     }
 
     val uploadChunkViaPost = callDescription<FindByStringId, Unit, Unit> {
-        prettyName = "uploadChunkViaPost"
+        name = "uploadChunkViaPost"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
         path {
             using(baseContext)
             +boundTo(FindByStringId::id)
@@ -102,8 +122,13 @@ object TusDescriptions : RESTDescriptions("tus") {
     }
 
     val uploadChunk = callDescription<FindByStringId, Unit, Unit> {
-        prettyName = "uploadChunk"
+        name = "uploadChunk"
         method = HttpMethod.Patch
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
         path {
             using(baseContext)
             +boundTo(FindByStringId::id)

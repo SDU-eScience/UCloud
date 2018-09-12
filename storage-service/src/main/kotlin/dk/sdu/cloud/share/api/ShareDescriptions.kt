@@ -8,6 +8,8 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
+private typealias AuthAccessRight = dk.sdu.cloud.AccessRight
+
 data class ListSharesRequest(
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
@@ -50,8 +52,12 @@ object ShareDescriptions : RESTDescriptions("shares") {
     const val baseContext = "/api/shares"
 
     val list = callDescription<ListSharesRequest, Page<SharesByPath>, CommonErrorMessage> {
-        prettyName = "listShare"
+        name = "listShare"
         method = HttpMethod.Get
+
+        auth {
+            access = AuthAccessRight.READ
+        }
 
         path {
             using(baseContext)
@@ -64,8 +70,12 @@ object ShareDescriptions : RESTDescriptions("shares") {
     }
 
     val create = callDescription<CreateShareRequest, FindByShareId, CommonErrorMessage> {
-        prettyName = "createShare"
+        name = "createShare"
         method = HttpMethod.Put
+
+        auth {
+            access = AuthAccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -77,8 +87,12 @@ object ShareDescriptions : RESTDescriptions("shares") {
     }
 
     val update = callDescription<UpdateShareRequest, Unit, CommonErrorMessage> {
-        prettyName = "updateShare"
+        name = "updateShare"
         method = HttpMethod.Post
+
+        auth {
+            access = AuthAccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -90,8 +104,12 @@ object ShareDescriptions : RESTDescriptions("shares") {
     }
 
     val revoke = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        prettyName = "revokeShare"
+        name = "revokeShare"
         method = HttpMethod.Post
+
+        auth {
+            access = AuthAccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -101,8 +119,12 @@ object ShareDescriptions : RESTDescriptions("shares") {
     }
 
     val reject = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        prettyName = "rejectShare"
+        name = "rejectShare"
         method = HttpMethod.Post
+
+        auth {
+            access = AuthAccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -112,8 +134,12 @@ object ShareDescriptions : RESTDescriptions("shares") {
     }
 
     val accept = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        prettyName = "acceptShare"
+        name = "acceptShare"
         method = HttpMethod.Post
+
+        auth {
+            access = AuthAccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)

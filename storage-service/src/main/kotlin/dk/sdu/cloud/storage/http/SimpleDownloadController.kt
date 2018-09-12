@@ -5,10 +5,7 @@ import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.application.ApplicationCall
@@ -160,7 +157,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
 
             audit(BulkFileAudit(request.files.map { null }, request))
 
-            commandRunnerFactory.withContext(call.request.validatedPrincipal.subject) { ctx ->
+            commandRunnerFactory.withContext(call.securityPrincipal.username) { ctx ->
                 val files = request.files.map { fs.statOrNull(ctx, it, setOf(FileAttribute.INODE))?.inode }
                 audit(BulkFileAudit(files, request))
                 okContentDeliveredExternally()

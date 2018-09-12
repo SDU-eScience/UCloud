@@ -25,11 +25,13 @@ class ListAtPathTests {
                     val response = listDir("/home/user1/folder")
                     assertEquals(HttpStatusCode.OK, response.status())
                     val items = mapper.readValue<Page<StorageFile>>(response.content!!)
-                    assertEquals(3, items.items.size)
+                    assertEquals(5, items.items.size)
                     log.debug("Received items: $items")
                     assertTrue("a file is contained in response") { items.items.any { it.path == "/home/user1/folder/a" } }
                     assertTrue("b file is contained in response") { items.items.any { it.path == "/home/user1/folder/b" } }
                     assertTrue("c file is contained in response") { items.items.any { it.path == "/home/user1/folder/c" } }
+                    assertTrue("d file is contained in response") { items.items.any { it.path == "/home/user1/folder/d" } }
+                    assertTrue("e file is contained in response") { items.items.any { it.path == "/home/user1/folder/e" } }
                 }
             )
         }

@@ -2,7 +2,9 @@ package dk.sdu.cloud.file.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.KafkaRequest
@@ -151,8 +153,14 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val listAtPath = callDescriptionWithAudit<ListDirectoryRequest, Page<StorageFile>, CommonErrorMessage,
             SingleFileAudit<ListDirectoryRequest>> {
-        prettyName = "listAtPath"
+        name = "listAtPath"
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path { using(baseContext) }
+
         params {
             +boundTo(ListDirectoryRequest::path)
             +boundTo(ListDirectoryRequest::itemsPerPage)
@@ -164,7 +172,11 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val lookupFileInDirectory = callDescriptionWithAudit<LookupFileInDirectoryRequest, Page<StorageFile>,
             CommonErrorMessage, SingleFileAudit<LookupFileInDirectoryRequest>> {
-        prettyName = "lookupFileInDirectory"
+        name = "lookupFileInDirectory"
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)
@@ -180,7 +192,12 @@ object FileDescriptions : RESTDescriptions("files") {
     }
 
     val stat = callDescriptionWithAudit<FindByPath, StorageFile, CommonErrorMessage, SingleFileAudit<FindByPath>> {
-        prettyName = "stat"
+        name = "stat"
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path {
             using(baseContext)
             +"stat"
@@ -193,8 +210,12 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val markAsFavorite = callDescriptionWithAudit<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage,
             SingleFileAudit<FavoriteCommand>> {
-        prettyName = "markAsFavorite"
+        name = "markAsFavorite"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -208,8 +229,12 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val removeFavorite = callDescriptionWithAudit<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage,
             SingleFileAudit<FavoriteCommand>> {
-        prettyName = "removeFavorite"
+        name= "removeFavorite"
         method = HttpMethod.Delete
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -222,8 +247,12 @@ object FileDescriptions : RESTDescriptions("files") {
     }
 
     val createDirectory = callDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
-        prettyName = "createDirectory"
+        name = "createDirectory"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -237,8 +266,12 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val deleteFile = callDescriptionWithAudit<DeleteFileRequest, LongRunningResponse<Unit>, CommonErrorMessage,
             SingleFileAudit<DeleteFileRequest>> {
-        prettyName = "deleteFile"
+        name = "deleteFile"
         method = HttpMethod.Delete
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -250,7 +283,12 @@ object FileDescriptions : RESTDescriptions("files") {
     }
 
     val download = callDescriptionWithAudit<DownloadByURI, Unit, CommonErrorMessage, SingleFileAudit<FindByPath>> {
-        prettyName = "download"
+        name = "download"
+
+        auth {
+            access = AccessRight.READ
+        }
+
         path {
             using(baseContext)
             +"download"
@@ -264,8 +302,13 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val move = callDescriptionWithAudit<MoveRequest, LongRunningResponse<Unit>, CommonErrorMessage,
             SingleFileAudit<MoveRequest>> {
-        prettyName = "move"
+        name = "move"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
         path {
             using(baseContext)
             +"move"
@@ -280,8 +323,13 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val copy = callDescriptionWithAudit<CopyRequest, LongRunningResponse<Unit>, CommonErrorMessage,
             SingleFileAudit<CopyRequest>> {
-        prettyName = "copy"
+        name = "copy"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
         path {
             using(baseContext)
             +"copy"
@@ -296,8 +344,12 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val bulkDownload = callDescriptionWithAudit<BulkDownloadRequest, Unit, CommonErrorMessage,
             BulkFileAudit<BulkDownloadRequest>> {
-        prettyName = "bulkDownload"
+        name = "bulkDownload"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)
@@ -309,8 +361,12 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val syncFileList = callDescriptionWithAudit<SyncFileListRequest, Unit, CommonErrorMessage,
             SingleFileAudit<SyncFileListRequest>> {
-        prettyName = "syncFileList"
+        name = "syncFileList"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)
@@ -325,8 +381,13 @@ object FileDescriptions : RESTDescriptions("files") {
      */
     val annotate = callDescriptionWithAudit<AnnotateFileRequest, Unit, CommonErrorMessage,
             SingleFileAudit<AnnotateFileRequest>> {
-        prettyName = "annotate"
+        name = "annotate"
         method = HttpMethod.Post
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -341,8 +402,13 @@ object FileDescriptions : RESTDescriptions("files") {
             VerifyFileKnowledgeResponse,
             CommonErrorMessage>
     {
-        prettyName = "verifyFileKnowledge"
+        name = "verifyFileKnowledge"
         method = HttpMethod.Post
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)
@@ -358,8 +424,13 @@ object FileDescriptions : RESTDescriptions("files") {
             CommonErrorMessage,
             DeliverMaterializedFileSystemAudit>
     {
-        prettyName = "deliverMaterializedFileSystem"
+        name = "deliverMaterializedFileSystem"
         method = HttpMethod.Post
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)

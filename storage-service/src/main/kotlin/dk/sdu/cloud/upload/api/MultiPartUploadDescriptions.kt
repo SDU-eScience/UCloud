@@ -1,5 +1,6 @@
 package dk.sdu.cloud.upload.api
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
@@ -28,7 +29,11 @@ object MultiPartUploadDescriptions : RESTDescriptions("upload") {
     val upload = callDescriptionWithAudit<Unit, Unit, CommonErrorMessage, MultiPartUploadAudit> (
         body = {
             method = HttpMethod.Post
-            prettyName = "upload"
+            name = "upload"
+
+            auth {
+                access = AccessRight.READ_WRITE
+            }
 
             path {
                 using(baseContext)
@@ -38,8 +43,12 @@ object MultiPartUploadDescriptions : RESTDescriptions("upload") {
 
     // TODO FIXME Really need that multi-part support
     val bulkUpload = callDescriptionWithAudit<Unit, BulkUploadErrorMessage, CommonErrorMessage, BulkUploadAudit> {
-        prettyName = "bulkUpload"
+        name = "bulkUpload"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)

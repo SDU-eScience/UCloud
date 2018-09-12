@@ -1,8 +1,7 @@
 package dk.sdu.cloud.storage.http.files
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
@@ -56,7 +55,6 @@ fun Application.configureServerWithFileController(
 
     val cloud = mockk<AuthenticatedCloud>(relaxed = true)
     installDefaultFeatures(cloud, mockk(relaxed = true), instance, requireJobId = false)
-    install(JWTProtection)
 
     val fsRoot = fsRootInitializer()
     val (runner, fs) = cephFSWithRelaxedMocks(fsRoot.absolutePath, userDao)

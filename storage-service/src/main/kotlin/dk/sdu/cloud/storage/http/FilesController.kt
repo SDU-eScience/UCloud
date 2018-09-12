@@ -1,10 +1,12 @@
 package dk.sdu.cloud.storage.http
 
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.CallResult
 import dk.sdu.cloud.storage.util.tryWithFS
@@ -28,10 +30,9 @@ class FilesController<Ctx : FSUserContext>(
     override fun configure(routing: Route): Unit = with(routing) {
         implement(FileDescriptions.listAtPath) { request ->
             logEntry(log, request)
-            if (!protect()) return@implement
             audit(SingleFileAudit(null, request))
 
-            tryWithFS(commandRunnerFactory, call.request.currentUsername) {
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) {
                 val stat = fileLookupService.stat(it, request.path)
                 val result = fileLookupService.listDirectory(
                     it,
@@ -48,10 +49,9 @@ class FilesController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.lookupFileInDirectory) { request ->
             logEntry(log, request)
-            if (!protect()) return@implement
             audit(SingleFileAudit(null, request))
 
-            tryWithFS(commandRunnerFactory, call.request.currentUsername) { ctx ->
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
                 val result = fileLookupService.lookupFileInDirectory(
                     ctx,
                     request.path,
@@ -68,10 +68,9 @@ class FilesController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.stat) { request ->
             logEntry(log, request)
-            if (!protect()) return@implement
             audit(SingleFileAudit(null, request))
 
-            tryWithFS(commandRunnerFactory, call.request.currentUsername) {
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) {
                 val result = fileLookupService.stat(it, request.path)
                 audit(SingleFileAudit(result.fileId, request))
                 ok(result)
@@ -80,10 +79,9 @@ class FilesController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.markAsFavorite) { req ->
             logEntry(log, req)
-            if (!protect()) return@implement
             audit(SingleFileAudit(null, req))
 
-            tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
                 val stat = fileLookupService.stat(it, req.path)
                 favoriteService.markAsFavorite(it, req.path)
 
@@ -94,10 +92,9 @@ class FilesController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.removeFavorite) { req ->
             logEntry(log, req)
-            if (!protect()) return@implement
             audit(SingleFileAudit(null, req))
 
-            tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
                 val stat = fileLookupService.stat(it, req.path)
                 favoriteService.removeFavorite(it, req.path)
 
@@ -108,9 +105,8 @@ class FilesController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.createDirectory) { req ->
             logEntry(log, req)
-            if (!protect()) return@implement
 
-            if (call.request.principalRole in setOf(Role.ADMIN, Role.SERVICE) && req.owner != null) {
+            if (call.securityPrincipal.role in Roles.PRIVILEDGED && req.owner != null) {
                 log.debug("Authenticated as a privileged account. Using direct strategy")
                 tryWithFSAndTimeout(commandRunnerFactory, req.owner) {
                     coreFs.makeDirectory(it, req.path)
@@ -119,7 +115,7 @@ class FilesController<Ctx : FSUserContext>(
             } else {
                 log.debug("Authenticated as a normal user. Using Jargon strategy")
 
-                tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+                tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
                     coreFs.makeDirectory(it, req.path)
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
@@ -128,10 +124,9 @@ class FilesController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.deleteFile) { req ->
             logEntry(log, req)
-            if (!protect()) return@implement
             audit(SingleFileAudit(null, req))
 
-            tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
                 val stat = fileLookupService.stat(it, req.path)
                 coreFs.delete(it, req.path)
 
@@ -142,9 +137,8 @@ class FilesController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.move) { req ->
             logEntry(log, req)
-            if (!protect()) return@implement
             audit(SingleFileAudit(null, req))
-            tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
                 val stat = fileLookupService.stat(it, req.path)
                 coreFs.move(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
 
@@ -155,10 +149,9 @@ class FilesController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.copy) { req ->
             logEntry(log, req)
-            if (!protect()) return@implement
             audit(SingleFileAudit(null, req))
 
-            tryWithFSAndTimeout(commandRunnerFactory, call.request.currentUsername) {
+            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
                 val stat = fileLookupService.stat(it, req.path)
                 coreFs.copy(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
                 audit(SingleFileAudit(stat.fileId, req))
@@ -183,7 +176,6 @@ class FilesController<Ctx : FSUserContext>(
             // it should be eligible for GC.
 
             logEntry(log, req)
-            if (!protect()) return@implement
             audit(SingleFileAudit(null, req))
 
             fun StringBuilder.appendToken(token: Any?) {
@@ -203,13 +195,13 @@ class FilesController<Ctx : FSUserContext>(
                 FileAttribute.RAW_PATH
             )
 
-            tryWithFS(commandRunnerFactory, call.request.currentUsername) {
-                val inode = coreFs.stat(it, req.path, setOf(FileAttribute.INODE)).inode
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+                val inode = coreFs.stat(ctx, req.path, setOf(FileAttribute.INODE)).inode
                 audit(SingleFileAudit(inode, req))
                 okContentDeliveredExternally()
 
                 call.respondDirectWrite(status = HttpStatusCode.OK, contentType = ContentType.Text.Plain) {
-                    coreFs.tree(it, req.path, attributes).forEach {
+                    coreFs.tree(ctx, req.path, attributes).forEach {
                         writeStringUtf8(StringBuilder().apply {
                             appendToken(
                                 when (it.fileType) {
@@ -243,7 +235,6 @@ class FilesController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.annotate) { req ->
             logEntry(log, req)
-            if (!protect(PRIVILEGED_ROLES)) return@implement
             audit(SingleFileAudit(null, req))
 
             tryWithFS(commandRunnerFactory, req.proxyUser) {

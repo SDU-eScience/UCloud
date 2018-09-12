@@ -1,7 +1,6 @@
 package dk.sdu.cloud.storage
 
 import dk.sdu.cloud.auth.api.AuthStreams
-import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
@@ -97,7 +96,6 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
-            install(JWTProtection)
             install(CORS) {
                 anyHost()
                 header(HttpHeaders.Authorization)
@@ -157,8 +155,7 @@ class Server(
 
                     ShareController(
                         shareService,
-                        processRunner,
-                        coreFileSystem
+                        processRunner
                     )
                 )
             }

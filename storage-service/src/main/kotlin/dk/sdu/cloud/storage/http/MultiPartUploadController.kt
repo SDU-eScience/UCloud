@@ -1,15 +1,13 @@
 package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.principalRole
-import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.storage.services.BulkUploadService
 import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
@@ -37,16 +35,14 @@ class MultiPartUploadController<Ctx : FSUserContext>(
     override val baseContext = MultiPartUploadDescriptions.baseContext
 
     override fun configure(routing: Route):Unit = with(routing) {
-        protect()
-
-        implement(MultiPartUploadDescriptions.upload) {
+        implement(MultiPartUploadDescriptions.upload) { it ->
             logEntry(log, it)
 
             // TODO Support in RESTDescriptions for multi-parts would be nice
             val multipart = call.receiveMultipart()
             var location: String? = null
             var sensitivity: SensitivityLevel = SensitivityLevel.CONFIDENTIAL
-            var owner: String = call.request.validatedPrincipal.subject
+            var owner: String = call.securityPrincipal.username
 
             multipart.forEachPart { part ->
                 log.debug("Received part ${part.name}")
@@ -62,7 +58,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                             }
 
                             "owner" -> {
-                                if (call.request.principalRole.isPrivileged()) {
+                                if (call.securityPrincipal.role.isPrivileged()) {
                                     owner = part.value
                                 }
                             }
@@ -83,8 +79,8 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                             okContentDeliveredExternally()
 
                             assert(
-                                owner == call.request.validatedPrincipal.subject ||
-                                        call.request.principalRole.isPrivileged()
+                                owner == call.securityPrincipal.username ||
+                                        call.securityPrincipal.role.isPrivileged()
                             )
 
                             commandRunnerFactory.withContext(owner) { ctx ->
@@ -106,15 +102,15 @@ class MultiPartUploadController<Ctx : FSUserContext>(
             }
         }
 
-        implement(MultiPartUploadDescriptions.bulkUpload) {
-            logEntry(log, it)
+        implement(MultiPartUploadDescriptions.bulkUpload) { req ->
+            logEntry(log, req)
 
             var policy: WriteConflictPolicy? = null
             var path: String? = null
             var format: String? = null
             var error = false
 
-            val user = call.request.validatedPrincipal.subject
+            val user = call.securityPrincipal.username
 
             tryWithFS {
                 val multipart = call.receiveMultipart()

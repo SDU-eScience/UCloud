@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.http.files
 
-import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.withTestApplication

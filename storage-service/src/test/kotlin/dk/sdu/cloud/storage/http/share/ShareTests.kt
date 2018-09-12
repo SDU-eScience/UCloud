@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.http.share
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.notification.api.FindByNotificationId
@@ -68,7 +69,7 @@ class ShareTests {
                             val aclService = ACLService(it.fs)
                             val shareService = ShareService(db, ShareHibernateDAO(), it.runner, aclService, it.coreFs)
 
-                            configureControllers(ShareController(shareService, it.runner, it.coreFs))
+                            configureControllers(ShareController(shareService, it.runner))
                         }
                     },
 
@@ -154,7 +155,7 @@ class ShareTests {
                             val aclService = ACLService(it.fs)
                             val shareService = ShareService(db, ShareHibernateDAO(), it.runner, aclService, it.coreFs)
 
-                            configureControllers(ShareController(shareService, it.runner, it.coreFs))
+                            configureControllers(ShareController(shareService, it.runner))
                         }
                     },
 
@@ -277,7 +278,7 @@ class ShareTests {
                             val aclService = ACLService(it.fs)
                             val shareService = ShareService(db, ShareHibernateDAO(), it.runner, aclService, it.coreFs)
 
-                            configureControllers(ShareController(shareService, it.runner, it.coreFs))
+                            configureControllers(ShareController(shareService, it.runner))
                         }
                     },
 

@@ -1,6 +1,6 @@
 package dk.sdu.cloud.storage.http.download
 
-import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.configureControllers
