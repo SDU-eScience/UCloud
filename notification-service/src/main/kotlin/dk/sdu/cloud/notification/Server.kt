@@ -1,12 +1,10 @@
 package dk.sdu.cloud.notification
 
 import dk.sdu.cloud.notification.http.NotificationController
-import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.notification.services.NotificationHibernateDAO
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import io.ktor.application.install
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -32,7 +30,6 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
             installDefaultFeatures(cloud, kafka, instance, requireJobId = true)
-            install(JWTProtection)
 
             routing {
                 configureControllers(

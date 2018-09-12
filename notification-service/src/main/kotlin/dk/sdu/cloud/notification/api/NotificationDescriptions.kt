@@ -1,10 +1,11 @@
 package dk.sdu.cloud.notification.api
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
@@ -23,8 +24,12 @@ object NotificationDescriptions : RESTDescriptions("notifications") {
     const val baseContext = "/api/notifications"
 
     val list = callDescription<ListNotificationRequest, Page<Notification>, CommonErrorMessage> {
-        prettyName = "list"
+        name = "list"
         method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)
@@ -39,8 +44,12 @@ object NotificationDescriptions : RESTDescriptions("notifications") {
     }
 
     val markAsRead = callDescription<FindByNotificationId, Unit, CommonErrorMessage> {
-        prettyName = "markAsRead"
+        name = "markAsRead"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -50,8 +59,13 @@ object NotificationDescriptions : RESTDescriptions("notifications") {
     }
 
     val create = callDescription<CreateNotification, FindByNotificationId, CommonErrorMessage> {
-        prettyName = "create"
+        name = "create"
         method = HttpMethod.Put
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -63,8 +77,13 @@ object NotificationDescriptions : RESTDescriptions("notifications") {
     }
 
     val delete = callDescription<FindByNotificationId, Unit, CommonErrorMessage> {
-        prettyName = "delete"
+        name = "delete"
         method = HttpMethod.Delete
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
