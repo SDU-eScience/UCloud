@@ -263,17 +263,6 @@ export const downloadAllowed = (files: File[]) =>
 
 export const prettierString = (str: string) => toLowerCaseAndCapitalize(str).replace(/_/g, " ")
 
-// FIXME move to ApplicationUtilities
-export const favoriteApplication = (app) => {
-    app.favorite = !app.favorite;
-    if (app.favorite) {
-        // post
-    } else {
-        // delete
-    }
-    return app;
-}
-
 export function defaultErrorHandler(error: { request: XMLHttpRequest, response: any }): number {
     let request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly

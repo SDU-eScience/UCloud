@@ -9,7 +9,7 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
-import { favoriteApplication, infoNotification, failureNotification } from "UtilityFunctions";
+import { infoNotification, failureNotification } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { RunAppProps, RunAppState, JobInfo, MaxTime } from "."
@@ -67,8 +67,9 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     }
 
     favoriteApp = () => {
+        // FIXME Doesn't actually do anything
         this.setState(() => ({
-            favorite: favoriteApplication({ favorite: this.state.favorite }).favorite
+            favorite: !this.state.favorite
         }));
     }
 
@@ -97,7 +98,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                     infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
                 }
                 const extractedParameters = extractParameters(parameters, this.state.parameters.map(it => ({
-                    name: it.name, type: it.type
+                    name: it.name, type: it.type as ParameterTypes
                 })), siteVersion);
                 this.setState(() => ({
                     parameterValues: { ...this.state.parameterValues, ...extractedParameters },

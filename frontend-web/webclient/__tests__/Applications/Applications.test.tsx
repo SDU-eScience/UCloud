@@ -7,7 +7,7 @@ import applicationsReducer from "Applications/Redux/ApplicationsReducer";
 import { Provider } from "react-redux";
 import { applicationsPage } from "../mock/Applications";
 import { MemoryRouter } from "react-router";
-import { favoriteApplication } from "UtilityFunctions";
+import { shallow } from "enzyme";
 
 const emptyPageStore = configureStore({ applications: initApplications() }, { applications: applicationsReducer });
 const fullPageStore = {
@@ -51,13 +51,15 @@ describe("Single Application Component", () => {
 });
 
 describe("Single Applications", () => {
-    // FIXME Cloud relies on this
+
     test.skip("Favorite application", () => {
+        const func = jest.fn();
         const application = applicationsPage.items[0];
-        const foo = <SingleApplication
+        const singleApp = shallow(<SingleApplication
             app={application}
-            favoriteApp={() => null}
-        />;
-        // console.log(foo.props.favoriteApp());
+            favoriteApp={func}
+        />);
+        singleApp.simulate("click");
+        expect(func).toHaveBeenCalled();
     });
 });
