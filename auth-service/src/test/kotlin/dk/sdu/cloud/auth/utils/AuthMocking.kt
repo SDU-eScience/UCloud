@@ -25,7 +25,9 @@ private fun stringClaim(value: String): Claim {
     return result
 }
 
-fun createServiceJWTWithTestAlgorithm(service: String = "_service"): DecodedJWT {
+fun createServiceJWTWithTestAlgorithm(
+    service: String = "_service"
+): DecodedJWT {
     val principal = ServicePrincipal(service, Role.SERVICE)
     return testJwtVerifier.verify(testJwtFactory.create(
         user = principal,
@@ -34,12 +36,16 @@ fun createServiceJWTWithTestAlgorithm(service: String = "_service"): DecodedJWT 
     ).accessToken)
 }
 
-fun createJWTWithTestAlgorithm(user: String = "user1", role: Role): DecodedJWT {
+fun createJWTWithTestAlgorithm(
+    user: String = "user1",
+    role: Role,
+    audience: List<SecurityScope> = listOf(SecurityScope.ALL_WRITE)
+): DecodedJWT {
     val principal = PersonUtils.createUserByPassword(user, user, user, role, "apassw0rd!")
     return testJwtVerifier.verify(testJwtFactory.create(
         user = principal,
         expiresIn = 1000 * 60 * 60,
-        audience = listOf(SecurityScope.ALL_WRITE)
+        audience = audience
     ).accessToken)
 }
 

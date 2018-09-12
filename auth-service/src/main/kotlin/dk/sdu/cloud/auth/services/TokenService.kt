@@ -146,10 +146,6 @@ class TokenService<DBSession>(
         rawSecurityScopes: List<String>,
         requestedBy: String
     ): AccessToken {
-        // We must ensure that the token we receive has enough permissions. For this we require all:write.
-        // This is needed since we would otherwise have privilege escalation here
-        token.requireScope(SecurityScope.ALL_WRITE)
-
         val requestedScopes = rawSecurityScopes.map {
             try {
                 SecurityScope.parseFromString(it)
@@ -166,6 +162,18 @@ class TokenService<DBSession>(
                         "of the requested permissions"
             )
 
+        }
+
+        // We must ensure that the token we receive has enough permissions.
+        // This is needed since we would otherwise have privilege escalation here
+        val allRequestedScopesAreCoveredByUserScopes = requestedScopes.all { requestedScope ->
+            token.scopes.any { userScope ->
+                requestedScope.isCoveredBy(userScope)
+            }
+        }
+
+        if (!allRequestedScopesAreCoveredByUserScopes) {
+            throw ExtensionException.Unauthorized("Cannot extend due to missing user scopes")
         }
 
         if (expiresIn < 0 || expiresIn > MAX_EXTENSION_TIME_IN_MS) {

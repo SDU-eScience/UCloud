@@ -7,10 +7,7 @@ import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.AuthConfiguration
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.services.*
-import dk.sdu.cloud.auth.utils.createServiceJWTWithTestAlgorithm
-import dk.sdu.cloud.auth.utils.testJwtFactory
-import dk.sdu.cloud.auth.utils.withAuthMock
-import dk.sdu.cloud.auth.utils.withDatabase
+import dk.sdu.cloud.auth.utils.*
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.HibernateSession
@@ -587,48 +584,252 @@ class CoreAuthTest {
         }
     }
 
-    @Test
-    fun `Extension test - happy path`() {
-        val serviceName = "service"
-        val scope = SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE)
-        val extensionPolicy = mapOf(serviceName to setOf(scope))
+    private fun extensionTest(
+        serviceScope: List<SecurityScope>,
+        requestedScopes: List<SecurityScope>,
 
-        val user = "user"
-        val userRole = Role.USER
-        val userJwt = createTokenForUser(user, userRole)
+        user: String = "user",
+        userRole: Role = Role.USER,
+        userAudience: List<SecurityScope> = listOf(SecurityScope.ALL_WRITE),
 
-        val expiresIn = 360000L
+        serviceName: String = "service",
+        extensionExpiresIn: Long = 3600 * 1000L,
+
+        scopeOverrideJson: String? = null,
+
+        verifier: (TestApplicationResponse) -> Unit
+    ) {
+        val extensionPolicy = mapOf(serviceName to serviceScope.toSet())
+        val userJwt = createJWTWithTestAlgorithm(user, userRole, userAudience).token
 
         withBasicSetup(serviceExtensionPolicy = extensionPolicy) { ctx ->
             ctx.db.withTransaction { session ->
                 ctx.createUser(session, user, userRole)
             }
 
-            val start = System.currentTimeMillis()
+            val requestedScopesJson = scopeOverrideJson ?: requestedScopes.joinToString(",") { "\"$it\"" }
+
             val response = sendRequest(HttpMethod.Post, "/auth/extend", serviceName, Role.SERVICE) {
                 setBody(
                     """
                     {
                         "validJWT": "$userJwt",
-                        "expiresIn": $expiresIn,
+                        "expiresIn": $extensionExpiresIn,
                         "requestedScopes": [
-                            "foo:write"
+                            $requestedScopesJson
                         ]
                     }
                 """.trimIndent()
                 )
             }.response
 
-            assertEquals(HttpStatusCode.OK, response.status())
-            val parsedResponse = defaultMapper.readValue<TokenExtensionResponse>(response.content!!)
+            verifier(response)
+        }
+    }
 
-            val parsedToken = TokenValidation.validateOrNull(parsedResponse.accessToken)!!.toSecurityToken()
-            assertEquals(user, parsedToken.principal.username)
-            assertEquals(userRole, parsedToken.principal.role)
-            assertTrue(
-                parsedToken.expiresAt - parsedToken.issuedAt >= expiresIn,
-                "Expected token to be expire after $expiresIn, but was ${parsedToken.expiresAt - parsedToken.issuedAt}"
+    private fun extensionParseValidResponse(response: TestApplicationResponse): TokenExtensionResponse {
+        assertEquals(HttpStatusCode.OK, response.status())
+        return defaultMapper.readValue(response.content!!)
+    }
+
+    private fun extensionAssertValid(
+        response: TokenExtensionResponse,
+        user: String = "user",
+        userRole: Role = Role.USER,
+        extensionExpiresIn: Long = 3600 * 1000L
+    ) {
+        val parsedToken = TokenValidation.validateOrNull(response.accessToken)!!.toSecurityToken()
+        assertEquals(user, parsedToken.principal.username)
+        assertEquals(userRole, parsedToken.principal.role)
+        assertTrue(
+            parsedToken.expiresAt - parsedToken.issuedAt >= extensionExpiresIn,
+            "Expected token to be expire after $extensionExpiresIn, but was " +
+                    "${parsedToken.expiresAt - parsedToken.issuedAt}"
+        )
+    }
+
+    @Test
+    fun `Extension test - happy path`() {
+        val scope = listOf(SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE))
+
+        extensionTest(
+            serviceScope = scope,
+            requestedScopes = scope
+        ) { response ->
+            val parsedResponse = extensionParseValidResponse(response)
+            extensionAssertValid(parsedResponse)
+        }
+    }
+
+    @Test
+    fun `Extension test - happy path (multiple scopes)`() {
+        val scope = listOf(
+            SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE),
+            SecurityScope.construct(listOf("bar"), AccessRight.READ_WRITE)
+        )
+
+        extensionTest(
+            serviceScope = scope,
+            requestedScopes = scope
+        ) { response ->
+            val parsedResponse = extensionParseValidResponse(response)
+            extensionAssertValid(parsedResponse)
+        }
+    }
+
+    @Test
+    fun `Extension test - happy path (multiple scopes, specialized user scope)`() {
+        val scope = listOf(
+            SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE),
+            SecurityScope.construct(listOf("bar"), AccessRight.READ_WRITE)
+        )
+
+        extensionTest(
+            serviceScope = scope,
+            requestedScopes = scope,
+            userAudience = scope
+        ) { response ->
+            val parsedResponse = extensionParseValidResponse(response)
+            extensionAssertValid(parsedResponse)
+        }
+    }
+
+    @Test
+    fun `Extension test - happy path (single scope, specialized user scope)`() {
+        val scope = listOf(
+            SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE)
+        )
+
+        extensionTest(
+            serviceScope = scope,
+            requestedScopes = scope,
+            userAudience = scope
+        ) { response ->
+            val parsedResponse = extensionParseValidResponse(response)
+            extensionAssertValid(parsedResponse)
+        }
+    }
+
+    @Test
+    fun `Extension test - scope not allowed by service`() {
+        extensionTest(
+            serviceScope = emptyList(),
+            requestedScopes = listOf(SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE))
+        ) { response ->
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
+        }
+    }
+
+    @Test
+    fun `Extension test - not all scopes allowed by service`() {
+        extensionTest(
+            serviceScope = listOf(
+                SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE)
+            ),
+
+            requestedScopes = listOf(
+                SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE),
+                SecurityScope.construct(listOf("bar"), AccessRight.READ_WRITE)
             )
+        ) { response ->
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
+        }
+    }
+
+    @Test
+    fun `Extension test - privilege escalation`() {
+        val scope = listOf(SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE))
+        extensionTest(
+            // Service is allowed to extend for (foo:write)
+            serviceScope = scope,
+            requestedScopes = scope,
+
+            // User JWT only has limited scope (for bar:read)
+            userAudience = listOf(SecurityScope.construct(listOf("bar"), AccessRight.READ))
+        ) { response ->
+            // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
+            // the original JWT
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
+        }
+    }
+
+    @Test
+    fun `Extension test - request all scopes`() {
+        val scope = listOf(SecurityScope.ALL_WRITE)
+        extensionTest(
+            serviceScope = scope,
+            requestedScopes = scope,
+            userAudience = scope
+        ) { response ->
+            // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
+            // the original JWT
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
+        }
+    }
+
+    @Test
+    fun `Extension test - request special scopes`() {
+        val scope = listOf(SecurityScope.construct(listOf(SecurityScope.SPECIAL_SCOPE), AccessRight.READ_WRITE))
+        extensionTest(
+            serviceScope = scope,
+            requestedScopes = scope,
+            userAudience = scope
+        ) { response ->
+            // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
+            // the original JWT
+
+            assertEquals(HttpStatusCode.Unauthorized, response.status())
+        }
+    }
+
+    @Test
+    fun `Extension test - negative expiresIn`() {
+        val scope = listOf(SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE))
+        extensionTest(
+            serviceScope = scope,
+            requestedScopes = scope,
+            userAudience = scope,
+            extensionExpiresIn = -1L
+        ) { response ->
+            // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
+            // the original JWT
+
+            assertEquals(HttpStatusCode.BadRequest, response.status())
+        }
+    }
+
+    @Test
+    fun `Extension test - large expiresIn`() {
+        val scope = listOf(SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE))
+        extensionTest(
+            serviceScope = scope,
+            requestedScopes = scope,
+            userAudience = scope,
+            extensionExpiresIn = 1000L * 60 * 60 * 24 * 365
+        ) { response ->
+            // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
+            // the original JWT
+
+            assertEquals(HttpStatusCode.BadRequest, response.status())
+        }
+    }
+
+    @Test
+    fun `Extension test - bad requested scope`() {
+        val scope = listOf(SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE))
+        extensionTest(
+            serviceScope = scope,
+            requestedScopes = emptyList(),
+            scopeOverrideJson = "\"foo::::\"",
+            userAudience = scope,
+            extensionExpiresIn = 1000L * 60 * 60 * 24 * 365
+        ) { response ->
+            // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
+            // the original JWT
+
+            assertEquals(HttpStatusCode.BadRequest, response.status())
         }
     }
 }
