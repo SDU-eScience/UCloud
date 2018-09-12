@@ -150,6 +150,9 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
     val firstNames = validatedToken.requiredClaim("firstNames") { it.asString() }
     val lastName = validatedToken.requiredClaim("lastName") { it.asString() }
     val role = validatedToken.requiredClaim("role") { Role.valueOf(it.asString()) }
+    val publicSessionReference = validatedToken
+        .getClaim("publicSessionReference")
+        .takeIf { !it.isNull }?.asString()
 
     val principal = SecurityPrincipal(
         validatedToken.subject,
@@ -169,10 +172,10 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
 
     return SecurityPrincipalToken(
         principal,
-        "", // TODO
         scopes,
         issuedAt,
-        expiresAt
+        expiresAt,
+        publicSessionReference
     )
 }
 

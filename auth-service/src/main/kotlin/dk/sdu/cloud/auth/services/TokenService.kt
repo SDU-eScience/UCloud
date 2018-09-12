@@ -8,9 +8,12 @@ import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.toSecurityToken
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.security.SecureRandom
@@ -24,7 +27,8 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) {
         expiresIn: Long,
         audience: List<SecurityScope>,
         extendedBy: String? = null,
-        jwtId: String? = null
+        jwtId: String? = null,
+        sessionReference: String? = null
     ): AccessToken {
         val now = System.currentTimeMillis()
         val iat = Date(now)
@@ -37,6 +41,7 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) {
             withAudience(*audience.map { it.toString() }.toTypedArray())
             if (extendedBy != null) withClaim(CLAIM_EXTENDED_BY, extendedBy)
             if (jwtId != null) withJWTId(jwtId)
+            if (sessionReference != null) withClaim(CLAIM_SESSION_REFERENCE, sessionReference)
             sign(jwtAlg)
         }
 
@@ -69,6 +74,7 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) {
 
     companion object {
         const val CLAIM_EXTENDED_BY = "extendedBy"
+        const val CLAIM_SESSION_REFERENCE = "publicSessionReference"
     }
 }
 
@@ -91,9 +97,10 @@ class TokenService<DBSession>(
 
     private fun createAccessTokenForExistingSession(
         user: Principal,
+        sessionReference: String,
         expiresIn: Long = 1000 * 60 * 10
     ): AccessToken {
-        return jwtFactory.create(user, expiresIn, listOf(SecurityScope.ALL_WRITE))
+        return jwtFactory.create(user, expiresIn, listOf(SecurityScope.ALL_WRITE), sessionReference = sessionReference)
     }
 
     private fun createOneTimeAccessTokenForExistingSession(
@@ -126,18 +133,22 @@ class TokenService<DBSession>(
         expiresIn: Long = 1000 * 60 * 10
     ): AuthenticationTokens {
         log.debug("Creating and registering token for $user")
-        val accessToken = createAccessTokenForExistingSession(user, expiresIn).accessToken
         val refreshToken = UUID.randomUUID().toString()
         val csrf = generateCsrfToken()
 
-        val tokens = AuthenticationTokens(accessToken, refreshToken, csrf)
+        val tokenAndUser = RefreshTokenAndUser(user.id, refreshToken, csrf)
         db.withTransaction {
-            val tokenAndUser = RefreshTokenAndUser(user.id, tokens.refreshToken, tokens.csrfToken)
             log.debug(tokenAndUser.toString())
             refreshTokenDao.insert(it, tokenAndUser)
         }
 
-        return tokens
+        val accessToken = createAccessTokenForExistingSession(
+            user,
+            tokenAndUser.publicSessionReference,
+            expiresIn
+        ).accessToken
+
+        return AuthenticationTokens(accessToken, refreshToken, csrf)
     }
 
     fun extendToken(
@@ -278,7 +289,7 @@ class TokenService<DBSession>(
 
             val newCsrf = generateCsrfToken()
             refreshTokenDao.updateCsrf(session, rawToken, newCsrf)
-            val accessToken = createAccessTokenForExistingSession(user)
+            val accessToken = createAccessTokenForExistingSession(user, token.publicSessionReference)
             AccessTokenAndCsrf(accessToken.accessToken, newCsrf)
         }
     }

@@ -88,11 +88,6 @@ data class SecurityPrincipalToken(
     val principal: SecurityPrincipal,
 
     /**
-     * Opaque token that identifies the session
-     */
-    val sessionId: String,
-
-    /**
      * A list of scopes that this principal is currently authorized for.
      */
     val scopes: List<SecurityScope>,
@@ -105,7 +100,16 @@ data class SecurityPrincipalToken(
     /**
      * When does this token expire (ms since unix epoch)
      */
-    val expiresAt: Long
+    val expiresAt: Long,
+
+    /**
+     * An opaque token that uniquely identifies a refresh token.
+     *
+     * This session reference __must not__ be used by any client. This session reference will be embedded in JWTs.
+     * This makes them readable by the end-user. It is __very__ important that we do not leak refresh tokens into
+     * the JWT. This reference is added solely for the purpose of auditing.
+     */
+    val publicSessionReference: String?
 )
 
 enum class AccessRight(val scopeName: String) {

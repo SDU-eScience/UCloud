@@ -378,7 +378,7 @@ class CoreAuthController<DBSession>(
                     HttpStatusCode.Unauthorized
                 )
 
-                audit(auditMessage.copy(username = token.sessionId, role = token.principal.role))
+                audit(auditMessage.copy(username = token.principal.username, role = token.principal.role))
 
                 ok(tokenService.extendToken(token, req.expiresIn, req.requestedScopes, call.securityPrincipal.username))
             }

@@ -418,7 +418,10 @@ class CoreAuthTest {
         }.response
     }
 
-    private fun webRefreshVerifySuccess(response: TestApplicationResponse) {
+    private fun webRefreshVerifySuccess(
+        response: TestApplicationResponse,
+        sessionReference: String
+    ) {
         assertEquals(HttpStatusCode.OK, response.status())
         val tree = defaultMapper.readTree(response.content!!)
 
@@ -430,6 +433,9 @@ class CoreAuthTest {
 
         assertTrue(accessToken.asText().isNotBlank())
         assertTrue(csrfToken.asText().isNotBlank())
+
+        val jwt = testJwtVerifier.verify(accessToken.asText()).toSecurityToken()
+        assertEquals(jwt.publicSessionReference, sessionReference)
     }
 
     @Test
@@ -437,7 +443,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
             val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin))
-            webRefreshVerifySuccess(response)
+            webRefreshVerifySuccess(response, token.publicSessionReference)
         }
     }
 
@@ -446,7 +452,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
             val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Referrer))
-            webRefreshVerifySuccess(response)
+            webRefreshVerifySuccess(response, token.publicSessionReference)
         }
     }
 
@@ -455,7 +461,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
             val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin, HttpHeaders.Referrer))
-            webRefreshVerifySuccess(response)
+            webRefreshVerifySuccess(response, token.publicSessionReference)
         }
     }
 
@@ -466,7 +472,7 @@ class CoreAuthTest {
             val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Referrer)) {
                 addHeader(HttpHeaders.Origin, "         ")
             }
-            webRefreshVerifySuccess(response)
+            webRefreshVerifySuccess(response, token.publicSessionReference)
         }
     }
 
@@ -577,7 +583,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
             val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin))
-            webRefreshVerifySuccess(response)
+            webRefreshVerifySuccess(response, token.publicSessionReference)
 
             val response2 = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin))
             assertEquals(HttpStatusCode.Unauthorized, response2.status())

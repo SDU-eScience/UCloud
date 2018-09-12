@@ -35,6 +35,7 @@ interface RefreshTokenDAO<Session> {
  *
  * - V1__Initial.sql
  * - V2__CSRF.sql
+ * - V3__Session_id.sql
  */
 @Entity
 @Table(name = "refresh_tokens")
