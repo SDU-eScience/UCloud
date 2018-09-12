@@ -1,0 +1,5 @@
+---
+auth:
+  tokenExtension:
+    - serviceName: "_app"
+      allowedScopes: ["upload.upload:write", "files:write"]

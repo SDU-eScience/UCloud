@@ -179,12 +179,17 @@ class TokenService<DBSession>(
 
         // Request and scope validation
         val extensions = allowedServiceExtensionScopes[requestedBy] ?: emptySet()
-        if (!requestedScopes.all { it in extensions }) {
+        val allRequestedScopesAreCoveredByPolicy = requestedScopes.all { requestedScope ->
+            extensions.any { userScope ->
+                requestedScope.isCoveredBy(userScope)
+            }
+        }
+        if (!allRequestedScopesAreCoveredByPolicy) {
             throw ExtensionException.Unauthorized(
                 "Service $requestedBy is not allowed to ask for one " +
-                        "of the requested permissions"
+                        "of the requested permissions. We were asked for: $requestedScopes, " +
+                        "but service is only allowed to $extensions"
             )
-
         }
 
         // We must ensure that the token we receive has enough permissions.

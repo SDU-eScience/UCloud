@@ -19,10 +19,10 @@ import org.slf4j.LoggerFactory
 
 class JobController<DBSession>(
     private val jobService: JobService<DBSession>
-): Controller {
+) : Controller {
     override val baseContext = HPCJobDescriptions.baseContext
 
-    override fun configure(routing: Route): Unit  = with(routing) {
+    override fun configure(routing: Route): Unit = with(routing) {
         implement(HPCJobDescriptions.findById) {
             logEntry(log, it)
             val user = call.securityPrincipal.username
@@ -48,7 +48,8 @@ class JobController<DBSession>(
                         call.request.bearer!!,
                         listOf(
                             MultiPartUploadDescriptions.upload.requiredAuthScope.toString(),
-                            FileDescriptions.download.requiredAuthScope.toString()
+                            FileDescriptions.download.requiredAuthScope.toString(),
+                            FileDescriptions.createDirectory.requiredAuthScope.toString()
                         ),
                         1000 * 60 * 60 * 24L
                     ),
