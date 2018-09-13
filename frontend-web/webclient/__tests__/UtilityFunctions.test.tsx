@@ -262,6 +262,7 @@ test("To same UUDI", () =>
 import { mockFiles_SensitivityConfidential, newMockFile } from "./mock/Files"
 import { dateToString } from "Utilities/DateUtilities";
 import { SensitivityLevel } from "DefaultObjects";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 test("Download allowed", () =>
     expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items)).toBe(true)
@@ -407,7 +408,7 @@ describe("iconFromFilePath", () => {
 });
 
 describe("defaultErrorHandler", () => {
-    test("", () => 
+    test.skip("Todo", () =>
         expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined })).toBe(0)
     );
 });

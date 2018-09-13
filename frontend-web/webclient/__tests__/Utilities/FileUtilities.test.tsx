@@ -1,5 +1,8 @@
 import * as FileUtils from "Utilities/FileUtilities";
 import { mockFiles_SensitivityConfidential } from "../mock/Files";
+import Cloud from "Authentication/lib";
+import { MemoryRouter } from "react-router";
+import { createMemoryHistory } from "history";
 
 describe("File Operations", () => {
     test("No file operations", () =>
@@ -109,9 +112,135 @@ describe("Filepath query", () =>
 );
 
 describe("Filelookup query", () =>
-    test("Defaults", () => 
+    test("Defaults", () =>
         expect(FileUtils.fileLookupQuery("path")).toBe(
             "files/lookup?path=path&itemsPerPage=25&order=DESCENDING&sortBy=PATH"
         )
     )
 );
+
+describe("Is Invalid Path Name", () => {
+    test("Valid path with no provided filePaths", () => {
+        expect(FileUtils.isInvalidPathName("valid_path", [])).toBe(false);
+    });
+
+    test("Valid path with provided filePaths", () => {
+        expect(FileUtils.isInvalidPathName("valid_path", ["path1", "path2"])).toBe(false);
+    });
+
+    test("Valid path but with existing filePath", () => {
+        expect(FileUtils.isInvalidPathName("valid_path", ["valid_path", "path2"])).toBe(true);
+    });
+
+    test("Invalid path, consisting of .", () => {
+        expect(FileUtils.isInvalidPathName(".", [])).toBe(true);
+    });
+
+    test("Invalid path, consisting of empty string", () => {
+        expect(FileUtils.isInvalidPathName("", [])).toBe(true);
+    });
+
+    test("Invalid path, containing \"..\"", () => {
+        expect(FileUtils.isInvalidPathName("..", [])).toBe(true);
+    });
+
+    test("Invalid path, containing \"/\"", () => {
+        expect(FileUtils.isInvalidPathName("/", [])).toBe(true);
+    });
+});
+
+describe("Move copy operations", () => {
+    const ops = {
+        showFileSelector: (show: boolean) => undefined,
+        setDisallowedPaths: (paths: string[]) => undefined,
+        setFileSelectorCallback: (callback?: Function) => undefined,
+        fetchPageFromPath: (path: string) => undefined
+    };
+
+    const firstFile = mockFiles_SensitivityConfidential.items[0];
+    const firstThreeFiles = mockFiles_SensitivityConfidential.items.slice(0, 3);
+
+    test("Move single file", () => {
+        FileUtils.move([firstFile], ops, new Cloud())
+    });
+
+    test("Move multiple files file", () => {
+        FileUtils.move(firstThreeFiles, ops, new Cloud())
+    });
+});
+
+describe("File Operations", () => {
+
+    describe("FileStateLess", () => {
+        const ops = FileUtils.StateLessOperations();
+        const share = (ops[0]);
+        const download = (ops[1]);
+        const files = mockFiles_SensitivityConfidential.items;
+
+        test("Share", () => {
+            share.onClick(files, new Cloud());
+            expect(share.disabled(files, new Cloud())).toBe(false)
+        });
+
+        test("Download", () => {
+            download.onClick(files, new Cloud());
+            expect(download.disabled(files, new Cloud())).toBe(false)
+        });
+    });
+
+    describe("FileSelectorOperations", () => {
+        const ops = FileUtils.FileSelectorOperations({
+            showFileSelector: (show: boolean) => undefined,
+            setDisallowedPaths: (paths: string[]) => undefined,
+            setFileSelectorCallback: (callback?: Function) => undefined,
+            fetchPageFromPath: (path: string) => undefined
+        });
+
+        const copy = ops[0];
+        const move = ops[1];
+
+        const files = mockFiles_SensitivityConfidential.items;
+
+        test("Copy", () => {
+            copy.onClick(files, new Cloud());
+            expect(copy.disabled(files, new Cloud())).toBe(false)
+        });
+
+        test("Move", () => {
+            move.onClick(files, new Cloud());
+            expect(move.disabled(files, new Cloud())).toBe(false)
+        });
+    });
+
+    describe("DeleteFileOperation", () => {
+        const deleteOp = FileUtils.DeleteFileOperation(() => undefined)[0];
+        const files = mockFiles_SensitivityConfidential.items;
+
+
+        test("Delete", () => {
+            deleteOp.onClick(files, new Cloud());
+            expect(deleteOp.disabled(files, new Cloud())).toBe(false);
+        });
+    });
+
+    describe("HistoryFilesOperations", () => {
+        const ops = FileUtils.HistoryFilesOperations(createMemoryHistory())
+        const properties = ops[0];
+        const predicatedProjects = ops[1];
+        const files = mockFiles_SensitivityConfidential.items;
+
+        test("Properties", () => {
+            properties.onClick(files, new Cloud());
+            expect(properties.disabled(files.slice(0, 1), new Cloud())).toBe(false);
+        });
+
+
+        test("Create project, predicated", () => {
+            
+        });
+
+        test("Edit project, predicated", () => {
+
+        });
+    });
+});
