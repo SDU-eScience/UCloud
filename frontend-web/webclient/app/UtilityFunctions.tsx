@@ -88,9 +88,8 @@ export const shareSwal = () => swal({
 
 });
 
-export function isElementChecked(id: string): boolean {
-    return (document.getElementById(id) as HTMLInputElement).checked;
-}
+export const isElementChecked = (id: string): boolean =>
+    (document.getElementById(id) as HTMLInputElement).checked;
 
 export const inputSwal = (inputName: string) => ({
     title: "Share",
@@ -123,8 +122,6 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
             return SensitivityLevel[file.sensitivityLevel];
         case SortBy.ANNOTATION:
             return file.annotations.toString();
-        default:
-            return "";
     }
 }
 
@@ -136,7 +133,10 @@ export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortB
 };
 
 export const extensionTypeFromPath = (path) => extensionType(extensionFromPath(path));
-export const extensionFromPath = (path: string): string => path.split(".").pop() || "";
+export const extensionFromPath = (path: string): string => {
+    const splitString = path.split(".");
+    return splitString[splitString.length - 1];
+};
 
 type ExtensionType = "" | "code" | "image" | "text" | "sound" | "archive"
 export const extensionType = (ext: string): ExtensionType => {
@@ -225,8 +225,7 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
         case "archive":
             return "file archive outline";
         default:
-            if (getFilenameFromPath(filePath).split(".").length > 1)
-                console.warn(`Unhandled extension "${extension}" for file ${filePath}`);
+            console.warn(`Unhandled extension "${extension}" for file ${filePath}`);
             return "file outline";
     }
 };
@@ -246,7 +245,7 @@ const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) 
 };
 
 export const inRange = ({ status, min, max }: { status: number, min: number, max: number }): boolean =>
-    status == null || min == null || max == null ? false : status >= min && status <= max;
+    status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange({ status, min: 200, max: 299 });
 export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
 export const addTrailingSlash = (path: string) => path.endsWith("/") ? path : `${path}/`;

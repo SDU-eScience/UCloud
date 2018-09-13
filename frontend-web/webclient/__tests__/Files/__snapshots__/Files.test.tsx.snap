@@ -835,7 +835,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             </a>
             <i
               aria-hidden="true"
-              className="blue star outline icon file-data favorite-padding"
+              className="blue star icon  favorite-padding"
               onClick={[Function]}
             />
           </td>
@@ -3082,7 +3082,7 @@ exports[`FilesTable Render non-empty 1`] = `
         </a>
         <i
           aria-hidden="true"
-          className="blue star outline icon file-data favorite-padding"
+          className="blue star icon  favorite-padding"
           onClick={[Function]}
         />
       </td>

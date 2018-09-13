@@ -48,7 +48,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud
             operations.setFileSelectorCallback(undefined);
             operations.setDisallowedPaths([]);
         });
-    })
+    });
 };
 
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
@@ -250,7 +250,7 @@ export const fetchFileContent = (path: string, cloud: Cloud) =>
     ); // FIXME Error
 
 export const fileSizeToString = (bytes: number): string => {
-    if (bytes === 0) return "0 B";
+    if (bytes < 0) return "Invalid size";
     if (bytes < 1000) {
         return `${bytes} B`;
     } else if (bytes < 1000 ** 2) {
@@ -263,10 +263,8 @@ export const fileSizeToString = (bytes: number): string => {
         return `${(bytes / 1000 ** 4).toFixed(2)} TB`;
     } else if (bytes < 1000 ** 6) {
         return `${(bytes / 1000 ** 5).toFixed(2)} PB`;
-    } else if (bytes < 1000 ** 7) {
-        return `${(bytes / 1000 ** 6).toFixed(2)} EB`;
     } else {
-        return `${bytes} B`;
+        return `${(bytes / 1000 ** 6).toFixed(2)} EB`;
     }
 };
 
