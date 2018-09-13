@@ -14,7 +14,3 @@ spec:
         backend:
           serviceName: zenodo
           servicePort: 8080
-      - path: /api/projects
-        backend:
-          serviceName: zenodo
-          servicePort: 8080
