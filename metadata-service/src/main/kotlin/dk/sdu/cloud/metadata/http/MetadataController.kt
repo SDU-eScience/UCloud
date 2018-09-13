@@ -1,7 +1,6 @@
 package dk.sdu.cloud.metadata.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.auth.api.currentUsername
 import dk.sdu.cloud.metadata.api.MetadataDescriptions
 import dk.sdu.cloud.metadata.api.MetadataQueryDescriptions
 import dk.sdu.cloud.metadata.api.ProjectMetadataWithRightsInfo
@@ -9,6 +8,7 @@ import dk.sdu.cloud.metadata.services.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
@@ -26,18 +26,18 @@ class MetadataController(
         implement(MetadataDescriptions.updateProjectMetadata) {
             logEntry(log, it)
 
-            metadataCommandService.update(call.request.currentUsername, it.id, it)
+            metadataCommandService.update(call.securityPrincipal.username, it.id, it)
             ok(Unit)
         }
 
         implement(MetadataDescriptions.findById) {
             logEntry(log, it)
 
-            val result = metadataQueryService.getById(call.request.currentUsername, it.id)
+            val result = metadataQueryService.getById(call.securityPrincipal.username, it.id)
             if (result == null) {
                 error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
             } else {
-                val canEdit = metadataCommandService.canEdit(call.request.currentUsername, it.id)
+                val canEdit = metadataCommandService.canEdit(call.securityPrincipal.username, it.id)
                 ok(ProjectMetadataWithRightsInfo(result, canEdit = canEdit))
             }
         }
@@ -50,11 +50,11 @@ class MetadataController(
                 val projectId = project.id!!
 
                 // TODO Bad copy & paste
-                val result = metadataQueryService.getById(call.request.currentUsername, projectId)
+                val result = metadataQueryService.getById(call.securityPrincipal.username, projectId)
                 if (result == null) {
                     error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
                 } else {
-                    val canEdit = metadataCommandService.canEdit(call.request.currentUsername, projectId)
+                    val canEdit = metadataCommandService.canEdit(call.securityPrincipal.username, projectId)
                     ok(ProjectMetadataWithRightsInfo(result, canEdit = canEdit))
                 }
             } catch (e: ProjectException.NotFound) {
@@ -66,7 +66,7 @@ class MetadataController(
             logEntry(log, it)
 
             tryWithProject {
-                ok(metadataAdvancedQueryService.simpleQuery(call.request.currentUsername, it.query, it.normalize()))
+                ok(metadataAdvancedQueryService.simpleQuery(call.securityPrincipal.username, it.query, it.normalize()))
             }
         }
     }

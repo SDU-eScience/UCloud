@@ -1,5 +1,6 @@
 package dk.sdu.cloud.metadata.api
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.Page
@@ -16,8 +17,12 @@ object MetadataQueryDescriptions : RESTDescriptions("metadata") {
     private const val baseContext = "/api/metadata"
 
     val simpleQuery = callDescription<SimpleQueryRequest, Page<ProjectMetadata>, CommonErrorMessage> {
+        name = "metadataSimpleQuery"
         method = HttpMethod.Get
-        prettyName = "metadata-simple-query"
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)

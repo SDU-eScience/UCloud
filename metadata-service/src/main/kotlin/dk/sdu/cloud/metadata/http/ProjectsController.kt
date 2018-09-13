@@ -1,7 +1,6 @@
 package dk.sdu.cloud.metadata.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.jwtAuth
 import dk.sdu.cloud.metadata.api.CreateProjectResponse
@@ -31,7 +30,7 @@ class ProjectsController(
 
             tryWithProject {
                 val cloudCtx = call.cloudClient.parent
-                val cloud = cloudCtx.jwtAuth(call.request.validatedPrincipal.token).withCausedBy(call.request.jobId)
+                val cloud = cloudCtx.jwtAuth(call.request.bearer!!).withCausedBy(call.request.jobId)
 
                 val rootStat = FileDescriptions.stat.call(FindByPath(request.fsRoot), cloud)
                 if (rootStat !is RESTResponse.Ok) {
@@ -46,7 +45,7 @@ class ProjectsController(
                     }
                 }
 
-                val currentUser = call.request.validatedPrincipal.subject
+                val currentUser = call.securityPrincipal.username
                 if (rootStat.result.ownerName != currentUser) {
                     log.debug("User is not owner of folder")
                     error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)

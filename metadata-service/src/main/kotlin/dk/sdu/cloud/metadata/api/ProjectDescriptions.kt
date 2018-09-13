@@ -1,5 +1,6 @@
 package dk.sdu.cloud.metadata.api
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.client.RESTDescriptions
@@ -17,8 +18,12 @@ object ProjectDescriptions : RESTDescriptions("projects") {
     const val baseContext = "/api/projects"
 
     val create = callDescription<CreateProjectRequest, CreateProjectResponse, CommonErrorMessage> {
+        name = "projectsCreate"
         method = HttpMethod.Put
-        prettyName = "projects-create"
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -28,8 +33,12 @@ object ProjectDescriptions : RESTDescriptions("projects") {
     }
 
     val findProjectByPath = callDescription<FindByPath, Project, CommonErrorMessage> {
+        name = "projectsFindByPath"
         method = HttpMethod.Get
-        prettyName = "projects-find-by-path"
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)

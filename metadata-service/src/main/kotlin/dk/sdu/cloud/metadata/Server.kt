@@ -1,8 +1,6 @@
 package dk.sdu.cloud.metadata
 
-import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.metadata.api.ProjectEvents
 import dk.sdu.cloud.metadata.http.MetadataController
 import dk.sdu.cloud.metadata.http.ProjectsController
@@ -13,7 +11,6 @@ import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.file.api.StorageEvents
-import io.ktor.application.install
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.http.HttpHost
@@ -66,11 +63,8 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
-            install(JWTProtection)
 
             routing {
-                protect()
-
                 configureControllers(
                     ProjectsController(
                         kafka.producer.forStream(ProjectEvents.events),

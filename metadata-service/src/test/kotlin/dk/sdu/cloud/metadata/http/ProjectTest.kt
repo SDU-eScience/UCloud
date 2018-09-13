@@ -2,10 +2,13 @@ package dk.sdu.cloud.metadata.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.metadata.api.ProjectEventProducer
 import dk.sdu.cloud.metadata.services.ProjectHibernateDAO
 import dk.sdu.cloud.metadata.services.ProjectService
@@ -13,13 +16,7 @@ import dk.sdu.cloud.metadata.utils.withAuthMock
 import dk.sdu.cloud.metadata.utils.withDatabase
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
-import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.file.api.StorageFile
 import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.client.response.HttpResponse
@@ -48,10 +45,7 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
         requireJobId = true
     )
 
-    install(JWTProtection)
-
     routing {
-        protect()
         configureControllers(*controllers)
     }
 }
