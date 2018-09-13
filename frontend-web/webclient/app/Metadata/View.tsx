@@ -189,6 +189,11 @@ interface ManagedViewState {
 }
 
 export class ManagedView extends React.Component<any, ManagedViewState> {
+    constructor(props) {
+        super(props);
+        this.state = {}
+    }
+    
     // TODO This is not the correct place to do this!
     componentDidMount() {
         const urlPath = this.props.match.params[0];
