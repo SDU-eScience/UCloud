@@ -1,11 +1,9 @@
 package dk.sdu.cloud.zenodo
 
-import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
-import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
 import dk.sdu.cloud.zenodo.http.ZenodoController
 import dk.sdu.cloud.zenodo.processors.PublishProcessor
 import dk.sdu.cloud.zenodo.services.ZenodoOAuth
@@ -63,7 +61,6 @@ class Server(
 
         httpServer = ktor {
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
-            install(JWTProtection)
 
             routing {
                 route("zenodo") {

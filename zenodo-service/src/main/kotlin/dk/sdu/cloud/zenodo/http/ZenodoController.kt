@@ -1,9 +1,10 @@
 package dk.sdu.cloud.zenodo.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.auth.api.currentUsername
-import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.auth.api.validatedPrincipal
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.TokenExtensionRequest
+import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -24,23 +25,40 @@ class ZenodoController<DBSession>(
     override val baseContext = ZenodoDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
-        protect()
-
         implement(ZenodoDescriptions.publish) { req ->
             logEntry(log, req)
-            val jwt = call.request.validatedPrincipal
+            val extensionResponse = AuthDescriptions.tokenExtension.call(
+                TokenExtensionRequest(
+                    call.request.bearer!!,
+                    listOf(
+                        AuthDescriptions.requestOneTimeTokenWithAudience.requiredAuthScope.toString(),
+                        FileDescriptions.download.requiredAuthScope.toString()
+                    ),
+                    1000 * 60 * 60 * 2L
+                ),
+                call.cloudClient
+            )
+
+            if (extensionResponse !is RESTResponse.Ok) {
+                log.debug("Could not extend token:")
+                log.debug("${extensionResponse.status} : ${extensionResponse.rawResponseBody}")
+                error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
+                return@implement
+            }
+
+            val extendedJWT = extensionResponse.result.accessToken
 
             val uploadId =
                 db.withTransaction {
                     publicationService.createUploadForFiles(
                         it,
-                        call.request.currentUsername,
+                        call.securityPrincipal.username,
                         req.name,
                         req.filePaths.toSet()
                     )
                 }
 
-            publishCommandStream.emit(ZenodoPublishCommand(jwt.token, call.request.jobId, uploadId, req))
+            publishCommandStream.emit(ZenodoPublishCommand(extendedJWT, call.request.jobId, uploadId, req))
 
             ok(ZenodoPublishResponse(uploadId))
         }
@@ -56,21 +74,21 @@ class ZenodoController<DBSession>(
 
             ok(
                 ZenodoAccessRedirectURL(
-                    zenodo.createAuthorizationUrl(call.request.currentUsername, it.returnTo).toExternalForm()
+                    zenodo.createAuthorizationUrl(call.securityPrincipal.username, it.returnTo).toExternalForm()
                 )
             )
         }
 
         implement(ZenodoDescriptions.status) {
             logEntry(log, it)
-            ok(ZenodoConnectedStatus(zenodo.isConnected(call.request.currentUsername)))
+            ok(ZenodoConnectedStatus(zenodo.isConnected(call.securityPrincipal.username)))
         }
 
         implement(ZenodoDescriptions.listPublications) { req ->
             logEntry(log, req)
 
             ok(db.withTransaction {
-                publicationService.findForUser(it, call.request.currentUsername, req.normalize())
+                publicationService.findForUser(it, call.securityPrincipal.username, req.normalize())
             })
         }
 
@@ -78,7 +96,7 @@ class ZenodoController<DBSession>(
             logEntry(log, req)
 
             ok(db.withTransaction {
-                publicationService.findById(it, call.request.currentUsername, req.id)
+                publicationService.findById(it, call.securityPrincipal.username, req.id)
             })
         }
     }

@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.9.1-SNAPSHOT'
+version '0.9.3-SNAPSHOT'
 
 apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
 

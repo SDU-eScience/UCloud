@@ -1,5 +1,6 @@
 package dk.sdu.cloud.zenodo.api
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.client.RESTDescriptions
@@ -50,8 +51,12 @@ object ZenodoDescriptions : RESTDescriptions("zenodo") {
     const val baseContext = "/api/zenodo"
 
     val requestAccess = callDescription<ZenodoAccessRequest, ZenodoAccessRedirectURL, CommonErrorMessage> {
+        name = "requestAccess"
         method = HttpMethod.Post
-        prettyName = "requestAccess"
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)
@@ -64,8 +69,12 @@ object ZenodoDescriptions : RESTDescriptions("zenodo") {
     }
 
     val publish = callDescription<ZenodoPublishRequest, ZenodoPublishResponse, CommonErrorMessage> {
+        name = "publish"
         method = HttpMethod.Post
-        prettyName = "publish"
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
 
         path {
             using(baseContext)
@@ -76,8 +85,12 @@ object ZenodoDescriptions : RESTDescriptions("zenodo") {
     }
 
     val status = callDescription<Unit, ZenodoConnectedStatus, CommonErrorMessage> {
+        name = "status"
         method = HttpMethod.Get
-        prettyName = "status"
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)
@@ -86,8 +99,12 @@ object ZenodoDescriptions : RESTDescriptions("zenodo") {
     }
 
     val listPublications = callDescription<ZenodoListPublicationsRequest, Page<ZenodoPublication>, CommonErrorMessage> {
+        name = "listPublications"
         method = HttpMethod.Get
-        prettyName = "listPublications"
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)
@@ -101,8 +118,12 @@ object ZenodoDescriptions : RESTDescriptions("zenodo") {
     }
 
     val findPublicationById = callDescription<FindByLongId, ZenodoPublicationWithFiles, CommonErrorMessage> {
+        name = "findPublicationById"
         method = HttpMethod.Get
-        prettyName = "findPublicationById"
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)

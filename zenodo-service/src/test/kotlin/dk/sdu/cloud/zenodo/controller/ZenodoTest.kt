@@ -1,17 +1,23 @@
 package dk.sdu.cloud.zenodo.controller
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.protect
-import dk.sdu.cloud.metadata.utils.withAuthMock
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.TokenExtensionResponse
+import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.FakeDBSessionFactory
-import dk.sdu.cloud.zenodo.api.*
+import dk.sdu.cloud.zenodo.api.ZenodoPublication
+import dk.sdu.cloud.zenodo.api.ZenodoPublicationStatus
+import dk.sdu.cloud.zenodo.api.ZenodoPublishCommand
+import dk.sdu.cloud.zenodo.api.ZenodoUpload
 import dk.sdu.cloud.zenodo.http.ZenodoController
-import dk.sdu.cloud.zenodo.services.*
+import dk.sdu.cloud.zenodo.services.PublicationException
+import dk.sdu.cloud.zenodo.services.PublicationService
+import dk.sdu.cloud.zenodo.services.ZenodoRPCService
+import dk.sdu.cloud.zenodo.utils.withAuthMock
 import io.ktor.application.Application
-import io.ktor.application.install
+import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.routing
@@ -25,7 +31,7 @@ import java.net.URL
 import java.util.*
 import kotlin.test.assertEquals
 
-fun TestApplicationRequest.setUser(username: String = "user", role: Role = dk.sdu.cloud.auth.api.Role.USER) {
+fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
     addHeader(io.ktor.http.HttpHeaders.Authorization, "Bearer $username/$role")
 }
 
@@ -37,10 +43,7 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
         requireJobId = true
     )
 
-    install(JWTProtection)
-
     routing {
-        protect()
         configureControllers(*controllers)
     }
 }
@@ -192,33 +195,41 @@ class ZenodoTest {
     @Test
     fun `Publish test`() {
         withAuthMock {
-            withTestApplication(
-                moduleFunction = {
-                    val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService<Unit>>()
-                    configureZenodoServer(
-                        zenodoRpcService = zenodoRpcService,
-                        publicationService = publicationService
-                    )
-
-                    every {
-                        publicationService.createUploadForFiles(
-                            Unit,
-                            any(),
-                            any(),
-                            any()
+            objectMockk(AuthDescriptions).use {
+                withTestApplication(
+                    moduleFunction = {
+                        val zenodoRpcService = mockk<ZenodoRPCService>()
+                        val publicationService = mockk<PublicationService<Unit>>()
+                        configureZenodoServer(
+                            zenodoRpcService = zenodoRpcService,
+                            publicationService = publicationService
                         )
-                    } returns 1
 
-                },
 
-                test = {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/api/zenodo/publish") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                            setBody(
-                                """
+                        every {
+                            publicationService.createUploadForFiles(
+                                Unit,
+                                any(),
+                                any(),
+                                any()
+                            )
+                        } returns 1
+
+                        coEvery { AuthDescriptions.tokenExtension.call(any(), any()) } answers {
+                            val resp = mockk<HttpResponse>(relaxed = true)
+                            every { resp.status } returns HttpStatusCode.OK
+
+                            RESTResponse.Ok(resp, TokenExtensionResponse("user/USER"))
+                        }
+                    },
+
+                    test = {
+                        val response =
+                            handleRequest(HttpMethod.Post, "/api/zenodo/publish") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser()
+                                setBody(
+                                    """
                                 {
                                 "name":"Publish1",
                                 "filePaths":
@@ -228,52 +239,60 @@ class ZenodoTest {
                                     ]
                                 }
                                 """.trimIndent()
-                            )
-                        }.response
+                                )
+                            }.response
 
-                    assertEquals(HttpStatusCode.OK, response.status())
+                        assertEquals(HttpStatusCode.OK, response.status())
 
-                    val mapper = jacksonObjectMapper()
-                    val obj = mapper.readTree(response.content)
+                        val mapper = jacksonObjectMapper()
+                        val obj = mapper.readTree(response.content)
 
-                    assertEquals("1", obj["publicationId"].toString())
-                }
-            )
+                        assertEquals("1", obj["publicationId"].toString())
+                    }
+                )
+            }
         }
     }
 
     @Test
     fun `Publish - not connected - test`() {
         withAuthMock {
-            withTestApplication(
-                moduleFunction = {
-                    val zenodoRpcService = mockk<ZenodoRPCService>()
-                    val publicationService = mockk<PublicationService<Unit>>()
-                    configureZenodoServer(
-                        zenodoRpcService = zenodoRpcService,
-                        publicationService = publicationService
-                    )
-
-                    every {
-                        publicationService.createUploadForFiles(
-                            Unit,
-                            any(),
-                            any(),
-                            any()
+            objectMockk(AuthDescriptions).use {
+                withTestApplication(
+                    moduleFunction = {
+                        val zenodoRpcService = mockk<ZenodoRPCService>()
+                        val publicationService = mockk<PublicationService<Unit>>()
+                        configureZenodoServer(
+                            zenodoRpcService = zenodoRpcService,
+                            publicationService = publicationService
                         )
-                    } answers {
-                        throw PublicationException.NotConnected()
-                    }
 
-                },
+                        every {
+                            publicationService.createUploadForFiles(
+                                Unit,
+                                any(),
+                                any(),
+                                any()
+                            )
+                        } answers {
+                            throw PublicationException.NotConnected()
+                        }
 
-                test = {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/api/zenodo/publish") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                            setBody(
-                                """
+                        coEvery { AuthDescriptions.tokenExtension.call(any(), any()) } answers {
+                            val resp = mockk<HttpResponse>(relaxed = true)
+                            every { resp.status } returns HttpStatusCode.OK
+
+                            RESTResponse.Ok(resp, TokenExtensionResponse("user/USER"))
+                        }
+                    },
+
+                    test = {
+                        val response =
+                            handleRequest(HttpMethod.Post, "/api/zenodo/publish") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser()
+                                setBody(
+                                    """
                                 {
                                 "name":"Publish1",
                                 "filePaths":
@@ -283,12 +302,13 @@ class ZenodoTest {
                                     ]
                                 }
                                 """.trimIndent()
-                            )
-                        }.response
+                                )
+                            }.response
 
-                    assertEquals(HttpStatusCode.Unauthorized, response.status())
-                }
-            )
+                        assertEquals(HttpStatusCode.Unauthorized, response.status())
+                    }
+                )
+            }
         }
     }
 
@@ -304,7 +324,12 @@ class ZenodoTest {
                         publicationService = publicationService
                     )
 
-                    every { zenodoRpcService.createAuthorizationUrl(any(), any()) } returns URL("http://cloud.sdu.dk")
+                    every {
+                        zenodoRpcService.createAuthorizationUrl(
+                            any(),
+                            any()
+                        )
+                    } returns URL("http://cloud.sdu.dk")
                 },
 
                 test = {
@@ -421,6 +446,7 @@ class ZenodoTest {
                     every { publicationService.findById(Unit, any(), any()) } answers {
                         throw PublicationException.NotFound()
                     }
+
 
                 },
 

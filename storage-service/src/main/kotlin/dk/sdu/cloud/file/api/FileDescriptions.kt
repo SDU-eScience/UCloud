@@ -287,7 +287,7 @@ object FileDescriptions : RESTDescriptions("files") {
 
         auth {
             roles = Roles.PUBLIC
-            access = AccessRight.READ_WRITE
+            access = AccessRight.READ
         }
 
         path {

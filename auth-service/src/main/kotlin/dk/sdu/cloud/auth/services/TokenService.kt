@@ -43,7 +43,7 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) {
             val legacyAudiences = run {
                 val result = ArrayList<String>()
 
-                val hasDownload = audience.any { it.toString() == "files.download:write" }
+                val hasDownload = audience.any { it.toString().startsWith("files.download:") }
                 if (hasDownload) result.add("downloadFile")
 
                 result.add("irods")
@@ -277,7 +277,10 @@ class TokenService<DBSession>(
             currentScopes.any { requestedScope.isCoveredBy(it) }
         }
 
-        if (!allScopesCovered) throw RefreshTokenException.InvalidToken()
+        if (!allScopesCovered) {
+            log.debug("We were asked to cover $audience, but the token only covers $currentScopes")
+            throw RefreshTokenException.InvalidToken()
+        }
 
         return createOneTimeAccessTokenForExistingSession(user, audience)
     }
@@ -304,10 +307,10 @@ class TokenService<DBSession>(
                 throw RefreshTokenException.InternalError()
             }
 
-            val newCsrf = generateCsrfToken()
-            refreshTokenDao.updateCsrf(session, rawToken, newCsrf)
+//            val newCsrf = generateCsrfToken()
+//            refreshTokenDao.updateCsrf(session, rawToken, newCsrf)
             val accessToken = createAccessTokenForExistingSession(user, token.publicSessionReference)
-            AccessTokenAndCsrf(accessToken.accessToken, newCsrf)
+            AccessTokenAndCsrf(accessToken.accessToken, token.csrf)
         }
     }
 

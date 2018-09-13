@@ -13,7 +13,6 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.stream
 import dk.sdu.cloud.service.withCausedBy
-import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.file.api.DownloadByURI
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
@@ -124,7 +123,7 @@ class PublishProcessor<DBSession>(
         val buffer = ByteArray(4096)
         return command.request.filePaths.mapNotNull {
             val tokenResponse = AuthDescriptions.requestOneTimeTokenWithAudience.call(
-                RequestOneTimeToken("$DOWNLOAD_FILE_SCOPE,irods"), cloud
+                RequestOneTimeToken(FileDescriptions.download.requiredAuthScope.toString()), cloud
             )
 
             if (tokenResponse !is RESTResponse.Ok) {
