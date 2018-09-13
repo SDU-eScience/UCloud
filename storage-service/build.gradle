@@ -48,3 +48,9 @@ sduCloud.createTasksForApiJar(
                 "dk.sdu.cloud:file-api:${project.version}",
         ]
 )
+
+run {
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
+    }
+}

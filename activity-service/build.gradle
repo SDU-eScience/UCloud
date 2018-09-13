@@ -12,5 +12,10 @@ dependencies {
 }
 
 apply plugin: 'application'
-mainClassName = "dk.sdu.cloud.storage.MainKt"
+mainClassName = "dk.sdu.cloud.activity.MainKt"
 
+run {
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
+    }
+}

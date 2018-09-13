@@ -52,13 +52,13 @@ class StorageAuditProcessor<DBSession>(
                         // NOTE(Dan): Trying out some patterns. Event transformers should go in
                         // "transformers" at top of class
                         val activityEvents = ArrayList<ActivityEvent>()
-                        nodes.forEach { (_, parsedEvent) ->
-                            transformerLoop@ transformers.forEach { transformer ->
+                        for ((_, parsedEvent) in nodes) {
+                            for (transformer in transformers) {
                                 val transformed = transformer(parsedEvent)
 
                                 if (transformed != null) {
                                     activityEvents.addAll(transformed)
-                                    return@transformerLoop
+                                    break
                                 }
                             }
                         }
