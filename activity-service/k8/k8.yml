@@ -1,0 +1,71 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: activity-service-deployment
+  labels:
+    app: activity-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: activity-service
+  template:
+    metadata:
+      labels:
+        app: activity-service
+    spec:
+      containers:
+      - name: activity-service
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/activity-service:0.1.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/service-config
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/activity-api-keys
+        volumeMounts:
+        - mountPath: /etc/psql
+          name: psql-secrets
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/service-config
+          name: service-config
+        - mountPath: /etc/activity-api-keys
+          name: activity-api-keys
+
+      volumes:
+      - name: psql-secrets
+        secret:
+          optional: false
+          secretName: activity-psql
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: activity-refresh-token
+      - name: service-config
+        configMap:
+          name: activity-config
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: activity
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: activity-service

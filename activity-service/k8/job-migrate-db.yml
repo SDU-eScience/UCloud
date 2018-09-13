@@ -3,12 +3,12 @@ apiVersion: batch/v1
 kind: Job
 
 metadata:
-  name: bare-migration
+  name: activity-migration
 
 spec:
   template:
     metadata:
-      name: bare-migration
+      name: activity-migration
 
     spec:
       containers:
@@ -16,14 +16,18 @@ spec:
         - /opt/service/bin/service
         - --config-dir
         - /etc/service
+        - --config-dir
+        - /etc/refresh-token
         - --run-script
         - migrate-db
-        image: registry.dev-sdu-cloud.dk/sdu-cloud/bare-service:1.0.6
-        name: bare-migration
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/activity-service:0.1.0
+        name: activity-migration
 
         volumeMounts:
         - mountPath: /etc/service
           name: vol1
+        - mountPath: /etc/refresh-token
+          name: refresh-token
 
       imagePullSecrets:
         - name: esci-docker
@@ -33,6 +37,11 @@ spec:
       volumes:
       - name: vol1
         secret:
-          defaultMode: 256
           optional: false
-          secretName: bare-psql
+          secretName: activity-psql
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: activity-refresh-token
+
+
