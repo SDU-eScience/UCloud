@@ -63,6 +63,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                             "attachment; filename=\"${stat.path.substringAfterLast('/')}.zip\""
                         )
 
+                        okContentDeliveredExternally()
                         call.respondDirectWrite(
                             contentType = ContentType.Application.Zip,
                             status = HttpStatusCode.OK
@@ -99,6 +100,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                             "attachment; filename=\"${stat.path.substringAfterLast('/')}\""
                         )
 
+                        okContentDeliveredExternally()
                         call.respondDirectWrite(stat.size, contentType, HttpStatusCode.OK) {
                             fs.read(ctx, request.path) {
                                 val stream = this
