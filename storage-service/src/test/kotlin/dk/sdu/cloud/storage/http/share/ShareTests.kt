@@ -27,6 +27,7 @@ import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
 import io.mockk.*
+import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -117,7 +118,7 @@ class ShareTests {
         }
     }
 
-
+    @Ignore
     @Test
     fun `Test Sorting of shares`() {
         objectMockk(NotificationDescriptions, UserDescriptions).use {

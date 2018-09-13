@@ -1,9 +1,6 @@
 package dk.sdu.cloud.storage.http
 
-import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.currentUsername
-import dk.sdu.cloud.auth.api.principalRole
-import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.WriteConflictPolicy
@@ -11,6 +8,7 @@ import dk.sdu.cloud.service.KafkaHttpRouteLogger
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.joinPath
 import dk.sdu.cloud.tus.api.TusDescriptions
@@ -76,8 +74,6 @@ class TusController<DBSession, Ctx : FSUserContext>(
 
             // These use the ID returned from the Creation extension
             route("{id}") {
-                protect()
-
                 method(HttpMethod.Head) {
                     install(KafkaHttpRouteLogger) {
                         @Suppress("UNCHECKED_CAST")
@@ -89,7 +85,7 @@ class TusController<DBSession, Ctx : FSUserContext>(
                         val id = call.parameters["id"]?.toLongOrNull()
                                 ?: return@handle call.respond(HttpStatusCode.BadRequest)
 
-                        val summary = db.withTransaction { tusDao.findUpload(it, call.request.currentUsername, id) }
+                        val summary = db.withTransaction { tusDao.findUpload(it, call.securityPrincipal.username, id) }
 
                         // Disable cache
                         call.response.header(HttpHeaders.CacheControl, "no-store")
@@ -142,9 +138,8 @@ class TusController<DBSession, Ctx : FSUserContext>(
 
                 handle {
                     logEntry(log, headerIncludeFilter = { it in TusHeaders.KnownHeaders })
-                    if (!protect()) return@handle
 
-                    val user = call.request.currentUsername
+                    val user = call.securityPrincipal.username
 
                     val length = call.request.headers[TusHeaders.UploadLength]?.toLongOrNull() ?: return@handle run {
                         log.debug("Missing upload length")
@@ -224,12 +219,6 @@ class TusController<DBSession, Ctx : FSUserContext>(
             }
         }
     }
-
-    private val ApplicationCall.isPrivileged: Boolean
-        get() {
-            val principalRole = request.principalRole
-            return principalRole == Role.SERVICE || principalRole == Role.ADMIN
-        }
 
     private suspend fun PipelineContext<Unit, ApplicationCall>.upload() {
         log.debug("Handling incoming upload request")

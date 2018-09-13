@@ -1,15 +1,18 @@
 package dk.sdu.cloud.app.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.app.api.*
+import dk.sdu.cloud.app.api.AppState
+import dk.sdu.cloud.app.api.FollowStdStreamsResponse
+import dk.sdu.cloud.app.api.JobWithStatus
+import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.services.JobInformation
 import dk.sdu.cloud.app.services.JobService
 import dk.sdu.cloud.app.services.JobServiceException
 import dk.sdu.cloud.app.utils.withAuthMock
+import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.metadata.utils.withDatabase
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateSession
 import io.ktor.application.Application
@@ -140,7 +143,7 @@ class JobTest {
                         val jobService = mockk<JobService<HibernateSession>>()
                         configureJobServer(jobService)
                         every { jobService.recentJobs(any(), any()) } answers {
-                            Page(1,10,0, listOf(job))
+                            Page(1, 10, 0, listOf(job))
                         }
                     },
 
@@ -232,14 +235,16 @@ class JobTest {
                             handleRequest(HttpMethod.Post, "/api/hpc/jobs") {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser()
-                                setBody("""
+                                setBody(
+                                    """
                                     {
                                     "application" : {
                                      conds": 30
                                         },
                                     "type": "start"
                                     }
-                                """.trimIndent())
+                                """.trimIndent()
+                                )
                             }.response
 
                         assertEquals(HttpStatusCode.BadRequest, response.status())
@@ -262,16 +267,18 @@ class JobTest {
                             jobInfo
                         }
 
-                        every { jobService.followStdStreams(any(), any())} answers {
+                        every { jobService.followStdStreams(any(), any()) } answers {
                             followStdResponse
                         }
                     },
 
                     test = {
                         val response =
-                            handleRequest(HttpMethod.Get,
+                            handleRequest(
+                                HttpMethod.Get,
                                 "/api/hpc/jobs/follow/2?stderrLineStart=0&stderrMaxLines=100" +
-                                        "&stdoutLineStart=0&stdoutMaxLines=100") {
+                                        "&stdoutLineStart=0&stdoutMaxLines=100"
+                            ) {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser()
                             }.response
@@ -281,7 +288,7 @@ class JobTest {
                         val obj = mapper.readTree(response.content)
 
                         assertEquals("\"RUNNING\"", obj["state"].toString())
-                        assertEquals("\"error\"" ,obj["stderr"].toString())
+                        assertEquals("\"error\"", obj["stderr"].toString())
                     }
                 )
             }
@@ -304,9 +311,11 @@ class JobTest {
 
                     test = {
                         val response =
-                            handleRequest(HttpMethod.Get,
+                            handleRequest(
+                                HttpMethod.Get,
                                 "/api/hpc/jobs/follow/2?stderrLineStart=0&stderrMaxLines=100" +
-                                        "&stdoutLineStart=0&stdoutMaxLines=100") {
+                                        "&stdoutLineStart=0&stdoutMaxLines=100"
+                            ) {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser()
                             }.response
@@ -331,16 +340,18 @@ class JobTest {
                             jobInfo
                         }
 
-                        every { jobService.followStdStreams(any(), any())} answers {
+                        every { jobService.followStdStreams(any(), any()) } answers {
                             throw JobServiceException.InvalidRequest("job")
                         }
                     },
 
                     test = {
                         val response =
-                            handleRequest(HttpMethod.Get,
+                            handleRequest(
+                                HttpMethod.Get,
                                 "/api/hpc/jobs/follow/2?stderrLineStart=0&stderrMaxLines=100" +
-                                        "&stdoutLineStart=0&stdoutMaxLines=100") {
+                                        "&stdoutLineStart=0&stdoutMaxLines=100"
+                            ) {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser()
                             }.response

@@ -8,9 +8,6 @@ import dk.sdu.cloud.app.api.HPCToolDescriptions
 import dk.sdu.cloud.app.api.ToolDescription
 import dk.sdu.cloud.app.services.ToolDAO
 import dk.sdu.cloud.app.util.yamlMapper
-import dk.sdu.cloud.auth.api.PRIVILEGED_ROLES
-import dk.sdu.cloud.auth.api.currentUsername
-import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction

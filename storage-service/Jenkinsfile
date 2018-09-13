@@ -5,6 +5,7 @@ def initialize() {
     ./gradlew clean
     ./gradlew build -x test'''
   }
+
 }
 
 return this

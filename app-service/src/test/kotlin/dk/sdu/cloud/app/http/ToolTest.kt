@@ -5,7 +5,7 @@ import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ToolHibernateDAO
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.utils.withAuthMock
-import dk.sdu.cloud.metadata.utils.withDatabase
+import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory

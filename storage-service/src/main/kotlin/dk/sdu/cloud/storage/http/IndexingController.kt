@@ -28,7 +28,6 @@ class IndexingController<Ctx : FSUserContext>(
     override fun configure(routing: Route): Unit = with(routing) {
         implement(FileDescriptions.verifyFileKnowledge) { req ->
             logEntry(log, req)
-            if (!protect(PRIVILEGED_ROLES)) return@implement
 
             tryWithFS(commandRunnerFactory, req.user) {
                 ok(VerifyFileKnowledgeResponse(indexingService.verifyKnowledge(it, req.files)))
@@ -37,7 +36,6 @@ class IndexingController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.deliverMaterializedFileSystem) { req ->
             logEntry(log, req)
-            if (!protect(PRIVILEGED_ROLES)) return@implement
             audit(DeliverMaterializedFileSystemAudit( req.rootsToMaterialized.keys.toList()))
 
             tryWithFS {

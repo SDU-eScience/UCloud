@@ -1,6 +1,8 @@
+package dk.sdu.cloud.notification.http
+
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.notification.http.NotificationController
+import dk.sdu.cloud.notification.api.NotificationServiceDescription
 import dk.sdu.cloud.notification.services.NotificationHibernateDAO
 import dk.sdu.cloud.notification.utils.withAuthMock
 import dk.sdu.cloud.service.Controller
@@ -43,8 +45,10 @@ fun Application.configureBaseServer(vararg controllers: Controller) {
     }
 }
 
-private fun Application.configureNotificationServer(db: HibernateSessionFactory = mockk(relaxed = true),
-                                                    notificationDao: NotificationHibernateDAO) {
+private fun Application.configureNotificationServer(
+    db: HibernateSessionFactory = mockk(relaxed = true),
+    notificationDao: NotificationHibernateDAO
+) {
     configureBaseServer(NotificationController(db, notificationDao))
 }
 
@@ -55,7 +59,7 @@ class NotificationTest {
         val splittetList = response.split('"')
         val idIndex = splittetList.indexOf("id")
         val id = splittetList[idIndex + 1]
-        return id.substring(1,id.length-2)
+        return id.substring(1, id.length - 2)
     }
 
     @Test
@@ -80,7 +84,7 @@ class NotificationTest {
                                     "notification":{
                                         "type":"type",
                                         "message":"You Got MAIL!!!",
-                                        "meta": { "a": 42 }
+                                        "meta": { "foo": 42 }
                                     },
                                 }
                             """.trimIndent()
@@ -89,25 +93,18 @@ class NotificationTest {
 
                         assertEquals(HttpStatusCode.OK, response.status())
 
-                       val response2 =
+                        val response2 =
                             handleRequest(HttpMethod.Get, "/api/notifications") {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser(role = Role.ADMIN)
                             }.response
 
                         assertEquals(HttpStatusCode.OK, response2.status())
-                        println(response2.content)
 
-                        assertTrue(
-                            response2.content.toString().contains(
-                                "\"message\":\"You Got MAIL!!!\""
-                            )
-                        )
-                        assertTrue(
-                            response2.content.toString().contains(
-                                "\"read\":false"
-                            )
-                        )
+                        val obj = mapper.readTree(response2.content)
+                        assertEquals(1, obj["itemsInTotal"].asInt())
+                        assertTrue(obj["items"].toString().contains("You Got MAIL!!"))
+                        assertTrue(obj["items"].toString().contains("false"))
 
                         val id = getID(response.content.toString())
 
@@ -127,11 +124,10 @@ class NotificationTest {
 
                         assertEquals(HttpStatusCode.OK, response4.status())
 
-                        assertTrue(
-                            response4.content.toString().contains(
-                                "\"read\":true"
-                            )
-                        )
+                        val obj2 = mapper.readTree(response4.content)
+                        assertEquals(1, obj2["itemsInTotal"].asInt())
+                        assertTrue(obj2["items"].toString().contains("You Got MAIL!!"))
+                        assertTrue(obj2["items"].toString().contains("true"))
 
                         val response5 =
                             handleRequest(HttpMethod.Delete, "/api/notifications/1") {
@@ -148,8 +144,8 @@ class NotificationTest {
                             }.response
 
                         assertEquals(HttpStatusCode.OK, response6.status())
-                        val results = mapper.readTree(response6.content)
-                        assertEquals("0", results["itemsInTotal"].toString())
+                        val obj3 = mapper.readTree(response6.content)
+                        assertEquals(0, obj3["itemsInTotal"].asInt())
                     }
                 )
             }
@@ -240,5 +236,12 @@ class NotificationTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun `Simple NotificationServiceDescription for CC`() {
+        val nsd = NotificationServiceDescription
+        assertEquals(nsd.version, NotificationServiceDescription.version)
+        assertEquals(nsd.name, NotificationServiceDescription.name)
     }
 }

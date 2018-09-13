@@ -21,7 +21,7 @@ class SlurmPollTest{
         }
         every { ssh.returnConnection(0) } just runs
 
-        var slurmPoll = SlurmPollAgent(ssh, scheduledExeService, 2, 100, TimeUnit.SECONDS)
+        val slurmPoll = SlurmPollAgent(ssh, scheduledExeService, 2, 100, TimeUnit.SECONDS)
         slurmPoll.startTracking(8282)
         slurmPoll.start()
         Thread.sleep(10000)
@@ -42,7 +42,7 @@ class SlurmPollTest{
         }
         every { ssh.returnConnection(0) } just runs
 
-        var slurmPoll = SlurmPollAgent(ssh, scheduledExeService, 2, 100, TimeUnit.SECONDS)
+        val slurmPoll = SlurmPollAgent(ssh, scheduledExeService, 2, 100, TimeUnit.SECONDS)
         slurmPoll.startTracking(8282)
         slurmPoll.start()
         Thread.sleep(5000)
@@ -57,7 +57,7 @@ class SlurmPollTest{
         val ssh = mockk<SSHConnectionPool>()
         val scheduledExeService = Executors.newSingleThreadScheduledExecutor()
 
-        var slurmPoll = SlurmPollAgent(ssh, scheduledExeService, 10, 100, TimeUnit.SECONDS)
+        val slurmPoll = SlurmPollAgent(ssh, scheduledExeService, 10, 100, TimeUnit.SECONDS)
         slurmPoll.start()
         slurmPoll.start()
     }

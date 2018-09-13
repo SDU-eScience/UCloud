@@ -4,12 +4,9 @@ import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.ToolBackend
-import dk.sdu.cloud.metadata.utils.withDatabase
+import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
-import io.mockk.mockk
-import org.h2.engine.Session
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

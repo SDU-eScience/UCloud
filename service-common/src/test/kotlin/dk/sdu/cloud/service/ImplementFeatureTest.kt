@@ -1,7 +1,9 @@
 package dk.sdu.cloud.service
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByIntId
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.*
 import io.ktor.application.Application
 import io.ktor.application.install
@@ -42,7 +44,12 @@ data class SomeAudit(val audit: String)
 object TestDescriptions : RESTDescriptions("echo") {
     val echoId = callDescription<FindByIntId, SomeData, CommonErrorMessage> {
         method = HttpMethod.Post
-        prettyName = "echoId"
+        name = "echoId"
+
+        auth {
+            roles = Roles.PUBLIC
+            access = AccessRight.READ
+        }
 
         path {
             +"echo"
@@ -52,7 +59,12 @@ object TestDescriptions : RESTDescriptions("echo") {
 
     val echoWithAudit = callDescriptionWithAudit<FindByIntId, SomeData, CommonErrorMessage, SomeAudit> {
         method = HttpMethod.Post
-        prettyName = "echoAudit"
+        name = "echoAudit"
+
+        auth {
+            roles = Roles.PUBLIC
+            access = AccessRight.READ
+        }
 
         path {
             +"echo"

@@ -7,7 +7,7 @@ import dk.sdu.cloud.app.api.JobWithStatus
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.utils.mockedUser
 import dk.sdu.cloud.app.utils.withAuthMock
-import dk.sdu.cloud.metadata.utils.withDatabase
+import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import io.mockk.coEvery
