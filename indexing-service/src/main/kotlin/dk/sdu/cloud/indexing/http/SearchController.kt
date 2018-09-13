@@ -1,7 +1,5 @@
 package dk.sdu.cloud.indexing.http
 
-import dk.sdu.cloud.auth.api.currentUsername
-import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.filesearch.api.FileSearchDescriptions
@@ -28,18 +26,16 @@ class SearchController(
     override fun configure(routing: Route): Unit = with(routing) {
         implement(FileSearchDescriptions.simpleSearch) { req ->
             logEntry(log, req)
-            if (!protect()) return@implement
 
-            val roots = rootsForUser(call.request.currentUsername)
+            val roots = rootsForUser(call.securityPrincipal.username)
             val queryResponse = indexQueryService.simpleQuery(roots, req.query, req.normalize())
-            ok(verify(queryResponse, call.request.currentUsername, call.cloudClient))
+            ok(verify(queryResponse, call.securityPrincipal.username, call.cloudClient))
         }
 
         implement(FileSearchDescriptions.advancedSearch) { req ->
             logEntry(log, req)
-            if (!protect()) return@implement
 
-            val roots = rootsForUser(call.request.currentUsername)
+            val roots = rootsForUser(call.securityPrincipal.username)
             val queryResponse = indexQueryService.advancedQuery(
                 roots,
                 name = req.fileName,
@@ -53,7 +49,7 @@ class SearchController(
                 sensitivity = req.sensitivity
             )
 
-            ok(verify(queryResponse, call.request.currentUsername, call.cloudClient))
+            ok(verify(queryResponse, call.securityPrincipal.username, call.cloudClient))
         }
     }
 

@@ -1,16 +1,13 @@
 package dk.sdu.cloud.indexing.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.auth.api.JWTProtection
-import dk.sdu.cloud.auth.api.Role
-import dk.sdu.cloud.auth.api.protect
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.indexing.services.IndexQueryService
-import dk.sdu.cloud.metadata.utils.withAuthMock
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.indexing.utils.withAuthMock
 import io.ktor.application.Application
-import io.ktor.application.install
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.routing
@@ -24,7 +21,7 @@ import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-private fun TestApplicationRequest.setUser(username: String = "user", role: Role = dk.sdu.cloud.auth.api.Role.USER) {
+private fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
     addHeader(io.ktor.http.HttpHeaders.Authorization, "Bearer $username/$role")
 }
 
@@ -36,10 +33,7 @@ private fun Application.configureBaseServer(vararg controllers: Controller) {
         requireJobId = true
     )
 
-    install(JWTProtection)
-
     routing {
-        protect()
         configureControllers(*controllers)
     }
 }

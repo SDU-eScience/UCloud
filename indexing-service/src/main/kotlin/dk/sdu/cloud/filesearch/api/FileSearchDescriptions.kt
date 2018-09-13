@@ -1,5 +1,6 @@
 package dk.sdu.cloud.filesearch.api
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
@@ -37,8 +38,12 @@ object FileSearchDescriptions : RESTDescriptions("fileSearch") {
     const val baseContext: String = "/api/file-search"
 
     val simpleSearch = callDescription<SimpleSearchRequest, Page<SearchResult>, CommonErrorMessage> {
-        prettyName = "fileSearchSimple"
+        name = "fileSearchSimple"
         method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)
@@ -52,8 +57,12 @@ object FileSearchDescriptions : RESTDescriptions("fileSearch") {
     }
 
     val advancedSearch = callDescription<AdvancedSearchRequest, Page<SearchResult>, CommonErrorMessage> {
-        prettyName = "fileSearchAdvanced"
+        name = "fileSearchAdvanced"
         method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ
+        }
 
         path {
             using(baseContext)
