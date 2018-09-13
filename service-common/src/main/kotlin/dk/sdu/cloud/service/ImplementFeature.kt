@@ -99,163 +99,170 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
             }
 
             handle { _ ->
-                val payload: P = if (restCall.requestType.type == Unit::class.java) {
-                    @Suppress("UNCHECKED_CAST")
-                    Unit as P
-                } else {
-                    // Parse body as JSON (if any)
-                    val valueFromBody =
-                        try {
-                            parseRequestBody(call.receiveOrNull(), restCall.body).let {
-                                when (it) {
-                                    is ParsedRequestBody.Parsed -> it.result
+                try {
+                    val payload: P = if (restCall.requestType.type == Unit::class.java) {
+                        @Suppress("UNCHECKED_CAST")
+                        Unit as P
+                    } else {
+                        // Parse body as JSON (if any)
+                        val valueFromBody =
+                            try {
+                                parseRequestBody(call.receiveOrNull(), restCall.body).let {
+                                    when (it) {
+                                        is ParsedRequestBody.Parsed -> it.result
 
-                                    ParsedRequestBody.MissingAndNotRequired -> null
+                                        ParsedRequestBody.MissingAndNotRequired -> null
 
-                                    ParsedRequestBody.MissingAndRequired -> {
-                                        log.debug("Could not parse payload from body, which was required")
+                                        ParsedRequestBody.MissingAndRequired -> {
+                                            log.debug("Could not parse payload from body, which was required")
+                                            return@handle call.respond(HttpStatusCode.BadRequest)
+                                        }
+                                    }
+                                }
+                            } catch (ex: Exception) {
+                                when (ex) {
+                                    is JsonParseException -> {
+                                        log.debug("Bad JSON")
+                                        log.debug(ex.stackTraceToString())
                                         return@handle call.respond(HttpStatusCode.BadRequest)
+                                    }
+
+                                    else -> {
+                                        log.warn("Caught exception while trying to deserialize body!")
+                                        log.warn(ex.stackTraceToString())
+                                        return@handle call.respond(HttpStatusCode.InternalServerError)
                                     }
                                 }
                             }
-                        } catch (ex: Exception) {
-                            when (ex) {
-                                is JsonParseException -> {
-                                    log.debug("Bad JSON")
-                                    log.debug(ex.stackTraceToString())
-                                    return@handle call.respond(HttpStatusCode.BadRequest)
-                                }
 
-                                else -> {
-                                    log.warn("Caught exception while trying to deserialize body!")
-                                    log.warn(ex.stackTraceToString())
-                                    return@handle call.respond(HttpStatusCode.InternalServerError)
-                                }
-                            }
+                        // Retrieve argument values from path (if any)
+                        val valuesFromPath = try {
+                            restCall.path.segments.mapNotNull { it.bindValuesFromCall(call) }.toMap()
+                        } catch (ex: IllegalArgumentException) {
+                            log.debug("Caught illegal argument exception when constructing values from path")
+                            log.debug(ex.stackTraceToString())
+                            return@handle call.respond(HttpStatusCode.BadRequest)
                         }
 
-                    // Retrieve argument values from path (if any)
-                    val valuesFromPath = try {
-                        restCall.path.segments.mapNotNull { it.bindValuesFromCall(call) }.toMap()
-                    } catch (ex: IllegalArgumentException) {
-                        log.debug("Caught illegal argument exception when constructing values from path")
-                        log.debug(ex.stackTraceToString())
-                        return@handle call.respond(HttpStatusCode.BadRequest)
-                    }
+                        // Retrieve arguments from query parameters (if any)
+                        val valuesFromParams = try {
+                            restCall
+                                .params
+                                ?.parameters
+                                ?.mapNotNull {
+                                    it.bindValuesFromCall(call)
+                                }?.toMap()
+                        } catch (ex: IllegalArgumentException) {
+                            log.debug("Caught illegal argument exception when constructing values from params")
+                            log.debug(ex.stackTraceToString())
+                            return@handle call.respond(HttpStatusCode.BadRequest)
+                        } ?: emptyMap()
 
-                    // Retrieve arguments from query parameters (if any)
-                    val valuesFromParams = try {
-                        restCall
-                            .params
-                            ?.parameters
-                            ?.mapNotNull {
-                                it.bindValuesFromCall(call)
-                            }?.toMap()
-                    } catch (ex: IllegalArgumentException) {
-                        log.debug("Caught illegal argument exception when constructing values from params")
-                        log.debug(ex.stackTraceToString())
-                        return@handle call.respond(HttpStatusCode.BadRequest)
-                    } ?: emptyMap()
+                        val allValuesFromRequest = valuesFromPath + valuesFromParams
 
-                    val allValuesFromRequest = valuesFromPath + valuesFromParams
-
-                    if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
-                        val requestClass = restCall.requestType.type as? Class<*> ?: throw IllegalStateException(
-                            "${restCall.fullName}'s request type is not a simple class. " +
-                                    "This is required."
-                        )
-
-                        val requestClassKotlin = if (requestClass.isKotlinClass()) {
-                            @Suppress("UNCHECKED_CAST")
-                            requestClass.kotlin as KClass<P>
-                        } else {
-                            throw IllegalStateException(
-                                "${restCall.fullName}'s request type is not a kotlin " +
-                                        "class. This is required."
+                        if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
+                            val requestClass = restCall.requestType.type as? Class<*> ?: throw IllegalStateException(
+                                "${restCall.fullName}'s request type is not a simple class. " +
+                                        "This is required."
                             )
-                        }
 
-                        val constructor =
-                            requestClassKotlin.primaryConstructor ?: requestClassKotlin.constructors.single()
-
-                        val resolvedArguments = constructor.parameters.map {
-                            val name = it.name ?: run {
+                            val requestClassKotlin = if (requestClass.isKotlinClass()) {
+                                @Suppress("UNCHECKED_CAST")
+                                requestClass.kotlin as KClass<P>
+                            } else {
                                 throw IllegalStateException(
-                                    "Unable to determine name of property in request " +
-                                            "type. Please use a data class instead to solve this problem."
+                                    "${restCall.fullName}'s request type is not a kotlin " +
+                                            "class. This is required."
                                 )
                             }
 
-                            if (name !in allValuesFromRequest) {
-                                // If not found in path, check if this is param bound to the body
-                                if (restCall.body is RESTBody.BoundToSubProperty<*, *>) {
-                                    val body = restCall.body as RESTBody.BoundToSubProperty
-                                    if (body.property.name == it.name) {
-                                        return@map it to valueFromBody
-                                    }
+                            val constructor =
+                                requestClassKotlin.primaryConstructor ?: requestClassKotlin.constructors.single()
+
+                            val resolvedArguments = constructor.parameters.map {
+                                val name = it.name ?: run {
+                                    throw IllegalStateException(
+                                        "Unable to determine name of property in request " +
+                                                "type. Please use a data class instead to solve this problem."
+                                    )
                                 }
 
-                                // All arguments were collected successfully from the request, but we still
-                                // can't satisfy this constructor parameter. As a result it must be a bug in
-                                // the description.
-                                throw IllegalStateException("The property '$name' was not bound in description!")
+                                if (name !in allValuesFromRequest) {
+                                    // If not found in path, check if this is param bound to the body
+                                    if (restCall.body is RESTBody.BoundToSubProperty<*, *>) {
+                                        val body = restCall.body as RESTBody.BoundToSubProperty
+                                        if (body.property.name == it.name) {
+                                            return@map it to valueFromBody
+                                        }
+                                    }
+
+                                    // All arguments were collected successfully from the request, but we still
+                                    // can't satisfy this constructor parameter. As a result it must be a bug in
+                                    // the description.
+                                    throw IllegalStateException("The property '$name' was not bound in description!")
+                                }
+
+                                it to allValuesFromRequest[name]
+                            }.toMap()
+
+                            try {
+                                constructor.callBy(resolvedArguments)
+                            } catch (ex: IllegalArgumentException) {
+                                log.debug("Caught (validation) exception during construction of request object!")
+                                log.debug(ex.stackTraceToString())
+
+                                return@handle call.respond(HttpStatusCode.BadRequest)
+                            } catch (ex: Exception) {
+                                log.warn("Caught exception during construction of request object!")
+                                log.warn(ex.stackTraceToString())
+
+                                return@handle call.respond(HttpStatusCode.InternalServerError)
                             }
-
-                            it to allValuesFromRequest[name]
-                        }.toMap()
-
-                        try {
-                            constructor.callBy(resolvedArguments)
-                        } catch (ex: IllegalArgumentException) {
-                            log.debug("Caught (validation) exception during construction of request object!")
-                            log.debug(ex.stackTraceToString())
-
-                            return@handle call.respond(HttpStatusCode.BadRequest)
-                        } catch (ex: Exception) {
-                            log.warn("Caught exception during construction of request object!")
-                            log.warn(ex.stackTraceToString())
-
-                            return@handle call.respond(HttpStatusCode.InternalServerError)
+                        } else {
+                            @Suppress("UNCHECKED_CAST")
+                            // Request bound to body. We just need to cast the already parsed body. Type safety is
+                            // ensured by builder.
+                            valueFromBody as P
                         }
-                    } else {
-                        @Suppress("UNCHECKED_CAST")
-                        // Request bound to body. We just need to cast the already parsed body. Type safety is
-                        // ensured by builder.
-                        valueFromBody as P
-                    }
-                }
-
-                val restHandler = RESTHandler(payload, this, logResponse, restCall)
-                try {
-                    // Call the handler with the payload
-                    restHandler.handler(payload)
-                } catch (ex: RPCException) {
-                    if (ex.httpStatusCode == HttpStatusCode.InternalServerError) {
-                        log.warn("Internal server error in ${restCall.fullName}")
-                        log.warn(ex.stackTraceToString())
                     }
 
-                    if (CommonErrorMessage::class == restCall.responseTypeFailure) {
-                        val message =
-                            if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why else "Internal Server Error"
+                    val restHandler = RESTHandler(payload, this, logResponse, restCall)
+                    try {
+                        // Call the handler with the payload
+                        restHandler.handler(payload)
+                    } catch (ex: RPCException) {
+                        if (ex.httpStatusCode == HttpStatusCode.InternalServerError) {
+                            log.warn("Internal server error in ${restCall.fullName}")
+                            log.warn(ex.stackTraceToString())
+                        }
 
-                        @Suppress("UNCHECKED_CAST")
-                        restHandler.error(CommonErrorMessage(message) as E, ex.httpStatusCode)
-                    } else {
-                        log.info(ex.stackTraceToString())
+                        if (CommonErrorMessage::class == restCall.responseTypeFailure) {
+                            val message =
+                                if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why else "Internal Server Error"
 
-                        log.info(
-                            "Cannot auto-complete exception message when error type is not " +
-                                    "CommonErrorMessage. Please catch exceptions yourself."
-                        )
-                        call.respond(ex.httpStatusCode)
+                            @Suppress("UNCHECKED_CAST")
+                            restHandler.error(CommonErrorMessage(message) as E, ex.httpStatusCode)
+                        } else {
+                            log.info(ex.stackTraceToString())
+
+                            log.info(
+                                "Cannot auto-complete exception message when error type is not " +
+                                        "CommonErrorMessage. Please catch exceptions yourself."
+                            )
+                            call.respond(ex.httpStatusCode)
+                        }
+
+                        restHandler.okContentDeliveredExternally()
                     }
 
-                    restHandler.okContentDeliveredExternally()
-                }
-
-                if (!restHandler.finalized) {
-                    warnMissingFinalize(restCall)
+                    if (!restHandler.finalized) {
+                        warnMissingFinalize(restCall)
+                    }
+                } catch (ex: Exception) {
+                    log.warn("Caught exception while handling implement. Exception was not caught in the normal " +
+                            "handler.")
+                    log.warn(ex.stackTraceToString())
+                    call.respond(HttpStatusCode.InternalServerError)
                 }
             }
         }
