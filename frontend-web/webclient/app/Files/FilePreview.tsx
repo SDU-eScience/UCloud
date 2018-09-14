@@ -45,7 +45,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
             case "code":
                 return (<code style={{ whiteSpace: "pre-wrap" }}>{this.file.content}</code>)
             case "image":
-                return (<img src={`data:image/png;base64,${btoa(this.file.content)}`} />)
+                return (<img src={`${0}`} />)
             case "text":
             case "sound":
             case "archive":

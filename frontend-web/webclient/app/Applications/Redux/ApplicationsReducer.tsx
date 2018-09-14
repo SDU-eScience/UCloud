@@ -12,7 +12,7 @@ const applications = (state = [], action) => {
             return { ...state, loading: action.loading };
         }
         case UPDATE_APPLICATIONS: {
-            return { ...state, applications: action.applications };
+            return { ...state, page: action.page };
         }
         case APPLICATIONS_ERROR: {
             return { ...state, error: action.error, loading: false };

@@ -38,7 +38,8 @@ export const favoriteApplicationFromPage = (application: Application, page: Page
     */
 }
 
-export const extractParameters = (parameters, allowedParameterKeys, siteVersion: number) => {
+interface AllowedParameterKey { name: string, type: ParameterTypes}
+export const extractParameters = (parameters, allowedParameterKeys: AllowedParameterKey[], siteVersion: number) => {
     let extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({ name, type }) => {
@@ -52,7 +53,7 @@ export const extractParameters = (parameters, allowedParameterKeys, siteVersion:
     return extractedParameters;
 }
 
-const compareType = (type, parameter): boolean => {
+const compareType = (type: ParameterTypes, parameter): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
             return typeof parameter === "boolean";
@@ -65,7 +66,5 @@ const compareType = (type, parameter): boolean => {
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
             return typeof parameter.destination === "string" && typeof parameter.source === "string";
-        default:
-            return false;
     }
 }

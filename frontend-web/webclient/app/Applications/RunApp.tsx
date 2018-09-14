@@ -9,7 +9,7 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
-import { favoriteApplication, infoNotification, failureNotification } from "UtilityFunctions";
+import { infoNotification, failureNotification } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { RunAppProps, RunAppState, JobInfo, MaxTime } from "."
@@ -67,8 +67,9 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     }
 
     favoriteApp = () => {
+        // FIXME Doesn't actually do anything
         this.setState(() => ({
-            favorite: favoriteApplication({ favorite: this.state.favorite }).favorite
+            favorite: !this.state.favorite
         }));
     }
 
@@ -97,7 +98,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                     infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
                 }
                 const extractedParameters = extractParameters(parameters, this.state.parameters.map(it => ({
-                    name: it.name, type: it.type
+                    name: it.name, type: it.type as ParameterTypes
                 })), siteVersion);
                 this.setState(() => ({
                     parameterValues: { ...this.state.parameterValues, ...extractedParameters },
@@ -148,7 +149,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     onSubmit(event) {
         event.preventDefault();
         let maxTime: MaxTime = this.extractJobInfo(this.state.jobInfo).maxTime;
-        if (maxTime) 
+        if (maxTime)
             if (maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
         let job = {
             application: {
@@ -358,10 +359,10 @@ const JobMetaParams = (props) => {
 
 const JobSchedulingParams = (props) => {
     if (!props.tool) return null;
-    
+
     // TODO refactor fields, very not DRY compliant
     const { maxTime, numberOfNodes, tasksPerNode } = props.jobInfo;
-    
+
     return (
         <>
             <Form.Group widths="equal">
@@ -429,8 +430,6 @@ const parameterTypeToComponent = (type) => {
             return GenericNumberParameter; // Must be a constructor or have call signatures
     }
 };
-
-
 
 const Parameter = (props) => {
     let Component = parameterTypeToComponent(props.parameter.type);
@@ -609,9 +608,6 @@ const mapDispatchToProps = (dispatch) => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application"))
 });
 
-const mapStateToProps = ({ uppy }) => {
-    const { uppyRunApp, uppyRunAppOpen } = uppy;
-    return { uppy: uppyRunApp, uppyOpen: uppyRunAppOpen };
-}
+const mapStateToProps = ({ uppy }) => uppy;
 
 export default connect(mapStateToProps, mapDispatchToProps)(RunApp);

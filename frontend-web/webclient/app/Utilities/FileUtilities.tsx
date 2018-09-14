@@ -1,5 +1,5 @@
 import Cloud from "Authentication/lib";
-import { File, MoveCopyOperations, FileOperation, SortOrder, SortBy, Acl, Annotation, AnnotationsMap } from "Files";
+import { File, MoveCopyOperations, FileOperation, Operation, SortOrder, SortBy, Acl, Annotation, AnnotationsMap, PredicatedOperation } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal from "sweetalert2";
@@ -48,7 +48,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud
             operations.setFileSelectorCallback(undefined);
             operations.setDisallowedPaths([]);
         });
-    })
+    });
 };
 
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
@@ -63,13 +63,13 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
 }
 
 type AccessRight = "READ" | "WRITE" | "EXECUTE";
-const hasAccess = (accessRight: AccessRight, file: File) => file.acl.every(acl => acl.rights.some(it => it === accessRight));
+const hasAccess = (accessRight: AccessRight, file: File) => file.acl.every(acl => acl.rights.contains(accessRighs));
 const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => files.every(f => hasAccess(accessRight, f));
 
 /**
  * @returns Share and Download operations for files
  */
-export const StateLessOperations = (): FileOperation[] => [
+export const StateLessOperations = (): Operation[] => [
     { text: "Share", onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => false, icon: "share alternate", color: undefined },
     { text: "Download", onClick: (files: File[], cloud: Cloud) => downloadFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => !UF.downloadAllowed(files), icon: "download", color: undefined }
 ];
@@ -77,7 +77,7 @@ export const StateLessOperations = (): FileOperation[] => [
 /**
  * @returns Move and Copy operations for files
  */
-export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): FileOperation[] => [
+export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): Operation[] => [
     { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files), icon: "copy", color: undefined },
     { text: "Move", onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "move", color: undefined }
 ];
@@ -87,14 +87,14 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
  * @param onDeleted To be called on completed deletion of files
  * @returns the Delete operation
  */
-export const DeleteFileOperation = (onDeleted: () => void): FileOperation[] => [
+export const DeleteFileOperation = (onDeleted: () => void): Operation[] => [
     { text: "Delete", onClick: (files: File[], cloud: Cloud) => batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "trash", color: "red" }
 ];
 
 /**
  * @returns Properties and Project Operations for files.
  */
-export const HistoryFilesOperations = (history: History): FileOperation[] => [
+export const HistoryFilesOperations = (history: History): [Operation, PredicatedOperation] => [
     { text: "Properties", onClick: (files: File[], cloud: Cloud) => history.push(`/fileInfo/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1, icon: "settings", color: "blue" },
     {
         predicate: (files: File[], cloud: Cloud) => isProject(files[0]),
@@ -143,8 +143,8 @@ export const newMockFolder = (path: string = "", beingRenamed: boolean = true): 
  * @returns whether or not the path is invalid
  */
 export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
-    const disallowedName = ["..", "/"].some((it) => path.includes(it));
-    if (disallowedName || path === "") { UF.failureNotification("Folder name cannot contain '..' or '/' or empty"); return true; }
+    if (["..", "/"].some((it) => path.includes(it))) { UF.failureNotification("Folder name cannot contain '..' or '/'"); return true }
+    if (path === "" || path === ".") { UF.failureNotification("Folder name cannot be empty or be \".\""); return true; }
     const existingName = filePaths.some((it) => it === path);
     if (existingName) { UF.failureNotification("File with that name already exists"); return true; }
     return false;
@@ -191,7 +191,7 @@ export const favoriteFile = (file: File, cloud: Cloud): void => {
         cloud.delete(`/files/favorite?path=${file.path}`, {});
 }
 
-export const canBeProject = (files: File[], homeFolder: string): boolean => 
+export const canBeProject = (files: File[], homeFolder: string): boolean =>
     files.length === 1 && files.every((f) => isDirectory(f)) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
 
 export const previewSupportedExtension = (path: string) => false;
@@ -250,7 +250,7 @@ export const fetchFileContent = (path: string, cloud: Cloud) =>
     ); // FIXME Error
 
 export const fileSizeToString = (bytes: number): string => {
-    if (bytes === 0) return "0 B";
+    if (bytes < 0) return "Invalid size";
     if (bytes < 1000) {
         return `${bytes} B`;
     } else if (bytes < 1000 ** 2) {
@@ -263,10 +263,8 @@ export const fileSizeToString = (bytes: number): string => {
         return `${(bytes / 1000 ** 4).toFixed(2)} TB`;
     } else if (bytes < 1000 ** 6) {
         return `${(bytes / 1000 ** 5).toFixed(2)} PB`;
-    } else if (bytes < 1000 ** 7) {
-        return `${(bytes / 1000 ** 6).toFixed(2)} EB`;
     } else {
-        return `${bytes} B`;
+        return `${(bytes / 1000 ** 6).toFixed(2)} EB`;
     }
 };
 
@@ -333,4 +331,4 @@ export const createFolder = (path: string, cloud: Cloud, onSuccess: () => void) 
 
 
 
-export const annotationToString = (annotation: Annotation) => { console.log(annotation, AnnotationsMap[annotation]); return AnnotationsMap[annotation]; }
+export const annotationToString = (annotation: Annotation) => AnnotationsMap[annotation];

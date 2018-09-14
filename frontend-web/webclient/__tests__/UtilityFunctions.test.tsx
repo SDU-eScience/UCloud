@@ -1,4 +1,5 @@
 import * as UF from "UtilityFunctions";
+import { getFilenameFromPath, fileSizeToString } from "Utilities/FileUtilities";
 import { SortBy, SortOrder, Acl } from "Files";
 
 // TO LOWER CASE AND CAPITALIZE
@@ -259,6 +260,9 @@ test("To same UUDI", () =>
 // Download allowed
 
 import { mockFiles_SensitivityConfidential, newMockFile } from "./mock/Files"
+import { dateToString } from "Utilities/DateUtilities";
+import { SensitivityLevel } from "DefaultObjects";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 test("Download allowed", () =>
     expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items)).toBe(true)
@@ -281,3 +285,130 @@ const highSensitivityFile = newMockFile({
 test("Download disallowed", () =>
     expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
 );
+
+describe("Success swals", () => {
+
+    test("Success swal", () =>
+        UF.successNotification("title", 1)
+    );
+
+    test("Success swal, with defaults", () =>
+        UF.successNotification("title")
+    );
+});
+
+test.skip("shareSwal", () => {
+    const swal = UF.shareSwal();
+});
+
+describe("Get sorting icon", () => {
+    test("Non matching sortBy", () =>
+        expect(UF.getSortingIcon(SortBy.ANNOTATION, SortOrder.ASCENDING, SortBy.ACL)).toBeUndefined()
+    )
+
+    test("Matching sortBy, up", () =>
+        expect(UF.getSortingIcon(SortBy.ACL, SortOrder.ASCENDING, SortBy.ACL)).toBe("chevron up")
+    )
+
+    test("Matching sortBy, down", () =>
+        expect(UF.getSortingIcon(SortBy.ACL, SortOrder.DESCENDING, SortBy.ACL)).toBe("chevron down")
+    )
+});
+
+describe("sortingColumnToValue", () => {
+    const file = mockFiles_SensitivityConfidential.items[0];
+    const favoritedFile = mockFiles_SensitivityConfidential.items[1];
+
+    test("TYPE", () => {
+        expect(UF.sortingColumnToValue(SortBy.TYPE, file)).toBe(UF.toLowerCaseAndCapitalize(file.type))
+    })
+    test("PATH", () => {
+        expect(UF.sortingColumnToValue(SortBy.PATH, file)).toBe(getFilenameFromPath(file.path))
+    })
+    test("CREATED_AT", () => {
+        expect(UF.sortingColumnToValue(SortBy.CREATED_AT, file)).toBe(dateToString(file.createdAt))
+    })
+    test("MODIFIED_AT", () => {
+        expect(UF.sortingColumnToValue(SortBy.MODIFIED_AT, file)).toBe(dateToString(file.modifiedAt))
+    })
+    test("SIZE", () => {
+        expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(fileSizeToString(file.size))
+    })
+    test("ACL", () => {
+        expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getOwnerFromAcls(file.acl))
+    })
+    test("Not FAVORITED", () => {
+        expect(UF.sortingColumnToValue(SortBy.FAVORITED, file)).toBe("")
+    })
+    test("FAVORITED", () => {
+        expect(UF.sortingColumnToValue(SortBy.FAVORITED, favoritedFile)).toBe("Favorited")
+    })
+    test("SENSITIVITY", () => {
+        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY, file)).toBe(SensitivityLevel[file.sensitivityLevel])
+    })
+    test("ANNOTATION", () => {
+        expect(UF.sortingColumnToValue(SortBy.ANNOTATION, file)).toBe(file.annotations.toString());
+    })
+});
+
+describe("If Present", () => {
+    test("Present", () => {
+        const fun = jest.fn();
+        UF.ifPresent(1, fun);
+        expect(fun).toBeCalled();
+    });
+
+    test("Present", () => {
+        const fun = jest.fn();
+        UF.ifPresent(undefined, fun);
+        expect(fun).toBeCalledTimes(0);
+    });
+});
+
+describe("iconFromFilePath", () => {
+    const homeFolder = "/home/test@user.dk/";
+    const dir = "DIRECTORY";
+    const file = "FILE";
+
+    test("tasks", () =>
+        expect(UF.iconFromFilePath(`${homeFolder}Jobs/`, file, homeFolder)).toBe("tasks")
+    );
+
+    test("star", () =>
+        expect(UF.iconFromFilePath(`${homeFolder}Favorites/`, file, homeFolder)).toBe("star")
+    );
+
+    test("folder", () =>
+        expect(UF.iconFromFilePath("sounds", dir, homeFolder)).toBe("folder")
+    );
+
+    test("file outline", () =>
+        expect(UF.iconFromFilePath("notes.txt", file, homeFolder)).toBe("file outline")
+    );
+
+    test("file code outline", () =>
+        expect(UF.iconFromFilePath("main.kt", file, homeFolder)).toBe("file code outline")
+    );
+
+    test("volume up", () =>
+        expect(UF.iconFromFilePath("sound.wav", file, homeFolder)).toBe("volume up")
+    );
+
+    test("file archive outline", () =>
+        expect(UF.iconFromFilePath("name.tar.gz", file, homeFolder)).toBe("file archive outline")
+    );
+
+    test("file outline from default", () =>
+        expect(UF.iconFromFilePath("non-recognized-ending.fileThing", file, homeFolder)).toBe("file outline")
+    );
+
+    test("file outline from no period in path", () =>
+        expect(UF.iconFromFilePath("iHaveNoPeriodInPath", file, homeFolder)).toBe("file outline")
+    );
+});
+
+describe("defaultErrorHandler", () => {
+    test.skip("Todo", () =>
+        expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined })).toBe(0)
+    );
+});

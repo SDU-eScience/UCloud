@@ -1,6 +1,6 @@
 import { Page } from "Types";
 import { History } from "history";
-import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps, SemanticCOLORS } from "semantic-ui-react";
+import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps, SemanticCOLORS, IconProps } from "semantic-ui-react";
 import { match } from "react-router-dom";
 import Cloud from "Authentication/lib";
 import { Moment } from "moment";
@@ -104,7 +104,7 @@ export interface FileSelectorProps {
     onFileSelect: Function
     uppy?: any
     path: string
-    isRequired: boolean
+    isRequired?: boolean
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean
     remove?: Function
@@ -152,10 +152,9 @@ export interface FilesTableHeaderProps {
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
 }
 
-export interface FilenameAndIconsProps {
+export interface FilenameAndIconsProps extends IconProps {
     file: File
     hasCheckbox: boolean
-    size?: SemanticSIZES
     onRenameFile?: (key: number, file: File, name: string) => void
     onCheckFile?: (c: boolean) => void
     onFavoriteFile?: (files: File[]) => void

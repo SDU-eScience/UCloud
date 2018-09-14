@@ -1,49 +1,12 @@
 import * as FileActions from "Files/Redux/FilesActions";
 import { mockFiles_SensitivityConfidential } from "../../mock/Files";
-import { createStore, combineReducers } from "redux";
 import { emptyPage } from "DefaultObjects";
-import { SortBy, SortOrder } from "Files";
+import { SortBy } from "Files";
+import { configureStore } from "Utilities/ReduxUtilities";
+import { initFiles } from "DefaultObjects";
 import files from "Files/Redux/FilesReducer";
 
-const addPromiseSupportToDispatch = (store) => {
-    const rawDispatch = store.dispatch;
-    return (action) => {
-        if (typeof action.then === "function") {
-            return action.then(rawDispatch);
-        }
-        return rawDispatch(action);
-    };
-};
-
-const rootReducer = combineReducers({
-    files
-});
-
-const configureStore = (initialObject) => {
-    const store = createStore(rootReducer, initialObject);
-    store.dispatch = addPromiseSupportToDispatch(store);
-    return store;
-};
-
-const emptyPageStore = configureStore({
-    files: {
-        page: emptyPage,
-        sortOrder: SortOrder.ASCENDING,
-        sortBy: SortBy.PATH,
-        loading: false,
-        error: undefined,
-        path: "",
-        filesInfoPath: "",
-        sortingColumns: [SortBy.PATH, SortBy.MODIFIED_AT],
-        fileSelectorLoading: false,
-        fileSelectorShown: false,
-        fileSelectorPage: emptyPage,
-        fileSelectorPath: "/home/Home",
-        fileSelectorCallback: () => null,
-        fileSelectorError: undefined,
-        disallowedPaths: []
-    }
-});
+const emptyPageStore = configureStore({ files: initFiles({ homeFolder: "/home/user@test.abc/" }) }, { files });
 
 const nonEmptyPageStore = { ...emptyPageStore };
 nonEmptyPageStore.getState().files.page = mockFiles_SensitivityConfidential;
@@ -58,7 +21,7 @@ describe("Check All Files", () => {
         const checked = true;
         nonEmptyPageStore.dispatch(FileActions.checkAllFiles(checked, nonEmptyPageStore.getState().files.page));
         const page = { ...nonEmptyPageStore.getState().files.page }
-        page.items.forEach(f => f.checked = checked);
+        page.items.forEach(f => f.isChecked = checked);
         expect(nonEmptyPageStore.getState().files.page).toEqual(page);
     });
 
@@ -67,7 +30,7 @@ describe("Check All Files", () => {
         nonEmptyPageStore.dispatch(FileActions.checkAllFiles(checked, nonEmptyPageStore.getState().files.page));
         nonEmptyPageStore.dispatch(FileActions.checkAllFiles(!checked, nonEmptyPageStore.getState().files.page));
         const page = { ...nonEmptyPageStore.getState().files.page }
-        page.items.forEach(f => f.checked = !checked);
+        page.items.forEach(f => f.isChecked = !checked);
         expect(nonEmptyPageStore.getState().files.page).toEqual(page);
     });
 });

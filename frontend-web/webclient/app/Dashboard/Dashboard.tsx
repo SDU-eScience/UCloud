@@ -89,7 +89,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
 
 const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 117 | 200 }) =>
     <List.Content>
-        <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={null} link={link} color="grey" />
+        <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={undefined} link={link} color="grey" />
         <Link to={`/files/${type === "FILE" ? getParentPath(path) : path}`}>
             <span className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(path)}</span>
         </Link>

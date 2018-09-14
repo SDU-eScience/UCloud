@@ -14,12 +14,14 @@ import { File, Annotation, SortOrder, SortBy, FileInfoProps } from "Files";
 import { annotationToString } from "Utilities/FileUtilities";
 
 class FileInfo extends React.Component<FileInfoProps> {
+    constructor(props) {
+        super(props);
+    }
 
     componentDidMount() {
         const { match, filesPath, dispatch, loading, page } = this.props;
         dispatch(updatePageTitle("File Info"));
         const path = match.params[0];
-        console.log(getParentPath(path), filesPath);
         if (!(getParentPath(path) === filesPath)) {
             dispatch(setLoading(true));
             if (loading) return;
@@ -35,12 +37,8 @@ class FileInfo extends React.Component<FileInfoProps> {
         return (
             <Container className="container-margin" >
                 <Header as="h2" icon textAlign="center">
-                    <Header.Content>
-                        {file.path}
-                    </Header.Content>
-                    <Header.Subheader>
-                        {toLowerCaseAndCapitalize(file.type)}
-                    </Header.Subheader>
+                    <Header.Content content={file.path} />
+                    <Header.Subheader content={toLowerCaseAndCapitalize(file.type)} />
                 </Header>                               {/* MapDispatchToProps */}
                 <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, [file], Cloud)))} />
                 {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
@@ -86,16 +84,10 @@ const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
                 <Card.Content>
                     <List divided>
                         <List.Item className="itemPadding">
-                            Sensitivity:
-                                <List.Content floated="right">
-                                {SensitivityLevel[file.sensitivityLevel]}
-                            </List.Content>
+                            Sensitivity: <List.Content floated="right" content={SensitivityLevel[file.sensitivityLevel]} />
                         </List.Item>
                         <List.Item className="itemPadding">
-                            Size:
-                                <List.Content floated="right">
-                                {fileSizeToString(file.size)}
-                            </List.Content>
+                            Size: <List.Content floated="right" content={fileSizeToString(file.size)} />
                         </List.Item>
                         <List.Item className="itemPadding">
                             Shared with:
@@ -121,16 +113,13 @@ const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
         </Card.Group>
     );
 
-const mapStateToProps = (state) => {
-    const { loading, page, path, sortOrder, sortBy } = state.files;
-    return {
-        loading,
-        page,
-        sortBy,
-        sortOrder,
-        filesPath: path,
-        favoriteCount: page.items.filter(file => file.favorited).length // Hack to ensure rerender
-    }
-}
+const mapStateToProps = ({ files }) => ({
+    loading: files.loading,
+    page: files.page,
+    sortBy: files.sortBy,
+    sortOrder: files.sortOrder,
+    filesPath: files.path,
+    favoriteCount: files.page.items.filter(file => file.favorited).length // Hack to ensure rerender
+});
 
 export default connect(mapStateToProps)(FileInfo);

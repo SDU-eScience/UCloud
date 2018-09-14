@@ -55,7 +55,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             extensions,
             extensionValue: entryAdded ? "" : extensionValue
         }));
-        if (!entryAdded) {
+        console.log(entryAdded);
+        if (!entryAdded && !!extensionValue.trim()) {
             infoNotification("Extension already added");
         }
     }

@@ -4,9 +4,11 @@ import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps }
 import { Cloud } from "Authentication/SDUCloudObject";
 import { connect } from "react-redux";
 import { setSidebarState } from "./Redux/SidebarActions";
+import { PP } from "UtilityComponents";
 
 interface SidebarProps {
     open: boolean
+    pp: boolean
     setSidebarState: (open: boolean) => void
 }
 
@@ -15,7 +17,7 @@ interface SidebarState {
 }
 
 class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
-    constructor(props: SidebarProps) {
+    constructor(props) {
         super(props);
         this.state = {
             activeIndices: [false, false, false]
@@ -49,6 +51,7 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
                 <Responsive minWidth={1000}>
                     <Accordion as={Menu} vertical borderless fixed="left" className="my-sidebar">
                         <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={() => setSidebarState(false)} />
+                        <PP visible={this.props.pp}/>
                     </Accordion>
 
                     {content}

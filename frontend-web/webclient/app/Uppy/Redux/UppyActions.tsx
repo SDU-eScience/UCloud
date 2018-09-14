@@ -1,24 +1,11 @@
-import { CHANGE_UPPY_RUNAPP_OPEN, CHANGE_UPPY_FILES_OPEN, CLOSE_UPPY } from "./UppyReducers";
+import { OPEN_UPPY, CLOSE_UPPY } from "./UppyReducers";
 import { Action } from "Types";
 
-// FIXME Is this even in use?
-interface ChangeUppyOpenAction extends Action { open: boolean }
 /**
- * Used to set whether or not the Uppy modal is shown for files
- * @param {boolean} open sets whether or not uppy is open
+ * Used to open Uppy modal
  */
-export const changeUppyFilesOpen = (open: boolean): ChangeUppyOpenAction => ({
-    type: CHANGE_UPPY_FILES_OPEN,
-    open
-});
-
-/**
- * Used to set whether or not the Uppy modal is shown for RunApp
- * @param {boolean} open sets whether or not uppy is open
- */
-export const changeUppyRunAppOpen = (open: boolean): ChangeUppyOpenAction => ({
-    type: CHANGE_UPPY_RUNAPP_OPEN,
-    open
+export const openUppy = (): Action => ({
+    type: OPEN_UPPY
 });
 
 /**
@@ -28,7 +15,8 @@ export const changeUppyRunAppOpen = (open: boolean): ChangeUppyOpenAction => ({
  */
 export const closeUppy = (uppy: any) => {
     // TODO Gigantic hack to remove all (non-uppy) callbacks when closed
-    uppy.emitter._fns["upload-success"] = uppy.emitter._fns["upload-success"].slice(0, 1);
+    if (uppy.emitter._fns["upload-success"]) 
+        uppy.emitter._fns["upload-success"] = uppy.emitter._fns["upload-success"].slice(0, 1);
     return {
         type: CLOSE_UPPY
     };
