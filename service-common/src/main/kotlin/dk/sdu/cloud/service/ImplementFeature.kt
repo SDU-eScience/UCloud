@@ -236,7 +236,7 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                             log.warn(ex.stackTraceToString())
                         }
 
-                        if (CommonErrorMessage::class == restCall.responseTypeFailure) {
+                        if (CommonErrorMessage::class.java == restCall.responseTypeFailure.type) {
                             val message =
                                 if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why else "Internal Server Error"
 
