@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
@@ -65,6 +66,14 @@ data class ListActivityByIdRequest(
 ) : WithPaginationRequest
 typealias ListActivityByIdResponse = Page<ActivityEvent>
 
+
+data class ListActivityByPathRequest(
+    val path: String,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+typealias ListActivityByPathResponse = Page<ActivityEvent>
+
 object ActivityDescriptions : RESTDescriptions("activity") {
     val baseContext = "/api/activity"
 
@@ -72,6 +81,7 @@ object ActivityDescriptions : RESTDescriptions("activity") {
         name = "listByFileId"
 
         auth {
+            roles = Roles.PRIVILEDGED
             access = AccessRight.READ
         }
 
@@ -84,6 +94,25 @@ object ActivityDescriptions : RESTDescriptions("activity") {
         params {
             +boundTo(ListActivityByIdRequest::itemsPerPage)
             +boundTo(ListActivityByIdRequest::page)
+        }
+    }
+
+    val listByPath = callDescription<ListActivityByPathRequest, ListActivityByPathResponse, CommonErrorMessage> {
+        name = "listByPath"
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"by-path"
+        }
+
+        params {
+            +boundTo(ListActivityByPathRequest::itemsPerPage)
+            +boundTo(ListActivityByPathRequest::page)
+            +boundTo(ListActivityByPathRequest::path)
         }
     }
 }

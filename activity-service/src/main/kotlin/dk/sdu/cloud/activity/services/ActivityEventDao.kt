@@ -4,7 +4,6 @@ import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.db.FakeDBSessionFactory
 import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
 
@@ -41,7 +40,8 @@ class InMemoryActivityEventDao : ActivityEventDao<Unit> {
         pagination: NormalizedPaginationRequest,
         fileId: String
     ): Page<ActivityEvent> {
-        return database[fileId]?.paginate(pagination) ?: throw ActivityEventException.NotFound()
+        return database[fileId]?.paginate(pagination)?.let { it.copy(items = it.items.toList()) }
+                ?: throw ActivityEventException.NotFound()
     }
 
     override fun insert(session: Unit, event: ActivityEvent) {

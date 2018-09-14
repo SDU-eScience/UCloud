@@ -2,7 +2,7 @@ package dk.sdu.cloud.activity.processor
 
 import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.activity.api.ActivityEvent
-import dk.sdu.cloud.activity.services.ActivityEventDao
+import dk.sdu.cloud.activity.services.ActivityService
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.service.*
@@ -14,7 +14,7 @@ private typealias Transformer = (parsedEvent: JsonNode) -> List<ActivityEvent>?
 class StorageAuditProcessor<DBSession>(
     private val streamFactory: EventConsumerFactory,
     private val db: DBSessionFactory<DBSession>,
-    private val activityEventDao: ActivityEventDao<DBSession>,
+    private val activityService: ActivityService<DBSession>,
     private val parallelism: Int = 4
 ) {
     private val transformers: List<Transformer> = listOf(
@@ -66,7 +66,7 @@ class StorageAuditProcessor<DBSession>(
                         log.info("Received the following events: $activityEvents")
 
                         db.withTransaction { session ->
-                            activityEventDao.insertBatch(session, activityEvents)
+                            activityService.insertBatch(session, activityEvents)
                         }
                     }
             }
@@ -113,7 +113,7 @@ class StorageAuditProcessor<DBSession>(
     }
 
     private val AuditEvent<*>.username: String?
-        get() = http.principal?.id
+        get() = http.token?.principal?.username
 
     companion object : Loggable {
         override val log = logger()
