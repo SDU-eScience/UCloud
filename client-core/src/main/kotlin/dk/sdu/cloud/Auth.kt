@@ -133,8 +133,7 @@ data class SecurityScope internal constructor(
             return true
         }
 
-        // We need complete matching otherwise
-        if (other.segments.size < segments.size) return false
+        if (segments.size < other.segments.size) return false
 
         for (i in other.segments.indices) {
             val otherSegment = other.segments[i]
