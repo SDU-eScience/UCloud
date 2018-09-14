@@ -16,10 +16,7 @@ pipeline {
     stage('Test') { 
       steps {
         sh '''cd frontend-web/webclient
-            npm run test
-            ls
-            cd coverage
-            ls'''
+            npm run test'''
         publishHTML (target: [
           allowMissing: false,
           alwaysLinkToLastBuild: false,
