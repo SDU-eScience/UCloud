@@ -110,7 +110,7 @@ class Files extends React.Component<FilesProps> {
                             currentPath={path}
                             showUploader={this.props.showUploader}
                         />
-                        <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} />
+                        <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} homeFolder={Cloud.homeFolder} />
                     </Grid.Row>
                     <Pagination.List
                         loading={loading}
@@ -350,7 +350,7 @@ const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.lengt
     basic?: boolean
 } */
 
-export const FileOperations = ({ files, fileOperations, As, fluid, basic }) => fileOperations.length ?
+export const FileOperations = ({ files, fileOperations, As, fluid, basic }) => files.length && fileOperations.length ?
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
         if ((fileOp as PredicatedOperation).predicate) {

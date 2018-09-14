@@ -1,11 +1,11 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import { closeUppy } from "./Redux/UppyActions";
-import {DashboardModal} from "uppy/lib/react";
+import { DashboardModal } from "uppy/lib/react";
 
 const UppyWrapper = ({ uppy, uppyOpen, dispatch }) => {
-    if (!uppyOpen) {return null;}
-    return (<DashboardModal uppy={uppy} open={uppyOpen} closeModalOnClickOutside onRequestClose={() => dispatch(closeUppy(uppy))}/>);
+    if (!uppyOpen) { return null; }
+    return (<DashboardModal uppy={uppy} open={uppyOpen} closeModalOnClickOutside onRequestClose={() => dispatch(closeUppy(uppy))} />);
 }
 
 const mapStateToProps = (state) => {

@@ -8,7 +8,6 @@ import { History } from "history";
 export interface ApplicationsProps extends ApplicationsStateProps, ApplicationsOperations { }
 
 export interface Analysis {
-    name: string
     status: string
     state: string
     jobId: string
@@ -63,34 +62,46 @@ export interface DetailedResultProps {
 }
 
 export interface Application {
+    favorite: boolean
     owner: string
     createdAt: number
     modifiedAt: number
-    favorite: boolean
-    tool: {
-        owner: string
-        createdAt: number
-        modifiedAt: number
+    description: ApplicationDescription
+    tool: ApplicationTool
+}
 
-        description: {
-            name: string
-            version: string
-        }
-    }
-
+interface ApplicationTool {
+    owner: string
+    createdAt: number
+    modifiedAt: number
     description: {
-        info: {
-            name: string
-            version: string
-        }
-
-        title: string
+        info: ApplicationInfo
+        container: string
+        defaultNumberOfNodes: number
+        defaultTasksPerNode: number
+        defaultMaxTime: MaxTime
+        requiredModules: string[]
         authors: string[]
+        title: string
         description: string
-
-        parameters: any[]
-        invocation: any[]
+        backend: string
     }
+}
+
+interface ApplicationInfo {
+    name: string
+    version: string
+}
+
+interface ApplicationDescription {
+    info: ApplicationInfo
+    tool: ApplicationInfo
+    authors: string[]
+    title: string
+    description: string
+    invocation: any[]
+    parameters: ApplicationParameter[]
+    outputFileGlobs: string[]
 }
 
 export interface DetailedResultState {
@@ -151,16 +162,63 @@ export interface RunAppProps {
     updatePageTitle: () => void
 }
 
-export interface ApplicationParameter {
+export interface NumberParameter extends BaseParameter {
+    defaultValue: number | null
+    min: number | null
+    max: number | null
+    step: number | null
+    type: "integer" | "floating_point"
+}
+
+export interface BooleanParameter extends BaseParameter {
+    defaultValue: boolean | null
+    trueValue?: string | null
+    falseValue?: string | null
+    type: "boolean"
+}
+
+export interface InputFileParameter extends BaseParameter {
+    defaultValue: string | null
+    type: "input_file"
+}
+
+export interface InputDirectoryParameter extends BaseParameter {
+    defaultValue: string | null
+    type: "input_directory"
+}
+
+export interface TextParameter extends BaseParameter {
+    defaultValue: string | null
+    type: "text"
+}
+
+interface BaseParameter {
     name: string
     optional: boolean
-    defaultValue: any
     title: string
     description: string
-    trueValue?: boolean
-    falseValue?: boolean
-    type: string
+    unitName?: string | null
 }
+
+export type ApplicationParameter = InputFileParameter | InputDirectoryParameter | NumberParameter | BooleanParameter | TextParameter
+
+type Invocation = WordInvocation | VarInvocation
+
+interface WordInvocation {
+    type: "word"
+    word: string   
+}
+
+interface VarInvocation {
+    type: "var"
+    variableNames: string[]
+    prefixGlobal: string
+    suffixGlobal: string
+    prefixVariable: string
+    suffixVariable: string
+    variableSeparator: string
+}
+
 
 export interface ApplicationInformation {
     owner: string
@@ -178,7 +236,7 @@ export interface ApplicationInformation {
         authors: string[]
         title: string
         description: string
-        invocation: any
+        invocation: Invocation[]
         parameters: ApplicationParameter[]
         outputFileGlobs: [string, string]
     }

@@ -25,7 +25,7 @@ export default class PromiseKeeper {
                 }
             );
         });
-        cancelablePromise.cancel = () => hasCanceled_ = true;
+        cancelablePromise.cancel = () => cancelablePromise.hasCanceled_ = true;
         this.promises.push(cancelablePromise);
         return cancelablePromise;
     };

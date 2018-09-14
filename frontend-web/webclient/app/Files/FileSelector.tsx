@@ -7,7 +7,7 @@ import * as PropTypes from "prop-types";
 import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory, createFolder } from "Utilities/FileUtilities";
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
-import { changeUppyRunAppOpen } from "Uppy/Redux/UppyActions";
+import { openUppy } from "Uppy/Redux/UppyActions";
 import { KeyCode } from "DefaultObjects";
 import { FileIcon } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
@@ -30,7 +30,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
 
     static contextTypes = {
         store: PropTypes.object.isRequired
-    }
+    };
 
     // FIXME Find better name
     handleKeyDown = (key, name) => {
@@ -59,7 +59,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         Cloud.head(apiEndpoint).then(it => {
             console.log("Got a response back!");
             let path = it.request.getResponseHeader("File-Location");
-            path.lastSlash
             let lastSlash = path.lastIndexOf("/");
             if (lastSlash === -1) throw `Could not parse name of path: ${path}`;
             let name = path.substring(lastSlash + 1);
@@ -110,7 +109,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     render() {
         const onUpload = () => {
             if (!this.props.allowUpload) return;
-            this.context.store.dispatch(changeUppyRunAppOpen(true));
+            this.context.store.dispatch(openUppy());
             let uppy = this.props.uppy;
             uppy.reset();
             uppy.once("upload-success", this.uppyOnUploadSuccess);
@@ -150,7 +149,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     }
 }
 
-export const FileSelectorModal = ({ canSelectFolders = false, ...props }: FileSelectorModalProps) => (
+export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorModalProps) => (
     <Modal open={props.show} onClose={props.onHide} closeOnDimmerClick size="large">
         <Modal.Header>
             File selector
@@ -159,13 +158,13 @@ export const FileSelectorModal = ({ canSelectFolders = false, ...props }: FileSe
             <CreateFolderButton createFolder={props.createFolder} />
         </Modal.Header>
         <Modal.Content scrolling>
-            <BreadCrumbs currentPath={props.path} navigate={(path) => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />
+            <BreadCrumbs homeFolder={Cloud.homeFolder} currentPath={props.path} navigate={(path) => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />
             <PaginationList
                 errorMessage={props.errorMessage}
                 onErrorDismiss={props.onErrorDismiss}
                 pageRenderer={(page) =>
                     <FileSelectorBody
-                        canSelectFolders={canSelectFolders}
+                        canSelectFolders={!!canSelectFolders}
                         {...props}
                         page={page}
                         fetchFiles={(path) => props.fetchFiles(path, page.pageNumber, page.itemsPerPage)}
@@ -280,7 +279,7 @@ const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: File
                                 <FolderSelection canSelectFolders={canSelectFolders} setSelectedFile={() => setSelectedFile(file)} />
                             </List.Content>
                             <List.Content onClick={() => fetchFiles(file.path)}>
-                                <FileIcon size={null} name="folder" link={file.link} color="blue" />
+                                <FileIcon size={undefined} name="folder" link={file.link} color="blue" />
                                 {getFilenameFromPath(file.path)}
                             </List.Content>
                         </List.Item>

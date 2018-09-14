@@ -3,7 +3,6 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
 const path = require("path");
 const UglifyJsPlugin = require("uglifyjs-webpack-plugin");
-//var baseHref = process.env.REACT_BASE_HREF ? process.env.REACT_BASE_HREF : '/';
 const baseHref = "/app";
 
 module.exports = {
@@ -24,19 +23,19 @@ module.exports = {
             {
                 test: /\.tsx?$/,
                 use: "ts-loader",
-                exclude: [/node_modules/, /__test__/]
+                exclude: [/node_modules/, /__tests__/]
             },
             {
                 test: /\.js$/,
                 use: "imports-loader?define=>false",
-                exclude: /node_modules/
+                exclude: [/node_modules/, /__tests__/]
             },
             {
                 test: /\.jsx?$/,
-                exclude: /node_modules/,
+                exclude: [/node_modules/, /__tests__/],
                 loader: "babel-loader",
                 query: {
-                    presets: ['es2015', 'react'],
+                    presets: ["es2015", "react"],
                     compact: false
                 }
             },
@@ -83,7 +82,7 @@ module.exports = {
         new MiniCSSExtractPlugin("[name].[hash:6].css"),
         // Allows overriding inferred information.
         // https://github.com/moment/moment/issues/2979#issuecomment-189899510
-        new webpack.ContextReplacementPlugin(/\.\/locale$/, 'empty-module', false, /js$/),
+        new webpack.ContextReplacementPlugin(/\.\/locale$/, "empty-module", false, /js$/),
         new webpack.DefinePlugin({ REACT_BASE_HREF: JSON.stringify(baseHref) })
     ]
 };

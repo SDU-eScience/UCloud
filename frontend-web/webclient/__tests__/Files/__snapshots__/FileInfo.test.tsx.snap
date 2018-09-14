@@ -1,0 +1,8 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`FileInfo No file 1`] = `
+<i
+  aria-hidden="true"
+  className="circle notched loading icon"
+/>
+`;

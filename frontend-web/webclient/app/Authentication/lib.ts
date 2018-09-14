@@ -101,7 +101,7 @@ export default class SDUCloud {
                 let req = new XMLHttpRequest();
                 req.open(method, baseContext + context + path);
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
-                req.setRequestHeader("content-type", "application/json");
+                req.setRequestHeader("Content-Type", "application/json");
                 req.responseType = "text"; // Explicitly set, otherwise issues with empty response
                 req.onload = () => {
                     let responseContentType = req.getResponseHeader("content-type");
@@ -268,7 +268,7 @@ export default class SDUCloud {
                     let req = new XMLHttpRequest();
                     req.open("POST", oneTimeToken);
                     req.setRequestHeader("Authorization", `Bearer ${token}`);
-                    req.setRequestHeader("contentType", "application/json");
+                    req.setRequestHeader("Content-Type", "application/json");
                     req.onload = () => {
                         if (inRange({ status: req.status, min: 200, max: 299 })) {
                             const response = req.response.length === 0 ? "{}" : req.response;
@@ -340,9 +340,11 @@ export default class SDUCloud {
         fetch(`${this.context}${this.authContext}/logout/web`, {
             headers: {
                 "X-CSRFToken": SDUCloud.storedCsrfToken,
-                "contentType": "application/json"
+                "Content-Type": "application/json",
             },
-            method: "POST"
+            method: "POST",
+            "credentials": "same-origin"
+
         }).then(response => {
             if (!is5xxStatusCode(response.status)) {
                 window.localStorage.removeItem("accessToken");

@@ -29,6 +29,8 @@ export enum KeyCode {
     B = 66
 };
 
+export const KCValues = [38, 76, 116, 156, 193, 232, 269, 308, 374, 439];
+
 export const emptyPage: Page<any> = { items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0 };
 
 export enum AnalysesStatusMap {
@@ -63,7 +65,7 @@ interface UppyRestriction {
     allowedFileTypes: false | number
 }
 
-const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud) =>
+const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud): Uppy =>
     Uppy.Core({
         autoProceed: false,
         debug: false,
@@ -129,6 +131,7 @@ interface StatusReduxObject {
 interface SidebarReduxObject {
     loading: boolean
     open: boolean
+    pp: boolean
     options: SidebarOption[]
 }
 
@@ -146,11 +149,27 @@ interface UploaderReduxObject {
     onFilesUploaded: () => void
 }
 
+
+// FIXME Add typesafety
+export interface Reducers {
+    dashboard?: any
+    files?: any
+    uploader?: any
+    uppy?: any
+    status?: any
+    applications?: any
+    notifications?: any
+    analyses?: any
+    zenodo?: any
+    header?: any
+    sidebar?: any
+}
+
 export interface ReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
     uploader: UploaderReduxObject
-    uppy: any
+    uppy: { uppy: any, uppyOpen: boolean }
     status: StatusReduxObject,
     applications: ComponentWithPage<Application>
     notifications: NotificationsReduxObject
@@ -171,7 +190,7 @@ const initHeader = (): HeaderSearch => ({
     prioritizedSearch: "files"
 });
 
-const initApplications = () => ({
+export const initApplications = () => ({
     page: emptyPage,
     loading: false,
     error: undefined
@@ -209,7 +228,7 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     uploader: initUploads()
 });
 
-const initAnalyses = (): ComponentWithPage<Analysis> => ({
+export const initAnalyses = (): ComponentWithPage<Analysis> => ({
     page: emptyPage,
     loading: false,
     error: undefined
@@ -226,6 +245,7 @@ const initZenodo = () => ({
 const initSidebar = () => ({
     open: false,
     loading: false,
+    pp: false,
     options: [] as SidebarOption[]
 });
 
@@ -307,9 +327,7 @@ export const initFiles = ({ homeFolder }: { homeFolder: string }): FilesReduxObj
 
 })
 
-const initUppy = (cloud: SDUCloud) => ({
-    uppyFiles: initializeUppy({ maxNumberOfFiles: false } as UppyRestriction, cloud),
-    uppyFilesOpen: false,
-    uppyRunApp: initializeUppy({ maxNumberOfFiles: 1 } as UppyRestriction, cloud),
-    uppyRunAppOpen: false
+export const initUppy = (cloud: SDUCloud) => ({
+    uppy: initializeUppy({ maxNumberOfFiles: 1 } as UppyRestriction, cloud),
+    uppyOpen: false
 });

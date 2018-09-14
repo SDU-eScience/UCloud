@@ -33,10 +33,10 @@ export class List extends React.Component<ListProps, ListState> {
     }
 
     reload() {
-        retrieveShares(this.state.page, this.state.itemsPerPage).then(e =>
-            this.setState({ shares: e.items })).catch(e => {
-                this.setState({ errorMessage: "Unable to retrieve shares!" });
-            }).finally(() => this.setState(() => ({ loading: false })));
+        retrieveShares(this.state.page, this.state.itemsPerPage)
+            .then(e => this.setState({ shares: e.items }))
+            .catch(e => this.setState({ errorMessage: "Unable to retrieve shares!" }))
+            .finally(() => this.setState(() => ({ loading: false })));
     }
 
     public render() {
@@ -325,7 +325,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
 function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
     if (byState) url += `state=${byState}`
-    return Cloud.get(url).then((e) => e.response); // FIXME Add error handling
+    return Cloud.get(url).then((e) => e.response).catch(e => e.response); // FIXME Add error handling
 }
 
 function acceptShare(shareId: ShareId): Promise<any> {
