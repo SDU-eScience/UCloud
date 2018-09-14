@@ -11,10 +11,12 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.*
 import io.ktor.application.*
 import io.ktor.features.conversionService
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.receiveOrNull
 import io.ktor.response.respond
+import io.ktor.response.respondText
 import io.ktor.routing.Route
 import io.ktor.routing.application
 import io.ktor.routing.method
@@ -329,7 +331,11 @@ class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
         finalize(result)
 
         if (result == Unit) call.respond(status)
-        else call.respond(status, result)
+        else {
+            call.respondText(contentType = ContentType.Application.Json, status = status) {
+               defaultMapper.writerFor(restCall.responseTypeSuccess).writeValueAsString(result)
+            }
+        }
     }
 
     suspend fun error(error: E, status: HttpStatusCode) {
