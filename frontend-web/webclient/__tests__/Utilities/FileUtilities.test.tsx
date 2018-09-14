@@ -169,7 +169,7 @@ describe("Move copy operations", () => {
     });
 });
 
-describe("File Operations", () => {
+describe.skip("File Operations", () => {
 
     describe("FileStateLess", () => {
         const ops = FileUtils.StateLessOperations();
