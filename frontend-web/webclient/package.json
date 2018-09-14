@@ -8,7 +8,8 @@
     "coverageDirectory": "<rootDir>/coverage",
     "coverageReporters": [
       "text",
-      "html"
+      "html",
+      "cobertura"
     ],
     "modulePaths": [
       "app"

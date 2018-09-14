@@ -1,7 +1,7 @@
 import * as FileUtils from "Utilities/FileUtilities";
 import { mockFiles_SensitivityConfidential } from "../mock/Files";
 import Cloud from "Authentication/lib";
-import { MemoryRouter } from "react-router";
+import { AnnotationsMap, File } from "Files";
 import { createMemoryHistory } from "history";
 
 describe("File Operations", () => {
@@ -170,77 +170,91 @@ describe("Move copy operations", () => {
 });
 
 describe.skip("File Operations", () => {
+    describe("are disabled", () => {
+        describe("Not", () => {
+            describe("FileStateLess, no", () => {
+                const ops = FileUtils.StateLessOperations();
+                const share = (ops[0]);
+                const download = (ops[1]);
+                const files = mockFiles_SensitivityConfidential.items;
 
-    describe("FileStateLess", () => {
-        const ops = FileUtils.StateLessOperations();
-        const share = (ops[0]);
-        const download = (ops[1]);
-        const files = mockFiles_SensitivityConfidential.items;
+                test("Share", () => {
+                    expect(share.disabled(files, new Cloud())).toBe(false)
+                });
 
-        test("Share", () => {
-            share.onClick(files, new Cloud());
-            expect(share.disabled(files, new Cloud())).toBe(false)
-        });
+                test("Download", () => {
+                    expect(download.disabled(files, new Cloud())).toBe(false)
+                });
+            });
 
-        test("Download", () => {
-            download.onClick(files, new Cloud());
-            expect(download.disabled(files, new Cloud())).toBe(false)
-        });
-    });
+            describe("FileSelectorOperations", () => {
+                const ops = FileUtils.FileSelectorOperations({
+                    showFileSelector: (show: boolean) => undefined,
+                    setDisallowedPaths: (paths: string[]) => undefined,
+                    setFileSelectorCallback: (callback?: Function) => undefined,
+                    fetchPageFromPath: (path: string) => undefined
+                });
 
-    describe("FileSelectorOperations", () => {
-        const ops = FileUtils.FileSelectorOperations({
-            showFileSelector: (show: boolean) => undefined,
-            setDisallowedPaths: (paths: string[]) => undefined,
-            setFileSelectorCallback: (callback?: Function) => undefined,
-            fetchPageFromPath: (path: string) => undefined
-        });
+                const copy = ops[0];
+                const move = ops[1];
 
-        const copy = ops[0];
-        const move = ops[1];
+                const files = mockFiles_SensitivityConfidential.items;
 
-        const files = mockFiles_SensitivityConfidential.items;
+                test("Copy", () => {
+                    copy.onClick(files, new Cloud());
+                    expect(copy.disabled(files, new Cloud())).toBe(false)
+                });
 
-        test("Copy", () => {
-            copy.onClick(files, new Cloud());
-            expect(copy.disabled(files, new Cloud())).toBe(false)
-        });
+                test("Move", () => {
+                    expect(move.disabled(files, new Cloud())).toBe(false)
+                });
+            });
 
-        test("Move", () => {
-            move.onClick(files, new Cloud());
-            expect(move.disabled(files, new Cloud())).toBe(false)
-        });
-    });
-
-    describe("DeleteFileOperation", () => {
-        const deleteOp = FileUtils.DeleteFileOperation(() => undefined)[0];
-        const files = mockFiles_SensitivityConfidential.items;
+            describe("DeleteFileOperation", () => {
+                const deleteOp = FileUtils.DeleteFileOperation(() => undefined)[0];
+                const files = mockFiles_SensitivityConfidential.items;
 
 
-        test("Delete", () => {
-            deleteOp.onClick(files, new Cloud());
-            expect(deleteOp.disabled(files, new Cloud())).toBe(false);
-        });
-    });
+                test("Delete", () => {
+                    expect(deleteOp.disabled(files, new Cloud())).toBe(false);
+                });
+            });
 
-    describe("HistoryFilesOperations", () => {
-        const ops = FileUtils.HistoryFilesOperations(createMemoryHistory())
-        const properties = ops[0];
-        const predicatedProjects = ops[1];
-        const files = mockFiles_SensitivityConfidential.items;
-
-        test("Properties", () => {
-            properties.onClick(files, new Cloud());
-            expect(properties.disabled(files.slice(0, 1), new Cloud())).toBe(false);
-        });
+            describe("HistoryFilesOperations", () => {
+                const ops = FileUtils.HistoryFilesOperations(createMemoryHistory())
+                const properties = ops[0];
+                const predicatedProjects = ops[1];
+                const files = mockFiles_SensitivityConfidential.items;
+                const projectFile = files[9];
+                test("Properties", () => {
+                    expect(properties.disabled(files.slice(0, 1), new Cloud())).toBe(false);
+                });
 
 
-        test("Create project, predicated", () => {
-            
-        });
+                test("Predicated Operation project, true", () => {
+                    expect(predicatedProjects.predicate([files[0]], new Cloud())).toBe(true);
+                });
 
-        test("Edit project, predicated", () => {
+                test("Predicated Operation project, false", () => {
+                    expect(predicatedProjects.predicate([projectFile, projectFile], new Cloud())).toBe(false);
+                });
 
+                test("Predicated Operation project, onTrue, disabled", () => {
+                    expect(predicatedProjects.onTrue.disabled([projectFile, projectFile], new Cloud())).toBe(true);
+                });
+
+                test("Predicated Operation project, onTrue, not disabled", () => {
+                    expect(predicatedProjects.onTrue.disabled([projectFile], new Cloud())).toBe(false);
+                });
+
+                test("Predicated Operation project, onFalse, disabled", () => {
+                    expect(predicatedProjects.onFalse.disabled(files.slice(0, 2), new Cloud())).toBe(false);
+                });
+
+                test("Predicated Operation project, onFalse, not disabled", () => {
+                    expect(predicatedProjects.onFalse.disabled([files[0]], new Cloud())).toBe(false);
+                });
+            });
         });
     });
 });

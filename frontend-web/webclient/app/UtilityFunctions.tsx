@@ -33,7 +33,6 @@ export const failureNotification = (title: string, seconds: number = 3) => swal(
     showConfirmButton: false,
     timer: seconds * 1_000,
     type: "error",
-    backdrop: false,
     title
 });
 
@@ -43,7 +42,6 @@ export const successNotification = (title: string, seconds: number = 3) => swal(
     showConfirmButton: false,
     timer: seconds * 1_000,
     type: "success",
-    backdrop: false,
     title
 });
 
@@ -53,7 +51,6 @@ export const infoNotification = (title: string, seconds: number = 3) => swal({
     showConfirmButton: false,
     timer: seconds * 1_000,
     type: "info",
-    backdrop: false,
     title
 });
 
@@ -225,7 +222,6 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
         case "archive":
             return "file archive outline";
         default:
-            console.warn(`Unhandled extension "${extension}" for file ${filePath}`);
             return "file outline";
     }
 };

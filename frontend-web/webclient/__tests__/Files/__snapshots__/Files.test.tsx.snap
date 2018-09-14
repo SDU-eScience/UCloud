@@ -2451,6 +2451,10 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             </a>
             <i
               aria-hidden="true"
+              className="users icon group-icon-padding"
+            />
+            <i
+              aria-hidden="true"
               className="blue star outline icon file-data favorite-padding"
               onClick={[Function]}
             />
@@ -2612,7 +2616,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                   <span
                     className="text"
                   >
-                    Create Project
+                    Edit Project
                   </span>
                 </div>
               </div>
@@ -3576,6 +3580,10 @@ exports[`FilesTable Render non-empty 1`] = `
           />
           somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
         </a>
+        <i
+          aria-hidden="true"
+          className="users icon group-icon-padding"
+        />
         <i
           aria-hidden="true"
           className="blue star outline icon file-data favorite-padding"
