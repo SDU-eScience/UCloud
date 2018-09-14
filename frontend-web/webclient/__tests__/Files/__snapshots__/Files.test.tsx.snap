@@ -1246,7 +1246,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
           <td
             className=""
           >
-            2018-8-21 09:32:44
+            2018-8-21 9:32:44
           </td>
           <td
             className=""
@@ -1448,7 +1448,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
           <td
             className=""
           >
-            2018-8-21 09:26:13
+            2018-8-21 9:26:13
           </td>
           <td
             className=""
@@ -3218,7 +3218,7 @@ exports[`FilesTable Render non-empty 1`] = `
       <td
         className=""
       >
-        2018-8-21 09:32:44
+        2018-8-21 9:32:44
       </td>
       <td
         className=""
@@ -3280,7 +3280,7 @@ exports[`FilesTable Render non-empty 1`] = `
       <td
         className=""
       >
-        2018-8-21 09:26:13
+        2018-8-21 9:26:13
       </td>
       <td
         className=""
