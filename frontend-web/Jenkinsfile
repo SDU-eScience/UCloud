@@ -1,6 +1,35 @@
-def initialize() {
+pipeline {
+  agent {
+    docker {
+      image 'node:10-alpine' 
+      args '-p 3000:3000' 
+    }
+  }
+  stages {
+    stage('Build') { 
+      steps {
+        sh '''cd frontend-web/webclient
+            npm install'''
+      }
+    }
 
-  echo "different setup needed"
+    stage('Test') { 
+      steps {
+        sh '''cd frontend-web/webclient
+            npm run test
+            ls
+            cd coverage
+            ls'''
+        publishHTML (target: [
+          allowMissing: false,
+          alwaysLinkToLastBuild: false,
+          keepAll: true,
+          reportDir: 'frontend-web/webclient/coverage',
+          reportFiles: 'index.html',
+          reportName: "Frontend Report"
+          ]
+        )
+      }
+    }
+  }
 }
-
-return this

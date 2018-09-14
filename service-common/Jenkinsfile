@@ -16,16 +16,8 @@ def initialize() {
   } finally {
     junit '**/service-common/build/test-results/**/*.xml'      
     def currentResult = currentBuild.result ?: 'SUCCESS'
-    if (currentResult == 'UNSTABLE') {
-      echo "Build is unstable"
-    }
-    if (currentResult == 'SUCCESS') {
-      jacoco  execPattern: '**/**.exec',
-              exclusionPattern: '**/service-common/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class', 
-              sourcePattern: '**/service-common/src/main/kotlin/**'   
-    }
+    return currentResult
   }
-
 }
 
 return this

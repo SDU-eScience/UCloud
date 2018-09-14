@@ -9,12 +9,6 @@ def checkFolderForDiffs(path, numberOfCommits) {
     }
 }
 
-//Finds the current branch name
-def local() {
-  String shell = sh returnStdout: true, script: "git branch | rev | cut -d ')' -f1 | rev | xargs"
-  return shell
-}
-
 def getLastSuccessfulCommit() {
   def lastSuccessfulHash = null
     def lastSuccessfulBuild = currentBuild.rawBuild.getPreviousSuccessfulBuild()
@@ -31,72 +25,102 @@ def commitHashForBuild( build ) {
 }
 
 node{
-  branch = local()
-  println(branch.length())
-  if(branch.length() == 1){
-    println("DEBUG: hit equals")
-    branch = "master"
-  }
-  println("This is the current branch: " + branch)
+  if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup') {
+    String branch = ''
+    if (env.BRANCH_NAME == 'master') {
+      branch = 'master'
+    }
+    if (env.BRANCH_NAME == 'JenkinsSetup') {
+      branch = 'JenkinsSetup'
+    }
+    stage('Checkout'){
+      checkout(
+        [$class: 'GitSCM', 
+        branches: [
+          [name: branch]
+        ], 
+        doGenerateSubmoduleConfigurations: false, 
+        extensions: [], 
+        submoduleCfg: [], 
+        userRemoteConfigs: [
+          [credentialsId: 'github', 
+          url: 'https://github.com/SDU-eScience/SDUCloud.git']
+          ]
+        ]
+      )
+    }
+    def lastSuccessfulCommit = getLastSuccessfulCommit()
+    def currentCommit = commitHashForBuild( currentBuild.rawBuild )
+    def numberOfCommits = 0
+    if (lastSuccessfulCommit) {
+      commits = sh(
+        script: "git rev-list $currentCommit \"^$lastSuccessfulCommit\"",
+        returnStdout: true
+      ).split('\n')
+      numberOfCommits = commits.length
+    }
 
-  checkout(
-    [$class: 'GitSCM', 
-    branches: [
-      [name: branch]
-    ], 
-    doGenerateSubmoduleConfigurations: false, 
-    extensions: [], 
-    submoduleCfg: [], 
-    userRemoteConfigs: [
-      [credentialsId: 'github', 
-      url: 'https://github.com/SDU-eScience/SDUCloud.git']
-      ]
+    def needToBuild = []
+    
+    def serviceList = [
+      "abc2-sync",
+      "client-core",
+      "frontend-web",
+      "service-common"
     ]
-  )
 
-  def lastSuccessfulCommit = getLastSuccessfulCommit()
-  def currentCommit = commitHashForBuild( currentBuild.rawBuild )
-  def numberOfCommits = 0
-  if (lastSuccessfulCommit) {
-    commits = sh(
-      script: "git rev-list $currentCommit \"^$lastSuccessfulCommit\"",
-      returnStdout: true
-    ).split('\n')
-    numberOfCommits = commits.length
-  }
-
-  def needToBuild = []
-  
-  def serviceList = [
-    "abc2-sync",
-    "client-core",
-    "frontend-web",
-    "service-common"
-  ]
-
-  String ls = sh (script: 'ls', returnStdout: true)
-  def list = ls.split("\n")
-  for (String item : list){
-    if (item.endsWith("-service")) {
-        serviceList.add(item)
-    }
-  }
-
-  stage('Check') {
-    for ( String item : serviceList) {
-      if (checkFolderForDiffs(item, numberOfCommits)) {
-        needToBuild.add(item+"/Jenkinsfile")
-      }
-      else {
-        echo 'No Changes ' + item +' - Already build'
+    String ls = sh (script: 'ls', returnStdout: true)
+    def list = ls.split("\n")
+    for (String item : list){
+      if (item.endsWith("-service")) {
+          serviceList.add(item)
       }
     }
+
+    stage('Check for') {
+      for ( String item : serviceList) {
+        if (checkFolderForDiffs(item, numberOfCommits)) {
+          needToBuild.add(item+"/Jenkinsfile")
+          println(item + " is added to build queue")
+        }
+        else {
+          println('No Changes ' + item +' - Already build')
+        }
+      }
+    }
+    String currentResult
+    for ( String item : needToBuild) {
+      def loaded = load(item)
+      if (item != 'frontend-web/Jenkinsfile') {
+        currentResult = loaded.initialize()
+      }
+    }
+
+    if (currentResult == 'UNSTABLE') {
+      echo "Build is unstable"
+      //slackSend baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/', message: 'Build Unstable', token: '1cTFN3I0k1rUZ5ByE0Tf15c9'
+    }
+
+    if (currentResult == 'SUCCESS') {
+      jacoco  execPattern: '**/**.exec',
+              exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class', 
+              sourcePattern: '**/src/main/kotlin/**'   
+
+    }
+
+    if (currentResult == 'FAILURE') {
+      println("FAIL")
+      //slackSend baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/', message: 'Build FAILED', token: '1cTFN3I0k1rUZ5ByE0Tf15c9'
+    }
+
+    if (currentResult == null) {
+      currentResult = currentBuild.result ?: 'SUCCESS'
+    }
+
   }
-  for ( String item : needToBuild) {
-    def loaded = load(item)
-    loaded.initialize()
+  else {
+    println("not master - wont run")
   }
-  
 }
 
 

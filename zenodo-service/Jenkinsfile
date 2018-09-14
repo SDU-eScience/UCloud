@@ -16,14 +16,7 @@ def initialize() {
   } finally {
     junit '**/zenodo-service/build/test-results/**/*.xml'      
     def currentResult = currentBuild.result ?: 'SUCCESS'
-    if (currentResult == 'UNSTABLE') {
-      echo "Build is unstable"
-    }
-    if (currentResult == 'SUCCESS') {
-      jacoco  execPattern: '**/**.exec',
-              exclusionPattern: '**/zenodo-service/,**/AuthMockingKt.class,**/DatabaseSetupKt.class', 
-              sourcePattern: '**/zenodo-service/src/main/kotlin/**'   
-    }
+    return currentResult
   }
 }
 
