@@ -3,6 +3,7 @@ package dk.sdu.cloud.activity
 import dk.sdu.cloud.activity.http.ActivityController
 import dk.sdu.cloud.activity.processor.StorageAuditProcessor
 import dk.sdu.cloud.activity.services.ActivityService
+import dk.sdu.cloud.activity.services.HibernateActivityEventDao
 import dk.sdu.cloud.activity.services.InMemoryActivityEventDao
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
@@ -28,8 +29,9 @@ class Server(
 
     override fun start() {
         log.info("Creating core services")
-        val db = FakeDBSessionFactory
-        val activityEventDao = InMemoryActivityEventDao()
+//        val db = FakeDBSessionFactory
+//        val activityEventDao = InMemoryActivityEventDao()
+        val activityEventDao = HibernateActivityEventDao()
         val activityServce = ActivityService(activityEventDao, cloud)
         log.info("Core services constructed")
 
