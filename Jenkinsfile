@@ -66,7 +66,7 @@ node{
       "abc2-sync",
     //  "client-core",
       "frontend-web",
-      "service-common"
+    //  "service-common"
     ]
 
     String ls = sh (script: 'ls', returnStdout: true)
