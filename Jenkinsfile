@@ -98,7 +98,7 @@ node{
 
     if (currentResult == 'UNSTABLE') {
       echo "Build is unstable"
-      //slackSend baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/', message: 'Build Unstable', token: '1cTFN3I0k1rUZ5ByE0Tf15c9'
+      slackSend baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/', message: 'Build Unstable', token: '1cTFN3I0k1rUZ5ByE0Tf15c9'
     }
 
     if (currentResult == 'SUCCESS') {
@@ -110,7 +110,7 @@ node{
 
     if (currentResult == 'FAILURE') {
       println("FAIL")
-      //slackSend baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/', message: 'Build FAILED', token: '1cTFN3I0k1rUZ5ByE0Tf15c9'
+      slackSend baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/', message: 'Build FAILED', token: '1cTFN3I0k1rUZ5ByE0Tf15c9'
     }
 
     if (currentResult == null) {
