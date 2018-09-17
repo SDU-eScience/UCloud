@@ -184,7 +184,7 @@ describe("File Operations", () => {
                 });
 
                 test("Download", () => {
-                    expect(download.disabled(files, new Cloud())).toBe(false)
+                    expect(download.disabled(files, new Cloud())).toBe(true)
                 });
             });
 

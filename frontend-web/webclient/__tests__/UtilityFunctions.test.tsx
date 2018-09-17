@@ -264,7 +264,7 @@ import { SensitivityLevel } from "DefaultObjects";
 import { Cloud } from "Authentication/SDUCloudObject";
 
 test("Download allowed", () =>
-    expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items)).toBe(true)
+    expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items)).toBe(false)
 );
 
 const highSensitivityFile = newMockFile({
