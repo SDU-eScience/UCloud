@@ -98,7 +98,7 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
     { text: "Properties", onClick: (files: File[], cloud: Cloud) => history.push(`/fileInfo/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1, icon: "settings", color: "blue" },
     {
         predicate: (files: File[], cloud: Cloud) => isProject(files[0]),
-        onTrue: { text: "Edit Project", onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1 && !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
+        onTrue: { text: "Edit Project", onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
         onFalse: { text: "Create Project", onClick: (files: File[], cloud: Cloud) => UF.createProject(files[0].path, cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[], cloud: Cloud) => files.length !== 1 || !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
     }
 ];
@@ -271,7 +271,7 @@ export const fileSizeToString = (bytes: number): string => {
 export const shareFiles = (files: File[], cloud: Cloud) =>
     UF.shareSwal().then((input) => {
         if (input.dismiss) return;
-        const rights = [] as string[];
+        const rights: string[] = [];
         if (UF.isElementChecked("read-swal")) rights.push("READ");
         if (UF.isElementChecked("write-swal")) rights.push("WRITE");
         if (UF.isElementChecked("execute-swal")) rights.push("EXECUTE");
@@ -297,7 +297,7 @@ const deletionSwal = (filePaths: string[]) => {
         type: "warning",
         showCancelButton: true,
         showCloseButton: true,
-    })
+    });
 };
 
 export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => void) => {

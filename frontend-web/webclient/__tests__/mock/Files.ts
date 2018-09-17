@@ -12,7 +12,7 @@ export const mockFiles_SensitivityConfidential: Page<File> =
             path: "/home/user@user.telecity/Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png", createdAt: 1535379900000, modifiedAt: 1535379900000, ownerName: "user@user.telecity", size: 3794, acl: [], favorited: false, sensitivityLevel: "CONFIDENTIAL", link: false, annotations: []
         }, {
             type: "DIRECTORY",
-            path: "/home/user@user.telecity/AABA", createdAt: 1535026060000, modifiedAt: 1534858191000, ownerName: "user@user.telecity", size: 1, acl: [], favorited: true, sensitivityLevel: "CONFIDENTIAL", link: false, annotations: []
+            path: "/home/user@user.telecity/AABA", createdAt: 1535026060000, modifiedAt: 1534858191000, ownerName: "user@user.telecity", size: 1, acl: [{ entity: "user3@test.dk", rights: ["WRITE", "EXECUTE"], "group": false }], favorited: true, sensitivityLevel: "CONFIDENTIAL", link: false, annotations: []
         }, {
             type: "DIRECTORY",
             path: "/home/user@user.telecity/Favorites", createdAt: 1535026061000, modifiedAt: 1534857733000, ownerName: "user@user.telecity", size: 6, acl: [], favorited: false, sensitivityLevel: "CONFIDENTIAL", link: false, annotations: []
