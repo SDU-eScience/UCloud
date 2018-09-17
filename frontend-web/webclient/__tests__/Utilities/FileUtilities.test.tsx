@@ -149,7 +149,8 @@ describe("Is Invalid Path Name", () => {
     });
 });
 
-describe("Move copy operations", () => {
+// Doesn't return a value, so missing something we can test for
+describe.skip("Move copy operations", () => {
     const ops = {
         showFileSelector: (show: boolean) => undefined,
         setDisallowedPaths: (paths: string[]) => undefined,
@@ -169,10 +170,10 @@ describe("Move copy operations", () => {
     });
 });
 
-describe.skip("File Operations", () => {
+describe("File Operations", () => {
     describe("are disabled", () => {
         describe("Not", () => {
-            describe("FileStateLess, no", () => {
+            describe("FileStateLess", () => {
                 const ops = FileUtils.StateLessOperations();
                 const share = (ops[0]);
                 const download = (ops[1]);
@@ -201,7 +202,6 @@ describe.skip("File Operations", () => {
                 const files = mockFiles_SensitivityConfidential.items;
 
                 test("Copy", () => {
-                    copy.onClick(files, new Cloud());
                     expect(copy.disabled(files, new Cloud())).toBe(false)
                 });
 
@@ -226,21 +226,17 @@ describe.skip("File Operations", () => {
                 const predicatedProjects = ops[1];
                 const files = mockFiles_SensitivityConfidential.items;
                 const projectFile = files[9];
+
                 test("Properties", () => {
                     expect(properties.disabled(files.slice(0, 1), new Cloud())).toBe(false);
                 });
 
+                test("Predicated Operation project, false", () => {
+                    expect(predicatedProjects.predicate([files[0]], new Cloud())).toBe(false);
+                });
 
                 test("Predicated Operation project, true", () => {
-                    expect(predicatedProjects.predicate([files[0]], new Cloud())).toBe(true);
-                });
-
-                test("Predicated Operation project, false", () => {
-                    expect(predicatedProjects.predicate([projectFile, projectFile], new Cloud())).toBe(false);
-                });
-
-                test("Predicated Operation project, onTrue, disabled", () => {
-                    expect(predicatedProjects.onTrue.disabled([projectFile, projectFile], new Cloud())).toBe(true);
+                    expect(predicatedProjects.predicate([projectFile, projectFile], new Cloud())).toBe(true);
                 });
 
                 test("Predicated Operation project, onTrue, not disabled", () => {
@@ -248,13 +244,17 @@ describe.skip("File Operations", () => {
                 });
 
                 test("Predicated Operation project, onFalse, disabled", () => {
-                    expect(predicatedProjects.onFalse.disabled(files.slice(0, 2), new Cloud())).toBe(false);
+                    expect(predicatedProjects.onFalse.disabled(files.slice(0, 2), new Cloud())).toBe(true);
                 });
 
                 test("Predicated Operation project, onFalse, not disabled", () => {
-                    expect(predicatedProjects.onFalse.disabled([files[0]], new Cloud())).toBe(false);
+                    expect(predicatedProjects.onFalse.disabled([files[1] /* Directory */], new Cloud())).toBe(false);
                 });
             });
         });
     });
+});
+
+test("Annotation to string", () => {
+    expect(FileUtils.annotationToString("P")).toBe("Project");
 });

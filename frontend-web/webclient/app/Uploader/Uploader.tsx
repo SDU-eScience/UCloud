@@ -22,7 +22,7 @@ const newUpload = (file: File): Upload => ({
 
 class Uploader extends React.Component<UploaderProps, UploaderState> {
     constructor(props) {
-        super(props)
+        super(props);
     }
 
     // TODO Should this remain? Check if actually called on leaving page
