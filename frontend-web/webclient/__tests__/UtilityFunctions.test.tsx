@@ -48,7 +48,6 @@ test("Empty string, no action", () =>
     expect(UF.removeTrailingSlash("")).toBe("")
 );
 
-
 // Prettier string
 
 test("Prettify string", () =>
@@ -297,8 +296,84 @@ describe("Success swals", () => {
     );
 });
 
-test.skip("shareSwal", () => {
-    const swal = UF.shareSwal();
+describe("Info Notification", () => {
+    test("Info Notification swal", () => {
+        const swal: any = UF.infoNotification("title", 5);
+        expect(swal.params).toEqual({
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 5_000,
+            type: "info",
+            title: "title"
+        })
+    });
+
+    test("Info Notification swal, defaults", () => {
+        const swal: any = UF.infoNotification("title");
+        expect(swal.params).toEqual({
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 3_000,
+            type: "info",
+            title: "title"
+        })
+    });
+})
+
+describe("Failure Notification swal", () => {
+    test("Failure notification", () => {
+        const swal: any = UF.failureNotification("title", 5);
+        expect(swal.params).toEqual({
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 5_000,
+            type: "error",
+            title: "title"
+        })
+    });
+
+    test("Failure notification, defaults", () => {
+        const swal: any = UF.failureNotification("title");
+        expect(swal.params).toEqual({
+            toast: true,
+            position: "top-end",
+            showConfirmButton: false,
+            timer: 3_000,
+            type: "error",
+            title: "title"
+        })
+    });
+});
+
+
+
+test("shareSwal", () => {
+    const swal: any = UF.shareSwal();
+    expect(JSON.parse(JSON.stringify(swal.params))).toEqual(JSON.parse(JSON.stringify({
+        title: "Share",
+        input: "text",
+        html: `<form class="ui form">
+            <div class="three fields">
+                <div class="field"><div class="ui checkbox">
+                    <input id="read-swal" type="checkbox" /><label>Read</label>
+                </div></div>
+                <div class="field"><div class="ui checkbox">
+                    <input id="write-swal" type="checkbox" /><label>Write</label>
+                </div></div>
+                <div class="field"><div class="ui checkbox">
+                    <input id="execute-swal" type="checkbox" /><label>Execute</label>
+                </div></div>
+            </div>
+          </form>`,
+        showCloseButton: true,
+        showCancelButton: true,
+        inputPlaceholder: "Enter username...",
+        focusConfirm: false,
+        inputValidator: () => undefined
+    })));
 });
 
 describe("Get sorting icon", () => {
@@ -412,3 +487,5 @@ describe("defaultErrorHandler", () => {
         expect(UF.defaultErrorHandler({ request: new XMLHttpRequest(), response: undefined })).toBe(0)
     );
 });
+
+

@@ -253,8 +253,9 @@ export const ifPresent = (f: any, handler: (f: any) => void) => {
     if (f) handler(f)
 };
 
+// FIXME The frontend can't handle downloading multiple files currently. When fixed, remove === 1 check.
 export const downloadAllowed = (files: File[]) =>
-    files.length === 1 || files.every(f => f.sensitivityLevel !== "SENSITIVE")
+    files.length === 1 && files.every(f => f.sensitivityLevel !== "SENSITIVE")
 
 export const prettierString = (str: string) => toLowerCaseAndCapitalize(str).replace(/_/g, " ")
 
