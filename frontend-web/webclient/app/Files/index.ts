@@ -50,7 +50,7 @@ export enum SortBy {
 }
 
 export interface FilesProps extends FilesStateProps, FilesOperations {
-    match: match<string[]>
+    match: match
     history: History
 }
 
@@ -235,12 +235,10 @@ export interface ContextButtonsProps {
 
 export interface DetailedFileSearchProps { }
 
-export enum AnnotationsMap {
-    P = "Project"
-}
+export enum AnnotationsMap { P = "Project" }
 
-export type Annotation = keyof AnnotationsMap;
-
+// keyof typeof is how Typescript lets you get the keys of an enum
+export type Annotation = keyof typeof AnnotationsMap;
 
 export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 

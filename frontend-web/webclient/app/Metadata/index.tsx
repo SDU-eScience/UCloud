@@ -29,6 +29,6 @@ export interface CreateUpdateState {
 }
 
 export interface CreateUpdateProps {
-    match: match<string[]>
+    match: match
     history: History
 }
