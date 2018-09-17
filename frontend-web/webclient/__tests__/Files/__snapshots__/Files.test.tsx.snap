@@ -30,17 +30,6 @@ Array [
   >
     <i
       aria-hidden="true"
-      className="download icon"
-    />
-    Download
-  </button>,
-  <button
-    className="ui basic fluid button context-button-margin"
-    onClick={[Function]}
-    role="button"
-  >
-    <i
-      aria-hidden="true"
       className="copy icon"
     />
     Copy
@@ -87,21 +76,6 @@ Array [
       className="text"
     >
       Share
-    </span>
-  </div>,
-  <div
-    className="item context-button-margin"
-    onClick={[Function]}
-    role="option"
-  >
-    <i
-      aria-hidden="true"
-      className="download icon"
-    />
-    <span
-      className="text"
-    >
-      Download
     </span>
   </div>,
   <div
