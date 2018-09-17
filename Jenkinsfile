@@ -64,18 +64,18 @@ node{
     
     def serviceList = [
       "abc2-sync",
-    //  "client-core",
+      "client-core",
       "frontend-web",
-    //  "service-common"
+      "service-common"
     ]
 
     String ls = sh (script: 'ls', returnStdout: true)
-   /* def list = ls.split("\n")
+    def list = ls.split("\n")
     for (String item : list){
       if (item.endsWith("-service")) {
           serviceList.add(item)
       }
-    }*/
+    }
 
     stage('Check for') {
       for ( String item : serviceList) {
