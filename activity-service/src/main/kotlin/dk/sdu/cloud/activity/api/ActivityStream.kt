@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaRequest
 
-data class ActivityStreamFileReference(val path: String, val id: String)
+data class ActivityStreamFileReference(val id: String)
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -12,49 +12,41 @@ data class ActivityStreamFileReference(val path: String, val id: String)
     property = KafkaRequest.TYPE_PROPERTY
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(ActivityStreamEntry.Created::class, name = "created"),
-    JsonSubTypes.Type(ActivityStreamEntry.Downloaded::class, name = "downloaded"),
-    JsonSubTypes.Type(ActivityStreamEntry.Favorite::class, name = "favorite"),
-    JsonSubTypes.Type(ActivityStreamEntry.Renamed::class, name = "renamed"),
-    JsonSubTypes.Type(ActivityStreamEntry.Deleted::class, name = "deleted"),
-    JsonSubTypes.Type(ActivityStreamEntry.Updated::class, name = "updated")
+    JsonSubTypes.Type(ActivityStreamEntry.Counted::class, name = "counted"),
+    JsonSubTypes.Type(ActivityStreamEntry.Tracked::class, name = "tracked")
 )
-sealed class ActivityStreamEntry {
+sealed class ActivityStreamEntry<OperationType : Enum<OperationType>> {
+    abstract val timestamp: Long
+    abstract val operation: OperationType
+
+    data class Counted(
+        override val operation: CountedFileActivityOperation,
+        val file: ActivityStreamFileReference,
+        val count: Int,
+        override val timestamp: Long
+    ) : ActivityStreamEntry<CountedFileActivityOperation>()
+
+    data class Tracked(
+        override val operation: TrackedFileActivityOperation,
+        val files: List<ActivityStreamFileReference>,
+        override val timestamp: Long
+    ) : ActivityStreamEntry<TrackedFileActivityOperation>()
+}
+
+enum class CountedFileActivityOperation {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
     // events related to file activity
-    abstract val timestamp: Long
 
-    data class Created(
-        val files: List<ActivityStreamFileReference>,
-        override val timestamp: Long
-    ) : ActivityStreamEntry()
+    FAVORITE,
+    DOWNLOAD
+}
 
-    data class Updated(
-        val files: List<ActivityStreamFileReference>,
-        override val timestamp: Long
-    ) : ActivityStreamEntry()
+enum class TrackedFileActivityOperation {
+    // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
+    // events related to file activity
 
-    data class Deleted(
-        val files: List<ActivityStreamFileReference>,
-        override val timestamp: Long
-    ) : ActivityStreamEntry()
-
-    data class Downloaded(
-        val file: ActivityStreamFileReference,
-        val count: Int,
-        override val timestamp: Long
-    ) : ActivityStreamEntry()
-
-    data class Favorite(
-        val file: ActivityStreamFileReference,
-        val count: Int,
-        override val timestamp: Long
-    ) : ActivityStreamEntry()
-
-    data class Renamed(
-        val fileId: String,
-        val from: String,
-        val to: String,
-        override val timestamp: Long
-    ) : ActivityStreamEntry()
+    CREATE,
+    UPDATE,
+    DELETE,
+    RENAME
 }

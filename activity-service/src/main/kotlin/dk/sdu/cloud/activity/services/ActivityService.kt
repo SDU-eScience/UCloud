@@ -1,6 +1,6 @@
 package dk.sdu.cloud.activity.services
 
-import dk.sdu.cloud.activity.api.ActivityEvent
+import dk.sdu.cloud.activity.api.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
@@ -10,11 +10,15 @@ import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.jwtAuth
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.withCausedBy
 import io.ktor.http.HttpStatusCode
 
 class ActivityService<DBSession>(
-    private val dao: ActivityEventDao<DBSession>,
+    private val activityDao: ActivityEventDao<DBSession>,
+    private val streamDao: ActivityStreamDao<DBSession>,
     private val cloud: AuthenticatedCloud
 ) {
     private val cloudContext: CloudContext = cloud.parent
@@ -30,7 +34,82 @@ class ActivityService<DBSession>(
         session: DBSession,
         events: List<ActivityEvent>
     ) {
-        dao.insertBatch(session, events)
+        activityDao.insertBatch(session, events)
+
+        val byFileId = events.groupBy { it.fileId }.mapValues { it.value.toStreamEntries() }
+        val byUsername = events.groupBy { it.username }.mapValues { it.value.toStreamEntries() }
+
+        byFileId.forEach { fileId, entries ->
+            val stream = ActivityStream(ActivityStreamSubject.File(fileId))
+            streamDao.createStreamIfNotExists(session, stream)
+            streamDao.insertBatchIntoStream(session, stream, entries)
+        }
+
+        byUsername.forEach { username, entries ->
+            val stream = ActivityStream(ActivityStreamSubject.User(username))
+            streamDao.createStreamIfNotExists(session, stream)
+            streamDao.insertBatchIntoStream(session, stream, entries)
+        }
+    }
+
+    private fun List<ActivityEvent>.toStreamEntries(): List<ActivityStreamEntry<*>> {
+        // TODO Here we currently assume they all should go in the same timestamp. This will work almost all of the time
+        val timestamp = minBy { it.timestamp }!!.timestamp
+        val byType = groupBy { it.javaClass }
+
+        return byType.flatMap { (_, allEventsOfType) ->
+            val first = allEventsOfType.first()
+
+            when (first) {
+                is ActivityEvent.Download, is ActivityEvent.Favorite -> {
+                    val operation = when (first) {
+                        is ActivityEvent.Download -> CountedFileActivityOperation.DOWNLOAD
+                        is ActivityEvent.Favorite -> CountedFileActivityOperation.FAVORITE
+                        else -> throw IllegalArgumentException()
+                    }
+
+                    val eventsByFileId = allEventsOfType.groupBy { it.fileId }
+
+                    eventsByFileId.mapNotNull { (fileId, eventsForFile) ->
+                        val count = eventsForFile.sumBy {
+                            if (operation == CountedFileActivityOperation.FAVORITE) {
+                                if ((it as ActivityEvent.Favorite).isFavorite) 1
+                                else -1
+                            } else {
+                                1
+                            }
+                        }
+
+                        if (count <= 0) {
+                            null
+                        } else {
+                            ActivityStreamEntry.Counted(
+                                operation,
+                                ActivityStreamFileReference(fileId),
+                                count,
+                                timestamp
+                            )
+                        }
+                    }
+                }
+
+                is ActivityEvent.Renamed, is ActivityEvent.Updated -> {
+                    val operation = when (first) {
+                        is ActivityEvent.Renamed -> TrackedFileActivityOperation.RENAME
+                        is ActivityEvent.Updated -> TrackedFileActivityOperation.UPDATE
+                        else -> throw IllegalArgumentException()
+                    }
+
+                    val fileReferences = allEventsOfType.map { ActivityStreamFileReference(it.fileId) }
+
+                    listOf(ActivityStreamEntry.Tracked(operation, fileReferences, timestamp))
+                }
+
+                is ActivityEvent.Inspected -> {
+                    emptyList()
+                }
+            }
+        }
     }
 
     suspend fun findEventsForPath(
@@ -61,7 +140,7 @@ class ActivityService<DBSession>(
         pagination: NormalizedPaginationRequest,
         fileId: String
     ): Page<ActivityEvent> {
-        return dao.findByFileId(session, pagination, fileId)
+        return activityDao.findByFileId(session, pagination, fileId)
     }
 }
 

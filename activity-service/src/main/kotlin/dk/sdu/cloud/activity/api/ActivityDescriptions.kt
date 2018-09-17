@@ -18,7 +18,7 @@ object ActivityDescriptions : RESTDescriptions("activity") {
 
         path {
             using(baseContext)
-            +"by-id"
+            +"by-header"
             +boundTo(ListActivityByIdRequest::id)
         }
 

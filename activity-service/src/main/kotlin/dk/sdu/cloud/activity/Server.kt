@@ -4,10 +4,9 @@ import dk.sdu.cloud.activity.http.ActivityController
 import dk.sdu.cloud.activity.processor.StorageAuditProcessor
 import dk.sdu.cloud.activity.services.ActivityService
 import dk.sdu.cloud.activity.services.HibernateActivityEventDao
-import dk.sdu.cloud.activity.services.InMemoryActivityEventDao
+import dk.sdu.cloud.activity.services.HibernateActivityStreamDao
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.FakeDBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
@@ -30,11 +29,12 @@ class Server(
     override fun start() {
         log.info("Creating core services")
         val activityEventDao = HibernateActivityEventDao()
-        val activityServce = ActivityService(activityEventDao, cloud)
+        val activityStreamDao = HibernateActivityStreamDao()
+        val activityService = ActivityService(activityEventDao, activityStreamDao, cloud)
         log.info("Core services constructed")
 
         log.info("Creating stream processors")
-        allProcessors.addAll(StorageAuditProcessor(kafka, db, activityServce).init())
+        allProcessors.addAll(StorageAuditProcessor(kafka, db, activityService).init())
         log.info("Stream processors constructed")
 
         httpServer = ktor {
@@ -42,7 +42,7 @@ class Server(
 
             routing {
                 configureControllers(
-                    ActivityController(db, activityServce)
+                    ActivityController(db, activityService)
                 )
             }
         }

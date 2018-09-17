@@ -24,34 +24,35 @@ sealed class ActivityEvent {
 
     abstract val timestamp: Long
     abstract val fileId: String
+    abstract val username: String
 
     data class Download(
-        val username: String,
+        override val username: String,
         override val timestamp: Long,
         override val fileId: String
     ) : ActivityEvent()
 
     data class Updated(
-        val username: String,
+        override val username: String,
         override val timestamp: Long,
         override val fileId: String
     ) : ActivityEvent()
 
     data class Favorite(
-        val username: String,
+        override val username: String,
         val isFavorite: Boolean,
         override val timestamp: Long,
         override val fileId: String
     ) : ActivityEvent()
 
     data class Inspected(
-        val username: String,
+        override val username: String,
         override val timestamp: Long,
         override val fileId: String
     ) : ActivityEvent()
 
     data class Renamed(
-        val username: String,
+        override val username: String,
         val newName: String,
         override val timestamp: Long,
         override val fileId: String

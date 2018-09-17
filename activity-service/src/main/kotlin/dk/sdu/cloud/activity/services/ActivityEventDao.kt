@@ -31,28 +31,6 @@ sealed class ActivityEventException(why: String, httpStatusCode: HttpStatusCode)
     class NotFound : ActivityEventException("Not found", HttpStatusCode.NotFound)
 }
 
-class InMemoryActivityEventDao : ActivityEventDao<Unit> {
-    private val database = HashMap<String, MutableList<ActivityEvent>>()
-    private val lock = Any()
-
-    override fun findByFileId(
-        session: Unit,
-        pagination: NormalizedPaginationRequest,
-        fileId: String
-    ): Page<ActivityEvent> {
-        return database[fileId]?.paginate(pagination)?.let { it.copy(items = it.items.toList()) }
-                ?: throw ActivityEventException.NotFound()
-    }
-
-    override fun insert(session: Unit, event: ActivityEvent) {
-        synchronized(lock) {
-            val current = database[event.fileId] ?: ArrayList()
-            current.add(event)
-            database[event.fileId] = current
-        }
-    }
-}
-
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
 @Table(
