@@ -14,7 +14,7 @@ import { removeTrailingSlash, extensionTypeFromPath } from "UtilityFunctions";
 interface FilePreviewStateProps {
     page: Page<File>
     contentCount: number
-    match: match<{ params: string[] }>
+    match: match
 }
 
 interface FilePreviewOperations {

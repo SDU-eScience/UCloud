@@ -50,7 +50,7 @@ export enum SortBy {
 }
 
 export interface FilesProps extends FilesStateProps, FilesOperations {
-    match: match<string[]>
+    match: match
     history: History
 }
 
