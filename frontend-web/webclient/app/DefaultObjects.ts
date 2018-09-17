@@ -58,14 +58,14 @@ export enum SensitivityLevelMap {
     "SENSITIVE"
 };
 
-interface UppyRestriction {
+export interface UppyRestriction {
     maxFileSize?: false | number
     maxNumberOfFiles?: false | number
     minNumberOfFiles?: false | number
     allowedFileTypes: false | number
 }
 
-const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud): Uppy =>
+export const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud): Uppy =>
     Uppy.Core({
         autoProceed: false,
         debug: false,
@@ -179,14 +179,14 @@ export interface ReduxObject {
     sidebar: SidebarReduxObject
 }
 
-const initNotifications = () => ({
+export const initNotifications = () => ({
     page: emptyPage,
     loading: false,
     redirectTo: "",
     error: undefined
 });
 
-const initHeader = (): HeaderSearch => ({
+export const initHeader = (): HeaderSearch => ({
     prioritizedSearch: "files"
 });
 
@@ -196,16 +196,16 @@ export const initApplications = () => ({
     error: undefined
 });
 
-const initStatus = () => ({
+export const initStatus = () => ({
     status: DefaultStatus,
     title: ""
 });
 
-const initDashboard = () => ({
-    favoriteFiles: [] as File[],
-    recentFiles: [] as File[],
-    recentAnalyses: [] as Analysis[],
-    notifications: [] as Notification[],
+export const initDashboard = () => ({
+    favoriteFiles: [],
+    recentFiles: [],
+    recentAnalyses: [],
+    notifications: [],
     favoriteLoading: false,
     recentLoading: false,
     analysesLoading: false,
@@ -235,21 +235,21 @@ export const initAnalyses = (): ComponentWithPage<Analysis> => ({
 });
 
 
-const initZenodo = () => ({
+export const initZenodo = () => ({
     connected: false,
     loading: false,
     page: emptyPage,
     error: undefined
 })
 
-const initSidebar = () => ({
+export const initSidebar = () => ({
     open: false,
     loading: false,
     pp: false,
-    options: [] as SidebarOption[]
+    options: []
 });
 
-const initUploads = () => ({
+export const initUploads = () => ({
     path: "",
     uploads: [],
     visible: false,
@@ -324,8 +324,7 @@ export const initFiles = ({ homeFolder }: { homeFolder: string }): FilesReduxObj
     fileSelectorCallback: () => null,
     fileSelectorError: undefined,
     disallowedPaths: []
-
-})
+});
 
 export const initUppy = (cloud: SDUCloud) => ({
     uppy: initializeUppy({ maxNumberOfFiles: 1 } as UppyRestriction, cloud),
