@@ -19,6 +19,9 @@ import dk.sdu.cloud.service.WithPaginationRequest
     JsonSubTypes.Type(value = ActivityEvent.Renamed::class, name = "renamed")
 )
 sealed class ActivityEvent {
+    // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
+    // events related to file activity
+
     abstract val timestamp: Long
     abstract val fileId: String
 

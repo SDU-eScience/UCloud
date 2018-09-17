@@ -29,8 +29,6 @@ class Server(
 
     override fun start() {
         log.info("Creating core services")
-//        val db = FakeDBSessionFactory
-//        val activityEventDao = InMemoryActivityEventDao()
         val activityEventDao = HibernateActivityEventDao()
         val activityServce = ActivityService(activityEventDao, cloud)
         log.info("Core services constructed")

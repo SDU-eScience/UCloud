@@ -20,6 +20,8 @@ data class ActivityStreamFileReference(val path: String, val id: String)
     JsonSubTypes.Type(ActivityStreamEntry.Updated::class, name = "updated")
 )
 sealed class ActivityStreamEntry {
+    // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
+    // events related to file activity
     abstract val timestamp: Long
 
     data class Created(
