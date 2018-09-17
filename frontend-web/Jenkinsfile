@@ -15,17 +15,15 @@ pipeline {
 
     stage('Test') { 
       steps {
-        sh '''cd frontend-web/webclient
+        script {
+            sh '''cd frontend-web/webclient
             npm run test'''
-        publishHTML (target: [
-          allowMissing: false,
-          alwaysLinkToLastBuild: false,
-          keepAll: true,
-          reportDir: 'frontend-web/webclient/coverage',
-          reportFiles: 'index.html',
-          reportName: "Frontend Report"
-          ]
-        )
+        }
+      }
+      post {
+        always {
+          step([$class: 'CoberturaPublisher', coberturaReportFile: 'frontend-web/webclient/coverage/cobertura-coverage.xml'])
+        }
       }
     }
   }

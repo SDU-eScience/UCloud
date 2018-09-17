@@ -64,7 +64,7 @@ node{
     
     def serviceList = [
       "abc2-sync",
-      "client-core",
+    //  "client-core",
       "frontend-web",
       "service-common"
     ]
