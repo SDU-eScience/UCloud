@@ -65,7 +65,7 @@ class MockCloud {
         else return this.decodedToken.payload;
     }
 
-    receiveAccessTokenOrRefreshIt = (): Promise<any> => new Promise(resolve => resolve(1));
+    receiveAccessTokenOrRefreshIt = (): Promise<any> => new Promise(resolve => resolve("1"));
 
     createOneTimeTokenWithPermission(permission) { }
 

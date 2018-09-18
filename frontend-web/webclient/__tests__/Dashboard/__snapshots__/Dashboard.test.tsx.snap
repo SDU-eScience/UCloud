@@ -1,0 +1,1300 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Dashboard Component Mount with favorites 1`] = `
+<div
+  className="ui cards mobile-padding"
+>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Favorite files
+      </div>
+      <div
+        className="ui large divided list"
+        role="list"
+      >
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <i
+              aria-hidden="true"
+              className="blue star icon"
+              onClick={[Function]}
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey image icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-200px"
+              >
+                Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <i
+              aria-hidden="true"
+              className="blue star icon"
+              onClick={[Function]}
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/AABA"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-200px"
+              >
+                AABA
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <i
+              aria-hidden="true"
+              className="blue star icon"
+              onClick={[Function]}
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/Favorites"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-200px"
+              >
+                Favorites
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <i
+              aria-hidden="true"
+              className="blue star icon"
+              onClick={[Function]}
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/Jobs"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-200px"
+              >
+                Jobs
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <i
+              aria-hidden="true"
+              className="blue star icon"
+              onClick={[Function]}
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/A folder the sequel"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-200px"
+              >
+                A folder the sequel
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <i
+              aria-hidden="true"
+              className="blue star icon"
+              onClick={[Function]}
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/B"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-200px"
+              >
+                B
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <i
+              aria-hidden="true"
+              className="blue star icon"
+              onClick={[Function]}
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/rehjoerijhoerijh"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-200px"
+              >
+                rehjoerijhoerijh
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <i
+              aria-hidden="true"
+              className="blue star icon"
+              onClick={[Function]}
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/Test"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-200px"
+              >
+                Test
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <i
+              aria-hidden="true"
+              className="blue star icon"
+              onClick={[Function]}
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-200px"
+              >
+                somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <i
+              aria-hidden="true"
+              className="blue star icon"
+              onClick={[Function]}
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-200px"
+              >
+                somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
+              </span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recently used files
+      </div>
+      <h3>
+        <small>
+          No recently used files
+        </small>
+      </h3>
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recent Analyses
+      </div>
+      <h3>
+        <small>
+          No Analyses found
+        </small>
+      </h3>
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recent notifications
+      </div>
+      <h3>
+        <small>
+          No notifications
+        </small>
+      </h3>
+      <div
+        className="ui divided list"
+        role="list"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Dashboard Component Mount with no data 1`] = `
+<div
+  className="ui cards mobile-padding"
+>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Favorite files
+      </div>
+      <i
+        aria-hidden="true"
+        className="circle notched loading icon"
+      />
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recently used files
+      </div>
+      <i
+        aria-hidden="true"
+        className="circle notched loading icon"
+      />
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recent Analyses
+      </div>
+      <i
+        aria-hidden="true"
+        className="circle notched loading icon"
+      />
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recent notifications
+      </div>
+      <h3>
+        <small>
+          No notifications
+        </small>
+      </h3>
+      <div
+        className="ui divided list"
+        role="list"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Dashboard Component Mount with notifications 1`] = `
+<div
+  className="ui cards mobile-padding"
+>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Favorite files
+      </div>
+      <i
+        aria-hidden="true"
+        className="circle notched loading icon"
+      />
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recently used files
+      </div>
+      <i
+        aria-hidden="true"
+        className="circle notched loading icon"
+      />
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recent Analyses
+      </div>
+      <i
+        aria-hidden="true"
+        className="circle notched loading icon"
+      />
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recent notifications
+      </div>
+      <div
+        className="ui divided list"
+        role="list"
+      >
+        <div
+          className="item"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              15 days ago
+            </div>
+          </div>
+          <i
+            aria-hidden="true"
+            className="blue share alternate icon middle aligned"
+          />
+          <div
+            className="content"
+          >
+            <div
+              className="header"
+            >
+              Share Request
+            </div>
+            <div
+              className="description"
+            >
+              jonas@hinchely.dk has shared a file with you
+            </div>
+          </div>
+        </div>
+        <div
+          className="item"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              22 days ago
+            </div>
+          </div>
+          <i
+            aria-hidden="true"
+            className="blue share alternate icon middle aligned"
+          />
+          <div
+            className="content"
+          >
+            <div
+              className="header"
+            >
+              Share Request
+            </div>
+            <div
+              className="description"
+            >
+              jonas@hinchely.dk has shared a file with you
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Dashboard Component Mount with recent files 1`] = `
+<div
+  className="ui cards mobile-padding"
+>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Favorite files
+      </div>
+      <h3>
+        <small>
+          No favorites found
+        </small>
+      </h3>
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recently used files
+      </div>
+      <div
+        className="ui large divided list"
+        role="list"
+      >
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              22 days ago
+            </div>
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey image icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-117px"
+              >
+                Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              a month ago
+            </div>
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/AABA"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-117px"
+              >
+                AABA
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              a month ago
+            </div>
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/Favorites"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-117px"
+              >
+                Favorites
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              a month ago
+            </div>
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/Jobs"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-117px"
+              >
+                Jobs
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              a month ago
+            </div>
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/A folder the sequel"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-117px"
+              >
+                A folder the sequel
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              a month ago
+            </div>
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/B"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-117px"
+              >
+                B
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              a month ago
+            </div>
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/rehjoerijhoerijh"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-117px"
+              >
+                rehjoerijhoerijh
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              a month ago
+            </div>
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/Test"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-117px"
+              >
+                Test
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              a month ago
+            </div>
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-117px"
+              >
+                somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
+              </span>
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            <div
+              className="description"
+            >
+              a month ago
+            </div>
+          </div>
+          <div
+            className="content"
+          >
+            <i
+              aria-hidden="true"
+              className="grey folder icon"
+            />
+            <a
+              href="/files//home/user@user.telecity/somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
+              onClick={[Function]}
+            >
+              <span
+                className="limited-width-string-117px"
+              >
+                somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
+              </span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recent Analyses
+      </div>
+      <h3>
+        <small>
+          No Analyses found
+        </small>
+      </h3>
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recent notifications
+      </div>
+      <h3>
+        <small>
+          No notifications
+        </small>
+      </h3>
+      <div
+        className="ui divided list"
+        role="list"
+      />
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Dashboard Component Mount with recent files 2`] = `
+<div
+  className="ui cards mobile-padding"
+>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Favorite files
+      </div>
+      <h3>
+        <small>
+          No favorites found
+        </small>
+      </h3>
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recently used files
+      </div>
+      <h3>
+        <small>
+          No recently used files
+        </small>
+      </h3>
+      <div
+        className="ui large divided list"
+        role="list"
+      />
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recent Analyses
+      </div>
+      <div
+        className="ui large divided list"
+        role="list"
+      >
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            Failure
+          </div>
+          <i
+            aria-hidden="true"
+            className="red x icon"
+          />
+          <div
+            className="content"
+          >
+            <a
+              href="/analyses/bbcf5395-e78e-4fa7-a4e1-989fe5ce21ee"
+              onClick={[Function]}
+            >
+              figlet-count
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            Failure
+          </div>
+          <i
+            aria-hidden="true"
+            className="red x icon"
+          />
+          <div
+            className="content"
+          >
+            <a
+              href="/analyses/15274bec-ef72-4ed2-97ff-2be1829a2db1"
+              onClick={[Function]}
+            >
+              figlet
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            Failure
+          </div>
+          <i
+            aria-hidden="true"
+            className="red x icon"
+          />
+          <div
+            className="content"
+          >
+            <a
+              href="/analyses/3544b177-e9a7-4323-bcde-c4d6e442dc36"
+              onClick={[Function]}
+            >
+              figlet
+            </a>
+          </div>
+        </div>
+        <div
+          className="item itemPadding"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="right floated content"
+          >
+            Success
+          </div>
+          <i
+            aria-hidden="true"
+            className="green check icon"
+          />
+          <div
+            className="content"
+          >
+            <a
+              href="/analyses/e28defb0-d66c-4461-91f6-b09afd85480c"
+              onClick={[Function]}
+            >
+              figlet-count
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="ui card"
+    onClick={[Function]}
+  >
+    <div
+      className="content"
+    >
+      <div
+        className="header"
+      >
+        Recent notifications
+      </div>
+      <h3>
+        <small>
+          No notifications
+        </small>
+      </h3>
+      <div
+        className="ui divided list"
+        role="list"
+      />
+    </div>
+  </div>
+</div>
+`;
