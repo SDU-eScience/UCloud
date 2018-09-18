@@ -13,7 +13,9 @@ import * as Adapter from "enzyme-adapter-react-16";
 configure({ adapter: new Adapter() });
 
 
+
 describe("Detailed Result", () => {
+    // FIXME: contacts backend on creation
     test("Mount DetailedResult", () => {
         const store = configureStore({ analyses: initAnalyses() }, { analyses });
         expect(create(

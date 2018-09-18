@@ -1,0 +1,203 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`View component Mount view 1`] = `
+<div>
+  <h1
+    className="ui header"
+  >
+    <div
+      className="content"
+    >
+      Untitled project
+      <div
+        className="sub header"
+      >
+        <div
+          className="ui horizontal list"
+          role="list"
+        />
+      </div>
+    </div>
+  </h1>
+  <div
+    className="ui stackable divided grid"
+  >
+    <div
+      className="twelve wide column"
+    >
+      <div>
+        <p>
+          Project description goes here...
+        </p>
+      </div>
+    </div>
+    <div
+      className="four wide column"
+    >
+      <h4
+        className="ui header"
+      >
+        <i
+          aria-hidden="true"
+          className="hand pointer icon"
+        />
+        <div
+          className="content"
+        >
+          Actions
+        </div>
+      </h4>
+      <div
+        className="ui list"
+        role="list"
+      >
+        <div
+          className="item"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <a
+            href="/metadata/edit//home/jonas@hinchely.dk/The Project"
+            onClick={[Function]}
+          >
+            <div
+              className="ui blue label metadata-detailed-tag"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="edit icon"
+              />
+              Edit
+            </div>
+          </a>
+        </div>
+      </div>
+      <h4
+        className="ui header"
+      >
+        <i
+          aria-hidden="true"
+          className="info icon"
+        />
+        <div
+          className="content"
+        >
+          About
+        </div>
+      </h4>
+      <div
+        className="ui list"
+        role="list"
+      >
+        <div
+          className="item"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="ui green label metadata-detailed-tag"
+            onClick={[Function]}
+          >
+            <i
+              aria-hidden="true"
+              className="folder open icon"
+            />
+            Open Access
+          </div>
+        </div>
+        <div
+          className="item"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <a
+            href="https://spdx.org/licenses/AML.html"
+            target="_blank"
+          >
+            <div
+              className="ui blue label metadata-detailed-tag"
+              onClick={[Function]}
+            >
+              <i
+                aria-hidden="true"
+                className="book icon"
+              />
+              AML
+              <div
+                className="detail"
+              >
+                License
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+      <h4
+        className="ui header"
+      >
+        <i
+          aria-hidden="true"
+          className="hashtag icon"
+        />
+        <div
+          className="content"
+        >
+          Keywords
+        </div>
+      </h4>
+      <div
+        className="ui list"
+        role="list"
+      >
+        <div
+          className="item"
+          onClick={[Function]}
+          role="listitem"
+        >
+          <div
+            className="ui label metadata-detailed-tag"
+            onClick={[Function]}
+          >
+            Example
+          </div>
+        </div>
+      </div>
+      <h4
+        className="ui header"
+      >
+        <i
+          aria-hidden="true"
+          className="bookmark icon"
+        />
+        <div
+          className="content"
+        >
+          References
+        </div>
+      </h4>
+      <div
+        className="ui list"
+        role="list"
+      />
+      <h4
+        className="ui header"
+      >
+        <i
+          aria-hidden="true"
+          className="money icon"
+        />
+        <div
+          className="content"
+        >
+          Grants
+        </div>
+      </h4>
+      <div
+        className="ui list"
+        role="list"
+      />
+    </div>
+  </div>
+</div>
+`;
