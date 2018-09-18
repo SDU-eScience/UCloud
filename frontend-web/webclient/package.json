@@ -4,6 +4,11 @@
   "description": "SDU Cloud",
   "author": "IMADA - eScience Center, SDU",
   "jest": {
+    "globals": {
+      "ts-jest": {
+        "target": "esnext"
+      }
+    },
     "collectCoverage": true,
     "coverageDirectory": "<rootDir>/coverage",
     "coverageReporters": [

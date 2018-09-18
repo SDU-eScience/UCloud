@@ -31,8 +31,8 @@ class UserCreation extends React.Component<{}, UserCreationState> {
     updateFields(field: UserCreationField, value: string) {
         const state = { ...this.state }
         state[field] = value;
-        state.usernameError = false;
-        state.passwordError = false;
+        if (field === "username") state.usernameError = false;
+        else if (field === "password" || field === "repeatedPassword") state.passwordError = false;
         this.setState(() => state);
     }
 
@@ -42,14 +42,9 @@ class UserCreation extends React.Component<{}, UserCreationState> {
         let usernameError = false;
         let passwordError = false;
         const { username, password, repeatedPassword } = this.state;
-        if (!username) {
-            usernameError = true;
-        }
-        if (!password || password !== repeatedPassword) {
-            passwordError = true;
-        }
+        if (!username) usernameError = true;
+        if (!password || password !== repeatedPassword) passwordError = true;
         this.setState(() => ({ usernameError, passwordError }));
-
         if (!usernameError && !passwordError) {
             this.state.promiseKeeper.makeCancelable(
                 Cloud.post("/auth/users/register", { username, password }, "")

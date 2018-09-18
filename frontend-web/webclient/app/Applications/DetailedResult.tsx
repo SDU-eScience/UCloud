@@ -129,7 +129,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     favoriteFile = (file: File) => this.setState(() => ({ page: favoriteFileFromPage(this.state.page, [file], Cloud) }));
-    
+
     renderProgressPanel = () => (
         <div className="job-result-box">
             <h4>Progress</h4>

@@ -291,6 +291,57 @@ export const applicationsPage: Page<Application> = {
     pagesInTotal: 0
 };
 
+export const detailedApplication = {
+    owner: "jonas@hinchely.dk",
+    createdAt: 1531305600165,
+    modifiedAt: 1531305600165,
+    description: {
+        info: {
+            name: "figlet-count",
+            version: "1.0.0"
+        },
+        tool: {
+            name: "figlet",
+            version: "1.0.0"
+        },
+        authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+        title: "Figlet Counter",
+        description: "Count with Figlet!\n",
+        invocation: [
+            { "type": "word", "word": "figlet-count" },
+            { "type": "var", "variableNames": ["n"], "prefixGlobal": "", "suffixGlobal": "", "prefixVariable": "", "suffixVariable": "", "variableSeparator": " " }
+        ],
+        parameters: [
+            { "name": "n", "optional": false, "defaultValue": 100, "title": "Count", "description": "How much should we count to?", "min": null, "max": null, "step": null, "unitName": null, "type": "integer" }
+        ],
+        outputFileGlobs: ["stdout.txt", "stderr.txt"]
+    },
+    tool: {
+        owner: "jonas@hinchely.dk",
+        createdAt: 1531303905548,
+        modifiedAt: 1531303905548,
+        description: {
+            info: {
+                name: "figlet",
+                version: "1.0.0"
+            },
+            container: "figlet.simg",
+            defaultNumberOfNodes: 1,
+            defaultTasksPerNode: 1,
+            defaultMaxTime: {
+                hours: 0,
+                minutes: 1,
+                seconds: 0
+            },
+            requiredModules: [],
+            authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+            title: "Figlet",
+            description: "Tool for rendering text.",
+            backend: "SINGULARITY"
+        }
+    }
+}
+
 test("Error silencer", () =>
     expect(1).toBe(1)
 );

@@ -56,7 +56,7 @@ class MockCloud {
     }
 
     get userIsAdmin(): boolean {
-        return this.userRole === "ADMIN";
+        return true;
     }
 
     get userInfo() {

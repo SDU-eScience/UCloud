@@ -186,6 +186,10 @@ describe("File Operations", () => {
                 test("Download", () => {
                     expect(download.disabled(files, new Cloud())).toBe(true)
                 });
+
+                test("Download", () => {
+                    expect(download.disabled([files[0]], new Cloud())).toBe(false)
+                });
             });
 
             describe("FileSelectorOperations", () => {
