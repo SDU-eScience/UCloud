@@ -21,7 +21,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     private stdoutEl: StdElement;
     private stderrEl: StdElement;
 
-    constructor(props: DetailedResultProps) {
+    constructor(props) {
         super(props);
         this.state = {
             loading: false,
@@ -49,7 +49,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     componentDidMount() {
         this.retrieveStdStreams();
         let reloadIntervalId = window.setInterval(() => this.retrieveStdStreams(), 1_000);
-        this.setState({ reloadIntervalId: reloadIntervalId });
+        this.setState(() => ({ reloadIntervalId: reloadIntervalId }));
     }
 
     componentWillUnmount() {
@@ -57,8 +57,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         this.state.promises.cancelPromises();
     }
 
-    static fileOperations = (history: History) =>
-        AllFileOperations(true, false, false, history)
+    static fileOperations = (history: History) => AllFileOperations(true, false, false, history);
 
     scrollIfNeeded() {
         if (!this.stdoutEl || !this.stderrEl) return;
@@ -71,10 +70,13 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             this.stderrEl.scrollTop = this.stderrEl.scrollHeight;
         }
 
-        this.setState({
-            stdoutOldTop: this.stdoutEl.scrollTop,
-            stderrOldTop: this.stderrEl.scrollTop,
-        });
+        const outTop = this.stdoutEl.scrollTop;
+        const errTop = this.stderrEl.scrollTop;
+
+        this.setState(() => ({
+            stdoutOldTop: outTop,
+            stderrOldTop: errTop
+        }));
     }
 
     retrieveStdStreams() {
@@ -82,12 +84,12 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             this.retrieveStateWhenCompleted();
             return;
         }
-        this.setState({ loading: true });
+        this.setState(() => ({ loading: true }));
         this.state.promises.makeCancelable(
             Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
         ).promise.then(
             ({ response }) => {
-                this.setState({
+                this.setState(() => ({
                     stdout: this.state.stdout.concat(response.stdout),
                     stderr: this.state.stderr.concat(response.stderr),
                     stdoutLine: response.stdoutNextLine,
@@ -97,7 +99,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     status: response.status,
                     appState: response.state,
                     complete: response.complete
-                });
+                }));
 
                 this.scrollIfNeeded();
                 if (response.complete) this.retrieveStateWhenCompleted();
@@ -106,13 +108,13 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             failure => {
                 failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
                 console.log(failure);
-            }).finally(() => this.setState({ loading: false }));
+            }).then(() => this.setState(() => ({ loading: false })), () => this.setState(() => ({ loading: false })))//.finally(() => this.setState({ loading: false }));
     }
 
     retrieveStateWhenCompleted() {
         if (!this.state.complete) return;
         if (this.state.page.items.length || this.state.loading) return;
-        this.setState({ loading: true });
+        this.setState(() => ({ loading: true }));
         this.retrieveFilesPage(this.state.page.pageNumber, this.state.page.itemsPerPage)
     }
 
@@ -120,10 +122,11 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         this.state.promises.makeCancelable(
             Cloud.get(filepathQuery(`/home/${Cloud.username}/Jobs/${this.jobId}`, pageNumber, itemsPerPage))
         ).promise.then(({ response }) => {
-            this.setState({
+            console.log(response);
+            this.setState(() => ({
                 page: response,
                 loading: false
-            });
+            }));
             window.clearInterval(this.state.reloadIntervalId);
         }); // FIXME: Error Handling
     }

@@ -29,8 +29,8 @@ describe("Detailed application", () => {
 
     test("Component with application", () => {
         let detailedAppWrapper = mount(<MemoryRouter><DetailedApplication match={{ params: { appName: "someName", appVersion: "someVersion" } }} /></MemoryRouter>);
+        detailedAppWrapper.find(DetailedApplication).instance().setState({ appInformation: detailedApplication, loading: false, complete: true });
         detailedAppWrapper = detailedAppWrapper.update();
-        detailedAppWrapper.find(DetailedApplication).instance().setState({ appInformation: detailedApplication, loading: false });
         expect(detailedAppWrapper.html()).toMatchSnapshot();
     });
 });

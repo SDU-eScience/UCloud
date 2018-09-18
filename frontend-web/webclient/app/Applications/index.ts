@@ -157,6 +157,7 @@ export interface RunAppState {
 }
 
 export interface RunAppProps {
+    match: match
     uppy: any
     history: History
     updatePageTitle: () => void

@@ -18,6 +18,7 @@ import { extractParameters } from "Utilities/ApplicationUtilities";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
+    
     constructor(props) {
         super(props);
         this.state = {
