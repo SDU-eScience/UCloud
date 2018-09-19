@@ -33,7 +33,7 @@ class Server(
         val activityEventDao = HibernateActivityEventDao()
         val activityStreamDao = HibernateActivityStreamDao()
         val fileLookupService = FileLookupService(cloud)
-        val activityService = ActivityService(activityEventDao, activityStreamDao, fileLookupService)
+        val activityService = ActivityService(activityEventDao, activityStreamDao, fileLookupService, cloud)
         log.info("Core services constructed")
 
         log.info("Creating stream processors")

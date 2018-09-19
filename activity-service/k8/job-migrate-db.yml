@@ -20,7 +20,7 @@ spec:
         - /etc/refresh-token
         - --run-script
         - migrate-db
-        image: registry.dev-sdu-cloud.dk/sdu-cloud/activity-service:0.1.0
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/activity-service:0.1.1
         name: activity-migration
 
         volumeMounts:
