@@ -83,6 +83,8 @@ data class SecurityPrincipal(
 
 /**
  * Represents an access token issued for a security principal.
+ *
+ * SHOULD NOT CONTAIN SENSITIVE DATA (LIKE THE JWT)
  */
 data class SecurityPrincipalToken(
     val principal: SecurityPrincipal,
@@ -110,6 +112,9 @@ data class SecurityPrincipalToken(
      * the JWT. This reference is added solely for the purpose of auditing.
      */
     val publicSessionReference: String?
+
+    // NOTE: DO NOT ADD SENSITIVE DATA TO THIS CLASS (INCLUDING JWT)
+    // IT IS USED IN THE AUDIT SYSTEM
 )
 
 enum class AccessRight(val scopeName: String) {
@@ -133,8 +138,7 @@ data class SecurityScope internal constructor(
             return true
         }
 
-        // We need complete matching otherwise
-        if (other.segments.size < segments.size) return false
+        if (segments.size < other.segments.size) return false
 
         for (i in other.segments.indices) {
             val otherSegment = other.segments[i]

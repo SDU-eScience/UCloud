@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.9.3-SNAPSHOT'
+version '0.10.0-SNAPSHOT'
 
 apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
 
@@ -12,7 +12,7 @@ dependencies {
     compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
     compile 'io.tus.java.client:tus-java-client:0.3.1'
 
-    compile "dk.sdu.cloud:service-common:0.18.0-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.19.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"
     compile "dk.sdu.cloud:notification-api:0.6.0-SNAPSHOT"
 
@@ -48,3 +48,9 @@ sduCloud.createTasksForApiJar(
                 "dk.sdu.cloud:file-api:${project.version}",
         ]
 )
+
+run {
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
+    }
+}

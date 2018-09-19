@@ -1,0 +1,23 @@
+group 'dk.sdu.cloud'
+version '0.1.1'
+
+apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
+
+dependencies {
+    compile "dk.sdu.cloud:service-common:0.19.0-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"
+    compile "dk.sdu.cloud:file-api:0.10.0-SNAPSHOT"
+    compile "dk.sdu.cloud:upload-api:0.10.0-SNAPSHOT"
+    compile "dk.sdu.cloud:filesearch-api:1.4.1-SNAPSHOT"
+
+    compile group: 'com.h2database', name: 'h2', version: '1.4.196'
+}
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.activity.MainKt"
+
+run {
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
+    }
+}
