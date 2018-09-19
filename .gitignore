@@ -149,3 +149,4 @@ app-service/dev.db.trace.db
 metadata-service/dev.db.mv.db
 metadata-service/dev.db.trace.db
 logs/
+activity-service/src/generated
