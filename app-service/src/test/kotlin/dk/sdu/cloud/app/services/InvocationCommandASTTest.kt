@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.ApplicationParameter
+import dk.sdu.cloud.app.api.BooleanFlagParameter
 import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals

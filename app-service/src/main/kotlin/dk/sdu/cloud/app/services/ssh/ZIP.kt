@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.services.ssh
 
-import dk.sdu.cloud.app.util.BashEscaper
+import dk.sdu.cloud.app.api.BashEscaper
 import org.slf4j.LoggerFactory
 
 fun SSHConnection.createZipFileOfDirectory(outputPath: String, inputDirectoryPath: String): Int {

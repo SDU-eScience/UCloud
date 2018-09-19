@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.services.ssh
 
-import dk.sdu.cloud.app.util.BashEscaper
+import dk.sdu.cloud.app.api.BashEscaper
 import dk.sdu.cloud.app.util.CappedInputStream
 import dk.sdu.cloud.service.GuardedOutputStream
 import org.slf4j.LoggerFactory

@@ -1,9 +1,7 @@
-package dk.sdu.cloud.app.services
+package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.app.api.ApplicationParameter
-import dk.sdu.cloud.app.util.BashEscaper
 import dk.sdu.cloud.service.stackTraceToString
 import org.slf4j.LoggerFactory
 
@@ -70,7 +68,11 @@ class BooleanFlagParameter(
         val parameter = parameters.filterKeys { it.name == variableName }.keys.singleOrNull()
                 ?: return null
 
-        val value = parameters[parameter] as? Boolean ?: throw InvalidParamUsage("Invalid type", this, parameters)
+        val value = parameters[parameter] as? Boolean ?: throw InvalidParamUsage(
+            "Invalid type",
+            this,
+            parameters
+        )
 
         return if (value) flag else null
     }
