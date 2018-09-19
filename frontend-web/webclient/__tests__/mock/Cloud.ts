@@ -1,4 +1,4 @@
-
+import * as jwt from "jsonwebtoken";
 
 class MockCloud {
     private readonly context: string;
@@ -11,7 +11,12 @@ class MockCloud {
     private csrfToken: string;
     private decodedToken: any;
 
-    constructor() {}
+    constructor() {
+        this.decodedToken = jwt.decode("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
+            "lzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJ0ZXN0IiwiZXhwIjozNjE1NDkxMDkzLCJpYXQiOjE1MTU0ODkyO" +
+            "TMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsImF1ZCI6WyJhcGkiLCJpcm9kcyJdfQ.gfLvmBWET-WpwtWLdrN9SL0tD" +
+            "-0vrHrriWWDxnQljB8", { complete: true });
+    }
 
     call = (method: string, path: string, body?: object, context: string = this.apiContext): Promise<any> =>
         new Promise((resolve, reject) => resolve(1));
@@ -19,11 +24,11 @@ class MockCloud {
     get = (path, context = this.apiContext) => this.call("GET", path, undefined, context);
 
     post = (path, body?: object, context = this.apiContext) => this.call("POST", path, body, context);
-    
+
     put = (path, body, context = this.apiContext) => this.call("PUT", path, body, context);
 
     delete = (path, body, context = this.apiContext) => this.call("DELETE", path, body, context);
-    
+
     patch = (path, body, context = this.apiContext) => this.call("PATCH", path, body, context);
 
     options = (path, body, context = this.apiContext) => this.call("OPTIONS", path, body, context);
@@ -95,7 +100,7 @@ class MockCloud {
 
     private isTokenExpired = () => false
 
-    private missingAuth() {}
+    private missingAuth() { }
 }
 
 export const Cloud = new MockCloud();

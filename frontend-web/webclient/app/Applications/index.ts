@@ -1,7 +1,7 @@
 import { SortBy, SortOrder, File } from "Files";
 import { Page } from "Types";
 import { Dispatch } from "redux";
-import { match } from "react-router-dom";
+import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
 
@@ -157,8 +157,9 @@ export interface RunAppState {
 }
 
 export interface RunAppProps {
-    match: match
+    match: match<{ appName: string, appVersion: string }>
     uppy: any
+    uppyOpen: boolean
     history: History
     updatePageTitle: () => void
 }
@@ -207,7 +208,7 @@ type Invocation = WordInvocation | VarInvocation
 
 interface WordInvocation {
     type: "word"
-    word: string   
+    word: string
 }
 
 interface VarInvocation {

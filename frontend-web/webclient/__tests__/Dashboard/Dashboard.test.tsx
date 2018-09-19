@@ -51,6 +51,9 @@ describe("Dashboard Component", () => {
     test("Mount with recent files", () => {
         const store = configureStore({ notifications: initNotifications(), dashboard: initDashboard() }, { dashboard, notifications });
         store.dispatch(DashboardActions.receiveRecentFiles(mockFiles_SensitivityConfidential.items));
+        const files = store.getState().dashboard.recentFiles;
+        files.forEach(it => { it.modifiedAt = 0 });
+        store.dispatch(DashboardActions.receiveRecentFiles(files));
         expect(create(
             <Provider store={store}>
                 <MemoryRouter>
@@ -75,6 +78,9 @@ describe("Dashboard Component", () => {
     test("Mount with notifications", () => {
         const store = configureStore({ notifications: initNotifications(), dashboard: initDashboard() }, { dashboard, notifications });
         store.dispatch(NotificationActions.receiveNotifications(MockNotifications));
+        const notificationspage = store.getState().notifications.page;
+        notificationspage.items.forEach(it => it.ts = 0);
+        store.dispatch(NotificationActions.receiveNotifications(notificationspage));
         expect(create(
             <Provider store={store}>
                 <MemoryRouter>
@@ -82,5 +88,5 @@ describe("Dashboard Component", () => {
                 </MemoryRouter>
             </Provider >
         ).toJSON()).toMatchSnapshot();
-    });    
+    });
 });

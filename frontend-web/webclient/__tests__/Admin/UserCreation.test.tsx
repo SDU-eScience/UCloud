@@ -3,13 +3,13 @@ import UserCreation from "Admin/UserCreation";
 import { create } from "react-test-renderer";
 import { configure, mount } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
-import { FormField, Form, Button } from "semantic-ui-react";
+import { FormField, Button } from "semantic-ui-react";
 import PromiseKeeper from "PromiseKeeper";
 
 configure({ adapter: new Adapter() });
 
 describe("UserCreation", () => {
-    test("Mount UserCreation component", () =>
+    test("Mount", () =>
         expect(create(<UserCreation />).toJSON()).toMatchSnapshot()
     );
 
