@@ -28,7 +28,6 @@ interface SearchProps {
 class SearchComponent extends React.Component<SearchProps, SearchState> {
     constructor(props, ctx) {
         super(props);
-        console.log(ctx);
         this.state = {
             query: "",
             dataProvider: (page: number, itemsPerPage: number) => Promise.resolve(emptyPage)

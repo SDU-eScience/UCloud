@@ -15,7 +15,7 @@ class Projects extends React.Component<any, any> {
     }
 }
 
-const mapStateToProps = (state) => undefined;
-const mapDispatchToProps = (dispatch) => undefined;
+const mapStateToProps = (state) => ({});
+const mapDispatchToProps = (dispatch) => ({});
 
 export default connect(mapStateToProps, mapDispatchToProps)(Projects);
