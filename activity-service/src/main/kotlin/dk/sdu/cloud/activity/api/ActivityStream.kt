@@ -41,13 +41,30 @@ sealed class ActivityStreamEntry<OperationType : Enum<OperationType>> {
         override val timestamp: Long
     ) : ActivityStreamEntry<CountedFileActivityOperation>()
 
-    data class CountedFile(val fileId: String, val count: Int)
+    data class CountedFile(val id: String, val count: Int, val path: String? = null)
 
     data class Tracked(
         override val operation: TrackedFileActivityOperation,
-        val files: Set<String>,
+        val files: Set<ActivityStreamFileReference>,
         override val timestamp: Long
     ) : ActivityStreamEntry<TrackedFileActivityOperation>()
+}
+
+class ActivityStreamFileReference(val id: String, val path: String? = null) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ActivityStreamFileReference
+
+        if (id != other.id) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
 }
 
 enum class CountedFileActivityOperation {

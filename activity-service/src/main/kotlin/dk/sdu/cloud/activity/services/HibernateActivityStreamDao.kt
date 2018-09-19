@@ -1,6 +1,7 @@
 package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityStreamEntry
+import dk.sdu.cloud.activity.api.ActivityStreamFileReference
 import dk.sdu.cloud.activity.api.CountedFileActivityOperation
 import dk.sdu.cloud.activity.api.TrackedFileActivityOperation
 import dk.sdu.cloud.service.Loggable
@@ -85,7 +86,7 @@ sealed class HActivityStreamEntry {
         override fun toModel(): ActivityStreamEntry<*> {
             return ActivityStreamEntry.Tracked(
                 TrackedFileActivityOperation.valueOf(header.operation),
-                fileIds.map { it.fileId }.toSet(),
+                fileIds.map { ActivityStreamFileReference(it.fileId) }.toSet(),
                 header.timestamp.time
             )
         }
@@ -150,7 +151,7 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
 
                     existing.fileIds.addAll(
                         entry.files.map { ref ->
-                            HActivityStreamFileReference(ref).also { session.save(it) }
+                            HActivityStreamFileReference(ref.id).also { session.save(it) }
                         }
                     )
                     session.save(existing)
@@ -161,12 +162,12 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
 
                     val mappedEntries = existing.entries.associateBy { it.fileId }
                     entry.entries.forEach { counted ->
-                        val countedFile = mappedEntries[counted.fileId]
+                        val countedFile = mappedEntries[counted.id]
                         if (countedFile != null) {
                             countedFile.count += counted.count
                             session.saveOrUpdate(countedFile)
                         } else {
-                            val newEntry = HActivityStreamCountedEntry(counted.fileId, counted.count)
+                            val newEntry = HActivityStreamCountedEntry(counted.id, counted.count)
                             existing.entries.add(newEntry)
                             session.save(newEntry)
                         }
@@ -191,7 +192,7 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
                 ),
                 entries.map { entry ->
                     HActivityStreamCountedEntry(
-                        entry.fileId,
+                        entry.id,
                         entry.count
                     ).also { session.save(it) }
                 }.toMutableList(),
@@ -206,7 +207,7 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
                     timestamp = Date(timestamp)
                 ),
                 files.map { ref ->
-                    HActivityStreamFileReference(ref).also { session.save(it) }
+                    HActivityStreamFileReference(ref.id).also { session.save(it) }
                 }.toMutableSet(),
                 operation
             )

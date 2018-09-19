@@ -1,25 +1,23 @@
 package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.*
-import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.jwtAuth
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.withCausedBy
+import dk.sdu.cloud.filesearch.api.LookupDescriptions
+import dk.sdu.cloud.filesearch.api.ReverseLookupRequest
+import dk.sdu.cloud.service.*
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.awaitAll
 
 class ActivityService<DBSession>(
     private val activityDao: ActivityEventDao<DBSession>,
     private val streamDao: ActivityStreamDao<DBSession>,
-    private val fileLookupService: FileLookupService
+    private val fileLookupService: FileLookupService,
+    private val cloud: AuthenticatedCloud
 ) {
     fun insert(
         session: DBSession,
@@ -93,7 +91,7 @@ class ActivityService<DBSession>(
             }
 
             TrackedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
-                val fileReferences = allEventsOfType.map { it.fileId }.toSet()
+                val fileReferences = allEventsOfType.map { ActivityStreamFileReference(it.fileId) }.toSet()
 
                 return@flatMap listOf(ActivityStreamEntry.Tracked(operation, fileReferences, timestamp))
             }
@@ -121,12 +119,12 @@ class ActivityService<DBSession>(
         return activityDao.findByFileId(session, pagination, fileId)
     }
 
-    fun findStreamForUser(
+    suspend fun findStreamForUser(
         session: DBSession,
         pagination: NormalizedPaginationRequest,
         user: String
     ): Page<ActivityStreamEntry<*>> {
-        return streamDao.loadStream(session, ActivityStream(ActivityStreamSubject.User(user)), pagination)
+        return loadStreamWithFileLookup(session, pagination, ActivityStream(ActivityStreamSubject.User(user)))
     }
 
     suspend fun findStreamForPath(
@@ -140,12 +138,74 @@ class ActivityService<DBSession>(
         return findStreamForFileId(session, pagination, fileStat.fileId)
     }
 
-    fun findStreamForFileId(
+    suspend fun findStreamForFileId(
         session: DBSession,
         pagination: NormalizedPaginationRequest,
         fileId: String
     ): Page<ActivityStreamEntry<*>> {
-        return streamDao.loadStream(session, ActivityStream(ActivityStreamSubject.File(fileId)), pagination)
+        return loadStreamWithFileLookup(
+            session,
+            pagination,
+            ActivityStream(ActivityStreamSubject.File(fileId))
+        )
+    }
+
+    private suspend fun loadStreamWithFileLookup(
+        session: DBSession,
+        pagination: NormalizedPaginationRequest,
+        stream: ActivityStream
+    ): Page<ActivityStreamEntry<*>> {
+        val resultFromDao = streamDao.loadStream(session, stream, pagination)
+        val fileIdsInChunks = resultFromDao.items.flatMap { entry ->
+            when (entry) {
+                is ActivityStreamEntry.Counted -> {
+                    entry.entries.map { it.id }
+                }
+
+                is ActivityStreamEntry.Tracked -> {
+                    entry.files.map { it.id }
+                }
+            }
+        }.toSet().chunked(100)
+
+        val fileIdToCanonicalPath = fileIdsInChunks
+            .map { chunkOfIds ->
+                async {
+                    chunkOfIds.zip(
+                        LookupDescriptions.reverseLookup
+                            .call(
+                                ReverseLookupRequest(chunkOfIds),
+                                cloud
+                            )
+                            .orThrow()
+                            .canonicalPath
+                    )
+                }
+            }
+            .awaitAll()
+            .flatten()
+            .toMap()
+
+        return resultFromDao.mapItems { entry ->
+            when (entry) {
+                is ActivityStreamEntry.Counted -> {
+                    entry.copy(
+                        entries = entry.entries.map {
+                            it.copy(path = fileIdToCanonicalPath[it.id])
+                        }
+                    )
+
+                }
+
+                is ActivityStreamEntry.Tracked -> {
+                    entry.copy(
+                        files = entry.files.map {
+                            ActivityStreamFileReference(it.id, fileIdToCanonicalPath[it.id])
+                        }.toSet()
+                    )
+                }
+            }
+        }
     }
 }
 

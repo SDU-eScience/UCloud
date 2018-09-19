@@ -1,6 +1,7 @@
 package dk.sdu.cloud.activity.service
 
 import dk.sdu.cloud.activity.api.ActivityStreamEntry
+import dk.sdu.cloud.activity.api.ActivityStreamFileReference
 import dk.sdu.cloud.activity.api.CountedFileActivityOperation
 import dk.sdu.cloud.activity.api.TrackedFileActivityOperation
 import dk.sdu.cloud.activity.services.ActivityStream
@@ -76,7 +77,7 @@ class HibernateActivityStreamDaoTest {
 
     private val trackedEvent = ActivityStreamEntry.Tracked(
         TrackedFileActivityOperation.MOVED,
-        setOf("fileId"),
+        setOf(ActivityStreamFileReference("fileId")),
         System.currentTimeMillis()
     )
 
@@ -175,7 +176,7 @@ class HibernateActivityStreamDaoTest {
                 assertEquals(1, page.items.size)
                 val resultEntry = page.items.first() as ActivityStreamEntry.Counted
                 assertEquals(1, countedEvent.entries.size)
-                assertEquals(countedEvent.entries.first().fileId, resultEntry.entries.first().fileId)
+                assertEquals(countedEvent.entries.first().id, resultEntry.entries.first().id)
                 assertEquals(countedEvent.entries.first().count * 2, resultEntry.entries.first().count)
             }
         }
@@ -238,8 +239,8 @@ class HibernateActivityStreamDaoTest {
                 assertEquals(1, page.items.size)
 
                 val entry = page.items.first() as ActivityStreamEntry.Counted
-                val f1 = entry.entries.find { it.fileId == fileWithOneEvent }!!
-                val f2 = entry.entries.find { it.fileId == fileWithTwoEvents }!!
+                val f1 = entry.entries.find { it.id == fileWithOneEvent }!!
+                val f2 = entry.entries.find { it.id == fileWithTwoEvents }!!
 
                 assertEquals(downloadCount, f1.count)
                 assertEquals(downloadCount * 2, f2.count)
@@ -287,8 +288,8 @@ class HibernateActivityStreamDaoTest {
                 val counted = loadedStream.items.single() as ActivityStreamEntry.Counted
                 assertEquals(2, counted.entries.size)
 
-                val fileAEntry = counted.entries.find { it.fileId == fileA }!!
-                val fileBEntry = counted.entries.find { it.fileId == fileB }!!
+                val fileAEntry = counted.entries.find { it.id == fileA }!!
+                val fileBEntry = counted.entries.find { it.id == fileB }!!
 
                 assertEquals(fileAEntry.count, downloadCount)
                 assertEquals(fileBEntry.count, downloadCount)
