@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service
 
 import kotlin.math.min
+import kotlin.math.ceil
 
 data class Page<out T>(
     val itemsInTotal: Int,
@@ -9,7 +10,7 @@ data class Page<out T>(
     val pageNumber: Int,
     val items: List<T>
 ) {
-    val pagesInTotal: Int = itemsInTotal / itemsPerPage
+    val pagesInTotal: Int = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
 }
 
 interface WithPaginationRequest {
