@@ -1,12 +1,14 @@
 package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityStreamEntry
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 
 /**
  * An activity stream. It contains instances of [ActivityStreamEntry]
  */
 data class ActivityStream(
-    val subject : ActivityStreamSubject
+    val subject: ActivityStreamSubject
 )
 
 sealed class ActivityStreamSubject {
@@ -24,5 +26,11 @@ interface ActivityStreamDao<Session> {
             insertIntoStream(session, stream, it)
         }
     }
+
+    fun loadStream(
+        session: Session,
+        stream: ActivityStream,
+        pagination: NormalizedPaginationRequest
+    ): Page<ActivityStreamEntry<*>>
 }
 

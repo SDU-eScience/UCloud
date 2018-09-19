@@ -21,24 +21,34 @@ sealed class ActivityStreamEntry<OperationType : Enum<OperationType>> {
 
     data class Counted(
         override val operation: CountedFileActivityOperation,
-        val file: ActivityStreamFileReference,
-        val count: Int,
+        val entries: List<CountedFile>,
         override val timestamp: Long
     ) : ActivityStreamEntry<CountedFileActivityOperation>()
 
+    data class CountedFile(val fileId: String, val count: Int)
+
     data class Tracked(
         override val operation: TrackedFileActivityOperation,
-        val files: List<ActivityStreamFileReference>,
+        val files: Set<ActivityStreamFileReference>,
         override val timestamp: Long
     ) : ActivityStreamEntry<TrackedFileActivityOperation>()
 }
+
 
 enum class CountedFileActivityOperation {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
     // events related to file activity
 
     FAVORITE,
-    DOWNLOAD
+    DOWNLOAD;
+
+    companion object {
+        fun fromEventOrNull(event: ActivityEvent): CountedFileActivityOperation? = when (event) {
+            is ActivityEvent.Favorite -> FAVORITE
+            is ActivityEvent.Download -> DOWNLOAD
+            else -> null
+        }
+    }
 }
 
 enum class TrackedFileActivityOperation {
@@ -48,5 +58,13 @@ enum class TrackedFileActivityOperation {
     CREATE,
     UPDATE,
     DELETE,
-    RENAME
+    RENAME;
+
+    companion object {
+        fun fromEventOrNull(event: ActivityEvent): TrackedFileActivityOperation? = when (event) {
+            is ActivityEvent.Updated -> UPDATE
+            is ActivityEvent.Renamed -> RENAME
+            else -> null
+        }
+    }
 }

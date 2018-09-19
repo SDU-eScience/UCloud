@@ -58,57 +58,49 @@ class ActivityService<DBSession>(
         val byType = groupBy { it.javaClass }
 
         return byType.flatMap { (_, allEventsOfType) ->
-            val first = allEventsOfType.first()
+            // All events have the same operation, so we use the first event to determine operation.
+            val firstEvent = allEventsOfType.first()
 
-            when (first) {
-                is ActivityEvent.Download, is ActivityEvent.Favorite -> {
-                    val operation = when (first) {
-                        is ActivityEvent.Download -> CountedFileActivityOperation.DOWNLOAD
-                        is ActivityEvent.Favorite -> CountedFileActivityOperation.FAVORITE
-                        else -> throw IllegalArgumentException()
-                    }
+            CountedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
+                val eventsByFileId = allEventsOfType.groupBy { it.fileId }
 
-                    val eventsByFileId = allEventsOfType.groupBy { it.fileId }
-
-                    eventsByFileId.mapNotNull { (fileId, eventsForFile) ->
-                        val count = eventsForFile.sumBy {
-                            if (operation == CountedFileActivityOperation.FAVORITE) {
-                                if ((it as ActivityEvent.Favorite).isFavorite) 1
-                                else -1
-                            } else {
-                                1
-                            }
-                        }
-
-                        if (count <= 0) {
-                            null
+                val counts = eventsByFileId.mapNotNull { (fileId, eventsForFile) ->
+                    val count = eventsForFile.sumBy {
+                        if (operation == CountedFileActivityOperation.FAVORITE) {
+                            if ((it as ActivityEvent.Favorite).isFavorite) 1
+                            else -1
                         } else {
-                            ActivityStreamEntry.Counted(
-                                operation,
-                                ActivityStreamFileReference(fileId),
-                                count,
-                                timestamp
-                            )
+                            1
                         }
                     }
-                }
 
-                is ActivityEvent.Renamed, is ActivityEvent.Updated -> {
-                    val operation = when (first) {
-                        is ActivityEvent.Renamed -> TrackedFileActivityOperation.RENAME
-                        is ActivityEvent.Updated -> TrackedFileActivityOperation.UPDATE
-                        else -> throw IllegalArgumentException()
+                    if (count <= 0) {
+                        null
+                    } else {
+                        fileId to count
                     }
-
-                    val fileReferences = allEventsOfType.map { ActivityStreamFileReference(it.fileId) }
-
-                    listOf(ActivityStreamEntry.Tracked(operation, fileReferences, timestamp))
                 }
 
-                is ActivityEvent.Inspected -> {
+                return@flatMap if (counts.all { it.second == 0 }) {
                     emptyList()
+                } else {
+                    listOf(
+                        ActivityStreamEntry.Counted(
+                            operation,
+                            counts.map { ActivityStreamEntry.CountedFile(it.first, it.second) },
+                            timestamp
+                        )
+                    )
                 }
             }
+
+            TrackedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
+                val fileReferences = allEventsOfType.map { ActivityStreamFileReference(it.fileId) }.toSet()
+
+                return@flatMap listOf(ActivityStreamEntry.Tracked(operation, fileReferences, timestamp))
+            }
+
+            return@flatMap emptyList<ActivityStreamEntry<*>>()
         }
     }
 
