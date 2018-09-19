@@ -4,24 +4,28 @@ import { toLowerCaseAndCapitalize, removeTrailingSlash } from "UtilityFunctions"
 import { favoriteFileFromPage, fileSizeToString, getParentPath } from "Utilities/FileUtilities";
 import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "./Redux/FilesActions";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import { SensitivityLevel } from "DefaultObjects";
-import { Container, Header, List, Card, Icon } from "semantic-ui-react";
+import { SensitivityLevel, emptyPage } from "DefaultObjects";
+import { Container, Header, List, Card, Icon, Segment } from "semantic-ui-react";
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { List as ShareList } from "Shares/List";
 import { File, Annotation, SortOrder, SortBy, FileInfoProps } from "Files";
 import { annotationToString } from "Utilities/FileUtilities";
+import { ActivityFeed } from "Files/FileActivity";
 
-class FileInfo extends React.Component<FileInfoProps> {
+class FileInfo extends React.Component<FileInfoProps, any> {
     constructor(props) {
         super(props);
+        this.state = { activity: emptyPage };
     }
 
     componentDidMount() {
         const { match, filesPath, dispatch, loading, page } = this.props;
         dispatch(updatePageTitle("File Info"));
         const path = match.params[0];
+        // FIXME: Either move to promiseKeeper, 
+        Cloud.get(`/activity/stream/by-path?path=${path}`).then(({ response }) => this.setState({ activity: response }));
         if (!(getParentPath(path) === filesPath)) {
             dispatch(setLoading(true));
             if (loading) return;
@@ -33,6 +37,7 @@ class FileInfo extends React.Component<FileInfoProps> {
     render() {
         const { match, page, dispatch, loading } = this.props;
         const file = page.items.find(file => file.path === removeTrailingSlash(match.params[0]));
+        console.log(`Items length: ${this.state.activity.items.length}`)
         if (!file) { return (<DefaultLoading loading={true} />) }
         return (
             <Container className="container-margin" >
@@ -41,6 +46,7 @@ class FileInfo extends React.Component<FileInfoProps> {
                     <Header.Subheader content={toLowerCaseAndCapitalize(file.type)} />
                 </Header>                               {/* MapDispatchToProps */}
                 <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, [file], Cloud)))} />
+                <Segment><ActivityFeed activity={this.state.activity.items} /></Segment>
                 {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
                 <ShareList byPath={file.path} />
                 <DefaultLoading loading={loading} />

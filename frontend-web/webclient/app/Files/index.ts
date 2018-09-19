@@ -271,3 +271,30 @@ export interface FileInfoProps {
     match: { params: string[] }
     filesPath: string
 }
+
+export type Activity = CountedActivity | TrackedActivity;
+
+export type CountedOperations = "FAVORITE" | "DOWNLOAD";
+export type TrackedOperations = "CREATE" | "UPDATE" | "DELETE" | "MOVED";
+
+export interface CountedActivity {
+    type: "counted"
+    operation: CountedOperations
+    entries: [
+        {
+            path: string,
+            count: number
+        }
+    ]
+    timestamp: number
+}
+
+export interface TrackedActivity {
+    type: "tracked"
+    operation: TrackedOperations
+    files: string[]
+    timestamp: number
+}
+
+export interface FileActivityProps { }
+export interface FileActivityState { activity: Page<Activity>, promises: PromiseKeeper }
