@@ -3,7 +3,6 @@ package dk.sdu.cloud.activity.services
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
-import io.ktor.http.HttpStatusCode
 import java.util.*
 import javax.persistence.*
 
@@ -25,10 +24,6 @@ interface ActivityEventDao<Session> {
         session: Session,
         event: ActivityEvent
     )
-}
-
-sealed class ActivityEventException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
-    class NotFound : ActivityEventException("Not found", HttpStatusCode.NotFound)
 }
 
 @Entity
@@ -95,7 +90,7 @@ sealed class ActivityEventEntity {
     }
 
     @Entity
-    class Renamed(
+    class Moved(
         var username: String,
         var newName: String,
 
@@ -103,7 +98,7 @@ sealed class ActivityEventEntity {
         override var id: Long? = null,
         override var timestamp: Date = Date(System.currentTimeMillis())
     ) : ActivityEventEntity() {
-        override fun toModel(): ActivityEvent = ActivityEvent.Renamed(username, newName, timestamp.time, fileId)
+        override fun toModel(): ActivityEvent = ActivityEvent.Moved(username, newName, timestamp.time, fileId)
     }
 
     companion object : HibernateEntity<ActivityEventEntity>, WithId<Long> {
@@ -122,8 +117,8 @@ sealed class ActivityEventEntity {
                 is ActivityEvent.Inspected ->
                     ActivityEventEntity.Inspected(event.username, event.fileId, timestamp = Date(event.timestamp))
 
-                is ActivityEvent.Renamed ->
-                    ActivityEventEntity.Renamed(event.username, event.newName, event.fileId,
+                is ActivityEvent.Moved ->
+                    ActivityEventEntity.Moved(event.username, event.newName, event.fileId,
                         timestamp = Date(event.timestamp))
             }
         }

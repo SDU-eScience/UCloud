@@ -21,7 +21,8 @@ class StorageAuditProcessor<DBSession>(
         this::transformBulkUpload,
         this::transformStat,
         this::transformAddFavorite,
-        this::transformRemoveFavorite
+        this::transformRemoveFavorite,
+        this::transformMove
     )
 
     fun init(): List<EventConsumer<*>> {
@@ -100,6 +101,7 @@ class StorageAuditProcessor<DBSession>(
             val fileId = it.request.fileId ?: return null
             return listOf(ActivityEvent.Favorite(username, true, System.currentTimeMillis(), fileId))
         }
+
         return null
     }
 
@@ -109,6 +111,19 @@ class StorageAuditProcessor<DBSession>(
             val fileId = it.request.fileId ?: return null
             return listOf(ActivityEvent.Favorite(username, false, System.currentTimeMillis(), fileId))
         }
+
+        return null
+    }
+
+    private fun transformMove(parsedEvent: JsonNode): List<ActivityEvent>? {
+        FileDescriptions.move.parseAuditMessageOrNull(parsedEvent)?.let {
+            val username = it.username ?: return null
+            val fileId = it.request.fileId ?: return null
+            val newPath = it.request.request.newPath
+
+            return listOf(ActivityEvent.Moved(username, newPath, System.currentTimeMillis(), fileId))
+        }
+
         return null
     }
 

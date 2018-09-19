@@ -1,7 +1,6 @@
 package dk.sdu.cloud.activity.service
 
 import dk.sdu.cloud.activity.api.ActivityStreamEntry
-import dk.sdu.cloud.activity.api.ActivityStreamFileReference
 import dk.sdu.cloud.activity.api.CountedFileActivityOperation
 import dk.sdu.cloud.activity.api.TrackedFileActivityOperation
 import dk.sdu.cloud.activity.services.ActivityStream
@@ -76,8 +75,8 @@ class HibernateActivityStreamDaoTest {
     }
 
     private val trackedEvent = ActivityStreamEntry.Tracked(
-        TrackedFileActivityOperation.RENAME,
-        setOf(ActivityStreamFileReference("fileId")),
+        TrackedFileActivityOperation.MOVED,
+        setOf("fileId"),
         System.currentTimeMillis()
     )
 
@@ -195,7 +194,7 @@ class HibernateActivityStreamDaoTest {
                 val page = ctx.dao.loadStream(session, stream, PaginationRequest().normalize())
                 assertEquals(1, page.items.size)
                 val resultEntry = page.items.first() as ActivityStreamEntry.Tracked
-                assertTrue(trackedEvent.files.first().id in resultEntry.files.map { it.id }.toSet())
+                assertTrue(trackedEvent.files.first() in resultEntry.files.map { it }.toSet())
                 assertEquals(1, resultEntry.files.size)
             }
         }

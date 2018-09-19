@@ -1,8 +1,10 @@
 package dk.sdu.cloud.activity
 
 import dk.sdu.cloud.activity.http.ActivityController
+import dk.sdu.cloud.activity.http.StreamController
 import dk.sdu.cloud.activity.processor.StorageAuditProcessor
 import dk.sdu.cloud.activity.services.ActivityService
+import dk.sdu.cloud.activity.services.FileLookupService
 import dk.sdu.cloud.activity.services.HibernateActivityEventDao
 import dk.sdu.cloud.activity.services.HibernateActivityStreamDao
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
@@ -30,7 +32,8 @@ class Server(
         log.info("Creating core services")
         val activityEventDao = HibernateActivityEventDao()
         val activityStreamDao = HibernateActivityStreamDao()
-        val activityService = ActivityService(activityEventDao, activityStreamDao, cloud)
+        val fileLookupService = FileLookupService(cloud)
+        val activityService = ActivityService(activityEventDao, activityStreamDao, fileLookupService)
         log.info("Core services constructed")
 
         log.info("Creating stream processors")
@@ -42,7 +45,8 @@ class Server(
 
             routing {
                 configureControllers(
-                    ActivityController(db, activityService)
+                    ActivityController(db, activityService),
+                    StreamController(db, activityService)
                 )
             }
         }

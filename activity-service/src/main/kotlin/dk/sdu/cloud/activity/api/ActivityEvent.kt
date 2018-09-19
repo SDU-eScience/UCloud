@@ -16,15 +16,20 @@ import dk.sdu.cloud.service.WithPaginationRequest
     JsonSubTypes.Type(value = ActivityEvent.Updated::class, name = "updated"),
     JsonSubTypes.Type(value = ActivityEvent.Favorite::class, name = "favorite"),
     JsonSubTypes.Type(value = ActivityEvent.Inspected::class, name = "inspected"),
-    JsonSubTypes.Type(value = ActivityEvent.Renamed::class, name = "renamed")
+    JsonSubTypes.Type(value = ActivityEvent.Moved::class, name = "moved")
 )
 sealed class ActivityEvent {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
     // events related to file activity
 
+    // When adding new entries here, you will also need to add entries in:
+    // ActivityEventDao, ActivityStream and ActivityStreamDao
+
     abstract val timestamp: Long
     abstract val fileId: String
     abstract val username: String
+
+    // TODO We cannot reliably track who uploaded a file (due to bulk uploads)
 
     data class Download(
         override val username: String,
@@ -51,7 +56,7 @@ sealed class ActivityEvent {
         override val fileId: String
     ) : ActivityEvent()
 
-    data class Renamed(
+    data class Moved(
         override val username: String,
         val newName: String,
         override val timestamp: Long,

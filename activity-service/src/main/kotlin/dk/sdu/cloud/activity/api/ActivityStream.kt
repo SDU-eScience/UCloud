@@ -3,8 +3,24 @@ package dk.sdu.cloud.activity.api
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.WithPaginationRequest
 
-data class ActivityStreamFileReference(val id: String)
+data class StreamByPathRequest(
+    val path: String,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+
+typealias StreamByPathResponse = Page<ActivityStreamEntry<*>>
+
+data class StreamForUserRequest(
+    val user: String?,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+
+typealias StreamForUserResponse = Page<ActivityStreamEntry<*>>
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -29,11 +45,10 @@ sealed class ActivityStreamEntry<OperationType : Enum<OperationType>> {
 
     data class Tracked(
         override val operation: TrackedFileActivityOperation,
-        val files: Set<ActivityStreamFileReference>,
+        val files: Set<String>,
         override val timestamp: Long
     ) : ActivityStreamEntry<TrackedFileActivityOperation>()
 }
-
 
 enum class CountedFileActivityOperation {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
@@ -58,12 +73,12 @@ enum class TrackedFileActivityOperation {
     CREATE,
     UPDATE,
     DELETE,
-    RENAME;
+    MOVED;
 
     companion object {
         fun fromEventOrNull(event: ActivityEvent): TrackedFileActivityOperation? = when (event) {
             is ActivityEvent.Updated -> UPDATE
-            is ActivityEvent.Renamed -> RENAME
+            is ActivityEvent.Moved -> MOVED
             else -> null
         }
     }

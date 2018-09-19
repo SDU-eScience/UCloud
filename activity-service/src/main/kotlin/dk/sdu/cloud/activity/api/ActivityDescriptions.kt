@@ -18,13 +18,13 @@ object ActivityDescriptions : RESTDescriptions("activity") {
 
         path {
             using(baseContext)
-            +"by-header"
-            +boundTo(ListActivityByIdRequest::id)
+            +"by-file-id"
         }
 
         params {
             +boundTo(ListActivityByIdRequest::itemsPerPage)
             +boundTo(ListActivityByIdRequest::page)
+            +boundTo(ListActivityByIdRequest::id)
         }
     }
 
@@ -44,6 +44,45 @@ object ActivityDescriptions : RESTDescriptions("activity") {
             +boundTo(ListActivityByPathRequest::itemsPerPage)
             +boundTo(ListActivityByPathRequest::page)
             +boundTo(ListActivityByPathRequest::path)
+        }
+    }
+
+    val streamByPath = callDescription<StreamByPathRequest, StreamByPathResponse, CommonErrorMessage> {
+        name = "streamByPath"
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"stream"
+            +"by-path"
+        }
+
+        params {
+            +boundTo(StreamByPathRequest::path)
+            +boundTo(StreamByPathRequest::itemsPerPage)
+            +boundTo(StreamByPathRequest::page)
+        }
+    }
+
+    val streamForUser = callDescription<StreamForUserRequest, StreamForUserResponse, CommonErrorMessage> {
+        name = "streamForUser"
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"stream"
+        }
+
+        params {
+            +boundTo(StreamForUserRequest::user)
+            +boundTo(StreamForUserRequest::itemsPerPage)
+            +boundTo(StreamForUserRequest::page)
         }
     }
 }

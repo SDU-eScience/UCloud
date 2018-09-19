@@ -19,10 +19,8 @@ import io.ktor.http.HttpStatusCode
 class ActivityService<DBSession>(
     private val activityDao: ActivityEventDao<DBSession>,
     private val streamDao: ActivityStreamDao<DBSession>,
-    private val cloud: AuthenticatedCloud
+    private val fileLookupService: FileLookupService
 ) {
-    private val cloudContext: CloudContext = cloud.parent
-
     fun insert(
         session: DBSession,
         event: ActivityEvent
@@ -95,7 +93,7 @@ class ActivityService<DBSession>(
             }
 
             TrackedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
-                val fileReferences = allEventsOfType.map { ActivityStreamFileReference(it.fileId) }.toSet()
+                val fileReferences = allEventsOfType.map { it.fileId }.toSet()
 
                 return@flatMap listOf(ActivityStreamEntry.Tracked(operation, fileReferences, timestamp))
             }
@@ -111,19 +109,7 @@ class ActivityService<DBSession>(
         userAccessToken: String,
         causedBy: String? = null
     ): Page<ActivityEvent> {
-        val serviceCloud = cloud.optionallyCausedBy(causedBy)
-
-        val userCloud = AuthDescriptions.tokenExtension.call(
-            TokenExtensionRequest(
-                userAccessToken,
-                listOf(FileDescriptions.stat.requiredAuthScope.toString()),
-                expiresIn = 1000L * 60 * 1
-            ),
-            serviceCloud
-        ).orThrow().asCloud(cloudContext, causedBy)
-
-        val fileStat = FileDescriptions.stat.call(FindByPath(path), userCloud).orThrow()
-
+        val fileStat = fileLookupService.lookupFile(path, userAccessToken, causedBy)
         return findEventsForFileId(session, pagination, fileStat.fileId)
     }
 
@@ -133,6 +119,33 @@ class ActivityService<DBSession>(
         fileId: String
     ): Page<ActivityEvent> {
         return activityDao.findByFileId(session, pagination, fileId)
+    }
+
+    fun findStreamForUser(
+        session: DBSession,
+        pagination: NormalizedPaginationRequest,
+        user: String
+    ): Page<ActivityStreamEntry<*>> {
+        return streamDao.loadStream(session, ActivityStream(ActivityStreamSubject.User(user)), pagination)
+    }
+
+    suspend fun findStreamForPath(
+        session: DBSession,
+        pagination: NormalizedPaginationRequest,
+        path: String,
+        userAccessToken: String,
+        causedBy: String? = null
+    ): Page<ActivityStreamEntry<*>> {
+        val fileStat = fileLookupService.lookupFile(path, userAccessToken, causedBy)
+        return findStreamForFileId(session, pagination, fileStat.fileId)
+    }
+
+    fun findStreamForFileId(
+        session: DBSession,
+        pagination: NormalizedPaginationRequest,
+        fileId: String
+    ): Page<ActivityStreamEntry<*>> {
+        return streamDao.loadStream(session, ActivityStream(ActivityStreamSubject.File(fileId)), pagination)
     }
 }
 

@@ -224,7 +224,7 @@ class ActivityServiceTest {
                         assertEquals(1, events.size)
                         val event = events.first() as ActivityStreamEntry.Tracked
                         assertEquals(update.fileIds.size, event.files.size)
-                        val receivedFileIds = event.files.map { it.id }
+                        val receivedFileIds = event.files.map { it}
                         assertTrue(update.fileIds.all { it in receivedFileIds })
                         true
                     }
@@ -236,7 +236,7 @@ class ActivityServiceTest {
     @Test
     fun `stream conversion - user report - renames`() {
         data class Rename(val user: String, val fileIds: List<String>) {
-            fun toEvents() = fileIds.map { ActivityEvent.Renamed(user, "newName", System.currentTimeMillis(), it) }
+            fun toEvents() = fileIds.map { ActivityEvent.Moved(user, "newName", System.currentTimeMillis(), it) }
         }
 
         val (service, dao) = initStreamConversionTest()
@@ -260,7 +260,7 @@ class ActivityServiceTest {
                         assertEquals(1, events.size)
                         val event = events.first() as ActivityStreamEntry.Tracked
                         assertEquals(update.fileIds.size, event.files.size)
-                        val receivedFileIds = event.files.map { it.id }
+                        val receivedFileIds = event.files.map { it}
                         assertTrue(update.fileIds.all { it in receivedFileIds })
                         true
                     }
@@ -298,7 +298,7 @@ class ActivityServiceTest {
                         events.forEach { event ->
                             event as ActivityStreamEntry.Tracked
                             assertEquals(1, event.files.size)
-                            assertEquals(update.fileId, event.files.first().id)
+                            assertEquals(update.fileId, event.files.first())
                         }
                         true
                     }
