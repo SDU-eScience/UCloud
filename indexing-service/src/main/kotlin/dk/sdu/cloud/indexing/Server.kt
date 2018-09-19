@@ -1,14 +1,13 @@
 package dk.sdu.cloud.indexing
 
-import dk.sdu.cloud.auth.api.JWTProtection
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.indexing.http.LookupController
 import dk.sdu.cloud.indexing.http.SearchController
 import dk.sdu.cloud.indexing.processor.StorageEventProcessor
 import dk.sdu.cloud.indexing.services.ElasticIndexingService
 import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.indexing.services.FileIndexScanner
 import dk.sdu.cloud.service.*
-import io.ktor.application.install
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.http.HttpHost
@@ -64,11 +63,11 @@ class Server(
         kStreams = buildStreams { }
         httpServer = ktor {
             installDefaultFeatures(cloud, kafka, instance, requireJobId = true)
-            install(JWTProtection)
 
             routing {
                 configureControllers(
-                    SearchController(queryService)
+                    SearchController(queryService),
+                    LookupController(queryService)
                 )
             }
         }
