@@ -4,7 +4,6 @@ import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import swal from "sweetalert2";
-import * as PropTypes from "prop-types";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
@@ -18,6 +17,7 @@ import { extractParameters } from "Utilities/ApplicationUtilities";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
+
     constructor(props) {
         super(props);
         this.state = {
@@ -46,16 +46,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             jobSubmitted: false
         };
         this.props.uppy.run();
-        this.onSubmit = this.onSubmit.bind(this);
-        this.onInputChange = this.onInputChange.bind(this);
-        this.onCommentChange = this.onCommentChange.bind(this);
-        this.onJobSchedulingParamsChange = this.onJobSchedulingParamsChange.bind(this);
         this.props.updatePageTitle();
-    };
-
-    static propTypes = {
-        uppy: PropTypes.object.isRequired,
-        uppyOpen: PropTypes.bool.isRequired
     };
 
     componentDidMount() {
@@ -66,14 +57,10 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         this.state.promises.cancelPromises();
     }
 
-    favoriteApp = () => {
-        // FIXME Doesn't actually do anything
-        this.setState(() => ({
-            favorite: !this.state.favorite
-        }));
-    }
+    // FIXME Doesn't actually do anything
+    favoriteApp = () => this.setState(() => ({ favorite: !this.state.favorite }));
 
-    onJobSchedulingParamsChange(field, value, timeField) {
+    onJobSchedulingParamsChange = (field, value, timeField) => {
         let { jobInfo } = this.state;
         if (timeField) {
             jobInfo[field][timeField] = !isNaN(value) ? value : null;
@@ -146,7 +133,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         document.body.removeChild(element);
     }
 
-    onSubmit(event) {
+    onSubmit = (event) => {
         event.preventDefault();
         let maxTime: MaxTime = this.extractJobInfo(this.state.jobInfo).maxTime;
         if (maxTime)
@@ -173,7 +160,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         this.setState(() => ({ jobSubmitted: true }));
     }
 
-    onInputChange(parameterName, value) {
+    onInputChange = (parameterName, value) => {
         this.setState(() => {
             let result = {
                 parameterValues: { ...this.state.parameterValues },
@@ -184,11 +171,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         });
     }
 
-    onCommentChange(comment) {
-        this.setState(() => ({
-            comment: comment,
-        }));
-    }
+    onCommentChange = (comment) => this.setState(() => ({ comment: comment }));
 
     retrieveApplication() {
         this.setState(() => ({

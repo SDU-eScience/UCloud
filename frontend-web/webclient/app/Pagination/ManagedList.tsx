@@ -39,15 +39,15 @@ export class ManagedList extends React.Component<Self.ManagedListProps, Self.Man
 
         this.props.dataProvider(page, itemsPerPage)
             .then(results => {
-                this.setState(() => ({ results }));
+                this.setState(() => ({ results, loading: false }));
             })
             .catch(e => {
                 // TODO Use error message from request
-                this.setState({ errorMessage: "An error has occured" });
-            })
-            .finally(() => {
-                this.setState({ loading: false });
+                this.setState({ errorMessage: "An error has occured", loading: false });
             });
+            /* .finally(() => {
+                this.setState({ loading: false });
+            }); */
     }
 
     render() {

@@ -23,16 +23,16 @@ module.exports = {
             {
                 test: /\.tsx?$/,
                 use: "ts-loader",
-                exclude: [/node_modules/, /__tests__/]
+                exclude: [/node_modules/, "**/*.test.tsx?",]
             },
             {
                 test: /\.js$/,
                 use: "imports-loader?define=>false",
-                exclude: [/node_modules/, /__tests__/]
+                exclude: [/node_modules/]
             },
             {
                 test: /\.jsx?$/,
-                exclude: [/node_modules/, /__tests__/],
+                exclude: [/node_modules/],
                 loader: "babel-loader",
                 query: {
                     presets: ["es2015", "react"],
