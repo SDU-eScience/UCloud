@@ -9,14 +9,7 @@ const UppyWrapper = ({ uppy, uppyOpen, dispatch }) => {
 }
 
 const mapStateToProps = (state) => {
-    const { uppyFiles, uppyFilesOpen, uppyRunApp, uppyRunAppOpen } = state.uppy;
-    let uppy = uppyFiles;
-    let uppyOpen = uppyFilesOpen;
-    if (uppyRunAppOpen) {
-        uppy = uppyRunApp;
-        uppyOpen = true;
-    }
-
+    const { uppy, uppyOpen } = state.uppy;
     return { uppy, uppyOpen };
 }
 

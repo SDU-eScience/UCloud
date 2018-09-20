@@ -62,7 +62,7 @@ class AppsAndToolsTest{
 
     @Test
     fun `create simple V1 Application description with var invocation`() {
-        val v1 = ApplicationDescription.V1(
+        ApplicationDescription.V1(
             "name",
             "2.2",
             NameAndVersion("name", "2.2"),
@@ -77,7 +77,7 @@ class AppsAndToolsTest{
 
     @Test (expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description with var invocation - missing var`() {
-        val v1 = ApplicationDescription.V1(
+       ApplicationDescription.V1(
             "name",
             "2.2",
             NameAndVersion("name", "2.2"),
@@ -92,7 +92,7 @@ class AppsAndToolsTest{
 
     @Test
     fun `create simple V1 Application description with flag invocation`() {
-        val v1 = ApplicationDescription.V1(
+        ApplicationDescription.V1(
             "name",
             "2.2",
             NameAndVersion("name", "2.2"),
@@ -108,7 +108,7 @@ class AppsAndToolsTest{
 
     @Test (expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description - not correct type`() {
-        val v1 = ApplicationDescription.V1(
+        ApplicationDescription.V1(
             "name",
             "2.2",
             NameAndVersion("name", "2.2"),
@@ -123,7 +123,7 @@ class AppsAndToolsTest{
 
     @Test (expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description with flag invocation - missing var`() {
-        val v1 = ApplicationDescription.V1(
+        ApplicationDescription.V1(
             "name",
             "2.2",
             NameAndVersion("name", "2.2"),
@@ -138,7 +138,7 @@ class AppsAndToolsTest{
 
     @Test (expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description with flag invocation - missing flag`() {
-        val v1 = ApplicationDescription.V1(
+        ApplicationDescription.V1(
             "name",
             "2.2",
             NameAndVersion("name", "2.2"),
@@ -168,7 +168,7 @@ class AppsAndToolsTest{
 
     @Test (expected = ApplicationVerificationException::class)
     fun `create simple V1 Application description with missing params`() {
-        val v1 = ApplicationDescription.V1(
+        ApplicationDescription.V1(
             "name",
             "2.2",
             NameAndVersion("name", "2.2"),

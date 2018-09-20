@@ -2,17 +2,15 @@ package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.indexing.util.isNullOrEmpty
 import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.indexing.util.term
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.service.*
+import io.ktor.http.HttpStatusCode
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.range
@@ -24,7 +22,7 @@ import java.util.*
 
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient
-) : IndexQueryService {
+) : IndexQueryService, ReverseLookupService {
     private val mapper = jacksonObjectMapper()
 
     override fun findFileByIdOrNull(id: String): EventMaterializedStorageFile? {
@@ -161,6 +159,25 @@ class ElasticQueryService(
                 }
             }
         }.mapItems { it.toMaterializedFile() }
+    }
+
+    override fun reverseLookup(fileId: String): String {
+        return reverseLookupBatch(listOf(fileId)).single() ?: throw RPCException("Not found", HttpStatusCode.BadRequest)
+    }
+
+    override fun reverseLookupBatch(fileIds: List<String>): List<String?> {
+        if (fileIds.size > 100) throw RPCException("Bad request. Too many file IDs", HttpStatusCode.BadRequest)
+
+        val req = PaginationRequest(100, 0).normalize()
+        val files = elasticClient.search<ElasticIndexedFile>(mapper, req, FILES_INDEX) {
+            bool {
+                filter {
+                    terms { ElasticIndexedFile.ID_FIELD to fileIds }
+                }
+            }
+        }.items.associateBy { it.id }
+
+        return fileIds.map { files[it]?.path }
     }
 
     companion object : Loggable {

@@ -77,7 +77,7 @@ class JobTest {
 
     @Test
     fun `find By ID test`() {
-        withDatabase { db ->
+        withDatabase {
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
@@ -109,7 +109,7 @@ class JobTest {
 
     @Test
     fun `find By ID test - not found`() {
-        withDatabase { db ->
+        withDatabase {
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
@@ -136,7 +136,7 @@ class JobTest {
 
     @Test
     fun `list recent test`() {
-        withDatabase { db ->
+        withDatabase {
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
@@ -168,7 +168,7 @@ class JobTest {
 
     @Test
     fun `start test`() {
-        withDatabase { db ->
+        withDatabase {
             withAuthMock {
                 objectMockk(AuthDescriptions).use {
                     withTestApplication(
@@ -222,7 +222,7 @@ class JobTest {
 
     @Test
     fun `start test - bad JSON`() {
-        withDatabase { db ->
+        withDatabase {
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
@@ -256,7 +256,7 @@ class JobTest {
 
     @Test
     fun `Follow test`() {
-        withDatabase { db ->
+        withDatabase {
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
@@ -297,7 +297,7 @@ class JobTest {
 
     @Test
     fun `Follow test - followStdStreams throws Not Found exception`() {
-        withDatabase { db ->
+        withDatabase {
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {
@@ -329,7 +329,7 @@ class JobTest {
 
     @Test
     fun `Follow test - followStdStreams throws InvalidRequest exception`() {
-        withDatabase { db ->
+        withDatabase {
             withAuthMock {
                 withTestApplication(
                     moduleFunction = {

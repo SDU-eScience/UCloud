@@ -3,8 +3,8 @@ package dk.sdu.cloud.app.services.ssh
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.SftpATTRS
 import com.jcraft.jsch.SftpException
-import dk.sdu.cloud.app.util.BashEscaper
-import dk.sdu.cloud.app.util.BashEscaper.safeBashArgument
+import dk.sdu.cloud.app.api.BashEscaper
+import dk.sdu.cloud.app.api.BashEscaper.safeBashArgument
 import org.slf4j.LoggerFactory
 import java.io.File
 

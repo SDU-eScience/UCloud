@@ -3,6 +3,7 @@ package dk.sdu.cloud.service
 import com.fasterxml.jackson.core.JsonPointer
 import com.fasterxml.jackson.databind.JavaType
 import com.fasterxml.jackson.databind.JsonNode
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.defaultMapper
@@ -23,16 +24,12 @@ import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
 import java.util.*
 
-// Hide sensitive information (i.e. the signature) and keep just the crucial information
-// We can still infer which JWT was used (from sub, iat, and exp should limit the number of JWTs to one). From this
-// we can determine which refreshToken was used to generate it.
-data class LogEntryPrincipal(
-    val id: String,
-    val role: String,
-
-    val tokenIssuedAt: Long,
-    val tokenExpiresAt: Long
+@Deprecated(
+    "Replaced with SecurityPrincipalToken",
+    replaceWith = ReplaceWith("SecurityPrincipalToken", "dk.sdu.cloud.SecurityPrincipalToken")
 )
+@Suppress("unused")
+typealias LogEntryPrincipal = SecurityPrincipalToken
 
 // Added by the server
 data class HttpCallLogEntry(
@@ -46,7 +43,7 @@ data class HttpCallLogEntry(
     val userAgent: String?,
     val remoteOrigin: String,
 
-    val principal: LogEntryPrincipal?,
+    val token: SecurityPrincipalToken?,
     val requestContentType: String?,
     val requestSize: Long,
     val requestJson: Any?,
@@ -150,15 +147,7 @@ class KafkaHttpRouteLogger {
         val responsePayload = call.attributes.getOrNull(responsePayloadToLogKey)
 
         async {
-            val token = bearerToken?.let { TokenValidation.validateOrNull(it) }
-            val principal = if (token != null) {
-                LogEntryPrincipal(
-                    token.subject, token.getClaim("role").asString(),
-                    token.issuedAt.time, token.expiresAt.time
-                )
-            } else {
-                null
-            }
+            val principal = bearerToken?.let { TokenValidation.validateOrNull(it)?.toSecurityToken() }
 
             val entry = HttpCallLogEntry(
                 jobId,

@@ -586,7 +586,7 @@ class CoreAuthTest {
             webRefreshVerifySuccess(response, token.publicSessionReference)
 
             val response2 = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin))
-            assertEquals(HttpStatusCode.Unauthorized, response2.status())
+            assertEquals(HttpStatusCode.OK, response2.status())
         }
     }
 

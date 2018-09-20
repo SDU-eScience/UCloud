@@ -1,0 +1,23 @@
+def initialize() {
+
+  stage('build activity-service') {
+    sh '''cd activity-service
+    ./gradlew clean
+    ./gradlew build -x test'''
+  }
+
+  try {
+    stage('test activity-service') {
+      sh '''cd activity-service
+      ./gradlew test'''
+    } 
+  } catch (e) {
+      echo "Test FAILED"
+  } finally {
+    junit '**/activity-service/build/test-results/**/*.xml'      
+    def currentResult = currentBuild.result ?: 'SUCCESS'
+    return currentResult
+  }
+}
+
+return this

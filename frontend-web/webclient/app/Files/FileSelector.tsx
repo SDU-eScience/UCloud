@@ -109,7 +109,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     render() {
         const onUpload = () => {
             if (!this.props.allowUpload) return;
-            this.context.store.dispatch(openUppy());
+            this.context.store.dispatch(openUppy(true));
             let uppy = this.props.uppy;
             uppy.reset();
             uppy.once("upload-success", this.uppyOnUploadSuccess);

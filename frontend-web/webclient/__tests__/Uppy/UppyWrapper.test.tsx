@@ -20,7 +20,7 @@ describe("UppyWrapper", () => {
     );
 
     test("Opening and closing Uppy", () => {
-        uppyStore.dispatch(UppyActions.openUppy());
+        uppyStore.dispatch(UppyActions.openUppy(true));
         expect(uppyStore.getState().uppy.uppyOpen).toBeTruthy();
         uppyStore.dispatch(UppyActions.closeUppy(uppyStore.getState().uppy.uppy));
     });

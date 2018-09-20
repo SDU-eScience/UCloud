@@ -2,10 +2,6 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.app.services.BooleanFlagParameter
-import dk.sdu.cloud.app.services.InvocationParameter
-import dk.sdu.cloud.app.services.VariableInvocationParameter
-import dk.sdu.cloud.app.services.WordInvocationParameter
 import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
 import kotlin.reflect.KProperty0
