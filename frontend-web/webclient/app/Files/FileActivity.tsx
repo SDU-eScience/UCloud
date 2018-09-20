@@ -68,25 +68,26 @@ const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
         summary={`Files ${operationToPastTense(activity.operation)}`}
         extraText={activity.entries.map((entry, i) => !!entry.path ?
             (<div key={i}>
-                <b><Link to={`/fileInfo/${entry.path}`}>{getFilenameFromPath(entry.path)}</Link></b> was <b>{operationToPastTense(activity.operation)}</b> {entry.count === 1 ? "once" : <><b>{entry.count}</b> times</>}</div>) : null
+                <b>
+                    <Link to={`/fileInfo/${entry.path}`}>{getFilenameFromPath(entry.path)}</Link>
+                </b> was <b>{operationToPastTense(activity.operation)}</b> {entry.count === 1 ? "once" : <><b>{entry.count}</b> times</>}</div>) : null
         )}
     />
 );
 
 const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
-    <Feed.Event>
-        <Feed.Label>
-            <EventIcon operation={activity.operation} />
-        </Feed.Label>
-        <Feed.Content>
-            <Feed.Summary>
-                Files <b>{activity.files.join(", ")}</b> {activity.files.length > 1 ? "were" : "was"} {operationToPastTense(activity.operation)}
-            </Feed.Summary>
-            <Feed.Meta>
-                {moment(new Date(activity.timestamp)).fromNow()}
-            </Feed.Meta>
-        </Feed.Content>
-    </Feed.Event>
+    <Feed.Event
+        icon={eventIcon2(activity.operation)}
+        date={moment(new Date(activity.timestamp)).fromNow()}
+        summary={`Files ${operationToPastTense(activity.operation)}`}
+        extraText={activity.files.map((f, i) => !!f.path ?
+            (<div key={i}>
+                <b>
+                    <Link to={`/fileInfo/${f.path}`}>{getFilenameFromPath(f.path)}</Link>
+                </b> was <b>{operationToPastTense(activity.operation)}</b>
+            </div>) : null
+        )}
+    />
 );
 
 const operationToPastTense = (operation: TrackedOperations | CountedOperations) => {

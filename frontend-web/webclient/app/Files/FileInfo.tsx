@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { toLowerCaseAndCapitalize, removeTrailingSlash } from "UtilityFunctions";
-import { favoriteFileFromPage, fileSizeToString, getParentPath } from "Utilities/FileUtilities";
+import { favoriteFileFromPage, fileSizeToString, getParentPath, replaceHomeFolder } from "Utilities/FileUtilities";
 import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "./Redux/FilesActions";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel, emptyPage } from "DefaultObjects";
@@ -37,12 +37,11 @@ class FileInfo extends React.Component<FileInfoProps, any> {
     render() {
         const { match, page, dispatch, loading } = this.props;
         const file = page.items.find(file => file.path === removeTrailingSlash(match.params[0]));
-        console.log(`Items length: ${this.state.activity.items.length}`)
         if (!file) { return (<DefaultLoading loading={true} />) }
         return (
             <Container className="container-margin" >
                 <Header as="h2" icon textAlign="center">
-                    <Header.Content content={file.path} />
+                    <Header.Content content={replaceHomeFolder(file.path, Cloud.homeFolder)} />
                     <Header.Subheader content={toLowerCaseAndCapitalize(file.type)} />
                 </Header>                               {/* MapDispatchToProps */}
                 <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, [file], Cloud)))} />

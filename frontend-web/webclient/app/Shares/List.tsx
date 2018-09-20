@@ -2,7 +2,7 @@ import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as PropTypes from "prop-types";
 import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Button, Icon, ButtonGroup } from "semantic-ui-react";
-import { AccessRight, Page } from "Types";
+import { AccessRight, Page, AccessRightValues } from "Types";
 import { shareSwal } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
@@ -36,7 +36,7 @@ export class List extends React.Component<ListProps, ListState> {
         retrieveShares(this.state.page, this.state.itemsPerPage)
             .then(e => this.setState({ shares: e.items, loading: false }))
             .catch(e => this.setState({ errorMessage: "Unable to retrieve shares!", loading: false }));
-            // FIXME .finally(() => this.setState(() => ({ loading: false })));
+        // FIXME .finally(() => this.setState(() => ({ loading: false })));
     }
 
     public render() {
@@ -268,7 +268,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
 interface AccessRightsDisplayProps {
     disabled?: boolean
-    rights?: AccessRight[]
+    rights?: AccessRightValues[]
 
     read?: boolean
     write?: boolean
@@ -344,6 +344,6 @@ function createShare(user: string, path: string, rights: AccessRight[]): Promise
     return Cloud.put(`/shares/`, { sharedWith: user, path, rights }).then(e => e.response); // FIXME Add error handling
 }
 
-function updateShare(id: ShareId, rights: AccessRight[]): Promise<any> {
+function updateShare(id: ShareId, rights: AccessRightValues[]): Promise<any> {
     return Cloud.post(`/shares/`, { id, rights }).then(e => { console.log(e); return e.response }); // FIXME Add error handling
 }

@@ -277,22 +277,28 @@ export type Activity = CountedActivity | TrackedActivity;
 export type CountedOperations = "FAVORITE" | "DOWNLOAD";
 export type TrackedOperations = "CREATE" | "UPDATE" | "DELETE" | "MOVED";
 
+interface CountedActivityEntry {
+    id: string
+    path: string | null
+    count: number
+}
+
 export interface CountedActivity {
     type: "counted"
     operation: CountedOperations
-    entries: [
-        {
-            path: string,
-            count: number
-        }
-    ]
+    entries: CountedActivityEntry[]
     timestamp: number
+}
+
+interface TrackedActivityFile {
+    id: string
+    path: string
 }
 
 export interface TrackedActivity {
     type: "tracked"
     operation: TrackedOperations
-    files: string[]
+    files: TrackedActivityFile[]
     timestamp: number
 }
 

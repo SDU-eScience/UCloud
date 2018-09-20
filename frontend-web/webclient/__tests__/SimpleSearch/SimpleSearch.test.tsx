@@ -5,6 +5,11 @@ import { configureStore } from "Utilities/ReduxUtilities";
 import { Provider } from "react-redux"
 import { initNotifications } from "DefaultObjects";
 import notifications from "Notifications/Redux/NotificationsReducer";
+import { mount, configure, shallow } from "enzyme";
+import * as Adapter from "enzyme-adapter-react-16";
+
+configure({ adapter: new Adapter() });
+
 
 describe("Simple Search", () => {
     test("Mount simplesearch", () => {
@@ -14,5 +19,5 @@ describe("Simple Search", () => {
                 <SimpleSearch match={{ params: { 0: "", priority: "projects" } }} />
             </Provider>
         )).toMatchSnapshot();
-    })
+    });
 });

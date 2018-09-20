@@ -1,0 +1,132 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`FileActivity Mount 1`] = `
+Array [
+  <h1
+    className="ui header"
+  >
+    File Activity
+  </h1>,
+  <span
+    className="items-per-page-padding pagination-float-right"
+  >
+    <span>
+      Items per page 
+    </span>
+    <div
+      aria-expanded={false}
+      className="ui compact inline dropdown"
+      onBlur={[Function]}
+      onChange={[Function]}
+      onClick={[Function]}
+      onFocus={[Function]}
+      onMouseDown={[Function]}
+      role="listbox"
+      tabIndex={0}
+    >
+      <div
+        aria-live="polite"
+        className="text"
+        role="alert"
+      >
+        25
+      </div>
+      <i
+        aria-hidden="true"
+        className="dropdown icon"
+        onClick={[Function]}
+      />
+      <div
+        className="menu transition"
+      >
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            10
+          </span>
+        </div>
+        <div
+          aria-checked={true}
+          aria-selected={true}
+          className="active selected item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            25
+          </span>
+        </div>
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            50
+          </span>
+        </div>
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            100
+          </span>
+        </div>
+      </div>
+    </div>
+  </span>,
+  <div>
+    <h2
+      className="ui header"
+    >
+      No results.
+      <a
+        href="#"
+        onClick={[Function]}
+      >
+         Try again?
+      </a>
+    </h2>
+  </div>,
+  <div />,
+]
+`;
