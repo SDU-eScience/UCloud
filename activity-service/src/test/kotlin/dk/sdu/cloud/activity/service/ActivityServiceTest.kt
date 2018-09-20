@@ -20,6 +20,7 @@ class ActivityServiceTest {
             ActivityService(
                 mockk(relaxed = true),
                 streamDao,
+                mockk(relaxed = true),
                 mockk(relaxed = true)
             ),
             streamDao
