@@ -93,7 +93,7 @@ data class JustTestingNotificationPage(
 
 class HttpClientTest {
     val token = "TODO Missing token"
-
+    @Ignore
     @Test
     fun testDownload() {
         val cloud: AuthenticatedCloud = SDUCloud("https://cloud.sdu.dk").jwtAuth(token)
@@ -114,6 +114,7 @@ class HttpClientTest {
         }
     }
 
+    @Ignore
     @Test
     fun testJsonBody() {
         val cloud: AuthenticatedCloud = SDUCloud("https://cloud.sdu.dk").jwtAuth(token)
