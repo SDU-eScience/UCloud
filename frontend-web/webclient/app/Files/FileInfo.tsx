@@ -12,7 +12,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { List as ShareList } from "Shares/List";
 import { File, Annotation, SortOrder, SortBy, FileInfoProps } from "Files";
 import { annotationToString } from "Utilities/FileUtilities";
-import { ActivityFeed } from "Files/FileActivity";
+import { ActivityFeed } from "Activity/Activity";
 
 class FileInfo extends React.Component<FileInfoProps, any> {
     constructor(props) {

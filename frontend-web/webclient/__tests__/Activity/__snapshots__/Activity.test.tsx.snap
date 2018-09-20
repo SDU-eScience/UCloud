@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`FileActivity Mount 1`] = `
+exports[`Activity Mount 1`] = `
 Array [
   <h1
     className="ui header"
@@ -114,18 +114,17 @@ Array [
       </div>
     </div>
   </span>,
-  <div>
-    <h2
-      className="ui header"
+  <div
+    className="ui centered middle aligned one column grid"
+  >
+    <div
+      className="pagination-loader"
     >
-      No results.
-      <a
-        href="#"
-        onClick={[Function]}
-      >
-         Try again?
-      </a>
-    </h2>
+      <i
+        aria-hidden="true"
+        className="circle notched loading icon pagination-list-loading"
+      />
+    </div>
   </div>,
   <div />,
 ]

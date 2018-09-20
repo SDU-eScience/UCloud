@@ -1,5 +1,5 @@
 import { Page } from "Types";
-import { Activity } from "Files";
+import { Activity } from "Activity";
 
 export const activityPage: Page<Activity> = {
     itemsInTotal: 2,

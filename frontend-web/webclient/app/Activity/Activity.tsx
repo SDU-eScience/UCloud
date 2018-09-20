@@ -1,55 +1,39 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import PromiseKeeper from "PromiseKeeper";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { emptyPage } from "DefaultObjects";
-import { FileActivityProps, FileActivityState, Activity, TrackedActivity, CountedActivity, TrackedOperations, CountedOperations } from "Files";
+import { ActivityProps, Activity as ActivityType, TrackedActivity, CountedActivity, TrackedOperations, CountedOperations, ActivityDispatchProps } from "Activity";
 import { Feed, Icon, Segment, Header } from "semantic-ui-react";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
 import * as moment from "moment";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { Link } from "react-router-dom";
+import { ActivityReduxObject } from "DefaultObjects";
+import { fetchActivity, setErrorMessage, setLoading } from "./Redux/ActivityActions";
 
-class FileActivity extends React.Component<FileActivityProps, FileActivityState> {
-    constructor(props) {
-        super(props)
-        this.state = {
-            promises: new PromiseKeeper(),
-            activity: emptyPage
-        }
-    }
+class Activity extends React.Component<ActivityProps> {
 
-    componentDidMount() {
-        this.fetchActivity(0, 25);
-    }
-
-    fetchActivity = (pageNumber: number = 0, pageSize: number = 25) => {
-        this.state.promises.makeCancelable(
-            Cloud.get(`/activity/stream?page=${pageNumber}&itemsPerPage=${pageSize}`)
-        ).promise.then(({ response }) => this.setState(() => ({ activity: response })));
-    }
-
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
-    }
+    componentDidMount = () => this.props.fetchActivity(0, 25);
 
     render() {
+        const { fetchActivity, page, error, setError, loading } = this.props;
         return (
             <React.StrictMode>
                 <Header as="h1" content="File Activity" />
                 <Pagination.List
-                    pageRenderer={(page: Page<Activity>) => <Segment><ActivityFeed activity={page.items} /></Segment>}
-                    page={this.state.activity}
-                    onItemsPerPageChanged={() => undefined}
-                    onPageChanged={() => undefined}
+                    loading={loading}
+                    errorMessage={error}
+                    onErrorDismiss={setError}
+                    pageRenderer={(page: Page<ActivityType>) => <Segment><ActivityFeed activity={page.items} /></Segment>}
+                    page={page}
+                    onItemsPerPageChanged={(itemsPerPage) => fetchActivity(page.pageNumber, itemsPerPage)}
+                    onPageChanged={(pageNumber) => fetchActivity(pageNumber, page.itemsPerPage)}
                 />
             </React.StrictMode>
         );
     }
 }
 
-export const ActivityFeed = ({ activity }: { activity: Activity[] }) => activity.length ? (
+export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => activity.length ? (
     <Feed>
         {activity.map((a, i) => {
             if (a.type === "tracked") {
@@ -142,4 +126,14 @@ const eventIcon2 = (operation: TrackedOperations | CountedOperations) => {
     }
 }
 
-export default connect()(FileActivity);
+const mapStateToProps = ({ activity }): ActivityReduxObject => activity;
+const mapDispatchToProps = (dispatch): ActivityDispatchProps => ({
+    fetchActivity: (pageNumber: number, pageSize: number) => {
+        dispatch(setLoading(true));
+        dispatch(fetchActivity(pageNumber, pageSize))
+    },
+    setError: (error?: string) => dispatch(setErrorMessage(error))
+});
+
+
+export default connect(mapStateToProps, mapDispatchToProps)(Activity);

@@ -1,6 +1,6 @@
 import { Page } from "Types";
 import { History } from "history";
-import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps, SemanticCOLORS, IconProps } from "semantic-ui-react";
+import { SemanticICONS, ButtonProps, ModalProps, SemanticCOLORS, IconProps } from "semantic-ui-react";
 import { match } from "react-router-dom";
 import Cloud from "Authentication/lib";
 import { Moment } from "moment";
@@ -271,36 +271,3 @@ export interface FileInfoProps {
     match: { params: string[] }
     filesPath: string
 }
-
-export type Activity = CountedActivity | TrackedActivity;
-
-export type CountedOperations = "FAVORITE" | "DOWNLOAD";
-export type TrackedOperations = "CREATE" | "UPDATE" | "DELETE" | "MOVED";
-
-interface CountedActivityEntry {
-    id: string
-    path: string | null
-    count: number
-}
-
-export interface CountedActivity {
-    type: "counted"
-    operation: CountedOperations
-    entries: CountedActivityEntry[]
-    timestamp: number
-}
-
-interface TrackedActivityFile {
-    id: string
-    path: string
-}
-
-export interface TrackedActivity {
-    type: "tracked"
-    operation: TrackedOperations
-    files: TrackedActivityFile[]
-    timestamp: number
-}
-
-export interface FileActivityProps { }
-export interface FileActivityState { activity: Page<Activity>, promises: PromiseKeeper }
