@@ -25,6 +25,7 @@ class Activity extends React.Component<ActivityProps> {
                     onErrorDismiss={setError}
                     pageRenderer={(page: Page<ActivityType>) => <Segment><ActivityFeed activity={page.items} /></Segment>}
                     page={page}
+                    onRefresh={() => fetchActivity(page.pageNumber, page.itemsPerPage)}
                     onItemsPerPageChanged={(itemsPerPage) => fetchActivity(page.pageNumber, itemsPerPage)}
                     onPageChanged={(pageNumber) => fetchActivity(pageNumber, page.itemsPerPage)}
                 />

@@ -11,7 +11,7 @@ const activity = (state: any = {}, action) => {
             return { ...state, loading: true };
         }
         case SET_ACTIVITY_ERROR_MESSAGE: {
-            return { ...state, error: action.error };
+            return { ...state, error: action.error, loading: false };
         }
         default: {
             return state;
