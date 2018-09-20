@@ -114,8 +114,9 @@ export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyO
 export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`;
 
+// FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes 
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
-    `files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
+    `files/lookup?path=${UF.removeTrailingSlash(path)}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
 
 
 
