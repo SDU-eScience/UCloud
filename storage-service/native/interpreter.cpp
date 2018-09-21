@@ -377,9 +377,9 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (argc > 4) {
+    if (argc > 3) {
         fprintf(stderr, "Using input from file: %s\n", argv[3]);
-        stdin_no = open(argv[4], O_RDONLY);
+        stdin_no = open(argv[3], O_RDONLY);
     }
 
     // Disable buffering of stdout and stderr (not only used for newline terminated messages)

@@ -2,7 +2,6 @@ package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.validateAndClaim
-import dk.sdu.cloud.auth.api.validatedPrincipal
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.*
@@ -29,22 +28,28 @@ class SimpleDownloadController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val bulkDownloadService: BulkDownloadService<Ctx>
-): Controller {
+) : Controller {
     override val baseContext = FileDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(FileDescriptions.download) { request ->
             logEntry(log, request)
-
-            val bearer = request.token
-            val principal =
-                TokenValidation.validateAndClaim(bearer, listOf(DOWNLOAD_FILE_SCOPE), cloud)
-                        ?: return@implement error(
-                            CommonErrorMessage("Unauthorized"),
-                            HttpStatusCode.Unauthorized
-                        )
-
             audit(SingleFileAudit(null, FindByPath(request.path)))
+
+            val hasTokenFromUrl = request.token != null
+            val bearer = request.token ?: call.request.bearer ?: return@implement error(
+                CommonErrorMessage("Unauthorized"),
+                HttpStatusCode.Unauthorized
+            )
+
+            val principal = (if (hasTokenFromUrl) {
+                TokenValidation.validateAndClaim(bearer, listOf(DOWNLOAD_FILE_SCOPE), cloud)
+            } else {
+                TokenValidation.validateOrNull(bearer)
+            }) ?: return@implement error(
+                CommonErrorMessage("Unauthorized"),
+                HttpStatusCode.Unauthorized
+            )
 
             tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
                 val stat =

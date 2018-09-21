@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.unwrap
 import dk.sdu.cloud.storage.util.windowed
@@ -18,13 +19,17 @@ class ChecksumService<Ctx : FSUserContext>(
 ) : FileSystemListener {
     override suspend fun attachToFSChannel(channel: ReceiveChannel<StorageEvent>) {
         // How will this implementation handle very frequent updates to a file?
-        // TODO We still open a new context for each file. Group by owner and re-use
-        channel.windowed(500).consumeEach {
-            it.filterIsInstance<StorageEvent.CreatedOrRefreshed>().distinctBy { it.path }.forEach {
-                commandRunnerFactory.withContext(it.owner) { ctx ->
-                    computeAndAttachChecksum(ctx, it.path)
-                }
+        channel.windowed(500).consumeEach { chunk ->
+            commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
+                chunk
+                    .asSequence()
+                    .filterIsInstance<StorageEvent.CreatedOrRefreshed>()
+                    .distinctBy { it.path }
+                    .forEach {
+                        computeAndAttachChecksum(ctx, it.path)
+                    }
             }
+
         }
     }
 
@@ -73,7 +78,7 @@ class ChecksumService<Ctx : FSUserContext>(
             val type = fs.getExtendedAttribute(ctx, path, CHECKSUM_TYPE_KEY).unwrap()
             FileChecksum(type, checksum)
         } catch (ex: FSException.NotFound) {
-            log.info("Checksum did not already exist for ${ctx.user}, $path. Attempting to recompute")
+            log.info("Checksum did not already exist for $ctx.user}, $path. Attempting to recompute")
             return computeAndAttachChecksum(ctx, path)
         }
     }
