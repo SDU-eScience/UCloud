@@ -17,17 +17,24 @@ class FileAnnotationService<Ctx : FSUserContext>(
         fs.setExtendedAttribute(ctx, path, "annotate${UUID.randomUUID().toString().replace("-", "")}", annotation)
             .unwrap()
 
-        val stat = fs.stat(ctx, path, setOf(
-            FileAttribute.INODE,
-            FileAttribute.PATH,
-            FileAttribute.OWNER,
-            FileAttribute.ANNOTATIONS
-        )).unwrap()
+        val stat = fs.stat(
+            ctx, path, setOf(
+                FileAttribute.INODE,
+                FileAttribute.PATH,
+                FileAttribute.OWNER,
+                FileAttribute.ANNOTATIONS
+            )
+        ).unwrap()
 
         launch {
             storageEventProducer.emit(
                 StorageEvent.AnnotationsUpdated(
-                    stat.inode, stat.path, stat.owner, System.currentTimeMillis(), stat.annotations
+                    stat.inode,
+                    stat.path,
+                    stat.owner,
+                    System.currentTimeMillis(),
+                    stat.annotations,
+                    ctx.user
                 )
             )
         }

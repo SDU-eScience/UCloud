@@ -76,6 +76,8 @@ sealed class StorageEvent {
      */
     abstract val timestamp: Long
 
+    abstract val eventCausedBy: String?
+
     /**
      * Emitted when a file has been created or a full-refresh of the file is deemed necessary.
      *
@@ -101,7 +103,9 @@ sealed class StorageEvent {
 
         val annotations: Set<String>,
 
-        val sensitivityLevel: SensitivityLevel
+        val sensitivityLevel: SensitivityLevel,
+
+        override val eventCausedBy: String? = null
     ) : StorageEvent()
 
     /**
@@ -113,7 +117,9 @@ sealed class StorageEvent {
         override val owner: String,
         override val timestamp: Long,
 
-        val sensitivityLevel: SensitivityLevel
+        val sensitivityLevel: SensitivityLevel,
+
+        override val eventCausedBy: String? = null
     ) : StorageEvent()
 
     /**
@@ -127,7 +133,9 @@ sealed class StorageEvent {
         override val owner: String,
         override val timestamp: Long,
 
-        val annotations: Set<String>
+        val annotations: Set<String>,
+
+        override val eventCausedBy: String? = null
     ) : StorageEvent()
 
     /**
@@ -137,7 +145,9 @@ sealed class StorageEvent {
         override val id: String,
         override val path: String,
         override val owner: String,
-        override val timestamp: Long
+        override val timestamp: Long,
+
+        override val eventCausedBy: String? = null
     ) : StorageEvent()
 
     /**
@@ -150,7 +160,9 @@ sealed class StorageEvent {
         override val path: String,
         override val owner: String,
         override val timestamp: Long,
-        val oldPath: String
+        val oldPath: String,
+
+        override val eventCausedBy: String? = null
     ) : StorageEvent()
 
     /**
@@ -166,7 +178,9 @@ sealed class StorageEvent {
         override val id: String,
         override val path: String,
         override val owner: String,
-        override val timestamp: Long
+        override val timestamp: Long,
+
+        override val eventCausedBy: String? = null
     ) : StorageEvent()
 }
 

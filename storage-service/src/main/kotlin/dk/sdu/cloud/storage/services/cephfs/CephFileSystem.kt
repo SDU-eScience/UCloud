@@ -29,9 +29,9 @@ class CephFileSystem(
             toPath,
             if (allowOverwrite) "1" else "0",
 
-            consumer = {
-                parseFileAttributes(it.stdoutLineSequence(), CREATED_OR_MODIFIED_ATTRIBUTES)
-                    .asFSResult(this::createdOrModifiedFromRow)
+            consumer = { out ->
+                parseFileAttributes(out.stdoutLineSequence(), CREATED_OR_MODIFIED_ATTRIBUTES)
+                    .asFSResult { createdOrModifiedFromRow(it, ctx.user) }
             }
         )
     }
@@ -56,8 +56,8 @@ class CephFileSystem(
             toPath,
             if (allowOverwrite) "1" else "0",
 
-            consumer = {
-                val toList = it.stdoutLineSequence().toList()
+            consumer = { out ->
+                val toList = out.stdoutLineSequence().toList()
                 val sequence = toList.iterator()
                 val realFrom = sequence.next()
                     .takeIf { !it.startsWith(EXIT) }
@@ -101,9 +101,15 @@ class CephFileSystem(
         return ctx.runCommand(
             InterpreterCommand.DELETE,
             absolutePath,
-            consumer = {
-                parseFileAttributes(it.stdoutLineSequence(), DELETED_ATTRIBUTES).asFSResult {
-                    StorageEvent.Deleted(it.inode, it.path, it.owner, timestamp)
+            consumer = { out ->
+                parseFileAttributes(out.stdoutLineSequence(), DELETED_ATTRIBUTES).asFSResult {
+                    StorageEvent.Deleted(
+                        it.inode,
+                        it.path,
+                        it.owner,
+                        timestamp,
+                        ctx.user
+                    )
                 }
             }
         )
@@ -119,11 +125,11 @@ class CephFileSystem(
             InterpreterCommand.WRITE_OPEN,
             absolutePath,
             if (allowOverwrite) "1" else "0",
-            consumer = {
+            consumer = { out ->
                 parseFileAttributes(
-                    it.stdoutLineSequence(),
+                    out.stdoutLineSequence(),
                     CREATED_OR_MODIFIED_ATTRIBUTES
-                ).asFSResult(this::createdOrModifiedFromRow)
+                ).asFSResult { createdOrModifiedFromRow(it, ctx.user) }
             }
         )
     }
@@ -149,11 +155,11 @@ class CephFileSystem(
         return ctx.runCommand(
             InterpreterCommand.MKDIR,
             absolutePath,
-            consumer = {
+            consumer = { out ->
                 parseFileAttributes(
-                    it.stdoutLineSequence(),
+                    out.stdoutLineSequence(),
                     CREATED_OR_MODIFIED_ATTRIBUTES
-                ).asFSResult(this::createdOrModifiedFromRow)
+                ).asFSResult { createdOrModifiedFromRow(it, ctx.user) }
             }
         )
     }
@@ -204,8 +210,8 @@ class CephFileSystem(
             InterpreterCommand.LIST_XATTR,
             absolutePath,
 
-            consumer = {
-                it.stdoutLineSequence().map {
+            consumer = { out ->
+                out.stdoutLineSequence().map {
                     if (it.startsWith(EXIT)) StatusTerminatedItem.Exit<String>(it.split(":")[1].toInt())
                     else StatusTerminatedItem.Item(it)
                 }.asFSResult()
@@ -228,8 +234,8 @@ class CephFileSystem(
             InterpreterCommand.STAT,
             absolutePath,
             mode.asBitSet().toString(),
-            consumer = {
-                parseFileAttributes(it.stdoutLineSequence(), mode).asFSResult().let {
+            consumer = { out ->
+                parseFileAttributes(out.stdoutLineSequence(), mode).asFSResult().let {
                     FSResult(it.statusCode, it.value.singleOrNull())
                 }
             }
@@ -272,11 +278,11 @@ class CephFileSystem(
             InterpreterCommand.SYMLINK,
             absTargetPath,
             absLinkPath,
-            consumer = {
+            consumer = { out ->
                 parseFileAttributes(
-                    it.stdoutLineSequence(),
+                    out.stdoutLineSequence(),
                     CREATED_OR_MODIFIED_ATTRIBUTES
-                ).asFSResult(this::createdOrModifiedFromRow)
+                ).asFSResult { createdOrModifiedFromRow(it, ctx.user) }
             }
         )
     }
@@ -369,7 +375,7 @@ class CephFileSystem(
         return FSResult(statusCode!!, Unit)
     }
 
-    private fun createdOrModifiedFromRow(it: FileRow): StorageEvent.CreatedOrRefreshed {
+    private fun createdOrModifiedFromRow(it: FileRow, eventCausedBy: String?): StorageEvent.CreatedOrRefreshed {
         return StorageEvent.CreatedOrRefreshed(
             id = it.inode,
             path = it.path,
@@ -388,7 +394,9 @@ class CephFileSystem(
 
             annotations = it.annotations,
 
-            sensitivityLevel = it.sensitivityLevel
+            sensitivityLevel = it.sensitivityLevel,
+
+            eventCausedBy = eventCausedBy
         )
     }
 
@@ -424,16 +432,16 @@ class CephFileSystem(
         iterator: Iterator<String>,
         attributes: Set<FileAttribute>
     ): Sequence<StatusTerminatedItem<FileRow>> {
-        return FileAttribute.rawParse(iterator, attributes).map {
-            when (it) {
-                is StatusTerminatedItem.Item -> it.copy(
-                    item = it.item.convertToCloud(
+        return FileAttribute.rawParse(iterator, attributes).map { item ->
+            when (item) {
+                is StatusTerminatedItem.Item -> item.copy(
+                    item = item.item.convertToCloud(
                         usernameConverter = { userDao.findCloudUser(it)!! },
                         pathConverter = { it.toCloudPath() }
                     )
                 )
 
-                else -> it
+                else -> item
             }
         }
     }
