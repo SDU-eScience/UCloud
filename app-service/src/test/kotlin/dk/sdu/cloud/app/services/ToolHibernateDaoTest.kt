@@ -16,7 +16,46 @@ class ToolHibernateDaoTest{
 
     private val user = "user1"
     private val normToolDesc = NormalizedToolDescription(
+        NameAndVersion("name", "1.2"),
+        "container",
+        2,
+        2,
+        SimpleDuration(1,0,0),
+        listOf(""),
+        listOf("author"),
+        "title",
+        "description",
+        ToolBackend.UDOCKER
+    )
+
+    private val normToolDesc2 = NormalizedToolDescription(
         NameAndVersion("name", "2.2"),
+        "container",
+        2,
+        2,
+        SimpleDuration(1,0,0),
+        listOf(""),
+        listOf("author"),
+        "title",
+        "description",
+        ToolBackend.UDOCKER
+    )
+
+    private val normToolDesc3 = NormalizedToolDescription(
+        NameAndVersion("anothername", "5.2"),
+        "container",
+        2,
+        2,
+        SimpleDuration(1,0,0),
+        listOf(""),
+        listOf("author"),
+        "title",
+        "description",
+        ToolBackend.UDOCKER
+    )
+
+    private val normToolDesc4 = NormalizedToolDescription(
+        NameAndVersion("anothername", "8.2"),
         "container",
         2,
         2,
@@ -45,17 +84,33 @@ class ToolHibernateDaoTest{
         }
     }
 
-    //TODO Create a test environment that uses same postgres as production
-    /*@Test
+    @Test
     fun `find latest Version`() {
         withDatabase { db ->
             db.withTransaction {
                 val tool = ToolHibernateDAO()
-                val results = tool.listLatestVersion(it, "user", NormalizedPaginationRequest(10, 0))
-                println(results)
+
+                tool.create(it, user, normToolDesc)
+                Thread.sleep(1000)
+                tool.create(it, user, normToolDesc2)
+                Thread.sleep(1000)
+                tool.create(it, user, normToolDesc3)
+                Thread.sleep(1000)
+                tool.create(it, user, normToolDesc4)
+                Thread.sleep(1000)
+
+                val allListed = tool.listLatestVersion(it, "user", NormalizedPaginationRequest(10, 0))
+                var previous = ""
+                allListed.items.forEach {
+                    if (it.description.info.name < previous)
+                        assert(false)
+                    previous = it.description.info.name
+                }
+
+                assertEquals(2, allListed.itemsInTotal)
             }
         }
-    }*/
+    }
 
     @Test
     fun `create Test`() {
