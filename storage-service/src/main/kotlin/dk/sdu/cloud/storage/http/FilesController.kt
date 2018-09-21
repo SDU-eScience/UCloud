@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Controller
@@ -82,10 +83,18 @@ class FilesController<Ctx : FSUserContext>(
 
             tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
                 val stat = fileLookupService.stat(it, req.path)
-                favoriteService.markAsFavorite(it, req.path)
 
-                audit(SingleFileAudit(stat.fileId, req))
-                CallResult.Success(Unit, HttpStatusCode.OK)
+                if (!stat.favorited) {
+                    favoriteService.markAsFavorite(it, req.path)
+
+                    audit(SingleFileAudit(stat.fileId, req))
+                    CallResult.Success(Unit, HttpStatusCode.OK)
+                } else {
+                    CallResult.Error(
+                        CommonErrorMessage("Bad request. File is already a favorite"),
+                        HttpStatusCode.BadRequest
+                    )
+                }
             }
         }
 
@@ -95,10 +104,17 @@ class FilesController<Ctx : FSUserContext>(
 
             tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
                 val stat = fileLookupService.stat(it, req.path)
-                favoriteService.removeFavorite(it, req.path)
+                if (stat.favorited) {
+                    favoriteService.removeFavorite(it, req.path)
 
-                audit(SingleFileAudit(stat.fileId, req))
-                CallResult.Success(Unit, HttpStatusCode.OK)
+                    audit(SingleFileAudit(stat.fileId, req))
+                    CallResult.Success(Unit, HttpStatusCode.OK)
+                } else {
+                    CallResult.Error(
+                        CommonErrorMessage("Bad request. File is not a favorite"),
+                        HttpStatusCode.BadRequest
+                    )
+                }
             }
         }
 
