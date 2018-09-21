@@ -1,7 +1,6 @@
 package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
@@ -60,8 +59,8 @@ class FilesController<Ctx : FSUserContext>(
                     request.order
                 )
 
-                val fileId = result.items.find { it.path == request.path }!!
-                audit(SingleFileAudit(fileId.fileId, request))
+                val fileId = fileLookupService.stat(ctx, request.path).fileId
+                audit(SingleFileAudit(fileId, request))
                 ok(result)
             }
         }
