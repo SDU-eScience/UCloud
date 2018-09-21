@@ -4,6 +4,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import java.io.IOException
 import java.io.InputStream
+import java.util.*
 import kotlin.math.min
 
 class BoundaryContainedStream(
@@ -61,6 +62,8 @@ class BoundaryContainedStream(
         consumedSinceReset = 0
         boundaryFound = false
         internalPointer += boundaryBytes.size
+
+        Arrays.fill(internalBuffer, 0)
 
         if (internalPointer >= internalBufferSize) {
             // No more data in buffer invalidate it

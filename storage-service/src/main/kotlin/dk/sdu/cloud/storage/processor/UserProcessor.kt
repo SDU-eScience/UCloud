@@ -4,7 +4,6 @@ import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.storage.services.StorageUserDao
 import org.apache.kafka.streams.kstream.KStream
-import org.slf4j.LoggerFactory
 
 class UserProcessor(
     private val stream: KStream<String, UserEvent>,

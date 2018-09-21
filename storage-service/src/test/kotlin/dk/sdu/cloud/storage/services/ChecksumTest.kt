@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.storage.processor.ChecksumProcessor
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
@@ -9,10 +10,10 @@ import org.junit.Assert
 import org.junit.Test
 
 class ChecksumTest {
-    private fun createService(root: String): Pair<CephFSCommandRunnerFactory, ChecksumService<CephFSCommandRunner>> {
+    private fun createService(root: String): Pair<CephFSCommandRunnerFactory, ChecksumProcessor<CephFSCommandRunner>> {
         val (runner, fs) = cephFSWithRelaxedMocks(root)
         val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
-        return Pair(runner, ChecksumService(runner, fs, coreFs))
+        return Pair(runner, ChecksumProcessor(runner, fs, coreFs))
     }
 
     @Test

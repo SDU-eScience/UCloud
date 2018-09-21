@@ -56,7 +56,10 @@ class CephFSCommandRunner(
     }
 
     private val wrappedStdout =
-        BoundaryContainedStream(serverBoundary, interpreter.inputStream)
+        BoundaryContainedStream(
+            serverBoundary,
+            interpreter.inputStream
+        )
 
     private val wrappedStderr =
         BoundaryContainedStream(serverBoundary, interpreter.errorStream)
@@ -136,19 +139,23 @@ class CephFSCommandRunner(
     override fun close() {
         try {
             interpreter.inputStream.close()
-        } catch (ignored: Exception) {}
+        } catch (ignored: Exception) {
+        }
 
         try {
             interpreter.errorStream.close()
-        } catch (ignored: Exception) {}
+        } catch (ignored: Exception) {
+        }
 
         try {
             interpreter.outputStream.close()
-        } catch (ignored: Exception) {}
+        } catch (ignored: Exception) {
+        }
 
         try {
             interpreter.destroy()
-        } catch (ignored: Exception) {}
+        } catch (ignored: Exception) {
+        }
     }
 
     companion object {

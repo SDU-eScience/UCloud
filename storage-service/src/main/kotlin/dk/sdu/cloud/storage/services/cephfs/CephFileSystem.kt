@@ -366,7 +366,8 @@ class CephFileSystem(
 
     private fun consumeStatusCode(it: CephFSCommandRunner): FSResult<Unit> {
         var statusCode: Int? = null
-        for (line in it.stdoutLineSequence()) {
+        val stdoutLineSequence = it.stdoutLineSequence().toList()
+        for (line in stdoutLineSequence) {
             if (line.startsWith(EXIT)) {
                 statusCode = line.split(":")[1].toInt()
             }

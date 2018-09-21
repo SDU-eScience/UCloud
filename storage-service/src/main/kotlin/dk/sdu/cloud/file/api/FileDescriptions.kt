@@ -113,7 +113,7 @@ fun validateAnnotation(annotation: String) {
 
 const val DOWNLOAD_FILE_SCOPE = "downloadFile"
 
-data class DownloadByURI(val path: String, val token: String)
+data class DownloadByURI(val path: String, val token: String?)
 
 data class FavoriteCommand(val path: String)
 

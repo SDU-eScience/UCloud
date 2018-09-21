@@ -1,30 +1,33 @@
-package dk.sdu.cloud.storage.services
+package dk.sdu.cloud.storage.processor
 
 import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.storage.SERVICE_USER
+import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.unwrap
-import dk.sdu.cloud.storage.util.windowed
-import kotlinx.coroutines.experimental.channels.ReceiveChannel
-import kotlinx.coroutines.experimental.channels.consumeEach
 import org.slf4j.LoggerFactory
 import java.math.BigInteger
 import java.security.MessageDigest
 
-class ChecksumService<Ctx : FSUserContext>(
+class ChecksumProcessor<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>
-) : FileSystemListener {
-    override suspend fun attachToFSChannel(channel: ReceiveChannel<StorageEvent>) {
+) {
+    fun handleEvents(chunk: List<StorageEvent>) {
         // How will this implementation handle very frequent updates to a file?
-        // TODO We still open a new context for each file. Group by owner and re-use
-        channel.windowed(500).consumeEach {
-            it.filterIsInstance<StorageEvent.CreatedOrRefreshed>().distinctBy { it.path }.forEach {
-                commandRunnerFactory.withContext(it.owner) { ctx ->
+        commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
+            chunk
+                .asSequence()
+                .filterIsInstance<StorageEvent.CreatedOrRefreshed>()
+                .distinctBy { it.path }
+                .forEach {
                     computeAndAttachChecksum(ctx, it.path)
                 }
-            }
         }
     }
 
@@ -63,17 +66,29 @@ class ChecksumService<Ctx : FSUserContext>(
         checksum: ByteArray,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
     ) {
-        fs.setExtendedAttribute(ctx, path, CHECKSUM_KEY, checksum.toHexString())
-        fs.setExtendedAttribute(ctx, path, CHECKSUM_TYPE_KEY, algorithm)
+        fs.setExtendedAttribute(
+            ctx, path,
+            CHECKSUM_KEY, checksum.toHexString()
+        )
+        fs.setExtendedAttribute(
+            ctx, path,
+            CHECKSUM_TYPE_KEY, algorithm
+        )
     }
 
     fun getChecksum(ctx: Ctx, path: String): FileChecksum {
         return try {
-            val checksum = fs.getExtendedAttribute(ctx, path, CHECKSUM_KEY).unwrap()
-            val type = fs.getExtendedAttribute(ctx, path, CHECKSUM_TYPE_KEY).unwrap()
+            val checksum = fs.getExtendedAttribute(
+                ctx, path,
+                CHECKSUM_KEY
+            ).unwrap()
+            val type = fs.getExtendedAttribute(
+                ctx, path,
+                CHECKSUM_TYPE_KEY
+            ).unwrap()
             FileChecksum(type, checksum)
         } catch (ex: FSException.NotFound) {
-            log.info("Checksum did not already exist for ${ctx.user}, $path. Attempting to recompute")
+            log.info("Checksum did not already exist for $ctx.user}, $path. Attempting to recompute")
             return computeAndAttachChecksum(ctx, path)
         }
     }
@@ -90,7 +105,7 @@ class ChecksumService<Ctx : FSUserContext>(
         const val CHECKSUM_KEY = "checksum"
         const val CHECKSUM_TYPE_KEY = "checksum_type"
 
-        private val log = LoggerFactory.getLogger(ChecksumService::class.java)
+        private val log = LoggerFactory.getLogger(ChecksumProcessor::class.java)
 
         private fun ByteArray.toHexString(): String {
             val bi = BigInteger(1, this)
