@@ -42,23 +42,26 @@ class ApplicationHibernateDAO(
         //language=HQL
         val count = session.typedQuery<Long>(
             """
-            select count (id.name)
-            from ApplicationEntity where (id.name, createdAt) in (
-                select id.name, max(createdAt)
-                from ApplicationEntity
+            select count (A.id.name)
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where A.id.name = B.id.name
                 group by id.name
             )
-        """.trimIndent()
+            """.trimIndent()
         ).uniqueResult().toInt()
 
         //language=HQL
         val items = session.typedQuery<ApplicationEntity>(
             """
-            from ApplicationEntity where (id.name, createdAt) in (
-                select id.name, max(createdAt)
-                from ApplicationEntity
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where A.id.name = B.id.name
                 group by id.name
             )
+            order by A.id.name
         """.trimIndent()
         ).paginatedList(paging).map { it.toModel() }
 

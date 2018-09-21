@@ -6,6 +6,7 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
 import io.mockk.mockk
 import org.junit.Test
+import java.util.*
 import kotlin.test.assertEquals
 
 class ApplicationHibernateDaoTest{
@@ -13,6 +14,36 @@ class ApplicationHibernateDaoTest{
     private val user = "user"
     private val normAppDesc = NormalizedApplicationDescription(
         NameAndVersion("name", "2.2"),
+        NameAndVersion("name", "2.2"),
+        listOf("Authors"),
+        "title",
+        "app description",
+        mockk(relaxed = true),
+        mockk(relaxed = true),
+        listOf("glob")
+    )
+    private val normAppDesc2 = NormalizedApplicationDescription(
+        NameAndVersion("name", "1.2"),
+        NameAndVersion("name", "2.2"),
+        listOf("Authors"),
+        "title",
+        "app description",
+        mockk(relaxed = true),
+        mockk(relaxed = true),
+        listOf("glob")
+    )
+    private val normAppDesc3 = NormalizedApplicationDescription(
+        NameAndVersion("app", "3.2"),
+        NameAndVersion("name", "2.2"),
+        listOf("Authors"),
+        "title",
+        "app description",
+        mockk(relaxed = true),
+        mockk(relaxed = true),
+        listOf("glob")
+    )
+    private val normAppDesc4 = NormalizedApplicationDescription(
+        NameAndVersion("app", "4.2"),
         NameAndVersion("name", "2.2"),
         listOf("Authors"),
         "title",
@@ -64,13 +95,91 @@ class ApplicationHibernateDaoTest{
                 val result4 = appDAO.findByNameAndVersion(it, user, "name", "2.2")
                 assertEquals("new description", result4.description.description)
                 assertEquals("New Authors", result4.description.authors.first())
-
-                //appDAO.listLatestVersion()
-
             }
         }
     }
 
+    @Test
+    fun `list all`() {
+        withDatabase { db ->
+            db.withTransaction {
+                val toolDAO = ToolHibernateDAO()
+
+                toolDAO.create(it, user, normToolDesc)
+
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+                appDAO.create(it, user, normAppDesc2)
+                Thread.sleep(1000)
+                appDAO.create(it, user, normAppDesc)
+                Thread.sleep(1000)
+                appDAO.create(it, user, normAppDesc3)
+                Thread.sleep(1000)
+                appDAO.create(it, user, normAppDesc4)
+
+                val allListed = appDAO.listLatestVersion(it, user, NormalizedPaginationRequest(10, 0))
+
+                var previous = ""
+                allListed.items.forEach {
+                    if (it.description.info.name < previous)
+                        assert(false)
+                    previous = it.description.info.name
+                }
+
+                assertEquals(2, allListed.itemsInTotal)
+            }
+        }
+    }
+
+    @Test
+    fun `list all - same date test`() {
+        withDatabase { db ->
+            db.withTransaction {
+                val toolDAO = ToolHibernateDAO()
+
+                toolDAO.create(it, user, normToolDesc)
+
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+
+                val tool = toolDAO.internalByNameAndVersion(it, normAppDesc.tool.name, normAppDesc.tool.version)
+
+                val date = Date()
+                it.save(
+                    ApplicationEntity(
+                        user,
+                        date,
+                        date,
+                        normAppDesc,
+                        "",
+                        tool!!,
+                        EmbeddedNameAndVersion(normAppDesc.info.name, normAppDesc.info.version)
+                    )
+                )
+
+                it.save(
+                    ApplicationEntity(
+                        user,
+                        date,
+                        date,
+                        normAppDesc4,
+                        "",
+                        tool!!,
+                        EmbeddedNameAndVersion(normAppDesc4.info.name, normAppDesc4.info.version)
+                    )
+                )
+
+
+                val allListed = appDAO.listLatestVersion(it, user, NormalizedPaginationRequest(10, 0))
+                var previous = ""
+                allListed.items.forEach {
+                    if (it.description.info.name < previous)
+                        assert(false)
+                    previous = it.description.info.name
+                }
+
+                assertEquals(2, allListed.itemsInTotal)
+            }
+        }
+    }
 
     @Test (expected = ApplicationException.AlreadyExists::class)
     fun `Create - already exists - test`() {

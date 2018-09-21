@@ -39,10 +39,11 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
         //language=HQL
         val count = session.typedQuery<Long>(
             """
-            select count (id.name)
-            from ToolEntity where (id.name, createdAt) in (
-                select id.name, max(createdAt)
-                from ToolEntity
+            select count (A.id.name)
+            from ToolEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ToolEntity as B
+                where A.id.name = B.id.name
                 group by id.name
             )
         """.trimIndent()
@@ -51,11 +52,13 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
         //language=HQL
         val items = session.typedQuery<ToolEntity>(
             """
-            from ToolEntity where (id.name, createdAt) in (
-                select id.name, max(createdAt)
-                from ToolEntity
+            from ToolEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ToolEntity as B
+                where A.id.name = B.id.name
                 group by id.name
             )
+            order by A.id.name
         """.trimIndent()
         ).paginatedList(paging).map { it.toModel() }
 
