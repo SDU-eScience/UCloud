@@ -5,8 +5,6 @@ import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.storage.util.*
-import kotlinx.coroutines.experimental.channels.BroadcastChannel
-import kotlinx.coroutines.experimental.channels.ReceiveChannel
 import kotlinx.coroutines.experimental.launch
 import java.io.InputStream
 import java.io.OutputStream
@@ -225,15 +223,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
-    private val eventBroadcastChannel = BroadcastChannel<StorageEvent>(512)
-
-    fun openEventSubscription(): ReceiveChannel<StorageEvent> {
-        return eventBroadcastChannel.openSubscription()
-    }
-
     private fun <T : StorageEvent> FSResult<List<T>>.emitAll() {
         unwrap().forEach { event ->
-            launch { eventBroadcastChannel.send(event) }
             launch { eventProducer.emit(event) }
         }
     }

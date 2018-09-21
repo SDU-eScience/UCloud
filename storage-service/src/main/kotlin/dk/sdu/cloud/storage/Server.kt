@@ -7,6 +7,8 @@ import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.storage.http.*
+import dk.sdu.cloud.storage.processor.ChecksumProcessor
+import dk.sdu.cloud.storage.processor.StorageEventProcessor
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
@@ -21,7 +23,6 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import kotlinx.coroutines.experimental.launch
 import org.apache.kafka.streams.KafkaStreams
-import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.Logger
 import java.io.File
 
@@ -34,10 +35,11 @@ class Server(
     private val args: Array<String>
 ): CommonServer {
     override val log: Logger = logger()
-//    override val endpoints = listOf("/api/tus", "/api/files", "/api/shares", "/api/upload")
 
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
+
+    private val allProcessors = ArrayList<EventConsumer<*>>()
 
     override fun start() {
         log.info("Creating core services")
@@ -56,11 +58,7 @@ class Server(
         // TODO Breaks previous contract that CoreFS would emit all events
         val annotationService = FileAnnotationService(fs, storageEventProducer)
 
-        val checksumService = ChecksumService(processRunner, fs, coreFileSystem).also {
-            // TODO Will only receive events from CoreFS, not from others.
-            // TODO Doesn't emit events for checksums
-            launch { it.attachToFSChannel(coreFileSystem.openEventSubscription()) }
-        }
+
         val favoriteService = FavoriteService(coreFileSystem)
         val uploadService = BulkUploadService(coreFileSystem)
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
@@ -74,23 +72,15 @@ class Server(
         val shareService = ShareService(db, shareDAO, processRunner, aclService, coreFileSystem)
         log.info("Core services constructed!")
 
-        kStreams = run {
-            log.info("Constructing Kafka Streams Topology")
-            val kBuilder = StreamsBuilder()
-
-            log.info("Configuring stream processors...")
+        kStreams = buildStreams { kBuilder ->
             UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), isDevelopment, cloudToCephFsDao).init()
-            log.info("Stream processors configured!")
-
-            kafka.build(kBuilder.build()).also {
-                log.info("Kafka Streams Topology successfully built!")
-            }
         }
 
-        kStreams.setUncaughtExceptionHandler { _, exception ->
-            log.error("Caught fatal exception in Kafka! Stacktrace follows:")
-            log.error(exception.stackTraceToString())
-            stop()
+        val storageEventProcessor = StorageEventProcessor(kafka)
+        allProcessors.addAll(storageEventProcessor.init())
+        ChecksumProcessor(processRunner, fs, coreFileSystem).also {
+            // TODO Doesn't emit events for checksums
+            storageEventProcessor.registerHandler(it::handleEvents)
         }
 
         httpServer = ktor {
@@ -163,5 +153,10 @@ class Server(
         }
 
         startServices()
+    }
+
+    override fun stop() {
+        super.stop()
+        allProcessors.forEach { it.close() }
     }
 }
