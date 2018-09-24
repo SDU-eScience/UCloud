@@ -27,6 +27,8 @@ import io.ktor.util.escapeHTML
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 import java.io.File
+import java.time.LocalDateTime
+import java.time.temporal.Temporal
 
 class Server(
     override val kafka: KafkaServices,
@@ -91,6 +93,7 @@ class Server(
                             value = refresh,
                             secure = isSecureOrigin,
                             httpOnly = true,
+                            expires = LocalDateTime.now().plusMonths(1),
                             path = "/",
                             extensions = mapOf(
                                 "SameSite" to "strict"
