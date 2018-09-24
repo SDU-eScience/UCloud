@@ -8,15 +8,9 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.securityPrincipal
-import dk.sdu.cloud.storage.services.BulkUploadService
-import dk.sdu.cloud.storage.services.CoreFileSystemService
-import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
-import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.util.tryWithFS
-import dk.sdu.cloud.upload.api.BulkUploadAudit
-import dk.sdu.cloud.upload.api.BulkUploadErrorMessage
-import dk.sdu.cloud.upload.api.MultiPartUploadAudit
-import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.upload.api.*
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
@@ -37,12 +31,14 @@ class MultiPartUploadController<Ctx : FSUserContext>(
     override fun configure(routing: Route):Unit = with(routing) {
         implement(MultiPartUploadDescriptions.upload) { it ->
             logEntry(log, it)
+            audit(MultiPartUploadAudit(null))
 
             // TODO Support in RESTDescriptions for multi-parts would be nice
             val multipart = call.receiveMultipart()
             var location: String? = null
             var sensitivity: SensitivityLevel = SensitivityLevel.CONFIDENTIAL
             var owner: String = call.securityPrincipal.username
+            var didComplete = false
 
             multipart.forEachPart { part ->
                 log.debug("Received part ${part.name}")
@@ -75,7 +71,8 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                                 return@forEachPart
                             }
 
-                            audit(MultiPartUploadAudit(location!!, sensitivity, owner))
+                            audit(MultiPartUploadAudit(UploadRequestAudit(location!!, sensitivity, owner)))
+                            didComplete = true
                             okContentDeliveredExternally()
 
                             assert(
@@ -99,6 +96,10 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                     }
                 }
                 part.dispose()
+            }
+
+            if (!didComplete) {
+                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
             }
         }
 

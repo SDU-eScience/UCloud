@@ -7,6 +7,7 @@ import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSResult
 import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.services.withContext
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.async
