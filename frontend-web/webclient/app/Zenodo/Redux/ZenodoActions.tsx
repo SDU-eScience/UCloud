@@ -26,7 +26,7 @@ export const setErrorMessage = (type: string, error?: string): Error => ({
 });
 
 export const fetchLoginStatus = () =>
-    Cloud.get("/zenodo/status").then(({ response }) => receiveLoginStatus(response.connected)); // FIXME Error handling
+    Cloud.get("/zenodo/status").then(({ response }) => receiveLoginStatus(response.connected)).catch(_ => receiveLoginStatus(false)); // FIXME Render error
 
 export const receiveLoginStatus = (connected: boolean) => ({
     type: RECEIVE_ZENODO_LOGIN_STATUS,
