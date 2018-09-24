@@ -5,7 +5,7 @@ import { mount, shallow } from "enzyme";
 import { Message } from "semantic-ui-react";
 import { configure } from "enzyme";
 import { detailedApplication } from "../mock/Applications";
-import Adapter from "enzyme-adapter-react-16";
+import * as Adapter from "enzyme-adapter-react-16";
 import { MemoryRouter } from "react-router";
 
 configure({ adapter: new Adapter() });

@@ -2,7 +2,7 @@ import * as React from "react";
 import { Link } from "react-router-dom";
 import { ProjectMetadata } from "./api";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import ReactMarkdown from "react-markdown";
+import * as ReactMarkdown from "react-markdown";
 import { Contributor, getByPath } from "./api";
 import { findLicenseByIdentifier } from "./licenses";
 import { blankOrUndefined } from "UtilityFunctions";

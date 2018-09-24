@@ -2,7 +2,7 @@ import * as React from "react";
 import * as Renderer from "react-test-renderer";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
 import { configure, shallow } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
+import * as Adapter from "enzyme-adapter-react-16";
 import { Breadcrumb } from "semantic-ui-react";
 
 configure({ adapter: new Adapter() });

@@ -17,7 +17,7 @@ import { configureStore } from "Utilities/ReduxUtilities";
 import { initFiles } from "DefaultObjects";
 import { configure, mount } from "enzyme";
 import { Page } from "Types";
-import Adapter from "enzyme-adapter-react-16";
+import * as Adapter from "enzyme-adapter-react-16";
 
 configure({ adapter: new Adapter() });
 

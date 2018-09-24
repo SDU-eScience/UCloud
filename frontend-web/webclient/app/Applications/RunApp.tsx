@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import swal from "sweetalert2";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
-import ReactMarkdown from "react-markdown";
+import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
 import { infoNotification, failureNotification } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";

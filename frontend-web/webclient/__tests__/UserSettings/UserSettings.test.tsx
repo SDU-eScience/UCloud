@@ -2,7 +2,7 @@ import * as React from "react";
 import UserSettings from "UserSettings/UserSettings";
 import { create } from "react-test-renderer";
 import { mount, configure } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
+import * as Adapter from "enzyme-adapter-react-16";
 import { FormField, Button } from "semantic-ui-react";
 
 configure({ adapter: new Adapter() });

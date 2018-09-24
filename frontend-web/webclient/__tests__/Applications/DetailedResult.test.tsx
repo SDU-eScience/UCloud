@@ -8,7 +8,7 @@ import analyses from "Applications/Redux/AnalysesReducer";
 import { Provider } from "react-redux";
 import { configure, mount, shallow } from "enzyme";
 import * as AnalysesActions from "Applications/Redux/ApplicationsActions";
-import Adapter from "enzyme-adapter-react-16";
+import * as Adapter from "enzyme-adapter-react-16";
 
 configure({ adapter: new Adapter() });
 

@@ -4,7 +4,7 @@ import { ActivityProps, Activity as ActivityType, TrackedActivity, CountedActivi
 import { Feed, Icon, Segment, Header } from "semantic-ui-react";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
-import moment from "moment";
+import * as moment from "moment";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { Link } from "react-router-dom";
 import { ActivityReduxObject } from "DefaultObjects";

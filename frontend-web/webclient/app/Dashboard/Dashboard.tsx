@@ -8,7 +8,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
 import { Card, List, Icon, Message } from "semantic-ui-react";
-import moment from "moment";
+import * as moment from "moment";
 import { FileIcon } from "UtilityComponents";
 import {
     DASHBOARD_FAVORITE_ERROR,

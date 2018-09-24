@@ -6,7 +6,7 @@ import { Provider } from "react-redux"
 import { initNotifications } from "DefaultObjects";
 import notifications from "Notifications/Redux/NotificationsReducer";
 import { mount, configure, shallow } from "enzyme";
-import Adapter from "enzyme-adapter-react-16";
+import * as Adapter from "enzyme-adapter-react-16";
 
 configure({ adapter: new Adapter() });
 
