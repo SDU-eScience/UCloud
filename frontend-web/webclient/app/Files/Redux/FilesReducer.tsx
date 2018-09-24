@@ -23,8 +23,8 @@ const files = (state: any = {}, action) => {
                 fileSelectorPage: action.page,
                 sortOrder: action.sortOrder,
                 sortBy: action.sortBy,
-                error: null,
-                fileSelectorError: null,
+                error: undefined,
+                fileSelectorError: undefined,
                 creatingFolder: false
             };
         }

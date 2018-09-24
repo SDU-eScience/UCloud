@@ -1,7 +1,7 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Grid, Header, Table, Label, Icon, List, Rating, Button, Message } from "semantic-ui-react";
+import { Grid, Header, Label, Icon, List, Rating, Button, Message } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
@@ -21,7 +21,9 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
         super(props);
         this.state = {
             promises: new PromiseKeeper,
-            loading: false
+            loading: false,
+            appInformation: undefined,
+            error: undefined
         }
     }
 
@@ -39,7 +41,7 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
                     appInformation: response,
                     loading: false,
                 }))
-            ).catch(err => this.setState({
+            ).catch(_ => this.setState({
                 error: `An error occurred fetching ${appName}`,
                 loading: false
             }));
@@ -121,26 +123,6 @@ const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
             </List.Item>
         </List >
     )
-}
-
-const typeToString = (parameterType: ParameterTypes): string => {
-    switch (parameterType) {
-        case ParameterTypes.Integer:
-            return "Integer";
-        case ParameterTypes.FloatingPoint:
-            return "Floating point";
-        case ParameterTypes.Text:
-            return "Text";
-        case ParameterTypes.Boolean:
-            return "Boolean";
-        case ParameterTypes.InputFile:
-            return "Input file";
-        case ParameterTypes.InputDirectory:
-            return "Input directory";
-        default:
-            console.warn(`Unhandled parameter type: ${parameterType}`);
-            return "";
-    }
 }
 
 interface ApplicationHeaderProps extends ApplicationDetails { favoriteApplication: () => void }

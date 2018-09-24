@@ -2,7 +2,7 @@ import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as PropTypes from "prop-types";
 import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Button, Icon, ButtonGroup } from "semantic-ui-react";
-import { AccessRight, Page } from "Types";
+import { AccessRight, Page, AccessRightValues } from "Types";
 import { shareSwal } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
@@ -34,9 +34,9 @@ export class List extends React.Component<ListProps, ListState> {
 
     reload() {
         retrieveShares(this.state.page, this.state.itemsPerPage)
-            .then(e => this.setState({ shares: e.items }))
-            .catch(e => this.setState({ errorMessage: "Unable to retrieve shares!" }))
-            .finally(() => this.setState(() => ({ loading: false })));
+            .then(e => this.setState({ shares: e.items, loading: false }))
+            .catch(e => this.setState({ errorMessage: "Unable to retrieve shares!", loading: false }));
+        // FIXME .finally(() => this.setState(() => ({ loading: false })));
     }
 
     public render() {
@@ -244,7 +244,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         revokeShare(share.id)
             .then(it => this.maybeInvoke(share, this.props.onRevoked))
             .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-            .finally(() => this.setState({ isLoading: false }));
+            .finally(() => this.setState({ isLoading: false }))
     }
 
     onAccept(share: Share) {
@@ -253,7 +253,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         acceptShare(share.id)
             .then(it => this.maybeInvoke(share, this.props.onAccepted))
             .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-            .finally(() => this.setState({ isLoading: false }));
+            .finally(() => this.setState({ isLoading: false }))
     }
 
     onReject(share: Share) {
@@ -262,13 +262,13 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         rejectShare(share.id)
             .then(it => this.maybeInvoke(share, this.props.onRejected))
             .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-            .finally(() => this.setState({ isLoading: false }));
+            .finally(() => this.setState({ isLoading: false }))
     }
 }
 
 interface AccessRightsDisplayProps {
     disabled?: boolean
-    rights?: AccessRight[]
+    rights?: AccessRightValues[]
 
     read?: boolean
     write?: boolean
@@ -325,7 +325,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
 function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
     if (byState) url += `state=${byState}`
-    return Cloud.get(url).then((e) => e.response).catch(e => e.response); // FIXME Add error handling
+    return Cloud.get(url).then((e) => { console.log(e); return e.response }).catch(e => e.response); // FIXME Add error handling
 }
 
 function acceptShare(shareId: ShareId): Promise<any> {
@@ -344,7 +344,6 @@ function createShare(user: string, path: string, rights: AccessRight[]): Promise
     return Cloud.put(`/shares/`, { sharedWith: user, path, rights }).then(e => e.response); // FIXME Add error handling
 }
 
-function updateShare(id: ShareId, rights: AccessRight[]): Promise<any> {
+function updateShare(id: ShareId, rights: AccessRightValues[]): Promise<any> {
     return Cloud.post(`/shares/`, { id, rights }).then(e => { console.log(e); return e.response }); // FIXME Add error handling
 }
-

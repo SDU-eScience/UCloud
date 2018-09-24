@@ -1,5 +1,6 @@
 // Possible as we are running JS, not a browser
 import SDUCloud from "Authentication/lib";
+import * as jwt from "jsonwebtoken";
 
 // Storage Mock
 const storageMock = () => {
@@ -30,10 +31,10 @@ const storageMock = () => {
 export default function initializeTestCloudObject() {
     Object.defineProperty(window, "localStorage", { value: storageMock });
     // Note: Test user access token. Missing refresh token, so any backend contact will result in redirection to login.
-    const accessToken = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
+    const accessToken = jwt.decode("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
         "lzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJ0ZXN0IiwiZXhwIjozNjE1NDkxMDkzLCJpYXQiOjE1MTU0ODkyO" +
         "TMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsImF1ZCI6WyJhcGkiLCJpcm9kcyJdfQ.gfLvmBWET-WpwtWLdrN9SL0tD" +
-        "-0vrHrriWWDxnQljB8";
+        "-0vrHrriWWDxnQljB8", { complete: true });
 
     localStorage.setItem("accessToken", accessToken);
     return new SDUCloud();

@@ -10,7 +10,7 @@ const ERROR = "ERROR";
  * Returns the action for receiving the notifications
  * @param {Page<Notification>} page Page of notifications received
  */
-const receiveNotifications = (page: Page<Notification>): ReceivePage<Notification> => ({
+export const receiveNotifications = (page: Page<Notification>): ReceivePage<Notification> => ({
     type: RECEIVE_NOTIFICATIONS,
     page
 })

@@ -1,27 +1,31 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { toLowerCaseAndCapitalize, removeTrailingSlash } from "UtilityFunctions";
-import { favoriteFileFromPage, fileSizeToString, getParentPath } from "Utilities/FileUtilities";
+import { favoriteFileFromPage, fileSizeToString, getParentPath, replaceHomeFolder } from "Utilities/FileUtilities";
 import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "./Redux/FilesActions";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import { SensitivityLevel } from "DefaultObjects";
-import { Container, Header, List, Card, Icon } from "semantic-ui-react";
+import { SensitivityLevel, emptyPage } from "DefaultObjects";
+import { Container, Header, List, Card, Icon, Segment } from "semantic-ui-react";
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { List as ShareList } from "Shares/List";
 import { File, Annotation, SortOrder, SortBy, FileInfoProps } from "Files";
 import { annotationToString } from "Utilities/FileUtilities";
+import { ActivityFeed } from "Activity/Activity";
 
-class FileInfo extends React.Component<FileInfoProps> {
+class FileInfo extends React.Component<FileInfoProps, any> {
     constructor(props) {
         super(props);
+        this.state = { activity: emptyPage };
     }
 
     componentDidMount() {
         const { match, filesPath, dispatch, loading, page } = this.props;
         dispatch(updatePageTitle("File Info"));
         const path = match.params[0];
+        // FIXME: Either move to promiseKeeper, 
+        Cloud.get(`/activity/stream/by-path?path=${path}`).then(({ response }) => this.setState({ activity: response }));
         if (!(getParentPath(path) === filesPath)) {
             dispatch(setLoading(true));
             if (loading) return;
@@ -37,10 +41,11 @@ class FileInfo extends React.Component<FileInfoProps> {
         return (
             <Container className="container-margin" >
                 <Header as="h2" icon textAlign="center">
-                    <Header.Content content={file.path} />
+                    <Header.Content content={replaceHomeFolder(file.path, Cloud.homeFolder)} />
                     <Header.Subheader content={toLowerCaseAndCapitalize(file.type)} />
                 </Header>                               {/* MapDispatchToProps */}
                 <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, [file], Cloud)))} />
+                <Segment><ActivityFeed activity={this.state.activity.items} /></Segment>
                 {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
                 <ShareList byPath={file.path} />
                 <DefaultLoading loading={loading} />

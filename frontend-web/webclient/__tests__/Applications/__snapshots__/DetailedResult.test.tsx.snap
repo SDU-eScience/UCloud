@@ -1,0 +1,219 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Detailed Result Mount DetailedResult 1`] = `
+<div
+  className="ui container container-margin"
+>
+  <div
+    className="row"
+  >
+    <div
+      className="job-result-box"
+    >
+      <h4>
+        Progress
+      </h4>
+      <div
+        className="ui tiny fluid steps"
+      >
+        <div
+          className="active step"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="check icon"
+          />
+          <div
+            className="content"
+          >
+            <div
+              className="title"
+            >
+              Validated
+            </div>
+          </div>
+        </div>
+        <div
+          className="step"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="hourglass half icon"
+          />
+          <div
+            className="content"
+          >
+            <div
+              className="title"
+            >
+              Pending
+            </div>
+          </div>
+        </div>
+        <div
+          className="step"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="calendar icon"
+          />
+          <div
+            className="content"
+          >
+            <div
+              className="title"
+            >
+              Scheduled
+            </div>
+          </div>
+        </div>
+        <div
+          className="step"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="stopwatch icon"
+          />
+          <div
+            className="content"
+          >
+            <div
+              className="title"
+            >
+              Running
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="row"
+  >
+    <div
+      className="job-result-box"
+    >
+      <h4>
+        Job Information
+      </h4>
+      <div
+        className="ui fluid card"
+        onClick={[Function]}
+        size="large"
+      >
+        <div
+          className="content"
+        >
+          <div
+            className="ui divided list"
+            role="list"
+          >
+            <div
+              className="item itemPadding"
+              onClick={[Function]}
+              role="listitem"
+            >
+              <b>
+                Application Name
+              </b>
+              : 
+              
+            </div>
+            <div
+              className="item itemPadding"
+              onClick={[Function]}
+              role="listitem"
+            >
+              <b>
+                Application Version
+              </b>
+              : 
+              
+            </div>
+            <div
+              className="item itemPadding"
+              onClick={[Function]}
+              role="listitem"
+            >
+              <b>
+                Status
+              </b>
+              : 
+              
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="row"
+  />
+  <div
+    className="row"
+  >
+    <div
+      className="job-result-box"
+    >
+      <h4>
+        Standard Streams  
+        <i
+          aria-hidden="true"
+          className="info circle icon"
+          onBlur={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseEnter={[Function]}
+          onMouseLeave={[Function]}
+        />
+      </h4>
+      <div
+        className="card"
+      >
+        <div
+          className="card-body"
+        >
+          <div
+            className="ui two column grid"
+          >
+            <div
+              className="column"
+            >
+              <h4>
+                Output
+              </h4>
+              <pre
+                className="stream"
+              >
+                <code>
+                  
+                </code>
+              </pre>
+            </div>
+            <div
+              className="column"
+            >
+              <h4>
+                Information
+              </h4>
+              <pre
+                className="stream"
+              >
+                <code>
+                  
+                </code>
+              </pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Detailed Result Render with files page 1`] = `"<div class=\\"ui container container-margin\\"><div class=\\"row\\"><div class=\\"job-result-box\\"><h4>Progress</h4><div class=\\"ui tiny fluid steps\\"><div class=\\"active step\\"><i aria-hidden=\\"true\\" class=\\"check icon\\"></i><div class=\\"content\\"><div class=\\"title\\">Validated</div></div></div><div class=\\"step\\"><i aria-hidden=\\"true\\" class=\\"hourglass half icon\\"></i><div class=\\"content\\"><div class=\\"title\\">Pending</div></div></div><div class=\\"step\\"><i aria-hidden=\\"true\\" class=\\"calendar icon\\"></i><div class=\\"content\\"><div class=\\"title\\">Scheduled</div></div></div><div class=\\"step\\"><i aria-hidden=\\"true\\" class=\\"stopwatch icon\\"></i><div class=\\"content\\"><div class=\\"title\\">Running</div></div></div></div></div></div><div class=\\"row\\"><div class=\\"job-result-box\\"><h4>Job Information</h4><div class=\\"ui fluid card\\"><div class=\\"content\\"><div role=\\"list\\" class=\\"ui divided list\\"><div role=\\"listitem\\" class=\\"item itemPadding\\"><b>Application Name</b>: </div><div role=\\"listitem\\" class=\\"item itemPadding\\"><b>Application Version</b>: </div><div role=\\"listitem\\" class=\\"item itemPadding\\"><b>Status</b>: </div></div></div></div></div></div><div class=\\"row\\"></div><div class=\\"row\\"><div class=\\"job-result-box\\"><h4>Standard Streams &nbsp;<i aria-hidden=\\"true\\" class=\\"info circle icon\\"></i></h4><div class=\\"card\\"><div class=\\"card-body\\"><div class=\\"ui two column grid\\"><div class=\\"column\\"><h4>Output</h4><pre class=\\"stream\\"><code></code></pre></div><div class=\\"column\\"><h4>Information</h4><pre class=\\"stream\\"><code></code></pre></div></div></div></div></div></div></div>"`;
