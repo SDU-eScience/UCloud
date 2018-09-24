@@ -14,7 +14,7 @@ export enum SortOrder {
 
 export type FileType = "FILE" | "DIRECTORY";
 export interface File {
-    type: FileType
+    fileType: FileType
     path: string
     createdAt: number
     modifiedAt: number
