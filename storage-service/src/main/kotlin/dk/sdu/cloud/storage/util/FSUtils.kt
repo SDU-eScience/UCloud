@@ -17,13 +17,13 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
 
-fun homeDirectory(ctx: FSUserContext): String {
-    return "/home/${ctx.user}/"
-}
+fun homeDirectory(user: String): String = "/home/$user/"
 
-fun favoritesDirectory(ctx: FSUserContext): String {
-    return joinPath(homeDirectory(ctx), "Favorites", isDirectory = true)
-}
+fun homeDirectory(ctx: FSUserContext): String = homeDirectory(ctx.user)
+
+fun favoritesDirectory(user: String): String = joinPath(homeDirectory(user), "Favorites", isDirectory = true)
+
+fun favoritesDirectory(ctx: FSUserContext): String = favoritesDirectory(ctx.user)
 
 fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
     return File(components.joinToString("/") + (if (isDirectory) "/" else "")).normalize().path
@@ -65,7 +65,7 @@ fun <T> FSResult<T>.unwrap(): T {
 
 fun throwExceptionBasedOnStatus(status: Int): Nothing {
     when (status.absoluteValue) {
-    // TODO Constants for errnos
+        // TODO Constants for errnos
         1, 20, 21, 22 -> throw FSException.BadRequest()
         2, 93 -> throw FSException.NotFound()
         5, 6, 16, 19, 23, 24, 27, 28, 30, 31 -> throw FSException.IOException()

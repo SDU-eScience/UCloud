@@ -237,8 +237,8 @@ class ShareService<DBSession, Ctx : FSUserContext>(
         user: String,
         shareId: ShareId
     ) {
-        db.withTransaction {
-            val existingShare = shareDAO.deleteShare(it, user, shareId)
+        db.withTransaction { dbSession ->
+            val existingShare = shareDAO.deleteShare(dbSession, user, shareId)
             commandRunnerFactory.withContext(existingShare.owner) {
                 aclService.revokeRights(it, existingShare.path, FSACLEntity.User(existingShare.sharedWith))
             }
