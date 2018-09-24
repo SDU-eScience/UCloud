@@ -1,4 +1,4 @@
-import { File } from "Files";
+import { File, FileType } from "Files";
 import { Page } from "Types";
 
 export const mockFiles_SensitivityConfidential: Page<File> =
@@ -53,8 +53,8 @@ export const newMockFile = ({
     sensitivityLevel = "CONFIDENTIAL",
     link = false,
     annotations = []
-}: File): File => ({
-    type,
+}): File => ({
+    type: type as FileType,
     path: `/home/${ownerName}/${path}`,
     createdAt,
     modifiedAt,

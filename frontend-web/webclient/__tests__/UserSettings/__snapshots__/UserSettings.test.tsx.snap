@@ -1,0 +1,91 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`UserSettings Mount 1`] = `
+<div
+  className="ui container one column grid"
+>
+  <div
+    className="column"
+  >
+    <div
+      className="ui header"
+    >
+      <h1>
+        Change Password
+      </h1>
+    </div>
+  </div>
+  <div
+    className="column"
+  >
+    <form
+      className="ui form"
+      onSubmit={[Function]}
+    >
+      <div
+        className="field"
+      >
+        <label>
+          Current password
+        </label>
+        <div
+          className="ui input"
+        >
+          <input
+            onChange={[Function]}
+            placeholder="Old password"
+            type="password"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        className="field"
+      >
+        <label>
+          New password
+        </label>
+        <div
+          className="ui input"
+        >
+          <input
+            onChange={[Function]}
+            placeholder="New password"
+            type="password"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        className="field"
+      >
+        <label>
+          Repeat password
+        </label>
+        <div
+          className="ui input"
+        >
+          <input
+            onChange={[Function]}
+            placeholder="Repeat password"
+            type="password"
+            value=""
+          />
+        </div>
+      </div>
+      <button
+        className="ui positive button"
+        onClick={[Function]}
+        role="button"
+        type="submit"
+      >
+        <i
+          aria-hidden="true"
+          className="lock icon"
+        />
+        Change password
+      </button>
+    </form>
+  </div>
+</div>
+`;

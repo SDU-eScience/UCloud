@@ -16,11 +16,13 @@ import sidebar from "Navigation/Redux/SidebarReducer";
 import analyses from "Applications/Redux/AnalysesReducer";
 import notifications from "Notifications/Redux/NotificationsReducer";
 import uploader from "Uploader/Redux/UploaderReducer";
+import activity from "Activity/Redux/ActivityReducer";
 import { configureStore } from "Utilities/ReduxUtilities";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
 
 const store = configureStore(initObject(Cloud), {
+    activity,
     files,
     dashboard,
     analyses,

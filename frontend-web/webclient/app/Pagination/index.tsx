@@ -10,8 +10,6 @@ export interface ManagedListProps {
 
 export interface ManagedListState {
     loading: boolean
-    currentPage: number
-    itemsPerPage: number
     results: Page<any>
     errorMessage?: string
     dataProvider: Function

@@ -1,0 +1,40 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Shares List Shares component 1`] = `
+Array [
+  <i
+    aria-hidden="true"
+    className="circle notched big loading icon"
+  />,
+  <div
+    className="ui header"
+  >
+    Shared with Me
+  </div>,
+  <div
+    className="ui center aligned header"
+  >
+    <div
+      className="sub header"
+    >
+      No shares
+    </div>
+  </div>,
+  <div
+    className="ui header"
+  >
+    Shared by Me
+  </div>,
+  <div
+    className="ui center aligned header"
+  >
+    <div
+      className="sub header"
+    >
+      No shares
+    </div>
+  </div>,
+]
+`;
+
+exports[`Shares List Shares component with shares 1`] = `"<i aria-hidden=\\"true\\" class=\\"circle notched big loading icon\\"></i><div class=\\"ui header\\">Shared with Me</div><div class=\\"ui center aligned header\\"><div class=\\"sub header\\">No shares</div></div><div class=\\"ui header\\">Shared by Me</div><div class=\\"ui center aligned header\\"><div class=\\"sub header\\">No shares</div></div>"`;

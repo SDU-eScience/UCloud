@@ -1,6 +1,6 @@
 export { List } from "./List";
 import { Store } from "redux";
-import { AccessRight } from "Types";
+import { AccessRightValues } from "Types";
 
 export interface ListState {
     shares: SharesByPath[]
@@ -22,10 +22,13 @@ export interface ListContext {
 export interface Share {
     id: ShareId,
     sharedWith: String,
-    rights: AccessRight[],
-    state: ShareState
+    rights: AccessRightValues[],
+    state: ShareStateValues
 }
 
+// FIXME Singular instead of plural?
+
+export type ShareStateValues = keyof typeof ShareState
 export enum ShareState {
     REQUEST_SENT = "REQUEST_SENT",
     ACCEPTED = "ACCEPTED",

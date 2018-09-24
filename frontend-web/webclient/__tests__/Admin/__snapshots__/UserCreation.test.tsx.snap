@@ -1,0 +1,102 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`UserCreation Mount 1`] = `
+<div
+  className="ui container sixteen column grid"
+>
+  <div
+    className="row"
+  >
+    <div
+      className="sixteen wide column"
+    >
+      <div
+        className="ui header"
+      >
+        <h1>
+          User Creation
+        </h1>
+      </div>
+      <p>
+        Admins can create new users on this page.
+      </p>
+    </div>
+  </div>
+  <div
+    className="row"
+  >
+    <div
+      className="sixteen wide column"
+    >
+      <form
+        className="ui form"
+        onSubmit={[Function]}
+      >
+        <div
+          className="field"
+        >
+          <label>
+            Username
+          </label>
+          <div
+            className="ui input"
+          >
+            <input
+              onChange={[Function]}
+              placeholder="Username..."
+              type="text"
+              value=""
+            />
+          </div>
+        </div>
+        <div
+          className="field"
+        >
+          <label>
+            Password
+          </label>
+          <div
+            className="ui input"
+          >
+            <input
+              onChange={[Function]}
+              placeholder="Password..."
+              type="password"
+              value=""
+            />
+          </div>
+        </div>
+        <div
+          className="field"
+        >
+          <label>
+            Repeat password
+          </label>
+          <div
+            className="ui input"
+          >
+            <input
+              onChange={[Function]}
+              placeholder="Repeat password..."
+              type="password"
+              value=""
+            />
+          </div>
+        </div>
+        <button
+          className="ui positive button"
+          onClick={[Function]}
+          role="button"
+          type="submit"
+        >
+          <i
+            aria-hidden="true"
+            className="user plus icon"
+          />
+          Create user
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+`;
