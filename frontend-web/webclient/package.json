@@ -6,7 +6,12 @@
   "jest": {
     "globals": {
       "ts-jest": {
-        "target": "esnext"
+        "tsConfig": "tsconfig.json",
+        "diagnostics": {
+          "ignoreCodes": [
+            151001
+          ]
+        }
       }
     },
     "collectCoverage": true,
