@@ -125,7 +125,7 @@ class MultipartUploadTest {
                         )
                     }.response
 
-                    assertEquals(HttpStatusCode.Unauthorized, response.status())
+                    assertEquals(HttpStatusCode.Forbidden, response.status())
                 }
             )
         }

@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.tryWithFS
 import dk.sdu.cloud.upload.api.*
 import io.ktor.http.HttpStatusCode
@@ -73,20 +74,23 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
                             audit(MultiPartUploadAudit(UploadRequestAudit(location!!, sensitivity, owner)))
                             didComplete = true
-                            okContentDeliveredExternally()
 
                             assert(
                                 owner == call.securityPrincipal.username ||
                                         call.securityPrincipal.role.isPrivileged()
                             )
 
-                            commandRunnerFactory.withContext(owner) { ctx ->
-                                fs.write(ctx, location!!, WriteConflictPolicy.OVERWRITE) {
-                                    val out = this
-                                    part.streamProvider().use { it.copyTo(out) }
-                                }
+                            try {
+                                commandRunnerFactory.withContext(owner) { ctx ->
+                                    fs.write(ctx, location!!, WriteConflictPolicy.OVERWRITE) {
+                                        val out = this
+                                        part.streamProvider().use { it.copyTo(out) }
+                                    }
 
-                                ok(Unit)
+                                    ok(Unit)
+                                }
+                            } catch (ex: FSException.PermissionException) {
+                                error(CommonErrorMessage("Forbidden"), HttpStatusCode.Forbidden)
                             }
                         }
                     }
