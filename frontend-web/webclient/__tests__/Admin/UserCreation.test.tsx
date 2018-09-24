@@ -2,7 +2,7 @@ import * as React from "react";
 import UserCreation from "Admin/UserCreation";
 import { create } from "react-test-renderer";
 import { configure, mount } from "enzyme";
-import * as Adapter from "enzyme-adapter-react-16";
+import Adapter from "enzyme-adapter-react-16";
 import { FormField, Button } from "semantic-ui-react";
 import PromiseKeeper from "PromiseKeeper";
 

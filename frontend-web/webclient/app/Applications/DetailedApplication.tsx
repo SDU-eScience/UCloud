@@ -3,7 +3,7 @@ import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Grid, Header, Label, Icon, List, Rating, Button, Message } from "semantic-ui-react";
 import { Link } from "react-router-dom";
-import * as ReactMarkdown from "react-markdown";
+import ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { ApplicationInformation, ParameterTypes } from "Applications";
 

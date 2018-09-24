@@ -1,4 +1,4 @@
-import * as moment from "moment";
+import moment from "moment";
 import { tz } from "moment-timezone";
 
 // Could potentially cause issues with time if user is outside CEST

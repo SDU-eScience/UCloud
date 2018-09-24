@@ -1,5 +1,5 @@
 import * as React from "react";
-import * as Adapter from "enzyme-adapter-react-16";
+import Adapter from "enzyme-adapter-react-16";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initUploads, initFiles } from "DefaultObjects";
 import uploader from "Uploader/Redux/UploaderReducer";

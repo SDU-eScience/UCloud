@@ -1,5 +1,5 @@
 import * as Enzyme from "enzyme";
-import * as Adapter from "enzyme-adapter-react-16";
+import Adapter from "enzyme-adapter-react-16";
 import uppy from "Uppy/Redux/UppyReducers";
 import { initUppy } from "DefaultObjects";
 import * as UppyActions from "Uppy/Redux/UppyActions";

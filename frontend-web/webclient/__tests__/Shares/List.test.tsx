@@ -7,7 +7,7 @@ import { initFiles } from "DefaultObjects";
 import files from "Files/Redux/FilesReducer";
 import { MemoryRouter } from "react-router";
 import { configure, shallow, mount } from "enzyme"
-import * as Adapter from "enzyme-adapter-react-16";
+import Adapter from "enzyme-adapter-react-16";
 import { shares } from "../mock/Shares";
 
 configure({ adapter: new Adapter() });

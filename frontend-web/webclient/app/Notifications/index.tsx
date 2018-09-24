@@ -2,7 +2,7 @@ import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { Popup, Feed, Icon, SemanticICONS, Label, Button, Divider } from 'semantic-ui-react';
 import { Redirect } from "react-router";
-import * as moment from "moment";
+import moment from "moment";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import { Page } from "Types";
