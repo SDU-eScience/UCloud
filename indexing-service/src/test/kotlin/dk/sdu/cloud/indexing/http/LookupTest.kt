@@ -5,10 +5,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.indexing.services.ReverseLookupService
 import dk.sdu.cloud.indexing.utils.withAuthMock
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.*
 import io.ktor.application.Application
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -16,8 +13,10 @@ import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.withTestApplication
+import io.mockk.Runs
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.runs
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -48,12 +47,11 @@ class LookupTest{
     private val mapper = jacksonObjectMapper()
 
     @Test
-    fun `testing something`() {
+    fun `Lookup Test`() {
         withAuthMock {
             withTestApplication (
                 moduleFunction = {
                     val reverseLookupService = mockk<ReverseLookupService>()
-                    every { reverseLookupService.reverseLookup(any()) } returns "This is what I found"
                     every { reverseLookupService.reverseLookupBatch(any()) } returns listOf("This is what I found")
                     configureLookupServer(reverseLookupService)
                 },
@@ -70,6 +68,31 @@ class LookupTest{
                     assertEquals("This is what I found", obj["canonicalPath"].first().textValue())
                 }
 
+            )
+        }
+    }
+
+    @Test
+    fun `Lookup test - to many files exception thrown`() {
+        withAuthMock {
+            withTestApplication (
+                moduleFunction = {
+                    val reverseLookupService = mockk<ReverseLookupService>()
+                    every { reverseLookupService.reverseLookupBatch(any()) } answers {
+                             throw RPCException("Bad request. Too many file IDs", HttpStatusCode.BadRequest)
+                    }
+                    configureLookupServer(reverseLookupService)
+                },
+
+                test = {
+                    val response =
+                        handleRequest(HttpMethod.Get, "/api/file-search/lookup/reverse?fileId=1") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser(role = Role.ADMIN)
+                        }.response
+
+                    assertEquals(HttpStatusCode.BadRequest, response.status())
+                }
             )
         }
     }
