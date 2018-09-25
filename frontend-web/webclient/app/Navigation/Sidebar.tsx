@@ -33,7 +33,6 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
     render() {
         const { open, setSidebarState } = this.props;
         const { activeIndices } = this.state;
-
         const sidebarIsOpen = open && window.innerWidth < 1000;
 
         const content = (

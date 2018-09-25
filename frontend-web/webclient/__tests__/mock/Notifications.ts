@@ -13,7 +13,7 @@ export const notifications = {
                 shareId: 3
             },
             ts: 1535986219809,
-            read: true
+            read: false
         }, {
             type: "SHARE_REQUEST",
             message: "jonas@hinchely.dk has shared a file with you",

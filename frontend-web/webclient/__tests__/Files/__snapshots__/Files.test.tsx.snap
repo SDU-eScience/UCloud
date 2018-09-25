@@ -2653,17 +2653,6 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </a>
         <a
           aria-current={false}
-          className="item"
-          onClick={[Function]}
-          onKeyDown={[Function]}
-          tabIndex={0}
-          type="pageItem"
-          value={3}
-        >
-          3
-        </a>
-        <a
-          aria-current={false}
           aria-label="Next item"
           className="item"
           onClick={[Function]}
@@ -2682,7 +2671,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
           onKeyDown={[Function]}
           tabIndex={0}
           type="lastItem"
-          value={3}
+          value={2}
         >
           »
         </a>
