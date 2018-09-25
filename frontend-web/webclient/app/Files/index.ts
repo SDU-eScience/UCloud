@@ -256,6 +256,7 @@ export interface DetailedFileSearchState {
     createdAfter?: Moment
     modifiedBefore?: Moment
     modifiedAfter?: Moment
+    error?: string
 }
 
 export interface ContextBarProps extends ContextButtonsProps, FileOptionsProps { }
