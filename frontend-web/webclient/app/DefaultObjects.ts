@@ -11,6 +11,7 @@ import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
 import { Notification } from "Notifications";
 import { Upload } from "Uploader";
+import { Activity } from "Activity";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -135,12 +136,14 @@ interface SidebarReduxObject {
     options: SidebarOption[]
 }
 
-interface HeaderSearch {
+interface HeaderSearchReduxObject {
     prioritizedSearch: HeaderSearchType
 }
 
-export type HeaderSearchType = "files" | "applications" | "projects";
+export interface ActivityReduxObject extends ComponentWithPage<Activity> { }
 
+export type HeaderSearchType = "files" | "applications" | "projects";
+ 
 interface UploaderReduxObject {
     uploads: Upload[]
     visible: boolean
@@ -163,6 +166,7 @@ export interface Reducers {
     zenodo?: any
     header?: any
     sidebar?: any
+    activity?: any
 }
 
 export interface ReduxObject {
@@ -175,18 +179,25 @@ export interface ReduxObject {
     notifications: NotificationsReduxObject
     analyses: ComponentWithPage<Analysis>
     zenodo: ZenodoReduxObject
-    header: HeaderSearch
+    header: HeaderSearchReduxObject
     sidebar: SidebarReduxObject
+    activity: ActivityReduxObject
 }
 
-export const initNotifications = () => ({
+export const initActivity = (): ActivityReduxObject => ({
+    page: emptyPage,
+    error: undefined,
+    loading: false
+});
+
+export const initNotifications = (): NotificationsReduxObject => ({
     page: emptyPage,
     loading: false,
     redirectTo: "",
     error: undefined
 });
 
-export const initHeader = (): HeaderSearch => ({
+export const initHeader = (): HeaderSearchReduxObject => ({
     prioritizedSearch: "files"
 });
 
@@ -225,7 +236,8 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     analyses: initAnalyses(),
     zenodo: initZenodo(),
     sidebar: initSidebar(),
-    uploader: initUploads()
+    uploader: initUploads(),
+    activity: initActivity()
 });
 
 export const initAnalyses = (): ComponentWithPage<Analysis> => ({

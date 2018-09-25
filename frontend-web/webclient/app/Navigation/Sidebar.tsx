@@ -110,6 +110,9 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
                 <MenuLink icon="file" to={`/files/${Cloud.homeFolder}`} name="Files" onClick={() => closeSidebar()} />
             </Menu.Item>
             <Menu.Item>
+                <MenuLink icon="question" to={`/activity/`} name="Activity" onClick={() => closeSidebar()} />
+            </Menu.Item>
+            <Menu.Item>
                 <Accordion.Title onClick={handleClick} index={0} active={activeIndices[0]}>
                     Applications
                     <Icon name="dropdown" />

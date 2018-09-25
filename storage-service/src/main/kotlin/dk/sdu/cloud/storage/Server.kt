@@ -2,10 +2,9 @@ package dk.sdu.cloud.storage
 
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.tus.api.TusHeaders
 import dk.sdu.cloud.storage.http.*
 import dk.sdu.cloud.storage.processor.ChecksumProcessor
 import dk.sdu.cloud.storage.processor.StorageEventProcessor
@@ -14,6 +13,7 @@ import dk.sdu.cloud.storage.services.*
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.CephFSUserDao
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
+import dk.sdu.cloud.tus.api.TusHeaders
 import io.ktor.application.install
 import io.ktor.features.CORS
 import io.ktor.http.HttpHeaders
@@ -21,7 +21,6 @@ import io.ktor.http.HttpMethod
 import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import kotlinx.coroutines.experimental.launch
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 import java.io.File
@@ -33,7 +32,7 @@ class Server(
     private val cloud: RefreshingJWTAuthenticatedCloud,
     private val instance: ServiceInstance,
     private val args: Array<String>
-): CommonServer {
+) : CommonServer {
     override val log: Logger = logger()
 
     override lateinit var httpServer: ApplicationEngine
@@ -55,9 +54,7 @@ class Server(
 
         val aclService = ACLService(fs)
 
-        // TODO Breaks previous contract that CoreFS would emit all events
         val annotationService = FileAnnotationService(fs, storageEventProducer)
-
 
         val favoriteService = FavoriteService(coreFileSystem)
         val uploadService = BulkUploadService(coreFileSystem)
@@ -65,15 +62,21 @@ class Server(
         val transferState = TusHibernateDAO()
         val fileLookupService = FileLookupService(coreFileSystem, favoriteService)
 
-        // TODO Breaks previous contract that CoreFS would emit all events
         val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer)
 
         val shareDAO = ShareHibernateDAO()
         val shareService = ShareService(db, shareDAO, processRunner, aclService, coreFileSystem)
+
+        val externalFileService = ExternalFileService(processRunner, coreFileSystem, storageEventProducer)
         log.info("Core services constructed!")
 
         kStreams = buildStreams { kBuilder ->
-            UserProcessor(kBuilder.stream(AuthStreams.UserUpdateStream), isDevelopment, cloudToCephFsDao).init()
+            UserProcessor(
+                kBuilder.stream(AuthStreams.UserUpdateStream),
+                isDevelopment,
+                cloudToCephFsDao,
+                externalFileService
+            ).init()
         }
 
         val storageEventProcessor = StorageEventProcessor(kafka)

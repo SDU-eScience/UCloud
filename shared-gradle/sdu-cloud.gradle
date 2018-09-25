@@ -115,7 +115,7 @@ dependencies {
     testCompile "junit:junit:4.12"
     testCompile "io.mockk:mockk:1.8"
     testCompile "io.ktor:ktor-server-test-host:$ktor_version"
-    testCompile group: 'com.h2database', name: 'h2', version: '1.4.197'
+    compile group: 'com.h2database', name: 'h2', version: '1.4.197'
 }
 
 //
@@ -256,4 +256,9 @@ ext.sduCloud = ([
         }
 ])
 
-
+run {
+    classpath sourceSets.generated.output
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
+    }
+}

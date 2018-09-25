@@ -85,7 +85,7 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
 /**
  * 
  * @param onDeleted To be called on completed deletion of files
- * @returns the Delete operation
+ * @returns the Delete operation in an array
  */
 export const DeleteFileOperation = (onDeleted: () => void): Operation[] => [
     { text: "Delete", onClick: (files: File[], cloud: Cloud) => batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "trash", color: "red" }
@@ -114,8 +114,9 @@ export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyO
 export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`;
 
+// FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes 
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
-    `files/lookup?path=${path}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
+    `files/lookup?path=${UF.removeTrailingSlash(path)}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
 
 
 

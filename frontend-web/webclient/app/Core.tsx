@@ -24,6 +24,7 @@ import FilePreview from "Files/FilePreview";
 import * as Share from "Shares";
 import * as Metadata from "Metadata";
 import Uploader from "Uploader/Uploader";
+import Activity from "Activity/Activity";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
@@ -38,6 +39,7 @@ const Core = () => (
                 <Route exact path="/" component={Dashboard} />
                 <Route exact path="/fileInfo/*" component={FileInfo} />
                 <Route exact path="/filepreview/*" component={FilePreview} />
+                <Route exact path="/activity/*" component={Activity} />
                 <Route exact path="/status" component={Status} />
                 <Route exact path="/fileSearch" component={DetailedFileSearch} />
                 <Route exact path="/applications" component={Applications} />

@@ -1,0 +1,694 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`CreateUpdate Component Mount 1`] = `
+<form
+  className="ui form"
+  onSubmit={[Function]}
+>
+  <div
+    className="required field"
+  >
+    <label>
+      Title
+    </label>
+    <div
+      className="required field"
+    >
+      <div
+        className="ui input"
+      >
+        <input
+          onChange={[Function]}
+          placeholder="Title"
+          required={true}
+          type="text"
+          value=""
+        />
+      </div>
+    </div>
+  </div>
+  <div
+    className="required field"
+  >
+    <label>
+      Description
+    </label>
+    <div
+      className="required field"
+    >
+      <textarea
+        onChange={[Function]}
+        onInput={[Function]}
+        placeholder="Description"
+        required={true}
+        rows={15}
+        style={
+          Object {
+            "resize": "",
+          }
+        }
+        value=""
+      />
+    </div>
+  </div>
+  <div
+    className="field"
+  >
+    <label>
+      License
+    </label>
+    <p>
+      <span>
+        No license selected
+      </span>
+    </p>
+    <div
+      className="ui search"
+      onBlur={[Function]}
+      onFocus={[Function]}
+      onMouseDown={[Function]}
+    >
+      <div
+        className="ui icon input"
+      >
+        <input
+          autoComplete="off"
+          className="prompt"
+          onChange={[Function]}
+          onClick={[Function]}
+          placeholder="Search for a license..."
+          tabIndex="0"
+          type="text"
+          value=""
+        />
+        <i
+          aria-hidden="true"
+          className="search icon"
+        />
+      </div>
+      <div
+        className="results transition"
+      >
+        <div
+          className="message empty"
+        >
+          <div
+            className="header"
+          >
+            No results found.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="field"
+  >
+    <label>
+      Keywords
+    </label>
+    <div
+      className="field"
+    >
+      <div
+        className="ui input"
+      >
+        <input
+          onChange={[Function]}
+          placeholder="Enter keyword"
+          type="text"
+          value=""
+        />
+      </div>
+    </div>
+    <button
+      className="ui button"
+      onClick={[Function]}
+      role="button"
+      type="button"
+    >
+      New keyword
+    </button>
+  </div>
+  <div
+    className="field"
+  >
+    <label>
+      Notes
+    </label>
+    <div
+      className="field"
+    >
+      <textarea
+        onChange={[Function]}
+        onInput={[Function]}
+        placeholder="Notes..."
+        rows={3}
+        style={
+          Object {
+            "resize": "",
+          }
+        }
+        value=""
+      />
+    </div>
+  </div>
+  <div
+    className="field"
+  >
+    <label>
+      Data Management Plan
+    </label>
+    <div
+      className="field"
+    >
+      <textarea
+        onChange={[Function]}
+        onInput={[Function]}
+        placeholder="Data Management Plan..."
+        rows={3}
+        style={
+          Object {
+            "resize": "",
+          }
+        }
+        value=""
+      />
+    </div>
+  </div>
+  <div
+    className="field"
+  >
+    <label>
+      Contributors
+    </label>
+    <div
+      className="equal width fields"
+    >
+      <div
+        className="field"
+      >
+        <label>
+          Name
+        </label>
+        <div
+          className="ui fluid input"
+        >
+          <input
+            onChange={[Function]}
+            placeholder="Name..."
+            type="text"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        className="field"
+      >
+        <label>
+          Affiliation
+        </label>
+        <div
+          className="ui fluid input"
+        >
+          <input
+            onChange={[Function]}
+            placeholder="Affiliation..."
+            type="text"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        className="field"
+      >
+        <label>
+          ORCID
+        </label>
+        <div
+          className="ui fluid input"
+        >
+          <input
+            onChange={[Function]}
+            placeholder="ORCID..."
+            type="text"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        className="field"
+      >
+        <label>
+          GND
+        </label>
+        <div
+          className="ui fluid input"
+        >
+          <input
+            onChange={[Function]}
+            placeholder="GND..."
+            type="text"
+            value=""
+          />
+        </div>
+      </div>
+    </div>
+    <button
+      className="ui button"
+      onClick={[Function]}
+      role="button"
+      type="button"
+    >
+      Add collaborator
+    </button>
+  </div>
+  <div
+    className="field"
+  >
+    <label>
+      References
+    </label>
+    <div
+      className="field"
+    >
+      <div
+        className="ui input"
+      >
+        <input
+          onChange={[Function]}
+          placeholder="Enter reference"
+          type="text"
+          value=""
+        />
+      </div>
+    </div>
+    <button
+      className="ui button"
+      onClick={[Function]}
+      role="button"
+      type="button"
+    >
+      Add reference
+    </button>
+  </div>
+  <div
+    className="field"
+  >
+    <label>
+      Grants
+    </label>
+    <div
+      className="field"
+    >
+      <div
+        className="ui input"
+      >
+        <input
+          onChange={[Function]}
+          placeholder="Enter grant"
+          type="text"
+          value=""
+        />
+      </div>
+    </div>
+    <button
+      className="ui button"
+      onClick={[Function]}
+      role="button"
+      type="button"
+    >
+      Add grant
+    </button>
+  </div>
+  <div
+    className="field"
+  >
+    <label>
+      Subjects
+    </label>
+    <div
+      className="equal width fields"
+    >
+      <div
+        className="field"
+      >
+        <label>
+          Term
+        </label>
+        <div
+          className="ui fluid input"
+        >
+          <input
+            onChange={[Function]}
+            placeholder="Term..."
+            type="text"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        className="field"
+      >
+        <label>
+          Identifier
+        </label>
+        <div
+          className="ui fluid input"
+        >
+          <input
+            onChange={[Function]}
+            placeholder="Identifier..."
+            type="text"
+            value=""
+          />
+        </div>
+      </div>
+    </div>
+    <button
+      className="ui button"
+      onClick={[Function]}
+      role="button"
+      type="button"
+    >
+      Add subject
+    </button>
+  </div>
+  <div
+    className="field"
+  >
+    <label>
+      Related identifiers
+    </label>
+    <div
+      className="equal width fields"
+    >
+      <div
+        className="field"
+      >
+        <label>
+          Identifier
+        </label>
+        <div
+          className="ui fluid input"
+        >
+          <input
+            onChange={[Function]}
+            placeholder="Identifier..."
+            type="text"
+            value=""
+          />
+        </div>
+      </div>
+      <div
+        className="field"
+      >
+        <label>
+          Type
+        </label>
+        <div
+          aria-expanded={false}
+          className="ui search selection dropdown"
+          onBlur={[Function]}
+          onChange={[Function]}
+          onClick={[Function]}
+          onFocus={[Function]}
+          onMouseDown={[Function]}
+          role="combobox"
+        >
+          <input
+            aria-autocomplete="list"
+            autoComplete="off"
+            className="search"
+            onChange={[Function]}
+            style={
+              Object {
+                "width": undefined,
+              }
+            }
+            tabIndex={0}
+            type="string"
+            value=""
+          />
+          <div
+            aria-live="polite"
+            className="default text"
+            role="alert"
+          >
+            Select type
+          </div>
+          <i
+            aria-hidden="true"
+            className="dropdown icon"
+            onClick={[Function]}
+          />
+          <div
+            className="menu transition"
+            role="listbox"
+          >
+            <div
+              aria-checked={false}
+              aria-selected={true}
+              className="selected item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Cited by
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Cites
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Supplement to
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Supplemented by
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                New version of
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Previous version of
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Part of
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Has part
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Compiles
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Is compiled by
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Identical to
+              </span>
+            </div>
+            <div
+              aria-checked={false}
+              aria-selected={false}
+              className="item"
+              onClick={[Function]}
+              role="option"
+              style={
+                Object {
+                  "pointerEvents": "all",
+                }
+              }
+            >
+              <span
+                className="text"
+              >
+                Alternative identifier
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <button
+      className="ui button"
+      onClick={[Function]}
+      role="button"
+      type="button"
+    >
+      Add identifier
+    </button>
+  </div>
+  <button
+    className="ui positive right floated button"
+    onClick={[Function]}
+    role="button"
+    type="button"
+  >
+    <i
+      aria-hidden="true"
+      className="checkmark icon"
+    />
+    Submit
+  </button>
+  <div
+    className="clear"
+  />
+</form>
+`;

@@ -58,7 +58,7 @@ export const fetchRecentFiles = (): Promise<Fetch<File> | Error> =>
 * Returns an action containing recently used files
 * @param {File[]} content The list of recently used files retrieved
 */
-const receiveRecentFiles = (content: File[]): Fetch<File> => ({
+export const receiveRecentFiles = (content: File[]): Fetch<File> => ({
     type: RECEIVE_RECENT_FILES,
     content
 });
@@ -75,7 +75,7 @@ export const fetchRecentAnalyses = (): Promise<Fetch<Analysis> | Error> =>
 * Returns an action containing most recently updated analyses
 * @param {Analyses[]} content The list of recently updated analyses
 */
-const receiveRecentAnalyses = (content: Analysis[]): Fetch<Analysis> => ({
+export const receiveRecentAnalyses = (content: Analysis[]): Fetch<Analysis> => ({
     type: RECEIVE_RECENT_ANALYSES,
     content
 });

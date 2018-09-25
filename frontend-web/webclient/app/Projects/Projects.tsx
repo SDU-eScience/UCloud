@@ -11,25 +11,11 @@ class Projects extends React.Component<any, any> {
     }
 
     render() {
-        return (
-            <React.StrictMode>
-                <Pagination.List
-                    page={emptyPage}
-                    pageRenderer={(page) => (
-                        <Card.Group>
-                            <Card content="Empty" />
-                        </Card.Group>
-                    )}
-                    loading={this.props.loading}
-                    onPageChanged={(pageNumber) => null}
-                    onItemsPerPageChanged={(itemsPerPage: number) => null}
-                />
-            </React.StrictMode>
-        )
+        return null;
     }
 }
 
-const mapStateToProps = (state) => null;
-const mapDispatchToProps = (dispatch) => null;
+const mapStateToProps = (state) => ({});
+const mapDispatchToProps = (dispatch) => ({});
 
-export default connect()(Projects);
+export default connect(mapStateToProps, mapDispatchToProps)(Projects);

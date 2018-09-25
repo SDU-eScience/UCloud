@@ -1,6 +1,6 @@
 import { Page } from "Types";
 import { History } from "history";
-import { SemanticICONS, SemanticSIZES, ButtonProps, ModalProps, SemanticCOLORS, IconProps } from "semantic-ui-react";
+import { SemanticICONS, ButtonProps, ModalProps, SemanticCOLORS, IconProps } from "semantic-ui-react";
 import { match } from "react-router-dom";
 import Cloud from "Authentication/lib";
 import { Moment } from "moment";

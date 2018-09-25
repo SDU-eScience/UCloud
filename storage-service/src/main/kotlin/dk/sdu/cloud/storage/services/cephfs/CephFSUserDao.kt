@@ -38,7 +38,6 @@ class CephFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
     }
 
     override fun findCloudUser(unixUser: String, verify: Boolean): String? {
-        log.debug("findCloudUser($unixUser, $verify)")
         if (verify) TODO("Username verification not yet implemented")
 
         return if (unixUser.startsWith(B64_PREFIX)) {
@@ -47,18 +46,17 @@ class CephFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
         } else {
             if (isDevelopment) userToCloud[unixUser]
             else throw IllegalArgumentException("Unsupported unix user")
-        }.also { log.debug("  Result is $it") }
+        }
     }
 
     override fun findStorageUser(cloudUser: String, verify: Boolean): String? {
-        log.debug("findStorageUser($cloudUser, $verify)")
         if (verify) TODO("Username verification not yet implemented")
 
         return if (isDevelopment) {
             cloudToUser[cloudUser]
         } else {
             B64_PREFIX + encoder.encodeToString(cloudUser.toByteArray(USERNAME_CHARSET)).replace('=', '.')
-        }.also { log.debug("  Result is $it") }
+        }
     }
 
     companion object {
