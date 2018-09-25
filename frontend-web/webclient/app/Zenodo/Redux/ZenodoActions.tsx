@@ -31,7 +31,7 @@ export const fetchLoginStatus = () =>
 export const receiveLoginStatus = (connected: boolean) => ({
     type: RECEIVE_ZENODO_LOGIN_STATUS,
     connected
-})
+});
 
 /**
  * The action for receiving a page of Publications
