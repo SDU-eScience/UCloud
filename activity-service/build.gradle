@@ -1,8 +1,6 @@
 group 'dk.sdu.cloud'
 version '0.1.1'
 
-apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
-
 dependencies {
     compile "dk.sdu.cloud:service-common:0.19.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"
@@ -15,6 +13,8 @@ dependencies {
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.activity.MainKt"
+
+apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
 
 run {
     if (project.hasProperty("appArgs")) {
