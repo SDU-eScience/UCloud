@@ -4,10 +4,7 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.AuthStreams
-import dk.sdu.cloud.auth.http.CoreAuthController
-import dk.sdu.cloud.auth.http.PasswordController
-import dk.sdu.cloud.auth.http.SAMLController
-import dk.sdu.cloud.auth.http.UserController
+import dk.sdu.cloud.auth.http.*
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.client.AuthenticatedCloud
@@ -47,6 +44,9 @@ class Server(
             userDao,
             kafka.producer.forStream(AuthStreams.UserUpdateStream)
         )
+
+        val totpService = WSTOTPService()
+        val qrService = ZXingQRService()
 
         val associatedByService = config.tokenExtension.groupBy { it.serviceName }
         val mergedExtensions = associatedByService.map { (service, lists) ->
@@ -131,6 +131,13 @@ class Server(
                         userDao,
                         userCreationService,
                         tokenService
+                    ),
+
+                    TwoFactorAuthController(
+                        totpService,
+                        qrService,
+                        db,
+                        userDao
                     )
                 )
             }
