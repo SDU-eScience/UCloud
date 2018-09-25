@@ -12,9 +12,21 @@ import javax.imageio.ImageIO
  * A service for generating QR-codes
  */
 interface QRService {
+    /**
+     * Encodes a [message] of dimensions [width]px times [height]px
+     *
+     * The returned [BufferedImage] can be converted into an image using functions in [ImageIO] or using
+     * the utility function [BufferedImage.toDataURI] for data URI conversion (suitable for web-clients).
+     */
     fun encode(message: String, width: Int, height: Int): BufferedImage
 }
 
+/**
+ * Utility function for converting a [BufferedImage] into a data URI.
+ *
+ * @param format The image format (to be consumed by [ImageIO]. See [ImageIO.getWriterFormatNames]
+ * @param mediaType The media type. It should match the image format.
+ */
 fun BufferedImage.toDataURI(format: String = "PNG", mediaType: String = "image/png"): String {
     return StringBuilder().apply {
         append("data:")
@@ -29,6 +41,9 @@ fun BufferedImage.toDataURI(format: String = "PNG", mediaType: String = "image/p
     }.toString()
 }
 
+/**
+ * Implements the [QRService] using the ZXing library
+ */
 class ZXingQRService : QRService {
     private val instance = QRCodeWriter()
 
