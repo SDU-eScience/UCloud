@@ -170,7 +170,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                 />
             </div>
         ) : null;
-        const error = !!this.state.error ? <Message error content={this.state.error} /> : null;
+        const error = !!this.state.error ? <Message error content={this.state.error} onDismiss={() => this.setState(() => ({ error: undefined }))} /> : null;
         return (
             <Grid container columns={16} >
                 <Grid.Column width={16}>
