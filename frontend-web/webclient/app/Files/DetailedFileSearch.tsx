@@ -190,7 +190,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                     timeIntervals={15}
                                     isClearable
                                     timeFormat="HH:mm"
-                                    dateFormat="HH:mm DD/MM/YY"
+                                    dateFormat="DD/MM/YY HH:mm"
                                     timeCaption="time"
                                 />
                             </Form.Field>
@@ -203,7 +203,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                     timeIntervals={15}
                                     isClearable
                                     timeFormat="HH:mm"
-                                    dateFormat="HH:mm DD/MM/YY"
+                                    dateFormat="DD/MM/YY HH:mm"
                                     timeCaption="time"
                                 />
                             </Form.Field>
@@ -221,7 +221,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                     timeIntervals={15}
                                     isClearable
                                     timeFormat="HH:mm"
-                                    dateFormat="HH:mm DD/MM/YY"
+                                    dateFormat="DD/MM/YY HH:mm"
                                     timeCaption="time"
                                 />
                             </Form.Field>
@@ -234,7 +234,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                     timeIntervals={15}
                                     isClearable
                                     timeFormat="HH:mm"
-                                    dateFormat="HH:mm DD/MM/YY"
+                                    dateFormat="DD/MM/YY HH:mm"
                                     timeCaption="time"
                                 />
                             </Form.Field>
@@ -248,7 +248,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <Header as="h3" content="File extensions" />
                     <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} clearAll={() => this.setState(() => ({ extensions: new Set() }))} />
                     <Form onSubmit={(e) => { e.preventDefault(); this.onAddExtension(); }}>
-                        <Form.Input value={extensionValue} onChange={(_, { value }) => this.setState(() => ({ extensionValue: value }))} />
+                        <Form.Input placeholder="Add extensions..." value={extensionValue} onChange={(_, { value }) => this.setState(() => ({ extensionValue: value }))} />
                         <Dropdown
                             text="Add extension preset"
                             onChange={(_, { value }) => this.onAddPresets(value as string)}
