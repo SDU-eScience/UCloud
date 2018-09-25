@@ -1,0 +1,610 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Header Mount header 1`] = `
+<div
+  className="ui tiny borderless inverted attached menu-padding menu"
+>
+  <div
+    className="item"
+    onClick={[Function]}
+  >
+    <a
+      href="/dashboard"
+      onClick={[Function]}
+    >
+      <div
+        className="ui header"
+      >
+        <h3
+          className="logo"
+        >
+          SDUCloud
+        </h3>
+      </div>
+    </a>
+  </div>
+  <div
+    className="item"
+    onClick={[Function]}
+  >
+    <div
+      aria-expanded={false}
+      className="ui button floating labeled dropdown icon"
+      onBlur={[Function]}
+      onChange={[Function]}
+      onClick={[Function]}
+      onFocus={[Function]}
+      onMouseDown={[Function]}
+      role="listbox"
+      tabIndex={0}
+    >
+      <div
+        aria-live="polite"
+        className="text"
+        role="alert"
+      >
+        Data Stream Processing
+      </div>
+      <i
+        aria-hidden="true"
+        className="users icon"
+        onClick={[Function]}
+      />
+      <div
+        className="menu transition"
+      >
+        <div
+          aria-checked={true}
+          aria-selected={true}
+          className="active selected item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            Data Stream Processing
+          </span>
+        </div>
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            Event generator for Beyond Standard Model (BSM) physics
+          </span>
+        </div>
+        <div
+          aria-checked={false}
+          aria-selected={false}
+          className="item"
+          onClick={[Function]}
+          role="option"
+          style={
+            Object {
+              "pointerEvents": "all",
+            }
+          }
+        >
+          <span
+            className="text"
+          >
+            Motif Discovery with Homer
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="right menu"
+  >
+    <div
+      className="item"
+      onClick={[Function]}
+    >
+      <div>
+        <form
+          className="ui tiny form"
+          onSubmit={[Function]}
+        >
+          <div
+            className="ui fluid icon input header-search"
+          >
+            <input
+              onChange={[Function]}
+              placeholder="Search for files, apps, and projects..."
+              type="text"
+              value=""
+            />
+            <i
+              aria-hidden="true"
+              className="search icon"
+            />
+          </div>
+        </form>
+      </div>
+    </div>
+    <div
+      className="item"
+      onClick={[Function]}
+    >
+      <button
+        className="ui blue circular button notification-button-padding"
+        onBlur={[Function]}
+        onClick={[Function]}
+        onFocus={[Function]}
+        onMouseEnter={[Function]}
+        onMouseLeave={[Function]}
+        role="button"
+      >
+        <i
+          aria-hidden="true"
+          className="bell icon notification-button-padding"
+        />
+      </button>
+    </div>
+    <div
+      aria-expanded={false}
+      className="ui item dropdown"
+      onBlur={[Function]}
+      onChange={[Function]}
+      onClick={[Function]}
+      onFocus={[Function]}
+      onMouseDown={[Function]}
+      role="listbox"
+      tabIndex={0}
+    >
+      <svg
+        height="280px"
+        style={
+          Object {
+            "height": "32px",
+            "width": "32px",
+          }
+        }
+        version="1.1"
+        viewBox="0 0 264 280"
+        width="264px"
+        xmlns="http://www.w3.org/2000/svg"
+        xmlnsXlink="http://www.w3.org/1999/xlink"
+      >
+        <desc>
+          Created with getavataaars.com
+        </desc>
+        <defs>
+          <circle
+            cx="120"
+            cy="120"
+            id="path-1"
+            r="120"
+          />
+          <path
+            d="M12,160 C12,226.27417 65.72583,280 132,280 C198.27417,280 252,226.27417 252,160 L264,160 L264,-1.42108547e-14 L-3.19744231e-14,-1.42108547e-14 L-3.19744231e-14,160 L12,160 Z"
+            id="path-3"
+          />
+          <path
+            d="M124,144.610951 L124,163 L128,163 L128,163 C167.764502,163 200,195.235498 200,235 L200,244 L0,244 L0,235 C-4.86974701e-15,195.235498 32.235498,163 72,163 L72,163 L76,163 L76,144.610951 C58.7626345,136.422372 46.3722246,119.687011 44.3051388,99.8812385 C38.4803105,99.0577866 34,94.0521096 34,88 L34,74 C34,68.0540074 38.3245733,63.1180731 44,62.1659169 L44,56 L44,56 C44,25.072054 69.072054,5.68137151e-15 100,0 L100,0 L100,0 C130.927946,-5.68137151e-15 156,25.072054 156,56 L156,62.1659169 C161.675427,63.1180731 166,68.0540074 166,74 L166,88 C166,94.0521096 161.51969,99.0577866 155.694861,99.8812385 C153.627775,119.687011 141.237365,136.422372 124,144.610951 Z"
+            id="path-5"
+          />
+        </defs>
+        <g
+          fill="none"
+          fillRule="evenodd"
+          id="Avataaar"
+          stroke="none"
+          strokeWidth="1"
+        >
+          <g
+            id="Avataaar/Circle"
+            transform="translate(-825.000000, -1100.000000)"
+          >
+            <g
+              transform="translate(825.000000, 1100.000000)"
+            >
+              <g
+                fillRule="evenodd"
+                id="Circle"
+                strokeWidth="1"
+                transform="translate(12.000000, 40.000000)"
+              >
+                <mask
+                  fill="white"
+                  id="mask-2"
+                >
+                  <use
+                    xlinkHref="#path-1"
+                  />
+                </mask>
+                <use
+                  fill="#E6E6E6"
+                  id="Circle-Background"
+                  xlinkHref="#path-1"
+                />
+                <g
+                  fill="#65C9FF"
+                  id="Color/Palette/Blue-01"
+                  mask="url(#mask-2)"
+                >
+                  <rect
+                    height="240"
+                    id="🖍Color"
+                    width="240"
+                    x="0"
+                    y="0"
+                  />
+                </g>
+              </g>
+              <mask
+                fill="white"
+                id="mask-4"
+              >
+                <use
+                  xlinkHref="#path-3"
+                />
+              </mask>
+              <g
+                id="Mask"
+              />
+              <g
+                fillRule="evenodd"
+                id="Avataaar"
+                mask="url(#mask-4)"
+                strokeWidth="1"
+              >
+                <g
+                  id="Body"
+                  transform="translate(32.000000, 36.000000)"
+                >
+                  <mask
+                    fill="white"
+                    id="mask-6"
+                  >
+                    <use
+                      xlinkHref="#path-5"
+                    />
+                  </mask>
+                  <use
+                    fill="#D0C6AC"
+                    xlinkHref="#path-5"
+                  />
+                  <g
+                    fill="#EDB98A"
+                    id="Skin/👶🏽-03-Brown"
+                    mask="url(#mask-6)"
+                  >
+                    <g
+                      id="Color"
+                      transform="translate(-32.000000, 0.000000)"
+                    >
+                      <rect
+                        height="244"
+                        width="264"
+                        x="0"
+                        y="0"
+                      />
+                    </g>
+                  </g>
+                  <path
+                    d="M156,79 L156,102 C156,132.927946 130.927946,158 100,158 C69.072054,158 44,132.927946 44,102 L44,79 L44,94 C44,124.927946 69.072054,150 100,150 C130.927946,150 156,124.927946 156,94 L156,79 Z"
+                    fill="#000000"
+                    fillOpacity="0.100000001"
+                    id="Neck-Shadow"
+                    mask="url(#mask-6)"
+                  />
+                </g>
+                <g
+                  id="Clothing/Graphic-Shirt"
+                  transform="translate(0.000000, 170.000000)"
+                >
+                  <defs>
+                    <path
+                      d="M165.624032,29.2681342 C202.760022,32.1373245 232,63.1798426 232,101.051724 L232,110 L32,110 L32,101.051724 C32,62.8348009 61.7752018,31.5722494 99.3929298,29.1967444 C99.1342224,30.2735458 99,31.3767131 99,32.5 C99,44.3741221 113.998461,54 132.5,54 C151.001539,54 166,44.3741221 166,32.5 C166,31.4015235 165.871641,30.3222877 165.624025,29.2681336 Z"
+                      id="react-path-1"
+                    />
+                  </defs>
+                  <mask
+                    fill="white"
+                    id="react-mask-2"
+                  >
+                    <use
+                      xlinkHref="#react-path-1"
+                    />
+                  </mask>
+                  <use
+                    fill="#E6E6E6"
+                    fillRule="evenodd"
+                    id="Clothes"
+                    xlinkHref="#react-path-1"
+                  />
+                  <g
+                    fill="#5199E4"
+                    fillRule="evenodd"
+                    id="Color/Palette/Gray-01"
+                    mask="url(#react-mask-2)"
+                  >
+                    <rect
+                      height="110"
+                      id="🖍Color"
+                      width="264"
+                      x="0"
+                      y="0"
+                    />
+                  </g>
+                  <g
+                    fillRule="evenodd"
+                    id="Clothing/Graphic/Bear"
+                    mask="url(#react-mask-2)"
+                    strokeWidth="1"
+                  >
+                    <defs>
+                      <polygon
+                        id="react-path-4"
+                        points="47.8916289 0.430054064 47.8916289 41.9204613 0.45345556 41.9204613 0.45345556 0.430054064 47.8916289 0.430054064"
+                      />
+                    </defs>
+                    <g
+                      id="Group-76"
+                      transform="translate(77.000000, 58.000000)"
+                    >
+                      <g
+                        transform="translate(31.000000, 1.000000)"
+                      >
+                        <mask
+                          fill="white"
+                          id="react-mask-3"
+                        >
+                          <use
+                            xlinkHref="#react-path-4"
+                          />
+                        </mask>
+                        <path
+                          d="M34.4465814,31.5861741 C33.968066,34.4016565 30.3675711,38.9307388 27.2995299,35.97048 C23.8326433,32.6262918 31.5245196,31.1602447 28.7810969,28.3763859 C27.5974268,27.1761741 24.3685608,27.83928 22.7791175,27.96528 C21.289633,28.0833741 18.9133856,28.4198682 19.4834474,30.5900329 C19.9159423,32.2398918 21.1926433,31.5342918 21.8715711,32.4815153 C22.4069938,33.2301035 22.1798598,35.9887624 21.3826639,36.7492094 C20.3796124,37.7053271 19.193468,37.4123153 17.7975093,36.7996094 C14.6057567,35.39928 13.1212206,31.4868565 15.2228289,28.5829271 C19.3780454,22.8417741 35.2897979,21.5244565 34.4465814,31.5861741 M14.9853031,14.7244094 C15.9695505,14.2811859 17.132932,14.5213271 17.7173443,15.5110447 C18.5189938,16.8669035 17.3595711,18.6842682 15.7424165,18.4668565 C14.0347052,18.2365976 13.1726845,15.5481035 14.9853031,14.7244094 M32.9472,16.3787153 C32.0911175,19.3854212 27.3109113,16.0012094 30.0112825,14.08848 C31.5626227,12.9900565 33.4583753,14.5801271 32.9472,16.3787153 M47.8267052,23.16888 C47.5911588,20.7887153 46.9270763,18.5231859 45.7389526,16.4385035 C45.1164371,15.3460094 44.3464577,14.3276329 43.5492619,13.35768 C43.2483959,12.9930212 42.6432,12.34968 42.5264165,12.1446212 C41.8173031,10.90488 41.888066,11.7834212 42.2789938,10.3598682 C42.8950763,8.11657412 44.2262103,6.28043294 43.1627876,3.87062118 C42.1735918,1.62930353 39.5078598,0.576832941 37.1791175,0.443915294 C36.0914474,0.382150588 35.0017979,0.525938824 33.9720247,0.892574118 C32.9368082,1.26069176 31.9708701,2.53255059 31.0717361,2.79393882 C30.3740041,2.99702118 28.3872,2.33391529 27.6305814,2.28549176 C26.2356124,2.19605647 24.8332206,2.23558588 23.4387464,2.31859765 C21.8087258,2.41544471 18.0632412,3.58205647 16.5257567,3.19565647 C15.5108289,2.94069176 14.3172619,1.41485647 13.1449732,1.03191529 C11.852932,0.610432941 10.4673649,0.467632941 9.17829278,0.954338824 C6.89260206,1.81805647 5.17845773,4.50605647 5.12501443,6.89560941 C5.09680825,8.15066824 5.78018969,9.01092706 5.91528247,10.1469035 C6.11816907,11.8619859 6.35223093,10.5026682 5.42835464,11.8718682 C4.9577567,12.5690682 4.13284948,13.1822682 3.60385979,13.8537741 C0.778787629,17.4405741 -0.278696907,22.73208 0.974746392,27.0733976 C4.13284948,38.0131624 14.6423753,42.4676329 25.4136742,41.86728 C34.6648082,41.3509271 48.9782103,34.1491624 47.8267052,23.16888"
+                          fill="#FFFFFF"
+                          id="Fill-74"
+                          mask="url(#react-mask-3)"
+                        />
+                      </g>
+                    </g>
+                  </g>
+                </g>
+                <g
+                  fill="#000000"
+                  id="Face"
+                  transform="translate(76.000000, 82.000000)"
+                >
+                  <g
+                    id="Mouth/Smile"
+                    transform="translate(2.000000, 52.000000)"
+                  >
+                    <defs>
+                      <path
+                        d="M35.117844,15.1280772 C36.1757121,24.6198025 44.2259873,32 54,32 C63.8042055,32 71.8740075,24.574136 72.8917593,15.0400546 C72.9736685,14.272746 72.1167429,13 71.042767,13 C56.1487536,13 44.7379213,13 37.0868244,13 C36.0066168,13 35.0120058,14.1784435 35.117844,15.1280772 Z"
+                        id="react-path-5"
+                      />
+                    </defs>
+                    <mask
+                      fill="white"
+                      id="react-mask-6"
+                    >
+                      <use
+                        xlinkHref="#react-path-5"
+                      />
+                    </mask>
+                    <use
+                      fill="#000000"
+                      fillOpacity="0.699999988"
+                      fillRule="evenodd"
+                      id="Mouth"
+                      xlinkHref="#react-path-5"
+                    />
+                    <rect
+                      fill="#FFFFFF"
+                      fillRule="evenodd"
+                      height="16"
+                      id="Teeth"
+                      mask="url(#react-mask-6)"
+                      rx="5"
+                      width="31"
+                      x="39"
+                      y="2"
+                    />
+                    <g
+                      fill="#FF4F6D"
+                      fillRule="evenodd"
+                      id="Tongue"
+                      mask="url(#react-mask-6)"
+                      strokeWidth="1"
+                    >
+                      <g
+                        transform="translate(38.000000, 24.000000)"
+                      >
+                        <circle
+                          cx="11"
+                          cy="11"
+                          r="11"
+                        />
+                        <circle
+                          cx="21"
+                          cy="11"
+                          r="11"
+                        />
+                      </g>
+                    </g>
+                  </g>
+                  <g
+                    fillOpacity="0.16"
+                    id="Nose/Default"
+                    transform="translate(28.000000, 40.000000)"
+                  >
+                    <path
+                      d="M16,8 C16,12.418278 21.372583,16 28,16 L28,16 C34.627417,16 40,12.418278 40,8"
+                      id="Nose"
+                    />
+                  </g>
+                  <g
+                    fillOpacity="0.599999964"
+                    id="Eyes/Default-😀"
+                    transform="translate(0.000000, 8.000000)"
+                  >
+                    <circle
+                      cx="30"
+                      cy="22"
+                      id="Eye"
+                      r="6"
+                    />
+                    <circle
+                      cx="82"
+                      cy="22"
+                      id="Eye"
+                      r="6"
+                    />
+                  </g>
+                  <g
+                    fillOpacity="0.599999964"
+                    id="Eyebrow/Outline/Default"
+                  >
+                    <g
+                      id="I-Browse"
+                      transform="translate(12.000000, 6.000000)"
+                    >
+                      <path
+                        d="M3.63024536,11.1585767 C7.54515501,5.64986673 18.2779197,2.56083721 27.5230268,4.83118046 C28.5957248,5.0946055 29.6788665,4.43856013 29.9422916,3.36586212 C30.2057166,2.2931641 29.5496712,1.21002236 28.4769732,0.94659732 C17.7403633,-1.69001789 5.31209962,1.88699832 0.369754639,8.84142326 C-0.270109626,9.74178291 -0.0589363917,10.9903811 0.84142326,11.6302454 C1.74178291,12.2701096 2.9903811,12.0589364 3.63024536,11.1585767 Z"
+                        fillRule="nonzero"
+                        id="Eyebrow"
+                      />
+                      <path
+                        d="M61.6302454,11.1585767 C65.545155,5.64986673 76.2779197,2.56083721 85.5230268,4.83118046 C86.5957248,5.0946055 87.6788665,4.43856013 87.9422916,3.36586212 C88.2057166,2.2931641 87.5496712,1.21002236 86.4769732,0.94659732 C75.7403633,-1.69001789 63.3120996,1.88699832 58.3697546,8.84142326 C57.7298904,9.74178291 57.9410636,10.9903811 58.8414233,11.6302454 C59.7417829,12.2701096 60.9903811,12.0589364 61.6302454,11.1585767 Z"
+                        fillRule="nonzero"
+                        id="Eyebrow"
+                        transform="translate(73.000154, 6.039198) scale(-1, 1) translate(-73.000154, -6.039198) "
+                      />
+                    </g>
+                  </g>
+                </g>
+                <g
+                  fillRule="evenodd"
+                  id="Top"
+                  strokeWidth="1"
+                >
+                  <defs>
+                    <rect
+                      height="280"
+                      id="react-path-9"
+                      width="264"
+                      x="0"
+                      y="0"
+                    />
+                    <filter
+                      filterUnits="objectBoundingBox"
+                      height="108.0%"
+                      id="react-filter-7"
+                      width="101.5%"
+                      x="-0.8%"
+                      y="-2.0%"
+                    >
+                      <feOffset
+                        dx="0"
+                        dy="2"
+                        in="SourceAlpha"
+                        result="shadowOffsetOuter1"
+                      />
+                      <feColorMatrix
+                        in="shadowOffsetOuter1"
+                        result="shadowMatrixOuter1"
+                        type="matrix"
+                        values="0 0 0 0 0   0 0 0 0 0   0 0 0 0 0  0 0 0 0.16 0"
+                      />
+                      <feMerge>
+                        <feMergeNode
+                          in="shadowMatrixOuter1"
+                        />
+                        <feMergeNode
+                          in="SourceGraphic"
+                        />
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  <mask
+                    fill="white"
+                    id="react-mask-8"
+                  >
+                    <use
+                      xlinkHref="#react-path-9"
+                    />
+                  </mask>
+                  <g
+                    id="Mask"
+                  />
+                  <g
+                    id="Top/No-Hair"
+                    mask="url(#react-mask-8)"
+                  >
+                    <g
+                      transform="translate(-1.000000, 0.000000)"
+                    />
+                  </g>
+                </g>
+              </g>
+            </g>
+          </g>
+        </g>
+      </svg>
+      <div
+        className="menu transition"
+      >
+        <div
+          aria-disabled={true}
+          className="disabled item"
+          onClick={[Function]}
+          role="option"
+        >
+          Welcome, 
+          test
+        </div>
+        <a
+          className="item"
+          href="/usersettings/settings"
+          onClick={[Function]}
+          role="option"
+        >
+          <i
+            aria-hidden="true"
+            className="settings icon"
+          />
+          Settings
+        </a>
+        <div
+          className="item"
+          onClick={[Function]}
+          role="option"
+        >
+          <i
+            aria-hidden="true"
+            className="sign out icon"
+          />
+          <span
+            className="text"
+          >
+            Logout
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

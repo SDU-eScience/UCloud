@@ -35,7 +35,7 @@ class Notifications extends React.Component<NotificationProps> {
 
     private onNotificationRead(notification: Notification) {
         this.props.notificationRead(notification.id);
-        Cloud.post(`notifications/read/${notification.id}`)
+        Cloud.post(`notifications/read/${notification.id}`);
     }
 
     private onNotificationAction(notification: Notification) {
