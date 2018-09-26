@@ -1,10 +1,11 @@
 group 'dk.sdu.cloud'
 version '1.6.12-SNAPSHOT'
 
-apply from: "../shared-gradle/sdu-cloud.gradle"
-
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
+
+apply from: "../shared-gradle/sdu-cloud.gradle"
+
 
 repositories {
     jcenter()

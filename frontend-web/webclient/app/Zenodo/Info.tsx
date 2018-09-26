@@ -10,7 +10,7 @@ const isTerminal = (status: ZenodoPublicationStatus): boolean =>
     status === ZenodoPublicationStatus.COMPLETE || status === ZenodoPublicationStatus.FAILURE;
 
 class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
-    constructor(props: ZenodoInfoProps) {
+    constructor(props) {
         super(props);
         this.state = {
             error: undefined,

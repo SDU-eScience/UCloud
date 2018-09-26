@@ -1,0 +1,321 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Sidebar Mobile Mount sidebar 1`] = `
+<div
+  className="pushable"
+>
+  <div
+    className="ui overlay left sidebar"
+  >
+    <div
+      className="ui borderless vertical left fixed accordion ui my-sidebar menu"
+    >
+      <div
+        className="accordion ui"
+      >
+        <div
+          className="item"
+          onClick={[Function]}
+        >
+          <a
+            className="sidebar-option"
+            href="/dashboard"
+            onClick={[Function]}
+          >
+            <div
+              className="ui list"
+              role="list"
+            >
+              <div
+                className="item"
+                onClick={[Function]}
+                role="listitem"
+              >
+                <div
+                  className="right floated content"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="home icon"
+                  />
+                </div>
+                Dashboard
+              </div>
+            </div>
+          </a>
+        </div>
+        <div
+          className="item"
+          onClick={[Function]}
+        >
+          <a
+            className="sidebar-option"
+            href="/files//home/test@test.dk/"
+            onClick={[Function]}
+          >
+            <div
+              className="ui list"
+              role="list"
+            >
+              <div
+                className="item"
+                onClick={[Function]}
+                role="listitem"
+              >
+                <div
+                  className="right floated content"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="file icon"
+                  />
+                </div>
+                Files
+              </div>
+            </div>
+          </a>
+        </div>
+        <div
+          className="item"
+          onClick={[Function]}
+        >
+          <a
+            className="sidebar-option"
+            href="/activity/"
+            onClick={[Function]}
+          >
+            <div
+              className="ui list"
+              role="list"
+            >
+              <div
+                className="item"
+                onClick={[Function]}
+                role="listitem"
+              >
+                <div
+                  className="right floated content"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="question icon"
+                  />
+                </div>
+                Activity
+              </div>
+            </div>
+          </a>
+        </div>
+        <div
+          className="item"
+          onClick={[Function]}
+        >
+          <div
+            className="title"
+            onClick={[Function]}
+          >
+            Applications
+            <i
+              aria-hidden="true"
+              className="dropdown icon"
+            />
+          </div>
+          <div
+            className="content"
+          >
+            <div
+              className="ui list"
+              role="list"
+            >
+              <a
+                className="sidebar-option"
+                href="/applications"
+                onClick={[Function]}
+              >
+                <div
+                  className="item item-padding-right"
+                  onClick={[Function]}
+                  role="listitem"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="code icon"
+                  />
+                  Run
+                </div>
+              </a>
+              <a
+                className="sidebar-option"
+                href="/analyses"
+                onClick={[Function]}
+              >
+                <div
+                  className="item item-padding-right"
+                  onClick={[Function]}
+                  role="listitem"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="tasks icon"
+                  />
+                  Results
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div
+          className="item"
+          onClick={[Function]}
+        >
+          <div
+            className="title"
+            onClick={[Function]}
+          >
+            <i
+              aria-hidden="true"
+              className="dropdown icon"
+            />
+            Publishing
+          </div>
+          <div
+            className="content"
+          >
+            <div
+              className="ui list"
+              role="list"
+            >
+              <a
+                className="sidebar-option"
+                href="/zenodo"
+                onClick={[Function]}
+              >
+                <div
+                  className="item item-padding-right"
+                  onClick={[Function]}
+                  role="listitem"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="newspaper icon"
+                  />
+                  Publications
+                </div>
+              </a>
+              <a
+                className="sidebar-option"
+                href="/zenodo/publish"
+                onClick={[Function]}
+              >
+                <div
+                  className="item item-padding-right"
+                  onClick={[Function]}
+                  role="listitem"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="edit icon"
+                  />
+                  Publish
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div
+          className="item"
+          onClick={[Function]}
+        >
+          <a
+            className="sidebar-option"
+            href="/shares"
+            onClick={[Function]}
+          >
+            <div
+              className="ui list"
+              role="list"
+            >
+              <div
+                className="item"
+                onClick={[Function]}
+                role="listitem"
+              >
+                <div
+                  className="right floated content"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="share icon"
+                  />
+                </div>
+                Shares
+              </div>
+            </div>
+          </a>
+        </div>
+        <div
+          className="item"
+          onClick={[Function]}
+        >
+          <div
+            className="title"
+            onClick={[Function]}
+          >
+            <i
+              aria-hidden="true"
+              className="dropdown icon"
+            />
+            Admin
+          </div>
+          <div
+            className="content"
+          >
+            <div
+              className="ui list"
+              role="list"
+            >
+              <a
+                className="sidebar-option"
+                href="/admin/usercreation"
+                onClick={[Function]}
+              >
+                <div
+                  className="item item-padding-right"
+                  onClick={[Function]}
+                  role="listitem"
+                >
+                  <i
+                    aria-hidden="true"
+                    className="user plus icon"
+                  />
+                  <div
+                    className="content"
+                  >
+                    User Creation
+                  </div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="pusher"
+    onClick={[Function]}
+  >
+    <div
+      className="container-wrapper"
+    >
+      <div
+        className="container-content"
+      >
+        <div
+          className="container-padding"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;

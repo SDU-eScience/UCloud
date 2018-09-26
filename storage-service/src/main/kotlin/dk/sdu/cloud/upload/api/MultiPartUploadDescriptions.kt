@@ -18,7 +18,8 @@ import java.util.*
 
 data class BulkUploadErrorMessage(val message: String, val rejectedUploads: List<String>)
 
-data class MultiPartUploadAudit(val path: String, val sensitivityLevel: SensitivityLevel, val owner: String)
+data class UploadRequestAudit(val path: String, val sensitivityLevel: SensitivityLevel, val owner: String)
+data class MultiPartUploadAudit(val request: UploadRequestAudit?)
 data class BulkUploadAudit(val path: String, val policy: WriteConflictPolicy, val owner: String)
 
 object MultiPartUploadDescriptions : RESTDescriptions("upload") {

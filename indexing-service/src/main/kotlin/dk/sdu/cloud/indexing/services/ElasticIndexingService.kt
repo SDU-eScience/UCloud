@@ -15,7 +15,6 @@ import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentType
 import org.slf4j.Logger
-import java.util.ArrayList
 
 class ElasticIndexingService(
     private val elasticClient: RestHighLevelClient

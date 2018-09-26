@@ -96,6 +96,7 @@ node{
       }
     }
 
+    println("current result = " + currentResult)
     if (currentResult == 'UNSTABLE') {
       echo "Build is unstable"
       slackSend baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/', message: 'Build Unstable', token: '1cTFN3I0k1rUZ5ByE0Tf15c9'
