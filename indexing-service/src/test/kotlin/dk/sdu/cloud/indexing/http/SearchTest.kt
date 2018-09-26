@@ -6,6 +6,7 @@ import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.indexing.api.IndexingServiceDescription
 import dk.sdu.cloud.indexing.utils.withAuthMock
 import io.ktor.application.Application
 import io.ktor.http.HttpMethod
@@ -58,6 +59,13 @@ class SearchTest {
         setOf("Annotation"),
         SensitivityLevel.SENSITIVE
     )
+
+    @Test
+    fun `Simple description test`() {
+        val indesc = IndexingServiceDescription
+        assertEquals(indesc.name, IndexingServiceDescription.name)
+        assertEquals(indesc.version, IndexingServiceDescription.version)
+    }
 
     @Test
     fun `Simple search test`() {

@@ -42,7 +42,7 @@ class FileInfo extends React.Component<FileInfoProps, any> {
             <Container className="container-margin" >
                 <Header as="h2" icon textAlign="center">
                     <Header.Content content={replaceHomeFolder(file.path, Cloud.homeFolder)} />
-                    <Header.Subheader content={toLowerCaseAndCapitalize(file.type)} />
+                    <Header.Subheader content={toLowerCaseAndCapitalize(file.fileType)} />
                 </Header>                               {/* MapDispatchToProps */}
                 <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, [file], Cloud)))} />
                 <Segment><ActivityFeed activity={this.state.activity.items} /></Segment>

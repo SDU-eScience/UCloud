@@ -1,5 +1,8 @@
 group 'dk.sdu.cloud'
-version '0.10.0-SNAPSHOT'
+version '0.11.0-SNAPSHOT'
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.storage.MainKt"
 
 apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
 
@@ -18,9 +21,6 @@ dependencies {
 
     compile group: 'com.h2database', name: 'h2', version: '1.4.196'
 }
-
-apply plugin: 'application'
-mainClassName = "dk.sdu.cloud.storage.MainKt"
 
 sduCloud.createTasksForApiJar(
         "file",
@@ -48,9 +48,3 @@ sduCloud.createTasksForApiJar(
                 "dk.sdu.cloud:file-api:${project.version}",
         ]
 )
-
-run {
-    if (project.hasProperty("appArgs")) {
-        args Eval.me(appArgs)
-    }
-}

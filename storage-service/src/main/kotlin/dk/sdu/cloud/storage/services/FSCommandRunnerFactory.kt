@@ -4,10 +4,10 @@ import java.io.Closeable
 
 abstract class FSCommandRunnerFactory<Ctx : FSUserContext> {
     abstract operator fun invoke(user: String): Ctx
+}
 
-    inline fun <R> withContext(user: String, consumer: (Ctx) -> R): R {
-        return invoke(user).use(consumer)
-    }
+inline fun <Ctx : FSUserContext, R> FSCommandRunnerFactory<Ctx>.withContext(user: String, consumer: (Ctx) -> R): R {
+    return invoke(user).use(consumer)
 }
 
 interface CommandRunner : Closeable {

@@ -10,9 +10,12 @@ import {
     replaceHomeFolder
 } from "Utilities/FileUtilities";
 
+/**
+ * Lowercases the string and capitalizes the first letter of the string
+ * @param str string to be lowercased and capitalized
+ * @return {string}
+ */
 export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-
-
 
 /**
  * Returns a string based on the amount of users associated with the ACL
@@ -102,7 +105,7 @@ export const inputSwal = (inputName: string) => ({
 export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     switch (sortBy) {
         case SortBy.TYPE:
-            return toLowerCaseAndCapitalize(file.type);
+            return toLowerCaseAndCapitalize(file.fileType);
         case SortBy.PATH:
             return getFilenameFromPath(file.path);
         case SortBy.CREATED_AT:

@@ -271,10 +271,10 @@ const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: File
     !files.length ? null :
         (<>
             {files.map((file, index) =>
-                file.type === "FILE" ? (
+                file.fileType === "FILE" ? (
                     <List.Item key={index} className="itemPadding pointer-cursor">
                         <List.Content onClick={() => setSelectedFile(file)}>
-                            <List.Icon name={uf.iconFromFilePath(file.path, file.type, Cloud.homeFolder)} />
+                            <List.Icon name={uf.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)} />
                             {getFilenameFromPath(file.path)}
                         </List.Content>
                     </List.Item>

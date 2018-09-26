@@ -74,35 +74,37 @@ fun File.timestamps(): Timestamps {
 
 fun createDummyFS(): File {
     val fsRoot = Files.createTempDirectory("share-service-test").toFile()
-    fsRoot.apply {
-        mkdir("home") {
-            mkdir("user1") {
-                mkdir("folder") {
-                    touch("a", "File A")
-                    touch("b", "File B")
-                    touch("c", "File C")
-                    touch("d", "File E")
-                    touch("e", "File F")
+    fsRoot.apply { createDummyFSInRoot() }
+    return fsRoot
+}
 
-                }
+fun File.createDummyFSInRoot() {
+    mkdir("home") {
+        mkdir("user1") {
+            mkdir("folder") {
+                touch("a", "File A")
+                touch("b", "File B")
+                touch("c", "File C")
+                touch("d", "File E")
+                touch("e", "File F")
 
-                mkdir("another-one") {
-                    touch("b")
-                    touch("g", "File G")
-                    touch("h", "File H")
-
-                }
-                mkdir("one") {
-                    touch("a", "File AA")
-                    touch("i", "File I")
-                    touch("j", "File J")
-                    touch("file", "File BB")
-                }
-                mkdir("Favorites") {}
             }
+
+            mkdir("another-one") {
+                touch("b")
+                touch("g", "File G")
+                touch("h", "File H")
+
+            }
+            mkdir("one") {
+                touch("a", "File AA")
+                touch("i", "File I")
+                touch("j", "File J")
+                touch("file", "File BB")
+            }
+            mkdir("Favorites") {}
         }
     }
-    return fsRoot
 }
 
 fun createFS(builder: File.() -> Unit): String {

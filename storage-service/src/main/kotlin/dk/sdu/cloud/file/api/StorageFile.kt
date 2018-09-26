@@ -15,6 +15,7 @@ enum class FileType {
 }
 
 data class StorageFile(
+    @Deprecated(message = "Replaced with fileType", replaceWith = ReplaceWith("fileType"))
     val type: FileType,
     val path: String,
     val createdAt: Long = System.currentTimeMillis(),
@@ -27,7 +28,9 @@ data class StorageFile(
     val link: Boolean = false,
     val annotations: Set<String> = emptySet(),
     val fileId: String = ""
-)
+) {
+    val fileType: FileType = type
+}
 
 enum class SensitivityLevel {
     OPEN_ACCESS,

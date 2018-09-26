@@ -70,7 +70,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
             <List.Content floated="right">
                 <Icon name="star" color="blue" onClick={() => favorite(file)} />
             </List.Content>
-            <ListFileContent path={file.path} type={file.type} link={false} pixelsWide={200} />
+            <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={200} />
         </List.Item>)
     );
 
@@ -109,7 +109,7 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
                             <List.Content floated="right">
                                 <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
                             </List.Content>
-                            <ListFileContent path={file.path} type={file.type} link={file.link} pixelsWide={117} />
+                            <ListFileContent path={file.path} type={file.fileType} link={file.link} pixelsWide={117} />
                         </List.Item>
                     ))}
                 </List>
