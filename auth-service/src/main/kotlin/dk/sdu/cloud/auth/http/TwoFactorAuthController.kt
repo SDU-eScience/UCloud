@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.http
 import dk.sdu.cloud.auth.api.TwoFactorAuthDescriptions
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.service.*
+import io.ktor.response.respondText
 import io.ktor.routing.Route
 import org.slf4j.Logger
 
@@ -21,7 +22,9 @@ class TwoFactorAuthController<DBSession>(
         implement(TwoFactorAuthDescriptions.answerChallenge) { req ->
             logEntry(log, req)
 
-            twoFactorChallengeService.verifyChallenge(req.challengeId, req.verificationCode)
+            val result = twoFactorChallengeService.verifyChallenge(req.challengeId, req.verificationCode)
+            call.respondText("Correct: $result")
+            okContentDeliveredExternally()
         }
     }
 

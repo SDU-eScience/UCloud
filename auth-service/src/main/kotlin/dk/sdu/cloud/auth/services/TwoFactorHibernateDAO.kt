@@ -18,7 +18,7 @@ class TwoFactorHibernateDAO : TwoFactorDAO<HibernateSession> {
 
     override fun findActiveChallengeOrNull(session: HibernateSession, challengeId: String): TwoFactorChallenge? {
         return TwoFactorChallengeEntity[session, challengeId]
-            ?.takeIf { System.currentTimeMillis() > it.expiresAt.time }
+            ?.takeIf { System.currentTimeMillis() < it.expiresAt.time }
             ?.toModel()
     }
 
@@ -85,7 +85,7 @@ sealed class TwoFactorChallengeEntity {
         override var expiresAt: Date,
         override var credentials: TwoFactorCredentialsEntity
     ) : TwoFactorChallengeEntity() {
-        override fun toModel(): TwoFactorChallenge = TwoFactorChallenge.Login(
+        override fun toModel(): TwoFactorChallenge = TwoFactorChallenge.Setup(
             challengeId,
             expiresAt.time,
             credentials.toModel()

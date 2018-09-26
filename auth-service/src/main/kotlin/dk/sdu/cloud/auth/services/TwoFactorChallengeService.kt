@@ -120,7 +120,7 @@ class TwoFactorChallengeService<DBSession>(
         private const val QR_WIDTH_PX = 300
         private const val QR_HEIGHT_PX = 200
 
-        private const val CHALLENGE_EXPIRES_IN_MS = 1000 * 60 * 2
+        private const val CHALLENGE_EXPIRES_IN_MS = 1000 * 60 * 10
     }
 }
 

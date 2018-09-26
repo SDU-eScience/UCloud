@@ -4,6 +4,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
 
 data class Create2FACredentialsResponse(val otpAuthUri: String, val qrCodeB64Data: String, val challengeId: String)
@@ -38,5 +39,7 @@ object TwoFactorAuthDescriptions : RESTDescriptions("auth.2fa") {
             using(baseContext)
             +"challenge"
         }
+
+        body { bindEntireRequestFromBody() }
     }
 }
