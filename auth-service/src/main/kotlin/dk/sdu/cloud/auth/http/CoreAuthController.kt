@@ -118,18 +118,20 @@ class CoreAuthController<DBSession>(
                 logEntry(log, mapOf("service" to service, "isInvalid" to isInvalid))
 
                 fun FlowContent.formControlField(
-                    name: String, text: String, iconType: String,
+                    name: String,
+                    text: String,
+                    iconType: String,
                     type: String = "text"
                 ) {
-                    div(classes = "input-group") {
-                        span(classes = "input-group-addon") {
-                            i(classes = "glyphicon glyphicon-$iconType")
-                        }
-                        input(classes = "form-control") {
-                            this.type = InputType.valueOf(type)
-                            this.name = name
-                            this.id = name
-                            this.placeholder = text
+                    div(classes = "field") {
+                        div(classes = "ui left icon input") {
+                            i(classes = "$iconType icon")
+                            input {
+                                this.type = InputType.valueOf(type)
+                                this.name = name
+                                this.id = name
+                                this.placeholder = text
+                            }
                         }
                     }
                 }
@@ -146,104 +148,93 @@ class CoreAuthController<DBSession>(
 
                         link(
                             rel = "stylesheet",
-                            href = "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+                            href = "https://cdn.jsdelivr.net/npm/semantic-ui@2.4.0/dist/semantic.min.css"
                         )
-                        link(rel = "stylesheet", href = "/auth/css/ionicons.css")
-                        link(rel = "stylesheet", href = "/auth/css/colors.css")
+
                         link(rel = "stylesheet", href = "/auth/css/app.css")
                     }
 
                     body {
-                        div(classes = "layout-container") {
-                            div(classes = "page-container bg-blue-grey-900") {
-                                div(classes = "container-full") {
-                                    div(classes = "container container-xs") {
-                                        h1(classes = "text-center") {
-                                            +"SDUCloud"
-                                        }
-                                        if (service == null) {
-                                            div(classes = "alert alert-danger") {
-                                                +"An error has occurred. Try again later."
-                                            }
-                                        } else {
-                                            if (isInvalid) {
-                                                div(classes = "alert alert-danger") {
-                                                    +"Invalid username or password"
-                                                }
-                                            }
-                                            form(classes = "card b0 form-validate") {
-                                                attributes["autocomplete"] = "off"
+                        div(classes = "ui middle aligned center aligned grid") {
+                            div(classes = "column") {
+                                h1(classes = "ui header") {
+                                    +"SDU Cloud"
+                                }
 
-                                                if (enablePasswords) {
-                                                    method = FormMethod.post
-                                                    action = "/auth/login"
-
-                                                    div(classes = "card-offset pb0")
-                                                    div(classes = "card-heading") {
-                                                        div(classes = "card-title text-center") {
-                                                            +"Login"
-                                                        }
-                                                    }
-                                                    div(classes = "card-body form-horizontal") {
-                                                        input {
-                                                            type = InputType.hidden
-                                                            value = service.name
-                                                            name = "service"
-                                                        }
-
-                                                        formControlField(
-                                                            name = "username",
-                                                            text = "Username",
-                                                            iconType = "user"
-                                                        )
-
-                                                        formControlField(
-                                                            name = "password",
-                                                            text = "Password",
-                                                            iconType = "lock",
-                                                            type = "password"
-                                                        )
-                                                    }
-                                                    button(type = ButtonType.submit) {
-                                                        classes = setOf("btn", "btn-primary", "btn-flat")
-                                                        +"Authenticate"
-                                                    }
-                                                }
-
-                                                if (enableWayf) {
-                                                    div {
-                                                        a(
-                                                            href = "/auth/saml/login?service=${service.name.urlEncoded}",
-                                                            classes = "btn btn-flat btn-block btn-info"
-                                                        ) {
-                                                            +"Login using WAYF"
-                                                            img(alt = "WAYF Logo", src = "wayf_logo.png") {
-                                                                height = "32px"
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        div(classes = "row") {
-                                            div(classes = "col-sm-12") {
-                                                div(classes = "alert alert-warning") {
-                                                    +"Under construction."
-                                                }
-                                            }
-                                        }
-
-                                        div(classes = "row") {
-                                            div(classes = "col-xs-3 pull-right") {
-                                                img(
-                                                    alt = "SDU Cloud Logo",
-                                                    src = "sdu_plain_white.png",
-                                                    classes = "mv-lg block-center img-responsive align-right"
-                                                )
-                                            }
-                                        }
-
+                                if (service == null) {
+                                    div(classes = "ui message error") {
+                                        +"An error has occurred. Try again later."
                                     }
+                                } else {
+                                    if (isInvalid) {
+                                        div(classes = "ui message warning") {
+                                            +"Invalid username or password"
+                                        }
+                                    }
+
+                                    form(classes = "ui large form") {
+                                        attributes["autocomplete"] = "off"
+
+                                        div(classes = "ui stacked segment") {
+                                            if (enablePasswords) {
+                                                input {
+                                                    type = InputType.hidden
+                                                    value = service.name
+                                                    name = "service"
+                                                }
+
+                                                formControlField(
+                                                    name = "username",
+                                                    iconType = "user",
+                                                    text = "Username"
+                                                )
+
+                                                formControlField(
+                                                    name = "password",
+                                                    text = "Password",
+                                                    iconType = "lock",
+                                                    type = "password"
+                                                )
+
+                                                div(classes = "ui fluid large blue submit button") {
+                                                    +"Login"
+                                                }
+                                            }
+
+                                            if (enablePasswords && enableWayf) {
+                                                div(classes = "ui horizontal divider") {
+                                                    +"Or Using SSO"
+                                                }
+                                            }
+
+
+                                            if (enableWayf) {
+                                                div {
+                                                    a(
+                                                        href = "/auth/saml/login?service=${service.name.urlEncoded}",
+                                                        classes = "ui fluid button icon labeled"
+                                                    ) {
+                                                        +"Login using WAYF"
+                                                        img(
+                                                            alt = "WAYF Logo",
+                                                            src = "wayf_logo.png",
+                                                            classes = "wayf icon"
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    div(classes = "ui message warning") {
+                                        +"Under construction."
+                                    }
+
+                                    img(
+                                        alt = "SDU Cloud Logo",
+                                        src = "sdu_plain_black.png",
+                                        classes = "ui tiny image floated right"
+                                    )
                                 }
                             }
                         }
