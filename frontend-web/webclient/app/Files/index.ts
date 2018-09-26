@@ -113,6 +113,7 @@ export interface FileSelectorProps {
 export interface FileSelectorState {
     promises: PromiseKeeper
     path: string
+    error?: string
     loading: boolean
     page: Page<File>
     modalShown: boolean
