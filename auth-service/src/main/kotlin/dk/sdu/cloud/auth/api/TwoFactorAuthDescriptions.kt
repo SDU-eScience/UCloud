@@ -5,7 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import io.ktor.http.HttpMethod
 
-data class Create2FACredentialsResponse(val otpAuthUri: String, val qrCodeB64Data: String)
+data class Create2FACredentialsResponse(val otpAuthUri: String, val qrCodeB64Data: String, val challengeId: String)
 
 object TwoFactorAuthDescriptions : RESTDescriptions("auth.2fa") {
     const val baseContext = "/auth/2fa"
