@@ -129,6 +129,9 @@ class CoreAuthController<DBSession>(
                             h3 { +"2FA is Enabled for this Account" }
                         },
 
+                        action = "/auth/2fa/challenge/form",
+                        method = FormMethod.post,
+
                         form = {
                             input {
                                 type = InputType.hidden
@@ -143,7 +146,7 @@ class CoreAuthController<DBSession>(
                                 type = "password"
                             )
 
-                            div(classes = "ui fluid large blue submit button") {
+                            button(type = ButtonType.submit, classes = "ui fluid large blue submit button") {
                                 +"Submit"
                             }
                         }
@@ -178,7 +181,6 @@ class CoreAuthController<DBSession>(
 
                         form = {
                             if (service == null) return@formPage
-                            attributes["autocomplete"] = "off"
 
                             if (enablePasswords) {
                                 input {
@@ -200,7 +202,7 @@ class CoreAuthController<DBSession>(
                                     type = "password"
                                 )
 
-                                div(classes = "ui fluid large blue submit button") {
+                                button(type = ButtonType.submit, classes = "ui fluid large blue submit button") {
                                     +"Login"
                                 }
                             }
@@ -448,6 +450,8 @@ class CoreAuthController<DBSession>(
     private fun HTML.formPage(
         title: String,
         beforeForm: FlowContent.() -> Unit = {},
+        action: String? = null,
+        method: FormMethod? = FormMethod.post,
         form: FORM.() -> Unit
     ) {
         head {
@@ -476,7 +480,13 @@ class CoreAuthController<DBSession>(
 
                     beforeForm()
 
-                    form(classes = "ui large form") {
+                    form(
+                        classes = "ui large form",
+                        action = action,
+                        method = method
+                    ) {
+                        attributes["autocomplete"] = "off"
+
                         div(classes = "ui stacked segment") {
                             this@form.form()
                         }

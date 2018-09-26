@@ -79,15 +79,23 @@ class TwoFactorChallengeService<DBSession>(
     /**
      * Verifies that a challenge has been completed successfully
      */
-    fun verifyChallenge(challengeId: String, verificationCode: Int): Boolean {
+    fun verifyChallenge(challengeId: String, verificationCode: Int): Pair<Boolean, TwoFactorChallenge> {
         val challenge = db.withTransaction { dbSession ->
             twoFactorDAO.findActiveChallengeOrNull(dbSession, challengeId)
                     ?: throw TwoFactorException.InvalidChallenge()
         }
 
-        // TODO We need to do something after we have verified it.
-        // This will depend on the type of challenge (setup/login)
-        return totpService.verify(challenge.twoFactorCredentials.sharedSecret, verificationCode)
+        return Pair(
+            totpService.verify(challenge.credentials.sharedSecret, verificationCode),
+            challenge
+        )
+    }
+
+    fun upgradeCredentials(credentials: TwoFactorCredentials) {
+        if (credentials.enforced) throw IllegalArgumentException("credentials are already enforced")
+        db.withTransaction { dbSession ->
+            twoFactorDAO.createCredentials(dbSession, credentials.copy(enforced = true, id = null))
+        }
     }
 
     /**
@@ -99,11 +107,14 @@ class TwoFactorChallengeService<DBSession>(
                     ?: return null
 
             val challengeId = createChallengeId()
-            TwoFactorChallenge.Login(
-                challengeId,
-                createChallengeExpiryTimestamp(),
-                credentials,
-                service
+            twoFactorDAO.createChallenge(
+                dbSession,
+                TwoFactorChallenge.Login(
+                    challengeId,
+                    createChallengeExpiryTimestamp(),
+                    credentials,
+                    service
+                )
             )
 
             challengeId
@@ -179,14 +190,14 @@ interface TwoFactorDAO<Session> {
  *
  * @property challengeId An unguessable ID
  * @property expiresAt Unix ms timestamp
- * @property twoFactorCredentials A reference to the credentials this challenge requires
+ * @property credentials A reference to the credentials this challenge requires
  *
  * @see [TOTPService]
  */
 sealed class TwoFactorChallenge {
     abstract val challengeId: String
     abstract val expiresAt: Long
-    abstract val twoFactorCredentials: TwoFactorCredentials
+    abstract val credentials: TwoFactorCredentials
 
     /**
      * A challenge presented during login.
@@ -196,11 +207,11 @@ sealed class TwoFactorChallenge {
     data class Login(
         override val challengeId: String,
         override val expiresAt: Long,
-        override val twoFactorCredentials: TwoFactorCredentials,
+        override val credentials: TwoFactorCredentials,
         val service: String
     ) : TwoFactorChallenge() {
         init {
-            if (!twoFactorCredentials.enforced) throw IllegalArgumentException("Bad challenge")
+            if (!credentials.enforced) throw IllegalArgumentException("Bad challenge")
         }
     }
 
@@ -212,10 +223,10 @@ sealed class TwoFactorChallenge {
     data class Setup(
         override val challengeId: String,
         override val expiresAt: Long,
-        override val twoFactorCredentials: TwoFactorCredentials
+        override val credentials: TwoFactorCredentials
     ) : TwoFactorChallenge() {
         init {
-            if (twoFactorCredentials.enforced) throw IllegalArgumentException("Bad challenge")
+            if (credentials.enforced) throw IllegalArgumentException("Bad challenge")
         }
     }
 }

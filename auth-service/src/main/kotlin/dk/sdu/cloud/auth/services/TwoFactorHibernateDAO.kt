@@ -138,13 +138,13 @@ fun TwoFactorChallenge.toEntity(): TwoFactorChallengeEntity = when (this) {
     is TwoFactorChallenge.Login -> TwoFactorChallengeEntity.Login(
         challengeId,
         Date(expiresAt),
-        twoFactorCredentials.toEntity(),
+        credentials.toEntity(),
         service
     )
 
     is TwoFactorChallenge.Setup -> TwoFactorChallengeEntity.Setup(
         challengeId,
         Date(expiresAt),
-        twoFactorCredentials.toEntity()
+        credentials.toEntity()
     )
 }

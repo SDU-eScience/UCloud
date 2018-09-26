@@ -14,9 +14,9 @@ import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
-import org.apache.xml.security.utils.Base64
 import org.slf4j.Logger
 import java.security.SecureRandom
+import java.util.*
 
 class Server(
     private val db: HibernateSessionFactory,
@@ -86,7 +86,7 @@ class Server(
                     val random = SecureRandom()
                     val passwordBytes = ByteArray(64)
                     random.nextBytes(passwordBytes)
-                    val password = Base64.encode(passwordBytes)
+                    val password = Base64.getEncoder().encodeToString(passwordBytes)
 
                     val user = PersonUtils.createUserByPassword(
                         "Admin",
@@ -103,6 +103,7 @@ class Server(
                     log.info("accessToken = ${token.accessToken}")
                     log.info("refreshToken = ${token.refreshToken}")
                     log.info("Access token expires in one year.")
+                    log.info("Password is: '$password'")
                 }
             }
         }
@@ -146,7 +147,7 @@ class Server(
                         tokenService
                     ),
 
-                    TwoFactorAuthController(twoFactorChallengeService)
+                    TwoFactorAuthController(twoFactorChallengeService, loginResponder)
                 )
             }
 

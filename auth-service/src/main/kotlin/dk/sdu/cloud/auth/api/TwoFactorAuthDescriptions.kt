@@ -42,4 +42,20 @@ object TwoFactorAuthDescriptions : RESTDescriptions("auth.2fa") {
 
         body { bindEntireRequestFromBody() }
     }
+
+    val answerChallengeViaForm = callDescription<Unit, Unit, Unit> {
+        name = "answerChallengeViaForm"
+        method = HttpMethod.Post
+
+        auth {
+            roles = Roles.PUBLIC
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"challenge"
+            +"form"
+        }
+    }
 }
