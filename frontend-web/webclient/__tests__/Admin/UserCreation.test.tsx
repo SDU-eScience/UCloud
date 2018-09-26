@@ -55,13 +55,6 @@ describe("UserCreation", () => {
         });
     });
 
-    // FIXME tests mounting and unmounting, but isn't this testing React as a framework?
-    test("Mount and unmount component", () => {
-        const userCreation = mount(<UserCreation />);
-        userCreation.unmount();
-        expect(userCreation.exists()).toBe(false);
-    });
-
     test("Submit with missing username, causing errors to be rendered", () => {
         const userCreation = mount(<UserCreation />);
         userCreation.find(FormField).findWhere(it => it.props().label === "Password").find("input").simulate("change", { target: { value: "password" } });

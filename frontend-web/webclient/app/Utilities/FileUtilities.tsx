@@ -248,7 +248,7 @@ export const downloadFiles = (files: File[], cloud: Cloud) =>
 export const fetchFileContent = (path: string, cloud: Cloud) =>
     cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) =>
         fetch(`/api/files/download?path=${encodeURI(path)}&token=${encodeURI(token)}`)
-    ); // FIXME Error
+    );
 
 export const fileSizeToString = (bytes: number): string => {
     if (bytes < 0) return "Invalid size";

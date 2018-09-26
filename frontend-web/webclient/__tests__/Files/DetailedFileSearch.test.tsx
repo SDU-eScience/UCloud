@@ -59,10 +59,10 @@ describe("DetailedFileSearch", () => {
             </Provider>
         );
         detailedFileSearchWrapper.find(DatePicker).first().find("input").simulate("change", { target: { value: m1 } });
-        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).createdAfter).toBeDefined()
+        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).createdAfter).toBeDefined();
         detailedFileSearchWrapper.find(DatePicker).slice(1, 2).find("input").simulate("change", { target: { value: m2 } });
-        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).createdAfter).toBeUndefined()
-        // FIXME Missing error dismiss
+        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).createdAfter).toBeUndefined();
+        // FIXME When error messages are better handled for detailedFileSearch, dismiss error;
     });
 
     test("Deselect folder and file checkboxes", () => {
