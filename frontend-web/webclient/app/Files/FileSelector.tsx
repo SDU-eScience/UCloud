@@ -21,6 +21,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             promises: new PromiseKeeper(),
             path: `${Cloud.homeFolder}`,
             loading: false,
+            error: undefined,
             page: emptyPage,
             modalShown: false,
             uppyOnUploadSuccess: undefined,
@@ -101,9 +102,11 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             this.setState(() => ({
                 page: response,
                 loading: false,
-                path
+                path,
+                error: undefined
             }))
-        ); // FIXME Error handling
+        ).catch(_ => this.setState(() => ({ error: "An error occurred fetching files", loading: false })));
+        // FIXME: Ideally finally should be used for loading, but ts-jest doesn't allow it.
     }
 
     render() {
@@ -131,6 +134,8 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     {removeButton}
                 </Input>
                 <FileSelectorModal
+                    errorMessage={this.state.error}
+                    onErrorDismiss={() => this.setState(() => ({ error: undefined }))}
                     show={this.state.modalShown}
                     onHide={() => this.setState(() => ({ modalShown: false, creatingFolder: false }))}
                     path={this.state.path}
