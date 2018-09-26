@@ -224,7 +224,7 @@ sealed class TwoFactorChallenge {
  * This implementation only supports TOTP.
  *
  * @param principal The user these 2FA credentials apply to
- * *
+ *
  * @param sharedSecret The shared secret between user and server. See [TOTPCredentials.secretBase32Encoded]
  *
  * @param enforced When true these credentials must always be enforced when logging in.

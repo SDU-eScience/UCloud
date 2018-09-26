@@ -43,35 +43,42 @@ data class TOTPCredentials(
  * See https://github.com/google/google-authenticator/wiki/Key-Uri-Format for more information about the URI format.
  */
 fun TOTPCredentials.toOTPAuthURI(displayName: String, issuer: String? = null): URI {
-    return URI(StringBuilder().apply {
-        append("otpauth://")
-        append("totp/")
+    return URI(
+        "otpauth",
+        "totp",
 
-        if (issuer != null) {
-            if (issuer.contains(":")) throw IllegalArgumentException("Issuer cannot contain ':'")
-            append(URLEncoder.encode(issuer, Charsets.UTF_8.name()))
-            append(':')
-        }
+        StringBuilder().apply {
+            append('/')
+            if (issuer != null) {
+                if (issuer.contains(":")) throw IllegalArgumentException("Issuer cannot contain ':'")
+                append(issuer)
+                append(':')
+            }
 
-        append(URLEncoder.encode(displayName, Charsets.UTF_8.name()))
-        append("?secret=")
-        append(secretBase32Encoded)
+            append(displayName)
+        }.toString(),
 
-        append("&algorithm=")
-        append(algorithm.uriName)
+        StringBuilder().apply {
+            append("secret=")
+            append(secretBase32Encoded)
 
-        append("&digits=")
-        append(numberOfDigits)
+            append("&algorithm=")
+            append(algorithm.uriName)
 
-        append("&period=")
-        append(periodInSeconds)
+            append("&digits=")
+            append(numberOfDigits)
 
-        if (issuer != null) {
-            append('&')
-            append(URLEncoder.encode(issuer, Charsets.UTF_8.name()))
-        }
+            append("&period=")
+            append(periodInSeconds)
 
-    }.toString())
+            if (issuer != null) {
+                append('&')
+                append(issuer)
+            }
+        }.toString(),
+
+        null
+    )
 }
 
 /**
