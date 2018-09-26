@@ -93,16 +93,17 @@ class TwoFactorChallengeService<DBSession>(
     /**
      * Creates a login challenge for a [username] with an enforced 2FA device
      */
-    fun createLoginChallenge(username: String): String {
+    fun createLoginChallengeOrNull(username: String, service: String): String? {
         return db.withTransaction { dbSession ->
             val credentials = twoFactorDAO.findEnforcedCredentialsOrNull(dbSession, username)
-                    ?: throw TwoFactorException.NoActiveTwoFactor()
+                    ?: return null
 
             val challengeId = createChallengeId()
             TwoFactorChallenge.Login(
                 challengeId,
                 createChallengeExpiryTimestamp(),
-                credentials
+                credentials,
+                service
             )
 
             challengeId
@@ -195,7 +196,8 @@ sealed class TwoFactorChallenge {
     data class Login(
         override val challengeId: String,
         override val expiresAt: Long,
-        override val twoFactorCredentials: TwoFactorCredentials
+        override val twoFactorCredentials: TwoFactorCredentials,
+        val service: String
     ) : TwoFactorChallenge() {
         init {
             if (!twoFactorCredentials.enforced) throw IllegalArgumentException("Bad challenge")

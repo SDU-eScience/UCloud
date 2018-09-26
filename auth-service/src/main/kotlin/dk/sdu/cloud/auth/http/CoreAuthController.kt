@@ -39,7 +39,6 @@ import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
 
-// TODO Bad name
 class CoreAuthController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val ottDao: OneTimeTokenDAO<DBSession>,
@@ -100,8 +99,10 @@ class CoreAuthController<DBSession>(
             }
 
             static {
-                val staticFolder =
-                    listOf("./static", "/var/auth-static").map { File(it) }.find { it.exists() && it.isDirectory }
+                val staticFolder = listOf("./static", "/var/auth-static")
+                    .asSequence()
+                    .map { File(it) }
+                    .find { it.exists() && it.isDirectory }
 
                 if (staticFolder != null) {
                     files(staticFolder)
@@ -391,6 +392,7 @@ class CoreAuthController<DBSession>(
                 }
 
                 val audiences = req.audience.split(",")
+                    .asSequence()
                     .mapNotNull {
                         // Backwards compatible transformation of audiences
                         // Can be deleted when clients no longer use it. Progress tracked in #286
@@ -404,6 +406,7 @@ class CoreAuthController<DBSession>(
                         }
                     }
                     .map { SecurityScope.parseFromString(it) }
+                    .toList()
 
                 val token = tokenService.requestOneTimeToken(bearerToken, audiences)
                 ok(token)

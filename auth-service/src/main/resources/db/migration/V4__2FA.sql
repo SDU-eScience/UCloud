@@ -5,6 +5,7 @@ create table two_factor_challenges (
   challenge_id   varchar(255) not null,
   expires_at     timestamp    not null,
   credentials_id bigint       not null,
+  service        varchar(255),
   primary key (challenge_id)
 );
 

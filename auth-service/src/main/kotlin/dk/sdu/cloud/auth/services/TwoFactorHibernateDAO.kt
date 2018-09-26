@@ -67,12 +67,14 @@ sealed class TwoFactorChallengeEntity {
     data class Login(
         override var challengeId: String,
         override var expiresAt: Date,
-        override var credentials: TwoFactorCredentialsEntity
+        override var credentials: TwoFactorCredentialsEntity,
+        var service: String
     ) : TwoFactorChallengeEntity() {
         override fun toModel(): TwoFactorChallenge = TwoFactorChallenge.Login(
             challengeId,
             expiresAt.time,
-            credentials.toModel()
+            credentials.toModel(),
+            service
         )
     }
 
@@ -136,7 +138,8 @@ fun TwoFactorChallenge.toEntity(): TwoFactorChallengeEntity = when (this) {
     is TwoFactorChallenge.Login -> TwoFactorChallengeEntity.Login(
         challengeId,
         Date(expiresAt),
-        twoFactorCredentials.toEntity()
+        twoFactorCredentials.toEntity(),
+        service
     )
 
     is TwoFactorChallenge.Setup -> TwoFactorChallengeEntity.Setup(

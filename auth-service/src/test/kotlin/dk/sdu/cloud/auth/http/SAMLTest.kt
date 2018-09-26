@@ -14,7 +14,6 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
-import io.ktor.application.install
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -63,11 +62,14 @@ class SAMLTest {
         val authSettings = mockk<Saml2Settings>()
         val samlRequestProcessorFactory = mockk<SAMLRequestProcessorFactory>()
 
+        val loginResponder = LoginResponder(tokenService, mockk(relaxed = true))
+
         routing {
             SAMLController(
                 authSettings,
                 samlRequestProcessorFactory,
-                tokenService
+                tokenService,
+                loginResponder
             ).configure(this)
         }
 

@@ -73,6 +73,8 @@ class Server(
             mergedExtensions
         )
 
+        val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
+
         log.info("Core services constructed!")
 
         if (developmentMode) {
@@ -124,10 +126,11 @@ class Server(
             val samlController = SAMLController(
                 authSettings,
                 { settings, call, params -> SamlRequestProcessor(settings, call, params) },
-                tokenService
+                tokenService,
+                loginResponder
             )
 
-            val passwordController = PasswordController(db, userDao, tokenService)
+            val passwordController = PasswordController(db, userDao, loginResponder)
             log.info("HTTP controllers configured!")
 
             routing {
