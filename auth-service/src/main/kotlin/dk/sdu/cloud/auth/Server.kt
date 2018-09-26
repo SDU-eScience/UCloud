@@ -48,6 +48,16 @@ class Server(
         val totpService = WSTOTPService()
         val qrService = ZXingQRService()
 
+        val twoFactorDao = TwoFactorHibernateDAO()
+
+        val twoFactorChallengeService = TwoFactorChallengeService(
+            db,
+            twoFactorDao,
+            userDao,
+            totpService,
+            qrService
+        )
+
         val associatedByService = config.tokenExtension.groupBy { it.serviceName }
         val mergedExtensions = associatedByService.map { (service, lists) ->
             service to lists.flatMap { it.parsedScopes }.toSet()
@@ -133,12 +143,7 @@ class Server(
                         tokenService
                     ),
 
-                    TwoFactorAuthController(
-                        totpService,
-                        qrService,
-                        db,
-                        userDao
-                    )
+                    TwoFactorAuthController(twoFactorChallengeService)
                 )
             }
 
