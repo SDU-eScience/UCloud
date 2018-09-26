@@ -6,6 +6,15 @@ import {
     inSuccessRange
 } from "UtilityFunctions";
 
+export interface Override {
+    path: string,
+    destination: {
+        scheme?: string
+        host?: string
+        port: number
+    }
+}
+
 /**
  * Represents an instance of the SDUCloud object used for contacting the backend, implicitly using JWTs.
  */
@@ -25,6 +34,8 @@ export default class SDUCloud {
     private accessToken: string;
     private csrfToken: string;
     private decodedToken: any;
+
+    overrides: Override[] = [];
 
     constructor() {
         let context = location.protocol + '//' +
@@ -99,7 +110,8 @@ export default class SDUCloud {
 
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
-                req.open(method, baseContext + context + path);
+                //req.open(method, baseContext + context + path);
+                req.open(method, this.computeURL(context, path));
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
                 req.setRequestHeader("Content-Type", "application/json");
                 req.responseType = "text"; // Explicitly set, otherwise issues with empty response
@@ -131,6 +143,24 @@ export default class SDUCloud {
                 }
             });
         });
+    }
+
+    private computeURL(context: string, path: string): string {
+        let absolutePath = context + path;
+        for (let i = 0; i < this.overrides.length; i++) {
+            let override = this.overrides[i];
+            if (absolutePath.indexOf(override.path) === 0) {
+                let scheme = override.destination.scheme ? 
+                    override.destination.scheme : "http";
+                let host = override.destination.host ? 
+                    override.destination.host : "localhost";
+                let port = override.destination.port;
+
+                return scheme + "://" + host + ":" + port + absolutePath;
+            }
+        }
+
+        return this.context + absolutePath;
     }
 
     /**

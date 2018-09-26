@@ -11,6 +11,11 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.features.CORS
+import io.ktor.http.HttpMethod
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -112,6 +117,19 @@ class Server(
             log.info("Configuring HTTP server")
 
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
+
+            if (developmentMode) {
+                install(CORS) {
+                    anyHost()
+                    allowCredentials = true
+                    allowSameOrigin = true
+                    header("authorization")
+                    header("content-type")
+                    HttpMethod.DefaultMethods.forEach {
+                        method(it)
+                    }
+                }
+            }
 
             log.info("Creating HTTP controllers")
 
