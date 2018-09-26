@@ -121,7 +121,7 @@ export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: 
 
 
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
-    type: "DIRECTORY",
+    fileType: "DIRECTORY",
     path,
     createdAt: new Date().getMilliseconds(),
     modifiedAt: new Date().getMilliseconds(),
@@ -197,13 +197,13 @@ export const canBeProject = (files: File[], homeFolder: string): boolean =>
 
 export const previewSupportedExtension = (path: string) => false;
 
-export const isProject = (file: File) => file.type === "DIRECTORY" && file.annotations.some(it => it === "P");
+export const isProject = (file: File) => file.fileType === "DIRECTORY" && file.annotations.some(it => it === "P");
 
 export const toFileText = (selectedFiles: File[]): string =>
     selectedFiles.length > 1 ? `${selectedFiles.length} files selected.` : getFilenameFromPath(selectedFiles[0].path);
 
 export const isLink = (file: File) => file.link;
-export const isDirectory = (file: File) => file.type === "DIRECTORY";
+export const isDirectory = (file: File) => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string) => UF.addTrailingSlash(path).replace(UF.addTrailingSlash(homeFolder), "Home/");
 
 export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>

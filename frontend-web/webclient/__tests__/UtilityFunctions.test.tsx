@@ -395,7 +395,7 @@ describe("sortingColumnToValue", () => {
     const favoritedFile = mockFiles_SensitivityConfidential.items[1];
 
     test("TYPE", () => {
-        expect(UF.sortingColumnToValue(SortBy.TYPE, file)).toBe(UF.toLowerCaseAndCapitalize(file.type))
+        expect(UF.sortingColumnToValue(SortBy.TYPE, file)).toBe(UF.toLowerCaseAndCapitalize(file.fileType))
     })
     test("PATH", () => {
         expect(UF.sortingColumnToValue(SortBy.PATH, file)).toBe(getFilenameFromPath(file.path))

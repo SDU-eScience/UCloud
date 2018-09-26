@@ -238,6 +238,7 @@ exports[`DetailedFileSearch Detailed File Search component 1`] = `
         >
           <input
             onChange={[Function]}
+            placeholder="Add extensions..."
             type="text"
             value=""
           />

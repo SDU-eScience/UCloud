@@ -1,6 +1,6 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { Grid, Dropdown, Label, Header, Form, Button, Input } from "semantic-ui-react";
+import { Grid, Dropdown, Label, Header, Form, Button, Input, Message } from "semantic-ui-react";
 import { addEntryIfNotPresent } from "Utilities/ArrayUtilities"
 import { infoNotification, failureNotification } from "UtilityFunctions";
 import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation, PossibleTime } from ".";
@@ -23,7 +23,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             createdBefore: undefined,
             createdAfter: undefined,
             modifiedBefore: undefined,
-            modifiedAfter: undefined
+            modifiedAfter: undefined,
+            error: undefined
         }
     }
 
@@ -55,7 +56,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             extensions,
             extensionValue: entryAdded ? "" : extensionValue
         }));
-        console.log(entryAdded);
         if (!entryAdded && !!extensionValue.trim()) {
             infoNotification("Extension already added");
         }
@@ -104,35 +104,40 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
 
     // FIXME, should show errors in fields instead, the upper corner error is not very noticeable;
     validateAndSetDate(m: Moment | null, property: PossibleTime) {
-        if (!m) return;
+        if (m === null) {
+            const state = { ...this.state }
+            state[property] = undefined;
+            this.setState(() => ({ ...state }));
+            return;
+        }
         const { createdAfter, createdBefore, modifiedAfter, modifiedBefore } = this.state;
         const isBefore = property.includes("Before")
         if (property.startsWith("created")) {
-            if (isBefore) {
-                if (!createdAfter || m.isAfter(createdAfter)) {
+            if (isBefore) { // Created Before
+                if (createdAfter === undefined || !createdAfter.isAfter(m)) {
                     this.setState(() => ({ createdBefore: m }));
                 } else {
-                    failureNotification("Created before must be after created after");
+                    this.setState(() => ({ createdBefore: m, createdAfter: undefined, error: "Created before must be after created after" }));
                 }
-            } else {
-                if (!createdBefore || m.isBefore(createdBefore)) {
+            } else { // Created After
+                if (createdBefore === undefined || !createdBefore.isBefore(m)) {
                     this.setState(() => ({ createdAfter: m }));
                 } else {
-                    failureNotification("Created after must be before created before");
+                    this.setState(() => ({ createdAfter: m, createdBefore: undefined, error: "Created after must be before created before" }));
                 }
             }
         } else { // Modified
             if (isBefore) { // Modified Before
-                if ((!createdAfter || m.isAfter(createdAfter)) && (!modifiedAfter || m.isAfter(modifiedAfter))) {
+                if (modifiedAfter === undefined || !modifiedAfter.isAfter(m)) {
                     this.setState(() => ({ modifiedBefore: m }));
                 } else {
-                    failureNotification("Modified before must be after created after and modified after");
+                    this.setState(() => ({ modifiedBefore: m, modifiedAfter: undefined }));
                 }
             } else { // Modified After
-                if ((!createdBefore || m.isBefore(createdBefore)) && (!modifiedBefore || m.isBefore(modifiedBefore))) {
+                if (modifiedBefore === undefined || !modifiedBefore.isBefore(m)) {
                     this.setState(() => ({ modifiedAfter: m }));
                 } else {
-                    failureNotification("Modified after must be before created before and modified before");
+                    this.setState(() => ({ modifiedAfter: m, modifiedBefore: undefined }));
                 }
             }
         }
@@ -165,9 +170,11 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                 />
             </div>
         ) : null;
+        const error = !!this.state.error ? <Message error content={this.state.error} onDismiss={() => this.setState(() => ({ error: undefined }))} /> : null;
         return (
             <Grid container columns={16} >
                 <Grid.Column width={16}>
+                    {error}
                     <Header as="h3" content="Filename" />
                     {filename ? <div className="padding-bottom"><Label className="label-padding" content={`Filename contains: ${filename}`} active={false} basic /></div> : null}
                     <Input fluid placeholder="Filename must include..." onChange={(_, { value }) => this.setState(() => ({ filename: value }))} />
@@ -180,9 +187,10 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                     selected={this.state.createdAfter}
                                     onChange={(d) => this.validateAndSetDate(d, "createdAfter")}
                                     showTimeSelect
-                                    timeFormat="hh:mm"
                                     timeIntervals={15}
-                                    dateFormat="LLL"
+                                    isClearable
+                                    timeFormat="HH:mm"
+                                    dateFormat="DD/MM/YY HH:mm"
                                     timeCaption="time"
                                 />
                             </Form.Field>
@@ -192,9 +200,10 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                     selected={this.state.createdBefore}
                                     onChange={(d) => this.validateAndSetDate(d, "createdBefore")}
                                     showTimeSelect
-                                    timeFormat="HH:mm"
                                     timeIntervals={15}
-                                    dateFormat="LLL"
+                                    isClearable
+                                    timeFormat="HH:mm"
+                                    dateFormat="DD/MM/YY HH:mm"
                                     timeCaption="time"
                                 />
                             </Form.Field>
@@ -209,9 +218,10 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                     selected={this.state.modifiedAfter}
                                     onChange={(d) => this.validateAndSetDate(d, "modifiedAfter")}
                                     showTimeSelect
-                                    timeFormat="HH:mm"
                                     timeIntervals={15}
-                                    dateFormat="LLL"
+                                    isClearable
+                                    timeFormat="HH:mm"
+                                    dateFormat="DD/MM/YY HH:mm"
                                     timeCaption="time"
                                 />
                             </Form.Field>
@@ -221,9 +231,10 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                                     selected={this.state.modifiedBefore}
                                     onChange={(d) => this.validateAndSetDate(d, "modifiedBefore")}
                                     showTimeSelect
-                                    timeFormat="HH:mm"
                                     timeIntervals={15}
-                                    dateFormat="LLL"
+                                    isClearable
+                                    timeFormat="HH:mm"
+                                    dateFormat="DD/MM/YY HH:mm"
                                     timeCaption="time"
                                 />
                             </Form.Field>
@@ -237,7 +248,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <Header as="h3" content="File extensions" />
                     <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} clearAll={() => this.setState(() => ({ extensions: new Set() }))} />
                     <Form onSubmit={(e) => { e.preventDefault(); this.onAddExtension(); }}>
-                        <Form.Input value={extensionValue} onChange={(_, { value }) => this.setState(() => ({ extensionValue: value }))} />
+                        <Form.Input placeholder="Add extensions..." value={extensionValue} onChange={(_, { value }) => this.setState(() => ({ extensionValue: value }))} />
                         <Dropdown
                             text="Add extension preset"
                             onChange={(_, { value }) => this.onAddPresets(value as string)}
