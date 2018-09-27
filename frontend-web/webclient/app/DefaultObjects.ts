@@ -137,7 +137,7 @@ interface SidebarReduxObject {
     options: SidebarOption[]
 }
 
-interface HeaderSearchReduxObject {
+export interface HeaderSearchReduxObject {
     prioritizedSearch: HeaderSearchType
 }
 
