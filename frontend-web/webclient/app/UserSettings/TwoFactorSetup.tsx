@@ -72,14 +72,19 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
         return (
             <div>
                 <Header><h3>2FA Setup</h3></Header>
-                <p>Lorem ipsum dolor sit amet, consectetur adipisicing elit. Minus hic asperiores deleniti odit explicabo voluptates, odio, libero eveniet cupiditate illum, ipsa ea. Earum sequi error voluptatem debitis iusto minima deleniti!</p>
+                <p>
+                    In order to activate 2FA on your account you must have a 
+                    device capable of issuing time-based one time passwords 
+                    (TOTP). For this we recommend the "Google Authenticator" 
+                    app, available for both Android and iOS.
+                </p>
 
                 <Image.Group size="small">
-                    <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
+                    <a target="_blank" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
                         <Image src={googlePlay} />
                     </a>
 
-                    <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
+                    <a target="_blank" href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
                         <Image src={appStore} />
                     </a>
                 </Image.Group>

@@ -72,7 +72,7 @@ fun TOTPCredentials.toOTPAuthURI(displayName: String, issuer: String? = null): U
             append(periodInSeconds)
 
             if (issuer != null) {
-                append('&')
+                append("&issuer=")
                 append(issuer)
             }
         }.toString(),
