@@ -7,7 +7,13 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
 
-data class Create2FACredentialsResponse(val otpAuthUri: String, val qrCodeB64Data: String, val challengeId: String)
+data class Create2FACredentialsResponse(
+    val otpAuthUri: String,
+    val qrCodeB64Data: String,
+    val secret: String,
+    val challengeId: String
+)
+
 data class AnswerChallengeRequest(val challengeId: String, val verificationCode: Int)
 data class TwoFactorStatusResponse(val connected: Boolean)
 

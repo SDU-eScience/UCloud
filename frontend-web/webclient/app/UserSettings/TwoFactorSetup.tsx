@@ -14,13 +14,6 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
         super(props);
         this.state = this.initialState();
 
-        Cloud.overrides.push({
-            path: "/auth",
-            destination: {
-                port: 8080
-            }
-        })
-
         this.loadStatus();
     }
 

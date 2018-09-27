@@ -70,7 +70,7 @@ class TwoFactorChallengeService<DBSession>(
                 )
             )
 
-            Create2FACredentialsResponse(otpAuthUri, qrData, challengeId)
+            Create2FACredentialsResponse(otpAuthUri, qrData, newCredentials.secretBase32Encoded, challengeId)
         }
     }
 

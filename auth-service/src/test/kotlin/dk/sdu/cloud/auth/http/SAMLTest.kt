@@ -62,7 +62,10 @@ class SAMLTest {
         val authSettings = mockk<Saml2Settings>()
         val samlRequestProcessorFactory = mockk<SAMLRequestProcessorFactory>()
 
-        val loginResponder = LoginResponder(tokenService, mockk(relaxed = true))
+        val twoFactorChallengeService = mockk<TwoFactorChallengeService<HibernateSession>>(relaxed = true)
+        val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
+        every { twoFactorChallengeService.isConnected(any()) } returns false
+        every { twoFactorChallengeService.createLoginChallengeOrNull(any(), any()) } returns null
 
         routing {
             SAMLController(

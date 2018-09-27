@@ -3,10 +3,7 @@ package dk.sdu.cloud.auth.http
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
-import dk.sdu.cloud.auth.utils.createJWTWithTestAlgorithm
-import dk.sdu.cloud.auth.utils.testJwtFactory
-import dk.sdu.cloud.auth.utils.withAuthMock
-import dk.sdu.cloud.auth.utils.withDatabase
+import dk.sdu.cloud.auth.utils.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
@@ -25,8 +22,13 @@ import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 
-fun createTokenForUser(username: String = "user", role: Role = Role.USER): String =
-    createJWTWithTestAlgorithm(username, role).token
+fun createTokenForUser(username: String = "user", role: Role = Role.USER): String {
+    return when (role) {
+        Role.USER, Role.ADMIN, Role.GUEST -> createJWTWithTestAlgorithm(username, role).token
+        Role.SERVICE -> createServiceJWTWithTestAlgorithm(username).token
+        else -> TODO()
+    }
+}
 
 fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
     addHeader(io.ktor.http.HttpHeaders.Authorization, "Bearer ${createTokenForUser(username, role)}")
