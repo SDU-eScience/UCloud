@@ -39,6 +39,21 @@ data class ToolEntity(
 )
 
 /**
+ * Added in:
+ *
+ * - V7__Tags.sql
+ */
+@Entity
+@Table(name = "tags")
+class TagEntity(
+    @EmbeddedId
+    @ManyToOne
+    var id: EmbeddedNameAndVersion,
+
+    var tag: String
+)
+
+/**
  * Updated in:
  *
  * - V3__Applications.sql

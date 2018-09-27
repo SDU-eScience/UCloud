@@ -65,7 +65,8 @@ class AppTest {
         "app description",
         mockk(relaxed = true),
         mockk(relaxed = true),
-        listOf("glob")
+        listOf("glob"),
+        listOf()
     )
 
     private val normAppDesc2 = NormalizedApplicationDescription(
@@ -76,7 +77,8 @@ class AppTest {
         "app description",
         mockk(relaxed = true),
         mockk(relaxed = true),
-        listOf("glob")
+        listOf("glob"),
+        listOf()
     )
 
     private val normToolDesc = NormalizedToolDescription(

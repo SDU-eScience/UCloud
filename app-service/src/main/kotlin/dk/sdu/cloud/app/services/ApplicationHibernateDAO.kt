@@ -147,6 +147,17 @@ class ApplicationHibernateDAO(
                 EmbeddedNameAndVersion(description.info.name, description.info.version)
             )
         )
+
+        description.tags.forEach { tag ->
+            session.save(
+                TagEntity(
+                    EmbeddedNameAndVersion(description.info.name, description.info.version),
+                    tag
+                )
+            )
+        }
+
+
     }
 
     override fun updateDescription(

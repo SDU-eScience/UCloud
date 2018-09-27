@@ -43,7 +43,8 @@ class SBatchGeneratorTest {
                 info = NameAndVersion("app", "1.0.0"),
                 invocation = listOf(WordInvocationParameter("hello")),
                 parameters = emptyList(),
-                outputFileGlobs = emptyList()
+                outputFileGlobs = emptyList(),
+                tags = listOf()
             ),
             tool
         )
@@ -90,7 +91,8 @@ class SBatchGeneratorTest {
                     ApplicationParameter.Text("greeting", false, null, "greeting", "greeting"),
                     ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
                 ),
-                outputFileGlobs = emptyList()
+                outputFileGlobs = emptyList(),
+                tags = listOf()
             ),
             tool
         )
@@ -146,7 +148,8 @@ class SBatchGeneratorTest {
                     ApplicationParameter.Bool("boo", false, null, "boo", "boo", trueValue = "yes", falseValue = "no"),
                     ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
                 ),
-                outputFileGlobs = emptyList()
+                outputFileGlobs = emptyList(),
+                tags = listOf()
             ),
             tool
         )

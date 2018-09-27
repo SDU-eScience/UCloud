@@ -23,7 +23,8 @@ data class NormalizedApplicationDescription(
     val description: String,
     val invocation: List<InvocationParameter>,
     val parameters: List<ApplicationParameter<*>>,
-    val outputFileGlobs: List<String>
+    val outputFileGlobs: List<String>,
+    val tags: List<String>
 )
 
 @JsonTypeInfo(
@@ -47,7 +48,10 @@ sealed class ApplicationDescription(val application: String) {
         val description: String,
         invocation: List<Any>,
         val parameters: Map<String, ApplicationParameter<*>> = emptyMap(),
-        outputFileGlobs: List<String> = emptyList()
+        outputFileGlobs: List<String> = emptyList(),
+
+        val tags: List<String> = emptyList()
+
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
 
@@ -216,7 +220,8 @@ sealed class ApplicationDescription(val application: String) {
                 description,
                 invocation,
                 parameters.values.toList(),
-                outputFileGlobs
+                outputFileGlobs,
+                tags
             )
         }
     }

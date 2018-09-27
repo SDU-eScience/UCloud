@@ -24,6 +24,9 @@ pipeline {
         always {
           step([$class: 'CoberturaPublisher', coberturaReportFile: 'frontend-web/webclient/coverage/cobertura-coverage.xml'])
         }
+        failure{
+          slackSend baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/', message: 'Build FAILED', token: '1cTFN3I0k1rUZ5ByE0Tf15c9'
+        }
       }
     }
   }

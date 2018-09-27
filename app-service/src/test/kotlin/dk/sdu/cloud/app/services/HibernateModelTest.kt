@@ -56,7 +56,8 @@ class HibernateModelTest{
             "app description",
             mockk(relaxed = true),
             mockk(relaxed = true),
-            listOf("glob")
+            listOf("glob"),
+            listOf()
         )
 
         val app = ApplicationEntity(

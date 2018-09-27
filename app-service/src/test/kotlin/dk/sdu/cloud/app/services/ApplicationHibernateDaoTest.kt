@@ -20,7 +20,8 @@ class ApplicationHibernateDaoTest{
         "app description",
         mockk(relaxed = true),
         mockk(relaxed = true),
-        listOf("glob")
+        listOf("glob"),
+        listOf("tag1", "tag2")
     )
     private val normAppDesc2 = NormalizedApplicationDescription(
         NameAndVersion("name", "1.2"),
@@ -30,7 +31,8 @@ class ApplicationHibernateDaoTest{
         "app description",
         mockk(relaxed = true),
         mockk(relaxed = true),
-        listOf("glob")
+        listOf("glob"),
+        listOf()
     )
     private val normAppDesc3 = NormalizedApplicationDescription(
         NameAndVersion("app", "3.2"),
@@ -40,7 +42,8 @@ class ApplicationHibernateDaoTest{
         "app description",
         mockk(relaxed = true),
         mockk(relaxed = true),
-        listOf("glob")
+        listOf("glob"),
+        listOf()
     )
     private val normAppDesc4 = NormalizedApplicationDescription(
         NameAndVersion("app", "4.2"),
@@ -50,7 +53,8 @@ class ApplicationHibernateDaoTest{
         "app description",
         mockk(relaxed = true),
         mockk(relaxed = true),
-        listOf("glob")
+        listOf("glob"),
+        listOf()
     )
 
     private val normToolDesc = NormalizedToolDescription(
@@ -84,6 +88,8 @@ class ApplicationHibernateDaoTest{
                 assertEquals(1, hits.itemsInTotal)
                 val result2 = appDAO.findByNameAndVersion(it, user, "name", "2.2")
                 assertEquals("app description", result2.description.description)
+
+                println("HTIS HJJSDIJALJ::::: " + result2.description)
 
                 appDAO.updateDescription(it, user, "name", "2.2", "new description")
 
