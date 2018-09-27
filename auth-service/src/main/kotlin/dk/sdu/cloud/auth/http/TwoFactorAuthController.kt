@@ -1,6 +1,8 @@
 package dk.sdu.cloud.auth.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.TwoFactorAuthDescriptions
+import dk.sdu.cloud.auth.api.TwoFactorStatusResponse
 import dk.sdu.cloud.auth.services.TwoFactorChallenge
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.service.*
@@ -55,6 +57,12 @@ class TwoFactorAuthController<DBSession>(
 
             verifyChallenge(call, challengeId, codeAsInt)
         }
+
+        implement(TwoFactorAuthDescriptions.twoFactorStatus) { req ->
+            logEntry(log, req)
+
+            ok(TwoFactorStatusResponse(twoFactorChallengeService.isConnected(call.securityPrincipal.username)))
+        }
     }
 
     private suspend fun verifyChallenge(call: ApplicationCall, challengeId: String, verificationCode: Int) {
@@ -77,14 +85,13 @@ class TwoFactorAuthController<DBSession>(
                     try {
                         twoFactorChallengeService.upgradeCredentials(challenge.credentials)
                     } catch (ex: RPCException) {
-                        // TODO Not ideal
-                        call.respondText(ex.why, status = ex.httpStatusCode)
+                        call.respond(ex.httpStatusCode, CommonErrorMessage(ex.why))
                         return
                     }
 
                     call.respond(HttpStatusCode.NoContent)
                 } else {
-                    call.respond(HttpStatusCode.Unauthorized)
+                    call.respond(HttpStatusCode.Unauthorized, CommonErrorMessage("Incorrect code"))
                 }
             }
         }

@@ -9,6 +9,7 @@ import io.ktor.http.HttpMethod
 
 data class Create2FACredentialsResponse(val otpAuthUri: String, val qrCodeB64Data: String, val challengeId: String)
 data class AnswerChallengeRequest(val challengeId: String, val verificationCode: Int)
+data class TwoFactorStatusResponse(val connected: Boolean)
 
 object TwoFactorAuthDescriptions : RESTDescriptions("auth.2fa") {
     const val baseContext = "/auth/2fa"
@@ -56,6 +57,20 @@ object TwoFactorAuthDescriptions : RESTDescriptions("auth.2fa") {
             using(baseContext)
             +"challenge"
             +"form"
+        }
+    }
+
+    val twoFactorStatus = callDescription<Unit, TwoFactorStatusResponse, CommonErrorMessage> {
+        name = "twoFactorStatus"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"status"
         }
     }
 }

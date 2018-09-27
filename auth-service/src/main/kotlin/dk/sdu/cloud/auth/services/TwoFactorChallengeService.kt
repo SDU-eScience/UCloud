@@ -121,6 +121,12 @@ class TwoFactorChallengeService<DBSession>(
         }
     }
 
+    fun isConnected(username: String): Boolean {
+        return db.withTransaction { dbSession ->
+            twoFactorDAO.findEnforcedCredentialsOrNull(dbSession, username)
+        } != null
+    }
+
     private fun createChallengeId(): String = UUID.randomUUID().toString()
 
     private fun createChallengeExpiryTimestamp(): Long = System.currentTimeMillis() + CHALLENGE_EXPIRES_IN_MS
@@ -129,7 +135,7 @@ class TwoFactorChallengeService<DBSession>(
         override val log = logger()
 
         const val ISSUER = "SDU Cloud"
-        private const val QR_WIDTH_PX = 300
+        private const val QR_WIDTH_PX = 200
         private const val QR_HEIGHT_PX = 200
 
         private const val CHALLENGE_EXPIRES_IN_MS = 1000 * 60 * 10
