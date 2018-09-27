@@ -25,8 +25,6 @@ sealed class TwoFactorException(why: String, httpStatusCode: HttpStatusCode) : R
     class InvalidChallenge :
         TwoFactorException("The two factor challenge has expired. Please try again.", HttpStatusCode.NotFound)
 
-    class NoActiveTwoFactor :
-        TwoFactorException("You don't have an active 2FA device on your account.", HttpStatusCode.BadRequest)
 }
 
 /**
