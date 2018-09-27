@@ -117,7 +117,7 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     disallowedPaths: string[]
 }
 
-interface NotificationsReduxObject extends ComponentWithPage<Notification> {
+export interface NotificationsReduxObject extends ComponentWithPage<Notification> {
     redirectTo: string
 }
 
@@ -125,12 +125,12 @@ export interface ZenodoReduxObject extends ComponentWithPage<Publication> {
     connected: boolean
 }
 
-interface StatusReduxObject {
+export interface StatusReduxObject {
     status: Status
     title: string
 }
 
-interface SidebarReduxObject {
+export interface SidebarReduxObject {
     loading: boolean
     open: boolean
     pp: boolean
