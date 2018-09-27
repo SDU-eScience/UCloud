@@ -181,7 +181,6 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
     }
 
     private setLoading(isLoading: boolean) {
-        console.log(isLoading);
         this.setState(() => ({ isLoading }));
     }
 
