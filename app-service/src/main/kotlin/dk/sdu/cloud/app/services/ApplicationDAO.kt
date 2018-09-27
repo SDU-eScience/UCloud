@@ -6,6 +6,13 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 
 interface ApplicationDAO<Session> {
+    fun search(
+        session: Session,
+        user: String?,
+        query: String,
+        paging: NormalizedPaginationRequest
+    ): Page<Application>
+
     fun findAllByName(
         session: Session,
         user: String?,

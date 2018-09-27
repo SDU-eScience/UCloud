@@ -9,6 +9,7 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
 data class FindApplicationAndOptionalDependencies(
@@ -16,8 +17,34 @@ data class FindApplicationAndOptionalDependencies(
     val version: String
 )
 
+data class SearchRequest(
+    val query: String,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+
 object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
+
+    val search = callDescription<SearchRequest, Page<Application>, CommonErrorMessage> {
+        name = "searchApps"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"search"
+        }
+
+        params {
+            +boundTo(SearchRequest::query)
+            +boundTo(SearchRequest::itemsPerPage)
+            +boundTo(SearchRequest::page)
+        }
+    }
 
     val findByName = callDescription<FindByNameAndPagination, Page<Application>, CommonErrorMessage> {
         name = "appsFindByName"

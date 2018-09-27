@@ -13,6 +13,52 @@ import java.util.*
 class ApplicationHibernateDAO(
     private val toolDAO: ToolHibernateDAO
 ) : ApplicationDAO<HibernateSession> {
+
+    override fun search(
+        session: HibernateSession,
+        user: String?,
+        query: String,
+        paging: NormalizedPaginationRequest
+    ): Page<Application> {
+        val preparedQuery = "'%"+query+"%'"
+        /*return session.paginatedCriteria<ApplicationEntity>(paging) {
+            entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] like preparedQuery
+        }.mapItems { it.toModel() }*/
+
+        //language=HQL
+        val count = session.typedQuery<Long>(
+            """
+            select count (A.id.name)
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where A.id.name = B.id.name
+                group by id.name
+            ) and A.id.name like ${preparedQuery}
+            """.trimIndent()
+        ).uniqueResult().toInt()
+
+        //language=HQL
+        val items = session.typedQuery<ApplicationEntity>(
+            """
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where A.id.name = B.id.name
+                group by id.name
+            ) and A.id.name like ${preparedQuery}
+            order by A.id.name
+        """.trimIndent()
+        ).paginatedList(paging).map { it.toModel() }
+
+        return Page(
+            count,
+            paging.itemsPerPage,
+            paging.page,
+            items
+        )
+    }
+
     override fun findAllByName(
         session: HibernateSession,
         user: String?,

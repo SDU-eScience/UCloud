@@ -131,6 +131,53 @@ class ApplicationHibernateDaoTest{
     }
 
     @Test
+    fun `search test`() {
+        withDatabase { db ->
+            db.withTransaction {
+                val toolDAO = ToolHibernateDAO()
+
+                toolDAO.create(it, user, normToolDesc)
+
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+                appDAO.create(it, user, normAppDesc2)
+                Thread.sleep(1000)
+                appDAO.create(it, user, normAppDesc)
+                Thread.sleep(1000)
+                appDAO.create(it, user, normAppDesc3)
+                Thread.sleep(1000)
+                appDAO.create(it, user, normAppDesc4)
+
+                val searchResult = appDAO.search(it, user, "nam", NormalizedPaginationRequest(10, 0))
+
+                assertEquals(1, searchResult.itemsInTotal)
+                assertEquals("name", searchResult.items.first().description.info.name)
+
+                val searchResult2 = appDAO.search(it, user, "ap", NormalizedPaginationRequest(10, 0))
+
+                assertEquals(1, searchResult2.itemsInTotal)
+                assertEquals("app", searchResult2.items.first().description.info.name)
+
+                val searchResult3 = appDAO.search(it, user, "a", NormalizedPaginationRequest(10, 0))
+
+                assertEquals(2, searchResult3.itemsInTotal)
+                assertEquals("app", searchResult3.items[0].description.info.name)
+                assertEquals("name", searchResult3.items[1].description.info.name)
+
+                val searchResult4 = appDAO.search(it, user, "", NormalizedPaginationRequest(10, 0))
+
+                assertEquals(2, searchResult4.itemsInTotal)
+                assertEquals("app", searchResult4.items[0].description.info.name)
+                assertEquals("name", searchResult4.items[1].description.info.name)
+
+                val searchResult5 = appDAO.search(it, user, "notPossible", NormalizedPaginationRequest(10, 0))
+
+                assertEquals(0, searchResult5.itemsInTotal)
+
+            }
+        }
+    }
+
+    @Test
     fun `list all - same date test`() {
         withDatabase { db ->
             db.withTransaction {
