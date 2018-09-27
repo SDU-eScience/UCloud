@@ -5,11 +5,13 @@ import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.utils.withAuthMock
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.app.services.ToolHibernateDAO
 import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
 import io.ktor.http.HttpHeaders
@@ -66,6 +68,17 @@ class AppTest {
         listOf("glob")
     )
 
+    private val normAppDesc2 = NormalizedApplicationDescription(
+        NameAndVersion("app", "1.2"),
+        NameAndVersion("name", "2.2"),
+        listOf("Authors"),
+        "title",
+        "app description",
+        mockk(relaxed = true),
+        mockk(relaxed = true),
+        listOf("glob")
+    )
+
     private val normToolDesc = NormalizedToolDescription(
         NameAndVersion("name", "2.2"),
         "container",
@@ -93,6 +106,60 @@ class AppTest {
         normAppDesc,
         tool
     )
+
+    @Test
+    fun `Search test`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val user = "user"
+                        val toolDao = ToolHibernateDAO()
+                        val appDao = ApplicationHibernateDAO(toolDao)
+                        configureAppServer(db, appDao)
+                        db.withTransaction {
+                            toolDao.create(it, user, normToolDesc)
+                            appDao.create(it, user, normAppDesc)
+                            appDao.create(it, user, normAppDesc2)
+                        }
+
+                    },
+
+                    test = {
+                        val response =
+                            handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=am&itemsPerPage=10&Page=0") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser()
+                            }.response
+
+                        assertEquals(HttpStatusCode.OK, response.status())
+                        val obj = mapper.readTree(response.content)
+                        assertEquals(1, obj["itemsInTotal"].asInt())
+
+                        val response2 =
+                            handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=&itemsPerPage=10&Page=0") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser()
+                            }.response
+
+                        assertEquals(HttpStatusCode.OK, response.status())
+                        val obj2 = mapper.readTree(response2.content)
+                        assertEquals(2, obj2["itemsInTotal"].asInt())
+
+                        val response3 =
+                            handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=a&itemsPerPage=10&Page=0") {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser()
+                            }.response
+
+                        assertEquals(HttpStatusCode.OK, response.status())
+                        val obj3 = mapper.readTree(response3.content)
+                        assertEquals(2, obj3["itemsInTotal"].asInt())
+                    }
+                )
+            }
+        }
+    }
 
     @Test
     fun `find By Name And Version test`() {
