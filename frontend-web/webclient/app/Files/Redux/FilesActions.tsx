@@ -19,6 +19,15 @@ import { SortOrder, SortBy, File } from "..";
 import { Action } from "redux";
 import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
 
+
+export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage<typeof UPDATE_FILES, File> |
+    SetLoadingAction<typeof SET_FILES_LOADING> | UpdatePathAction | FileSelectorShownAction |
+    ReceiveFileSelectorFilesAction | Action<typeof SET_FILE_SELECTOR_LOADING> | SetFileSelectorCallbackAction |
+    Error<typeof SET_FILE_SELECTOR_ERROR> | SetDisallowedPathsAction | SetSortingColumnAction
+
+
+
+
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
 * and implicitly sets {filesLoading} to false in the reducer when the files are fetched.
@@ -99,7 +108,9 @@ export type SortingColumn = 0 | 1;
  * @param {SortOrder} asc - the order of the sorting. ASCENDING or DESCENDING
  * @param {SortBy} sortBy - what field the row should show
  */
-export const setSortingColumn = (sortingColumn: SortBy, index: number) => ({
+
+interface SetSortingColumnAction extends Action<typeof SET_FILES_SORTING_COLUMN> { sortingColumn: SortBy, index: number }
+export const setSortingColumn = (sortingColumn: SortBy, index: number): SetSortingColumnAction => ({
     type: SET_FILES_SORTING_COLUMN,
     sortingColumn,
     index
@@ -155,12 +166,12 @@ export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage:
 /**
  * Sets the fileselector as loading. Intended for when retrieving files.
  */
-export const setFileSelectorLoading = (): Action => ({
+export const setFileSelectorLoading = (): Action<typeof SET_FILE_SELECTOR_LOADING> => ({
     type: SET_FILE_SELECTOR_LOADING
 });
 
 
-interface SetDisallowedPathsAction extends Action { paths: string[] }
+interface SetDisallowedPathsAction extends Action<typeof SET_DISALLOWED_PATHS> { paths: string[] }
 /**
  * Sets paths for the file selector to omit.
  * @param {string[]} paths - the list of paths which shouldn't be displayed on
@@ -171,7 +182,7 @@ export const setDisallowedPaths = (paths: string[]): SetDisallowedPathsAction =>
     paths
 });
 
-interface SetFileSelectorCallbackAction extends Action { callback: Function }
+interface SetFileSelectorCallbackAction extends Action<typeof SET_FILE_SELECTOR_CALLBACK> { callback: Function }
 /**
  * Callback to be executed on fileselection in FileSelector
  * @param callback - callback to be being executed

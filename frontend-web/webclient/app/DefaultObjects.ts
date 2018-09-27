@@ -110,7 +110,7 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     fileSelectorError?: string
     sortingColumns: [SortBy, SortBy]
     fileSelectorLoading: boolean
-    fileSelectorShown: false
+    fileSelectorShown: boolean
     fileSelectorPage: Page<File>
     fileSelectorPath: string
     fileSelectorCallback: Function

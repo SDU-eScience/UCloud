@@ -1,3 +1,6 @@
+import { FileActions } from "./FilesActions";
+import { FilesReduxObject, initFiles } from "DefaultObjects";
+
 export const RECEIVE_FILES = "RECEIVE_FILES";
 export const UPDATE_FILES = "UPDATE_FILES";
 export const SET_FILES_LOADING = "SET_FILES_LOADING";
@@ -12,7 +15,7 @@ export const SET_DISALLOWED_PATHS = "SET_DISALLOWED_PATHS";
 export const FILES_ERROR = "FILES_ERROR";
 export const SET_FILE_SELECTOR_ERROR = "SET_FILE_SELECTOR_ERROR";
 
-const files = (state: any = {}, action) => {
+const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: FileActions): FilesReduxObject => {
     switch (action.type) {
         case RECEIVE_FILES: {
             return {
@@ -25,7 +28,6 @@ const files = (state: any = {}, action) => {
                 sortBy: action.sortBy,
                 error: undefined,
                 fileSelectorError: undefined,
-                creatingFolder: false
             };
         }
         case UPDATE_FILES: {
@@ -62,7 +64,7 @@ const files = (state: any = {}, action) => {
             const { sortingColumns } = state;
             sortingColumns[action.index] = action.sortingColumn;
             window.localStorage.setItem(`filesSorting${action.index}`, action.sortingColumn);
-            return { ...state, sortingColumns: [...sortingColumns] };
+            return { ...state, sortingColumns };
         }
         default: {
             return state;
