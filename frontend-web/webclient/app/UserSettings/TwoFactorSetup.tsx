@@ -4,7 +4,6 @@ import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { TwoFactorSetupState } from ".";
 import * as UF from "UtilityFunctions";
-import "./2fa.scss";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
