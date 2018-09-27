@@ -1,0 +1,264 @@
+//
+// Configuration
+//
+buildscript { // TODO Not how you should do stuff like this. Still works though.
+    ext.setDefaultConfig = { String key, String value ->
+        ExtraPropertiesExtension ext = ext
+        if (!ext.has(key)) ext.set(key, value)
+    }
+
+    setDefaultConfig("dokka_version", "0.9.16")
+    setDefaultConfig("ktor_version", "0.9.4")
+    setDefaultConfig("kotlin_version", "1.2.61")
+    setDefaultConfig("junit_version", "4.12")
+    setDefaultConfig("mockk_version", "1.8")
+
+    setDefaultConfig("ktor_engine", "netty")
+}
+
+//
+// Build scripts
+//
+buildscript {
+    repositories {
+        jcenter()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "org.jetbrains.dokka:dokka-gradle-plugin:${dokka_version}"
+        classpath "org.jetbrains.kotlin:kotlin-noarg:$kotlin_version"
+    }
+}
+
+//
+// Kotlin
+//
+apply plugin: 'idea'
+apply plugin: org.jetbrains.kotlin.gradle.plugin.KotlinPluginWrapper
+apply plugin: org.jetbrains.kotlin.noarg.gradle.KotlinJpaSubplugin
+
+sourceCompatibility = 1.8
+compileKotlin { kotlinOptions.jvmTarget = "1.8" }
+compileTestKotlin { kotlinOptions.jvmTarget = "1.8" }
+
+kotlin {
+    experimental {
+        coroutines "enable"
+    }
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+}
+
+//
+// Default repositories
+//
+repositories {
+    mavenCentral()
+    mavenLocal()
+
+    maven { url "https://kotlin.bintray.com/ktor" }
+    maven { url "https://dl.bintray.com/kotlin/kotlinx" }
+}
+
+//
+// Private SDUCloud maven repositories
+//
+repositories {
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/internal")
+        credentials {
+            it.username(eScienceCloudUser)
+            it.password(eScienceCloudPassword)
+        }
+    }
+    maven {
+        url("https://cloud.sdu.dk/archiva/repository/snapshots")
+        credentials {
+            it.username(eScienceCloudUser)
+            it.password(eScienceCloudPassword)
+        }
+    }
+}
+
+apply plugin: 'maven-publish'
+publishing {
+    repositories {
+        it.maven {
+            def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
+            if (project.version.endsWith("-SNAPSHOT")) resolvedUrl += "snapshots"
+            else resolvedUrl += "internal"
+            url(resolvedUrl)
+            credentials {
+                it.username(eScienceCloudUser)
+                it.password(eScienceCloudPassword)
+            }
+        }
+    }
+}
+
+//
+// Ktor
+//
+dependencies {
+    compile group: 'io.ktor', name: "ktor-server-${ktor_engine}", version: "$ktor_version"
+}
+
+//
+// Testing
+//
+dependencies {
+    testCompile "junit:junit:4.12"
+    testCompile "io.mockk:mockk:1.8"
+    testCompile "io.ktor:ktor-server-test-host:$ktor_version"
+    compile group: 'com.h2database', name: 'h2', version: '1.4.197'
+}
+
+//
+// JaCoCo code coverage
+//
+apply plugin: 'jacoco'
+
+jacocoTestReport {
+    reports { jacoco ->
+        jacoco.xml.enabled = true
+        jacoco.html.enabled = true
+    }
+}
+test.finalizedBy(project.tasks.jacocoTestReport)
+
+//
+// Service manifest generation
+//
+sourceSets {
+    logger.info("${project.projectDir}/src/generated/kotlin")
+    generated {
+        compileClasspath += main.compileClasspath
+        runtimeClasspath += main.runtimeClasspath
+
+        kotlin {
+            it.srcDir("${project.projectDir}/src/generated/kotlin")
+        }
+
+        resources {
+            it.srcDir("${project.projectDir}/src/generated/resources")
+        }
+    }
+
+    main {
+        compileClasspath += generated.output
+        runtimeClasspath += generated.output
+    }
+
+    test {
+        compileClasspath += generated.output
+        runtimeClasspath += generated.output
+    }
+}
+
+jar { from sourceSets.generated.output }
+
+task cleanGenerated() {
+    File outputDir = file("src/generated")
+    outputDir.absolutePath
+    outputDir.deleteDir()
+}
+clean.dependsOn(cleanGenerated)
+
+task generateBuildConfig() {
+    File outputDir = file("src/generated/kotlin")
+    if (!outputDir.exists()) outputDir.mkdirs()
+
+    String simpleName = project.name.replace("-service", "")
+
+    String packageName = "${project.group}.${simpleName}.api"
+    File packagePath = file("$outputDir/${packageName.replace('.', '/')}")
+    if (!packagePath.exists()) packagePath.mkdirs()
+
+    String className = "${simpleName.capitalize()}ServiceDescription"
+    File configFile = file("$packagePath/${className}.kt")
+    configFile.delete()
+    configFile << """
+        package $packageName
+
+        import dk.sdu.cloud.client.ServiceDescription
+
+        object $className : ServiceDescription {
+            override val name: String = "${project.name.replace("-service", "")}"
+            override val version: String = "${project.version}"
+        }
+    """.stripIndent().trim()
+}
+compileKotlin.dependsOn(generateBuildConfig)
+
+//
+// Dokka
+//
+apply plugin: org.jetbrains.dokka.gradle.DokkaPlugin
+
+dokka {
+    outputFormat = "html"
+    outputDirectory = "$buildDir/javadoc"
+}
+
+//
+// Logging
+//
+dependencies {
+    compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
+    compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
+}
+
+// Task creators and utilities are exported in sduCloud
+ext.sduCloud = ([
+        createTasksForApiJar: { String name, List<String> dependencies ->
+            String createApiJarTaskName = "${name}ApiJar"
+            String publishApiJarTaskName = "${name}ApiJar"
+
+            def apiJarTask = tasks.create(createApiJarTaskName, Jar) { task ->
+                task.baseName = name + '-api'
+                task.from(sourceSets.main.output)
+                task.from(sourceSets.generated.output)
+                task.from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+                task.include("**/dk/sdu/cloud/$name/api/**")
+                task.include("META-INF/**/${project.name}.kotlin_module")
+                task.includeEmptyDirs = false
+                task.with(jar)
+            }
+
+            PublishingExtension publishing = publishing
+
+            def publication = publishing.publications.create(publishApiJarTaskName, MavenPublication)
+
+            publication.groupId = "dk.sdu.cloud"
+            publication.artifactId = "$name-api"
+            publication.artifact(apiJarTask)
+
+            publication.pom.withXml {
+                def dependenciesNode = it.asNode().appendNode("dependencies")
+
+                for (dep in dependencies) {
+                    def splitDependency = dep.split(":")
+
+                    if (splitDependency.length != 3) throw new IllegalArgumentException("Bad dependency: $dep")
+
+                    def depNode = dependenciesNode.appendNode("dependency")
+                    depNode.appendNode("groupId", splitDependency[0])
+                    depNode.appendNode("artifactId", splitDependency[1])
+                    depNode.appendNode("version", splitDependency[2])
+                }
+            }
+        }
+])
+
+run {
+    classpath sourceSets.generated.output
+    if (project.hasProperty("appArgs")) {
+        args Eval.me(appArgs)
+    }
+}
