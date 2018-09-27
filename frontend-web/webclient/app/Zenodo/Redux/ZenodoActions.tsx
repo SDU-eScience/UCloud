@@ -7,6 +7,7 @@ import {
 } from "./ZenodoReducer";
 import { SetLoadingAction, ReceivePage, Page, Error } from "Types";
 import { Publication } from "..";
+import { Action } from "redux";
 
 /**
  * Fetches publications by the user
@@ -15,7 +16,9 @@ import { Publication } from "..";
  * @returns {Promise<ReceivePublications>} a promise containing receive publications action
  */
 
-export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePage<typeof RECEIVE_PUBLICATIONS, Publication> | Error<typeof SET_ZENODO_ERROR>> =>
+export type ZenodoActions = LoginStatusProps | SetLoadingAction<typeof SET_ZENODO_LOADING> | ReceivePublicationsAction | Error<typeof SET_ZENODO_ERROR>;
+
+export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePublicationsAction | Error<typeof SET_ZENODO_ERROR>> =>
     Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`).then(({ response }) =>
         receivePublications(response)
     ).catch(_ => setErrorMessage(SET_ZENODO_ERROR, "An error occurred fetching zenodo publications"));
@@ -30,17 +33,20 @@ export const fetchLoginStatus = () =>
         .then(({ response }) => receiveLoginStatus(response.connected))
         .catch(_ => setErrorMessage(SET_ZENODO_ERROR, "An error occurred fetching Zenodo log-in status"));
 
-export const receiveLoginStatus = (connected: boolean) => ({
+interface LoginStatusProps extends Action<typeof RECEIVE_ZENODO_LOGIN_STATUS> { connected: boolean }
+export const receiveLoginStatus = (connected: boolean): LoginStatusProps => ({
     type: RECEIVE_ZENODO_LOGIN_STATUS,
     connected
 });
 
+
+type ReceivePublicationsAction = ReceivePage<typeof RECEIVE_PUBLICATIONS, Publication>
 /**
  * The action for receiving a page of Publications
  * @param {Page<Publication>} page The page of publications by the user
  * @param {boolean} connected Whether or not the user is connected to Zenodo
  */
-const receivePublications = (page: Page<Publication>): ReceivePage<typeof RECEIVE_PUBLICATIONS, Publication> => ({
+const receivePublications = (page: Page<Publication>): ReceivePublicationsAction => ({
     type: RECEIVE_PUBLICATIONS,
     page
 });

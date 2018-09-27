@@ -121,7 +121,7 @@ interface NotificationsReduxObject extends ComponentWithPage<Notification> {
     redirectTo: string
 }
 
-interface ZenodoReduxObject extends ComponentWithPage<Publication> {
+export interface ZenodoReduxObject extends ComponentWithPage<Publication> {
     connected: boolean
 }
 
