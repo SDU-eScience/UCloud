@@ -113,6 +113,8 @@ class CoreAuthController<DBSession>(
 
             get("2fa") { _ ->
                 val challengeId = call.parameters["challengeId"]
+                val isInvalid = call.parameters["invalid"] != null
+                val message = call.parameters["message"] // TODO Is this a good idea?
 
                 logEntry(log, mapOf("challengeId" to challengeId))
 
@@ -127,6 +129,18 @@ class CoreAuthController<DBSession>(
 
                         beforeForm = {
                             h3 { +"2FA is Enabled for this Account" }
+
+                            if (isInvalid) {
+                                div(classes = "ui message warning") {
+                                    +"The verification code you entered was incorrect"
+                                }
+                            }
+
+                            if (message != null) {
+                                div(classes = "ui message warning") {
+                                    +message
+                                }
+                            }
                         },
 
                         action = "/auth/2fa/challenge/form",

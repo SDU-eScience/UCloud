@@ -23,7 +23,7 @@ sealed class TwoFactorException(why: String, httpStatusCode: HttpStatusCode) : R
     class InternalError : TwoFactorException("Internal Server Error", HttpStatusCode.InternalServerError)
 
     class InvalidChallenge :
-        TwoFactorException("The two factor challenge has expired. Please try again.", HttpStatusCode.BadRequest)
+        TwoFactorException("The two factor challenge has expired. Please try again.", HttpStatusCode.NotFound)
 
     class NoActiveTwoFactor :
         TwoFactorException("You don't have an active 2FA device on your account.", HttpStatusCode.BadRequest)
