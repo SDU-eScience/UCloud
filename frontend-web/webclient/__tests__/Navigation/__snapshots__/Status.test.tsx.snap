@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Status Mount component 1`] = `
+<a
+  className="ui green fluid button center-text"
+  href="/status"
+  onClick={[Function]}
+  role="button"
+  title="The system is running as intended."
+>
+  No Issues
+</a>
+`;

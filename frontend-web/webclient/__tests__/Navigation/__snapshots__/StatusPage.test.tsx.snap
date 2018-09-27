@@ -1,0 +1,16 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Status Page Mount component with NO ISSUES 1`] = `
+Array [
+  <div
+    className="ui green huge segment"
+  >
+    No Issues
+  </div>,
+  <div
+    className="ui very padded segment"
+  >
+    The system is running as intended.
+  </div>,
+]
+`;

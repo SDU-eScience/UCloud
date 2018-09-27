@@ -26,18 +26,11 @@ def commitHashForBuild( build ) {
 
 node{
   if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup') {
-    String branch = ''
-    if (env.BRANCH_NAME == 'master') {
-      branch = 'master'
-    }
-    if (env.BRANCH_NAME == 'JenkinsSetup') {
-      branch = 'JenkinsSetup'
-    }
     stage('Checkout'){
       checkout(
         [$class: 'GitSCM', 
         branches: [
-          [name: branch]
+          [name: env.BRANCH_NAME]
         ], 
         doGenerateSubmoduleConfigurations: false, 
         extensions: [], 
@@ -96,6 +89,10 @@ node{
       }
     }
 
+    println("current result = " + currentResult)
+    currentResult = currentBuild.result ?: 'SUCCESS'
+    println("current result after ?: = " + currentResult)
+    
     if (currentResult == 'UNSTABLE') {
       echo "Build is unstable"
       slackSend baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/', message: 'Build Unstable', token: '1cTFN3I0k1rUZ5ByE0Tf15c9'
@@ -112,11 +109,6 @@ node{
       println("FAIL")
       slackSend baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/', message: 'Build FAILED', token: '1cTFN3I0k1rUZ5ByE0Tf15c9'
     }
-
-    if (currentResult == null) {
-      currentResult = currentBuild.result ?: 'SUCCESS'
-    }
-
   }
   else {
     println("not master - wont run")

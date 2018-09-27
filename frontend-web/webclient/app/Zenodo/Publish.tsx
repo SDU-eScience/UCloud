@@ -44,10 +44,9 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
     submit = (e) => {
         e.preventDefault();
         const filePaths = this.state.files.filter(filePath => filePath);
-        if (!filePaths.length || !this.state.name) {
-            return
-        }
-        Cloud.post("/zenodo/publish/", { filePaths: filePaths, name: this.state.name }).then((res) => {
+        // FIXME Is not necessary as submit button isn't clickable if neither is 
+        if (!filePaths.length || !this.state.name) return;
+        Cloud.post("/zenodo/publish/", { filePaths, name: this.state.name }).then((res) => {
             this.props.history.push(`/zenodo/info/${res.response.publicationId}`);
         }); // FIXME Error handling
         this.setState(() => ({ requestSent: true }));
@@ -66,9 +65,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
             return;
         }
         files[index] = file.path;
-        this.setState(() => ({
-            files
-        }));
+        this.setState(() => ({ files }));
     }
 
     newFile() {
@@ -77,10 +74,6 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
         this.setState(() => ({
             files,
         }));
-    }
-
-    updateName(name: string) {
-        this.setState(() => ({ name }));
     }
 
     render() {
@@ -110,7 +103,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
                             required={true}
                             value={name}
                             type="text"
-                            onChange={(_, { value }) => this.updateName(value)}
+                            onChange={(_, { value }) => this.setState(() => ({ name: value }))}
                         />
                     </Form.Field>
                     <Form.Field>

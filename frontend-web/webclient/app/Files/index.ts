@@ -14,7 +14,7 @@ export enum SortOrder {
 
 export type FileType = "FILE" | "DIRECTORY";
 export interface File {
-    type: FileType
+    fileType: FileType
     path: string
     createdAt: number
     modifiedAt: number
@@ -113,6 +113,7 @@ export interface FileSelectorProps {
 export interface FileSelectorState {
     promises: PromiseKeeper
     path: string
+    error?: string
     loading: boolean
     page: Page<File>
     modalShown: boolean
@@ -256,6 +257,7 @@ export interface DetailedFileSearchState {
     createdAfter?: Moment
     modifiedBefore?: Moment
     modifiedAfter?: Moment
+    error?: string
 }
 
 export interface ContextBarProps extends ContextButtonsProps, FileOptionsProps { }

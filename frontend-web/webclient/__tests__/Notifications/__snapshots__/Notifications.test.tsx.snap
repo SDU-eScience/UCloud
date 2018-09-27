@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Notifications Mount notifications 1`] = `
+<button
+  className="ui blue circular button notification-button-padding"
+  onBlur={[Function]}
+  onClick={[Function]}
+  onFocus={[Function]}
+  onMouseEnter={[Function]}
+  onMouseLeave={[Function]}
+  role="button"
+>
+  <i
+    aria-hidden="true"
+    className="bell icon notification-button-padding"
+  />
+</button>
+`;

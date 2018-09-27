@@ -4,11 +4,16 @@ import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.service.RPCException
+import io.ktor.http.HttpStatusCode
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.objectMockk
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.common.document.DocumentField
+import org.elasticsearch.common.text.Text
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
 import org.junit.Test
@@ -144,6 +149,61 @@ class ElasticQueryTest{
         )
 
         assertEquals(0, result.itemsInTotal)
+    }
 
+    //TODO Does not return correctly but does give CC. Error with response.hits
+    @Test
+    fun `Reverse lookup batch Test`() {
+        val client = mockk<RestHighLevelClient>()
+
+        every { client.search(any()) } answers {
+            val response = mockk<SearchResponse>()
+            every { response.hits } answers {
+                val hits = SearchHits(Array(20) { _ -> SearchHit(2)}, 20, 1.9f)
+                hits
+            }
+            response
+        }
+
+        val reverseLookupService = ElasticQueryService(client)
+        val lookupList = List(20) { i -> i.toString()}
+        val result = reverseLookupService.reverseLookupBatch(lookupList)
+
+        println(result)
+    }
+
+    @Test (expected = RPCException::class)
+    fun `Reverse lookup batch Test - To many ids`() {
+        val client = mockk<RestHighLevelClient>()
+
+        every { client.search(any()) } answers {
+            val response = mockk<SearchResponse>()
+            every { response.hits } answers {
+                SearchHits(arrayOf(SearchHit(1)), 1, 0.552f)
+            }
+            response
+        }
+
+        val reverseLookupService = ElasticQueryService(client)
+        val lookupList = List(110) { i -> i.toString()}
+        val result = reverseLookupService.reverseLookupBatch(lookupList)
+
+        println(result)
+    }
+
+    @Test (expected = RPCException::class)
+    fun `Reverse lookup Test - not found`() {
+        val client = mockk<RestHighLevelClient>()
+
+        every { client.search(any()) } answers {
+            val response = mockk<SearchResponse>()
+            every { response.hits } answers {
+                SearchHits(arrayOf(SearchHit(1), SearchHit(2)), 2, 0.552f)
+            }
+            response
+        }
+
+        val reverseLookupService = ElasticQueryService(client)
+        val result = reverseLookupService.reverseLookup("1")
     }
 }
