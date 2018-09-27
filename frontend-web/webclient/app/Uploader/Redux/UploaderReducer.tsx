@@ -13,7 +13,6 @@ const uploader = (state: UploaderReduxObject = initUploads(), action: UploaderAc
         case SET_UPLOADER_CALLBACK: {
             return { ...state, ...action.payload }
         }
-        // REQUIRED BY REDUX, WILL OVERWRITE OTHERWISE
         default: {
             return state;
         }

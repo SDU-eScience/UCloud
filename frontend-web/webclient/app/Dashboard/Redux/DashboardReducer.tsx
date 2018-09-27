@@ -10,11 +10,11 @@ export const DASHBOARD_FAVORITE_ERROR = "DASHBOARD_FAVORITE_ERROR";
 export const DASHBOARD_RECENT_ANALYSES_ERROR = "DASHBOARD_RECENT_ANALYSES_ERROR";
 export const DASHBOARD_RECENT_FILES_ERROR = "DASHBOARD_RECENT_FILES_ERROR";
 
-const dashboard = (state: DashboardStateProps = initDashboard(), action: DashboardActions) => {
+const dashboard = (state: DashboardStateProps = initDashboard(), action: DashboardActions): DashboardStateProps => {
     switch (action.type) {
         case SET_ALL_LOADING: {
             const { loading } = action.payload;
-            return { ...state, favoriteLoading: loading, recentLoading: loading, analysesLoading: loading, activityLoading: loading };
+            return { ...state, favoriteLoading: loading, recentLoading: loading, analysesLoading: loading };
         }
         case RECEIVE_FAVORITES: {
             return { ...state, favoriteFiles: action.payload.content, favoriteLoading: false };
