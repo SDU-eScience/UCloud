@@ -11,14 +11,11 @@ export interface Upload {
     uploadXHR?: XMLHttpRequest
 }
 
-export interface UploaderState {
-}
-
 export interface UploaderProps {
     visible: boolean
     uploads: Upload[]
     allowMultiple?: boolean
     location: string
-    onFilesUploaded?: () => void
+    onFilesUploaded?: (path: string) => void
     dispatch: Dispatch
 }

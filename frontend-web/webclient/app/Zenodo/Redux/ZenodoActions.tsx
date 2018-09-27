@@ -15,12 +15,12 @@ import { Publication } from "..";
  * @returns {Promise<ReceivePublications>} a promise containing receive publications action
  */
 
-export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePage<Publication> | Error> =>
+export const fetchPublications = (page: number, itemsPerPage: number): Promise<ReceivePage<typeof RECEIVE_PUBLICATIONS, Publication> | Error<typeof SET_ZENODO_ERROR>> =>
     Cloud.get(`/zenodo/publications/?itemsPerPage=${itemsPerPage}&page=${page}`).then(({ response }) =>
         receivePublications(response)
     ).catch(_ => setErrorMessage(SET_ZENODO_ERROR, "An error occurred fetching zenodo publications"));
 
-export const setErrorMessage = (type: string, error?: string): Error => ({
+export const setErrorMessage = (type: typeof SET_ZENODO_ERROR, error?: string): Error<typeof SET_ZENODO_ERROR> => ({
     type,
     error
 });
@@ -40,7 +40,7 @@ export const receiveLoginStatus = (connected: boolean) => ({
  * @param {Page<Publication>} page The page of publications by the user
  * @param {boolean} connected Whether or not the user is connected to Zenodo
  */
-const receivePublications = (page: Page<Publication>): ReceivePage<Publication> => ({
+const receivePublications = (page: Page<Publication>): ReceivePage<typeof RECEIVE_PUBLICATIONS, Publication> => ({
     type: RECEIVE_PUBLICATIONS,
     page
 });
@@ -49,7 +49,7 @@ const receivePublications = (page: Page<Publication>): ReceivePage<Publication> 
  * Sets whether or not the Zenodo component is loading
  * @param {boolean} loading sets the loading state for Zenodo
  */
-export const setZenodoLoading = (loading: boolean): SetLoadingAction => ({
+export const setZenodoLoading = (loading: boolean): SetLoadingAction<typeof SET_ZENODO_LOADING> => ({
     type: SET_ZENODO_LOADING,
     loading
 });

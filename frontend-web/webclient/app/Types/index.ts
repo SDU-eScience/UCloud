@@ -1,3 +1,5 @@
+import { Action } from "redux";
+
 export interface SidebarOption {
     name: string
     icon: string
@@ -26,7 +28,6 @@ export interface DropdownOption {
     value: string
 }
 
-export type Action = { type: String }
-export interface Error extends Action { error?: string }
-export interface SetLoadingAction extends Action { loading: boolean }
-export interface ReceivePage<T> extends Action { page: Page<T> }
+export interface SetLoadingAction<T> extends Action<T> { loading: boolean }
+export interface ReceivePage<T1, T2> extends Action<T1> { page: Page<T2> }
+export interface Error<T> extends Action<T> { error?: string }

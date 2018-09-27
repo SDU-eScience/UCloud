@@ -1,6 +1,7 @@
 import { RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT } from "./NotificationsReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Page, ReceivePage, Action } from "Types";
+import { Page, ReceivePage } from "Types";
+import { Action } from "redux";
 import { failureNotification } from "UtilityFunctions";
 import { Notification } from ".."
 
@@ -10,7 +11,7 @@ const ERROR = "ERROR";
  * Returns the action for receiving the notifications
  * @param {Page<Notification>} page Page of notifications received
  */
-export const receiveNotifications = (page: Page<Notification>): ReceivePage<Notification> => ({
+export const receiveNotifications = (page: Page<Notification>): ReceivePage<typeof RECEIVE_NOTIFICATIONS, Notification> => ({
     type: RECEIVE_NOTIFICATIONS,
     page
 })
@@ -18,7 +19,7 @@ export const receiveNotifications = (page: Page<Notification>): ReceivePage<Noti
 /**
  * Fetches notifications for the user.
  */
-export const fetchNotifications = (): Promise<ReceivePage<Notification> | Action> =>
+export const fetchNotifications = (): Promise<ReceivePage<typeof RECEIVE_NOTIFICATIONS, Notification> | Action> =>
     Cloud.get("/notifications")
         .then(({ response }) => receiveNotifications(response))
         .catch(() => {

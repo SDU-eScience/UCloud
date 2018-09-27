@@ -11,9 +11,6 @@ const applications = (state = [], action) => {
         case SET_APPLICATIONS_LOADING: {
             return { ...state, loading: action.loading };
         }
-        case UPDATE_APPLICATIONS: {
-            return { ...state, page: action.page };
-        }
         case APPLICATIONS_ERROR: {
             return { ...state, error: action.error, loading: false };
         }

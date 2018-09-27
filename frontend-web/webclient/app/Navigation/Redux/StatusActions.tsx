@@ -1,8 +1,8 @@
 import { UPDATE_PAGE_TITLE, UPDATE_STATUS } from "./StatusReducer";
-import { Action } from "Types";
 import { Status } from "..";
+import { Action } from "redux";
 
-interface UpdatePageTitleAction extends Action { title: string }
+interface UpdatePageTitleAction extends Action<typeof UPDATE_PAGE_TITLE> { title: string }
 /**
  * Sets the title of the window. Stores in the redux store as well
  * @param {string} title the title to be set
@@ -12,7 +12,7 @@ export const updatePageTitle = (title: string): UpdatePageTitleAction => ({
     title
 });
 
-interface UpdateStatusAction extends Action { status: Status }
+interface UpdateStatusAction extends Action<typeof UPDATE_STATUS> { status: Status }
 /**
  * Sets the sitewide status, concerning the health of the back end.
  * @param {Status} status the status to be set

@@ -7,8 +7,9 @@ import { fileSizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
 import { ReduxObject } from "DefaultObjects";
-import { Upload, UploaderProps, UploaderState } from ".";
+import { Upload, UploaderProps } from ".";
 import { setUploaderVisible, setUploads } from "Uploader/Redux/UploaderActions";
+import { removeEntry } from "Utilities/CollectionUtilities";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => !!it.uploadXHR && it.uploadXHR.readyState === 4);
 
@@ -20,22 +21,9 @@ const newUpload = (file: File): Upload => ({
     uploadXHR: undefined
 });
 
-class Uploader extends React.Component<UploaderProps, UploaderState> {
+class Uploader extends React.Component<UploaderProps> {
     constructor(props) {
         super(props);
-    }
-
-    // TODO Should this remain? Check if actually called on leaving page
-    componentWillUnmount() {
-        console.warn("Unmounting uploader");
-        this.props.uploads.forEach(it => {
-            if (!!it.uploadXHR) {
-                if (it.uploadXHR.readyState != XMLHttpRequest.DONE) {
-                    console.log("Aborting", it);
-                    it.uploadXHR.abort();
-                }
-            }
-        });
     }
 
     onFilesAdded = (files: File[]) => {
@@ -56,7 +44,7 @@ class Uploader extends React.Component<UploaderProps, UploaderState> {
         const onThen = (xhr: XMLHttpRequest) => {
             xhr.onloadend = () => {
                 if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads)) {
-                    this.props.onFilesUploaded();
+                    this.props.onFilesUploaded(this.props.location);
                 }
             }
             upload.uploadXHR = xhr;
@@ -86,8 +74,8 @@ class Uploader extends React.Component<UploaderProps, UploaderState> {
     removeUpload = (index: number) => {
         const files = this.props.uploads.slice();
         if (index < files.length) {
-            const remainderFiles = files.slice(0, index).concat(files.slice(index + 1));
-            this.setState({ uploads: remainderFiles });
+            const remainderFiles = removeEntry(files, index);
+            this.props.dispatch(setUploads(remainderFiles));
         }
     }
 
@@ -102,7 +90,7 @@ class Uploader extends React.Component<UploaderProps, UploaderState> {
     onExtractChange = (index: number, value: boolean) => {
         const uploads = this.props.uploads;
         uploads[index].extractArchive = value;
-        this.setState({ uploads });
+        this.props.dispatch(setUploads(uploads));
     }
 
     render() {
@@ -249,15 +237,13 @@ interface UploaderStateToProps {
 
 }
 
-const mapStateToProps = ({ files, uploader }: ReduxObject): any => {
-    return ({
-        activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
-        location: files.path,
-        visible: uploader.visible,
-        allowMultiple: true,
-        uploads: uploader.uploads,
-        onFilesUploaded: () => null
-    })
-}
+const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
+    activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
+    location: files.path,
+    visible: uploader.visible,
+    allowMultiple: true,
+    uploads: uploader.uploads,
+    onFilesUploaded: uploader.onFilesUploaded
+});
 
 export default connect(mapStateToProps)(Uploader);

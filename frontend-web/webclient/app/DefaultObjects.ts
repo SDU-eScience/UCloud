@@ -12,6 +12,7 @@ import { Publication } from "Zenodo";
 import { Notification } from "Notifications";
 import { Upload } from "Uploader";
 import { Activity } from "Activity";
+import { Reducer } from "redux";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -144,29 +145,27 @@ export interface ActivityReduxObject extends ComponentWithPage<Activity> { }
 
 export type HeaderSearchType = "files" | "applications" | "projects";
  
-interface UploaderReduxObject {
+export interface UploaderReduxObject {
     uploads: Upload[]
     visible: boolean
     path: string
     allowMultiple: boolean
-    onFilesUploaded: () => void
+    onFilesUploaded: (p: string) => void
 }
 
-
-// FIXME Add typesafety
 export interface Reducers {
-    dashboard?: any
-    files?: any
-    uploader?: any
-    uppy?: any
-    status?: any
-    applications?: any
-    notifications?: any
-    analyses?: any
-    zenodo?: any
-    header?: any
-    sidebar?: any
-    activity?: any
+    dashboard?: Reducer<DashboardStateProps>
+    files?: Reducer<FilesReduxObject>
+    uploader?: Reducer<UploaderReduxObject>
+    uppy?: Reducer<any>
+    status?: Reducer<StatusReduxObject>
+    applications?: Reducer<ComponentWithPage<Application>>
+    notifications?: Reducer<NotificationsReduxObject>
+    analyses?: Reducer<ComponentWithPage<Analysis>>
+    zenodo?: Reducer<ZenodoReduxObject>
+    header?: Reducer<HeaderSearchReduxObject>
+    sidebar?: Reducer<SidebarReduxObject>
+    activity?: Reducer<ActivityReduxObject>
 }
 
 export interface ReduxObject {

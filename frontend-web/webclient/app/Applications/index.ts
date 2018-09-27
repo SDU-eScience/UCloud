@@ -24,7 +24,7 @@ export interface ApplicationsOperations {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     fetchApplications: (a: number, b: number) => void
-    updateApplications: (applications: Page<Application>) => void
+    receiveApplications: (applications: Page<Application>) => void
 }
 
 export interface ApplicationsStateProps {

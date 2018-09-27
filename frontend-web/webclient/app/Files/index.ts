@@ -97,6 +97,7 @@ export interface FilesOperations { // Redux operations
     checkAllFiles: (checked: boolean, page: Page<File>) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
     showUploader: () => void
+    setUploaderCallback: (callback) => void
 }
 
 export interface FileSelectorProps {

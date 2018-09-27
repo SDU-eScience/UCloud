@@ -6,7 +6,7 @@ import { connect } from "react-redux";
 import {
     fetchApplications,
     setLoading,
-    updateApplications
+    receiveApplications
 } from "./Redux/ApplicationsActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
@@ -37,8 +37,8 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 
     render() {
-        const { page, loading, fetchApplications, onErrorDismiss, updateApplications, error } = this.props;
-        const favoriteApp = (app: Application) => updateApplications(favoriteApplicationFromPage(app, page, Cloud));
+        const { page, loading, fetchApplications, onErrorDismiss, receiveApplications, error } = this.props;
+        const favoriteApp = (app: Application) => receiveApplications(favoriteApplicationFromPage(app, page, Cloud));
         return (
             <React.StrictMode>
                 <Pagination.List
@@ -130,7 +130,7 @@ const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Applications")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
     fetchApplications: (pageNumber: number, itemsPerPage: number) => dispatch(fetchApplications(pageNumber, itemsPerPage)),
-    updateApplications: (applications: Page<Application>) => dispatch(updateApplications(applications))
+    receiveApplications: (applications: Page<Application>) => dispatch(receiveApplications(applications))
 });
 
 const mapStateToProps = ({ applications }): ApplicationsStateProps => ({
