@@ -1,11 +1,13 @@
 import { RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT } from "./NotificationsReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Page, ReceivePage } from "Types";
+import { Page, ReceivePage, PayloadAction } from "Types";
 import { Action } from "redux";
 import { failureNotification } from "UtilityFunctions";
 import { Notification } from ".."
 
 const ERROR = "ERROR";
+
+export type NotificationActions = ReceivePage<typeof RECEIVE_NOTIFICATIONS, Notification> | SetRedirectToAction | ReadAction
 
 /**
  * Returns the action for receiving the notifications
@@ -13,7 +15,7 @@ const ERROR = "ERROR";
  */
 export const receiveNotifications = (page: Page<Notification>): ReceivePage<typeof RECEIVE_NOTIFICATIONS, Notification> => ({
     type: RECEIVE_NOTIFICATIONS,
-    page
+    payload: { page }
 })
 
 /**
@@ -24,25 +26,25 @@ export const fetchNotifications = (): Promise<ReceivePage<typeof RECEIVE_NOTIFIC
         .then(({ response }) => receiveNotifications(response))
         .catch(() => {
             failureNotification("Failed to retrieve notifications, please try again later");
-            return ({ type: ERROR });
+            return { type: ERROR };
         });
 
-interface ReadAction extends Action { id: Number }
+interface ReadAction extends PayloadAction<typeof NOTIFICATION_READ, { id: Number }> { }
 /**
  * Sets a notification as read, based on the id
  * @param id the id of the notification that has been read
  */
 export const notificationRead = (id: Number): ReadAction => ({
     type: NOTIFICATION_READ,
-    id
+    payload: { id }
 });
 
-interface SetRedirectToAction extends Action { redirectTo: string }
+interface SetRedirectToAction extends PayloadAction<typeof SET_REDIRECT, { redirectTo: string }> { }
 /**
  * Sets the redirectTo to be used in the Notifications component
  * @param {string} redirectTo the path to be redirected to
  */
 export const setRedirectTo = (redirectTo: string): SetRedirectToAction => ({
     type: SET_REDIRECT,
-    redirectTo
+    payload: { redirectTo }
 });

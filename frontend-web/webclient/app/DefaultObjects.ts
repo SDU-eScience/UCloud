@@ -117,6 +117,8 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     disallowedPaths: string[]
 }
 
+export type AnalysisReduxObject = ComponentWithPage<Analysis>;
+
 export interface NotificationsReduxObject extends ComponentWithPage<Notification> {
     redirectTo: string
 }
@@ -141,7 +143,8 @@ export interface HeaderSearchReduxObject {
     prioritizedSearch: HeaderSearchType
 }
 
-export interface ActivityReduxObject extends ComponentWithPage<Activity> { }
+export type ApplicationReduxObject = ComponentWithPage<Application>;
+export type ActivityReduxObject = ComponentWithPage<Activity>
 
 export type HeaderSearchType = "files" | "applications" | "projects";
  
@@ -159,9 +162,9 @@ export interface Reducers {
     uploader?: Reducer<UploaderReduxObject>
     uppy?: Reducer<any>
     status?: Reducer<StatusReduxObject>
-    applications?: Reducer<ComponentWithPage<Application>>
+    applications?: Reducer<ApplicationReduxObject>
     notifications?: Reducer<NotificationsReduxObject>
-    analyses?: Reducer<ComponentWithPage<Analysis>>
+    analyses?: Reducer<AnalysisReduxObject>
     zenodo?: Reducer<ZenodoReduxObject>
     header?: Reducer<HeaderSearchReduxObject>
     sidebar?: Reducer<SidebarReduxObject>
@@ -174,9 +177,9 @@ export interface ReduxObject {
     uploader: UploaderReduxObject
     uppy: { uppy: any, uppyOpen: boolean }
     status: StatusReduxObject,
-    applications: ComponentWithPage<Application>
+    applications: ApplicationReduxObject
     notifications: NotificationsReduxObject
-    analyses: ComponentWithPage<Analysis>
+    analyses: AnalysisReduxObject
     zenodo: ZenodoReduxObject
     header: HeaderSearchReduxObject
     sidebar: SidebarReduxObject

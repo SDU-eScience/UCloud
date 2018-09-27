@@ -8,18 +8,13 @@ export const SET_ZENODO_ERROR = "SET_ZENODO_ERROR";
 
 const zenodo = (state: ZenodoReduxObject = initZenodo(), action: ZenodoActions): ZenodoReduxObject => {
     switch (action.type) {
+        case SET_ZENODO_ERROR:
         case RECEIVE_PUBLICATIONS: {
-            action.page
-            return { ...state, page: action.page, loading: false };
+            return { ...state, ...action.payload, loading: false };
         }
-        case SET_ZENODO_LOADING: {
-            return { ...state, loading: action.loading };
-        }
+        case SET_ZENODO_LOADING: 
         case RECEIVE_ZENODO_LOGIN_STATUS: {
-            return { ...state, connected: action.connected };
-        }
-        case SET_ZENODO_ERROR: {
-            return { ...state, error: action.error, loading: false };
+            return { ...state, ...action.payload };
         }
         default: {
             return state;

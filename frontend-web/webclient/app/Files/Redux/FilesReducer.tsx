@@ -20,30 +20,30 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
         case RECEIVE_FILES: {
             return {
                 ...state,
-                page: action.page,
+                page: action.payload.page,
                 loading: false,
-                fileSelectorPath: action.path,
-                fileSelectorPage: action.page,
-                sortOrder: action.sortOrder,
-                sortBy: action.sortBy,
+                fileSelectorPath: action.payload.path,
+                fileSelectorPage: action.payload.page,
+                sortOrder: action.payload.sortOrder,
+                sortBy: action.payload.sortBy,
                 error: undefined,
                 fileSelectorError: undefined,
             };
         }
         case UPDATE_FILES: {
-            return { ...state, page: action.page };
+            return { ...state, page: action.payload.page };
         }
         case SET_FILES_LOADING: {
-            return { ...state, loading: action.loading };
+            return { ...state, loading: action.payload.loading };
         }
         case UPDATE_PATH: {
             return { ...state, path: action.path, fileSelectorPath: action.path };
         }
         case FILE_SELECTOR_SHOWN: {
-            return { ...state, fileSelectorShown: action.state };
+            return { ...state, fileSelectorShown: action.payload.state };
         }
         case RECEIVE_FILE_SELECTOR_FILES: {
-            return { ...state, fileSelectorPage: action.page, fileSelectorPath: action.path, fileSelectorLoading: false };
+            return { ...state, fileSelectorPage: action.payload.page, fileSelectorPath: action.payload.path, fileSelectorLoading: false };
         }
         case SET_FILE_SELECTOR_LOADING: {
             return { ...state, fileSelectorLoading: true };
@@ -52,13 +52,13 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
             return { ...state, fileSelectorCallback: action.callback };
         }
         case SET_FILE_SELECTOR_ERROR: {
-            return { ...state, fileSelectorError: action.error }
+            return { ...state, fileSelectorError: action.payload.error }
         }
         case SET_DISALLOWED_PATHS: {
-            return { ...state, disallowedPaths: action.paths }
+            return { ...state, disallowedPaths: action.payload.paths }
         }
         case FILES_ERROR: {
-            return { ...state, error: action.error, loading: false };
+            return { ...state, error: action.payload.error, loading: false };
         }
         case SET_FILES_SORTING_COLUMN: {
             const { sortingColumns } = state;

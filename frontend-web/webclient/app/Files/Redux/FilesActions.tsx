@@ -14,7 +14,7 @@ import {
     SET_FILE_SELECTOR_ERROR
 } from "./FilesReducer";
 import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "Utilities/FileUtilities";
-import { Page, ReceivePage, SetLoadingAction, Error } from "Types";
+import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
 import { SortOrder, SortBy, File } from "..";
 import { Action } from "redux";
 import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
@@ -49,7 +49,7 @@ export const fetchFiles = (path: string, itemsPerPage: number, page: number, ord
  */
 export const setErrorMessage = (error?: string): Error<typeof FILES_ERROR> => ({
     type: FILES_ERROR,
-    error
+    payload: { error }
 });
 
 /**
@@ -59,7 +59,7 @@ export const setErrorMessage = (error?: string): Error<typeof FILES_ERROR> => ({
 */
 export const updateFiles = (page: Page<File>): ReceivePage<typeof UPDATE_FILES, File> => ({
     type: UPDATE_FILES,
-    page
+    payload: { page }
 });
 
 /**
@@ -68,7 +68,7 @@ export const updateFiles = (page: Page<File>): ReceivePage<typeof UPDATE_FILES, 
  */
 export const setLoading = (loading: boolean): SetLoadingAction<typeof SET_FILES_LOADING> => ({
     type: SET_FILES_LOADING,
-    loading
+    payload: { loading }
 });
 
 interface UpdatePathAction extends Action<typeof UPDATE_PATH> { path: string }
@@ -81,7 +81,7 @@ export const updatePath = (path: string): UpdatePathAction => ({
     path
 });
 
-interface ReceiveFiles extends ReceivePage<typeof RECEIVE_FILES, File> { path: string, sortOrder: SortOrder, sortBy: SortBy }
+interface ReceiveFiles extends PayloadAction<typeof RECEIVE_FILES, { path: string, sortOrder: SortOrder, sortBy: SortBy, page: Page<File> }> { }
 /**
  * The function used for the actual receiving the files, rather than the promise
  * @param {Page<File>} page - Contains the page
@@ -94,10 +94,12 @@ const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sort
     page.items.forEach((f) => f.isChecked = f.beingRenamed = false);
     return {
         type: RECEIVE_FILES,
-        page,
-        path,
-        sortOrder,
-        sortBy
+        payload: {
+            page,
+            path,
+            sortOrder,
+            sortBy
+        }
     }
 };
 
@@ -116,17 +118,17 @@ export const setSortingColumn = (sortingColumn: SortBy, index: number): SetSorti
     index
 });
 
-interface FileSelectorShownAction extends Action<typeof FILE_SELECTOR_SHOWN> { state: boolean }
+interface FileSelectorShownAction extends PayloadAction<typeof FILE_SELECTOR_SHOWN, { state: boolean }> { }
 /**
  * Sets whether or not the file selector should be shown
  * @param {boolean} state whether or not the file selector is shown
  */
 export const fileSelectorShown = (state: boolean): FileSelectorShownAction => ({
     type: FILE_SELECTOR_SHOWN,
-    state
+    payload: { state }
 });
 
-interface ReceiveFileSelectorFilesAction extends ReceivePage<typeof RECEIVE_FILE_SELECTOR_FILES, File> { path: string }
+interface ReceiveFileSelectorFilesAction extends PayloadAction<typeof RECEIVE_FILE_SELECTOR_FILES, { path: string, page: Page<File> }> { }
 /**
  * Returns action for receiving files for the fileselector.
  * @param {Page<File>} page the page of files
@@ -134,8 +136,10 @@ interface ReceiveFileSelectorFilesAction extends ReceivePage<typeof RECEIVE_FILE
  */
 export const receiveFileSelectorFiles = (page: Page<File>, path: string): ReceiveFileSelectorFilesAction => ({
     type: RECEIVE_FILE_SELECTOR_FILES,
-    page,
-    path
+    payload: {
+        page,
+        path
+    }
 });
 
 /**
@@ -171,7 +175,7 @@ export const setFileSelectorLoading = (): Action<typeof SET_FILE_SELECTOR_LOADIN
 });
 
 
-interface SetDisallowedPathsAction extends Action<typeof SET_DISALLOWED_PATHS> { paths: string[] }
+interface SetDisallowedPathsAction extends PayloadAction<typeof SET_DISALLOWED_PATHS, { paths: string[] }> { }
 /**
  * Sets paths for the file selector to omit.
  * @param {string[]} paths - the list of paths which shouldn't be displayed on
@@ -179,7 +183,7 @@ interface SetDisallowedPathsAction extends Action<typeof SET_DISALLOWED_PATHS> {
  */
 export const setDisallowedPaths = (paths: string[]): SetDisallowedPathsAction => ({
     type: SET_DISALLOWED_PATHS,
-    paths
+    payload: { paths }
 });
 
 interface SetFileSelectorCallbackAction extends Action<typeof SET_FILE_SELECTOR_CALLBACK> { callback: Function }
@@ -198,7 +202,7 @@ export const setFileSelectorCallback = (callback: Function): SetFileSelectorCall
  */
 export const setFileSelectorError = (error?: string): Error<typeof SET_FILE_SELECTOR_ERROR> => ({
     type: SET_FILE_SELECTOR_ERROR,
-    error
+    payload: { error }
 });
 
 export const checkAllFiles = (checked: boolean, page: Page<File>) => {

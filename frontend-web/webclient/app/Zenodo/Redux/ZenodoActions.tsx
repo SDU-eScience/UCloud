@@ -7,7 +7,7 @@ import {
 } from "./ZenodoReducer";
 import { SetLoadingAction, ReceivePage, Page, Error } from "Types";
 import { Publication } from "..";
-import { Action } from "redux";
+import { PayloadAction } from "Types";
 
 /**
  * Fetches publications by the user
@@ -25,7 +25,7 @@ export const fetchPublications = (page: number, itemsPerPage: number): Promise<R
 
 export const setErrorMessage = (type: typeof SET_ZENODO_ERROR, error?: string): Error<typeof SET_ZENODO_ERROR> => ({
     type,
-    error
+    payload: { error }
 });
 
 export const fetchLoginStatus = () =>
@@ -33,10 +33,10 @@ export const fetchLoginStatus = () =>
         .then(({ response }) => receiveLoginStatus(response.connected))
         .catch(_ => setErrorMessage(SET_ZENODO_ERROR, "An error occurred fetching Zenodo log-in status"));
 
-interface LoginStatusProps extends Action<typeof RECEIVE_ZENODO_LOGIN_STATUS> { connected: boolean }
+interface LoginStatusProps extends PayloadAction<typeof RECEIVE_ZENODO_LOGIN_STATUS, { connected: boolean }> { }
 export const receiveLoginStatus = (connected: boolean): LoginStatusProps => ({
     type: RECEIVE_ZENODO_LOGIN_STATUS,
-    connected
+    payload: { connected }
 });
 
 
@@ -48,7 +48,7 @@ type ReceivePublicationsAction = ReceivePage<typeof RECEIVE_PUBLICATIONS, Public
  */
 const receivePublications = (page: Page<Publication>): ReceivePublicationsAction => ({
     type: RECEIVE_PUBLICATIONS,
-    page
+    payload: { page }
 });
 
 /**
@@ -57,5 +57,5 @@ const receivePublications = (page: Page<Publication>): ReceivePublicationsAction
  */
 export const setZenodoLoading = (loading: boolean): SetLoadingAction<typeof SET_ZENODO_LOADING> => ({
     type: SET_ZENODO_LOADING,
-    loading
+    payload: { loading }
 });
