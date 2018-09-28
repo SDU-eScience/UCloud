@@ -159,15 +159,12 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
     private onSetupStart() {
         this.setLoading(true);
         Cloud.post("2fa", undefined, "/auth").then(res => {
-            console.log("GOOD!");
-            console.log(res);
             this.setState(() => ({
                 challengeId: res.response.challengeId,
                 qrCode: res.response.qrCodeB64Data
             }));
 
         }).catch(() => {
-            console.log("BAD!");
         }).then(() => {
             this.setLoading(false);
         });
