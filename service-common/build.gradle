@@ -36,9 +36,6 @@ repositories {
     def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
     def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
 
-    logger.warn("The username is: ${username.toUpperCase()}. And the password is: ${password.length()}")
-    println("The username is: ${username.toUpperCase()}. And the password is: ${password.length()}")
-
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
         credentials {
@@ -49,9 +46,6 @@ repositories {
     maven {
         url("https://cloud.sdu.dk/archiva/repository/snapshots")
         credentials {
-            logger.warn("The username is: ${username.toUpperCase()}. And the password is: ${password.toUpperCase()}")
-            println("The username is: ${username.toUpperCase()}. And the password is: ${password.toUpperCase()}")
-
             it.username(username)
             it.password(password)
         }
