@@ -9,7 +9,7 @@ import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 
-class ApplicationHibernateDaoTest{
+class ApplicationHibernateDaoTest {
 
     private val user = "user"
     private val normAppDesc = NormalizedApplicationDescription(
@@ -62,7 +62,7 @@ class ApplicationHibernateDaoTest{
         "container",
         2,
         2,
-        SimpleDuration(1,0,0),
+        SimpleDuration(1, 0, 0),
         listOf(""),
         listOf("auther"),
         "title",
@@ -81,26 +81,38 @@ class ApplicationHibernateDaoTest{
                 val appDAO = ApplicationHibernateDAO(toolDAO)
                 appDAO.create(it, user, normAppDesc)
 
-                val hits = appDAO.findAllByName(it, user, "name", NormalizedPaginationRequest(10,0))
+                run {
+                    // Load from page
+                    val hits = appDAO.findAllByName(it, user, "name", NormalizedPaginationRequest(10, 0))
+                    val loadedApp = hits.items.first().description.description
 
-                val result = hits.items.first().description.description
-                assertEquals("app description", result)
-                assertEquals(1, hits.itemsInTotal)
-                val result2 = appDAO.findByNameAndVersion(it, user, "name", "2.2")
-                assertEquals("app description", result2.description.description)
+                    assertEquals("app description", loadedApp)
+                    assertEquals(1, hits.itemsInTotal)
+                }
 
-                println("HTIS HJJSDIJALJ::::: " + result2.description)
+                run {
+                    // Load from specific version
+                    val loadedApp = appDAO.findByNameAndVersion(it, user, "name", "2.2")
+                    assertEquals("app description", loadedApp.description.description)
+                }
 
                 appDAO.updateDescription(it, user, "name", "2.2", "new description")
 
-                val result3 = appDAO.findByNameAndVersion(it, user, "name", "2.2")
-                assertEquals("new description", result3.description.description)
-                assertEquals("Authors", result3.description.authors.first())
+                run {
+                    // Load from specific version after update
+                    val loadedApp = appDAO.findByNameAndVersion(it, user, "name", "2.2")
+                    assertEquals("new description", loadedApp.description.description)
+                    assertEquals("Authors", loadedApp.description.authors.first())
+                }
 
                 appDAO.updateDescription(it, user, "name", "2.2", null, listOf("New Authors"))
-                val result4 = appDAO.findByNameAndVersion(it, user, "name", "2.2")
-                assertEquals("new description", result4.description.description)
-                assertEquals("New Authors", result4.description.authors.first())
+
+                run {
+                    // Load from specific version after another update
+                    val loadedApp = appDAO.findByNameAndVersion(it, user, "name", "2.2")
+                    assertEquals("new description", loadedApp.description.description)
+                    assertEquals("New Authors", loadedApp.description.authors.first())
+                }
             }
         }
     }
@@ -234,7 +246,7 @@ class ApplicationHibernateDaoTest{
         }
     }
 
-    @Test (expected = ApplicationException.AlreadyExists::class)
+    @Test(expected = ApplicationException.AlreadyExists::class)
     fun `Create - already exists - test`() {
         withDatabase { db ->
             db.withTransaction {
@@ -250,7 +262,7 @@ class ApplicationHibernateDaoTest{
         }
     }
 
-    @Test (expected = ApplicationException.NotAllowed::class)
+    @Test(expected = ApplicationException.NotAllowed::class)
     fun `Create - Not Allowed - test`() {
         withDatabase { db ->
             db.withTransaction {
@@ -266,7 +278,7 @@ class ApplicationHibernateDaoTest{
         }
     }
 
-    @Test (expected = ApplicationException.BadToolReference::class)
+    @Test(expected = ApplicationException.BadToolReference::class)
     fun `Create - bad tool - test`() {
         withDatabase { db ->
             db.withTransaction {
@@ -277,7 +289,7 @@ class ApplicationHibernateDaoTest{
         }
     }
 
-    @Test (expected = ApplicationException.NotFound::class)
+    @Test(expected = ApplicationException.NotFound::class)
     fun `Find by name - not found - test`() {
         withDatabase { db ->
             db.withTransaction {
@@ -287,4 +299,72 @@ class ApplicationHibernateDaoTest{
             }
         }
     }
+    @Test
+    fun `tagSearch test`() {
+        withDatabase { db ->
+            db.withTransaction {
+                val toolDAO = ToolHibernateDAO()
+
+                toolDAO.create(it, user, normToolDesc)
+
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+                appDAO.create(it, user, normAppDesc)
+                appDAO.create(it, user, normAppDesc3)
+                appDAO.create(it, user, normAppDesc.copy(
+                    info = NameAndVersion("App2", "3.4"),
+                    tags = listOf("tag2", "tag5")
+                    )
+                )
+                appDAO.create(it, user, normAppDesc.copy(
+                    info = NameAndVersion("App1", "1.4"),
+                    tags = listOf("tag2", "tag4")
+                )
+                )
+
+                run {
+                    // Search for no hits
+                    val hits = appDAO.searchTags(it, user, "tag20", NormalizedPaginationRequest(10,0))
+                    println(hits)
+
+                    assertEquals(0, hits.itemsInTotal)
+                }
+
+                run {
+                    // Search for one hit tag
+                    val hits = appDAO.searchTags(it, user, "tag1", NormalizedPaginationRequest(10,0))
+                    println(hits)
+                    val loadedApp = hits.items.first().description.description
+
+                    assertEquals("app description", loadedApp)
+                    assertEquals(1, hits.itemsInTotal)
+                }
+
+                run {
+                    // Search for multiple hit tag
+                    val hits = appDAO.searchTags(it, user, "tag2", NormalizedPaginationRequest(10,0))
+
+                    var previous = ""
+                    hits.items.forEach {
+                        if (it.description.info.name < previous)
+                            assert(false)
+                        previous = it.description.info.name
+                    }
+
+                    assertEquals(3, hits.itemsInTotal)
+                    assertEquals("App1", hits.items[0].description.info.name)
+                    assertEquals("App2", hits.items[1].description.info.name)
+                    assertEquals("name", hits.items[2].description.info.name)
+                }
+
+                run {
+                    // Search for empty tag. Should be empty since it is not a wildcard search
+                    val hits = appDAO.searchTags(it, user, "", NormalizedPaginationRequest(10,0))
+
+                    assertEquals(0, hits.itemsInTotal)
+
+                }
+            }
+        }
+    }
+
 }

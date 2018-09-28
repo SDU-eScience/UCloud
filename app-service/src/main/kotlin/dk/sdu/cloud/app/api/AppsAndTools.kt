@@ -15,6 +15,7 @@ data class Application(
     val tool: Tool
 )
 
+//TODO Contains duplicate data: Info, Tool, Tags. Issue #307
 data class NormalizedApplicationDescription(
     val info: NameAndVersion,
     val tool: NameAndVersion,
@@ -24,7 +25,7 @@ data class NormalizedApplicationDescription(
     val invocation: List<InvocationParameter>,
     val parameters: List<ApplicationParameter<*>>,
     val outputFileGlobs: List<String>,
-    val tags: List<String>
+    val tags: List<String> = emptyList()
 )
 
 @JsonTypeInfo(
@@ -70,6 +71,11 @@ sealed class ApplicationDescription(val application: String) {
             ::version.disallowCharacters('\n')
             ::version.requireSize(maxSize = 255)
 
+            tags.forEach {
+                if (it.isBlank()) {
+                    throw ApplicationVerificationException.BadValue(name, "Cannot be empty")
+                }
+            }
             if (authors.isEmpty()) throw ToolVerificationException.BadValue(::authors.name, "Authors is empty")
 
             val badAuthorIndex = authors.indexOfFirst { it.contains("\n") }

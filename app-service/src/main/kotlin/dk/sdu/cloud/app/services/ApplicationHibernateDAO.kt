@@ -14,6 +14,29 @@ class ApplicationHibernateDAO(
     private val toolDAO: ToolHibernateDAO
 ) : ApplicationDAO<HibernateSession> {
 
+    override fun searchTags(
+        session: HibernateSession,
+        user: String?,
+        query: String,
+        paging: NormalizedPaginationRequest
+    ): Page<Application> {
+        val items = session.typedQuery<ApplicationEntity>(
+            """
+                select application
+                from TagEntity
+                where tag='${query}'
+                order by application
+            """.trimIndent()
+        ).paginatedList(paging).map { it.toModel() }
+
+        return Page(
+            items.size,
+            paging.itemsPerPage,
+            paging.page,
+            items
+        )
+   }
+
     override fun search(
         session: HibernateSession,
         user: String?,
@@ -21,10 +44,6 @@ class ApplicationHibernateDAO(
         paging: NormalizedPaginationRequest
     ): Page<Application> {
         val preparedQuery = "'%"+query+"%'"
-        /*return session.paginatedCriteria<ApplicationEntity>(paging) {
-            entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] like preparedQuery
-        }.mapItems { it.toModel() }*/
-
         //language=HQL
         val count = session.typedQuery<Long>(
             """
@@ -136,28 +155,20 @@ class ApplicationHibernateDAO(
         val existingTool = toolDAO.internalByNameAndVersion(session, description.tool.name, description.tool.version)
                 ?: throw ApplicationException.BadToolReference()
 
-        session.save(
-            ApplicationEntity(
-                user,
-                Date(),
-                Date(),
-                description,
-                originalDocument,
-                existingTool,
-                EmbeddedNameAndVersion(description.info.name, description.info.version)
-            )
+        val entity = ApplicationEntity(
+            user,
+            Date(),
+            Date(),
+            description,
+            originalDocument,
+            existingTool,
+            EmbeddedNameAndVersion(description.info.name, description.info.version)
         )
+        session.save(entity)
 
         description.tags.forEach { tag ->
-            session.save(
-                TagEntity(
-                    EmbeddedNameAndVersion(description.info.name, description.info.version),
-                    tag
-                )
-            )
+            session.save(TagEntity(entity, tag))
         }
-
-
     }
 
     override fun updateDescription(
