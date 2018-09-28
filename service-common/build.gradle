@@ -36,7 +36,8 @@ repositories {
     def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
     def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
 
-    logger.info("The username is: ${username.toUpperCase()}. And the password is: ${password.length()}")
+    logger.warn("The username is: ${username.toUpperCase()}. And the password is: ${password.length()}")
+    println("The username is: ${username.toUpperCase()}. And the password is: ${password.length()}")
 
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
