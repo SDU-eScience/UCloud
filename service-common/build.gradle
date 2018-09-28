@@ -49,6 +49,9 @@ repositories {
     maven {
         url("https://cloud.sdu.dk/archiva/repository/snapshots")
         credentials {
+            logger.warn("The username is: ${username.toUpperCase()}. And the password is: ${password.toUpperCase()}")
+            println("The username is: ${username.toUpperCase()}. And the password is: ${password.toUpperCase()}")
+
             it.username(username)
             it.password(password)
         }
