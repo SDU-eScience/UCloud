@@ -30,11 +30,14 @@ repositories {
     maven { url("https://kotlin.bintray.com/ktor") }
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
 
+    def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
+    def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
+
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
         credentials {
-            username(eScienceCloudUser)
-            password(eScienceCloudPassword)
+            username(username)
+            password(password)
         }
     }
     maven {
