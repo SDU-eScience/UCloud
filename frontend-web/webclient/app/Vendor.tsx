@@ -20,3 +20,4 @@ import "Pagination/pagination.scss";
 import "Shares/List.scss";
 import "Uploader/index.scss";
 import "Zenodo/Zenodo.scss";
+import "UserSettings/2fa.scss";
