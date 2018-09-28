@@ -24,6 +24,23 @@ class AppController<DBSession>(
     override val baseContext = HPCApplicationDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
+
+        implement(HPCApplicationDescriptions.searchTag) { req ->
+            logEntry(log, req)
+
+            val app = db.withTransaction {
+                source.searchTags(
+                    it,
+                    call.securityPrincipal.username,
+                    req.query,
+                    req.normalize()
+                )
+            }
+
+            ok(app)
+        }
+
+
         implement(HPCApplicationDescriptions.search) { req ->
             logEntry(log, req)
 

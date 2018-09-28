@@ -26,6 +26,26 @@ data class SearchRequest(
 object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
+    val searchTag = callDescription<SearchRequest, Page<Application>, CommonErrorMessage> {
+        name = "searchTags"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"searchTags"
+        }
+
+        params {
+            +boundTo(SearchRequest::query)
+            +boundTo(SearchRequest::itemsPerPage)
+            +boundTo(SearchRequest::page)
+        }
+    }
+
     val search = callDescription<SearchRequest, Page<Application>, CommonErrorMessage> {
         name = "searchApps"
         method = HttpMethod.Get

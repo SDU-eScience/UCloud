@@ -366,5 +366,4 @@ class ApplicationHibernateDaoTest {
             }
         }
     }
-
 }

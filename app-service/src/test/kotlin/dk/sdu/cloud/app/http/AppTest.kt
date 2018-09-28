@@ -110,6 +110,74 @@ class AppTest {
     )
 
     @Test
+    fun `Searchtags test`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val user = "user"
+                        val toolDao = ToolHibernateDAO()
+                        val appDao = ApplicationHibernateDAO(toolDao)
+                        configureAppServer(db, appDao)
+                        db.withTransaction {
+                            toolDao.create(it, user, normToolDesc)
+                            appDao.create(it, user, normAppDesc.copy(tags = listOf("tag1", "tag2")))
+                            appDao.create(it, user, normAppDesc2.copy(tags = listOf("tag2", "tag3")))
+                        }
+
+                    },
+
+                    test = {
+                        //Search for tag that only exists once
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/searchTags?query=tag1&itemsPerPage=10&Page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(1, obj["itemsInTotal"].asInt())
+
+                        }
+                        //Search for tag that are multiple places
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/searchTags?query=tag2&itemsPerPage=10&Page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(2, obj["itemsInTotal"].asInt())
+                        }
+                        //Search for non existing tag
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/searchTags?query=a&itemsPerPage=10&Page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(0, obj["itemsInTotal"].asInt())
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
     fun `Search test`() {
         withDatabase { db ->
             withAuthMock {
@@ -128,35 +196,54 @@ class AppTest {
                     },
 
                     test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=am&itemsPerPage=10&Page=0") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
+                        //Search for single instance (query = *am*, result = name)
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=am&itemsPerPage=10&Page=0") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
 
-                        assertEquals(HttpStatusCode.OK, response.status())
-                        val obj = mapper.readTree(response.content)
-                        assertEquals(1, obj["itemsInTotal"].asInt())
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(1, obj["itemsInTotal"].asInt())
+                        }
+                        // Search for everything (query = *, result = app, name)
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=&itemsPerPage=10&Page=0") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
 
-                        val response2 =
-                            handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=&itemsPerPage=10&Page=0") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(2, obj["itemsInTotal"].asInt())
+                        }
+                        // Search for multiple (query = *a*, result = app, name)
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=a&itemsPerPage=10&Page=0") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
 
-                        assertEquals(HttpStatusCode.OK, response.status())
-                        val obj2 = mapper.readTree(response2.content)
-                        assertEquals(2, obj2["itemsInTotal"].asInt())
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(2, obj["itemsInTotal"].asInt())
+                        }
+                        // Search for none (query = *notpossible*, result = null)
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=notpossible&itemsPerPage=10&Page=0") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
 
-                        val response3 =
-                            handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=a&itemsPerPage=10&Page=0") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response.status())
-                        val obj3 = mapper.readTree(response3.content)
-                        assertEquals(2, obj3["itemsInTotal"].asInt())
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(0, obj["itemsInTotal"].asInt())
+                        }
                     }
                 )
             }
