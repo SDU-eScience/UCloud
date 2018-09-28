@@ -28,15 +28,15 @@ repositories {
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
         credentials {
-            username(username)
-            password(password)
+            it.username(username)
+            it.password(password)
         }
     }
     maven {
         url("https://cloud.sdu.dk/archiva/repository/snapshots")
         credentials {
-            username(username)
-            password(password)
+            it.username(username)
+            it.password(password)
         }
     }
 }
@@ -117,8 +117,8 @@ publishing {
             url(resolvedUrl)
 
             credentials {
-                username(username)
-                password(password)
+                it.username(username)
+                it.password(password)
             }
         }
     }
