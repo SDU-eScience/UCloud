@@ -69,24 +69,30 @@ repositories {
 // Private SDUCloud maven repositories
 //
 repositories {
+    def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
+    def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
+
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
         credentials {
-            it.username(eScienceCloudUser)
-            it.password(eScienceCloudPassword)
+            it.username(username)
+            it.password(password)
         }
     }
     maven {
         url("https://cloud.sdu.dk/archiva/repository/snapshots")
         credentials {
-            it.username(eScienceCloudUser)
-            it.password(eScienceCloudPassword)
+            it.username(username)
+            it.password(password)
         }
     }
 }
 
 apply plugin: 'maven-publish'
 publishing {
+    def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
+    def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
+
     repositories {
         it.maven {
             def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
@@ -94,8 +100,8 @@ publishing {
             else resolvedUrl += "internal"
             url(resolvedUrl)
             credentials {
-                it.username(eScienceCloudUser)
-                it.password(eScienceCloudPassword)
+                it.username(username)
+                it.password(password)
             }
         }
     }
