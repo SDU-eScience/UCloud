@@ -2,7 +2,7 @@ import * as React from "react";
 import { Checkbox, Progress, Grid, Card, Button, Icon, Modal } from "semantic-ui-react";
 import * as Dropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, infoNotification } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications } from "UtilityFunctions";
 import { fileSizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
@@ -11,7 +11,9 @@ import { Upload, UploaderProps } from ".";
 import { setUploaderVisible, setUploads } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
 
+
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => !!it.uploadXHR && it.uploadXHR.readyState === 4);
+const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => !!it.uploadXHR && it.uploadXHR.readyState === 4).length;
 
 const newUpload = (file: File): Upload => ({
     file,
@@ -37,6 +39,12 @@ class Uploader extends React.Component<UploaderProps> {
         }
     }
 
+    beforeUnload = (e) => {
+        e.returnValue = "foo";
+        uploadsNotifications(finishedUploads(this.props.uploads), this.props.uploads.length)
+        return e;
+    }
+
     startUpload = (index: number) => {
         const upload = this.props.uploads[index];
         upload.isUploading = true;
@@ -44,12 +52,15 @@ class Uploader extends React.Component<UploaderProps> {
         const onThen = (xhr: XMLHttpRequest) => {
             xhr.onloadend = () => {
                 if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads)) {
+                    window.removeEventListener("beforeunload", this.beforeUnload);
                     this.props.onFilesUploaded(this.props.location);
                 }
             }
             upload.uploadXHR = xhr;
             this.props.dispatch(setUploads(this.props.uploads));
         };
+        
+        window.addEventListener("beforeunload", this.beforeUnload);
         if (!upload.extractArchive) {
             multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;

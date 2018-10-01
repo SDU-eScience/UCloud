@@ -20,23 +20,24 @@ class FileInfo extends React.Component<FileInfoProps, FileInfoState> {
         this.state = { activity: emptyPage };
     }
 
+    get path(): string { return this.props.match.params[0]; }
+
     componentDidMount() {
-        const { match, filesPath, dispatch, loading, page } = this.props;
+        const { filesPath, dispatch, loading, page } = this.props;
         dispatch(updatePageTitle("File Info"));
-        const path = match.params[0];
         // FIXME: Either move to promiseKeeper, or redux store
-        Cloud.get(`/activity/stream/by-path?path=${path}`).then(({ response }) => this.setState({ activity: response }));
-        if (!(getParentPath(path) === filesPath)) {
+        Cloud.get(`/activity/stream/by-path?path=${this.path}`).then(({ response }) => this.setState({ activity: response }));
+        if (!(getParentPath(this.path) === filesPath)) {
             dispatch(setLoading(true));
             if (loading) return;
-            dispatch(fetchPageFromPath(path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH));
-            dispatch(updatePath(path));
+            dispatch(fetchPageFromPath(this.path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH));
+            dispatch(updatePath(this.path));
         }
     }
 
     render() {
-        const { match, page, dispatch, loading } = this.props;
-        const file = page.items.find(file => file.path === removeTrailingSlash(match.params[0]));
+        const { page, dispatch, loading } = this.props;
+        const file = page.items.find(file => file.path === removeTrailingSlash(this.path));
         if (!file) { return (<DefaultLoading loading={true} />) }
         return (
             <Container className="container-margin" >
