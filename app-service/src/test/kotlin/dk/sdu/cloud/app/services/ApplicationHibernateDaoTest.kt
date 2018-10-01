@@ -162,7 +162,7 @@ class ApplicationHibernateDaoTest{
                         date,
                         normAppDesc4,
                         "",
-                        tool!!,
+                        tool,
                         EmbeddedNameAndVersion(normAppDesc4.info.name, normAppDesc4.info.version)
                     )
                 )

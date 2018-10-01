@@ -25,15 +25,6 @@ class SSHConnectionPool(
         private val log = LoggerFactory.getLogger(SSHConnectionPool::class.java)
     }
 
-    inline fun <R> use(body: SSHConnection.() -> R): R {
-        val (idx, session) = borrowConnection()
-        return try {
-            body(session)
-        } finally {
-            returnConnection(idx)
-        }
-    }
-
     fun borrowConnection(): Pair<Int, SSHConnection> {
         fun getAndValidate(index: Int): SSHConnection? {
             val conn = objectPool[index] ?: return null
@@ -83,5 +74,14 @@ class SSHConnectionPool(
 
         log.info("Connected")
         return SSHConnection(session)
+    }
+}
+
+inline fun <R> SSHConnectionPool.use(body: SSHConnection.() -> R): R {
+    val (idx, session) = borrowConnection()
+    return try {
+        body(session)
+    } finally {
+        returnConnection(idx)
     }
 }

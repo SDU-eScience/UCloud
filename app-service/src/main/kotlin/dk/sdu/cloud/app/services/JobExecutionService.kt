@@ -11,13 +11,13 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.withCausedBy
-import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
@@ -33,7 +33,8 @@ import java.util.*
 class JobExecutionService<DBSession>(
     cloud: RefreshingJWTAuthenticatedCloud,
 
-    private val producer: MappedEventProducer<String, AppEvent>,
+    private val appEventProducer: MappedEventProducer<String, AppEvent>,
+    private val accountingEventProducer: MappedEventProducer<String, JobCompletedEvent>,
 
     private val sBatchGenerator: SBatchGenerator,
 
@@ -43,7 +44,7 @@ class JobExecutionService<DBSession>(
 
     private val slurmPollAgent: SlurmPollAgent,
     private val sshConnectionPool: SSHConnectionPool,
-    private val sshUser: String // TODO This won't be needed in final version
+    private val sshUser: String
 ) {
     private val cloudContext: CloudContext = cloud.parent
     private var slurmListener: SlurmEventListener? = null
@@ -116,7 +117,7 @@ class JobExecutionService<DBSession>(
 
                 runBlocking {
                     // TODO Should implement error codes here, before we lose them
-                    producer.emit(
+                    appEventProducer.emit(
                         AppEvent.CompletedInSlurm(
                             job.systemId,
                             System.currentTimeMillis(),
@@ -147,7 +148,7 @@ class JobExecutionService<DBSession>(
                     else -> null
                 }
 
-                val message: String? = when (event) {
+                val message: String? = when (event) /**/ {
                     is AppEvent.Completed -> event.message
                     else -> null
                 }
@@ -169,9 +170,27 @@ class JobExecutionService<DBSession>(
 
                     is AppEvent.ScheduledAtSlurm -> handleScheduledEvent(event)
 
-                    is AppEvent.CompletedInSlurm ->
+                    is AppEvent.CompletedInSlurm -> {
+                        try {
+                            val duration = sshConnectionPool.use { slurmJobInfo(event.slurmId) }
+                            accountingEventProducer.emit(
+                                JobCompletedEvent(
+                                    event.systemId,
+                                    event.owner,
+                                    duration,
+                                    event.appWithDependencies.description.info,
+                                    event.success
+                                )
+                            )
+                        } catch (ex: Exception) {
+                            log.warn("Unable to perform accounting for job: systemId: " +
+                                    "${event.systemId}, slurmId: ${event.slurmId}, event: $event")
+                            log.warn(ex.stackTraceToString())
+                        }
+
                         if (event.success) shipResults(event)
                         else goToCleanupState(event, "Failure in Slurm or non-zero exit code")
+                    }
 
                     is AppEvent.ExecutionCompleted -> cleanUp(event)
 
@@ -182,7 +201,7 @@ class JobExecutionService<DBSession>(
                 }
 
                 if (eventToEmit != null) {
-                    producer.emit(eventToEmit)
+                    appEventProducer.emit(eventToEmit)
                 }
             }
         } catch (ex: Exception) {
@@ -221,7 +240,7 @@ class JobExecutionService<DBSession>(
                         )
                     }
 
-                    runBlocking { producer.emit(eventToEmit) }
+                    runBlocking { appEventProducer.emit(eventToEmit) }
                 }
 
                 else -> {
@@ -246,7 +265,7 @@ class JobExecutionService<DBSession>(
                 principal.token
             )
         }
-        runBlocking { producer.emit(validatedJob) }
+        runBlocking { appEventProducer.emit(validatedJob) }
         return validatedJob.systemId
     }
 
