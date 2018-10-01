@@ -17,7 +17,6 @@
     "collectCoverage": true,
     "coverageDirectory": "<rootDir>/coverage",
     "coverageReporters": [
-      "text",
       "html",
       "cobertura"
     ],

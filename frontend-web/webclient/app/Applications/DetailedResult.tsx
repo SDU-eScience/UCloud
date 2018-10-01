@@ -122,7 +122,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         this.state.promises.makeCancelable(
             Cloud.get(filepathQuery(`/home/${Cloud.username}/Jobs/${this.jobId}`, pageNumber, itemsPerPage))
         ).promise.then(({ response }) => {
-            console.log(response);
             this.setState(() => ({
                 page: response,
                 loading: false

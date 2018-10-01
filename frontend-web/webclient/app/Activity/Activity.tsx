@@ -48,7 +48,7 @@ export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => acti
 
 const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
     <Feed.Event
-        icon={eventIcon2(activity.operation)}
+        icon={eventIcon(activity.operation)}
         date={moment(new Date(activity.timestamp)).fromNow()}
         summary={`Files ${operationToPastTense(activity.operation)}`}
         extraText={activity.entries.map((entry, i) => !!entry.path ?
@@ -62,7 +62,7 @@ const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
 
 const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
     <Feed.Event
-        icon={eventIcon2(activity.operation)}
+        icon={eventIcon(activity.operation)}
         date={moment(new Date(activity.timestamp)).fromNow()}
         summary={`Files ${operationToPastTense(activity.operation)}`}
         extraText={activity.files.map((f, i) => !!f.path ?
@@ -81,30 +81,7 @@ const operationToPastTense = (operation: TrackedOperations | CountedOperations) 
     return `${operation}ed`;
 }
 
-const EventIcon = ({ operation }: { operation: TrackedOperations | CountedOperations }) => {
-    switch (operation) {
-        case "FAVORITE": {
-            return <Icon name="favorite" />
-        }
-        case "DOWNLOAD": {
-            return <Icon name="download" />
-        }
-        case "CREATE": {
-            return <Icon name="plus" />
-        }
-        case "UPDATE": {
-            return <Icon name="refresh" />
-        }
-        case "DELETE": {
-            return <Icon name="delete" />
-        }
-        case "MOVED": {
-            return <Icon name="move" />
-        }
-    }
-}
-
-const eventIcon2 = (operation: TrackedOperations | CountedOperations) => {
+const eventIcon = (operation: TrackedOperations | CountedOperations) => {
     switch (operation) {
         case "FAVORITE": {
             return "favorite";

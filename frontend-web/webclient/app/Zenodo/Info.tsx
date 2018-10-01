@@ -64,7 +64,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
         } else {
             return (
                 <Container className="container-margin">
-                    <ErrorMessage error={this.state.error} onDismiss={this.onErrorDismiss} />
+                    {this.state.error ? <ErrorMessage error={this.state.error} onDismiss={this.onErrorDismiss} /> : null}
                     <ZenodoPublishingBody publication={this.state.publication} />
                 </Container>
             );

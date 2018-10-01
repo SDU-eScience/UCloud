@@ -10,33 +10,34 @@ import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { List as ShareList } from "Shares/List";
-import { File, Annotation, SortOrder, SortBy, FileInfoProps } from "Files";
+import { File, Annotation, SortOrder, SortBy, FileInfoProps, FileInfoState } from "Files";
 import { annotationToString } from "Utilities/FileUtilities";
 import { ActivityFeed } from "Activity/Activity";
 
-class FileInfo extends React.Component<FileInfoProps, any> {
+class FileInfo extends React.Component<FileInfoProps, FileInfoState> {
     constructor(props) {
         super(props);
         this.state = { activity: emptyPage };
     }
 
+    get path(): string { return this.props.match.params[0]; }
+
     componentDidMount() {
-        const { match, filesPath, dispatch, loading, page } = this.props;
+        const { filesPath, dispatch, loading, page } = this.props;
         dispatch(updatePageTitle("File Info"));
-        const path = match.params[0];
-        // FIXME: Either move to promiseKeeper, 
-        Cloud.get(`/activity/stream/by-path?path=${path}`).then(({ response }) => this.setState({ activity: response }));
-        if (!(getParentPath(path) === filesPath)) {
+        // FIXME: Either move to promiseKeeper, or redux store
+        Cloud.get(`/activity/stream/by-path?path=${this.path}`).then(({ response }) => this.setState({ activity: response }));
+        if (!(getParentPath(this.path) === filesPath)) {
             dispatch(setLoading(true));
             if (loading) return;
-            dispatch(fetchPageFromPath(path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH));
-            dispatch(updatePath(path));
+            dispatch(fetchPageFromPath(this.path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH));
+            dispatch(updatePath(this.path));
         }
     }
 
     render() {
-        const { match, page, dispatch, loading } = this.props;
-        const file = page.items.find(file => file.path === removeTrailingSlash(match.params[0]));
+        const { page, dispatch, loading } = this.props;
+        const file = page.items.find(file => file.path === removeTrailingSlash(this.path));
         if (!file) { return (<DefaultLoading loading={true} />) }
         return (
             <Container className="container-margin" >
@@ -45,7 +46,7 @@ class FileInfo extends React.Component<FileInfoProps, any> {
                     <Header.Subheader content={toLowerCaseAndCapitalize(file.fileType)} />
                 </Header>                               {/* MapDispatchToProps */}
                 <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, [file], Cloud)))} />
-                <Segment><ActivityFeed activity={this.state.activity.items} /></Segment>
+                {this.state.activity.items.length ? (<Segment><ActivityFeed activity={this.state.activity.items} /></Segment>) : null}
                 {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
                 <ShareList byPath={file.path} />
                 <DefaultLoading loading={loading} />

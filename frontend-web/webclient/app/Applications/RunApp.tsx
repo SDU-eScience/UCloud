@@ -245,12 +245,14 @@ const ApplicationHeader = ({ authors, displayName, appName, favorite, version, f
     return (
         <Header as="h1">
             <Header.Content className="float-right">
-                <Button onClick={() => exportParameters()} content="Export parameters" />
-                <Button as="label">
-                    Import parameters
-                    <input className="import-parameters" type="file" onChange={(e) => { if (e.target.files) importParameters(e.target.files[0]) }} />
-                </Button>
+                <Button.Group>
+                    <Button basic color="green" onClick={() => exportParameters()} content="Export parameters" />
+                    <Button basic color="green" as="label">
+                        Import parameters
+                        <input className="import-parameters" type="file" onChange={(e) => { if (e.target.files) importParameters(e.target.files[0]) }} />
+                    </Button>
                 <Button as={Link} basic color="blue" content="More information" to={`/appDetails/${appName}/${version}/`} />
+                </Button.Group>
             </Header.Content>
             <Header.Content>
                 {displayName}

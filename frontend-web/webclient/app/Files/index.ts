@@ -6,6 +6,7 @@ import Cloud from "Authentication/lib";
 import { Moment } from "moment";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
+import { Activity } from "Activity";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -97,6 +98,7 @@ export interface FilesOperations { // Redux operations
     checkAllFiles: (checked: boolean, page: Page<File>) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
     showUploader: () => void
+    setUploaderCallback: (callback) => void
 }
 
 export interface FileSelectorProps {
@@ -272,4 +274,8 @@ export interface FileInfoProps {
     loading: boolean
     match: { params: string[] }
     filesPath: string
+}
+
+export interface FileInfoState {
+    activity: Page<Activity>
 }

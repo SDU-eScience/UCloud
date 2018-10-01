@@ -35,12 +35,12 @@ describe("Applications actions", () => {
     });
 
     test("Update applications, from empty", () => {
-        emptyPageStore.dispatch(ApplicationsActions.updateApplications(applicationsPage));
+        emptyPageStore.dispatch(ApplicationsActions.receiveApplications(applicationsPage));
         expect(emptyPageStore.getState().applications.page).toBe(applicationsPage);
     });
 
     test("Update applications, to empty", () => {
-        fullPageStore.dispatch(ApplicationsActions.updateApplications(emptyPage));
+        fullPageStore.dispatch(ApplicationsActions.receiveApplications(emptyPage));
         expect(fullPageStore.getState().applications.page).toBe(emptyPage);
     });
 });

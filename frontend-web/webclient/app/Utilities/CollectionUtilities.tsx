@@ -7,7 +7,6 @@ type PrimitiveDataTypes = string | number | boolean
 /**
  * @param set 
  * @param entry 
- * FIXME Why is this in array utilities if it accepts sets?
  */
 export function addEntryIfNotPresent(set: Set<PrimitiveDataTypes>, entry: PrimitiveDataTypes): boolean {
     const size = set.size;

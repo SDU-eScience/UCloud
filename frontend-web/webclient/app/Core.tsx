@@ -62,7 +62,7 @@ const Core = () => (
             </Switch>
         </Sidebar>
         <UppyWrapper />
-    </ >
+    </>
 );
 
 export default Core;
