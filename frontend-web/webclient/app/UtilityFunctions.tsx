@@ -30,6 +30,11 @@ export const getOwnerFromAcls = (acls: Acl[]): string => {
     }
 };
 
+/**
+ * Renders a failure notification in the upper right corner, with provided text
+ * @param {string} title The failure to be rendered
+ * @param {number} seconds the amount of seconds the failure is rendered
+ */
 export const failureNotification = (title: string, seconds: number = 3) => swal({
     toast: true,
     position: "top-end",
@@ -39,6 +44,11 @@ export const failureNotification = (title: string, seconds: number = 3) => swal(
     title
 });
 
+/**
+ * Renders a success notification in the upper right corner, with provided text
+ * @param {string} title The success message to be rendered
+ * @param {number} seconds the amount of seconds the content is rendered
+ */
 export const successNotification = (title: string, seconds: number = 3) => swal({
     toast: true,
     position: "top-end",
@@ -48,6 +58,11 @@ export const successNotification = (title: string, seconds: number = 3) => swal(
     title
 });
 
+/**
+ * Renders an information notification in the upper right corner, with provided text
+ * @param {string} title The information to be rendered
+ * @param {number} seconds the amount of seconds the content is rendered
+ */
 export const infoNotification = (title: string, seconds: number = 3) => swal({
     toast: true,
     position: "top-end",
@@ -88,8 +103,7 @@ export const shareSwal = () => swal({
 
 });
 
-export const isElementChecked = (id: string): boolean =>
-    (document.getElementById(id) as HTMLInputElement).checked;
+export const isElementChecked = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
 
 export const inputSwal = (inputName: string) => ({
     title: "Share",
@@ -236,9 +250,9 @@ export const createProject = (filePath: string, cloud: Cloud, navigate: (path: s
     }).catch(() => failureNotification(`An error occurred creating project ${filePath}`));
 
 const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) => void, remainingTries: number) => {
-    cloud.get(`/metadata/by-path?path=${path}`).then(() => navigate(path)).catch((err) => {
+    cloud.get(`/metadata/by-path?path=${path}`).then(() => navigate(path)).catch(_ => {
         remainingTries > 0 ?
-            setTimeout(redirectToProject(path, cloud, navigate, remainingTries - 1), 400) :
+            setTimeout(() => redirectToProject(path, cloud, navigate, remainingTries - 1), 400) :
             successNotification(`Project ${path} is being created.`)
     });
 };

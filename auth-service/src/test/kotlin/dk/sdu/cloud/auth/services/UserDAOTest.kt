@@ -1,6 +1,6 @@
 package dk.sdu.cloud.auth.services
 
-import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.Role
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse

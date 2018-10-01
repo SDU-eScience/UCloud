@@ -4,22 +4,24 @@ import com.auth0.jwt.algorithms.Algorithm
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.AuthStreams
-import dk.sdu.cloud.auth.http.CoreAuthController
-import dk.sdu.cloud.auth.http.PasswordController
-import dk.sdu.cloud.auth.http.SAMLController
-import dk.sdu.cloud.auth.http.UserController
+import dk.sdu.cloud.auth.http.*
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.call
+import io.ktor.application.install
+import io.ktor.features.CORS
+import io.ktor.http.HttpMethod
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
-import org.apache.xml.security.utils.Base64
 import org.slf4j.Logger
 import java.security.SecureRandom
+import java.util.*
 
 class Server(
     private val db: HibernateSessionFactory,
@@ -48,6 +50,19 @@ class Server(
             kafka.producer.forStream(AuthStreams.UserUpdateStream)
         )
 
+        val totpService = WSTOTPService()
+        val qrService = ZXingQRService()
+
+        val twoFactorDao = TwoFactorHibernateDAO()
+
+        val twoFactorChallengeService = TwoFactorChallengeService(
+            db,
+            twoFactorDao,
+            userDao,
+            totpService,
+            qrService
+        )
+
         val associatedByService = config.tokenExtension.groupBy { it.serviceName }
         val mergedExtensions = associatedByService.map { (service, lists) ->
             service to lists.flatMap { it.parsedScopes }.toSet()
@@ -63,6 +78,8 @@ class Server(
             mergedExtensions
         )
 
+        val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
+
         log.info("Core services constructed!")
 
         if (developmentMode) {
@@ -74,7 +91,7 @@ class Server(
                     val random = SecureRandom()
                     val passwordBytes = ByteArray(64)
                     random.nextBytes(passwordBytes)
-                    val password = Base64.encode(passwordBytes)
+                    val password = Base64.getEncoder().encodeToString(passwordBytes)
 
                     val user = PersonUtils.createUserByPassword(
                         "Admin",
@@ -91,6 +108,7 @@ class Server(
                     log.info("accessToken = ${token.accessToken}")
                     log.info("refreshToken = ${token.refreshToken}")
                     log.info("Access token expires in one year.")
+                    log.info("Password is: '$password'")
                 }
             }
         }
@@ -99,6 +117,19 @@ class Server(
             log.info("Configuring HTTP server")
 
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
+
+            if (developmentMode) {
+                install(CORS) {
+                    anyHost()
+                    allowCredentials = true
+                    allowSameOrigin = true
+                    header("authorization")
+                    header("content-type")
+                    HttpMethod.DefaultMethods.forEach {
+                        method(it)
+                    }
+                }
+            }
 
             log.info("Creating HTTP controllers")
 
@@ -114,10 +145,11 @@ class Server(
             val samlController = SAMLController(
                 authSettings,
                 { settings, call, params -> SamlRequestProcessor(settings, call, params) },
-                tokenService
+                tokenService,
+                loginResponder
             )
 
-            val passwordController = PasswordController(db, userDao, tokenService)
+            val passwordController = PasswordController(db, userDao, loginResponder)
             log.info("HTTP controllers configured!")
 
             routing {
@@ -131,7 +163,9 @@ class Server(
                         userDao,
                         userCreationService,
                         tokenService
-                    )
+                    ),
+
+                    TwoFactorAuthController(twoFactorChallengeService, loginResponder)
                 )
             }
 

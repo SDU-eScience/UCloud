@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Header, Grid, Form, Input, Button } from "semantic-ui-react";
+import { Header, Grid, Form, Input, Button, GridColumn } from "semantic-ui-react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import {
@@ -7,6 +7,7 @@ import {
     defaultErrorHandler
 } from "UtilityFunctions";
 import { UserSettingsFields, UserSettingsState } from ".";
+import { TwoFactorSetup } from "./TwoFactorSetup";
 
 class UserSettings extends React.Component<{}, UserSettingsState> {
     constructor(props) {
@@ -126,6 +127,10 @@ class UserSettings extends React.Component<{}, UserSettingsState> {
                                 content="Change password"
                             />
                         </Form>
+                    </Grid.Column>
+
+                    <Grid.Column>
+                        <TwoFactorSetup />
                     </Grid.Column>
                 </Grid>
             </React.StrictMode >

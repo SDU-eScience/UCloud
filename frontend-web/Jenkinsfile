@@ -1,30 +1,42 @@
 pipeline {
-  agent {
-    docker {
-      image 'node:10-alpine' 
-      args '-p 3000:3000' 
+    agent {
+        docker {
+            image 'node:10-alpine'
+            args '-p 3000:3000'
+        }
     }
-  }
-  stages {
-    stage('Build') { 
-      steps {
-        sh '''cd frontend-web/webclient
+    stages {
+        stage('Build') {
+            steps {
+                sh '''cd frontend-web/webclient
             npm install'''
-      }
-    }
+            }
+        }
 
-    stage('Test') { 
-      steps {
-        script {
-            sh '''cd frontend-web/webclient
-            npm run test'''
+        stage('Test') {
+            steps {
+                script {
+                    sh '''
+                        cd frontend-web/webclient
+                        npm run test
+                    '''
+                }
+            }
+            post {
+                always {
+                    step([$class: 'CoberturaPublisher', coberturaReportFile: 'frontend-web/webclient/coverage/cobertura-coverage.xml'])
+                }
+
+                failure {
+                    withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
+                        slackSend(
+                            baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/',
+                            message: 'Build FAILED',
+                            token: "$slackToken"
+                        )
+                    }
+                }
+            }
         }
-      }
-      post {
-        always {
-          step([$class: 'CoberturaPublisher', coberturaReportFile: 'frontend-web/webclient/coverage/cobertura-coverage.xml'])
-        }
-      }
     }
-  }
 }

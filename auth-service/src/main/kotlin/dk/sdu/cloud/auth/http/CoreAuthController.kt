@@ -39,7 +39,6 @@ import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
 
-// TODO Bad name
 class CoreAuthController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val ottDao: OneTimeTokenDAO<DBSession>,
@@ -100,8 +99,10 @@ class CoreAuthController<DBSession>(
             }
 
             static {
-                val staticFolder =
-                    listOf("./static", "/var/auth-static").map { File(it) }.find { it.exists() && it.isDirectory }
+                val staticFolder = listOf("./static", "/var/auth-static")
+                    .asSequence()
+                    .map { File(it) }
+                    .find { it.exists() && it.isDirectory }
 
                 if (staticFolder != null) {
                     files(staticFolder)
@@ -110,143 +111,140 @@ class CoreAuthController<DBSession>(
                 resource("redirect.js", resourcePackage = "assets")
             }
 
+            get("2fa") { _ ->
+                val challengeId = call.parameters["challengeId"]
+                val isInvalid = call.parameters["invalid"] != null
+                val message = call.parameters["message"] // TODO Is this a good idea?
+
+                logEntry(log, mapOf("challengeId" to challengeId))
+
+                if (challengeId == null) {
+                    call.respondRedirect("/auth/login?invalid")
+                    return@get
+                }
+
+                call.respondHtml {
+                    formPage(
+                        title = "Two Factor Authentication Required",
+
+                        beforeForm = {
+                            h3 { +"2FA is Enabled for this Account" }
+
+                            if (isInvalid) {
+                                div(classes = "ui message warning") {
+                                    +"The verification code you entered was incorrect"
+                                }
+                            }
+
+                            if (message != null) {
+                                div(classes = "ui message warning") {
+                                    +message
+                                }
+                            }
+                        },
+
+                        action = "/auth/2fa/challenge/form",
+                        method = FormMethod.post,
+
+                        form = {
+                            input {
+                                type = InputType.hidden
+                                value = challengeId
+                                name = "challengeId"
+                            }
+
+                            formControlField(
+                                name = "verificationCode",
+                                text = "6-digit code",
+                                iconType = "lock",
+                                type = "password"
+                            )
+
+                            button(type = ButtonType.submit, classes = "ui fluid large blue submit button") {
+                                +"Submit"
+                            }
+                        }
+                    )
+                }
+            }
+
             get("login") { _ ->
                 val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) }
                 val isInvalid = call.parameters["invalid"] != null
 
                 logEntry(log, mapOf("service" to service, "isInvalid" to isInvalid))
 
-                fun FlowContent.formControlField(
-                    name: String, text: String, iconType: String,
-                    type: String = "text"
-                ) {
-                    div(classes = "input-group") {
-                        span(classes = "input-group-addon") {
-                            i(classes = "glyphicon glyphicon-$iconType")
-                        }
-                        input(classes = "form-control") {
-                            this.type = InputType.valueOf(type)
-                            this.name = name
-                            this.id = name
-                            this.placeholder = text
-                        }
-                    }
-                }
 
                 call.respondHtml {
-                    head {
-                        title("SDU Cloud | Login")
+                    formPage(
+                        title = "Login",
 
-                        meta(charset = "utf-8")
-                        meta(
-                            name = "viewport",
-                            content = "width=device-width, initial-scale=1, maximum-scale=1"
-                        )
+                        beforeForm = {
+                            if (service == null) {
+                                div(classes = "ui message error") {
+                                    +"An error has occurred. Try again later."
+                                }
+                            }
 
-                        link(
-                            rel = "stylesheet",
-                            href = "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
-                        )
-                        link(rel = "stylesheet", href = "/auth/css/ionicons.css")
-                        link(rel = "stylesheet", href = "/auth/css/colors.css")
-                        link(rel = "stylesheet", href = "/auth/css/app.css")
-                    }
+                            if (isInvalid) {
+                                div(classes = "ui message warning") {
+                                    +"Invalid username or password"
+                                }
+                            }
+                        },
 
-                    body {
-                        div(classes = "layout-container") {
-                            div(classes = "page-container bg-blue-grey-900") {
-                                div(classes = "container-full") {
-                                    div(classes = "container container-xs") {
-                                        h1(classes = "text-center") {
-                                            +"SDUCloud"
-                                        }
-                                        if (service == null) {
-                                            div(classes = "alert alert-danger") {
-                                                +"An error has occurred. Try again later."
-                                            }
-                                        } else {
-                                            if (isInvalid) {
-                                                div(classes = "alert alert-danger") {
-                                                    +"Invalid username or password"
-                                                }
-                                            }
-                                            form(classes = "card b0 form-validate") {
-                                                attributes["autocomplete"] = "off"
+                        form = {
+                            if (service == null) return@formPage
 
-                                                if (enablePasswords) {
-                                                    method = FormMethod.post
-                                                    action = "/auth/login"
+                            if (enablePasswords) {
+                                input {
+                                    type = InputType.hidden
+                                    value = service.name
+                                    name = "service"
+                                }
 
-                                                    div(classes = "card-offset pb0")
-                                                    div(classes = "card-heading") {
-                                                        div(classes = "card-title text-center") {
-                                                            +"Login"
-                                                        }
-                                                    }
-                                                    div(classes = "card-body form-horizontal") {
-                                                        input {
-                                                            type = InputType.hidden
-                                                            value = service.name
-                                                            name = "service"
-                                                        }
+                                formControlField(
+                                    name = "username",
+                                    iconType = "user",
+                                    text = "Username"
+                                )
 
-                                                        formControlField(
-                                                            name = "username",
-                                                            text = "Username",
-                                                            iconType = "user"
-                                                        )
+                                formControlField(
+                                    name = "password",
+                                    text = "Password",
+                                    iconType = "lock",
+                                    type = "password"
+                                )
 
-                                                        formControlField(
-                                                            name = "password",
-                                                            text = "Password",
-                                                            iconType = "lock",
-                                                            type = "password"
-                                                        )
-                                                    }
-                                                    button(type = ButtonType.submit) {
-                                                        classes = setOf("btn", "btn-primary", "btn-flat")
-                                                        +"Authenticate"
-                                                    }
-                                                }
+                                button(type = ButtonType.submit, classes = "ui fluid large blue submit button") {
+                                    +"Login"
+                                }
+                            }
 
-                                                if (enableWayf) {
-                                                    div {
-                                                        a(
-                                                            href = "/auth/saml/login?service=${service.name.urlEncoded}",
-                                                            classes = "btn btn-flat btn-block btn-info"
-                                                        ) {
-                                                            +"Login using WAYF"
-                                                            img(alt = "WAYF Logo", src = "wayf_logo.png") {
-                                                                height = "32px"
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        div(classes = "row") {
-                                            div(classes = "col-sm-12") {
-                                                div(classes = "alert alert-warning") {
-                                                    +"Under construction."
-                                                }
-                                            }
-                                        }
+                            if (enablePasswords && enableWayf) {
+                                div(classes = "ui horizontal divider") {
+                                    +"Or Using SSO"
+                                }
+                            }
 
-                                        div(classes = "row") {
-                                            div(classes = "col-xs-3 pull-right") {
-                                                img(
-                                                    alt = "SDU Cloud Logo",
-                                                    src = "sdu_plain_white.png",
-                                                    classes = "mv-lg block-center img-responsive align-right"
-                                                )
-                                            }
-                                        }
 
+                            if (enableWayf) {
+                                div {
+                                    a(
+                                        href = "/auth/saml/login?service=${service.name.urlEncoded}",
+                                        classes = "ui fluid button icon labeled"
+                                    ) {
+                                        +"Login using WAYF"
+                                        img(
+                                            alt = "WAYF Logo",
+                                            src = "wayf_logo.png",
+                                            classes = "wayf icon"
+                                        )
                                     }
                                 }
                             }
                         }
-                    }
+                    )
                 }
             }
 
@@ -391,6 +389,7 @@ class CoreAuthController<DBSession>(
                 }
 
                 val audiences = req.audience.split(",")
+                    .asSequence()
                     .mapNotNull {
                         // Backwards compatible transformation of audiences
                         // Can be deleted when clients no longer use it. Progress tracked in #286
@@ -404,6 +403,7 @@ class CoreAuthController<DBSession>(
                         }
                     }
                     .map { SecurityScope.parseFromString(it) }
+                    .toList()
 
                 val token = tokenService.requestOneTimeToken(bearerToken, audiences)
                 ok(token)
@@ -461,6 +461,84 @@ class CoreAuthController<DBSession>(
         }
     }
 
+    private fun HTML.formPage(
+        title: String,
+        beforeForm: FlowContent.() -> Unit = {},
+        action: String? = null,
+        method: FormMethod? = FormMethod.post,
+        form: FORM.() -> Unit
+    ) {
+        head {
+            title("SDU Cloud | $title")
+
+            meta(charset = "utf-8")
+            meta(
+                name = "viewport",
+                content = "width=device-width, initial-scale=1, maximum-scale=1"
+            )
+
+            link(
+                rel = "stylesheet",
+                href = "https://cdn.jsdelivr.net/npm/semantic-ui@2.4.0/dist/semantic.min.css"
+            )
+
+            link(rel = "stylesheet", href = "/auth/css/app.css")
+        }
+
+        body {
+            div(classes = "ui middle aligned center aligned grid") {
+                div(classes = "column") {
+                    h1(classes = "ui header") {
+                        +"SDU Cloud"
+                    }
+
+                    beforeForm()
+
+                    form(
+                        classes = "ui large form",
+                        action = action,
+                        method = method
+                    ) {
+                        attributes["autocomplete"] = "off"
+
+                        div(classes = "ui stacked segment") {
+                            this@form.form()
+                        }
+                    }
+
+                    div(classes = "ui message warning") {
+                        +"Under construction - Not yet available to the public."
+                    }
+
+                    img(
+                        alt = "SDU Cloud Logo",
+                        src = "sdu_plain_black.png",
+                        classes = "ui tiny image floated right"
+                    )
+                }
+            }
+        }
+    }
+
+    private fun FlowContent.formControlField(
+        name: String,
+        text: String,
+        iconType: String,
+        type: String = "text"
+    ) {
+        div(classes = "field") {
+            div(classes = "ui left icon input") {
+                i(classes = "$iconType icon")
+                input {
+                    this.type = InputType.valueOf(type)
+                    this.name = name
+                    this.id = name
+                    this.placeholder = text
+                }
+            }
+        }
+    }
+
     companion object {
         const val REFRESH_WEB_CSRF_TOKEN = "X-CSRFToken"
         const val REFRESH_WEB_REFRESH_TOKEN_COOKIE = "refreshToken"
@@ -468,3 +546,5 @@ class CoreAuthController<DBSession>(
         const val MAX_EXTENSION_TIME_IN_MS = 1000 * 60 * 60 * 24
     }
 }
+
+

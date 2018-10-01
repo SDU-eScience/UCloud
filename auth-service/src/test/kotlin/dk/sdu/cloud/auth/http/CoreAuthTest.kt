@@ -598,7 +598,7 @@ class CoreAuthTest {
         userRole: Role = Role.USER,
         userAudience: List<SecurityScope> = listOf(SecurityScope.ALL_WRITE),
 
-        serviceName: String = "service",
+        serviceName: String = "_service",
         extensionExpiresIn: Long = 3600 * 1000L,
 
         scopeOverrideJson: String? = null,

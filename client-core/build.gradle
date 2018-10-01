@@ -22,18 +22,21 @@ repositories {
     maven { url "https://dl.bintray.com/kotlin/kotlinx" }
     maven { url "https://kotlin.bintray.com/ktor" }
 
+    def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
+    def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
+
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
         credentials {
-            username(eScienceCloudUser)
-            password(eScienceCloudPassword)
+            it.username(username)
+            it.password(password)
         }
     }
     maven {
         url("https://cloud.sdu.dk/archiva/repository/snapshots")
         credentials {
-            username(eScienceCloudUser)
-            password(eScienceCloudPassword)
+            it.username(username)
+            it.password(password)
         }
     }
 }
@@ -102,6 +105,10 @@ publishing {
         }
     }
 
+
+    def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
+    def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
+
     repositories {
         maven {
             def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
@@ -110,8 +117,8 @@ publishing {
             url(resolvedUrl)
 
             credentials {
-                username(eScienceCloudUser)
-                password(eScienceCloudPassword)
+                it.username(username)
+                it.password(password)
             }
         }
     }

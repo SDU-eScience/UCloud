@@ -50,6 +50,8 @@ sealed class Person : Principal() {
     abstract val emailAddresses: List<String>
     abstract val preferredEmailAddress: String?
 
+    abstract val displayName: String
+
     // TODO Proper email validation
     private fun isValidEmail(email: String): Boolean = email.contains("@")
 
@@ -95,6 +97,8 @@ sealed class Person : Principal() {
 
             if (organizationId.isEmpty()) throw IllegalArgumentException("organizationId cannot be empty")
         }
+
+        override val displayName: String = "$firstNames $lastName"
     }
 
     /**
@@ -120,6 +124,8 @@ sealed class Person : Principal() {
             if (password.isEmpty()) throw IllegalArgumentException("Password cannot be empty")
             if (salt.isEmpty()) throw IllegalArgumentException("Salt cannot be empty")
         }
+
+        override val displayName: String = id
 
         override fun toString(): String {
             return "ByPassword(id='$id', role=$role, title=$title, firstNames='$firstNames', " +

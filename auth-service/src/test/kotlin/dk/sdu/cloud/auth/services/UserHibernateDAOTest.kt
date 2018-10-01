@@ -1,6 +1,6 @@
 package dk.sdu.cloud.auth.services
 
-import dk.sdu.cloud.auth.api.Role
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor

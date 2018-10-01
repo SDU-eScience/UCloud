@@ -10,3 +10,11 @@ export interface UserSettingsState {
 }
 
 export type UserSettingsFields = keyof UserSettingsState
+
+export interface TwoFactorSetupState {
+    challengeId?: string
+    qrCode?: string
+    verificationCode: string
+    isConnectedToAccount?: boolean
+    isLoading: boolean
+}

@@ -31,7 +31,8 @@ typealias SAMLRequestProcessorFactory = (Saml2Settings, ApplicationCall, Paramet
 class SAMLController(
     private val authSettings: Saml2Settings,
     private val samlProcessorFactory: SAMLRequestProcessorFactory,
-    private val tokenService: TokenService<*>
+    private val tokenService: TokenService<*>,
+    private val loginResponder: LoginResponder<*>
 ) {
     fun configure(routing: Routing): Unit = with(routing) {
         route("auth") {
@@ -94,16 +95,7 @@ class SAMLController(
                         log.debug("User not successfully authenticated")
                         call.respond(HttpStatusCode.Unauthorized)
                     } else {
-                        log.debug("User successfully authenticated!")
-                        val token = tokenService.createAndRegisterTokenFor(user)
-                        log.debug("Using token: $token")
-                        call.respondRedirect(
-                            "/auth/login-redirect?" +
-                                    "service=${service.urlEncoded}" +
-                                    "&accessToken=${token.accessToken.urlEncoded}" +
-                                    "&refreshToken=${token.refreshToken.urlEncoded}" +
-                                    "&csrfToken=${token.csrfToken.urlEncoded}"
-                        )
+                        loginResponder.handleSuccessfulLogin(call, service, user)
                     }
                 }
             }

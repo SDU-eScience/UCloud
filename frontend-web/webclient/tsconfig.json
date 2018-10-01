@@ -12,6 +12,7 @@
         "pretty": true,
         "allowJs": true,
         "moduleResolution": "node",
+        "resolveJsonModule": true,
         "sourceMap": true,
         "baseUrl": ".",
         "paths": {
