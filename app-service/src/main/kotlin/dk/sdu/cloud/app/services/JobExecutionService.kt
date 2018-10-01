@@ -777,14 +777,4 @@ class JobNotFoundException(entity: String) : JobException("Not found: $entity", 
 class JobNotAllowedException : JobException("Not allowed", HttpStatusCode.Unauthorized)
 class JobBadApplication : JobException("Application not found", HttpStatusCode.BadRequest)
 
-data class ValidatedFileForUpload(
-    val stat: StorageFile,
-    val destinationFileName: String,
-    val destinationPath: String,
-    val sourcePath: String,
-    val needsExtractionOfType: FileForUploadArchiveType?
-)
 
-enum class FileForUploadArchiveType {
-    ZIP
-}

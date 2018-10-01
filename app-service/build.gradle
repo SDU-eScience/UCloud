@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.6.2'
+version '0.7.0-SNAPSHOT'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
@@ -26,3 +26,10 @@ dependencies {
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
 }
 
+sduCloud.createTasksForApiJar(
+    "app",
+    [
+        "com.google.guava:guava:23.4-jre",
+        "dk.sdu.cloud:file-api:0.9.1-SNAPSHOT"
+    ]
+)
