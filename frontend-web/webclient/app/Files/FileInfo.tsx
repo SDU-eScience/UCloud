@@ -10,11 +10,11 @@ import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { List as ShareList } from "Shares/List";
-import { File, Annotation, SortOrder, SortBy, FileInfoProps } from "Files";
+import { File, Annotation, SortOrder, SortBy, FileInfoProps, FileInfoState } from "Files";
 import { annotationToString } from "Utilities/FileUtilities";
 import { ActivityFeed } from "Activity/Activity";
 
-class FileInfo extends React.Component<FileInfoProps, any> {
+class FileInfo extends React.Component<FileInfoProps, FileInfoState> {
     constructor(props) {
         super(props);
         this.state = { activity: emptyPage };
@@ -24,7 +24,7 @@ class FileInfo extends React.Component<FileInfoProps, any> {
         const { match, filesPath, dispatch, loading, page } = this.props;
         dispatch(updatePageTitle("File Info"));
         const path = match.params[0];
-        // FIXME: Either move to promiseKeeper, 
+        // FIXME: Either move to promiseKeeper, or redux store
         Cloud.get(`/activity/stream/by-path?path=${path}`).then(({ response }) => this.setState({ activity: response }));
         if (!(getParentPath(path) === filesPath)) {
             dispatch(setLoading(true));
@@ -45,7 +45,7 @@ class FileInfo extends React.Component<FileInfoProps, any> {
                     <Header.Subheader content={toLowerCaseAndCapitalize(file.fileType)} />
                 </Header>                               {/* MapDispatchToProps */}
                 <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, [file], Cloud)))} />
-                <Segment><ActivityFeed activity={this.state.activity.items} /></Segment>
+                {this.state.activity.items.length ? (<Segment><ActivityFeed activity={this.state.activity.items} /></Segment>) : null}
                 {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
                 <ShareList byPath={file.path} />
                 <DefaultLoading loading={loading} />
