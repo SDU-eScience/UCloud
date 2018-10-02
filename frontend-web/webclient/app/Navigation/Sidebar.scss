@@ -47,3 +47,9 @@ a.sidebar-option {
 a.sidebar-option div.item.item-padding-right {
     padding-right: 4px;
 }
+
+@media(max-width: 999px) {
+    div.responsive-container-margin {
+        margin-top: 55.1667px;
+    }
+}

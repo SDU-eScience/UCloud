@@ -37,9 +37,9 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
         const sidebarIsOpen = open && window.innerWidth < 1000;
 
         const content = (
-            <div className={"container-wrapper"}>
+            <div className="container-wrapper">
                 <div className="container-content">
-                    <div className="container-padding">
+                    <div className="container-padding responsive-container-margin">
                         {this.props.children}
                     </div>
                 </div>
