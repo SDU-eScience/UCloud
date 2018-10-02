@@ -147,7 +147,7 @@ export type ApplicationReduxObject = ComponentWithPage<Application>;
 export type ActivityReduxObject = ComponentWithPage<Activity>
 
 export type HeaderSearchType = "files" | "applications" | "projects";
- 
+
 export interface UploaderReduxObject {
     uploads: Upload[]
     visible: boolean
@@ -169,7 +169,15 @@ export interface Reducers {
     header?: Reducer<HeaderSearchReduxObject>
     sidebar?: Reducer<SidebarReduxObject>
     activity?: Reducer<ActivityReduxObject>
+    detailedResult?: Reducer<DetailedResultReduxObject>
 }
+
+export type DetailedResultReduxObject = ComponentWithPage<File>
+export const initDetailedResultReduxObject = (): DetailedResultReduxObject => ({
+    page: emptyPage,
+    loading: false,
+    error: undefined
+});
 
 export interface ReduxObject {
     dashboard: DashboardStateProps

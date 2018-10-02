@@ -33,7 +33,7 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
 * @param {Page<File>} page number of the page to be fetched
 */
 
-export const fetchFiles = async (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError> =>
+export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError> =>
     Cloud.get(filepathQuery(path, page, itemsPerPage, order, sortBy)).then(({ response }) =>
         receiveFiles(response, path, order, sortBy)
     ).catch(() =>
@@ -147,7 +147,7 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
  * @param {SortOrder} order the order to sort by, either ascending or descending
  * @param {SortBy} sortBy the field to be sorted by
  */
-export const fetchPageFromPath = async (path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR>> =>
+export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR>> =>
     Cloud.get(fileLookupQuery(path, itemsPerPage, order, sortBy))
         .then(({ response }) => receiveFiles(response, getParentPath(path), order, sortBy)).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
@@ -159,7 +159,7 @@ export const fetchPageFromPath = async (path: string, itemsPerPage: number, orde
  * @param page 
  * @param itemsPerPage 
  */
-export const fetchFileselectorFiles = async (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> =>
+export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> =>
     Cloud.get(filepathQuery(path, page, itemsPerPage)).then(({ response }) => {
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, path);
