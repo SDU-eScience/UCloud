@@ -85,7 +85,7 @@ export default class SDUCloud {
      * @param {string} context - the base of the request (e.g. "/api")
      * @return {Promise} promise
      */
-    call(method: string, path: string, body?: object, context: string = this.apiContext): Promise<any> {
+    async call(method: string, path: string, body?: object, context: string = this.apiContext): Promise<any> {
         if (path.indexOf("/") !== 0) path = "/" + path;
         let baseContext = this.context;
         return this.receiveAccessTokenOrRefreshIt().then((token) => {

@@ -7,7 +7,11 @@
         "noImplicitThis": true,
         "noImplicitAny": false,
         "module": "esnext",
-        "target": "es2018",
+        "lib": [
+            "esnext",
+            "dom"
+        ],
+        "target": "es2015",
         "jsx": "react",
         "pretty": true,
         "allowJs": true,
