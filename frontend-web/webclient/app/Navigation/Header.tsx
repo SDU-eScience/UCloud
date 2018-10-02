@@ -12,10 +12,10 @@ import { History } from "history";
 import { infoNotification } from "UtilityFunctions";
 import { HeaderStateToProps } from "Navigation";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
+import { ReduxObject } from "DefaultObjects";
 
 interface HeaderProps {
     open?: boolean
-    dispatch: Dispatch
     history: History
     prioritizedSearch: string
 }
@@ -24,13 +24,13 @@ interface HeaderState {
     searchText: string
 }
 
-class Header extends React.Component<HeaderProps, HeaderState> {
+class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState> {
     constructor(props) {
         super(props);
         this.state = {
             searchText: ""
         };
-        props.dispatch(fetchLoginStatus());
+        props.fetchLoginStatus()
     }
 
     static contextTypes = {
@@ -38,14 +38,14 @@ class Header extends React.Component<HeaderProps, HeaderState> {
     }
 
     public render() {
-        const { open, dispatch, prioritizedSearch } = this.props;
+        const { open, prioritizedSearch, setSidebarOpen } = this.props;
         const { history } = this.context.router;
         const sidebarIcon = open ? "triangle left" : "triangle right";
         const { searchText } = this.state;
 
         return (
             <Menu className="menu-padding" fixed="top" inverted attached borderless size="tiny" >
-                <Responsive maxWidth={999} as={Menu.Item} onClick={() => dispatch(setSidebarState(true))}>
+                <Responsive maxWidth={999} as={Menu.Item} onClick={() => setSidebarOpen()}>
                     <Icon.Group size="large">
                         <Icon name="sidebar" />
                         <Icon corner color="grey" size="huge" name={sidebarIcon} />
@@ -139,9 +139,18 @@ class Header extends React.Component<HeaderProps, HeaderState> {
     }
 }
 
+interface HeaderOperations {
+    setSidebarOpen: () => void
+    fetchLoginStatus: () => void
+}
 
-const mapStateToProps = ({ sidebar, header }: HeaderStateToProps) => ({
+const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
+    setSidebarOpen: () => dispatch(setSidebarState(true)),
+    fetchLoginStatus: async () => dispatch(await fetchLoginStatus())
+});
+
+const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps => ({
     open: sidebar.open,
     prioritizedSearch: header.prioritizedSearch
 });
-export default connect(mapStateToProps)(Header);
+export default connect(mapStateToProps, mapDispatchToProps)(Header);

@@ -9,6 +9,7 @@ import { connect } from "react-redux";
 import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
 import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } from ".";
 import { setErrorMessage } from "./Redux/AnalysesActions";
+import { Dispatch } from "redux";
 
 class Analyses extends React.Component<AnalysesProps, AnalysesState> {
     constructor(props) {
@@ -108,11 +109,11 @@ const formatDate = (millis) => {
 const pad = (value, length) =>
     (value.toString().length < length) ? pad("0" + value, length) : value;
 
-const mapDispatchToProps = (dispatch): AnalysesOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage(undefined)),
     updatePageTitle: () => dispatch(updatePageTitle("Results")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    fetchAnalyses: (itemsPerPage: number, pageNumber: number) => dispatch(fetchAnalyses(itemsPerPage, pageNumber))
+    fetchAnalyses: async (itemsPerPage: number, pageNumber: number) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber))
 });
 
 const mapStateToProps = ({ analyses }): AnalysesStateProps => analyses;

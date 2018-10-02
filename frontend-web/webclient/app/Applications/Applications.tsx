@@ -18,6 +18,7 @@ import { MaterialColors } from "Assets/materialcolors.json";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
+import { Dispatch } from "redux";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
@@ -124,12 +125,12 @@ function toHashCode(name: string): number {
     return Math.abs(hash);
 }
 
-const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): ApplicationsOperations => ({
     prioritizeApplicationSearch: () => dispatch(setPrioritizedSearch("applications")),
     onErrorDismiss: () => dispatch(setErrorMessage()),
     updatePageTitle: () => dispatch(updatePageTitle("Applications")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    fetchApplications: (pageNumber: number, itemsPerPage: number) => dispatch(fetchApplications(pageNumber, itemsPerPage)),
+    fetchApplications: async (pageNumber: number, itemsPerPage: number) => dispatch(await fetchApplications(pageNumber, itemsPerPage)),
     receiveApplications: (applications: Page<Application>) => dispatch(receiveApplications(applications))
 });
 

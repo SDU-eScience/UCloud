@@ -19,6 +19,7 @@ import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 import { Notification } from "Notifications";
 import { Analysis } from "Applications";
 import { File, FileType } from "Files";
+import { Dispatch } from "redux";
 
 class Dashboard extends React.Component<DashboardProps> {
     constructor(props) {
@@ -178,15 +179,15 @@ const statusToColor = (status: string) => status === "SUCCESS" ? "green" : "red"
 const ErrorMessage = ({ error, onDismiss }: { error?: string, onDismiss: () => void }) => error != null ?
     (<Message content={error} onDismiss={onDismiss} negative />) : null;
 
-const mapDispatchToProps = (dispatch): DashboardOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     errorDismissFavorites: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, undefined)),
     errorDismissRecentAnalyses: () => dispatch(setErrorMessage(DASHBOARD_RECENT_ANALYSES_ERROR, undefined)),
     errorDismissRecentFiles: () => dispatch(setErrorMessage(DASHBOARD_RECENT_FILES_ERROR, undefined)),
     updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
     setAllLoading: (loading) => dispatch(setAllLoading(loading)),
-    fetchFavorites: () => dispatch(fetchFavorites()),
-    fetchRecentFiles: () => dispatch(fetchRecentFiles()),
-    fetchRecentAnalyses: () => dispatch(fetchRecentAnalyses()),
+    fetchFavorites: async () => dispatch(await fetchFavorites()),
+    fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
+    fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     receiveFavorites: (files) => dispatch(receiveFavorites(files))
 });
 

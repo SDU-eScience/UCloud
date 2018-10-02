@@ -9,6 +9,8 @@ import { Page } from "Types";
 import { fetchNotifications, notificationRead } from "./Redux/NotificationsActions";
 import { History } from "history";
 import Status from "Navigation/Status";
+import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
+import { Dispatch } from "redux";
 
 interface NotificationProps {
     page: Page<Notification>
@@ -159,9 +161,15 @@ class NotificationEntry extends React.Component<NotificationEntryProps, any> {
     }
 }
 
-const mapDispatchToProps = (dispatch) => ({
-    fetchNotifications: () => dispatch(fetchNotifications()),
-    notificationRead: (id) => dispatch(notificationRead(id))
+interface NotificationsDispatchToProps {
+    fetchNotifications: () => void
+    notificationRead: (id: number) => void
+    showUploader: () => void
+}
+const mapDispatchToProps = (dispatch: Dispatch) => ({
+    fetchNotifications: async () => dispatch(await fetchNotifications()),
+    notificationRead: (id) => dispatch(notificationRead(id)),
+    showUploader: () => dispatch(setUploaderVisible(true))
 });
 const mapStateToProps = (state) => ({
     ...state.notifications,

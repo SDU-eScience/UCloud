@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { ActivityReduxObject } from "DefaultObjects";
 import { fetchActivity, setErrorMessage, setLoading } from "./Redux/ActivityActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import { Dispatch } from "redux";
 
 class Activity extends React.Component<ActivityProps> {
 
@@ -113,10 +114,10 @@ const eventIcon = (operation: TrackedOperations | CountedOperations): EventIconA
 }
 
 const mapStateToProps = ({ activity }): ActivityReduxObject => activity;
-const mapDispatchToProps = (dispatch): ActivityDispatchProps => ({
-    fetchActivity: (pageNumber: number, pageSize: number) => {
+const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
+    fetchActivity: async (pageNumber: number, pageSize: number) => {
         dispatch(setLoading(true));
-        dispatch(fetchActivity(pageNumber, pageSize))
+        dispatch(await fetchActivity(pageNumber, pageSize))
     },
     setError: (error?: string) => dispatch(setErrorMessage(error)),
     setPageTitle: () => dispatch(updatePageTitle("Activity"))

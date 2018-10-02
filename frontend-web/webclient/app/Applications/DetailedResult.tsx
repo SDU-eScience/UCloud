@@ -108,7 +108,9 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             failure => {
                 failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
                 console.log(failure);
-            }).then(() => this.setState(() => ({ loading: false })), () => this.setState(() => ({ loading: false })))//.finally(() => this.setState({ loading: false }));
+            })
+            // FIXME: Causes memory leak if component is unmounted at this point
+            .then(() => this.setState(() => ({ loading: false })), () => this.setState(() => ({ loading: false })))//.finally(() => this.setState({ loading: false }));
     }
 
     retrieveStateWhenCompleted() {

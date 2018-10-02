@@ -13,6 +13,7 @@ import { failureNotification } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { File } from "Files";
 import { SET_ZENODO_ERROR } from "Zenodo/Redux/ZenodoReducer";
+import { Dispatch } from "redux";
 
 interface ZenodoPublishState {
     files: string[]
@@ -148,7 +149,7 @@ const FileSelections = ({ files, handleFileSelection, removeFile }: { files: str
 );
 
 const mapStateToProps = ({ zenodo }) => zenodo;
-const mapDispatchToProps = (dispatch): ZenodoPublishOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): ZenodoPublishOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Zenodo Publish")),
     setErrorMessage: (error?: string) => dispatch(setErrorMessage(SET_ZENODO_ERROR, error)),
     setLoading: (loading: boolean) => dispatch(setZenodoLoading(loading))

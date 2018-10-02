@@ -24,6 +24,7 @@ import {
     startRenamingFiles, AllFileOperations, newMockFolder, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
+import { Dispatch } from "redux";
 
 class Files extends React.Component<FilesProps> {
 
@@ -381,7 +382,7 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     }
 };
 
-const mapDispatchToProps = (dispatch): FilesOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
     onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(undefined)),
     dismissError: () => dispatch(Actions.setErrorMessage()),
