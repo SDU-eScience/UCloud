@@ -134,10 +134,20 @@ class CephFileSystem(
         )
     }
 
-    override fun <R> write(ctx: CephFSCommandRunner, writer: (OutputStream) -> R): R {
-        var result: R? = null
-        ctx.runCommand(InterpreterCommand.WRITE, writer = { result = writer(it) }, consumer = {})
-        return result!!
+    override fun write(
+        ctx: CephFSCommandRunner,
+        writer: (OutputStream) -> Unit
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
+        return ctx.runCommand(
+            InterpreterCommand.WRITE,
+            writer = { writer(it) },
+            consumer = { out ->
+                parseFileAttributes(
+                    out.stdoutLineSequence(),
+                    CREATED_OR_MODIFIED_ATTRIBUTES
+                ).asFSResult { createdOrModifiedFromRow(it, ctx.user) }
+            }
+        )
     }
 
     override fun tree(ctx: CephFSCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<List<FileRow>> {

@@ -61,10 +61,10 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
     
-    fun <R> write(
+    fun write(
         ctx: Ctx,
-        writer: (OutputStream) -> R
-    ): R
+        writer: (OutputStream) -> Unit
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
     
     fun tree(
         ctx: Ctx,
