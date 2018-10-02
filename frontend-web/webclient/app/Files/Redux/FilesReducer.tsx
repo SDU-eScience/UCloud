@@ -30,11 +30,9 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
                 fileSelectorError: undefined,
             };
         }
+        case SET_FILES_LOADING:
         case UPDATE_FILES: {
-            return { ...state, page: action.payload.page };
-        }
-        case SET_FILES_LOADING: {
-            return { ...state, loading: action.payload.loading };
+            return { ...state, ...action.payload };
         }
         case UPDATE_PATH: {
             return { ...state, path: action.path, fileSelectorPath: action.path };
