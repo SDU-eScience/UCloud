@@ -75,7 +75,8 @@ export const infoNotification = (title: string, seconds: number = 3) => swal({
 export const uploadsNotifications = (finished: number, total: number) => swal({
     title: finished !== total ? `${finished} out of ${total} files uploaded` : "Uploads finished",
     toast: true,
-    position: "bottom-right",
+    position: "top",
+    timer: 2000,
     showConfirmButton: false,
     type: finished !== total ? "warning" : "success",
 

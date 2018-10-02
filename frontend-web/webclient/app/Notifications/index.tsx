@@ -81,6 +81,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                 <Button
                     content={`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
                     color="green"
+                    fluid
                     onClick={() => this.props.showUploader()}
                 />
                 <Divider />

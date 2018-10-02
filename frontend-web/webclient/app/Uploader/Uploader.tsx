@@ -11,8 +11,8 @@ import { Upload, UploaderProps } from ".";
 import { setUploaderVisible, setUploads } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
 
-const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => !!it.uploadXHR && it.uploadXHR.readyState === 4);
-const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => !!it.uploadXHR && it.uploadXHR.readyState === 4).length;
+const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
+const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
 const isFinishedUploading = (xhr?: XMLHttpRequest): boolean => !!xhr && xhr.readyState === XMLHttpRequest.DONE;
 
 const newUpload = (file: File): Upload => ({
@@ -59,7 +59,7 @@ class Uploader extends React.Component<UploaderProps> {
             upload.uploadXHR = xhr;
             this.props.dispatch(setUploads(this.props.uploads));
         };
-        
+
         window.addEventListener("beforeunload", this.beforeUnload);
         if (!upload.extractArchive) {
             multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, e => {
