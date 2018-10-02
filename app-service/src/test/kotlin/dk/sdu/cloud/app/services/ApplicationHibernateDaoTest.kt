@@ -299,6 +299,7 @@ class ApplicationHibernateDaoTest {
             }
         }
     }
+
     @Test
     fun `tagSearch test`() {
         withDatabase { db ->
@@ -366,4 +367,63 @@ class ApplicationHibernateDaoTest {
             }
         }
     }
+
+    @Test
+    fun `Favorite test`() {
+        withDatabase { db ->
+            db.withTransaction {
+                val toolDAO = ToolHibernateDAO()
+
+                toolDAO.create(it, user, normToolDesc)
+
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+                appDAO.create(it, user, normAppDesc)
+                appDAO.create(it, user, normAppDesc3)
+                appDAO.create(it, user, normAppDesc.copy(
+                    info = NameAndVersion("App2", "3.4")
+                )
+                )
+                appDAO.create(it, user, normAppDesc.copy(
+                    info = NameAndVersion("App1", "1.4")
+                )
+                )
+
+                run {
+                    val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
+                    assertEquals(0, favorites.itemsInTotal)
+                }
+
+                run {
+                    appDAO.markAsFavorite(it, user, "App2", "3.4")
+                    val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
+                    assertEquals(1, favorites.itemsInTotal)
+                }
+
+                run {
+                    appDAO.markAsFavorite(it, user, "App1", "1.4")
+                    val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
+                    assertEquals(2, favorites.itemsInTotal)
+                }
+
+                run {
+                    appDAO.markAsFavorite(it, "AnotherUser", "App1", "1.4")
+                    val favorites = appDAO.retreiveFavorites(it, "AnotherUser", NormalizedPaginationRequest(10, 0))
+                    assertEquals(1, favorites.itemsInTotal)
+                }
+
+                run {
+                    appDAO.unMarkAsFavorite(it, user, "App1", "1.4")
+                    val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
+                    assertEquals(1, favorites.itemsInTotal)
+                }
+
+                run {
+                    appDAO.unMarkAsFavorite(it, "AnotherUser", "App1", "1.4")
+                    val favorites = appDAO.retreiveFavorites(it, "AnotherUser", NormalizedPaginationRequest(10, 0))
+                    assertEquals(0, favorites.itemsInTotal)
+                }
+            }
+        }
+    }
+
 }

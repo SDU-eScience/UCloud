@@ -6,6 +6,26 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 
 interface ApplicationDAO<Session> {
+
+    fun markAsFavorite(
+        session: Session,
+        user: String,
+        name: String,
+        version: String
+    )
+
+    fun unMarkAsFavorite(
+        session: Session,
+        user: String,
+        name: String,
+        version: String)
+
+    fun retreiveFavorites(
+        session: Session,
+        user: String,
+        paging: NormalizedPaginationRequest
+    ): Page<Application>
+
     fun searchTags(
         session: Session,
         user: String?,

@@ -14,6 +14,61 @@ class ApplicationHibernateDAO(
     private val toolDAO: ToolHibernateDAO
 ) : ApplicationDAO<HibernateSession> {
 
+    override fun markAsFavorite(
+        session: HibernateSession,
+        user: String,
+        name: String,
+        version: String
+    ) {
+
+        val foundApp = internalByNameAndVersion(session, name, version)
+        session.save(
+            FavoriteApplicationEntity(
+                foundApp!!,
+                user
+            )
+        )
+    }
+
+    override fun unMarkAsFavorite(
+        session: HibernateSession,
+        user: String,
+        name: String,
+        version: String
+    ) {
+        session.createQuery(
+            """
+                delete from FavoriteApplicationEntity as A
+                where A.user = '${user}'
+                    and A.application.id.name = '${name}'
+                    and A.application.id.version = '${version}'
+
+            """.trimIndent()
+        ).executeUpdate()
+    }
+
+    override fun retreiveFavorites(
+        session: HibernateSession,
+        user: String,
+        paging: NormalizedPaginationRequest
+    ): Page<Application> {
+        val items = session.typedQuery<ApplicationEntity>(
+            """
+                select application
+                from FavoriteApplicationEntity as A
+                where user='${user}'
+                order by A.application.id.name
+            """.trimIndent()
+        ).paginatedList(paging).map { it.toModel() }
+
+        return Page(
+            items.size,
+            paging.itemsPerPage,
+            paging.page,
+            items
+        )
+    }
+
     override fun searchTags(
         session: HibernateSession,
         user: String?,

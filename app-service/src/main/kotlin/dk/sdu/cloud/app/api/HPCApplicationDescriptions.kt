@@ -26,6 +26,57 @@ data class SearchRequest(
 object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
+    val markAsFavorite = callDescription<FindApplicationAndOptionalDependencies, Unit, CommonErrorMessage> {
+        name = "markAsFavorite"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"favorite"
+            +boundTo(FindApplicationAndOptionalDependencies::name)
+            +boundTo(FindApplicationAndOptionalDependencies::version)
+        }
+    }
+
+
+    val unMarkAsFavorite = callDescription<FindApplicationAndOptionalDependencies, Unit, CommonErrorMessage> {
+        name = "unMarkAsFavorite"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"unfavorite"
+            +boundTo(FindApplicationAndOptionalDependencies::name)
+            +boundTo(FindApplicationAndOptionalDependencies::version)
+        }
+    }
+
+    val retrieveFavorites = callDescription<PaginationRequest, Page<Application>, CommonErrorMessage> {
+        name = "retrieveFavorites"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"favorites"
+        }
+
+        params {
+            +boundTo(PaginationRequest::itemsPerPage)
+            +boundTo(PaginationRequest::page)
+        }
+    }
     val searchTag = callDescription<SearchRequest, Page<Application>, CommonErrorMessage> {
         name = "searchTags"
         method = HttpMethod.Get

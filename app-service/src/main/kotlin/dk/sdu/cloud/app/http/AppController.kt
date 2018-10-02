@@ -25,6 +25,44 @@ class AppController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
 
+        implement(HPCApplicationDescriptions.markAsFavorite) {req ->
+            logEntry(log, req)
+
+            db.withTransaction {
+                source.markAsFavorite(
+                    it,
+                    call.securityPrincipal.username,
+                    req.name,
+                    req.version
+                )
+            }
+        }
+
+        implement(HPCApplicationDescriptions.unMarkAsFavorite) {req ->
+            logEntry(log, req)
+
+            db.withTransaction {
+                source.unMarkAsFavorite(
+                    it,
+                    call.securityPrincipal.username,
+                    req.name,
+                    req.version
+                )
+            }
+        }
+
+        implement(HPCApplicationDescriptions.retrieveFavorites) {req ->
+            logEntry(log, req)
+
+            db.withTransaction {
+                source.retreiveFavorites(
+                    it,
+                    call.securityPrincipal.username,
+                    req.normalize()
+                )
+            }
+        }
+
         implement(HPCApplicationDescriptions.searchTag) { req ->
             logEntry(log, req)
 

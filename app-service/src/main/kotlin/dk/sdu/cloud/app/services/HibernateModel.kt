@@ -46,12 +46,25 @@ data class ToolEntity(
  * - V7__Tags.sql
  */
 @Entity
-@Table(name = "tags")
+@Table(name = "applicationTags")
 class TagEntity(
     @ManyToOne
     var application: ApplicationEntity,
 
     var tag: String,
+
+    @Id
+    @GeneratedValue
+    var id: Long? = null
+)
+
+@Entity
+@Table(name = "favoritedBy")
+class FavoriteApplicationEntity(
+    @ManyToOne
+    var application: ApplicationEntity,
+
+    var user: String,
 
     @Id
     @GeneratedValue
