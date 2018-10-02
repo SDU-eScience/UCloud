@@ -36,6 +36,8 @@ class AppController<DBSession>(
                     req.version
                 )
             }
+
+            ok(HttpStatusCode.OK)
         }
 
         implement(HPCApplicationDescriptions.unMarkAsFavorite) {req ->
@@ -49,18 +51,23 @@ class AppController<DBSession>(
                     req.version
                 )
             }
+
+            ok(HttpStatusCode.OK)
+
         }
 
         implement(HPCApplicationDescriptions.retrieveFavorites) {req ->
             logEntry(log, req)
 
-            db.withTransaction {
+            val favorites = db.withTransaction {
                 source.retreiveFavorites(
                     it,
                     call.securityPrincipal.username,
                     req.normalize()
                 )
             }
+
+            ok(favorites)
         }
 
         implement(HPCApplicationDescriptions.searchTag) { req ->

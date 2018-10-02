@@ -110,6 +110,98 @@ class AppTest {
     )
 
     @Test
+    fun `Favorite test`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val user = "user"
+                        val toolDao = ToolHibernateDAO()
+                        val appDao = ApplicationHibernateDAO(toolDao)
+                        configureAppServer(db, appDao)
+                        db.withTransaction {
+                            toolDao.create(it, user, normToolDesc)
+                            appDao.create(it, user, normAppDesc)
+                            appDao.create(it, user, normAppDesc2.copy(info = NameAndVersion("App4", "4.4")))
+                        }
+
+                    },
+
+                    test = {
+                        run {
+                            val favorites =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, favorites.status())
+                            val obj = mapper.readTree(favorites.content)
+                            assertEquals(0, obj["itemsInTotal"].asInt())
+                        }
+
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Post,
+                                    "/api/hpc/apps/favorite/App4/4.4")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+
+
+                            val favorites =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+
+                            assertEquals(HttpStatusCode.OK, favorites.status())
+                            val obj = mapper.readTree(favorites.content)
+                            assertEquals(1, obj["itemsInTotal"].asInt())
+                        }
+
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Post,
+                                    "/api/hpc/apps/unfavorite/App4/4.4")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+
+
+                            val favorites =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+
+                            assertEquals(HttpStatusCode.OK, favorites.status())
+                            val obj = mapper.readTree(favorites.content)
+                            assertEquals(0, obj["itemsInTotal"].asInt())
+                        }
+
+                    }
+                )
+            }
+        }
+    }
+
+
+    @Test
     fun `Searchtags test`() {
         withDatabase { db ->
             withAuthMock {
@@ -124,7 +216,6 @@ class AppTest {
                             appDao.create(it, user, normAppDesc.copy(tags = listOf("tag1", "tag2")))
                             appDao.create(it, user, normAppDesc2.copy(tags = listOf("tag2", "tag3")))
                         }
-
                     },
 
                     test = {
