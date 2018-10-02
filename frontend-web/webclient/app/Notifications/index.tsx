@@ -21,7 +21,7 @@ interface NotificationProps {
     activeUploads: number
 }
 
-class Notifications extends React.Component<NotificationProps> {
+class Notifications extends React.Component<NotificationProps & NotificationsDispatchToProps> {
     constructor(props) {
         super(props);
     }
@@ -78,7 +78,11 @@ class Notifications extends React.Component<NotificationProps> {
         ) : null;
         const uploads = activeUploads > 0 ? (
             <>
-                {`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
+                <Button
+                    content={`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
+                    color="green"
+                    onClick={() => this.props.showUploader()}
+                />
                 <Divider />
             </>
         ) : null;
@@ -166,7 +170,7 @@ interface NotificationsDispatchToProps {
     notificationRead: (id: number) => void
     showUploader: () => void
 }
-const mapDispatchToProps = (dispatch: Dispatch) => ({
+const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps => ({
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: (id) => dispatch(notificationRead(id)),
     showUploader: () => dispatch(setUploaderVisible(true))
