@@ -17,6 +17,11 @@ data class FindApplicationAndOptionalDependencies(
     val version: String
 )
 
+data class FavoriteRequest(
+    val name: String,
+    val version: String
+)
+
 data class SearchRequest(
     val query: String,
     override val itemsPerPage: Int?,
@@ -26,7 +31,7 @@ data class SearchRequest(
 object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
-    val toggleFavorite = callDescription<FindApplicationAndOptionalDependencies, Unit, CommonErrorMessage> {
+    val toggleFavorite = callDescription<FavoriteRequest, Unit, CommonErrorMessage> {
         name = "toggleFavorite"
         method = HttpMethod.Post
 
