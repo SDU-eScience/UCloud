@@ -173,7 +173,7 @@ export interface Reducers {
 }
 
 export type DetailedResultReduxObject = ComponentWithPage<File>
-export const initDetailedResultReduxObject = (): DetailedResultReduxObject => ({
+export const initDetailedResult = (): DetailedResultReduxObject => ({
     page: emptyPage,
     loading: false,
     error: undefined
@@ -192,6 +192,7 @@ export interface ReduxObject {
     header: HeaderSearchReduxObject
     sidebar: SidebarReduxObject
     activity: ActivityReduxObject
+    detailedResult: DetailedResultReduxObject
 }
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -247,7 +248,8 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     zenodo: initZenodo(),
     sidebar: initSidebar(),
     uploader: initUploads(),
-    activity: initActivity()
+    activity: initActivity(),
+    detailedResult: initDetailedResult()
 });
 
 export const initAnalyses = (): ComponentWithPage<Analysis> => ({

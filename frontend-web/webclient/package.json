@@ -59,7 +59,7 @@
     "react-datepicker": "^1.6.0",
     "react-dom": "16.5.2",
     "react-dropzone": "^6.0.0",
-    "react-markdown": "^3.6.0",
+    "react-markdown": "^4.0.0",
     "react-redux": "^5.0.7",
     "react-router": "4.3.1",
     "react-router-dom": "4.3.1",

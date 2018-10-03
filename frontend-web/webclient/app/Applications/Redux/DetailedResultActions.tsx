@@ -11,7 +11,7 @@ export const fetchPage = (username: string, jobId: string, pageNumber: number, i
         detailedResultError("An error occurred fetching files")
     );
 
-const receivePage = (page: Page<File>) => ({
+export const receivePage = (page: Page<File>) => ({
     type: DetailedResultActions.SET_DETAILED_RESULT_FILES_PAGE,
     payload: {
         page,
@@ -19,9 +19,16 @@ const receivePage = (page: Page<File>) => ({
     }
 });
 
-const detailedResultError = (error?: string) => ({
+export const detailedResultError = (error?: string) => ({
     type: DetailedResultActions.SET_DETAILED_RESULT_ERROR,
     payload: {
         error
     }
 });
+
+export const setLoading = (loading: boolean) => ({
+    type: DetailedResultActions.SET_DETAILED_RESULT_LOADING,
+    payload: {
+        loading
+    }
+})
