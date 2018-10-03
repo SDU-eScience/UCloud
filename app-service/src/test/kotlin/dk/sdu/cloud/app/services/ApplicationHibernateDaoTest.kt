@@ -394,31 +394,31 @@ class ApplicationHibernateDaoTest {
                 }
 
                 run {
-                    appDAO.markAsFavorite(it, user, "App2", "3.4")
+                    appDAO.toggleFavorite(it, user, "App2", "3.4")
                     val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
                     assertEquals(1, favorites.itemsInTotal)
                 }
 
                 run {
-                    appDAO.markAsFavorite(it, user, "App1", "1.4")
+                    appDAO.toggleFavorite(it, user, "App1", "1.4")
                     val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
                     assertEquals(2, favorites.itemsInTotal)
                 }
 
                 run {
-                    appDAO.markAsFavorite(it, "AnotherUser", "App1", "1.4")
+                    appDAO.toggleFavorite(it, "AnotherUser", "App1", "1.4")
                     val favorites = appDAO.retreiveFavorites(it, "AnotherUser", NormalizedPaginationRequest(10, 0))
                     assertEquals(1, favorites.itemsInTotal)
                 }
 
                 run {
-                    appDAO.unMarkAsFavorite(it, user, "App1", "1.4")
+                    appDAO.toggleFavorite(it, user, "App1", "1.4")
                     val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
                     assertEquals(1, favorites.itemsInTotal)
                 }
 
                 run {
-                    appDAO.unMarkAsFavorite(it, "AnotherUser", "App1", "1.4")
+                    appDAO.toggleFavorite(it, "AnotherUser", "App1", "1.4")
                     val favorites = appDAO.retreiveFavorites(it, "AnotherUser", NormalizedPaginationRequest(10, 0))
                     assertEquals(0, favorites.itemsInTotal)
                 }

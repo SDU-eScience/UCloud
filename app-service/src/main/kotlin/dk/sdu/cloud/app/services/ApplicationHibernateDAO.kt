@@ -14,6 +14,52 @@ class ApplicationHibernateDAO(
     private val toolDAO: ToolHibernateDAO
 ) : ApplicationDAO<HibernateSession> {
 
+    override fun toggleFavorite(
+        session: HibernateSession,
+        user: String,
+        name: String,
+        version: String
+    ) {
+        val foundApp = internalByNameAndVersion(session, name, version)
+
+        val isFavorite = session.typedQuery<Long>(
+            """
+                select count (A.application.id.name)
+                from FavoriteApplicationEntity as A
+                where A.user = :user
+                    and A.application.id.name = :name
+                    and A.application.id.version = :version
+            """.trimIndent()
+        ).setParameter("user", user)
+            .setParameter("name", name)
+            .setParameter("version", version)
+            .uniqueResult()
+
+        if (isFavorite != 0L) {
+            val query = session.createQuery(
+                """
+                delete from FavoriteApplicationEntity as A
+                where A.user = :user
+                    and A.application.id.name = :name
+                    and A.application.id.version = :version
+
+            """.trimIndent()
+            )
+                .setParameter("user", user)
+                .setParameter("name", name)
+                .setParameter("version", version)
+            query.executeUpdate()
+        }
+        else {
+            session.save(
+                FavoriteApplicationEntity(
+                    foundApp!!,
+                    user
+                )
+            )
+        }
+    }
+/*
     override fun markAsFavorite(
         session: HibernateSession,
         user: String,
@@ -30,22 +76,26 @@ class ApplicationHibernateDAO(
         )
     }
 
-    override fun unMarkAsFavorite(
+    private fun unMarkAsFavorite(
         session: HibernateSession,
         user: String,
         name: String,
         version: String
     ) {
-        session.createQuery(
+        val query = session.createQuery(
             """
                 delete from FavoriteApplicationEntity as A
-                where A.user = '${user}'
-                    and A.application.id.name = '${name}'
-                    and A.application.id.version = '${version}'
+                where A.user = :user
+                    and A.application.id.name = :name
+                    and A.application.id.version = :version
 
             """.trimIndent()
-        ).executeUpdate()
-    }
+        )
+        .setParameter("user", user)
+        .setParameter("name", name)
+        .setParameter("version", version)
+        query.executeUpdate()
+    }*/
 
     override fun retreiveFavorites(
         session: HibernateSession,
@@ -56,10 +106,10 @@ class ApplicationHibernateDAO(
             """
                 select application
                 from FavoriteApplicationEntity as A
-                where user='${user}'
+                where user= :user
                 order by A.application.id.name
             """.trimIndent()
-        ).paginatedList(paging).map { it.toModel() }
+        ).setParameter("user", user).paginatedList(paging).map { it.toModel() }
 
         return Page(
             items.size,
@@ -79,10 +129,10 @@ class ApplicationHibernateDAO(
             """
                 select application
                 from TagEntity
-                where tag='${query}'
+                where tag=:query
                 order by application
             """.trimIndent()
-        ).paginatedList(paging).map { it.toModel() }
+        ).setParameter("query", query).paginatedList(paging).map { it.toModel() }
 
         return Page(
             items.size,
@@ -98,7 +148,6 @@ class ApplicationHibernateDAO(
         query: String,
         paging: NormalizedPaginationRequest
     ): Page<Application> {
-        val preparedQuery = "'%"+query+"%'"
         //language=HQL
         val count = session.typedQuery<Long>(
             """
@@ -108,9 +157,9 @@ class ApplicationHibernateDAO(
                 from ApplicationEntity as B
                 where A.id.name = B.id.name
                 group by id.name
-            ) and A.id.name like ${preparedQuery}
+            ) and A.id.name like '%' || :query || '%'
             """.trimIndent()
-        ).uniqueResult().toInt()
+        ).setParameter("query", query).uniqueResult().toInt()
 
         //language=HQL
         val items = session.typedQuery<ApplicationEntity>(
@@ -120,10 +169,10 @@ class ApplicationHibernateDAO(
                 from ApplicationEntity as B
                 where A.id.name = B.id.name
                 group by id.name
-            ) and A.id.name like ${preparedQuery}
+            ) and A.id.name like '%' || :query || '%'
             order by A.id.name
         """.trimIndent()
-        ).paginatedList(paging).map { it.toModel() }
+        ).setParameter("query", query).paginatedList(paging).map { it.toModel() }
 
         return Page(
             count,

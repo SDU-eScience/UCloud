@@ -26,8 +26,8 @@ data class SearchRequest(
 object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
-    val markAsFavorite = callDescription<FindApplicationAndOptionalDependencies, Unit, CommonErrorMessage> {
-        name = "markAsFavorite"
+    val toggleFavorite = callDescription<FindApplicationAndOptionalDependencies, Unit, CommonErrorMessage> {
+        name = "toggleFavorite"
         method = HttpMethod.Post
 
         auth {
@@ -37,23 +37,6 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
         path {
             using(baseContext)
             +"favorite"
-            +boundTo(FindApplicationAndOptionalDependencies::name)
-            +boundTo(FindApplicationAndOptionalDependencies::version)
-        }
-    }
-
-
-    val unMarkAsFavorite = callDescription<FindApplicationAndOptionalDependencies, Unit, CommonErrorMessage> {
-        name = "unMarkAsFavorite"
-        method = HttpMethod.Post
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        path {
-            using(baseContext)
-            +"unfavorite"
             +boundTo(FindApplicationAndOptionalDependencies::name)
             +boundTo(FindApplicationAndOptionalDependencies::version)
         }
@@ -77,7 +60,7 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
             +boundTo(PaginationRequest::page)
         }
     }
-    val searchTag = callDescription<SearchRequest, Page<Application>, CommonErrorMessage> {
+    val searchTags = callDescription<SearchRequest, Page<Application>, CommonErrorMessage> {
         name = "searchTags"
         method = HttpMethod.Get
 
@@ -97,7 +80,7 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
         }
     }
 
-    val search = callDescription<SearchRequest, Page<Application>, CommonErrorMessage> {
+    val searchApps = callDescription<SearchRequest, Page<Application>, CommonErrorMessage> {
         name = "searchApps"
         method = HttpMethod.Get
 
@@ -118,7 +101,7 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     }
 
     val findByName = callDescription<FindByNameAndPagination, Page<Application>, CommonErrorMessage> {
-        name = "appsFindByName"
+        name = "findByName"
 
         auth {
             access = AccessRight.READ
@@ -153,7 +136,7 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     }
 
     val listAll = callDescription<PaginationRequest, Page<Application>, CommonErrorMessage> {
-        name = "appsListAll"
+        name = "listAll"
         path { using(baseContext) }
 
         auth {
@@ -167,7 +150,7 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     }
 
     val create = callDescription<Unit, Unit, CommonErrorMessage> {
-        name = "appsCreate"
+        name = "create"
         method = HttpMethod.Put
 
         auth {

@@ -171,7 +171,7 @@ class AppTest {
                         run {
                             val response =
                                 handleRequest(HttpMethod.Post,
-                                    "/api/hpc/apps/unfavorite/App4/4.4")
+                                    "/api/hpc/apps/favorite/App4/4.4")
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()

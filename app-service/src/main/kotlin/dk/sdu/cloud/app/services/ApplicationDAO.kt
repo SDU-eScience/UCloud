@@ -7,7 +7,14 @@ import dk.sdu.cloud.service.Page
 
 interface ApplicationDAO<Session> {
 
-    fun markAsFavorite(
+    fun toggleFavorite(
+        session: Session,
+        user: String,
+        name: String,
+        version: String
+    )
+
+    /*fun markAsFavorite(
         session: Session,
         user: String,
         name: String,
@@ -19,7 +26,7 @@ interface ApplicationDAO<Session> {
         user: String,
         name: String,
         version: String)
-
+*/
     fun retreiveFavorites(
         session: Session,
         user: String,

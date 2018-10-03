@@ -25,26 +25,11 @@ class AppController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
 
-        implement(HPCApplicationDescriptions.markAsFavorite) {req ->
+        implement(HPCApplicationDescriptions.toggleFavorite) {req ->
             logEntry(log, req)
 
             db.withTransaction {
-                source.markAsFavorite(
-                    it,
-                    call.securityPrincipal.username,
-                    req.name,
-                    req.version
-                )
-            }
-
-            ok(HttpStatusCode.OK)
-        }
-
-        implement(HPCApplicationDescriptions.unMarkAsFavorite) {req ->
-            logEntry(log, req)
-
-            db.withTransaction {
-                source.unMarkAsFavorite(
+                source.toggleFavorite(
                     it,
                     call.securityPrincipal.username,
                     req.name,
@@ -70,7 +55,7 @@ class AppController<DBSession>(
             ok(favorites)
         }
 
-        implement(HPCApplicationDescriptions.searchTag) { req ->
+        implement(HPCApplicationDescriptions.searchTags) { req ->
             logEntry(log, req)
 
             val app = db.withTransaction {
@@ -86,7 +71,7 @@ class AppController<DBSession>(
         }
 
 
-        implement(HPCApplicationDescriptions.search) { req ->
+        implement(HPCApplicationDescriptions.searchApps) { req ->
             logEntry(log, req)
 
             val app = db.withTransaction {

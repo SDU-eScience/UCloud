@@ -46,7 +46,7 @@ data class ToolEntity(
  * - V7__Tags.sql
  */
 @Entity
-@Table(name = "applicationTags")
+@Table(name = "application_tags")
 class TagEntity(
     @ManyToOne
     var application: ApplicationEntity,
@@ -59,7 +59,7 @@ class TagEntity(
 )
 
 @Entity
-@Table(name = "favoritedBy")
+@Table(name = "favorited_by")
 class FavoriteApplicationEntity(
     @ManyToOne
     var application: ApplicationEntity,
