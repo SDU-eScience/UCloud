@@ -18,6 +18,7 @@ import notifications from "Notifications/Redux/NotificationsReducer";
 import uploader from "Uploader/Redux/UploaderReducer";
 import activity from "Activity/Redux/ActivityReducer";
 import detailedResult from "Applications/Redux/DetailedResultReducer";
+import simpleSearch from "SimpleSearch/Redux/SimpleSearchReducer"
 import { configureStore } from "Utilities/ReduxUtilities";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
@@ -35,7 +36,8 @@ const store = configureStore(initObject(Cloud), {
     sidebar,
     uploader,
     notifications,
-    detailedResult
+    detailedResult,
+    simpleSearch
 });
 
 ReactDOM.render(

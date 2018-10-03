@@ -13,6 +13,7 @@ import { Notification } from "Notifications";
 import { Upload } from "Uploader";
 import { Activity } from "Activity";
 import { Reducer } from "redux";
+import { SimpleSearchStateProps } from "SimpleSearch";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -193,6 +194,7 @@ export interface ReduxObject {
     sidebar: SidebarReduxObject
     activity: ActivityReduxObject
     detailedResult: DetailedResultReduxObject
+    simpleSearch: SimpleSearchStateProps
 }
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -249,8 +251,20 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     sidebar: initSidebar(),
     uploader: initUploads(),
     activity: initActivity(),
-    detailedResult: initDetailedResult()
+    detailedResult: initDetailedResult(),
+    simpleSearch: initSimpleSearch()
 });
+
+export const initSimpleSearch = () => ({
+    files: emptyPage,
+    filesLoading: false,
+    applications: emptyPage,
+    applicationsLoading: false,
+    projects: emptyPage,
+    projectsLoading: false,
+    error: "",
+    search: ""
+})
 
 export const initAnalyses = (): ComponentWithPage<Analysis> => ({
     page: emptyPage,
