@@ -8,18 +8,20 @@ import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ListContext, ShareState } from ".";
+import PromiseKeeper from "PromiseKeeper";
 
 export class List extends React.Component<ListProps, ListState> {
     constructor(props: ListProps, ctx: ListContext) {
         super(props);
         this.state = {
+            promises: new PromiseKeeper(),
             shares: [],
             errorMessage: undefined,
             page: 0,
             itemsPerPage: 10,
             loading: true
         };
-        // FIXME potentially move following to parent component
+        // FIXME potentially move following to a parent component
         if (!props.keepTitle)
             ctx.store.dispatch(updatePageTitle("Shares"))
     }
@@ -32,11 +34,15 @@ export class List extends React.Component<ListProps, ListState> {
         this.reload();
     }
 
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
+    }
+
     reload() {
-        retrieveShares(this.state.page, this.state.itemsPerPage)
+        this.state.promises.makeCancelable(retrieveShares(this.state.page, this.state.itemsPerPage))
+            .promise
             .then(e => this.setState({ shares: e.items, loading: false }))
-            .catch(e => this.setState({ errorMessage: "Unable to retrieve shares!", loading: false }));
-        // FIXME .finally(() => this.setState(() => ({ loading: false })));
+            .catch(e => { if (!e.isCanceled) this.setState({ errorMessage: "Unable to retrieve shares!", loading: false }) });
     }
 
     public render() {
@@ -96,12 +102,16 @@ interface ListEntryProperties {
 
 interface ListEntryState {
     isLoading: boolean
+    promises: PromiseKeeper
 }
 
 class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     constructor(props: ListEntryProperties) {
         super(props);
-        this.state = { isLoading: false };
+        this.state = {
+            promises: new PromiseKeeper(),
+            isLoading: false
+        };
     }
 
     public render() {
@@ -212,14 +222,11 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
         // Add if missing
         let hasRight = share.rights.indexOf(right) != -1;
-        if (!hasRight) {
-            filtered.push(right);
-        }
+        if (!hasRight) filtered.push(right);
 
         updateShare(share.id, filtered)
-            .then(it => { console.log(it); this.maybeInvoke(it.id, this.props.onRights) })
-            .catch(e => { console.log(it); this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError) })
-            .finally(() => this.setState({ isLoading: false }));
+            .then(it => { this.maybeInvoke(it.id, this.props.onRights); this.setState({ isLoading: false }) })
+            .catch(e => { if (!e.isCanceled) { this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError); this.setState({ isLoading: false }) } })
     }
 
     onCreateShare(path: string) {
@@ -232,37 +239,48 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
             (document.getElementById("write-swal") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
             (document.getElementById("execute-swal") as HTMLInputElement).checked ? rights.push(AccessRight.EXECUTE) : null;
             createShare(value, path, rights)
-                .then(it => this.maybeInvoke(it.id, this.props.onShared))
-                .catch(e => this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError))
-                .finally(() => this.setState({ isLoading: false }))
+                .then(it => {
+                    this.maybeInvoke(it.id, this.props.onShared);
+                    this.setState(() => ({ isLoading: false }))
+                })
+                .catch(e => {
+                    if (!e.isCanceled) {
+                        this.maybeInvoke(e.response.why ? e.response.why : "An error has occured", this.props.onError);
+                        this.setState(() => ({ isLoading: false }))
+                    }
+                })
         })
+    }
+
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
     }
 
     onRevoke(share: Share) {
         this.setState({ isLoading: true });
 
-        revokeShare(share.id)
-            .then(it => this.maybeInvoke(share, this.props.onRevoked))
-            .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-            .finally(() => this.setState({ isLoading: false }))
+        this.state.promises.makeCancelable(revokeShare(share.id))
+            .promise
+            .then(it => { this.maybeInvoke(share, this.props.onRevoked); this.setState(() => ({ isLoading: false })) })
+            .catch(e => { this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError); this.setState(() => ({ isLoading: false })) });
     }
 
     onAccept(share: Share) {
         this.setState({ isLoading: true });
 
-        acceptShare(share.id)
-            .then(it => this.maybeInvoke(share, this.props.onAccepted))
-            .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-            .finally(() => this.setState({ isLoading: false }))
+        this.state.promises.makeCancelable(acceptShare(share.id))
+            .promise
+            .then(it => { this.maybeInvoke(share, this.props.onAccepted); this.setState(() => ({ isLoading: false })) })
+            .catch(e => { this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError); this.setState(() => ({ isLoading: false })) })
     }
 
     onReject(share: Share) {
         this.setState({ isLoading: true });
 
-        rejectShare(share.id)
-            .then(it => this.maybeInvoke(share, this.props.onRejected))
-            .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
-            .finally(() => this.setState({ isLoading: false }))
+        this.state.promises.makeCancelable(rejectShare(share.id))
+            .promise
+            .then(it => { this.maybeInvoke(share, this.props.onRejected); this.setState(() => ({ isLoading: false })) })
+            .catch(e => { this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError); this.setState(() => ({ isLoading: false })) });
     }
 }
 
@@ -345,5 +363,5 @@ function createShare(user: string, path: string, rights: AccessRight[]): Promise
 }
 
 function updateShare(id: ShareId, rights: AccessRightValues[]): Promise<any> {
-    return Cloud.post(`/shares/`, { id, rights }).then(e => { console.log(e); return e.response }); // FIXME Add error handling
+    return Cloud.post(`/shares/`, { id, rights }).then(e => e.response);
 }

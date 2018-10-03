@@ -109,7 +109,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             failure => {
                 if (!failure.isCanceled)
                     failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
-            }).then(() => this.props.setLoading(false), () => this.props.setLoading(false))//.finally(() => this.setState({ loading: false }));
+            }).then(() => this.props.setLoading(false), () => this.props.setLoading(false))//.finally(() => this.props.setLoading(false));
     }
 
     retrieveStateWhenCompleted() {
