@@ -91,7 +91,7 @@ class ActivityService<DBSession>(
             }
 
             TrackedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
-                val fileReferences = allEventsOfType.map { ActivityStreamFileReference(it.fileId) }.toSet()
+                val fileReferences = allEventsOfType.asSequence().map { ActivityStreamFileReference(it.fileId) }.toSet()
 
                 return@flatMap listOf(ActivityStreamEntry.Tracked(operation, fileReferences, timestamp))
             }
@@ -166,7 +166,7 @@ class ActivityService<DBSession>(
                     entry.files.map { it.id }
                 }
             }
-        }.toSet().chunked(100)
+        }.asSequence().toSet().chunked(100).toList()
 
         val fileIdToCanonicalPath = fileIdsInChunks
             .map { chunkOfIds ->
