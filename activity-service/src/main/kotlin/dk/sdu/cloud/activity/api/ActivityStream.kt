@@ -37,25 +37,34 @@ sealed class ActivityStreamEntry<OperationType : Enum<OperationType>> {
 
     data class Counted(
         override val operation: CountedFileActivityOperation,
-        val entries: List<CountedFile>,
+        val files: Set<StreamFileReference.WithOpCount>,
         override val timestamp: Long
     ) : ActivityStreamEntry<CountedFileActivityOperation>()
 
-    data class CountedFile(val id: String, val count: Int, val path: String? = null)
 
     data class Tracked(
         override val operation: TrackedFileActivityOperation,
-        val files: Set<ActivityStreamFileReference>,
+        val files: Set<StreamFileReference.Basic>,
         override val timestamp: Long
     ) : ActivityStreamEntry<TrackedFileActivityOperation>()
 }
 
-class ActivityStreamFileReference(val id: String, val path: String? = null) {
+/**
+ * A reference to a file in the context of an [ActivityStreamEntry]
+ *
+ * All references contain an [id] and optionally a [path]. Additionally it may contain more attributes. For example,
+ * [WithOpCount] also contains a count of how many times a given operation is used. This is used in
+ * [ActivityStreamEntry.Counted].
+ */
+sealed class StreamFileReference {
+    abstract val id: String
+    abstract val path: String?
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as ActivityStreamFileReference
+        other as StreamFileReference
 
         if (id != other.id) return false
 
@@ -64,6 +73,23 @@ class ActivityStreamFileReference(val id: String, val path: String? = null) {
 
     override fun hashCode(): Int {
         return id.hashCode()
+    }
+
+    // Sub-classes
+    class Basic(override val id: String, override val path: String?) : StreamFileReference() {
+        override fun toString(): String = "Basic(id='$id', path=$path)"
+
+        fun withPath(path: String?): Basic = Basic(id, path)
+    }
+
+    class WithOpCount(
+        override val id: String,
+        override val path: String?,
+        val count: Int
+    ) : StreamFileReference() {
+        override fun toString(): String = "Counted(id='$id', path=$path, count=$count)"
+
+        fun withPath(path: String?): WithOpCount = WithOpCount(id, path, count)
     }
 }
 

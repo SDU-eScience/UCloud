@@ -44,7 +44,7 @@ class ActivityServiceTest {
                 match { events ->
                     assertEquals(1, events.size)
                     val entry = events.first() as ActivityStreamEntry.Counted
-                    val fileEntries = entry.entries
+                    val fileEntries = entry.files
                     assertEquals(entry.operation, CountedFileActivityOperation.DOWNLOAD)
                     assertEquals(downloadCount, fileEntries.single().count)
                     assertEquals(fileId, fileEntries.single().id)
@@ -84,8 +84,8 @@ class ActivityServiceTest {
                         assertEquals(1, events.size)
                         val entry = events.first() as ActivityStreamEntry.Counted
                         assertEquals(entry.operation, CountedFileActivityOperation.DOWNLOAD)
-                        assertEquals(file.count, entry.entries.single().count)
-                        assertEquals(file.fileId, entry.entries.single().id)
+                        assertEquals(file.count, entry.files.single().count)
+                        assertEquals(file.fileId, entry.files.single().id)
                         assertEquals(events.minBy { it.timestamp }!!.timestamp, entry.timestamp)
 
                         true
@@ -113,7 +113,7 @@ class ActivityServiceTest {
                 match { events ->
                     assertEquals(1, events.size)
                     val entry = events.first() as ActivityStreamEntry.Counted
-                    val fileEntries = entry.entries
+                    val fileEntries = entry.files
                     assertEquals(entry.operation, CountedFileActivityOperation.DOWNLOAD)
                     assertEquals(downloadCount, fileEntries.single().count)
                     assertEquals(fileId, fileEntries.single().id)
@@ -154,7 +154,7 @@ class ActivityServiceTest {
                     val event = events.single() as ActivityStreamEntry.Counted
 
                     downloads.forEach { file ->
-                        val entry = event.entries.find { it.id == file.fileId }!!
+                        val entry = event.files.find { it.id == file.fileId }!!
                         assertEquals(event.operation, CountedFileActivityOperation.DOWNLOAD)
                         assertEquals(file.count, entry.count)
                         assertEquals(file.fileId, entry.id)
