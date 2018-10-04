@@ -41,7 +41,6 @@ sealed class ActivityStreamEntry<OperationType : Enum<OperationType>> {
         override val timestamp: Long
     ) : ActivityStreamEntry<CountedFileActivityOperation>()
 
-
     data class Tracked(
         override val operation: TrackedFileActivityOperation,
         val files: Set<StreamFileReference.Basic>,
@@ -78,8 +77,6 @@ sealed class StreamFileReference {
     // Sub-classes
     class Basic(override val id: String, override val path: String?) : StreamFileReference() {
         override fun toString(): String = "Basic(id='$id', path=$path)"
-
-        fun withPath(path: String?): Basic = Basic(id, path)
     }
 
     class WithOpCount(
