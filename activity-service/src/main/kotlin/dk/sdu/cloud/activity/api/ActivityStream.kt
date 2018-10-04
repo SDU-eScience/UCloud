@@ -37,16 +37,20 @@ sealed class ActivityStreamEntry<OperationType : Enum<OperationType>> {
 
     data class Counted(
         override val operation: CountedFileActivityOperation,
+        override val timestamp: Long,
         val files: Set<StreamFileReference.WithOpCount>,
-        override val timestamp: Long
+        val users: Set<UserReference>
     ) : ActivityStreamEntry<CountedFileActivityOperation>()
 
     data class Tracked(
         override val operation: TrackedFileActivityOperation,
+        override val timestamp: Long,
         val files: Set<StreamFileReference.Basic>,
-        override val timestamp: Long
+        val users: Set<UserReference>
     ) : ActivityStreamEntry<TrackedFileActivityOperation>()
 }
+
+data class UserReference(val username: String)
 
 /**
  * A reference to a file in the context of an [ActivityStreamEntry]

@@ -12,6 +12,7 @@ import dk.sdu.cloud.service.mapItems
 import java.io.Serializable
 import java.util.*
 import javax.persistence.*
+import kotlin.collections.HashSet
 
 @Embeddable
 data class HActivityStreamKey(
@@ -43,21 +44,24 @@ sealed class HActivityStreamEntry {
     @Entity
     class Counted(
         override var header: HActivityStreamKey,
-
-        @get:OneToMany(fetch = FetchType.EAGER)
-        var entries: MutableList<HActivityStreamCountedEntry>,
-
         operation: CountedFileActivityOperation
     ) : HActivityStreamEntry() {
         init {
             header.operation = operation.name
         }
 
+        @get:OneToMany(mappedBy = "entry")
+        var entries: MutableSet<HActivityStreamCountedEntry> = HashSet()
+
+        @get:OneToMany(mappedBy = "entry")
+        var users: MutableSet<HActivityStreamParticipatingUser> = HashSet()
+
         override fun toModel(): ActivityStreamEntry<*> {
             return ActivityStreamEntry.Counted(
                 CountedFileActivityOperation.valueOf(header.operation),
+                header.timestamp.time,
                 entries.asSequence().map { StreamFileReference.WithOpCount(it.fileId, null, it.count) }.toSet(),
-                header.timestamp.time
+                users.asSequence().map { UserReference(it.username) }.toSet()
             )
         }
 
@@ -69,22 +73,26 @@ sealed class HActivityStreamEntry {
     @Entity
     class Tracked(
         override var header: HActivityStreamKey,
-
-        // It appears, that since we add annotations on the getters (in super class), then this must all add its
-        // annotations on the getter (as opposed to the property)
-        @get:OneToMany(fetch = FetchType.EAGER)
-        var fileIds: MutableSet<HActivityStreamFileReference>,
         operation: TrackedFileActivityOperation
     ) : HActivityStreamEntry() {
         init {
             header.operation = operation.name
         }
 
+        // It appears, that since we add annotations on the getters (in super class), then this must all add its
+        // annotations on the getter (as opposed to the property)
+        @get:OneToMany(mappedBy = "entry")
+        var fileIds: MutableSet<HActivityStreamFileReference> = HashSet()
+
+        @get:OneToMany(mappedBy = "entry")
+        var users: MutableSet<HActivityStreamParticipatingUser> = HashSet()
+
         override fun toModel(): ActivityStreamEntry<*> {
             return ActivityStreamEntry.Tracked(
                 TrackedFileActivityOperation.valueOf(header.operation),
+                header.timestamp.time,
                 fileIds.asSequence().map { StreamFileReference.Basic(it.fileId, null) }.toSet(),
-                header.timestamp.time
+                users.asSequence().map { UserReference(it.username) }.toSet()
             )
         }
 
@@ -95,25 +103,56 @@ sealed class HActivityStreamEntry {
 }
 
 @Entity
+@Table(name = "entry_users")
+data class HActivityStreamParticipatingUser(
+    var username: String,
+
+    @ManyToOne
+    var entry: HActivityStreamEntry,
+
+    @Id
+    @GeneratedValue
+    var id: Long? = null
+) {
+    override fun toString(): String {
+        return "HActivityStreamParticipatingUser(username='$username', id=$id)"
+    }
+}
+
+@Entity
 @Table(name = "counted_entries")
 data class HActivityStreamCountedEntry(
     var fileId: String,
     var count: Int,
 
+    @ManyToOne
+    var entry: HActivityStreamEntry,
+
     @Id
     @GeneratedValue
     var id: Long? = null
-)
+) {
+    override fun toString(): String {
+        return "HActivityStreamCountedEntry(fileId='$fileId', count=$count, id=$id)"
+    }
+}
 
 @Entity
 @Table(name = "file_references")
 data class HActivityStreamFileReference(
     var fileId: String,
 
+    @ManyToOne
+    var entry: HActivityStreamEntry,
+
     @Id
     @GeneratedValue
     var id: Long? = null
-)
+) {
+    override fun toString(): String {
+        return "HActivityStreamFileReference(fileId='$fileId', id=$id)"
+    }
+}
 
 class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
     override fun createStreamIfNotExists(session: HibernateSession, stream: ActivityStream) {
@@ -146,9 +185,13 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
                 is HActivityStreamEntry.Tracked -> {
                     entry as ActivityStreamEntry.Tracked
 
+                    existing.users.addAll(entry.users.map { ref ->
+                        HActivityStreamParticipatingUser(ref.username, existing).also { session.save(it) }
+                    })
+
                     existing.fileIds.addAll(
                         entry.files.map { ref ->
-                            HActivityStreamFileReference(ref.id).also { session.save(it) }
+                            HActivityStreamFileReference(ref.id, existing).also { session.save(it) }
                         }
                     )
                     session.save(existing)
@@ -157,6 +200,10 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
                 is HActivityStreamEntry.Counted -> {
                     entry as ActivityStreamEntry.Counted
 
+                    existing.users.addAll(entry.users.map { ref ->
+                        HActivityStreamParticipatingUser(ref.username, existing).also { session.save(it) }
+                    })
+
                     val mappedEntries = existing.entries.associateBy { it.fileId }
                     entry.files.forEach { counted ->
                         val countedFile = mappedEntries[counted.id]
@@ -164,7 +211,7 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
                             countedFile.count += counted.count
                             session.saveOrUpdate(countedFile)
                         } else {
-                            val newEntry = HActivityStreamCountedEntry(counted.id, counted.count)
+                            val newEntry = HActivityStreamCountedEntry(counted.id, counted.count, existing)
                             existing.entries.add(newEntry)
                             session.save(newEntry)
                         }
@@ -180,34 +227,63 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
         session: HibernateSession,
         stream: ActivityStream
     ): HActivityStreamEntry = when (this) {
-        is ActivityStreamEntry.Counted ->
-            HActivityStreamEntry.Counted(
+        is ActivityStreamEntry.Counted -> {
+            val counted = HActivityStreamEntry.Counted(
                 HActivityStreamKey(
                     stream.subject.toId(),
                     stream.subject.toType(),
                     timestamp = Date(timestamp)
                 ),
-                files.map { entry ->
-                    HActivityStreamCountedEntry(
-                        entry.id,
-                        entry.count
-                    ).also { session.save(it) }
-                }.toMutableList(),
                 operation
             )
 
-        is ActivityStreamEntry.Tracked ->
-            HActivityStreamEntry.Tracked(
+            counted.entries = files
+                .asSequence()
+                .map { entry ->
+                    HActivityStreamCountedEntry(
+                        entry.id,
+                        entry.count,
+                        counted
+                    ).also { session.save(it) }
+                }
+                .toMutableSet()
+
+            counted.users = users
+                .asSequence()
+                .map { userRef ->
+                    HActivityStreamParticipatingUser(userRef.username, counted).also { session.save(it) }
+                }
+                .toMutableSet()
+
+            counted
+        }
+
+        is ActivityStreamEntry.Tracked -> {
+            val tracked = HActivityStreamEntry.Tracked(
                 HActivityStreamKey(
                     stream.subject.toId(),
                     stream.subject.toType(),
                     timestamp = Date(timestamp)
                 ),
-                files.asSequence().map { ref ->
-                    HActivityStreamFileReference(ref.id).also { session.save(it) }
-                }.toMutableSet(),
                 operation
             )
+
+            tracked.fileIds = files
+                .asSequence()
+                .map { ref ->
+                    HActivityStreamFileReference(ref.id, tracked).also { session.save(it) }
+                }
+                .toMutableSet()
+
+            tracked.users = users
+                .asSequence()
+                .map { ref ->
+                    HActivityStreamParticipatingUser(ref.username, tracked).also { session.save(it) }
+                }
+                .toMutableSet()
+
+            tracked
+        }
     }
 
     private fun ActivityStreamSubject.toId(): String = when (this) {

@@ -74,12 +74,14 @@ class HibernateActivityStreamDaoTest {
 
     private val trackedEvent = ActivityStreamEntry.Tracked(
         TrackedFileActivityOperation.MOVED,
+        System.currentTimeMillis(),
         setOf(StreamFileReference.Basic("fileId", null)),
-        System.currentTimeMillis()
+        setOf(UserReference("foo"))
     )
 
     private val countedEvent = ActivityStreamEntry.Counted(
         CountedFileActivityOperation.DOWNLOAD,
+        System.currentTimeMillis(),
         setOf(
             StreamFileReference.WithOpCount(
                 "fileId",
@@ -87,7 +89,7 @@ class HibernateActivityStreamDaoTest {
                 42
             )
         ),
-        System.currentTimeMillis()
+        setOf(UserReference("foo"))
     )
 
     @Test
@@ -210,18 +212,20 @@ class HibernateActivityStreamDaoTest {
         val entries = listOf(
             ActivityStreamEntry.Counted(
                 CountedFileActivityOperation.DOWNLOAD,
+                System.currentTimeMillis(),
                 setOf(
                     StreamFileReference.WithOpCount(fileWithTwoEvents, null, downloadCount),
                     StreamFileReference.WithOpCount(fileWithOneEvent, null, downloadCount)
                 ),
-                System.currentTimeMillis()
+                setOf(UserReference("foo"))
             ),
             ActivityStreamEntry.Counted(
                 CountedFileActivityOperation.DOWNLOAD,
+                System.currentTimeMillis(),
                 setOf(
                     StreamFileReference.WithOpCount(fileWithTwoEvents, null, downloadCount)
                 ),
-                System.currentTimeMillis()
+                setOf(UserReference("foo"))
             )
         )
 
@@ -257,14 +261,16 @@ class HibernateActivityStreamDaoTest {
 
         val entry1 = ActivityStreamEntry.Counted(
             operation,
+            System.currentTimeMillis(),
             setOf(StreamFileReference.WithOpCount(fileA, null, downloadCount)),
-            System.currentTimeMillis()
+            setOf(UserReference("foo"))
         )
 
         val entry2 = ActivityStreamEntry.Counted(
             operation,
+            System.currentTimeMillis(),
             setOf(StreamFileReference.WithOpCount(fileB, null, downloadCount)),
-            System.currentTimeMillis()
+            setOf(UserReference("foo"))
         )
 
         val stream = ActivityStream(ActivityStreamSubject.User("user"))

@@ -57,6 +57,12 @@ class ActivityService<DBSession>(
             // All events have the same operation, so we use the first event to determine operation.
             val firstEvent = allEventsOfType.first()
 
+            val users = allEventsOfType
+                .asSequence()
+                .map { it.username }
+                .map { UserReference(it) }
+                .toSet()
+
             CountedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
                 val eventsByFileId = allEventsOfType.groupBy { it.fileId }
 
@@ -83,6 +89,7 @@ class ActivityService<DBSession>(
                     listOf(
                         ActivityStreamEntry.Counted(
                             operation,
+                            timestamp,
                             counts.asSequence().map {
                                 StreamFileReference.WithOpCount(
                                     it.first,
@@ -90,7 +97,7 @@ class ActivityService<DBSession>(
                                     it.second
                                 )
                             }.toSet(),
-                            timestamp
+                            users
                         )
                     )
                 }
@@ -100,7 +107,7 @@ class ActivityService<DBSession>(
                 val fileReferences =
                     allEventsOfType.asSequence().map { StreamFileReference.Basic(it.fileId, null) }.toSet()
 
-                return@flatMap listOf(ActivityStreamEntry.Tracked(operation, fileReferences, timestamp))
+                return@flatMap listOf(ActivityStreamEntry.Tracked(operation, timestamp, fileReferences, users))
             }
 
             return@flatMap emptyList<ActivityStreamEntry<*>>()
