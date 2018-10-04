@@ -40,7 +40,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             reloadIntervalId: -1,
             promises: new PromiseKeeper()
         };
-        this.props.setPageTitle(this.jobId);
+        this.props.setPageTitle(shortUUID(this.jobId));
     }
 
     get jobId(): string {
@@ -108,8 +108,11 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
             failure => {
                 if (!failure.isCanceled)
-                    failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
-            }).then(() => this.props.setLoading(false), () => this.props.setLoading(false))//.finally(() => this.props.setLoading(false));
+                    failureNotification("An error occurred retrieving Information and Output from the job.");
+            }).then(
+                () => this.props.setLoading(false),
+                () => this.props.setLoading(false)
+            );// FIXME, should be .finally(() => this.props.setLoading(false));, blocked by ts-jest
     }
 
     retrieveStateWhenCompleted() {
@@ -338,7 +341,7 @@ export const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResult
 export const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     detailedResultError: (error: string) => dispatch(detailedResultError(error)),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    setPageTitle: (jobId: string) => dispatch(updatePageTitle(`Results for Job: ${shortUUID(jobId)}`)),
+    setPageTitle: (jobId: string) => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),
     receivePage: (page: Page<File>) => dispatch(receivePage(page)),
     fetchPage: async (jobId: string, pageNumber: number, itemsPerPage: number) =>
         dispatch(await fetchPage(Cloud.username, jobId, pageNumber, itemsPerPage))

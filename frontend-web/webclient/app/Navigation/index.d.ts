@@ -11,6 +11,6 @@ export interface Status {
 }
 
 interface HeaderStateToProps {
-    open: boolean
+    sidebarOpen: boolean
     prioritizedSearch: HeaderSearchType
 }

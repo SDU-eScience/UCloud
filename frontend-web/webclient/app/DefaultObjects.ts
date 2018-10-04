@@ -262,7 +262,7 @@ export const initSimpleSearch = () => ({
     applicationsLoading: false,
     projects: emptyPage,
     projectsLoading: false,
-    error: "",
+    error: undefined,
     search: ""
 })
 

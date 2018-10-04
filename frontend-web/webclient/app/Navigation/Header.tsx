@@ -15,7 +15,7 @@ import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { ReduxObject } from "DefaultObjects";
 
 interface HeaderProps {
-    open?: boolean
+    sidebarOpen?: boolean
     history: History
     prioritizedSearch: string
 }
@@ -38,14 +38,14 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
     }
 
     public render() {
-        const { open, prioritizedSearch, setSidebarOpen } = this.props;
+        const { sidebarOpen, prioritizedSearch, setSidebarOpen } = this.props;
         const { history } = this.context.router;
-        const sidebarIcon = open ? "triangle left" : "triangle right";
+        const sidebarIcon = sidebarOpen ? "triangle left" : "triangle right";
         const { searchText } = this.state;
 
         return (
             <Menu className="menu-padding" fixed="top" inverted attached borderless size="tiny" >
-                <Responsive maxWidth={999} as={Menu.Item} onClick={() => setSidebarOpen()}>
+                <Responsive maxWidth={999} as={Menu.Item} onClick={() => setSidebarOpen(!sidebarOpen)}>
                     <Icon.Group size="large">
                         <Icon name="sidebar" />
                         <Icon corner color="grey" size="huge" name={sidebarIcon} />
@@ -140,17 +140,21 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
 }
 
 interface HeaderOperations {
-    setSidebarOpen: () => void
+    setSidebarOpen: (open: boolean) => void
     fetchLoginStatus: () => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
-    setSidebarOpen: () => dispatch(setSidebarState(true)),
+    setSidebarOpen: (open: boolean) => dispatch(setSidebarState(open)),
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus())
 });
 
-const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps => ({
-    open: sidebar.open,
-    prioritizedSearch: header.prioritizedSearch
-});
+const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps => {
+    console.log(header, sidebar);
+    return ({
+        sidebarOpen: sidebar.open,
+        prioritizedSearch: header.prioritizedSearch
+    });
+}
+
 export default connect(mapStateToProps, mapDispatchToProps)(Header);
