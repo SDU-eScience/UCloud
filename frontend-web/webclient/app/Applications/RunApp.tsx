@@ -354,14 +354,14 @@ const JobSchedulingParams = (props) => {
             <Form.Group widths="equal">
                 <Form.Input
                     label="Number of nodes"
-                    type="number" step="1"
+                    type="number" step="1" min="1"
                     value={numberOfNodes === null || isNaN(numberOfNodes) ? "" : numberOfNodes}
                     placeholder={`Default value: ${props.tool.defaultNumberOfNodes}`}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
                 />
                 <Form.Input
                     label="Tasks per node"
-                    type="number" step="1"
+                    type="number" step="1" min="1"
                     value={tasksPerNode === null || isNaN(tasksPerNode) ? "" : tasksPerNode}
                     placeholder={`Default value: ${props.tool.defaultTasksPerNode}`}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}

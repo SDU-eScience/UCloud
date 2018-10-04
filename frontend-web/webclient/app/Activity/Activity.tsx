@@ -14,7 +14,10 @@ import { Dispatch } from "redux";
 
 class Activity extends React.Component<ActivityProps> {
 
-    componentDidMount = () => this.props.fetchActivity(0, 25);
+    componentDidMount = () => {
+        this.props.setPageTitle();
+        this.props.fetchActivity(0, 25);
+    }
 
     render() {
         const { fetchActivity, page, error, setError, loading } = this.props;

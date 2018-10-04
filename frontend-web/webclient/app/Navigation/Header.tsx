@@ -149,12 +149,9 @@ const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus())
 });
 
-const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps => {
-    console.log(header, sidebar);
-    return ({
-        sidebarOpen: sidebar.open,
-        prioritizedSearch: header.prioritizedSearch
-    });
-}
+const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps => ({
+    sidebarOpen: sidebar.open,
+    prioritizedSearch: header.prioritizedSearch
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(Header);
