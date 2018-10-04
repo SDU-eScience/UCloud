@@ -269,7 +269,6 @@ export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" |
 export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: SemanticICONS, minWidth?: number }
 
 export interface FileInfoProps {
-    dispatch: (a) => void,
     page: Page<File>
     loading: boolean
     match: { params: string[] }

@@ -9,6 +9,8 @@ import { Page } from "Types";
 import { fetchNotifications, notificationRead } from "./Redux/NotificationsActions";
 import { History } from "history";
 import Status from "Navigation/Status";
+import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
+import { Dispatch } from "redux";
 
 interface NotificationProps {
     page: Page<Notification>
@@ -19,7 +21,7 @@ interface NotificationProps {
     activeUploads: number
 }
 
-class Notifications extends React.Component<NotificationProps> {
+class Notifications extends React.Component<NotificationProps & NotificationsDispatchToProps> {
     constructor(props) {
         super(props);
     }
@@ -76,7 +78,12 @@ class Notifications extends React.Component<NotificationProps> {
         ) : null;
         const uploads = activeUploads > 0 ? (
             <>
-                {`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
+                <Button
+                    content={`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
+                    color="green"
+                    fluid
+                    onClick={() => this.props.showUploader()}
+                />
                 <Divider />
             </>
         ) : null;
@@ -159,9 +166,15 @@ class NotificationEntry extends React.Component<NotificationEntryProps, any> {
     }
 }
 
-const mapDispatchToProps = (dispatch) => ({
-    fetchNotifications: () => dispatch(fetchNotifications()),
-    notificationRead: (id) => dispatch(notificationRead(id))
+interface NotificationsDispatchToProps {
+    fetchNotifications: () => void
+    notificationRead: (id: number) => void
+    showUploader: () => void
+}
+const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps => ({
+    fetchNotifications: async () => dispatch(await fetchNotifications()),
+    notificationRead: (id) => dispatch(notificationRead(id)),
+    showUploader: () => dispatch(setUploaderVisible(true))
 });
 const mapStateToProps = (state) => ({
     ...state.notifications,

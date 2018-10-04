@@ -10,6 +10,7 @@ import { connect } from "react-redux";
 import { dateToString } from "Utilities/DateUtilities";
 import { List } from "Pagination/List";
 import { ZenodoHomeProps, ZenodoHomeState, ZenodoOperations } from ".";
+import { Dispatch } from "redux";
 
 class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
     constructor(props) {
@@ -121,11 +122,11 @@ const PublicationRow = ({ publication }) => {
         </Table.Row>);
 }
 
-const mapDispatchToProps = (dispatch): ZenodoOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): ZenodoOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage(SET_ZENODO_ERROR, undefined)),
-    fetchPublications: (pageNo, pageSize) => {
+    fetchPublications: async (pageNo, pageSize) => {
         dispatch(setZenodoLoading(true));
-        dispatch(fetchPublications(pageNo, pageSize))
+        dispatch(await fetchPublications(pageNo, pageSize))
     },
     updatePageTitle: () => dispatch(updatePageTitle("Zenodo Overview"))
 });

@@ -9,13 +9,16 @@ import { FilesTable } from "Files/Files";
 import { List as PaginationList } from "Pagination";
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { emptyPage } from "DefaultObjects";
-import { DetailedResultProps, DetailedResultState, StdElement } from ".";
+import { ReduxObject, DetailedResultReduxObject } from "DefaultObjects";
+import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations } from ".";
 import { File, SortBy, SortOrder } from "Files";
 import { AllFileOperations } from "Utilities/FileUtilities";
-import { filepathQuery, favoriteFileFromPage } from "Utilities/FileUtilities";
+import { favoriteFileFromPage } from "Utilities/FileUtilities";
 import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 import { History } from "history";
+import { Dispatch } from "redux";
+import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
+import { Page } from "Types";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -24,7 +27,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     constructor(props) {
         super(props);
         this.state = {
-            loading: false,
             complete: false,
             appState: "VALIDATED",
             status: "",
@@ -36,10 +38,9 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             stdoutOldTop: -1,
             stderrOldTop: -1,
             reloadIntervalId: -1,
-            page: emptyPage,
             promises: new PromiseKeeper()
         };
-        this.props.dispatch(updatePageTitle(`Results for Job: ${shortUUID(this.jobId)}`));
+        this.props.setPageTitle(shortUUID(this.jobId));
     }
 
     get jobId(): string {
@@ -84,7 +85,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             this.retrieveStateWhenCompleted();
             return;
         }
-        this.setState(() => ({ loading: true }));
+        this.props.setLoading(true);
         this.state.promises.makeCancelable(
             Cloud.get(hpcJobQuery(this.jobId, this.state.stdoutLine, this.state.stderrLine))
         ).promise.then(
@@ -106,31 +107,27 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             },
 
             failure => {
-                failureNotification("An error occurred retrieving StdOut and StdErr from the job.");
-                console.log(failure);
-            }).then(() => this.setState(() => ({ loading: false })), () => this.setState(() => ({ loading: false })))//.finally(() => this.setState({ loading: false }));
+                if (!failure.isCanceled)
+                    failureNotification("An error occurred retrieving Information and Output from the job.");
+            }).then(
+                () => this.props.setLoading(false),
+                () => this.props.setLoading(false)
+            );// FIXME, should be .finally(() => this.props.setLoading(false));, blocked by ts-jest
     }
 
     retrieveStateWhenCompleted() {
         if (!this.state.complete) return;
-        if (this.state.page.items.length || this.state.loading) return;
-        this.setState(() => ({ loading: true }));
-        this.retrieveFilesPage(this.state.page.pageNumber, this.state.page.itemsPerPage)
+        if (this.props.page.items.length || this.props.loading) return;
+        this.props.setLoading(true);
+        this.retrieveFilesPage(this.props.page.pageNumber, this.props.page.itemsPerPage)
     }
 
     retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
-        this.state.promises.makeCancelable(
-            Cloud.get(filepathQuery(`/home/${Cloud.username}/Jobs/${this.jobId}`, pageNumber, itemsPerPage))
-        ).promise.then(({ response }) => {
-            this.setState(() => ({
-                page: response,
-                loading: false
-            }));
-            window.clearInterval(this.state.reloadIntervalId);
-        }); // FIXME: Error Handling
+        this.props.fetchPage(this.jobId, pageNumber, itemsPerPage);
+        window.clearInterval(this.state.reloadIntervalId);
     }
 
-    favoriteFile = (file: File) => this.setState(() => ({ page: favoriteFileFromPage(this.state.page, [file], Cloud) }));
+    favoriteFile = (file: File) => this.props.receivePage(favoriteFileFromPage(this.props.page, [file], Cloud));
 
     renderProgressPanel = () => (
         <div className="job-result-box">
@@ -258,7 +255,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     renderFilePanel() {
-        const { page } = this.state;
+        const { page } = this.props;
         if (!page.items.length) return null;
         return (
             <div>
@@ -340,4 +337,14 @@ const ProgressTrackerItem = (props: { complete: boolean, active: boolean, title:
     </Step>
 );
 
-export default connect()(DetailedResult);
+export const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxObject => detailedResult;
+export const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
+    detailedResultError: (error: string) => dispatch(detailedResultError(error)),
+    setLoading: (loading: boolean) => dispatch(setLoading(loading)),
+    setPageTitle: (jobId: string) => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),
+    receivePage: (page: Page<File>) => dispatch(receivePage(page)),
+    fetchPage: async (jobId: string, pageNumber: number, itemsPerPage: number) =>
+        dispatch(await fetchPage(Cloud.username, jobId, pageNumber, itemsPerPage))
+});
+
+export default connect(mapStateToProps, mapDispatchToProps)(DetailedResult);

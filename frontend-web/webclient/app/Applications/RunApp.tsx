@@ -14,6 +14,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { RunAppProps, RunAppState, JobInfo, MaxTime } from "."
 import { Application, ParameterTypes } from ".";
 import { extractParameters } from "Utilities/ApplicationUtilities";
+import { Dispatch } from "redux";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -589,7 +590,7 @@ const OptionalText = ({ optional }) =>
     optional ? (<span className="help-block"><b>Optional</b></span>) : null;
 
 
-const mapDispatchToProps = (dispatch) => ({
+const mapDispatchToProps = (dispatch: Dispatch) => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application"))
 });
 

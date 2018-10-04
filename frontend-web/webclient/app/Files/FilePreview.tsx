@@ -10,6 +10,7 @@ import { match } from "react-router";
 import { FilesReduxObject } from "DefaultObjects";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { removeTrailingSlash, extensionTypeFromPath } from "UtilityFunctions";
+import { Dispatch } from "redux";
 
 interface FilePreviewStateProps {
     page: Page<File>
@@ -107,8 +108,8 @@ const mapStateToProps = ({ files }: { files: FilesReduxObject }) => ({
     page: files.page,
     contentCount: files.page.items.filter(it => it.content !== undefined).length
 });
-const mapDispatchToProps = (dispatch): FilePreviewOperations => ({
-    fetchPage: (path: string) => dispatch(fetchPageFromPath(path, 10)),
+const mapDispatchToProps = (dispatch: Dispatch): FilePreviewOperations => ({
+    fetchPage: async (path: string) => dispatch(await fetchPageFromPath(path, 10)),
     updatePage: (page: Page<File>) => dispatch(updateFiles(page))
 });
 

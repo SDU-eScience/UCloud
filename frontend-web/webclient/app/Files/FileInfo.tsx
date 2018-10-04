@@ -13,8 +13,20 @@ import { List as ShareList } from "Shares/List";
 import { File, Annotation, SortOrder, SortBy, FileInfoProps, FileInfoState } from "Files";
 import { annotationToString } from "Utilities/FileUtilities";
 import { ActivityFeed } from "Activity/Activity";
+import { Dispatch } from "redux";
+import { Page } from "Types";
 
-class FileInfo extends React.Component<FileInfoProps, FileInfoState> {
+interface FileInfoOperations {
+    updatePageTitle: () => void
+    setLoading: (loading: boolean) => void
+    updatePath: (path: string) => void
+    fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void
+    updateFiles: (page: Page<File>) => void
+}
+
+
+
+class FileInfo extends React.Component<FileInfoProps & FileInfoOperations, FileInfoState> {
     constructor(props) {
         super(props);
         this.state = { activity: emptyPage };
@@ -23,20 +35,20 @@ class FileInfo extends React.Component<FileInfoProps, FileInfoState> {
     get path(): string { return this.props.match.params[0]; }
 
     componentDidMount() {
-        const { filesPath, dispatch, loading, page } = this.props;
-        dispatch(updatePageTitle("File Info"));
+        const { filesPath, loading, page } = this.props;
+        this.props.updatePageTitle();
         // FIXME: Either move to promiseKeeper, or redux store
         Cloud.get(`/activity/stream/by-path?path=${this.path}`).then(({ response }) => this.setState({ activity: response }));
         if (!(getParentPath(this.path) === filesPath)) {
-            dispatch(setLoading(true));
+            this.props.setLoading(true);
             if (loading) return;
-            dispatch(fetchPageFromPath(this.path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH));
-            dispatch(updatePath(this.path));
+            this.props.fetchPageFromPath(this.path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH);
+            this.props.updatePath(this.path);
         }
     }
 
     render() {
-        const { page, dispatch, loading } = this.props;
+        const { page, loading } = this.props;
         const file = page.items.find(file => file.path === removeTrailingSlash(this.path));
         if (!file) { return (<DefaultLoading loading={true} />) }
         return (
@@ -45,7 +57,7 @@ class FileInfo extends React.Component<FileInfoProps, FileInfoState> {
                     <Header.Content content={replaceHomeFolder(file.path, Cloud.homeFolder)} />
                     <Header.Subheader content={toLowerCaseAndCapitalize(file.fileType)} />
                 </Header>                               {/* MapDispatchToProps */}
-                <FileView file={file} favorite={() => dispatch(updateFiles(favoriteFileFromPage(page, [file], Cloud)))} />
+                <FileView file={file} favorite={() => this.props.updateFiles(favoriteFileFromPage(page, [file], Cloud))} />
                 {this.state.activity.items.length ? (<Segment><ActivityFeed activity={this.state.activity.items} /></Segment>) : null}
                 {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
                 <ShareList byPath={file.path} />
@@ -128,4 +140,13 @@ const mapStateToProps = ({ files }) => ({
     favoriteCount: files.page.items.filter(file => file.favorited).length // Hack to ensure rerender
 });
 
-export default connect(mapStateToProps)(FileInfo);
+const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
+    updatePageTitle: () => dispatch(updatePageTitle("File Info")),
+    setLoading: (loading: boolean) => setLoading(loading),
+    updatePath: (path: string) => dispatch(updatePath(path)),
+    fetchPageFromPath: async (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) =>
+        dispatch(await fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy)),
+        updateFiles: (page: Page<File>) => dispatch(updateFiles(page))
+});
+
+export default connect(mapStateToProps, mapDispatchToProps)(FileInfo);

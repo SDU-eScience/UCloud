@@ -11,9 +11,9 @@ import { Upload, UploaderProps } from ".";
 import { setUploaderVisible, setUploads } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
 
-
-const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => !!it.uploadXHR && it.uploadXHR.readyState === 4);
-const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => !!it.uploadXHR && it.uploadXHR.readyState === 4).length;
+const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
+const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
+const isFinishedUploading = (xhr?: XMLHttpRequest): boolean => !!xhr && xhr.readyState === XMLHttpRequest.DONE;
 
 const newUpload = (file: File): Upload => ({
     file,
@@ -59,7 +59,7 @@ class Uploader extends React.Component<UploaderProps> {
             upload.uploadXHR = xhr;
             this.props.dispatch(setUploads(this.props.uploads));
         };
-        
+
         window.addEventListener("beforeunload", this.beforeUnload);
         if (!upload.extractArchive) {
             multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, e => {
@@ -156,6 +156,7 @@ const UploaderRow = (p: {
     extractArchive: boolean,
     isUploading: boolean,
     progressPercentage: number,
+    uploadXHR?: XMLHttpRequest,
     onExtractChange?: (value: boolean) => void,
     onUpload?: (e: React.MouseEvent<any>) => void,
     onDelete?: (e: React.MouseEvent<any>) => void,
@@ -222,7 +223,7 @@ const UploaderRow = (p: {
             </Grid.Column>
 
             <Grid.Column width={3}>
-                <Button icon="close" content="Cancel" fluid negative onClick={(e) => ifPresent(p.onAbort, c => c(e))} />
+                <Button icon="close" content="Cancel" disabled={isFinishedUploading(p.uploadXHR)} fluid negative onClick={(e) => ifPresent(p.onAbort, c => c(e))} />
             </Grid.Column>
         </>;
     }
@@ -245,7 +246,6 @@ const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some
 interface UploaderStateToProps {
     visible: boolean
     location: string
-
 }
 
 const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({

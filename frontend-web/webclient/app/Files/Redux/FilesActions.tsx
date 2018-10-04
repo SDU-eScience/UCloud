@@ -25,9 +25,6 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
     ReceiveFileSelectorFilesAction | Action<typeof SET_FILE_SELECTOR_LOADING> | SetFileSelectorCallbackAction |
     Error<typeof SET_FILE_SELECTOR_ERROR> | SetDisallowedPathsAction | SetSortingColumnAction
 
-
-
-
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
 * and implicitly sets {filesLoading} to false in the reducer when the files are fetched.
@@ -36,13 +33,14 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
 * @param {Page<File>} page number of the page to be fetched
 */
 
-export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR>> =>
+export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError> =>
     Cloud.get(filepathQuery(path, page, itemsPerPage, order, sortBy)).then(({ response }) =>
         receiveFiles(response, path, order, sortBy)
     ).catch(() =>
         setErrorMessage(`An error occurred fetching files for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
     );
 
+type FilesError = Error<typeof FILES_ERROR>
 /**
  * Sets the error message for the Files component.
  * @param {error?} error the error message. undefined means nothing is rendered.

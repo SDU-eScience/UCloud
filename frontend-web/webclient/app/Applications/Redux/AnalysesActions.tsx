@@ -30,7 +30,7 @@ const receiveAnalyses = (page: Page<Analysis>): ReceiveAnalysesProps => ({
 type AnalysesError = Error<typeof SET_ANALYSES_ERROR>
 /**
  * Used to set or remove the error for the component
- * @param {string?} error The error to be renered in the component. Nothing will be rendered if string is null
+ * @param {string?} error The error to be rendered in the component. Nothing will be rendered if string is null
  * @returns {Error}
  */
 export const setErrorMessage = (error?: string): AnalysesError => ({

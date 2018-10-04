@@ -13,6 +13,7 @@ import { Notification } from "Notifications";
 import { Upload } from "Uploader";
 import { Activity } from "Activity";
 import { Reducer } from "redux";
+import { SimpleSearchStateProps } from "SimpleSearch";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -147,7 +148,7 @@ export type ApplicationReduxObject = ComponentWithPage<Application>;
 export type ActivityReduxObject = ComponentWithPage<Activity>
 
 export type HeaderSearchType = "files" | "applications" | "projects";
- 
+
 export interface UploaderReduxObject {
     uploads: Upload[]
     visible: boolean
@@ -169,7 +170,15 @@ export interface Reducers {
     header?: Reducer<HeaderSearchReduxObject>
     sidebar?: Reducer<SidebarReduxObject>
     activity?: Reducer<ActivityReduxObject>
+    detailedResult?: Reducer<DetailedResultReduxObject>
 }
+
+export type DetailedResultReduxObject = ComponentWithPage<File>
+export const initDetailedResult = (): DetailedResultReduxObject => ({
+    page: emptyPage,
+    loading: false,
+    error: undefined
+});
 
 export interface ReduxObject {
     dashboard: DashboardStateProps
@@ -184,6 +193,8 @@ export interface ReduxObject {
     header: HeaderSearchReduxObject
     sidebar: SidebarReduxObject
     activity: ActivityReduxObject
+    detailedResult: DetailedResultReduxObject
+    simpleSearch: SimpleSearchStateProps
 }
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -239,8 +250,21 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     zenodo: initZenodo(),
     sidebar: initSidebar(),
     uploader: initUploads(),
-    activity: initActivity()
+    activity: initActivity(),
+    detailedResult: initDetailedResult(),
+    simpleSearch: initSimpleSearch()
 });
+
+export const initSimpleSearch = () => ({
+    files: emptyPage,
+    filesLoading: false,
+    applications: emptyPage,
+    applicationsLoading: false,
+    projects: emptyPage,
+    projectsLoading: false,
+    error: undefined,
+    search: ""
+})
 
 export const initAnalyses = (): ComponentWithPage<Analysis> => ({
     page: emptyPage,

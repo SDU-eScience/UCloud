@@ -1,10 +1,9 @@
 import Cloud from "Authentication/lib";
-import { File, MoveCopyOperations, FileOperation, Operation, SortOrder, SortBy, Acl, Annotation, AnnotationsMap, PredicatedOperation } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, Annotation, AnnotationsMap, PredicatedOperation } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
-
 
 export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud): void {
     let i = 0;
@@ -18,12 +17,14 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
         files.forEach((f) => {
             const currentPath = f.path;
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
-            cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => i++).catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`)).finally(() => {
-                if (i === files.length) {
-                    operations.fetchPageFromPath(newPathForFile);
-                    UF.successNotification("File copied.");
-                }
-            });
+            cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => i++)
+                .catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`))
+                .finally(() => {
+                    if (i === files.length) {
+                        operations.fetchPageFromPath(newPathForFile);
+                        UF.successNotification("File copied.");
+                    }
+                });
             UF.failureNotification(`An error occurred, please try again later.`);
         }); // End forEach
     }); // End Callback
@@ -118,6 +119,8 @@ export const filepathQuery = (path: string, page: number, itemsPerPage: number, 
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files/lookup?path=${UF.removeTrailingSlash(path)}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
 
+export const fileSearchQuery = (search: string, pageNumber: number, itemsPerPage: number) =>
+     `/file-search?query=${search}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`
 
 
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({

@@ -6,7 +6,7 @@
   "jest": {
     "globals": {
       "ts-jest": {
-        "tsConfig": "tsconfig.json",
+        "tsConfig": "<rootDir>/tsconfig.json",
         "diagnostics": {
           "ignoreCodes": [
             151001
@@ -58,8 +58,8 @@
     "react": "16.5.2",
     "react-datepicker": "^1.6.0",
     "react-dom": "16.5.2",
-    "react-dropzone": "^5.1.1",
-    "react-markdown": "^3.6.0",
+    "react-dropzone": "^6.0.2",
+    "react-markdown": "^4.0.1",
     "react-redux": "^5.0.7",
     "react-router": "4.3.1",
     "react-router-dom": "4.3.1",
@@ -73,14 +73,14 @@
     "@babel/core": "^7.1.2",
     "@types/enzyme": "^3.1.14",
     "@types/enzyme-adapter-react-16": "^1.0.3",
-    "@types/jest": "^23.3.2",
+    "@types/jest": "^23.3.3",
     "@types/react": "^16.4.14",
     "@types/react-datepicker": "^1.1.7",
     "@types/react-dom": "^16.0.8",
     "@types/react-redux": "^6.0.9",
     "@types/react-router": "^4.0.31",
     "@types/react-router-dom": "^4.3.1",
-    "@types/react-test-renderer": "16.0.2",
+    "@types/react-test-renderer": "16.0.3",
     "babel-jest": "23.6.0",
     "babel-loader": "8.0.4",
     "babel-plugin-transform-object-rest-spread": "^6.26.0",

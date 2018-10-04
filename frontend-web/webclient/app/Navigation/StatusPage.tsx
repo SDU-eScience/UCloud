@@ -3,6 +3,7 @@ import { connect } from "react-redux";
 import { updatePageTitle } from "./Redux/StatusActions";
 import { Segment } from "semantic-ui-react";
 import { statusToColor } from "Navigation/Status";
+import { Dispatch } from "redux";
 
 const Status = ({ status, updatePageTitle }) => {
     updatePageTitle();
@@ -14,6 +15,6 @@ const Status = ({ status, updatePageTitle }) => {
     );
 };
 
-const mapDispatchToProps = (dispatch) => ({ updatePageTitle: () => dispatch(updatePageTitle("System Status")) });
+const mapDispatchToProps = (dispatch: Dispatch) => ({ updatePageTitle: () => dispatch(updatePageTitle("System Status")) });
 const mapStateToProps = ({ status }) => ({ status: status.status });
 export default connect(mapStateToProps, mapDispatchToProps)(Status);

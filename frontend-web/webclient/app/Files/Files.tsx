@@ -24,6 +24,7 @@ import {
     startRenamingFiles, AllFileOperations, newMockFolder, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
+import { Dispatch } from "redux";
 
 class Files extends React.Component<FilesProps> {
 
@@ -381,22 +382,22 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     }
 };
 
-const mapDispatchToProps = (dispatch): FilesOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
     onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(undefined)),
     dismissError: () => dispatch(Actions.setErrorMessage()),
-    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => {
+    fetchFiles: async (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => {
         dispatch(Actions.updatePath(path));
         dispatch(Actions.setLoading(true));
         if (index != null) dispatch(Actions.setSortingColumn(sortBy, index));
-        dispatch(Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy));
+        dispatch(await Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy));
     },
-    fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => {
+    fetchPageFromPath: async (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => {
         dispatch(Actions.setLoading(true));
-        dispatch(Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy));
+        dispatch(await Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy));
     },
     updatePath: (path: string) => dispatch(Actions.updatePath(path)),
-    fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => dispatch(Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
+    fetchSelectorFiles: async (path: string, pageNumber: number, itemsPerPage: number) => dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
     showFileSelector: (open: boolean) => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: (callback) => dispatch(Actions.setFileSelectorCallback(callback)),
     checkFile: (checked: boolean, page: Page<File>, newFile: File) => { // FIXME: Make an action instead with path?
