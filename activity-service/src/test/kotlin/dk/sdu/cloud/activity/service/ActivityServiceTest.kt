@@ -341,4 +341,141 @@ class ActivityServiceTest {
             )
         }
     }
+
+    @Test
+    fun `stream conversion - file report - different users - counted`() {
+        val (service, dao) = initStreamConversionTest()
+        val fileId = "fileId"
+        val userA = "userA"
+        val userB = "userB"
+
+        service.insertBatch(
+            Unit, listOf(
+                ActivityEvent.Download(userA, 0L, fileId),
+                ActivityEvent.Download(userB, 0L, fileId)
+            )
+        )
+
+        verify {
+            dao.insertBatchIntoStream(
+                any(),
+
+                ActivityStream(ActivityStreamSubject.File(fileId)),
+
+                match { entries ->
+                    assertEquals(1, entries.size)
+                    val entry = entries.single() as ActivityStreamEntry.Counted
+                    assertEquals(1, entry.files.size)
+                    assertEquals(fileId, entry.files.single().id)
+                    assertEquals(2, entry.users.size)
+                    assertTrue(userA in entry.users.map { it.username })
+                    assertTrue(userB in entry.users.map { it.username })
+                    true
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `stream conversion - user report - different users - counted`() {
+        val (service, dao) = initStreamConversionTest()
+        val fileId = "fileId"
+        val userA = "userA"
+        val userB = "userB"
+
+        service.insertBatch(
+            Unit, listOf(
+                ActivityEvent.Download(userA, 0L, fileId),
+                ActivityEvent.Download(userB, 0L, fileId)
+            )
+        )
+
+        verify {
+            dao.insertBatchIntoStream(
+                any(),
+
+                ActivityStream(ActivityStreamSubject.User(userA)),
+
+                match { entries ->
+                    assertEquals(1, entries.size)
+                    val entry = entries.single() as ActivityStreamEntry.Counted
+                    assertEquals(1, entry.files.size)
+                    assertEquals(fileId, entry.files.single().id)
+                    assertEquals(1, entry.users.size)
+                    assertTrue(userA in entry.users.map { it.username })
+                    assertTrue(userB !in entry.users.map { it.username })
+                    true
+                }
+            )
+        }
+    }
+
+
+    @Test
+    fun `stream conversion - file report - different users - tracked`() {
+        val (service, dao) = initStreamConversionTest()
+        val fileId = "fileId"
+        val userA = "userA"
+        val userB = "userB"
+
+        service.insertBatch(
+            Unit, listOf(
+                ActivityEvent.Updated(userA, 0L, fileId),
+                ActivityEvent.Updated(userB, 0L, fileId)
+            )
+        )
+
+        verify {
+            dao.insertBatchIntoStream(
+                any(),
+
+                ActivityStream(ActivityStreamSubject.File(fileId)),
+
+                match { entries ->
+                    assertEquals(1, entries.size)
+                    val entry = entries.single() as ActivityStreamEntry.Tracked
+                    assertEquals(1, entry.files.size)
+                    assertEquals(fileId, entry.files.single().id)
+                    assertEquals(2, entry.users.size)
+                    assertTrue(userA in entry.users.map { it.username })
+                    assertTrue(userB in entry.users.map { it.username })
+                    true
+                }
+            )
+        }
+    }
+
+    @Test
+    fun `stream conversion - user report - different users - tracked`() {
+        val (service, dao) = initStreamConversionTest()
+        val fileId = "fileId"
+        val userA = "userA"
+        val userB = "userB"
+
+        service.insertBatch(
+            Unit, listOf(
+                ActivityEvent.Updated(userA, 0L, fileId),
+                ActivityEvent.Updated(userB, 0L, fileId)
+            )
+        )
+
+        verify {
+            dao.insertBatchIntoStream(
+                any(),
+
+                ActivityStream(ActivityStreamSubject.User(userA)),
+
+                match { entries ->
+                    assertEquals(1, entries.size)
+                    val entry = entries.single() as ActivityStreamEntry.Tracked
+                    assertEquals(1, entry.files.size)
+                    assertEquals(fileId, entry.files.single().id)
+                    assertEquals(1, entry.users.size)
+                    assertTrue(userA in entry.users.map { it.username })
+                    assertTrue(userB !in entry.users.map { it.username })
+                    true
+                }
+            )
+        }
+    }
 }
