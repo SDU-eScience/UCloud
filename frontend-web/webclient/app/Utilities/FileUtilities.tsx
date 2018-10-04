@@ -190,9 +190,9 @@ export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], 
 export const favoriteFile = (file: File, cloud: Cloud): void => {
     file.favorited = !file.favorited;
     if (file.favorited)
-        cloud.post(`/files/favorite?path=${file.path}`, {});
+        cloud.post(`/files/favorite?path=${file.path}`, {}); // FIXME: Error handling
     else
-        cloud.delete(`/files/favorite?path=${file.path}`, {});
+        cloud.delete(`/files/favorite?path=${file.path}`, {}); // FIXME: Error handling
 }
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>

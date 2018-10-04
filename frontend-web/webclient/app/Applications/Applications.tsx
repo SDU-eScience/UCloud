@@ -65,26 +65,19 @@ export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) 
     const hashCode = toHashCode(app.description.info.name);
     const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
     const mClength = MaterialColors[color].length;
-    const hex = MaterialColors[color][(hashCode % mClength)];
+    const hex = { background: MaterialColors[color][(hashCode % mClength)] };
     const even = app.modifiedAt % 2 === 0;
-    const opacity = even ? 0.3 : 1;
     const { description } = app.description;
     const image = even ? blurOverlay : `https://placekitten.com/200/200`;
+    const imageStyle = {
+        opacity: even ? 0.3 : 1,
+        backgroundImage: `url('${image}')`
+    };
     return (
         <Card>
-            {/* FIXME: Move styling to .scss file where possible */}
-            <div style={{
-                background: hex
-            }}>
+            <div style={hex}>
                 <Link to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}>
-                    <div style={{
-                        opacity: opacity,
-                        width: "100%",
-                        height: "200px",
-                        backgroundImage: `url('${image}')`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center"
-                    }} />
+                    <div className="app-image" style={imageStyle} />
                 </Link>
             </div>
             <Card.Content>
@@ -114,7 +107,7 @@ export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) 
 
 function toHashCode(name: string): number {
     let hash = 0;
-    if (name.length == 0) {
+    if (name.length == 0) { // FIXME can this ever happen?
         return hash;
     }
     for (let i = 0; i < name.length; i++) {
