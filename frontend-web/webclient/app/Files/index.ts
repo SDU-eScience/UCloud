@@ -90,12 +90,12 @@ export interface FilesOperations { // Redux operations
     fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
-    checkFile: (checked: boolean, page: Page<File>, newFile: File) => void
+    checkFile: (checked: boolean, path: string) => void
     setPageTitle: () => void
     updateFiles: (files: Page<File>) => void
     updatePath: (path: string) => void
     showFileSelector: (open: boolean) => void
-    checkAllFiles: (checked: boolean, page: Page<File>) => void
+    checkAllFiles: (checked: boolean) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
     showUploader: () => void
     setUploaderCallback: (callback) => void

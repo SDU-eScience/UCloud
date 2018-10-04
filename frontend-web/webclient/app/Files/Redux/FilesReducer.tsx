@@ -14,6 +14,8 @@ export const SET_FILE_SELECTOR_CALLBACK = "SET_FILE_SELECTOR_CALLBACK";
 export const SET_DISALLOWED_PATHS = "SET_DISALLOWED_PATHS";
 export const FILES_ERROR = "FILES_ERROR";
 export const SET_FILE_SELECTOR_ERROR = "SET_FILE_SELECTOR_ERROR";
+export const CHECK_ALL_FILES = "CHECK_ALL_FILES";
+export const CHECK_FILE = "CHECK_FILE";
 
 const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: FileActions): FilesReduxObject => {
     switch (action.type) {
@@ -57,6 +59,26 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
         }
         case FILES_ERROR: {
             return { ...state, error: action.payload.error, loading: false };
+        }
+        case CHECK_ALL_FILES: {
+            return {
+                ...state, page: {
+                    ...state.page, items: state.page.items.map((f) => {
+                        f.isChecked = action.payload.checked;
+                        return f;
+                    })
+                }
+            }
+        }
+        case CHECK_FILE: {
+            return {
+                ...state, page: {
+                    ...state.page, items: state.page.items.map((f) => {
+                        if (action.payload.path === f.path) f.isChecked = action.payload.checked
+                        return f;
+                    })
+                }
+            }
         }
         case SET_FILES_SORTING_COLUMN: {
             const { sortingColumns } = state;

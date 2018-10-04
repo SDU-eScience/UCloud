@@ -82,7 +82,7 @@ class Files extends React.Component<FilesProps> {
         const selectedFiles = page.items.filter(file => file.isChecked);
         const checkbox = (<Checkbox
             className="hidden-checkbox checkbox-margin"
-            onClick={(_, d) => this.props.checkAllFiles(!!d.checked, page)}
+            onClick={(_, d) => this.props.checkAllFiles(!!d.checked)}
             checked={page.items.length === selectedFiles.length && page.items.length > 0}
             indeterminate={selectedFiles.length < page.items.length && selectedFiles.length > 0}
             onChange={(e) => e.stopPropagation()}
@@ -135,7 +135,7 @@ class Files extends React.Component<FilesProps> {
                                 onRenameFile={this.onRenameFile}
                                 files={page.items}
                                 sortBy={sortBy}
-                                onCheckFile={(checked: boolean, file: File) => checkFile(checked, page, file)}
+                                onCheckFile={(checked: boolean, file: File) => checkFile(checked, file.path)}
                             />
                         )}
                         onRefresh={refetch}
@@ -400,14 +400,10 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     fetchSelectorFiles: async (path: string, pageNumber: number, itemsPerPage: number) => dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
     showFileSelector: (open: boolean) => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: (callback) => dispatch(Actions.setFileSelectorCallback(callback)),
-    checkFile: (checked: boolean, page: Page<File>, newFile: File) => { // FIXME: Make an action instead with path?
-        const item = page.items.find(file => file.path === newFile.path);
-        if (item) item.isChecked = checked;
-        dispatch(Actions.updateFiles(page));
-    },
+    checkFile: (checked: boolean, path: string) => dispatch(Actions.checkFile(checked, path)),
     setPageTitle: () => dispatch(updatePageTitle("Files")),
     updateFiles: (page: Page<File>) => dispatch(Actions.updateFiles(page)),
-    checkAllFiles: (checked: boolean, page: Page<File>) => dispatch(Actions.checkAllFiles(checked, page)),
+    checkAllFiles: (checked: boolean) => dispatch(Actions.checkAllFiles(checked)),
     setDisallowedPaths: (disallowedPaths: string[]) => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
     showUploader: () => dispatch(setUploaderVisible(true)),
     setUploaderCallback: (callback) => dispatch(setUploaderCallback(callback))

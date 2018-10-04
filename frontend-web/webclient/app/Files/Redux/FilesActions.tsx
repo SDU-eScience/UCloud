@@ -11,7 +11,9 @@ import {
     SET_FILE_SELECTOR_CALLBACK,
     SET_DISALLOWED_PATHS,
     FILES_ERROR,
-    SET_FILE_SELECTOR_ERROR
+    SET_FILE_SELECTOR_ERROR,
+    CHECK_ALL_FILES,
+    CHECK_FILE
 } from "./FilesReducer";
 import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
@@ -23,7 +25,8 @@ import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
 export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage<typeof UPDATE_FILES, File> |
     SetLoadingAction<typeof SET_FILES_LOADING> | UpdatePathAction | FileSelectorShownAction |
     ReceiveFileSelectorFilesAction | Action<typeof SET_FILE_SELECTOR_LOADING> | SetFileSelectorCallbackAction |
-    Error<typeof SET_FILE_SELECTOR_ERROR> | SetDisallowedPathsAction | SetSortingColumnAction
+    Error<typeof SET_FILE_SELECTOR_ERROR> | SetDisallowedPathsAction | SetSortingColumnAction | CheckAllFilesAction |
+    CheckFileAction
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
@@ -203,7 +206,17 @@ export const setFileSelectorError = (error?: string): Error<typeof SET_FILE_SELE
     payload: { error }
 });
 
-export const checkAllFiles = (checked: boolean, page: Page<File>) => {
-    page.items.forEach((it) => it.isChecked = checked);
-    return updateFiles(page);
-}
+type CheckAllFilesAction = PayloadAction<typeof CHECK_ALL_FILES, { checked: boolean }>
+export const checkAllFiles = (checked: boolean): CheckAllFilesAction => ({
+    type: CHECK_ALL_FILES,
+    payload: { checked }
+});
+
+type CheckFileAction = PayloadAction<typeof CHECK_FILE, { checked: boolean, path: string }>
+export const checkFile = (checked: boolean, path: string): CheckFileAction => ({
+    type: CHECK_FILE,
+    payload: {
+        checked,
+        path
+    }
+}); 

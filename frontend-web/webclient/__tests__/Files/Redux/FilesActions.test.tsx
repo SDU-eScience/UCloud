@@ -13,13 +13,13 @@ nonEmptyPageStore.getState().files.page = mockFiles_SensitivityConfidential;
 
 describe("Check All Files", () => {
     test("Check all files in empty page", () => {
-        emptyPageStore.dispatch(FileActions.checkAllFiles(true, emptyPageStore.getState().files.page));
+        emptyPageStore.dispatch(FileActions.checkAllFiles(true));
         expect(emptyPageStore.getState().files).toBe(emptyPageStore.getState().files);
     });
 
     test("Check all files in non-empty page", () => {
         const checked = true;
-        nonEmptyPageStore.dispatch(FileActions.checkAllFiles(checked, nonEmptyPageStore.getState().files.page));
+        nonEmptyPageStore.dispatch(FileActions.checkAllFiles(checked));
         const page = { ...nonEmptyPageStore.getState().files.page }
         page.items.forEach(f => f.isChecked = checked);
         expect(nonEmptyPageStore.getState().files.page).toEqual(page);
@@ -27,8 +27,8 @@ describe("Check All Files", () => {
 
     test("Remove check from all files in non-empty page", () => {
         const checked = true;
-        nonEmptyPageStore.dispatch(FileActions.checkAllFiles(checked, nonEmptyPageStore.getState().files.page));
-        nonEmptyPageStore.dispatch(FileActions.checkAllFiles(!checked, nonEmptyPageStore.getState().files.page));
+        nonEmptyPageStore.dispatch(FileActions.checkAllFiles(checked));
+        nonEmptyPageStore.dispatch(FileActions.checkAllFiles(!checked));
         const page = { ...nonEmptyPageStore.getState().files.page }
         page.items.forEach(f => f.isChecked = !checked);
         expect(nonEmptyPageStore.getState().files.page).toEqual(page);
