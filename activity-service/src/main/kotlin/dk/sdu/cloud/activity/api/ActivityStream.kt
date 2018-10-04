@@ -114,7 +114,6 @@ enum class TrackedFileActivityOperation {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
     // events related to file activity
 
-    CREATE,
     UPDATE,
     DELETE,
     MOVED;
