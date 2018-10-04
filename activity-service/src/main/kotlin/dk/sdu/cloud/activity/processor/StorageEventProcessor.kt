@@ -17,7 +17,8 @@ class StorageEventProcessor<DBSession>(
     private val parallelism: Int = 4
 ) {
     private val transformers: List<SEventTransformer> = listOf(
-        this::updatedTransformer
+        this::updatedTransformer,
+        this::deletedTransformer
     )
 
     fun init(): List<EventConsumer<*>> = (0 until parallelism).map { _ ->
@@ -55,6 +56,13 @@ class StorageEventProcessor<DBSession>(
         val causedBy = event.eventCausedBy ?: return emptyList()
 
         return listOf(ActivityEvent.Updated(causedBy, event.timestamp, event.id))
+    }
+
+    private fun deletedTransformer(event: StorageEvent): List<ActivityEvent>? {
+        if (event !is StorageEvent.Deleted) return emptyList()
+        val causedBy = event.eventCausedBy ?: return emptyList()
+
+        return listOf(ActivityEvent.Deleted(event.timestamp, event.id, causedBy))
     }
 
     companion object : Loggable {

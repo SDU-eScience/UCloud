@@ -1,8 +1,10 @@
 package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityEvent
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.mapItems
 import java.util.*
 import javax.persistence.*
 
@@ -101,6 +103,16 @@ sealed class ActivityEventEntity {
         override fun toModel(): ActivityEvent = ActivityEvent.Moved(username, newName, timestamp.time, fileId)
     }
 
+    @Entity
+    class Deleted(
+        var username: String,
+        override var fileId: String,
+        override var timestamp: Date,
+        override var id: Long? = null
+    ) : ActivityEventEntity() {
+        override fun toModel(): ActivityEvent = ActivityEvent.Deleted(timestamp.time, fileId, username)
+    }
+
     companion object : HibernateEntity<ActivityEventEntity>, WithId<Long> {
         fun fromEvent(event: ActivityEvent): ActivityEventEntity {
             return when (event) {
@@ -111,15 +123,24 @@ sealed class ActivityEventEntity {
                     ActivityEventEntity.Updated(event.username, event.fileId, timestamp = Date(event.timestamp))
 
                 is ActivityEvent.Favorite ->
-                    ActivityEventEntity.Favorite(event.username, event.isFavorite, event.fileId,
-                        timestamp = Date(event.timestamp))
+                    ActivityEventEntity.Favorite(
+                        event.username, event.isFavorite, event.fileId,
+                        timestamp = Date(event.timestamp)
+                    )
 
                 is ActivityEvent.Inspected ->
                     ActivityEventEntity.Inspected(event.username, event.fileId, timestamp = Date(event.timestamp))
 
                 is ActivityEvent.Moved ->
-                    ActivityEventEntity.Moved(event.username, event.newName, event.fileId,
-                        timestamp = Date(event.timestamp))
+                    ActivityEventEntity.Moved(
+                        event.username, event.newName, event.fileId,
+                        timestamp = Date(event.timestamp)
+                    )
+
+                is ActivityEvent.Deleted ->
+                    ActivityEventEntity.Deleted(
+                        event.username, event.fileId, timestamp = Date(event.timestamp)
+                    )
             }
         }
     }

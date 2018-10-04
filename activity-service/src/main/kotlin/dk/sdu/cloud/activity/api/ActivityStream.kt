@@ -122,6 +122,7 @@ enum class TrackedFileActivityOperation {
         fun fromEventOrNull(event: ActivityEvent): TrackedFileActivityOperation? = when (event) {
             is ActivityEvent.Updated -> UPDATE
             is ActivityEvent.Moved -> MOVED
+            is ActivityEvent.Deleted -> DELETE
             else -> null
         }
     }
