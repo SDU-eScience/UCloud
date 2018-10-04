@@ -1,4 +1,6 @@
 set search_path to activity;
+
+-- The old SQL code was BAD. We just delete the whole thing.
 drop table if exists activity_events;
 drop table if exists activity_stream_entries;
 drop table if exists activity_stream_entries_file_references;
