@@ -12,6 +12,8 @@ import dk.sdu.cloud.service.mapItems
 import java.io.Serializable
 import java.util.*
 import javax.persistence.*
+import javax.persistence.criteria.Expression
+import javax.persistence.criteria.Predicate
 import kotlin.collections.HashSet
 
 @Embeddable
@@ -162,7 +164,7 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
 
     override fun insertIntoStream(session: HibernateSession, stream: ActivityStream, entry: ActivityStreamEntry<*>) {
         log.debug("Inserting entry into stream: stream = $stream, entry = $entry")
-        val earliestTimestampForInsertion = Date(System.currentTimeMillis() - 1000 * 60 * 30)
+        val earliestTimestampForInsertion = Date(entry.timestamp - 1000 * 60 * 30)
 
         val existing = session.criteria<HActivityStreamEntry> {
             val header = entity[HActivityStreamEntry::header]
@@ -170,7 +172,8 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
             (header[HActivityStreamKey::id] equal stream.subject.toId()) and
                     (header[HActivityStreamKey::subjectType] equal stream.subject.toType()) and
                     (header[HActivityStreamKey::operation] equal entry.operation.name) and
-                    (header[HActivityStreamKey::timestamp] greaterThan earliestTimestampForInsertion)
+                    (builder.greaterThanOrEqualTo(header[HActivityStreamKey::timestamp], earliestTimestampForInsertion))
+            // TODO We are missing a greaterThanOrEqualsTo call in criteria DSL
         }.list().firstOrNull()
 
         if (existing == null) {
