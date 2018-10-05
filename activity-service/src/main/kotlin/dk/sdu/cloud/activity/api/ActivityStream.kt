@@ -88,7 +88,7 @@ sealed class StreamFileReference {
         override val path: String?,
         val count: Int
     ) : StreamFileReference() {
-        override fun toString(): String = "Counted(id='$id', path=$path, count=$count)"
+        override fun toString(): String = "WithOpCount(id='$id', path=$path, count=$count)"
 
         fun withPath(path: String?): WithOpCount = WithOpCount(id, path, count)
     }
@@ -98,12 +98,10 @@ enum class CountedFileActivityOperation {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
     // events related to file activity
 
-    FAVORITE,
     DOWNLOAD;
 
     companion object {
         fun fromEventOrNull(event: ActivityEvent): CountedFileActivityOperation? = when (event) {
-            is ActivityEvent.Favorite -> FAVORITE
             is ActivityEvent.Download -> DOWNLOAD
             else -> null
         }
@@ -114,12 +112,19 @@ enum class TrackedFileActivityOperation {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
     // events related to file activity
 
+    FAVORITE,
+    REMOVE_FAVORITE,
     UPDATE,
     DELETE,
     MOVED;
 
     companion object {
         fun fromEventOrNull(event: ActivityEvent): TrackedFileActivityOperation? = when (event) {
+            is ActivityEvent.Favorite -> {
+                if (event.isFavorite) FAVORITE
+                else REMOVE_FAVORITE
+            }
+
             is ActivityEvent.Updated -> UPDATE
             is ActivityEvent.Moved -> MOVED
             is ActivityEvent.Deleted -> DELETE

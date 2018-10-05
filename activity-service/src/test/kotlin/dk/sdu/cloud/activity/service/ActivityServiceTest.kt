@@ -168,37 +168,6 @@ class ActivityServiceTest {
     }
 
     @Test
-    fun `stream conversion - negative favorites`() {
-        val (service, dao) = initStreamConversionTest()
-
-        val user = "user"
-        val negativeCount = 5
-        val positiveCount = 3
-        val fileId = "fileId"
-        val events =
-            (0 until negativeCount).map {
-                ActivityEvent.Favorite(user, false, System.currentTimeMillis(), fileId)
-            } + (0 until positiveCount).map {
-                ActivityEvent.Favorite(user, true, System.currentTimeMillis(), fileId)
-            }
-
-        service.insertBatch(Unit, events)
-
-        verify(atLeast = 0, atMost = 1) {
-            dao.insertBatchIntoStream(
-                any(),
-
-                ActivityStream(ActivityStreamSubject.File(fileId)),
-
-                match { events ->
-                    assertEquals(0, events.size)
-                    true
-                }
-            )
-        }
-    }
-
-    @Test
     fun `stream conversion - user report - updates`() {
         data class Update(val user: String, val fileIds: List<String>) {
             fun toEvents() = fileIds.map { ActivityEvent.Updated(user, System.currentTimeMillis(), it) }

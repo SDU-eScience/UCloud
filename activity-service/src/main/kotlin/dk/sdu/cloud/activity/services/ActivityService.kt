@@ -66,41 +66,24 @@ class ActivityService<DBSession>(
             CountedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
                 val eventsByFileId = allEventsOfType.groupBy { it.fileId }
 
-                val counts = eventsByFileId.mapNotNull { (fileId, eventsForFile) ->
-                    val count = eventsForFile.sumBy {
-                        if (operation == CountedFileActivityOperation.FAVORITE) {
-                            if ((it as ActivityEvent.Favorite).isFavorite) 1
-                            else -1
-                        } else {
-                            1
-                        }
-                    }
-
-                    if (count <= 0) {
-                        null
-                    } else {
-                        fileId to count
-                    }
+                val counts = eventsByFileId.map { (fileId, eventsForFile) ->
+                    fileId to eventsForFile.size
                 }
 
-                return@flatMap if (counts.all { it.second == 0 }) {
-                    emptyList()
-                } else {
-                    listOf(
-                        ActivityStreamEntry.Counted(
-                            operation,
-                            timestamp,
-                            counts.asSequence().map {
-                                StreamFileReference.WithOpCount(
-                                    it.first,
-                                    null,
-                                    it.second
-                                )
-                            }.toSet(),
-                            users
-                        )
+                return@flatMap listOf(
+                    ActivityStreamEntry.Counted(
+                        operation,
+                        timestamp,
+                        counts.asSequence().map {
+                            StreamFileReference.WithOpCount(
+                                it.first,
+                                null,
+                                it.second
+                            )
+                        }.toSet(),
+                        users
                     )
-                }
+                )
             }
 
             TrackedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->

@@ -301,4 +301,45 @@ class HibernateActivityStreamDaoTest {
         }
     }
 
+    @Test
+    fun `insert into stream - twice with tracked`() {
+        val ctx = initializeTest()
+        val fileId = "file"
+
+        val userA = "userA"
+        val event1 = trackedEvent.copy(
+            files = setOf(StreamFileReference.Basic(fileId, null)),
+            users = setOf(UserReference(userA))
+        )
+
+        val userB = "userB"
+        val event2 = trackedEvent.copy(
+            files = setOf(StreamFileReference.Basic(fileId, null)),
+            users = setOf(UserReference(userB))
+        )
+
+        val stream = ActivityStream(ActivityStreamSubject.File(fileId))
+
+        withDatabase { db ->
+            db.withTransaction { session ->
+                ctx.dao.insertIntoStream(session, stream, event1)
+            }
+
+            db.withTransaction { session ->
+                ctx.dao.insertIntoStream(session, stream, event2)
+            }
+
+            db.withTransaction { session ->
+                val loadedStream = ctx.dao.loadStream(session, stream, PaginationRequest().normalize())
+                assertEquals(1, loadedStream.itemsInTotal)
+
+                val tracked = loadedStream.items.single() as ActivityStreamEntry.Tracked
+                assertEquals(2, tracked.users.size)
+
+                assertTrue(userA in tracked.users.map { it.username })
+                assertTrue(userB in tracked.users.map { it.username })
+            }
+        }
+    }
+
 }
