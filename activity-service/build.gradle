@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.1.1'
+version '0.2.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.activity.MainKt"
@@ -14,11 +14,4 @@ dependencies {
     compile "dk.sdu.cloud:filesearch-api:1.4.1-SNAPSHOT"
 
     compile group: 'com.h2database', name: 'h2', version: '1.4.196'
-}
-
-
-run {
-    if (project.hasProperty("appArgs")) {
-        args Eval.me(appArgs)
-    }
 }
