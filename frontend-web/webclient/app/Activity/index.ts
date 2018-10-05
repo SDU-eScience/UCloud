@@ -33,6 +33,7 @@ export interface TrackedActivity {
 export interface ActivityDispatchProps {
     fetchActivity: (pageNumber: number, pageSize: number) => void
     setError: (error?: string) => void
+    setPageTitle: () => void
 }
 
 export interface ActivityProps extends ActivityReduxObject, ActivityDispatchProps { }

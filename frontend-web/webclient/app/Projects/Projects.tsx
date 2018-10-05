@@ -3,6 +3,7 @@ import { Card } from "semantic-ui-react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { emptyPage } from "DefaultObjects";
+import { Dispatch } from "redux";
 
 class Projects extends React.Component<any, any> {
 
@@ -16,6 +17,6 @@ class Projects extends React.Component<any, any> {
 }
 
 const mapStateToProps = (state) => ({});
-const mapDispatchToProps = (dispatch) => ({});
+const mapDispatchToProps = (dispatch: Dispatch) => ({});
 
 export default connect(mapStateToProps, mapDispatchToProps)(Projects);

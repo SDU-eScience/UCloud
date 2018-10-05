@@ -1,23 +1,31 @@
+import { NotificationsReduxObject, initNotifications } from "DefaultObjects";
+import { NotificationActions } from "./NotificationsActions";
+
 export const RECEIVE_NOTIFICATIONS = "RECEIVE_NOTIFICATIONS";
 export const NOTIFICATION_READ = "NOTIFICATION_READ";
 export const SET_REDIRECT = "SET_REDIRECT";
+export const SET_NOTIFICATIONS_ERROR = "SET_NOTIFICATIONS_ERROR";
 
-const Notifications = (state: any = {}, action: any) => {
+const Notifications = (state: NotificationsReduxObject = initNotifications(), action: NotificationActions): NotificationsReduxObject => {
     switch (action.type) {
         case RECEIVE_NOTIFICATIONS: {
-            return { ...state, page: action.page };
+            return { ...state, ...action.payload };
         }
         case NOTIFICATION_READ: {
             return {
-                ...state, items: state.page.items.map((n) => {
-                    if (n.id === action.id) n.read = true;
-                    return n;
-                })
+                ...state, page: {
+                    ...state.page,
+                    items: state.page.items.map((n) => {
+                        if (n.id === action.payload.id) n.read = true;
+                        return n;
+                    })
+                }
             }
         }
         case SET_REDIRECT: {
-            return { ...state, redirectTo: action.redirectTo }
+            return { ...state, ...action.payload };
         }
+        // FIXME Error case missing
         default: {
             return state;
         }

@@ -85,12 +85,11 @@ export const simpleSearch = (
     query: string,
     page: number,
     itemsPerPage: number
-): Promise<Page<ProjectMetadata>> => {
-    return Cloud.get(
+): Promise<Page<ProjectMetadata>> =>
+    Cloud.get(
         `/metadata/search?query=${query}` +
         `&page=${page}&itemsPerPage=${itemsPerPage}`
-    ).then(f => f.response); // FIXME Add error handling
-};
+    ).then(({ response }) => response);
 
 export const getById = (id: string): Promise<ProjectMetadataWithRights> => {
     return Cloud.get(`/metadata/${id}`).then(f => f.response); // FIXME Add error handling

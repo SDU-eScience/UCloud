@@ -12,6 +12,8 @@ import { Publication } from "Zenodo";
 import { Notification } from "Notifications";
 import { Upload } from "Uploader";
 import { Activity } from "Activity";
+import { Reducer } from "redux";
+import { SimpleSearchStateProps } from "SimpleSearch";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -109,65 +111,74 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     fileSelectorError?: string
     sortingColumns: [SortBy, SortBy]
     fileSelectorLoading: boolean
-    fileSelectorShown: false
+    fileSelectorShown: boolean
     fileSelectorPage: Page<File>
     fileSelectorPath: string
     fileSelectorCallback: Function
     disallowedPaths: string[]
 }
 
-interface NotificationsReduxObject extends ComponentWithPage<Notification> {
+export type AnalysisReduxObject = ComponentWithPage<Analysis>;
+
+export interface NotificationsReduxObject extends ComponentWithPage<Notification> {
     redirectTo: string
 }
 
-interface ZenodoReduxObject extends ComponentWithPage<Publication> {
+export interface ZenodoReduxObject extends ComponentWithPage<Publication> {
     connected: boolean
 }
 
-interface StatusReduxObject {
+export interface StatusReduxObject {
     status: Status
     title: string
 }
 
-interface SidebarReduxObject {
+export interface SidebarReduxObject {
     loading: boolean
     open: boolean
     pp: boolean
     options: SidebarOption[]
 }
 
-interface HeaderSearchReduxObject {
+export interface HeaderSearchReduxObject {
     prioritizedSearch: HeaderSearchType
 }
 
-export interface ActivityReduxObject extends ComponentWithPage<Activity> { }
+export type ApplicationReduxObject = ComponentWithPage<Application>;
+export type ActivityReduxObject = ComponentWithPage<Activity>
 
 export type HeaderSearchType = "files" | "applications" | "projects";
- 
-interface UploaderReduxObject {
+
+export interface UploaderReduxObject {
     uploads: Upload[]
     visible: boolean
     path: string
     allowMultiple: boolean
-    onFilesUploaded: () => void
+    onFilesUploaded: (p: string) => void
 }
 
-
-// FIXME Add typesafety
 export interface Reducers {
-    dashboard?: any
-    files?: any
-    uploader?: any
-    uppy?: any
-    status?: any
-    applications?: any
-    notifications?: any
-    analyses?: any
-    zenodo?: any
-    header?: any
-    sidebar?: any
-    activity?: any
+    dashboard?: Reducer<DashboardStateProps>
+    files?: Reducer<FilesReduxObject>
+    uploader?: Reducer<UploaderReduxObject>
+    uppy?: Reducer<any>
+    status?: Reducer<StatusReduxObject>
+    applications?: Reducer<ApplicationReduxObject>
+    notifications?: Reducer<NotificationsReduxObject>
+    analyses?: Reducer<AnalysisReduxObject>
+    zenodo?: Reducer<ZenodoReduxObject>
+    header?: Reducer<HeaderSearchReduxObject>
+    sidebar?: Reducer<SidebarReduxObject>
+    activity?: Reducer<ActivityReduxObject>
+    detailedResult?: Reducer<DetailedResultReduxObject>
 }
+
+export type DetailedResultReduxObject = ComponentWithPage<File>
+export const initDetailedResult = (): DetailedResultReduxObject => ({
+    page: emptyPage,
+    loading: false,
+    error: undefined
+});
 
 export interface ReduxObject {
     dashboard: DashboardStateProps
@@ -175,13 +186,15 @@ export interface ReduxObject {
     uploader: UploaderReduxObject
     uppy: { uppy: any, uppyOpen: boolean }
     status: StatusReduxObject,
-    applications: ComponentWithPage<Application>
+    applications: ApplicationReduxObject
     notifications: NotificationsReduxObject
-    analyses: ComponentWithPage<Analysis>
+    analyses: AnalysisReduxObject
     zenodo: ZenodoReduxObject
     header: HeaderSearchReduxObject
     sidebar: SidebarReduxObject
     activity: ActivityReduxObject
+    detailedResult: DetailedResultReduxObject
+    simpleSearch: SimpleSearchStateProps
 }
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -237,8 +250,21 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     zenodo: initZenodo(),
     sidebar: initSidebar(),
     uploader: initUploads(),
-    activity: initActivity()
+    activity: initActivity(),
+    detailedResult: initDetailedResult(),
+    simpleSearch: initSimpleSearch()
 });
+
+export const initSimpleSearch = () => ({
+    files: emptyPage,
+    filesLoading: false,
+    applications: emptyPage,
+    applicationsLoading: false,
+    projects: emptyPage,
+    projectsLoading: false,
+    error: undefined,
+    search: ""
+})
 
 export const initAnalyses = (): ComponentWithPage<Analysis> => ({
     page: emptyPage,

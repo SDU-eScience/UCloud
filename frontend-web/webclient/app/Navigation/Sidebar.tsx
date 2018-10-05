@@ -5,6 +5,8 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { connect } from "react-redux";
 import { setSidebarState } from "./Redux/SidebarActions";
 import { PP } from "UtilityComponents";
+import { ReduxObject } from "DefaultObjects";
+import { Dispatch } from "redux";
 
 interface SidebarProps {
     open: boolean
@@ -36,9 +38,9 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
         const sidebarIsOpen = open && window.innerWidth < 1000;
 
         const content = (
-            <div className={"container-wrapper"}>
+            <div className="container-wrapper">
                 <div className="container-content">
-                    <div className="container-padding">
+                    <div className="container-padding responsive-container-margin">
                         {this.props.children}
                     </div>
                 </div>
@@ -50,7 +52,7 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
                 <Responsive minWidth={1000}>
                     <Accordion as={Menu} vertical borderless fixed="left" className="my-sidebar">
                         <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={() => setSidebarState(false)} />
-                        <PP visible={this.props.pp}/>
+                        <PP visible={this.props.pp} />
                     </Accordion>
 
                     {content}
@@ -173,9 +175,9 @@ const MenuLink = ({ icon, name, to, onClick }) =>
     </Link>
 
 
-const mapDispatchToProps = (dispatch) => ({
+const mapDispatchToProps = (dispatch: Dispatch) => ({
     setSidebarState: (open: boolean) => dispatch(setSidebarState(open))
 });
 
-const mapStateToProps = ({ sidebar }) => sidebar;
+const mapStateToProps = ({ sidebar }: ReduxObject) => sidebar;
 export default connect(mapStateToProps, mapDispatchToProps)(SidebarComponent);

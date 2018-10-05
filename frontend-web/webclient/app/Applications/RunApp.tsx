@@ -14,6 +14,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { RunAppProps, RunAppState, JobInfo, MaxTime } from "."
 import { Application, ParameterTypes } from ".";
 import { extractParameters } from "Utilities/ApplicationUtilities";
+import { Dispatch } from "redux";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -245,12 +246,14 @@ const ApplicationHeader = ({ authors, displayName, appName, favorite, version, f
     return (
         <Header as="h1">
             <Header.Content className="float-right">
-                <Button onClick={() => exportParameters()} content="Export parameters" />
-                <Button as="label">
-                    Import parameters
-                    <input className="import-parameters" type="file" onChange={(e) => { if (e.target.files) importParameters(e.target.files[0]) }} />
-                </Button>
+                <Button.Group>
+                    <Button basic color="green" onClick={() => exportParameters()} content="Export parameters" />
+                    <Button basic color="green" as="label">
+                        Import parameters
+                        <input className="import-parameters" type="file" onChange={(e) => { if (e.target.files) importParameters(e.target.files[0]) }} />
+                    </Button>
                 <Button as={Link} basic color="blue" content="More information" to={`/appDetails/${appName}/${version}/`} />
+                </Button.Group>
             </Header.Content>
             <Header.Content>
                 {displayName}
@@ -587,7 +590,7 @@ const OptionalText = ({ optional }) =>
     optional ? (<span className="help-block"><b>Optional</b></span>) : null;
 
 
-const mapDispatchToProps = (dispatch) => ({
+const mapDispatchToProps = (dispatch: Dispatch) => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application"))
 });
 

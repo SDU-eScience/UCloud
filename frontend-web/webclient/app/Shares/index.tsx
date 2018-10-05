@@ -1,8 +1,10 @@
 export { List } from "./List";
 import { Store } from "redux";
 import { AccessRightValues } from "Types";
+import PromiseKeeper from "PromiseKeeper";
 
 export interface ListState {
+    promises: PromiseKeeper
     shares: SharesByPath[]
     errorMessage?: string,
     page: number,

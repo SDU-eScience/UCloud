@@ -39,7 +39,8 @@ export class ManagedList extends React.Component<Self.ManagedListProps, Self.Man
             })
             .catch(e => {
                 // TODO Use error message from request
-                this.setState({ errorMessage: "An error has occured", loading: false });
+                if (!e.isCanceled)
+                    this.setState({ errorMessage: "An error has occured", loading: false });
             });
             /* .finally(() => this.setState({ loading: false })); */
     }

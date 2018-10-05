@@ -25,11 +25,9 @@ exports[`View component Mount view 1`] = `
     <div
       className="twelve wide column"
     >
-      <div>
-        <p>
-          Project description goes here...
-        </p>
-      </div>
+      <p>
+        Project description goes here...
+      </p>
     </div>
     <div
       className="four wide column"

@@ -6,7 +6,7 @@ import { connect } from "react-redux";
 import {
     fetchApplications,
     setLoading,
-    updateApplications
+    receiveApplications
 } from "./Redux/ApplicationsActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
@@ -18,6 +18,7 @@ import { MaterialColors } from "Assets/materialcolors.json";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
+import { Dispatch } from "redux";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
@@ -37,8 +38,8 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 
     render() {
-        const { page, loading, fetchApplications, onErrorDismiss, updateApplications, error } = this.props;
-        const favoriteApp = (app: Application) => updateApplications(favoriteApplicationFromPage(app, page, Cloud));
+        const { page, loading, fetchApplications, onErrorDismiss, receiveApplications, error } = this.props;
+        const favoriteApp = (app: Application) => receiveApplications(favoriteApplicationFromPage(app, page, Cloud));
         return (
             <React.StrictMode>
                 <Pagination.List
@@ -124,13 +125,13 @@ function toHashCode(name: string): number {
     return Math.abs(hash);
 }
 
-const mapDispatchToProps = (dispatch): ApplicationsOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): ApplicationsOperations => ({
     prioritizeApplicationSearch: () => dispatch(setPrioritizedSearch("applications")),
     onErrorDismiss: () => dispatch(setErrorMessage()),
     updatePageTitle: () => dispatch(updatePageTitle("Applications")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    fetchApplications: (pageNumber: number, itemsPerPage: number) => dispatch(fetchApplications(pageNumber, itemsPerPage)),
-    updateApplications: (applications: Page<Application>) => dispatch(updateApplications(applications))
+    fetchApplications: async (pageNumber: number, itemsPerPage: number) => dispatch(await fetchApplications(pageNumber, itemsPerPage)),
+    receiveApplications: (applications: Page<Application>) => dispatch(receiveApplications(applications))
 });
 
 const mapStateToProps = ({ applications }): ApplicationsStateProps => ({
