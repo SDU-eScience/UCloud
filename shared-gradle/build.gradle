@@ -6,4 +6,5 @@ version '1.0.0'
 //
 // The sdu-cloud.gradle file contains shared build logic for all micro-services.
 
+apply plugin: "application"
 apply from: "sdu-cloud.gradle"

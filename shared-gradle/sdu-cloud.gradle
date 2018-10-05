@@ -181,15 +181,29 @@ task generateBuildConfig() {
 
     String simpleName = project.name.replace("-service", "")
 
-    String packageName = "${project.group}.${simpleName}.api"
-    File packagePath = file("$outputDir/${packageName.replace('.', '/')}")
+    StringBuilder packageName = new StringBuilder()
+    simpleName.split("-").eachWithIndex { String entry, int i ->
+        if (i == 0) packageName.append(entry)
+        else {
+            packageName.append(".")
+            packageName.append(entry)
+        }
+    }
+
+    StringBuilder classNameBuilder = new StringBuilder()
+    simpleName.split("-").eachWithIndex { String entry, int i ->
+        classNameBuilder.append(entry.capitalize())
+    }
+
+    String fullPackageName = "${project.group}.${packageName.toString()}.api"
+    File packagePath = file("$outputDir/${fullPackageName.replace('.', '/')}")
     if (!packagePath.exists()) packagePath.mkdirs()
 
-    String className = "${simpleName.capitalize()}ServiceDescription"
+    String className = "${classNameBuilder.toString()}ServiceDescription"
     File configFile = file("$packagePath/${className}.kt")
     configFile.delete()
     configFile << """
-        package $packageName
+        package $fullPackageName
 
         import dk.sdu.cloud.client.ServiceDescription
 

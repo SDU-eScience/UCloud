@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.services.ssh.pollSlurmStatus
+import dk.sdu.cloud.app.services.ssh.use
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.time.ZonedDateTime

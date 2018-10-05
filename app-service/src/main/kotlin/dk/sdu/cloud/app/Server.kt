@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app
 
+import dk.sdu.cloud.app.api.AccountingEvents
 import dk.sdu.cloud.app.api.HPCStreams
 import dk.sdu.cloud.app.http.AppController
 import dk.sdu.cloud.app.http.JobController
@@ -50,6 +51,7 @@ class Server(
         val jobExecutionService = JobExecutionService(
             cloud,
             kafka.producer.forStream(HPCStreams.appEvents),
+            kafka.producer.forStream(AccountingEvents.jobCompleted),
             sbatchGenerator,
             db,
             jobDao,

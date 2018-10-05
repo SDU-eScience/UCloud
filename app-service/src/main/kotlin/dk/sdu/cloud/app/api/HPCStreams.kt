@@ -2,7 +2,7 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.app.services.ValidatedFileForUpload
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.KafkaDescriptions
 import dk.sdu.cloud.service.KafkaRequest
 
@@ -147,4 +147,16 @@ enum class AppState {
             SUCCESS, FAILURE -> true
             else -> false
         }
+}
+
+data class ValidatedFileForUpload(
+    val stat: StorageFile,
+    val destinationFileName: String,
+    val destinationPath: String,
+    val sourcePath: String,
+    val needsExtractionOfType: FileForUploadArchiveType?
+)
+
+enum class FileForUploadArchiveType {
+    ZIP
 }

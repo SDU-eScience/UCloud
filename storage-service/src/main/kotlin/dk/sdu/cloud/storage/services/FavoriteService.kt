@@ -23,7 +23,7 @@ class FavoriteService<Ctx : FSUserContext>(val fs: CoreFileSystemService<Ctx>) {
     }
 
     fun retrieveFavoriteInodeSet(ctx: Ctx): Set<String> =
-        retrieveFavorites(ctx).map { it.inode }.toSet()
+        retrieveFavorites(ctx).asSequence().map { it.inode }.toSet()
 
     fun retrieveFavorites(ctx: Ctx): List<FavoritedFile> {
         return fs.listDirectory(
