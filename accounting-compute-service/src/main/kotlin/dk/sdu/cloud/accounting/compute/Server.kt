@@ -1,5 +1,7 @@
 package dk.sdu.cloud.accounting.compute
 
+import dk.sdu.cloud.accounting.compute.http.ComputeAccountingController
+import dk.sdu.cloud.accounting.compute.http.ComputeTimeController
 import dk.sdu.cloud.accounting.compute.http.JobsStartedController
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
@@ -25,7 +27,9 @@ class Server(
 
             routing {
                 configureControllers(
-                    JobsStartedController()
+                    JobsStartedController(),
+                    ComputeTimeController(),
+                    ComputeAccountingController()
                 )
             }
         }

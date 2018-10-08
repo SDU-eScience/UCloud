@@ -134,6 +134,12 @@ interface AccountingEvent {
     val timestamp: Long
 }
 
+data class AccountingResource(val name: String)
+
+data class ListResourceResponse(
+    val resources: List<AccountingResource>
+)
+
 /**
  * A collection of [RESTDescriptions] for a sub-implementation of the accounting-service. It provides an overview
  * interface for a single namespace. It is expected that all accounting-X-services implement this interface.
@@ -152,11 +158,9 @@ abstract class AbstractAccountingDescriptions(
      * delivering results with missing values. This data will be used for accounting and should be as precise as
      * possible. We don't want to send out bad reports.
      *
-     * This request signals the end of a period for a user, __for this specific sub-resource__.
-     *
      * Implementations should block any attempts not made by "_accounting".
      */
-    val buildReport = callDescription<Unit, Unit, Unit> {
+    val buildReport = callDescription<Unit, Unit, CommonErrorMessage> {
         name = "buildReport"
         method = HttpMethod.Post
 
@@ -174,7 +178,7 @@ abstract class AbstractAccountingDescriptions(
     /**
      * Informs the caller about a list of sub-resources that this [namespace] contains.
      */
-    val listResources = callDescription<Unit, Unit, Unit> {
+    val listResources = callDescription<Unit, ListResourceResponse, CommonErrorMessage> {
         name = "listResources"
         method = HttpMethod.Get
 
@@ -200,7 +204,7 @@ abstract class AbstractAccountingDescriptions(
  */
 abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
     namespace: String,
-    resourceType: String
+    val resourceType: String
 ) : RESTDescriptions("$ACCOUNTING_NAMESPACE.$namespace.$resourceType") {
     // TODO This stuff does not work well for auditing.
 
