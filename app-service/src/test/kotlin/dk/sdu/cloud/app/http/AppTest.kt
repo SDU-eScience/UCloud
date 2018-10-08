@@ -145,7 +145,7 @@ class AppTest {
                         run {
                             val response =
                                 handleRequest(HttpMethod.Post,
-                                    "/api/hpc/apps/favorite/App4/4.4")
+                                    "/api/hpc/apps/favorites/App4/4.4")
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
@@ -171,7 +171,7 @@ class AppTest {
                         run {
                             val response =
                                 handleRequest(HttpMethod.Post,
-                                    "/api/hpc/apps/favorite/App4/4.4")
+                                    "/api/hpc/apps/favorites/App4/4.4")
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
@@ -416,7 +416,7 @@ class AppTest {
                         configureAppServer(db, appDao)
 
                         every { appDao.listLatestVersion(any(), any(), any()) } answers {
-                            val page = Page(1, 10, 0, listOf(app))
+                            val page = Page(1, 10, 0, listOf(ApplicationForUser(app, true)))
                             page
                         }
 

@@ -45,7 +45,7 @@ class AppController<DBSession>(
             logEntry(log, req)
 
             val favorites = db.withTransaction {
-                source.retreiveFavorites(
+                source.retrieveFavorites(
                     it,
                     call.securityPrincipal.username,
                     req.normalize()

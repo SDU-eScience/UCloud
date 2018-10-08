@@ -22,7 +22,13 @@ data class FavoriteRequest(
     val version: String
 )
 
-data class SearchRequest(
+data class TagSearchRequest(
+    val query: String,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+
+data class AppSearchRequest(
     val query: String,
     override val itemsPerPage: Int?,
     override val page: Int?
@@ -41,13 +47,13 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
 
         path {
             using(baseContext)
-            +"favorite"
-            +boundTo(FindApplicationAndOptionalDependencies::name)
-            +boundTo(FindApplicationAndOptionalDependencies::version)
+            +"favorites"
+            +boundTo(FavoriteRequest::name)
+            +boundTo(FavoriteRequest::version)
         }
     }
 
-    val retrieveFavorites = callDescription<PaginationRequest, Page<Application>, CommonErrorMessage> {
+    val retrieveFavorites = callDescription<PaginationRequest, Page<ApplicationForUser>, CommonErrorMessage> {
         name = "retrieveFavorites"
         method = HttpMethod.Get
 
@@ -65,7 +71,7 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
             +boundTo(PaginationRequest::page)
         }
     }
-    val searchTags = callDescription<SearchRequest, Page<Application>, CommonErrorMessage> {
+    val searchTags = callDescription<TagSearchRequest, Page<ApplicationForUser>, CommonErrorMessage> {
         name = "searchTags"
         method = HttpMethod.Get
 
@@ -79,13 +85,13 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
         }
 
         params {
-            +boundTo(SearchRequest::query)
-            +boundTo(SearchRequest::itemsPerPage)
-            +boundTo(SearchRequest::page)
+            +boundTo(TagSearchRequest::query)
+            +boundTo(TagSearchRequest::itemsPerPage)
+            +boundTo(TagSearchRequest::page)
         }
     }
 
-    val searchApps = callDescription<SearchRequest, Page<Application>, CommonErrorMessage> {
+    val searchApps = callDescription<AppSearchRequest, Page<ApplicationForUser>, CommonErrorMessage> {
         name = "searchApps"
         method = HttpMethod.Get
 
@@ -99,9 +105,9 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
         }
 
         params {
-            +boundTo(SearchRequest::query)
-            +boundTo(SearchRequest::itemsPerPage)
-            +boundTo(SearchRequest::page)
+            +boundTo(AppSearchRequest::query)
+            +boundTo(AppSearchRequest::itemsPerPage)
+            +boundTo(AppSearchRequest::page)
         }
     }
 
@@ -140,7 +146,7 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
         }
     }
 
-    val listAll = callDescription<PaginationRequest, Page<Application>, CommonErrorMessage> {
+    val listAll = callDescription<PaginationRequest, Page<ApplicationForUser>, CommonErrorMessage> {
         name = "listAll"
         path { using(baseContext) }
 

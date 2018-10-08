@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.Application
+import dk.sdu.cloud.app.api.ApplicationForUser
 import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -14,38 +15,25 @@ interface ApplicationDAO<Session> {
         version: String
     )
 
-    /*fun markAsFavorite(
-        session: Session,
-        user: String,
-        name: String,
-        version: String
-    )
-
-    fun unMarkAsFavorite(
-        session: Session,
-        user: String,
-        name: String,
-        version: String)
-*/
-    fun retreiveFavorites(
+    fun retrieveFavorites(
         session: Session,
         user: String,
         paging: NormalizedPaginationRequest
-    ): Page<Application>
+    ): Page<ApplicationForUser>
 
     fun searchTags(
         session: Session,
-        user: String?,
+        user: String,
         query: String,
         paging: NormalizedPaginationRequest
-    ): Page<Application>
+    ): Page<ApplicationForUser>
 
     fun search(
         session: Session,
-        user: String?,
+        user: String,
         query: String,
         paging: NormalizedPaginationRequest
-    ): Page<Application>
+    ): Page<ApplicationForUser>
 
     fun findAllByName(
         session: Session,
@@ -68,7 +56,7 @@ interface ApplicationDAO<Session> {
         user: String?,
 
         paging: NormalizedPaginationRequest
-    ): Page<Application>
+    ): Page<ApplicationForUser>
 
     fun create(
         session: Session,

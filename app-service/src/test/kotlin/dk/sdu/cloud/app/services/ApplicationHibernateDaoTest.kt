@@ -8,6 +8,8 @@ import io.mockk.mockk
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ApplicationHibernateDaoTest {
 
@@ -134,13 +136,15 @@ class ApplicationHibernateDaoTest {
                 Thread.sleep(1000)
                 appDAO.create(it, user, normAppDesc4)
 
+                appDAO.toggleFavorite(it, user, normAppDesc.info.name, normAppDesc.info.version)
+
                 val allListed = appDAO.listLatestVersion(it, user, NormalizedPaginationRequest(10, 0))
 
                 var previous = ""
                 allListed.items.forEach {
-                    if (it.description.info.name < previous)
+                    if (it.application.description.info.name < previous)
                         assert(false)
-                    previous = it.description.info.name
+                    previous = it.application.description.info.name
                 }
 
                 assertEquals(2, allListed.itemsInTotal)
@@ -165,32 +169,46 @@ class ApplicationHibernateDaoTest {
                 Thread.sleep(1000)
                 appDAO.create(it, user, normAppDesc4)
 
-                val searchResult = appDAO.search(it, user, "nam", NormalizedPaginationRequest(10, 0))
+                appDAO.toggleFavorite(it, user, normAppDesc.info.name, normAppDesc.info.version)
 
-                assertEquals(1, searchResult.itemsInTotal)
-                assertEquals("name", searchResult.items.first().description.info.name)
+                run {
+                    val searchResult = appDAO.search(it, user, "nam", NormalizedPaginationRequest(10, 0))
 
-                val searchResult2 = appDAO.search(it, user, "ap", NormalizedPaginationRequest(10, 0))
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals("name", searchResult.items.first().application.description.info.name)
+                }
 
-                assertEquals(1, searchResult2.itemsInTotal)
-                assertEquals("app", searchResult2.items.first().description.info.name)
+                run {
+                    val searchResult = appDAO.search(it, user, "ap", NormalizedPaginationRequest(10, 0))
 
-                val searchResult3 = appDAO.search(it, user, "a", NormalizedPaginationRequest(10, 0))
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals("app", searchResult.items.first().application.description.info.name)
+                }
 
-                assertEquals(2, searchResult3.itemsInTotal)
-                assertEquals("app", searchResult3.items[0].description.info.name)
-                assertEquals("name", searchResult3.items[1].description.info.name)
+                run {
+                    val searchResult = appDAO.search(it, user, "a", NormalizedPaginationRequest(10, 0))
 
-                val searchResult4 = appDAO.search(it, user, "", NormalizedPaginationRequest(10, 0))
+                    assertEquals(2, searchResult.itemsInTotal)
+                    assertEquals("app", searchResult.items[0].application.description.info.name)
+                    assertEquals("name", searchResult.items[1].application.description.info.name)
 
-                assertEquals(2, searchResult4.itemsInTotal)
-                assertEquals("app", searchResult4.items[0].description.info.name)
-                assertEquals("name", searchResult4.items[1].description.info.name)
+                    assertFalse(searchResult.items[0].favorite)
+                    assertTrue(searchResult.items[1].favorite)
+                }
 
-                val searchResult5 = appDAO.search(it, user, "notPossible", NormalizedPaginationRequest(10, 0))
+                run {
+                    val searchResult = appDAO.search(it, user, "", NormalizedPaginationRequest(10, 0))
 
-                assertEquals(0, searchResult5.itemsInTotal)
+                    assertEquals(2, searchResult.itemsInTotal)
+                    assertEquals("app", searchResult.items[0].application.description.info.name)
+                    assertEquals("name", searchResult.items[1].application.description.info.name)
+                }
 
+                run {
+                    val searchResult = appDAO.search(it, user, "notPossible", NormalizedPaginationRequest(10, 0))
+
+                    assertEquals(0, searchResult.itemsInTotal)
+                }
             }
         }
     }
@@ -236,9 +254,9 @@ class ApplicationHibernateDaoTest {
                 val allListed = appDAO.listLatestVersion(it, user, NormalizedPaginationRequest(10, 0))
                 var previous = ""
                 allListed.items.forEach {
-                    if (it.description.info.name < previous)
+                    if (it.application.description.info.name < previous)
                         assert(false)
-                    previous = it.description.info.name
+                    previous = it.application.description.info.name
                 }
 
                 assertEquals(2, allListed.itemsInTotal)
@@ -322,6 +340,9 @@ class ApplicationHibernateDaoTest {
                 )
                 )
 
+                appDAO.toggleFavorite(it, user, "App1", "1.4")
+                appDAO.toggleFavorite(it, user, "App2", "3.4")
+
                 run {
                     // Search for no hits
                     val hits = appDAO.searchTags(it, user, "tag20", NormalizedPaginationRequest(10,0))
@@ -334,7 +355,7 @@ class ApplicationHibernateDaoTest {
                     // Search for one hit tag
                     val hits = appDAO.searchTags(it, user, "tag1", NormalizedPaginationRequest(10,0))
                     println(hits)
-                    val loadedApp = hits.items.first().description.description
+                    val loadedApp = hits.items.first().application.description.description
 
                     assertEquals("app description", loadedApp)
                     assertEquals(1, hits.itemsInTotal)
@@ -346,15 +367,19 @@ class ApplicationHibernateDaoTest {
 
                     var previous = ""
                     hits.items.forEach {
-                        if (it.description.info.name < previous)
+                        if (it.application.description.info.name < previous)
                             assert(false)
-                        previous = it.description.info.name
+                        previous = it.application.description.info.name
                     }
-
+                    
                     assertEquals(3, hits.itemsInTotal)
-                    assertEquals("App1", hits.items[0].description.info.name)
-                    assertEquals("App2", hits.items[1].description.info.name)
-                    assertEquals("name", hits.items[2].description.info.name)
+                    assertEquals("App1", hits.items[0].application.description.info.name)
+                    assertEquals("App2", hits.items[1].application.description.info.name)
+                    assertEquals("name", hits.items[2].application.description.info.name)
+
+                    assertTrue(hits.items[0].favorite)
+                    assertTrue(hits.items[1].favorite)
+                    assertFalse(hits.items[2].favorite)
                 }
 
                 run {
@@ -389,41 +414,54 @@ class ApplicationHibernateDaoTest {
                 )
 
                 run {
-                    val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
+                    val favorites = appDAO.retrieveFavorites(it, user, NormalizedPaginationRequest(10, 0))
                     assertEquals(0, favorites.itemsInTotal)
                 }
 
                 run {
                     appDAO.toggleFavorite(it, user, "App2", "3.4")
-                    val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
+                    val favorites = appDAO.retrieveFavorites(it, user, NormalizedPaginationRequest(10, 0))
                     assertEquals(1, favorites.itemsInTotal)
                 }
 
                 run {
                     appDAO.toggleFavorite(it, user, "App1", "1.4")
-                    val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
+                    val favorites = appDAO.retrieveFavorites(it, user, NormalizedPaginationRequest(10, 0))
                     assertEquals(2, favorites.itemsInTotal)
                 }
 
                 run {
                     appDAO.toggleFavorite(it, "AnotherUser", "App1", "1.4")
-                    val favorites = appDAO.retreiveFavorites(it, "AnotherUser", NormalizedPaginationRequest(10, 0))
+                    val favorites = appDAO.retrieveFavorites(it, "AnotherUser", NormalizedPaginationRequest(10, 0))
                     assertEquals(1, favorites.itemsInTotal)
                 }
 
                 run {
                     appDAO.toggleFavorite(it, user, "App1", "1.4")
-                    val favorites = appDAO.retreiveFavorites(it, user, NormalizedPaginationRequest(10, 0))
+                    val favorites = appDAO.retrieveFavorites(it, user, NormalizedPaginationRequest(10, 0))
                     assertEquals(1, favorites.itemsInTotal)
                 }
 
                 run {
                     appDAO.toggleFavorite(it, "AnotherUser", "App1", "1.4")
-                    val favorites = appDAO.retreiveFavorites(it, "AnotherUser", NormalizedPaginationRequest(10, 0))
+                    val favorites = appDAO.retrieveFavorites(it, "AnotherUser", NormalizedPaginationRequest(10, 0))
                     assertEquals(0, favorites.itemsInTotal)
                 }
             }
         }
     }
+    @Test (expected = ApplicationException.BadApplication::class)
+    fun `Favorite test - Not an app`() {
+        withDatabase { db ->
+            db.withTransaction {
+                val toolDAO = ToolHibernateDAO()
 
+                toolDAO.create(it, user, normToolDesc)
+
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+
+                appDAO.toggleFavorite(it, user, "App1", "1.4")
+            }
+        }
+    }
 }

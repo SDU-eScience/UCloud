@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonUnwrapped
 import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
 import kotlin.reflect.KProperty0
@@ -15,7 +16,14 @@ data class Application(
     val tool: Tool
 )
 
-//TODO Contains duplicate data: Info, Tool, Tags. Issue #307
+data class ApplicationForUser(
+    @JsonUnwrapped
+    val application: Application,
+
+    val favorite: Boolean
+)
+
+// TODO Contains duplicate data: Info, Tool, Tags. Issue #307
 data class NormalizedApplicationDescription(
     val info: NameAndVersion,
     val tool: NameAndVersion,
