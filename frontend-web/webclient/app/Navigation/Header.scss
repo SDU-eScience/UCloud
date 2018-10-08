@@ -24,3 +24,42 @@ div.ui.menu-padding.menu div a.item.sidebar-button-padding {
         width: 450px;
     }
 }
+
+div.ui.fluid.icon.input.header-search input {
+    background: #3797de;
+    color: #000;
+    transition: background-color 0.3s ease;
+}
+
+div.ui.button.floating.labeled.dropdown.icon {
+    background: #3797de;
+    color: white;
+    transition: background-color 0.3s ease;
+}
+
+div.ui.button.floating.labeled.dropdown.icon:focus {
+    background: white;
+    color: black;
+    transition: background-color 0.3s ease;
+}
+
+div.ui.fluid.icon.input.header-search input::-webkit-input-placeholder { /* Chrome/Opera/Safari */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input::-moz-placeholder { /* Firefox 19+ */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input:-ms-input-placeholder { /* IE 10+ */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input:-moz-placeholder { /* Firefox 18- */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input:focus {
+    background: #fff;
+    transition: background-color 0.3s ease;
+}
