@@ -120,3 +120,36 @@ i.margin-top-7px {
 span > span.operation-text {
     font-size: 16px;
 }
+
+div.ui.fluid.icon.input.header-search input {
+    background: #3797de;
+    color: #000;
+}
+
+div.ui.button.floating.labeled.dropdown.icon {
+    background: #3797de;
+}
+
+div.ui.button.floating.labeled.dropdown.icon:focus {
+    background: white;
+}
+
+div.ui.fluid.icon.input.header-search input::-webkit-input-placeholder { /* Chrome/Opera/Safari */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input::-moz-placeholder { /* Firefox 19+ */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input:-ms-input-placeholder { /* IE 10+ */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input:-moz-placeholder { /* Firefox 18- */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input:focus {
+    background: #fff;
+}
