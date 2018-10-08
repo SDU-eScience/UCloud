@@ -8,19 +8,77 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
-data class ListAccountingEventsRequest(
-    val since: Long? = null,
+/**
+ * @see [AbstractAccountingResourceDescriptions.listEvents]
+ */
+data class ListEventsRequest(
+    override val since: Long?,
+    override val until: Long?,
+    override val context: String?,
+
     override val itemsPerPage: Int?,
     override val page: Int?
-) : WithPaginationRequest
+) : WithPaginationRequest, ContextQuery
 
-typealias ListAccountingEventsResponse<Event> = Page<Event>
+/**
+ * @see [AbstractAccountingResourceDescriptions.listEvents]
+ */
+typealias ListEventsResponse<Event> = Page<Event>
 
-data class AccountingChartRequest(
-    val since: Long? = null
+interface ContextQuery {
+    /**
+     * Timestamp in milliseconds. The context will include results with timestamps >= this value.
+     *
+     * If missing, defaults to 0.
+     */
+    val since: Long?
+
+    /**
+     * Timestamp in milliseconds. The context will include results with timestamps <= this value.
+     *
+     * If missing, defaults to Long.MAX_VALUE.
+     */
+    val until: Long?
+
+    /**
+     * Limits the query to a concrete context, such as a project.
+     *
+     * If missing defaults to all available contexts.
+     */
+    val context: String?
+}
+
+/**
+ * @see ContextQuery
+ */
+data class ContextQueryImpl(
+    override val since: Long?,
+    override val until: Long?,
+    override val context: String?
+) : ContextQuery
+
+/**
+ * @see [AbstractAccountingResourceDescriptions.chart]
+ */
+typealias ChartRequest = ContextQueryImpl
+
+/**
+ * @see [AbstractAccountingResourceDescriptions.chart]
+ */
+data class ChartResponse(
+    val chart: Chart<ChartDataPoint<Long, Long>>,
+    val quota: Long?
 )
 
-typealias AccountingChartResponse = Chart<ChartDataPoint<Long, Long>>
+/**
+ * @see [AbstractAccountingResourceDescriptions.currentUsage]
+ */
+typealias CurrentUsageRequest = ContextQueryImpl
+
+/**
+ * @see [AbstractAccountingResourceDescriptions.currentUsage]
+ */
+data class CurrentUsageResponse(val usage: Long, val quota: Long?)
 
 interface ChartDataPoint<XType, YType> {
     val x: XType
@@ -109,7 +167,7 @@ abstract class AbstractAccountingResourceDescriptions<E>(
     /**
      * Returns a concrete list of "raw" events that have contributed to the usage, for example as reported by [chart].
      */
-    val listEvents = callDescription<ListAccountingEventsRequest, ListAccountingEventsResponse<E>, CommonErrorMessage> {
+    val listEvents = callDescription<ListEventsRequest, ListEventsResponse<E>, CommonErrorMessage> {
         name = "listEvents"
         method = HttpMethod.Get
 
@@ -123,16 +181,19 @@ abstract class AbstractAccountingResourceDescriptions<E>(
         }
 
         params {
-            +boundTo(ListAccountingEventsRequest::since)
-            +boundTo(ListAccountingEventsRequest::page)
-            +boundTo(ListAccountingEventsRequest::itemsPerPage)
+            +boundTo(ListEventsRequest::since)
+            +boundTo(ListEventsRequest::until)
+            +boundTo(ListEventsRequest::context)
+
+            +boundTo(ListEventsRequest::page)
+            +boundTo(ListEventsRequest::itemsPerPage)
         }
     }
 
     /**
      * Returns chart data for this resource.
      */
-    val chart = callDescription<AccountingChartRequest, AccountingChartResponse, CommonErrorMessage> {
+    val chart = callDescription<ChartRequest, ChartResponse, CommonErrorMessage> {
         name = "chart"
         method = HttpMethod.Get
 
@@ -146,14 +207,16 @@ abstract class AbstractAccountingResourceDescriptions<E>(
         }
 
         params {
-            +boundTo(AccountingChartRequest::since)
+            +boundTo(ChartRequest::since)
+            +boundTo(ChartRequest::until)
+            +boundTo(ChartRequest::context)
         }
     }
 
     /**
      * Returns the current usage for this resource
      */
-    val currentUsage = callDescription<Unit, Unit, CommonErrorMessage> {
+    val currentUsage = callDescription<CurrentUsageRequest, CurrentUsageResponse, CommonErrorMessage> {
         name = "currentUsage"
         method = HttpMethod.Get
 
@@ -167,7 +230,9 @@ abstract class AbstractAccountingResourceDescriptions<E>(
         }
 
         params {
-
+            +boundTo(CurrentUsageRequest::context)
+            +boundTo(CurrentUsageRequest::since)
+            +boundTo(CurrentUsageRequest::until)
         }
     }
 }
