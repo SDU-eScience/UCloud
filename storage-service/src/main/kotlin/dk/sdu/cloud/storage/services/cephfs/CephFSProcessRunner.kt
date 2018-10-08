@@ -62,7 +62,10 @@ class CephFSCommandRunner(
         )
 
     private val wrappedStderr =
-        BoundaryContainedStream(serverBoundary, interpreter.errorStream)
+        BoundaryContainedStream(
+            serverBoundary,
+            interpreter.errorStream
+        )
 
     val stdout: InputStream = wrappedStdout
     val stderr: InputStream = wrappedStdout
