@@ -4,8 +4,8 @@ import dk.sdu.cloud.accounting.api.Chart
 import dk.sdu.cloud.accounting.api.ChartResponse
 import dk.sdu.cloud.accounting.api.CurrentUsageResponse
 import dk.sdu.cloud.accounting.api.SimpleDataPoint
+import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingJobsDescriptions
-import dk.sdu.cloud.app.api.JobCompletedEvent
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.service.*
@@ -20,12 +20,13 @@ class JobsStartedController : Controller {
             // TODO All events should have a timestamp
             ok(
                 (0 until 10).map {
-                    JobCompletedEvent(
-                        "job-$it",
-                        "you",
-                        SimpleDuration(1, 0, 0),
+                    AccountingJobCompletedEvent(
                         NameAndVersion("abc", "1.0.0"),
-                        it % 3 == 0
+                        it,
+                        SimpleDuration(1, 0, 0),
+                        "user",
+                        "job-$it",
+                        1000L * it
                     )
                 }.paginate(req.normalize())
             )

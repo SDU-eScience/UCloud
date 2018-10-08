@@ -106,6 +106,35 @@ data class Chart<DataPointType : ChartDataPoint<*, *>>(
 internal const val ACCOUNTING_NAMESPACE = "accounting"
 
 /**
+ * An accounting event. Contains basic information that is required.
+ *
+ * Implementations are encouraged to add any other relevant data as well. This is only the absolute minimum to help
+ * enforce a unified API.
+ */
+interface AccountingEvent {
+    /**
+     * A title for the event. This should contain a brief description of the type of event.
+     *
+     * Example: "Job Completed"
+     */
+    val title: String
+
+    /**
+     * A description of the event.
+     *
+     * If included this hints to the UI that it should display this description along with the event.
+     *
+     * Example: "Application 'foo@1.0.0' used 42:10:30 across 5 nodes."
+     */
+    val description: String? get() = null
+
+    /**
+     * Unix timestamp in milliseconds of when the event occurred
+     */
+    val timestamp: Long
+}
+
+/**
  * A collection of [RESTDescriptions] for a sub-implementation of the accounting-service. It provides an overview
  * interface for a single namespace. It is expected that all accounting-X-services implement this interface.
  *
@@ -169,16 +198,18 @@ abstract class AbstractAccountingDescriptions(
  * @param namespace The namespace of this resource. Should not include "accounting". Valid example: "compute".
  * @param resourceType The resource type that this interface implements. Valid example: "timeUsed".
  */
-abstract class AbstractAccountingResourceDescriptions<E>(
+abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
     namespace: String,
     resourceType: String
 ) : RESTDescriptions("$ACCOUNTING_NAMESPACE.$namespace.$resourceType") {
+    // TODO This stuff does not work well for auditing.
+
     val baseContext: String = "/api/$ACCOUNTING_NAMESPACE/$namespace/$resourceType"
 
     /**
      * Returns a concrete list of "raw" events that have contributed to the usage, for example as reported by [chart].
      */
-    val listEvents = callDescription<ListEventsRequest, ListEventsResponse<E>, CommonErrorMessage> {
+    val listEvents = callDescription<ListEventsRequest, ListEventsResponse<Event>, CommonErrorMessage> {
         name = "listEvents"
         method = HttpMethod.Get
 

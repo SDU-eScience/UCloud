@@ -31,6 +31,8 @@ class Server(
         }
 
         log.info("Server is ready!")
+
+        startServices()
     }
 
     override fun stop() {
