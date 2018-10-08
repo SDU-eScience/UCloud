@@ -501,7 +501,7 @@ class CoreAuthController<DBSession>(
                     ) {
                         attributes["autocomplete"] = "off"
 
-                        div(classes = "ui stacked segment") {
+                        div(classes = "ui segment") {
                             this@form.form()
                         }
                     }

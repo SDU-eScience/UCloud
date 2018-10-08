@@ -120,7 +120,7 @@ export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: 
     `files/lookup?path=${UF.removeTrailingSlash(path)}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
 
 export const fileSearchQuery = (search: string, pageNumber: number, itemsPerPage: number) =>
-     `/file-search?query=${search}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`
+    `/file-search?query=${search}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`
 
 
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
@@ -203,7 +203,7 @@ export const previewSupportedExtension = (path: string) => false;
 export const isProject = (file: File) => file.fileType === "DIRECTORY" && file.annotations.some(it => it === "P");
 
 export const toFileText = (selectedFiles: File[]): string =>
-    selectedFiles.length > 1 ? `${selectedFiles.length} files selected.` : getFilenameFromPath(selectedFiles[0].path);
+    `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected.`
 
 export const isLink = (file: File) => file.link;
 export const isDirectory = (file: File) => file.fileType === "DIRECTORY";
