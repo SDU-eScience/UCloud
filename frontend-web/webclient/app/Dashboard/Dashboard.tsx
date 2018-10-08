@@ -155,6 +155,8 @@ const DashboardNotifications = ({ notifications }: { notifications: Notification
     </Card>
 );
 
+const DashboardAccounting = () => {}
+
 const Notification = ({ notification }: { notification: Notification }) => {
     switch (notification.type) {
         case "SHARE_REQUEST":

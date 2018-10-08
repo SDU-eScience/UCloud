@@ -49,22 +49,22 @@ export const searchProjects = (query: string, page: number, itemsPerPage: number
         .catch(_ => setErrorMessage("An error occurred searching for projects\n"));
 
 
-type ReceiveFiles = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE, { files: Page<File> }>
+type ReceiveFiles = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE, { files: Page<File>, filesLoading: false }>
 export const receiveFiles = (files: Page<File>): ReceiveFiles => ({
     type: SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE,
-    payload: { files }
+    payload: { files, filesLoading: false }
 });
 
-type ReceiveApplications = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE, { applications: Page<Application> }>
+type ReceiveApplications = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE, { applications: Page<Application>, applicationsLoading: false }>
 export const receiveApplications = (applications: Page<Application>): ReceiveApplications => ({
     type: SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE,
-    payload: { applications }
+    payload: { applications, applicationsLoading: false }
 });
 
-type ReceiveProjects = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_PROJECTS_PAGE, { projects: Page<ProjectMetadata> }>
+type ReceiveProjects = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_PROJECTS_PAGE, { projects: Page<ProjectMetadata>, projectsLoading: false }>
 export const receiveProjects = (projects: Page<ProjectMetadata>): ReceiveProjects => ({
     type: SSActionTypes.RECEIVE_SIMPLE_PROJECTS_PAGE,
-    payload: { projects }
+    payload: { projects, projectsLoading: false }
 });
 
 type SetSearchType = PayloadAction<typeof SSActionTypes.SET_SIMPLE_SEARCH_SEARCH, { search: string }>

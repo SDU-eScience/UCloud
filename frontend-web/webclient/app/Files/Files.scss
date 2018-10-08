@@ -124,14 +124,17 @@ span > span.operation-text {
 div.ui.fluid.icon.input.header-search input {
     background: #3797de;
     color: #000;
+    transition: background-color 0.3s ease;
 }
 
 div.ui.button.floating.labeled.dropdown.icon {
     background: #3797de;
+    transition: background-color 0.3s ease;
 }
 
 div.ui.button.floating.labeled.dropdown.icon:focus {
     background: white;
+    transition: background-color 0.3s ease;
 }
 
 div.ui.fluid.icon.input.header-search input::-webkit-input-placeholder { /* Chrome/Opera/Safari */
@@ -152,4 +155,5 @@ div.ui.fluid.icon.input.header-search input:-moz-placeholder { /* Firefox 18- */
 
 div.ui.fluid.icon.input.header-search input:focus {
     background: #fff;
+    transition: background-color 0.3s ease;
 }

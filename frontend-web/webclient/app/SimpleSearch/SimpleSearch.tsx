@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Tab, List, Icon, Card, Message, Responsive, Form } from "semantic-ui-react";
+import { Tab, List, Icon, Card, Message, Responsive, Form, Menu, Segment, Container } from "semantic-ui-react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
@@ -25,7 +25,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
     }
 
     componentDidMount() {
-        if (!this.props.search) return;
+        if (!this.props.match.params[0]) { this.props.setError("No search text provided."); return };
         this.fetchAll(this.props.search);
     }
 
@@ -40,8 +40,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
         return true;
     }
 
-    setPath = (t) => {
-        const { text } = t;
+    setPath = (text) => {
         this.props.setPrioritizedSearch(text as HeaderSearchType);
         this.props.history.push(`/simplesearch/${text.toLocaleLowerCase()}/${this.props.search}`);
     }
@@ -65,7 +64,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
         const panes = [
             {
                 menuItem: "Files", render: () => (
-                    <Tab.Pane loading={filesLoading}>
+                    <Segment basic loading={filesLoading}>
                         <Pagination.List
                             loading={filesLoading}
                             pageRenderer={(page) => (<SimpleFileList files={page.items} />)}
@@ -73,11 +72,11 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                             onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchFiles(search, 0, itemsPerPage)}
                             onPageChanged={(pageNumber: number) => this.props.searchFiles(search, pageNumber, files.itemsPerPage)}
                         />
-                    </Tab.Pane>)
+                    </Segment>)
             },
             {
                 menuItem: "Projects", render: () => (
-                    <Tab.Pane loading={projectsLoading}>
+                    <Segment basic loading={projectsLoading}>
                         <Pagination.List
                             loading={projectsLoading}
                             pageRenderer={(page) => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
@@ -85,12 +84,12 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                             onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchProjects(search, 0, itemsPerPage)}
                             onPageChanged={(pageNumber: number) => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
                         />
-                    </Tab.Pane>
+                    </Segment>
                 )
             },
             {
                 menuItem: "Applications", render: () => (
-                    <Tab.Pane loading={applicationsLoading}>
+                    <Segment basic loading={applicationsLoading}>
                         <Pagination.List
                             loading={applicationsLoading}
                             pageRenderer={({ items }) =>
@@ -102,17 +101,26 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                             onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchApplications(search, 0, itemsPerPage)}
                             onPageChanged={(pageNumber: number) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
                         />
-                    </Tab.Pane>
+                    </Segment>
                 )
             }
         ];
+        const activeIndex = SearchPriorityToNumber(this.props.match.params.priority);
+        console.log(activeIndex);
         return (
             <React.StrictMode>
                 {errorMessage}
                 <Responsive maxWidth={999} as={Form} className="form-input-margin" onSubmit={() => this.search()}>
                     <Form.Input style={{ marginBottom: "15px" }} onChange={(_, { value }) => this.props.setSearch(value)} fluid />
                 </Responsive>
-                <Tab onTabChange={({ target }) => this.setPath(target)} activeIndex={SearchPriorityToNumber(this.props.match.params.priority)} panes={panes} />
+
+                <Menu pointing>
+                    <Menu.Item name="Files" active={0 === activeIndex} onClick={() => this.setPath("files")} />
+                    <Menu.Item name="Projects" active={1 === activeIndex} onClick={() => this.setPath("projects")} />
+                    <Menu.Item name="Applications" active={2 === activeIndex} onClick={() => this.setPath("applications")} />
+                </Menu>
+
+                {panes[activeIndex].render()}
             </React.StrictMode>
         );
     }
@@ -135,7 +143,7 @@ const SimpleFileList = ({ files }) => (
     </List>
 );
 
-const SearchPriorityToNumber = (search: String): number => {
+const SearchPriorityToNumber = (search: string): number => {
     if (search.toLocaleLowerCase() === "projects") return 1;
     if (search.toLocaleLowerCase() === "applications") return 2;
     return 0;
@@ -146,9 +154,18 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setApplicationsLoading: (loading: boolean) => dispatch(SSActions.setApplicationsLoading(loading)),
     setProjectsLoading: (loading: boolean) => dispatch(SSActions.setProjectsLoading(loading)),
     setError: (error?: string) => dispatch(SSActions.setErrorMessage(error)),
-    searchFiles: async (query: string, page: number, itemsPerPage: number) => dispatch(await SSActions.searchFiles(query, page, itemsPerPage)),
-    searchApplications: async (query: string, page: number, itemsPerPage: number) => dispatch(await SSActions.searchApplications(query, page, itemsPerPage)),
-    searchProjects: async (query: string, page: number, itemsPerPage: number) => dispatch(await SSActions.searchProjects(query, page, itemsPerPage)),
+    searchFiles: async (query: string, page: number, itemsPerPage: number) => {
+        dispatch(SSActions.setFilesLoading(true));
+        dispatch(await SSActions.searchFiles(query, page, itemsPerPage));
+    },
+    searchApplications: async (query: string, page: number, itemsPerPage: number) => {
+        dispatch(SSActions.setApplicationsLoading(true));
+        dispatch(await SSActions.searchApplications(query, page, itemsPerPage));
+    },
+    searchProjects: async (query: string, page: number, itemsPerPage: number) => {
+        dispatch(SSActions.setProjectsLoading(true));
+        dispatch(await SSActions.searchProjects(query, page, itemsPerPage))
+    },
     setFilesPage: (page: Page<File>) => dispatch(SSActions.receiveFiles(page)),
     setApplicationsPage: (page: Page<Application>) => dispatch(SSActions.receiveApplications(page)),
     setProjectsPage: (page: Page<ProjectMetadata>) => dispatch(SSActions.receiveProjects(page)),
