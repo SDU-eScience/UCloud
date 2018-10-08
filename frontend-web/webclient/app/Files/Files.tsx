@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider } from "semantic-ui-react";
+import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider, Segment } from "semantic-ui-react";
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
@@ -99,7 +99,7 @@ class Files extends React.Component<FilesProps> {
         const fileOperations: FileOperation[] = [
             {
                 text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)),
-                disabled: (files: File[]) => false, icon: "edit", color: undefined
+                disabled: (files: File[]) => false, icon: "edit outline", color: undefined
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
@@ -114,7 +114,7 @@ class Files extends React.Component<FilesProps> {
                             currentPath={path}
                             showUploader={this.props.showUploader}
                         />
-                        <BreadCrumbs currentPath={path} navigate={(newPath) => navigate(newPath)} homeFolder={Cloud.homeFolder} />
+                        <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
                     </Grid.Row>
                     <Pagination.List
                         loading={loading}
@@ -209,7 +209,7 @@ export const FilesTable = ({
         </Table>
     );
 
-const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (sO: SortOrder, sB: SortBy) => null, isSortedBy, currentSelection, sortOrder, minWidth = undefined }: ResponsiveTableColumnProps) => (
+const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder, minWidth = undefined }: ResponsiveTableColumnProps) => (
     <Responsive minWidth={minWidth} as={Table.HeaderCell}>
         <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
         <Icon className="float-right" name={iconName} />
@@ -342,11 +342,11 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
 const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
     <div>
         <Header as="h3">{toFileText(files)}</Header>
-        <FileOperations files={files} fileOperations={fileOperations} As={Button} fluid basic />
+        <FileOperations files={files} fileOperations={fileOperations} As="div" />
     </div>
 ) : null;
 
-export const FileOperations = ({ files, fileOperations, As, fluid, basic }) => files.length && fileOperations.length ?
+export const FileOperations = ({ files, fileOperations, As }) => files.length && fileOperations.length ?
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
         if ((fileOp as PredicatedOperation).predicate) {
@@ -357,14 +357,12 @@ export const FileOperations = ({ files, fileOperations, As, fluid, basic }) => f
         return !operation.disabled(files, Cloud) ? (
             <As
                 key={i}
-                content={operation.text}
-                icon={operation.icon}
-                color={operation.color}
-                className="context-button-margin"
+                className="context-button-margin pointer-cursor"
                 onClick={() => (operation as Operation).onClick(files, Cloud)}
-                fluid={fluid}
-                basic={basic}
-            />
+            >
+                <Icon color={operation.color} name={operation.icon} />
+                <span className="operation-text" style={{ fontSize: "16px" }} >{operation.text}</span>
+            </As>
         ) : null;
     }) : null;
 

@@ -84,6 +84,10 @@ table.ui.very.basic.padded.table tbody tr.file-row td.table-cell-padding-left {
     margin: 5px 0px 5px 0px
 }
 
+h3 ~ div.context-button-margin.pointer-cursor {
+    margin: 5px 0px 5px 90px
+}
+
 .group-icon-padding {
     padding: 0 5px 0 5px
 }
@@ -104,11 +108,15 @@ div.ui.fluid.transparent.input input.input-left-margin {
     margin-left: 22px;
 }
 
-// FIXME Issues with datepicker without this
+// FIXME Issues with time placement in datepicker without this
 ul.react-datepicker__time-list {
    padding-left: 8px;
 }
 
 i.margin-top-7px {
     margin-top: 7px;
+}
+
+span > span.operation-text {
+    font-size: 16px;
 }
