@@ -68,10 +68,6 @@ const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
     />
 );
 
-function FeedActivity({ activity }: { activity: CountedActivity | TrackedActivity }) {
-    let extraText = "";
-}
-
 const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
     <Feed.Event
         icon={eventIcon(activity.operation).icon}
@@ -87,8 +83,9 @@ const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
     />
 );
 
-const operationToPastTense = (operation: TrackedOperations | CountedOperations) => {
+const operationToPastTense = (operation: TrackedOperations | CountedOperations): string => {
     if (operation === "MOVED") return "moved";
+    if (operation === "REMOVE_FAVORITE") return "unfavorited"
     if ((operation as string).endsWith("E")) return `${(operation as string).toLowerCase()}d`;
     return `${operation}ed`;
 }
@@ -96,7 +93,10 @@ interface EventIconAndColor { icon: SemanticICONS, color: SemanticCOLORS }
 const eventIcon = (operation: TrackedOperations | CountedOperations): EventIconAndColor => {
     switch (operation) {
         case "FAVORITE": {
-            return { icon: "favorite", color: "blue" };
+            return { icon: "star", color: "blue" };
+        }
+        case "REMOVE_FAVORITE": {
+            return { icon: "star outline", color: "blue" };
         }
         case "DOWNLOAD": {
             return { icon: "download", color: "blue" };
