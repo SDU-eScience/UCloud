@@ -133,6 +133,7 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('function loader(content) {
@@ -197,11 +198,7 @@ Array [
   // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
   return \`module.exports = \${publicPath};\`;
 }')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 0.3,
-                "width": "100%",
               }
             }
           />
@@ -289,14 +286,11 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('https://placekitten.com/200/200')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 1,
-                "width": "100%",
               }
             }
           />
@@ -384,14 +378,11 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('https://placekitten.com/200/200')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 1,
-                "width": "100%",
               }
             }
           />
@@ -480,14 +471,11 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('https://placekitten.com/200/200')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 1,
-                "width": "100%",
               }
             }
           />
@@ -575,6 +563,7 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('function loader(content) {
@@ -639,11 +628,7 @@ Array [
   // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
   return \`module.exports = \${publicPath};\`;
 }')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 0.3,
-                "width": "100%",
               }
             }
           />
@@ -732,14 +717,11 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('https://placekitten.com/200/200')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 1,
-                "width": "100%",
               }
             }
           />
@@ -827,6 +809,7 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('function loader(content) {
@@ -891,11 +874,7 @@ Array [
   // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
   return \`module.exports = \${publicPath};\`;
 }')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 0.3,
-                "width": "100%",
               }
             }
           />
@@ -983,14 +962,11 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('https://placekitten.com/200/200')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 1,
-                "width": "100%",
               }
             }
           />
@@ -1200,6 +1176,7 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('function loader(content) {
@@ -1264,11 +1241,7 @@ Array [
   // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
   return \`module.exports = \${publicPath};\`;
 }')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 0.3,
-                "width": "100%",
               }
             }
           />
@@ -1356,14 +1329,11 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('https://placekitten.com/200/200')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 1,
-                "width": "100%",
               }
             }
           />
@@ -1451,14 +1421,11 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('https://placekitten.com/200/200')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 1,
-                "width": "100%",
               }
             }
           />
@@ -1547,14 +1514,11 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('https://placekitten.com/200/200')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 1,
-                "width": "100%",
               }
             }
           />
@@ -1642,6 +1606,7 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('function loader(content) {
@@ -1706,11 +1671,7 @@ Array [
   // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
   return \`module.exports = \${publicPath};\`;
 }')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 0.3,
-                "width": "100%",
               }
             }
           />
@@ -1799,14 +1760,11 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('https://placekitten.com/200/200')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 1,
-                "width": "100%",
               }
             }
           />
@@ -1894,6 +1852,7 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('function loader(content) {
@@ -1958,11 +1917,7 @@ Array [
   // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
   return \`module.exports = \${publicPath};\`;
 }')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 0.3,
-                "width": "100%",
               }
             }
           />
@@ -2050,14 +2005,11 @@ Array [
           onClick={[Function]}
         >
           <div
+            className="app-image"
             style={
               Object {
                 "backgroundImage": "url('https://placekitten.com/200/200')",
-                "backgroundPosition": "center",
-                "backgroundSize": "cover",
-                "height": "200px",
                 "opacity": 1,
-                "width": "100%",
               }
             }
           />
@@ -2151,6 +2103,7 @@ exports[`Single Application Component Render Single Application 1`] = `
       onClick={[Function]}
     >
       <div
+        className="app-image"
         style={
           Object {
             "backgroundImage": "url('function loader(content) {
@@ -2215,11 +2168,7 @@ exports[`Single Application Component Render Single Application 1`] = `
   // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
   return \`module.exports = \${publicPath};\`;
 }')",
-            "backgroundPosition": "center",
-            "backgroundSize": "cover",
-            "height": "200px",
             "opacity": 0.3,
-            "width": "100%",
           }
         }
       />
