@@ -1,6 +1,6 @@
 package dk.sdu.cloud.accounting.compute
 
-import dk.sdu.cloud.accounting.compute.http.AccountingController
+import dk.sdu.cloud.accounting.compute.http.JobsStartedController
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSessionFactory
@@ -25,7 +25,7 @@ class Server(
 
             routing {
                 configureControllers(
-                    AccountingController()
+                    JobsStartedController()
                 )
             }
         }

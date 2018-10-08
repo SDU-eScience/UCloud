@@ -86,6 +86,17 @@ interface ChartDataPoint<XType, YType> {
     val label: String?
 }
 
+/**
+ * A simple [ChartDataPoint]
+ *
+ * @see ChartDataPoint
+ */
+data class SimpleDataPoint<XType, YType>(
+    override val x: XType,
+    override val y: YType,
+    override val label: String? = null
+) : ChartDataPoint<XType, YType>
+
 data class Chart<DataPointType : ChartDataPoint<*, *>>(
     val xAxisLabel: String,
     val yAxisLabel: String,
