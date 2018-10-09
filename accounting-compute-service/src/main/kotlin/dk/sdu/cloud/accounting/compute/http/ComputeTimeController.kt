@@ -1,9 +1,8 @@
 package dk.sdu.cloud.accounting.compute.http
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.accounting.api.ChartResponse
 import dk.sdu.cloud.accounting.api.ChartingHelpers
-import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
+import dk.sdu.cloud.accounting.api.CurrentUsageResponse
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingTimeDescriptions
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.accounting.compute.services.toMillis
@@ -14,7 +13,6 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
-import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 
 class ComputeTimeController<DBSession>(
@@ -46,7 +44,13 @@ class ComputeTimeController<DBSession>(
 
         implement(ComputeAccountingTimeDescriptions.currentUsage) { req ->
             logEntry(log, req)
-            error(CommonErrorMessage("Not yet implemented"), HttpStatusCode.NotFound)
+
+            ok(
+                CurrentUsageResponse(
+                    usage = completedJobsService.computeUsage(req, call.securityPrincipal.username),
+                    quota = null
+                )
+            )
         }
     }
 

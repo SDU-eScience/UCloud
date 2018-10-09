@@ -60,9 +60,13 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
         context: ContextQuery,
         user: String
     ): List<AccountingJobCompletedEvent> {
-        return session.criteria<JobCompletedEntity> {
-            (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
-        }.list().map { it.toModel() }
+        return session.criteria<JobCompletedEntity>(
+            orderBy = { listOf(descinding(entity[JobCompletedEntity::timestamp])) },
+
+            predicate = {
+                (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
+            }
+        ).list().map { it.toModel() }
     }
 
     override fun listEvents(
@@ -71,9 +75,13 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
         context: ContextQuery,
         user: String
     ): Page<AccountingJobCompletedEvent> {
-        return session.paginatedCriteria<JobCompletedEntity>(paging) {
-            (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
-        }.mapItems { it.toModel() }
+        return session.paginatedCriteria<JobCompletedEntity>(
+            paging,
+            orderBy = { listOf(descinding(entity[JobCompletedEntity::timestamp])) },
+            predicate = {
+                (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
+            }
+        ).mapItems { it.toModel() }
     }
 
     override fun computeUsage(session: HibernateSession, context: ContextQuery, user: String): Long {

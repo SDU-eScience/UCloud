@@ -3,7 +3,7 @@ package dk.sdu.cloud.accounting.compute.http
 import dk.sdu.cloud.accounting.api.Chart
 import dk.sdu.cloud.accounting.api.ChartResponse
 import dk.sdu.cloud.accounting.api.CurrentUsageResponse
-import dk.sdu.cloud.accounting.api.SimpleDataPoint
+import dk.sdu.cloud.accounting.api.DataPoint2D
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingJobsDescriptions
 import dk.sdu.cloud.app.api.NameAndVersion
@@ -15,6 +15,7 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.paginate
 import io.ktor.routing.Route
 
+@Suppress("MagicNumber")
 class JobsStartedController : Controller {
     override val baseContext = ComputeAccountingJobsDescriptions.baseContext
 
@@ -44,7 +45,7 @@ class JobsStartedController : Controller {
                         xAxisLabel = "Time",
                         yAxisLabel = "Total usage",
                         data = (0 until 10).map {
-                            SimpleDataPoint(
+                            DataPoint2D(
                                 x = 1000L * it,
                                 y = 1000L * 60 * 60 * it,
                                 label = SimpleDuration(it, 0, 0).toString()
