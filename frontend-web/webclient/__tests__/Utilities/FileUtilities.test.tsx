@@ -13,8 +13,7 @@ describe("File Operations", () => {
 describe("To file text", () => {
     test("Single file", () => {
         const firstFile = mockFiles_SensitivityConfidential.items[0];
-        const path = firstFile.path.split("/").pop();
-        expect(FileUtils.toFileText([firstFile])).toBe(path);
+        expect(FileUtils.toFileText([firstFile])).toBe("1 file selected.");
     });
 
     test("Multiple files", () => {

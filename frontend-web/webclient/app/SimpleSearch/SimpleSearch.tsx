@@ -98,15 +98,14 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                                 </Card.Group>
                             }
                             page={applications}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchApplications(search, 0, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
+                            onItemsPerPageChanged={(itemsPerPage) => this.props.searchApplications(search, 0, itemsPerPage)}
+                            onPageChanged={(pageNumber) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
                         />
                     </Segment>
                 )
             }
         ];
         const activeIndex = SearchPriorityToNumber(this.props.match.params.priority);
-        console.log(activeIndex);
         return (
             <React.StrictMode>
                 {errorMessage}
@@ -115,9 +114,9 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                 </Responsive>
 
                 <Menu pointing>
-                    <Menu.Item name="Files" active={0 === activeIndex} onClick={() => this.setPath("files")} />
-                    <Menu.Item name="Projects" active={1 === activeIndex} onClick={() => this.setPath("projects")} />
-                    <Menu.Item name="Applications" active={2 === activeIndex} onClick={() => this.setPath("applications")} />
+                    <Menu.Item name={panes[0].menuItem} active={0 === activeIndex} onClick={() => this.setPath("files")} />
+                    <Menu.Item name={panes[1].menuItem} active={1 === activeIndex} onClick={() => this.setPath("projects")} />
+                    <Menu.Item name={panes[2].menuItem} active={2 === activeIndex} onClick={() => this.setPath("applications")} />
                 </Menu>
 
                 {panes[activeIndex].render()}

@@ -1,9 +1,26 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Simple Search Mount simplesearch 1`] = `
-<div>
+Array [
   <div
-    className="ui attached tabular menu"
+    className="ui red message"
+  >
+    <i
+      aria-hidden="true"
+      className="close icon"
+      onClick={[Function]}
+    />
+    <div
+      className="content"
+    >
+      <p>
+        No search text provided.
+
+      </p>
+    </div>
+  </div>,
+  <div
+    className="ui pointing menu"
   >
     <a
       className="item"
@@ -23,9 +40,9 @@ exports[`Simple Search Mount simplesearch 1`] = `
     >
       Applications
     </a>
-  </div>
+  </div>,
   <div
-    className="ui bottom attached segment active tab"
+    className="ui basic segment"
   >
     <span
       className="items-per-page-padding pagination-float-right"
@@ -148,6 +165,6 @@ exports[`Simple Search Mount simplesearch 1`] = `
       </h2>
     </div>
     <div />
-  </div>
-</div>
+  </div>,
+]
 `;

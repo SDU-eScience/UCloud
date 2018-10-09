@@ -370,7 +370,7 @@ export const FileOperations = ({ files, fileOperations, As }) => files.length &&
                 onClick={() => (operation as Operation).onClick(files, Cloud)}
             >
                 <Icon color={operation.color} name={operation.icon} />
-                <span className="operation-text" style={{ fontSize: "16px" }} >{operation.text}</span>
+                <span className="operation-text" style={{ fontSize: "16px" }}>{operation.text}</span>
             </As>
         ) : null;
     }) : null;
