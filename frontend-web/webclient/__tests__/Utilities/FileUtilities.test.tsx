@@ -1,7 +1,6 @@
 import * as FileUtils from "Utilities/FileUtilities";
 import { mockFiles_SensitivityConfidential } from "../mock/Files";
 import Cloud from "Authentication/lib";
-import { AnnotationsMap, File } from "Files";
 import { createMemoryHistory } from "history";
 
 describe("File Operations", () => {

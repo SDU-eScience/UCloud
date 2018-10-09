@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps } from "semantic-ui-react";
+import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps, SemanticICONS } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { connect } from "react-redux";
 import { setSidebarState } from "./Redux/SidebarActions";
@@ -85,9 +85,7 @@ const AdminOptions = ({ menuActive, handleClick, closeSidebar }: AdminOptionsPro
         <Accordion.Title content="Admin" onClick={handleClick} index={2} active={menuActive} />
         <Accordion.Content active={menuActive}>
             <List>
-                <Link to="/admin/usercreation" onClick={() => closeSidebar()} className="sidebar-option">
-                    <List.Item content="User Creation" icon="user plus" className="item-padding-right" />
-                </Link>
+                <MenuLink icon="user plus" name="User Creation" onClick={() => closeSidebar()} to="/admin/usercreation" />
             </List>
         </Accordion.Content>
     </Menu.Item>) : null;
@@ -105,13 +103,13 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
     <>
         <Accordion>
             <Menu.Item>
-                <MenuLink icon="home" to="/dashboard" name="Dashboard" onClick={() => closeSidebar()} />
+                <MenuLink icon="home" to="/dashboard" name="Dashboard" onClick={closeSidebar} />
             </Menu.Item>
             <Menu.Item>
-                <MenuLink icon="file" to={`/files/${Cloud.homeFolder}`} name="Files" onClick={() => closeSidebar()} />
+                <MenuLink icon="file outline" to={`/files/${Cloud.homeFolder}`} name="Files" onClick={closeSidebar} />
             </Menu.Item>
             <Menu.Item>
-                <MenuLink icon="question" to={`/activity/`} name="Activity" onClick={() => closeSidebar()} />
+                <MenuLink icon="question" to={`/activity/`} name="Activity" onClick={closeSidebar} />
             </Menu.Item>
             <Menu.Item>
                 <Accordion.Title onClick={handleClick} index={0} active={activeIndices[0]}>
@@ -120,18 +118,8 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
                 </Accordion.Title>
                 <Accordion.Content active={activeIndices[0]} >
                     <List>
-                        <Link to="/applications" onClick={() => closeSidebar()} className="sidebar-option">
-                            <List.Item className="item-padding-right">
-                                <List.Icon name="code" />
-                                Run
-                            </List.Item>
-                        </Link>
-                        <Link to="/analyses" onClick={() => closeSidebar()} className="sidebar-option">
-                            <List.Item className="item-padding-right">
-                                <Icon name="tasks" />
-                                Results
-                            </List.Item>
-                        </Link>
+                        <MenuLink icon="code" name="Run" onClick={closeSidebar} to="/applications" />
+                        <MenuLink icon="tasks" name="Results" onClick={closeSidebar} to="/analyses" />
                     </List>
                 </Accordion.Content>
             </Menu.Item>
@@ -139,41 +127,30 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
                 <Accordion.Title content="Publishing" onClick={handleClick} index={1} active={activeIndices[1]} />
                 <Accordion.Content active={activeIndices[1]}>
                     <List>
-                        <Link to="/zenodo" onClick={() => closeSidebar()} className="sidebar-option">
-                            <List.Item className="item-padding-right">
-                                <List.Icon name="newspaper" />
-                                Publications
-                                </List.Item>
-                        </Link>
-                        <Link to="/zenodo/publish" onClick={() => closeSidebar()} className="sidebar-option">
-                            <List.Item className="item-padding-right">
-                                <List.Icon name="edit" />
-                                Publish
-                            </List.Item>
-                        </Link>
+                        <MenuLink icon="newspaper" name="Publications" to="/zenodo" onClick={closeSidebar} />
+                        <MenuLink icon="edit" name="Publish" to="/zenodo/publish" onClick={closeSidebar} />
                     </List>
                 </Accordion.Content>
             </Menu.Item>
             <Menu.Item>
-                <MenuLink icon="share" to="/shares" name="Shares" onClick={() => closeSidebar()} />
+                <MenuLink icon="share square outline" to="/shares" name="Shares" onClick={closeSidebar} />
             </Menu.Item>
             <AdminOptions menuActive={activeIndices[2]} handleClick={handleClick} closeSidebar={closeSidebar} />
         </Accordion>
     </>
 );
 
-const MenuLink = ({ icon, name, to, onClick }) =>
+const MenuLink = ({ icon, name, to, onClick }: { icon: SemanticICONS, name: string, to: string, onClick: () => void }) =>
     <Link to={to} onClick={onClick} className="sidebar-option">
         <List>
             <List.Item>
-                <List.Content floated="right">
+                <List.Content floated="left">
                     <List.Icon name={icon} />
                 </List.Content>
                 {name}
             </List.Item>
         </List>
     </Link>
-
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
     setSidebarState: (open: boolean) => dispatch(setSidebarState(open))
