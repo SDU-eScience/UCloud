@@ -48,7 +48,7 @@ export const EntriesPerPageSelector = ({
                 compact
                 inline
                 as={as}
-                onChange={(e, { value }) => onChange(value as number)}
+                onChange={(_, { value }) => onChange(value as number)}
                 options={EntriesPerPageSelectorOptions}
                 value={entriesPerPage}
             />

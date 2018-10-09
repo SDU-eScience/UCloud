@@ -6,7 +6,7 @@ import { shortUUID, failureNotification } from "UtilityFunctions";
 import { Container, List, Card, Icon, Popup, Step, SemanticICONS, Grid } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { FilesTable } from "Files/Files";
-import { List as PaginationList } from "Pagination";
+import { List as PaginationList, EntriesPerPageSelector } from "Pagination";
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { ReduxObject, DetailedResultReduxObject } from "DefaultObjects";
@@ -19,6 +19,7 @@ import { History } from "history";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Page } from "Types";
+import { RefreshButton } from "UtilityComponents";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -262,7 +263,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 <h4>Output Files</h4>
                 <PaginationList
                     page={page}
-                    onRefresh={() => this.retrieveFilesPage(page.itemsPerPage, page.itemsPerPage)}
                     pageRenderer={(page) =>
                         <FilesTable
                             sortOrder={SortOrder.ASCENDING}
@@ -274,7 +274,19 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             onCheckFile={() => null}
                             sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
+                            customEntriesPerPage={
+                                <>
+                                    <EntriesPerPageSelector
+                                        className="items-per-page-padding"
+                                        entriesPerPage={page.itemsPerPage}
+                                        content="Files per page"
+                                        onChange={(itemsPerPage) => this.retrieveFilesPage(page.pageNumber, itemsPerPage)}
+                                    />
+                                    <RefreshButton loading={false} onClick={() => this.retrieveFilesPage(page.pageNumber, page.itemsPerPage)} />
+                                </>
+                            }
                         />}
+                    customEntriesPerPage
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
                     onItemsPerPageChanged={itemsPerPage => this.retrieveFilesPage(0, itemsPerPage)}
                 />

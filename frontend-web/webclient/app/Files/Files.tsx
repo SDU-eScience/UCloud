@@ -12,7 +12,7 @@ import { KeyCode, ReduxObject } from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
-import { FileIcon } from "UtilityComponents";
+import { FileIcon, RefreshButton } from "UtilityComponents";
 import { Page } from "Types";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
@@ -103,6 +103,17 @@ class Files extends React.Component<FilesProps> {
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
+        const customEntriesPerPage = (
+            <>
+                <Pagination.EntriesPerPageSelector
+                    className="items-per-page-padding"
+                    entriesPerPage={page.itemsPerPage}
+                    content="Files per page"
+                    onChange={(itemsPerPage) => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                />
+                <RefreshButton loading={loading} onClick={refetch} />
+            </>
+        );
         return (
             <Grid>
                 <Grid.Column computer={13} tablet={16}>
@@ -136,12 +147,13 @@ class Files extends React.Component<FilesProps> {
                                 files={page.items}
                                 sortBy={sortBy}
                                 onCheckFile={(checked: boolean, file: File) => checkFile(checked, file.path)}
+                                customEntriesPerPage={customEntriesPerPage}
                             />
                         )}
-                        onRefresh={refetch}
-                        onItemsPerPageChanged={(pageSize) => fetchFiles(path, pageSize, 0, sortOrder, sortBy)}
+                        customEntriesPerPage
+                        onItemsPerPageChanged={pageSize => fetchFiles(path, pageSize, 0, sortOrder, sortBy)}
                         page={page}
-                        onPageChanged={(pageNumber: number) => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
+                        onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
                     />
                 </Grid.Column>
                 <Responsive as={Grid.Column} computer={3} minWidth={992}>
@@ -172,7 +184,7 @@ class Files extends React.Component<FilesProps> {
 
 export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
-    fileOperations, sortOrder, onFavoriteFile, sortBy
+    fileOperations, sortOrder, onFavoriteFile, sortBy, customEntriesPerPage
 }: FilesTableProps) => (
         <Table unstackable basic="very">
             <FilesTableHeader
@@ -183,9 +195,11 @@ export const FilesTable = ({
                 toSortingIcon={sortingIcon}
                 sortFiles={sortFiles}
                 sortBy={sortBy}
+                customEntriesPerPage={customEntriesPerPage}
             />
             <Table.Body>
                 {files.map((file: File, i: number) => (
+                    // FIXME Use :has() or parent selector when available
                     <Table.Row className="file-row" style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
                         <FilenameAndIcons
                             file={file}
@@ -196,7 +210,7 @@ export const FilesTable = ({
                         />
                         <Responsive as={Table.Cell} minWidth={768} content={sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)} />
                         <Responsive as={Table.Cell} minWidth={768} content={sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)} />
-                        <Table.Cell>
+                        <Table.Cell textAlign="center">
                             <Dropdown direction="left" icon="ellipsis horizontal">
                                 <Dropdown.Menu>
                                     <FileOperations files={[file]} fileOperations={fileOperations} As={Dropdown.Item} />
@@ -210,7 +224,7 @@ export const FilesTable = ({
     );
 
 const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder, minWidth = undefined }: ResponsiveTableColumnProps) => (
-    <Responsive minWidth={minWidth} as={Table.HeaderCell}>
+    <Responsive minWidth={minWidth} as={Table.HeaderCell} width="2">
         <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
         <Icon className="float-right" name={iconName} />
     </Responsive>
@@ -219,7 +233,7 @@ const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
     sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
 
-const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => null, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy }: FilesTableHeaderProps) => (
+const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => null, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy, customEntriesPerPage }: FilesTableHeaderProps) => (
     <Table.Header>
         <Table.Row>
             <Table.HeaderCell className="filename-row" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
@@ -239,7 +253,9 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
                     iconName={toSortingIcon(sC)}
                 />
             ))}
-            <Table.HeaderCell />
+            <Table.HeaderCell width="3">
+                {customEntriesPerPage}
+            </Table.HeaderCell>
         </Table.Row>
     </Table.Header>
 );

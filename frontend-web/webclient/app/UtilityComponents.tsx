@@ -34,7 +34,7 @@ export class PP extends React.Component<{ visible: boolean}, {duration: number}>
         duration: 500
     }
 
-    updateDuration = (duration:number) => this.setState(() => ({ duration }));
+    updateDuration = (duration: number) => this.setState(() => ({ duration }));
 
     render() {
         if (!this.props.visible) return null;

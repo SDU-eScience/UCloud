@@ -138,6 +138,7 @@ export interface FilesTableProps {
     sortBy: SortBy
     onFavoriteFile: (f: File[]) => void
     fileOperations: FileOperation[]
+    customEntriesPerPage?: React.ReactNode
 }
 
 export interface CreateFolderProps {
@@ -153,6 +154,7 @@ export interface FilesTableHeaderProps {
     masterCheckbox?: React.ReactNode
     sortingColumns: [SortBy, SortBy]
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
+    customEntriesPerPage?: React.ReactNode
 }
 
 export interface FilenameAndIconsProps extends IconProps {
