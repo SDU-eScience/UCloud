@@ -212,6 +212,9 @@ abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
 
     /**
      * Returns a concrete list of "raw" events that have contributed to the usage, for example as reported by [chart].
+     *
+     * When processing events from Kafka, remember that Kafka usually only offers "at least once" delivery. The
+     * processing code should be resilient to this.
      */
     val listEvents = callDescription<ListEventsRequest, ListEventsResponse<Event>, CommonErrorMessage> {
         name = "listEvents"

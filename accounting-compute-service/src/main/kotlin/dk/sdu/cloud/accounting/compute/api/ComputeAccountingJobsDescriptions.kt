@@ -18,7 +18,7 @@ data class AccountingJobCompletedEvent(
 
     override val description =
         "Application '${application.name}@${application.version}' took $totalDuration " +
-        "across $nodes node${if (nodes != 1) "s" else ""}."
+                "across $nodes node${if (nodes != 1) "s" else ""}."
 }
 
 object ComputeAccountingJobsDescriptions :

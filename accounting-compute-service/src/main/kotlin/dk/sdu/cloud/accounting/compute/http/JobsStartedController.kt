@@ -8,16 +8,20 @@ import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingJobsDescriptions
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.paginate
 import io.ktor.routing.Route
 
+@Suppress("MagicNumber")
 class JobsStartedController : Controller {
     override val baseContext = ComputeAccountingJobsDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputeAccountingJobsDescriptions.listEvents) { req ->
             logEntry(log, req)
-            // TODO All events should have a timestamp
             ok(
                 (0 until 10).map {
                     AccountingJobCompletedEvent(
