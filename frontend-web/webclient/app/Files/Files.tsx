@@ -41,7 +41,7 @@ class Files extends React.Component<FilesProps> {
 
     get urlPath(): string { return this.props.match.params[0]; }
 
-    newFolder() {
+    newFolder() { // FIXME make action
         let { page, updateFiles } = this.props;
         page.items = [newMockFolder()].concat([...page.items.filter(it => !it.isMockFolder)]);
         updateFiles(page);
@@ -273,9 +273,8 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
     </Dropdown>) : <>{UF.prettierString(currentSelection)}</>;
 
 const ContextBar = ({ files, ...props }: ContextBarProps) => (
-    <div>
+    <div className="margin-top-65">
         <ContextButtons showUploader={props.showUploader} createFolder={props.createFolder} />
-        <Divider />
         <FileOptions files={files} {...props} />
     </div>
 );
