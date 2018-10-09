@@ -5,13 +5,13 @@ object ChartingHelpers {
     const val HINT_BAR_CHART = "bar-chart"
     const val HINT_PIE_CHART = "pie-chart"
 
-    inline fun <E : AccountingEvent> basicChartFromEvents(
+    fun <E : AccountingEvent> basicChartFromEvents(
         events: List<E>,
         desiredDataPoints: Int = 25,
         xAxisLabel: String = "Time",
         yAxisLabel: String = "Value",
         labelSelector: (Long) -> String? = { null },
-        noinline dataSelector: (E) -> Long
+        dataSelector: (E) -> Long
     ): Chart<ChartDataPoint2D<Long, Long>> {
         if (desiredDataPoints <= 0) throw IllegalArgumentException("desiredDataPoints must be positive")
         if (events.isEmpty()) return Chart(xAxisLabel, yAxisLabel, emptyList())

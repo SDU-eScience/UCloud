@@ -54,8 +54,8 @@ class Server(
             routing {
                 configureControllers(
                     JobsStartedController(),
-                    ComputeTimeController(),
-                    ComputeAccountingController()
+                    ComputeTimeController(completedJobsService),
+                    ComputeAccountingController(completedJobsService)
                 )
             }
         }

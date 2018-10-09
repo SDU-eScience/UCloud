@@ -3,7 +3,6 @@ package dk.sdu.cloud.accounting.compute.services
 import dk.sdu.cloud.accounting.api.ContextQuery
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.CriteriaBuilderContext
@@ -91,7 +90,9 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
                 (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
             )
             criteria
-        }.createQuery(session).singleResult
+        }.createQuery(session)
+            .list()
+            ?.singleOrNull() ?: 0L
     }
 
     private fun CriteriaBuilderContext<*, JobCompletedEntity>.matchingContext(context: ContextQuery): Predicate {
@@ -124,23 +125,6 @@ fun AccountingJobCompletedEvent.toEntity(): JobCompletedEntity = JobCompletedEnt
     jobId
 )
 
-fun SimpleDuration.toMillis(): Long =
-    (seconds * SECONDS_MS) + (minutes * MINUTES_MS) + (hours * HOURS_MS)
-
-fun Long.toSimpleDuration(): SimpleDuration {
-    var remaining = this
-
-    val hours = remaining / HOURS_MS
-    remaining %= HOURS_MS
-
-    val minutes = remaining / MINUTES_MS
-    remaining %= MINUTES_MS
-
-    val seconds = remaining / SECONDS_MS
-
-    return SimpleDuration(hours.toInt(), minutes.toInt(), seconds.toInt())
-}
-
 /**
  * Converts [JobCompletedEntity] to [AccountingJobCompletedEvent]
  */
@@ -152,7 +136,3 @@ fun JobCompletedEntity.toModel(): AccountingJobCompletedEvent = AccountingJobCom
     jobId,
     timestamp.time
 )
-
-private const val SECONDS_MS = 1000L
-private const val MINUTES_MS = SECONDS_MS * 60
-private const val HOURS_MS = MINUTES_MS * 60

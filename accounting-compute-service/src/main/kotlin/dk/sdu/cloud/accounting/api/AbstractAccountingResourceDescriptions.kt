@@ -4,6 +4,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -118,6 +119,29 @@ data class ListResourceResponse(
 )
 
 /**
+ * A single item on an invoice.
+ */
+data class BillableItem(
+    val name: String,
+    val units: Long,
+    val unitPrice: SerializedMoney
+)
+
+/**
+ * Part of an invoice, build by individual account-services
+ */
+data class InvoiceReport(
+    val items: List<BillableItem>
+)
+
+data class BuildReportRequest(
+    val periodStartMs: Long,
+    val periodEndMs: Long
+)
+
+typealias BuildReportResponse = InvoiceReport
+
+/**
  * A collection of [RESTDescriptions] for a sub-implementation of the accounting-service. It provides an overview
  * interface for a single namespace. It is expected that all accounting-X-services implement this interface.
  *
@@ -137,7 +161,7 @@ abstract class AbstractAccountingDescriptions(
      *
      * Implementations should block any attempts not made by "_accounting".
      */
-    val buildReport = callDescription<Unit, Unit, CommonErrorMessage> {
+    val buildReport = callDescription<BuildReportRequest, BuildReportResponse, CommonErrorMessage> {
         name = "buildReport"
         method = HttpMethod.Post
 
@@ -150,6 +174,8 @@ abstract class AbstractAccountingDescriptions(
             using(baseContext)
             +"buildReport"
         }
+
+        body { bindEntireRequestFromBody() }
     }
 
     /**
