@@ -6,7 +6,7 @@ import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjusters
 
 object AccountingHelpers {
-    private val PERIOD_TIME_ZONE = ZoneId.of("Europe/Copenhagen")
+    private val periodTimeZone = ZoneId.of("Europe/Copenhagen")
 
     /**
      * Returns the start of the period activate [atTimestamp]
@@ -18,7 +18,7 @@ object AccountingHelpers {
     fun startOfPeriod(atTimestamp: Long = System.currentTimeMillis()): Long {
         return Instant
             .ofEpochMilli(atTimestamp)
-            .atZone(PERIOD_TIME_ZONE)
+            .atZone(periodTimeZone)
             .with(TemporalAdjusters.firstDayOfMonth())
             .withHour(0)
             .withMinute(0)
@@ -38,7 +38,7 @@ object AccountingHelpers {
     fun endOfPeriod(atTimestamp: Long = System.currentTimeMillis()): Long {
         return Instant
             .ofEpochMilli(atTimestamp)
-            .atZone(PERIOD_TIME_ZONE)
+            .atZone(periodTimeZone)
             .with(TemporalAdjusters.firstDayOfNextMonth())
             .withHour(0)
             .withMinute(0)
