@@ -25,6 +25,6 @@ apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
 
 dependencies {
     compile 'dk.sdu.cloud:service-common:0.18.0-SNAPSHOT'
-    compile "dk.sdu.cloud:app-api:0.7.0-SNAPSHOT"
+    compile "dk.sdu.cloud:app-api:0.8.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"
 }

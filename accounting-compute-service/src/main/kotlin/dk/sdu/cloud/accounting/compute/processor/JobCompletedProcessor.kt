@@ -25,11 +25,11 @@ class JobCompletedProcessor<DBSession>(
                     val accountingEvents = batch.map { (_, event) ->
                         AccountingJobCompletedEvent(
                             event.application,
-                            1, // TODO
+                            event.nodes,
                             event.duration,
                             event.jobOwner,
                             event.jobId,
-                            System.currentTimeMillis() // TODO
+                            event.jobCompletedAt
                         )
                     }
 
