@@ -21,7 +21,7 @@ import {
 } from ".";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
-    startRenamingFiles, AllFileOperations, newMockFolder, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
+    startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
 import { Dispatch } from "redux";
@@ -40,12 +40,6 @@ class Files extends React.Component<FilesProps> {
     }
 
     get urlPath(): string { return this.props.match.params[0]; }
-
-    newFolder() { // FIXME make action
-        let { page, updateFiles } = this.props;
-        page.items = [newMockFolder()].concat([...page.items.filter(it => !it.isMockFolder)]);
-        updateFiles(page);
-    }
 
     onRenameFile = (key: number, file: File, name: string) => {
         const { path, fetchPageFromPath, updateFiles, page } = this.props;
@@ -121,7 +115,7 @@ class Files extends React.Component<FilesProps> {
                         <Responsive
                             as={ContextButtons}
                             maxWidth={991}
-                            createFolder={() => this.newFolder()}
+                            createFolder={() => this.props.createFolder()}
                             currentPath={path}
                             showUploader={this.props.showUploader}
                         />
@@ -161,7 +155,7 @@ class Files extends React.Component<FilesProps> {
                         showUploader={this.props.showUploader}
                         fileOperations={fileOperations}
                         files={selectedFiles}
-                        createFolder={() => this.newFolder()}
+                        createFolder={() => this.props.createFolder()}
                     />
                 </Responsive>
                 <FileSelectorModal
@@ -399,6 +393,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
     onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(undefined)),
     dismissError: () => dispatch(Actions.setErrorMessage()),
+    createFolder: () => dispatch(Actions.createFolder()),
     fetchFiles: async (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => {
         dispatch(Actions.updatePath(path));
         dispatch(Actions.setLoading(true));

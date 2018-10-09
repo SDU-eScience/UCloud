@@ -13,7 +13,8 @@ import {
     FILES_ERROR,
     SET_FILE_SELECTOR_ERROR,
     CHECK_ALL_FILES,
-    CHECK_FILE
+    CHECK_FILE,
+    CREATE_FOLDER
 } from "./FilesReducer";
 import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
@@ -26,7 +27,7 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
     SetLoadingAction<typeof SET_FILES_LOADING> | UpdatePathAction | FileSelectorShownAction |
     ReceiveFileSelectorFilesAction | Action<typeof SET_FILE_SELECTOR_LOADING> | SetFileSelectorCallbackAction |
     Error<typeof SET_FILE_SELECTOR_ERROR> | SetDisallowedPathsAction | SetSortingColumnAction | CheckAllFilesAction |
-    CheckFileAction
+    CheckFileAction | CreateFolderAction
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
@@ -92,7 +93,7 @@ interface ReceiveFiles extends PayloadAction<typeof RECEIVE_FILES, { path: strin
  */
 const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sortBy: SortBy): ReceiveFiles => {
     // FIXME Checked and rename should be set in reducer
-    page.items.forEach((f) => f.isChecked = f.beingRenamed = false);
+    page.items.forEach(f => f.isChecked = f.beingRenamed = false);
     return {
         type: RECEIVE_FILES,
         payload: {
@@ -219,4 +220,9 @@ export const checkFile = (checked: boolean, path: string): CheckFileAction => ({
         checked,
         path
     }
-}); 
+});
+
+type CreateFolderAction = Action<typeof CREATE_FOLDER>
+export const createFolder = () => ({
+    type: CREATE_FOLDER
+});

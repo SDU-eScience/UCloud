@@ -99,6 +99,7 @@ export interface FilesOperations { // Redux operations
     setDisallowedPaths: (disallowedPaths: string[]) => void
     showUploader: () => void
     setUploaderCallback: (callback) => void
+    createFolder: () => void
 }
 
 export interface FileSelectorProps {

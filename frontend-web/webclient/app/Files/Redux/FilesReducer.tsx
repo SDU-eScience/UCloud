@@ -1,5 +1,6 @@
 import { FileActions } from "./FilesActions";
 import { FilesReduxObject, initFiles } from "DefaultObjects";
+import { newMockFolder } from "Utilities/FileUtilities";
 
 export const RECEIVE_FILES = "RECEIVE_FILES";
 export const UPDATE_FILES = "UPDATE_FILES";
@@ -16,6 +17,7 @@ export const FILES_ERROR = "FILES_ERROR";
 export const SET_FILE_SELECTOR_ERROR = "SET_FILE_SELECTOR_ERROR";
 export const CHECK_ALL_FILES = "CHECK_ALL_FILES";
 export const CHECK_FILE = "CHECK_FILE";
+export const CREATE_FOLDER = "CREATE_FOLDER";
 
 const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: FileActions): FilesReduxObject => {
     switch (action.type) {
@@ -85,6 +87,14 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
             sortingColumns[action.index] = action.sortingColumn;
             window.localStorage.setItem(`filesSorting${action.index}`, action.sortingColumn);
             return { ...state, sortingColumns };
+        }
+        case CREATE_FOLDER: {
+            if (state.page.items.some(it => !!it.isMockFolder)) return state;
+            return {
+                ...state, page: {
+                    ...state.page, items: [newMockFolder()].concat([...state.page.items.filter(it => !it.isMockFolder)])
+                }
+            }
         }
         default: {
             return state;
