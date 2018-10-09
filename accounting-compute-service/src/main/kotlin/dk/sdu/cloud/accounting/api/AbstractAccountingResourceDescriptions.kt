@@ -66,7 +66,7 @@ typealias ChartRequest = ContextQueryImpl
  * @see [AbstractAccountingResourceDescriptions.chart]
  */
 data class ChartResponse(
-    val chart: Chart<ChartDataPoint<Long, Long>>,
+    val chart: Chart<ChartDataPoint2D<Long, Long>>,
     val quota: Long?
 )
 
@@ -79,29 +79,6 @@ typealias CurrentUsageRequest = ContextQueryImpl
  * @see [AbstractAccountingResourceDescriptions.currentUsage]
  */
 data class CurrentUsageResponse(val usage: Long, val quota: Long?)
-
-interface ChartDataPoint<XType, YType> {
-    val x: XType
-    val y: YType
-    val label: String?
-}
-
-/**
- * A simple [ChartDataPoint]
- *
- * @see ChartDataPoint
- */
-data class SimpleDataPoint<XType, YType>(
-    override val x: XType,
-    override val y: YType,
-    override val label: String? = null
-) : ChartDataPoint<XType, YType>
-
-data class Chart<DataPointType : ChartDataPoint<*, *>>(
-    val xAxisLabel: String,
-    val yAxisLabel: String,
-    val data: List<DataPointType>
-)
 
 internal const val ACCOUNTING_NAMESPACE = "accounting"
 

@@ -21,6 +21,15 @@ class CompletedJobsService<DBSession>(
         }
     }
 
+    fun listAllEvents(
+        context: ContextQuery,
+        user: String
+    ): List<AccountingJobCompletedEvent> {
+        return db.withTransaction {
+            dao.listAllEvents(it, context, user)
+        }
+    }
+
     fun listEvents(
         paging: NormalizedPaginationRequest,
         context: ContextQuery,
@@ -46,6 +55,12 @@ interface CompletedJobsDao<Session> {
         session: Session,
         event: AccountingJobCompletedEvent
     )
+
+    fun listAllEvents(
+        session: Session,
+        context: ContextQuery,
+        user: String
+    ): List<AccountingJobCompletedEvent>
 
     fun listEvents(
         session: Session,

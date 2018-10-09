@@ -12,6 +12,7 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.createCriteriaBuilder
 import dk.sdu.cloud.service.db.createQuery
+import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
@@ -52,6 +53,16 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
 
         val entity = event.toEntity()
         session.saveOrUpdate(entity)
+    }
+
+    override fun listAllEvents(
+        session: HibernateSession,
+        context: ContextQuery,
+        user: String
+    ): List<AccountingJobCompletedEvent> {
+        return session.criteria<JobCompletedEntity> {
+            (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
+        }.list().map { it.toModel() }
     }
 
     override fun listEvents(

@@ -15,7 +15,6 @@ import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.paginate
 import io.ktor.routing.Route
 
-@Suppress("MagicNumber")
 class JobsStartedController : Controller {
     override val baseContext = ComputeAccountingJobsDescriptions.baseContext
 
