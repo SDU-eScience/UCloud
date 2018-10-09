@@ -6,6 +6,8 @@ class JobCompletedEvent(
     val jobId: String,
     val jobOwner: String,
     val duration: SimpleDuration,
+    val nodes: Int,
+    val jobCompletedAt: Long,
 
     val application: NameAndVersion,
     val success: Boolean

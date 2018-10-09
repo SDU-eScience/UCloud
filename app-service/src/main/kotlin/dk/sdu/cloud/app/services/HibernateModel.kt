@@ -85,6 +85,7 @@ data class EmbeddedNameAndVersion(
  * - V1__Initial.sql
  * - V5__JobReferences.sql
  * - V6__JWTs.sql
+ * - V7__Nodes.sql
  */
 @Entity
 @Table(name = "jobs")
@@ -117,7 +118,9 @@ data class JobEntity(
     @ManyToOne
     var application: ApplicationEntity,
 
-    var jwt: String
+    var jwt: String,
+
+    var numberOfNodes: Int
 ) {
     companion object : HibernateEntity<JobEntity>, WithId<UUID>
 }

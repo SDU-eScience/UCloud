@@ -16,7 +16,8 @@ data class JobInformation(
     val workingDirectory: String?,
     val createdAt: Long,
     val state: AppState,
-    val jwt: String
+    val jwt: String,
+    val nodes: Int = 1
 )
 
 interface JobDAO<Session> {
@@ -51,7 +52,9 @@ interface JobDAO<Session> {
         applicationName: String,
         applicationVersion: String,
 
-        jwt: String
+        jwt: String,
+
+        numberOfNodes: Int = 1
     )
 
     fun updateJobWithSlurmInformation(

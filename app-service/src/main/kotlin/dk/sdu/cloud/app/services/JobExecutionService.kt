@@ -173,11 +173,17 @@ class JobExecutionService<DBSession>(
                     is AppEvent.CompletedInSlurm -> {
                         try {
                             val duration = sshConnectionPool.use { slurmJobInfo(event.slurmId) }
+                            val job = db.withTransaction { session ->
+                                jobDao.findJobInformationByJobId(session, event.owner, event.systemId)
+                            } ?: throw JobNotFoundException(event.systemId)
+
                             accountingEventProducer.emit(
                                 JobCompletedEvent(
                                     event.systemId,
                                     event.owner,
                                     duration,
+                                    job.nodes,
+                                    System.currentTimeMillis(),
                                     event.appWithDependencies.description.info,
                                     event.success
                                 )
@@ -262,7 +268,8 @@ class JobExecutionService<DBSession>(
                 validatedJob.systemId,
                 validatedJob.appWithDependencies.description.info.name,
                 validatedJob.appWithDependencies.description.info.version,
-                principal.token
+                principal.token,
+                req.numberOfNodes ?: validatedJob.appWithDependencies.tool.description.defaultNumberOfNodes
             )
         }
         runBlocking { appEventProducer.emit(validatedJob) }
