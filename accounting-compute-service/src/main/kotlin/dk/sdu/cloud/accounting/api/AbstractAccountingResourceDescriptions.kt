@@ -52,9 +52,9 @@ interface ContextQuery {
  * @see ContextQuery
  */
 data class ContextQueryImpl(
-    override val since: Long?,
-    override val until: Long?,
-    override val context: String?
+    override val since: Long? = null,
+    override val until: Long? = null,
+    override val context: String? = null
 ) : ContextQuery
 
 /**
