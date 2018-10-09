@@ -1,13 +1,17 @@
 import * as React from "react";
-import { Icon, IconProps, Header } from "semantic-ui-react";
+import { Icon, IconProps, Header, Popup } from "semantic-ui-react";
 
-interface FileIconProps  extends IconProps { link?: boolean, className?:string }
-export const FileIcon = ({ name, size, link = false, className = "", color }:FileIconProps) =>
-    link ?
+interface FileIconProps  extends IconProps { link?: boolean, shared?: boolean, className?:string }
+export const FileIcon = ({ name, size, shared = false, link = false, className = "", color }:FileIconProps) =>
+    link || shared ?
         // FIXME Inline style
-        <Icon.Group style={{ paddingLeft: "6px", paddingRight: "5px" }} className={className} size={size}>
+        <Icon.Group style={{ paddingLeft: "3px", paddingRight: "5px" }} className={className} size={size}>
             <Icon name={name} color={color} />
-            <Icon corner color="grey" name="share" />
+            <Popup
+                content={shared ? "This file is shared" : "This is a link to a file"}
+                position="right center"
+                trigger={<Icon corner color="grey" name={shared ? "users" : "share"}/>}
+            />
         </Icon.Group> :
         <Icon name={name} size={size} color={color} />
 
