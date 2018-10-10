@@ -57,8 +57,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
     }
 
     render() {
-        const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, error } = this.props;
-        const errorMessage = !!error ? (<Message color="red" content={error} onDismiss={() => this.props.setError(undefined)} />) : null;
+        const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
+        const errorMessage = !!errors.length ? (<Message color="red" header="Invalid parameters" list={errors} onDismiss={() => this.props.setError(undefined)} />) : null;
         // Currently missing ACLS to allow for fileOperations
         const fileOperations = AllFileOperations(true, false, () => this.props.searchFiles(search, files.pageNumber, files.itemsPerPage), this.props.history);
         const panes = [
@@ -67,10 +67,10 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                     <Segment basic loading={filesLoading}>
                         <Pagination.List
                             loading={filesLoading}
-                            pageRenderer={(page) => (<SimpleFileList files={page.items} />)}
+                            pageRenderer={page => (<SimpleFileList files={page.items} />)}
                             page={files}
                             onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchFiles(search, 0, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.props.searchFiles(search, pageNumber, files.itemsPerPage)}
+                            onPageChanged={pageNumber => this.props.searchFiles(search, pageNumber, files.itemsPerPage)}
                         />
                     </Segment>)
             },

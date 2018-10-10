@@ -44,22 +44,82 @@ div.ui.button.floating.labeled.dropdown.icon:focus {
 }
 
 div.ui.fluid.icon.input.header-search input::-webkit-input-placeholder { /* Chrome/Opera/Safari */
-    color: black;
+    color: white;
 }
 
 div.ui.fluid.icon.input.header-search input::-moz-placeholder { /* Firefox 19+ */
+    color: white;
+}
+
+div.ui.fluid.icon.input.header-search input::-ms-input-placeholder { /* IE 10+ */
+    color: white;
+}
+
+div.ui.fluid.icon.input.header-search input::-moz-placeholder { /* Firefox 18- */
+    color: white;
+}
+
+div.ui.fluid.icon.input.header-search input:focus::-webkit-input-placeholder:focus { /* Chrome/Opera/Safari */
     color: black;
 }
 
-div.ui.fluid.icon.input.header-search input:-ms-input-placeholder { /* IE 10+ */
+div.ui.fluid.icon.input.header-search input:focus::-moz-placeholder { /* Firefox 19+ */
     color: black;
 }
 
-div.ui.fluid.icon.input.header-search input:-moz-placeholder { /* Firefox 18- */
+div.ui.fluid.icon.input.header-search input:focus::-ms-input-placeholder { /* IE 10+ */
     color: black;
 }
+
+div.ui.fluid.icon.input.header-search input:focus::-moz-placeholder:focus { /* Firefox 18- */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input { /* Chrome/Opera/Safari */
+    color: white;
+}
+
+div.ui.fluid.icon.input.header-search input { /* Firefox 19+ */
+    color: white;
+}
+
+div.ui.fluid.icon.input.header-search input { /* IE 10+ */
+    color: white;
+}
+
+div.ui.fluid.icon.input.header-search input { /* Firefox 18- */
+    color: white;
+}
+
+div.ui.fluid.icon.input.header-search input:focus { /* Chrome/Opera/Safari */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input:focus { /* Firefox 19+ */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input:focus { /* IE 10+ */
+    color: black;
+}
+
+div.ui.fluid.icon.input.header-search input:focus { /* Firefox 18- */
+    color: black;
+}
+
+
+
 
 div.ui.fluid.icon.input.header-search input:focus {
     background: #fff;
     transition: background-color 0.3s ease;
+}
+
+
+input:focus + i.search.icon {
+    color: black;
+}
+
+input + i.search.icon {
+    color: white;
 }

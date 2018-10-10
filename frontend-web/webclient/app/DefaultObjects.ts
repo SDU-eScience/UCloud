@@ -234,7 +234,7 @@ export const initSimpleSearch = () => ({
     applicationsLoading: false,
     projects: emptyPage,
     projectsLoading: false,
-    error: undefined,
+    errors: [],
     search: ""
 })
 

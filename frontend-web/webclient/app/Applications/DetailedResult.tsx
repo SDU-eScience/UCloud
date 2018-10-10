@@ -276,13 +276,17 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
                             customEntriesPerPage={
                                 <>
+                                    <RefreshButton
+                                        className="float-right"
+                                        loading={false}
+                                        onClick={() => this.retrieveFilesPage(page.pageNumber, page.itemsPerPage)}
+                                    />
                                     <EntriesPerPageSelector
-                                        className="items-per-page-padding"
+                                        className="items-per-page-padding float-right"
                                         entriesPerPage={page.itemsPerPage}
                                         content="Files per page"
-                                        onChange={(itemsPerPage) => this.retrieveFilesPage(page.pageNumber, itemsPerPage)}
+                                        onChange={itemsPerPage => this.retrieveFilesPage(page.pageNumber, itemsPerPage)}
                                     />
-                                    <RefreshButton loading={false} onClick={() => this.retrieveFilesPage(page.pageNumber, page.itemsPerPage)} />
                                 </>
                             }
                         />}

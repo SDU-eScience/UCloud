@@ -28,7 +28,7 @@ const EntriesPerPageSelectorOptions = [
 
 interface EntriesPerPageSelector {
     entriesPerPage: number,
-    onChange: (number) => void,
+    onChange: (size: number) => void,
     content?: string
 
     as?: string
