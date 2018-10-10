@@ -2,7 +2,6 @@ import { SidebarOption, Page } from "Types";
 import { Status } from "Navigation";
 import { Analysis, Application } from "Applications";
 import { File } from "Files";
-import SDUCloud from "Authentication/lib";
 import { SortOrder, SortBy } from "Files";
 import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
@@ -113,6 +112,7 @@ export interface SidebarReduxObject {
     open: boolean
     pp: boolean
     options: SidebarOption[]
+    kcCount: number
 }
 
 export interface HeaderSearchReduxObject {
@@ -187,13 +187,13 @@ export const initHeader = (): HeaderSearchReduxObject => ({
     prioritizedSearch: "files"
 });
 
-export const initApplications = () => ({
+export const initApplications = (): ApplicationReduxObject => ({
     page: emptyPage,
     loading: false,
     error: undefined
 });
 
-export const initStatus = () => ({
+export const initStatus = (): StatusReduxObject => ({
     status: DefaultStatus,
     title: ""
 });
@@ -209,9 +209,9 @@ export const initDashboard = (): DashboardStateProps => ({
     errors: []
 });
 
-export const initObject = (cloud: SDUCloud): ReduxObject => ({
+export const initObject = ({ homeFolder }: { homeFolder: string }): ReduxObject => ({
     dashboard: initDashboard(),
-    files: initFiles(cloud),
+    files: initFiles({ homeFolder }),
     status: initStatus(),
     applications: initApplications(),
     header: initHeader(),
@@ -225,7 +225,7 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     simpleSearch: initSimpleSearch()
 });
 
-export const initSimpleSearch = () => ({
+export const initSimpleSearch = (): SimpleSearchStateProps => ({
     files: emptyPage,
     filesLoading: false,
     applications: emptyPage,
@@ -243,21 +243,22 @@ export const initAnalyses = (): ComponentWithPage<Analysis> => ({
 });
 
 
-export const initZenodo = () => ({
+export const initZenodo = (): ZenodoReduxObject => ({
     connected: false,
     loading: false,
     page: emptyPage,
     error: undefined
 })
 
-export const initSidebar = () => ({
+export const initSidebar = (): SidebarReduxObject => ({
     open: false,
     loading: false,
     pp: false,
+    kcCount: 0,
     options: []
 });
 
-export const initUploads = () => ({
+export const initUploads = (): UploaderReduxObject => ({
     path: "",
     uploads: [],
     visible: false,

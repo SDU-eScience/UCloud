@@ -188,14 +188,14 @@ export const setDisallowedPaths = (paths: string[]): SetDisallowedPathsAction =>
     payload: { paths }
 });
 
-interface SetFileSelectorCallbackAction extends Action<typeof SET_FILE_SELECTOR_CALLBACK> { callback: Function }
+type SetFileSelectorCallbackAction = PayloadAction<typeof SET_FILE_SELECTOR_CALLBACK, { callback: Function }>
 /**
  * Callback to be executed on fileselection in FileSelector
  * @param callback - callback to be being executed
  */
 export const setFileSelectorCallback = (callback: Function): SetFileSelectorCallbackAction => ({
     type: SET_FILE_SELECTOR_CALLBACK,
-    callback
+    payload: { callback }
 });
 
 /**

@@ -52,7 +52,7 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
             return { ...state, fileSelectorLoading: true };
         }
         case SET_FILE_SELECTOR_CALLBACK: {
-            return { ...state, fileSelectorCallback: action.callback };
+            return { ...state, fileSelectorCallback: action.payload.callback };
         }
         case SET_FILE_SELECTOR_ERROR: {
             return { ...state, fileSelectorError: action.payload.error }
@@ -93,9 +93,9 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
             if (state.page.items.some(it => !!it.isMockFolder)) return state;
             return {
                 ...state, page: {
-                    ...state.page, items: [newMockFolder()].concat([...state.page.items.filter(it => !it.isMockFolder)])
+                    ...state.page, items: [newMockFolder()].concat([...state.page.items])
                 }
-            }
+            };
         }
         default: {
             return state;
