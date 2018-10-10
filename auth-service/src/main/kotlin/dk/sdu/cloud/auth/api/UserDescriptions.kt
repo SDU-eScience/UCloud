@@ -18,6 +18,8 @@ data class CreateUserRequest(val username: String, val password: String, val rol
     override fun toString() = "CreateUserRequest(username = $username, role = $role)"
 }
 
+typealias CreateUserResponse = AuthenticationTokens
+
 class ChangePasswordAudit
 
 data class ChangePasswordRequest(val currentPassword: String, val newPassword: String) {
@@ -27,7 +29,7 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
 object UserDescriptions : RESTDescriptions("auth.users") {
     const val baseContext = "/auth/users"
 
-    val createNewUser = callDescriptionWithAudit<CreateUserRequest, Unit, CommonErrorMessage, CreateUserAudit> {
+    val createNewUser = callDescriptionWithAudit<CreateUserRequest, CreateUserResponse, CommonErrorMessage, CreateUserAudit> {
         method = HttpMethod.Post
         name = "createNewUser"
 

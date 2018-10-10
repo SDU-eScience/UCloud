@@ -1,5 +1,6 @@
 package dk.sdu.cloud.auth.api
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.nullableSecurityToken
 import dk.sdu.cloud.service.securityPrincipal
@@ -15,6 +16,7 @@ import io.ktor.routing.Route
 import io.ktor.util.AttributeKey
 
 @Deprecated(message = "Built into service-common", replaceWith = ReplaceWith(""))
+@Suppress("deprecation")
 fun Route.protect(rolesAllowed: List<Role> = Role.values().toList()) {
     intercept(ApplicationCallPipeline.Infrastructure) { protect(rolesAllowed) }
 }
@@ -42,6 +44,7 @@ suspend fun PipelineContext<Unit, ApplicationCall>.protect(rolesAllowed: List<Ro
 }
 
 @Deprecated(message = "Built into implement call automatically")
+@Suppress("deprecation")
 class JWTProtection {
     companion object Feature : ApplicationFeature<ApplicationCallPipeline, Unit, JWTProtection> {
         override val key = AttributeKey<JWTProtection>("jwtProtection")
@@ -52,8 +55,8 @@ class JWTProtection {
     }
 }
 
-
 @Deprecated(message = "Built into service-common", replaceWith = ReplaceWith("call.securityPrincipal"))
+@Suppress("deprecation")
 val ApplicationRequest.validatedPrincipal: SecurityPrincipal
     get() = call.securityPrincipal
 
@@ -62,6 +65,7 @@ val ApplicationRequest.principalRole: dk.sdu.cloud.Role
     get() = call.securityPrincipal.role
 
 @Deprecated(message = "Built into client-core", replaceWith = ReplaceWith("this in Roles.PRIVILEGED"))
+@Suppress("deprecation")
 fun Role.isPrivileged(): Boolean = this in PRIVILEGED_ROLES
 
 @Deprecated(message = "Built into client-core")

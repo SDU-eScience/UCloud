@@ -1,8 +1,8 @@
 package dk.sdu.cloud.auth.services
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
-import dk.sdu.cloud.auth.api.Role
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.service.db.*
 import org.hibernate.annotations.NaturalId

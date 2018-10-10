@@ -87,5 +87,70 @@ exports[`UserSettings Mount 1`] = `
       </button>
     </form>
   </div>
+  <div
+    className="column"
+  >
+    <div
+      className="ui header"
+    >
+      <h1>
+        Two Factor Authentication
+      </h1>
+    </div>
+    <b>
+      You do NOT have a 2FA device connected to your account
+    </b>
+    <div
+      className="ui divider"
+    />
+    <div>
+      <div
+        className="ui header"
+      >
+        <h3>
+          2FA Setup
+        </h3>
+      </div>
+      <p>
+        In order to activate 2FA on your account you must have a device capable of issuing time-based one time passwords (TOTP). For this we recommend the "Google Authenticator" app, available for both Android and iOS.
+      </p>
+      <div
+        className="ui small images"
+      >
+        <a
+          href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us"
+          target="_blank"
+        >
+          <img
+            className="ui image"
+            src={[Function]}
+          />
+        </a>
+        <a
+          href="https://itunes.apple.com/us/app/google-authenticator/id388497605"
+          target="_blank"
+        >
+          <img
+            className="ui image"
+            src={[Function]}
+          />
+        </a>
+      </div>
+      <p>
+        Once you are ready click the button below to get started:
+      </p>
+      <button
+        className="ui positive button"
+        onClick={[Function]}
+        role="button"
+      >
+        <i
+          aria-hidden="true"
+          className="qrcode icon"
+        />
+        Start setup
+      </button>
+    </div>
+  </div>
 </div>
 `;

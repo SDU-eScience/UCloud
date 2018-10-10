@@ -13,19 +13,18 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer
 ) {
-    fun <R> write(
+    fun write(
         ctx: Ctx,
         path: String,
         conflictPolicy: WriteConflictPolicy,
-        writer: OutputStream.() -> R
-    ): R {
+        writer: OutputStream.() -> Unit
+    ) {
         val normalizedPath = path.normalize()
         val targetPath =
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
         fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
-
-        return fs.write(ctx, writer)
+        fs.write(ctx, writer).emitAll()
     }
 
     fun <R> read(

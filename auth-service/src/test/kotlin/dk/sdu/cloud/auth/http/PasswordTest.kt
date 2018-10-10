@@ -10,7 +10,6 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.application.Application
-import io.ktor.application.install
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -19,6 +18,7 @@ import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
+import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
 import java.util.*
@@ -46,6 +46,12 @@ class PasswordTest{
             mockk(relaxed = true)
         )
 
+        val twoFactorChallengeService = mockk<TwoFactorChallengeService<HibernateSession>>(relaxed = true)
+        every { twoFactorChallengeService.isConnected(any()) } returns false
+        every { twoFactorChallengeService.createLoginChallengeOrNull(any(), any()) } returns null
+
+        val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
+
         installDefaultFeatures(
             mockk(relaxed = true),
             mockk(relaxed = true),
@@ -57,7 +63,7 @@ class PasswordTest{
             PasswordController(
                 db,
                 userDao,
-                tokenService
+                loginResponder
             ).configure(this)
         }
 

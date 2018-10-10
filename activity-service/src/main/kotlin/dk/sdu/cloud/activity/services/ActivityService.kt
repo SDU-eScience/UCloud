@@ -57,43 +57,40 @@ class ActivityService<DBSession>(
             // All events have the same operation, so we use the first event to determine operation.
             val firstEvent = allEventsOfType.first()
 
+            val users = allEventsOfType
+                .asSequence()
+                .map { it.username }
+                .map { UserReference(it) }
+                .toSet()
+
             CountedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
                 val eventsByFileId = allEventsOfType.groupBy { it.fileId }
 
-                val counts = eventsByFileId.mapNotNull { (fileId, eventsForFile) ->
-                    val count = eventsForFile.sumBy {
-                        if (operation == CountedFileActivityOperation.FAVORITE) {
-                            if ((it as ActivityEvent.Favorite).isFavorite) 1
-                            else -1
-                        } else {
-                            1
-                        }
-                    }
-
-                    if (count <= 0) {
-                        null
-                    } else {
-                        fileId to count
-                    }
+                val counts = eventsByFileId.map { (fileId, eventsForFile) ->
+                    fileId to eventsForFile.size
                 }
 
-                return@flatMap if (counts.all { it.second == 0 }) {
-                    emptyList()
-                } else {
-                    listOf(
-                        ActivityStreamEntry.Counted(
-                            operation,
-                            counts.map { ActivityStreamEntry.CountedFile(it.first, it.second) },
-                            timestamp
-                        )
+                return@flatMap listOf(
+                    ActivityStreamEntry.Counted(
+                        operation,
+                        timestamp,
+                        counts.asSequence().map {
+                            StreamFileReference.WithOpCount(
+                                it.first,
+                                null,
+                                it.second
+                            )
+                        }.toSet(),
+                        users
                     )
-                }
+                )
             }
 
             TrackedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
-                val fileReferences = allEventsOfType.map { ActivityStreamFileReference(it.fileId) }.toSet()
+                val fileReferences =
+                    allEventsOfType.asSequence().map { StreamFileReference.Basic(it.fileId, null) }.toSet()
 
-                return@flatMap listOf(ActivityStreamEntry.Tracked(operation, fileReferences, timestamp))
+                return@flatMap listOf(ActivityStreamEntry.Tracked(operation, timestamp, fileReferences, users))
             }
 
             return@flatMap emptyList<ActivityStreamEntry<*>>()
@@ -159,14 +156,14 @@ class ActivityService<DBSession>(
         val fileIdsInChunks = resultFromDao.items.flatMap { entry ->
             when (entry) {
                 is ActivityStreamEntry.Counted -> {
-                    entry.entries.map { it.id }
+                    entry.files.map { it.id }
                 }
 
                 is ActivityStreamEntry.Tracked -> {
                     entry.files.map { it.id }
                 }
             }
-        }.toSet().chunked(100)
+        }.asSequence().toSet().asSequence().chunked(100).toList()
 
         val fileIdToCanonicalPath = fileIdsInChunks
             .map { chunkOfIds ->
@@ -190,17 +187,17 @@ class ActivityService<DBSession>(
             when (entry) {
                 is ActivityStreamEntry.Counted -> {
                     entry.copy(
-                        entries = entry.entries.map {
-                            it.copy(path = fileIdToCanonicalPath[it.id])
-                        }
+                        files = entry.files
+                            .asSequence()
+                            .map { it.withPath(path = fileIdToCanonicalPath[it.id]) }
+                            .toSet()
                     )
-
                 }
 
                 is ActivityStreamEntry.Tracked -> {
                     entry.copy(
-                        files = entry.files.map {
-                            ActivityStreamFileReference(it.id, fileIdToCanonicalPath[it.id])
+                        files = entry.files.asSequence().map {
+                            StreamFileReference.Basic(it.id, fileIdToCanonicalPath[it.id])
                         }.toSet()
                     )
                 }

@@ -3,7 +3,7 @@ import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import { Dropdown, Button, Icon, Table, Header, Input, Grid, Responsive, Checkbox, Divider } from "semantic-ui-react";
-import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
+import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
 import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
@@ -24,6 +24,7 @@ import {
     startRenamingFiles, AllFileOperations, newMockFolder, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
+import { Dispatch } from "redux";
 
 class Files extends React.Component<FilesProps> {
 
@@ -31,6 +32,9 @@ class Files extends React.Component<FilesProps> {
         const { page, fetchFiles, sortOrder, sortBy, history, setPageTitle, prioritizeFileSearch } = this.props;
         setPageTitle();
         prioritizeFileSearch();
+        this.props.setUploaderCallback(
+            (path: string) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)
+        );
         if (!this.urlPath) { history.push(`/files/${Cloud.homeFolder}/`); }
         else { fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy); }
     }
@@ -342,14 +346,6 @@ const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.lengt
     </div>
 ) : null;
 
-/* interface FileOperationsProps {
-    files: File[]
-    fileOperations: FileOperation[]
-    As: any
-    fluid?: boolean
-    basic?: boolean
-} */
-
 export const FileOperations = ({ files, fileOperations, As, fluid, basic }) => files.length && fileOperations.length ?
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
@@ -386,22 +382,22 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     }
 };
 
-const mapDispatchToProps = (dispatch): FilesOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
     onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(undefined)),
     dismissError: () => dispatch(Actions.setErrorMessage()),
-    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => {
+    fetchFiles: async (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => {
         dispatch(Actions.updatePath(path));
         dispatch(Actions.setLoading(true));
         if (index != null) dispatch(Actions.setSortingColumn(sortBy, index));
-        dispatch(Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy))
+        dispatch(await Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy));
     },
-    fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => {
+    fetchPageFromPath: async (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => {
         dispatch(Actions.setLoading(true));
-        dispatch(Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy));
+        dispatch(await Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy));
     },
     updatePath: (path: string) => dispatch(Actions.updatePath(path)),
-    fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => dispatch(Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
+    fetchSelectorFiles: async (path: string, pageNumber: number, itemsPerPage: number) => dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
     showFileSelector: (open: boolean) => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: (callback) => dispatch(Actions.setFileSelectorCallback(callback)),
     checkFile: (checked: boolean, page: Page<File>, newFile: File) => { // FIXME: Make an action instead with path?
@@ -413,7 +409,8 @@ const mapDispatchToProps = (dispatch): FilesOperations => ({
     updateFiles: (page: Page<File>) => dispatch(Actions.updateFiles(page)),
     checkAllFiles: (checked: boolean, page: Page<File>) => dispatch(Actions.checkAllFiles(checked, page)),
     setDisallowedPaths: (disallowedPaths: string[]) => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
-    showUploader: () => dispatch(setUploaderVisible(true))
+    showUploader: () => dispatch(setUploaderVisible(true)),
+    setUploaderCallback: (callback) => dispatch(setUploaderCallback(callback))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Files);

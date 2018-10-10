@@ -2,15 +2,18 @@ import * as React from "react";
 import { Checkbox, Progress, Grid, Card, Button, Icon, Modal } from "semantic-ui-react";
 import * as Dropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, infoNotification } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications } from "UtilityFunctions";
 import { fileSizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
 import { ReduxObject } from "DefaultObjects";
-import { Upload, UploaderProps, UploaderState } from ".";
+import { Upload, UploaderProps } from ".";
 import { setUploaderVisible, setUploads } from "Uploader/Redux/UploaderActions";
+import { removeEntry } from "Utilities/CollectionUtilities";
 
-const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => !!it.uploadXHR && it.uploadXHR.readyState === 4);
+const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
+const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
+const isFinishedUploading = (xhr?: XMLHttpRequest): boolean => !!xhr && xhr.readyState === XMLHttpRequest.DONE;
 
 const newUpload = (file: File): Upload => ({
     file,
@@ -20,22 +23,9 @@ const newUpload = (file: File): Upload => ({
     uploadXHR: undefined
 });
 
-class Uploader extends React.Component<UploaderProps, UploaderState> {
+class Uploader extends React.Component<UploaderProps> {
     constructor(props) {
         super(props);
-    }
-
-    // TODO Should this remain? Check if actually called on leaving page
-    componentWillUnmount() {
-        console.warn("Unmounting uploader");
-        this.props.uploads.forEach(it => {
-            if (!!it.uploadXHR) {
-                if (it.uploadXHR.readyState != XMLHttpRequest.DONE) {
-                    console.log("Aborting", it);
-                    it.uploadXHR.abort();
-                }
-            }
-        });
     }
 
     onFilesAdded = (files: File[]) => {
@@ -49,6 +39,12 @@ class Uploader extends React.Component<UploaderProps, UploaderState> {
         }
     }
 
+    beforeUnload = (e) => {
+        e.returnValue = "foo";
+        uploadsNotifications(finishedUploads(this.props.uploads), this.props.uploads.length)
+        return e;
+    }
+
     startUpload = (index: number) => {
         const upload = this.props.uploads[index];
         upload.isUploading = true;
@@ -56,12 +52,15 @@ class Uploader extends React.Component<UploaderProps, UploaderState> {
         const onThen = (xhr: XMLHttpRequest) => {
             xhr.onloadend = () => {
                 if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads)) {
-                    this.props.onFilesUploaded();
+                    window.removeEventListener("beforeunload", this.beforeUnload);
+                    this.props.onFilesUploaded(this.props.location);
                 }
             }
             upload.uploadXHR = xhr;
             this.props.dispatch(setUploads(this.props.uploads));
         };
+
+        window.addEventListener("beforeunload", this.beforeUnload);
         if (!upload.extractArchive) {
             multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
@@ -86,8 +85,8 @@ class Uploader extends React.Component<UploaderProps, UploaderState> {
     removeUpload = (index: number) => {
         const files = this.props.uploads.slice();
         if (index < files.length) {
-            const remainderFiles = files.slice(0, index).concat(files.slice(index + 1));
-            this.setState({ uploads: remainderFiles });
+            const remainderFiles = removeEntry(files, index);
+            this.props.dispatch(setUploads(remainderFiles));
         }
     }
 
@@ -102,7 +101,7 @@ class Uploader extends React.Component<UploaderProps, UploaderState> {
     onExtractChange = (index: number, value: boolean) => {
         const uploads = this.props.uploads;
         uploads[index].extractArchive = value;
-        this.setState({ uploads });
+        this.props.dispatch(setUploads(uploads));
     }
 
     render() {
@@ -157,6 +156,7 @@ const UploaderRow = (p: {
     extractArchive: boolean,
     isUploading: boolean,
     progressPercentage: number,
+    uploadXHR?: XMLHttpRequest,
     onExtractChange?: (value: boolean) => void,
     onUpload?: (e: React.MouseEvent<any>) => void,
     onDelete?: (e: React.MouseEvent<any>) => void,
@@ -223,7 +223,7 @@ const UploaderRow = (p: {
             </Grid.Column>
 
             <Grid.Column width={3}>
-                <Button icon="close" content="Cancel" fluid negative onClick={(e) => ifPresent(p.onAbort, c => c(e))} />
+                <Button icon="close" content="Cancel" disabled={isFinishedUploading(p.uploadXHR)} fluid negative onClick={(e) => ifPresent(p.onAbort, c => c(e))} />
             </Grid.Column>
         </>;
     }
@@ -246,18 +246,15 @@ const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some
 interface UploaderStateToProps {
     visible: boolean
     location: string
-
 }
 
-const mapStateToProps = ({ files, uploader }: ReduxObject): any => {
-    return ({
-        activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
-        location: files.path,
-        visible: uploader.visible,
-        allowMultiple: true,
-        uploads: uploader.uploads,
-        onFilesUploaded: () => null
-    })
-}
+const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
+    activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
+    location: files.path,
+    visible: uploader.visible,
+    allowMultiple: true,
+    uploads: uploader.uploads,
+    onFilesUploaded: uploader.onFilesUploaded
+});
 
 export default connect(mapStateToProps)(Uploader);

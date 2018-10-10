@@ -9,7 +9,6 @@ import dk.sdu.cloud.auth.services.UserDAO
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.response.respond
 import io.ktor.routing.Route
 
 class UserController<DBSession>(
@@ -17,12 +16,13 @@ class UserController<DBSession>(
     private val userDAO: UserDAO<DBSession>,
     private val userCreationService: UserCreationService<DBSession>,
     private val tokenService: TokenService<DBSession>
-): Controller {
+) : Controller {
     override val baseContext = UserDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(UserDescriptions.createNewUser) { req ->
             logEntry(log, req)
+            audit(CreateUserAudit(req.username, req.role))
 
             if (req.role != Role.SERVICE) {
                 val person = PersonUtils.createUserByPassword(
@@ -34,13 +34,13 @@ class UserController<DBSession>(
                 )
 
                 userCreationService.createUser(person)
-                audit(CreateUserAudit(req.username, req.role))
-                ok(Unit)
+                val tokens = tokenService.createAndRegisterTokenFor(person)
+                ok(tokens)
             } else {
                 val user = ServicePrincipal(req.username, Role.SERVICE)
                 userCreationService.createUser(user)
 
-                call.respond(tokenService.createAndRegisterTokenFor(user))
+                ok(tokenService.createAndRegisterTokenFor(user))
             }
         }
 

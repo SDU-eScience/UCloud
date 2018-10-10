@@ -25,6 +25,7 @@ module.exports = {
                 use: "ts-loader",
                 exclude: /node_modules/
             },
+            // Is this actually in use, or is it just ts-loader doing all the work?
             {
                 test: /\.js$/,
                 use: "imports-loader?define=>false",
@@ -83,6 +84,6 @@ module.exports = {
         // Allows overriding inferred information.
         // https://github.com/moment/moment/issues/2979#issuecomment-189899510
         new webpack.ContextReplacementPlugin(/\.\/locale$/, "empty-module", false, /js$/),
-        new webpack.DefinePlugin({ REACT_BASE_HREF: JSON.stringify(baseHref) })
+        //new webpack.DefinePlugin({ REACT_BASE_HREF: JSON.stringify(baseHref) })
     ]
 };

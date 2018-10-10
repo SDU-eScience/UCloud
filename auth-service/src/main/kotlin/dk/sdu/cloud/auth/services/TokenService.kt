@@ -73,6 +73,10 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) {
                 if (user.orcId != null) withClaim("orcId", user.orcId)
                 if (user.title != null) withClaim("title", user.title)
             }
+
+            is ServicePrincipal -> {
+                // Do nothing
+            }
         }
 
         // TODO This doesn't seem right

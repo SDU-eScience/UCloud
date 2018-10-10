@@ -3,6 +3,7 @@ package dk.sdu.cloud.activity
 import dk.sdu.cloud.activity.http.ActivityController
 import dk.sdu.cloud.activity.http.StreamController
 import dk.sdu.cloud.activity.processor.StorageAuditProcessor
+import dk.sdu.cloud.activity.processor.StorageEventProcessor
 import dk.sdu.cloud.activity.services.ActivityService
 import dk.sdu.cloud.activity.services.FileLookupService
 import dk.sdu.cloud.activity.services.HibernateActivityEventDao
@@ -38,6 +39,7 @@ class Server(
 
         log.info("Creating stream processors")
         allProcessors.addAll(StorageAuditProcessor(kafka, db, activityService).init())
+        allProcessors.addAll(StorageEventProcessor(kafka, db, activityService).init())
         log.info("Stream processors constructed")
 
         httpServer = ktor {

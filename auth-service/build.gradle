@@ -1,11 +1,10 @@
 group 'dk.sdu.cloud'
-version '1.6.12-SNAPSHOT'
+version '1.7.1-SNAPSHOT'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
 
 apply from: "../shared-gradle/sdu-cloud.gradle"
-
 
 repositories {
     jcenter()
@@ -13,14 +12,29 @@ repositories {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
-
     compile "io.ktor:ktor-html-builder:$ktor_version"
-
-    compile "com.auth0:java-jwt:3.4.0"
     compile "org.apache.logging.log4j:log4j-slf4j-impl:2.9.1"
-    compile group: "com.onelogin", name: "java-saml-core", version: "2.3.0"
-    compile group: 'com.h2database', name: 'h2', version: '1.4.196'
 
+    // JWT
+    compile "com.auth0:java-jwt:3.4.0"
+
+    // SAML
+    compile group: "com.onelogin", name: "java-saml-core", version: "2.3.0"
+
+    // 2FA
+    compile('com.warrenstrange:googleauth:1.1.2') {
+        // Jesus Christ... Why on Earth do you need to depend on this!?
+        //
+        // We don't need it. Thankfully code can work without it (as long as we stay away from components
+        // that depend on it)
+        exclude group: "org.apache.httpcomponents", module: "httpclient"
+    }
+
+    // QR-codes
+    compile "com.google.zxing:core:3.3.0"
+    compile 'com.google.zxing:javase:3.3.0'
+
+    // Internal services
     compile 'dk.sdu.cloud:service-common:0.18.0-SNAPSHOT'
 }
 
@@ -29,11 +43,5 @@ sduCloud.createTasksForApiJar("auth", [])
 kotlin {
     experimental {
         coroutines "enable"
-    }
-}
-
-run {
-    if (project.hasProperty("appArgs")) {
-        args Eval.me(appArgs)
     }
 }

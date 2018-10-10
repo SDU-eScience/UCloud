@@ -37,25 +37,37 @@ sealed class ActivityStreamEntry<OperationType : Enum<OperationType>> {
 
     data class Counted(
         override val operation: CountedFileActivityOperation,
-        val entries: List<CountedFile>,
-        override val timestamp: Long
+        override val timestamp: Long,
+        val files: Set<StreamFileReference.WithOpCount>,
+        val users: Set<UserReference>
     ) : ActivityStreamEntry<CountedFileActivityOperation>()
-
-    data class CountedFile(val id: String, val count: Int, val path: String? = null)
 
     data class Tracked(
         override val operation: TrackedFileActivityOperation,
-        val files: Set<ActivityStreamFileReference>,
-        override val timestamp: Long
+        override val timestamp: Long,
+        val files: Set<StreamFileReference.Basic>,
+        val users: Set<UserReference>
     ) : ActivityStreamEntry<TrackedFileActivityOperation>()
 }
 
-class ActivityStreamFileReference(val id: String, val path: String? = null) {
+data class UserReference(val username: String)
+
+/**
+ * A reference to a file in the context of an [ActivityStreamEntry]
+ *
+ * All references contain an [id] and optionally a [path]. Additionally it may contain more attributes. For example,
+ * [WithOpCount] also contains a count of how many times a given operation is used. This is used in
+ * [ActivityStreamEntry.Counted].
+ */
+sealed class StreamFileReference {
+    abstract val id: String
+    abstract val path: String?
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
 
-        other as ActivityStreamFileReference
+        other as StreamFileReference
 
         if (id != other.id) return false
 
@@ -65,18 +77,31 @@ class ActivityStreamFileReference(val id: String, val path: String? = null) {
     override fun hashCode(): Int {
         return id.hashCode()
     }
+
+    // Sub-classes
+    class Basic(override val id: String, override val path: String?) : StreamFileReference() {
+        override fun toString(): String = "Basic(id='$id', path=$path)"
+    }
+
+    class WithOpCount(
+        override val id: String,
+        override val path: String?,
+        val count: Int
+    ) : StreamFileReference() {
+        override fun toString(): String = "WithOpCount(id='$id', path=$path, count=$count)"
+
+        fun withPath(path: String?): WithOpCount = WithOpCount(id, path, count)
+    }
 }
 
 enum class CountedFileActivityOperation {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
     // events related to file activity
 
-    FAVORITE,
     DOWNLOAD;
 
     companion object {
         fun fromEventOrNull(event: ActivityEvent): CountedFileActivityOperation? = when (event) {
-            is ActivityEvent.Favorite -> FAVORITE
             is ActivityEvent.Download -> DOWNLOAD
             else -> null
         }
@@ -87,15 +112,22 @@ enum class TrackedFileActivityOperation {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
     // events related to file activity
 
-    CREATE,
+    FAVORITE,
+    REMOVE_FAVORITE,
     UPDATE,
     DELETE,
     MOVED;
 
     companion object {
         fun fromEventOrNull(event: ActivityEvent): TrackedFileActivityOperation? = when (event) {
+            is ActivityEvent.Favorite -> {
+                if (event.isFavorite) FAVORITE
+                else REMOVE_FAVORITE
+            }
+
             is ActivityEvent.Updated -> UPDATE
             is ActivityEvent.Moved -> MOVED
+            is ActivityEvent.Deleted -> DELETE
             else -> null
         }
     }

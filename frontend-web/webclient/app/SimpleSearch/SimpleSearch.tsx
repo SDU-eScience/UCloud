@@ -5,102 +5,63 @@ import { connect } from "react-redux";
 import { Link } from "react-router-dom";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as UF from "UtilityFunctions";
-import PromiseKeeper from "PromiseKeeper";
 import { SingleApplication } from "Applications/Applications";
-import { simpleSearch } from "Metadata/api";
+import { ProjectMetadata } from "Metadata/api";
 import { SearchItem } from "Metadata/Search";
-import { emptyPage } from "DefaultObjects";
 import { AllFileOperations, getParentPath, getFilenameFromPath } from "Utilities/FileUtilities";
-import { SimpleSearchProps, SimpleSearchState } from ".";
-import { HeaderSearchType } from "DefaultObjects";
+import { SimpleSearchProps, SimpleSearchOperations } from ".";
+import { HeaderSearchType, ReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Application } from "Applications";
 import { Page } from "Types";
+import { Dispatch } from "redux";
+import { File } from "Files";
+import * as SSActions from "./Redux/SimpleSearchActions";
 
-class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState> {
+
+class SimpleSearch extends React.Component<SimpleSearchProps> {
     constructor(props) {
         super(props);
-        this.state = {
-            promises: new PromiseKeeper(),
-            files: emptyPage,
-            filesLoading: false,
-            applications: emptyPage,
-            applicationsLoading: false,
-            projects: emptyPage,
-            projectsLoading: false,
-            error: "",
-            search: this.props.match.params[0]
-        };
     }
 
     componentDidMount() {
-        if (!this.state.search) return;
-        this.fetchAll(this.state.search);
+        if (!this.props.search) return;
+        this.fetchAll(this.props.search);
     }
 
     shouldComponentUpdate(nextProps, _nextState): boolean {
         if (nextProps.match.params[0] !== this.props.match.params[0]) {
-            this.setState(() => ({ search: nextProps.match.params[0] }));
+            this.props.setSearch(nextProps.match.params[0]);
             this.fetchAll(nextProps.match.params[0]);
         }
         if (nextProps.match.params.priority !== this.props.match.params.priority) {
-            this.props.dispatch(setPrioritizedSearch(nextProps.match.params.priority as HeaderSearchType));
+            this.props.setPrioritizedSearch(nextProps.match.params.priority as HeaderSearchType);
         }
         return true;
     }
 
-    searchFiles = (search: string, pageNumber: number, itemsPerPage: number) => {
-        const { promises } = this.state;
-        this.setState(() => ({ filesLoading: true }));
-        promises.makeCancelable(Cloud.get(`/file-search?query=${search}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`))
-            .promise.then(({ response }) => this.setState(() => ({ files: response })))
-            .catch(_ => this.setState(() => ({ error: `${this.state.error}An error occurred searching for files. ` })))
-            .finally(() => this.setState(() => ({ filesLoading: false })));
-    }
-
-    searchApplications = (search: string, pageNumber: number, itemsPerPage: number) => {
-        const { promises } = this.state;
-        this.setState(() => ({ applicationsLoading: true }));
-        promises.makeCancelable(Cloud.get(`/hpc/apps?page=${pageNumber}&itemsPerPage=${itemsPerPage}`))
-            .promise.then(({ response }: { response: Page<Application> }) => {
-                response.items = response.items.filter(it => it.description.title.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
-                this.setState(() => ({ applications: response }))
-            })
-            .catch(() => this.setState(() => ({ error: `${this.state.error}An error occurred searching for applications. ` })))
-            .finally(() => this.setState(() => ({ applicationsLoading: false })));
-    }
-
-    searchProjects = (search: string, pageNumber: number, itemsPerPage: number) => {
-        const { promises } = this.state;
-        this.setState(() => ({ projectsLoading: true }));
-        promises.makeCancelable(simpleSearch(search, pageNumber, itemsPerPage))
-            .promise.then(response => this.setState(() => ({ projects: response })))
-            .catch(() => this.setState(() => ({ error: `${this.state.error}An error occurred searching for projects. ` })))
-            .finally(() => this.setState(() => ({ projectsLoading: false })));
-    }
-
     setPath = (t) => {
         const { text } = t;
-        this.props.dispatch(setPrioritizedSearch(text as HeaderSearchType));
-        this.props.history.push(`/simplesearch/${text.toLocaleLowerCase()}/${this.state.search}`);
+        this.props.setPrioritizedSearch(text as HeaderSearchType);
+        this.props.history.push(`/simplesearch/${text.toLocaleLowerCase()}/${this.props.search}`);
     }
 
     fetchAll(search: string) {
-        this.searchFiles(search, this.state.files.pageNumber, this.state.files.itemsPerPage);
-        this.searchApplications(search, this.state.applications.pageNumber, this.state.applications.itemsPerPage);
-        this.searchProjects(search, this.state.projects.pageNumber, this.state.projects.itemsPerPage);
+        this.props.searchFiles(search, this.props.files.pageNumber, this.props.files.itemsPerPage);
+        this.props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage);
+        this.props.searchProjects(search, this.props.projects.pageNumber, this.props.projects.itemsPerPage);
     }
 
     search() {
-        if (!this.state.search) return;
-        this.props.history.push(`/simplesearch/${this.props.match.params.priority}/${this.state.search}`);
+        if (!this.props.search) return;
+        this.props.history.push(`/simplesearch/${this.props.match.params.priority}/${this.props.search}`);
     }
 
     render() {
-        const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, error } = this.state;
-        const errorMessage = !!error ? (<Message color="red" content={error} onDismiss={() => this.setState(() => ({ error: "" }))} />) : null;
+        const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, error } = this.props;
+        const errorMessage = !!error ? (<Message color="red" content={error} onDismiss={() => this.props.setError(undefined)} />) : null;
         // Currently missing ACLS to allow for fileOperations
-        const fileOperations = AllFileOperations(true, false, () => this.searchFiles(search, files.pageNumber, files.itemsPerPage), this.props.history);
+        const fileOperations = AllFileOperations(true, false, () => this.props.searchFiles(search, files.pageNumber, files.itemsPerPage), this.props.history);
         const panes = [
             {
                 menuItem: "Files", render: () => (
@@ -109,8 +70,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
                             loading={filesLoading}
                             pageRenderer={(page) => (<SimpleFileList files={page.items} />)}
                             page={files}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchFiles(search, 0, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.searchFiles(search, pageNumber, files.itemsPerPage)}
+                            onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchFiles(search, 0, itemsPerPage)}
+                            onPageChanged={(pageNumber: number) => this.props.searchFiles(search, pageNumber, files.itemsPerPage)}
                         />
                     </Tab.Pane>)
             },
@@ -121,8 +82,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
                             loading={projectsLoading}
                             pageRenderer={(page) => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
                             page={projects}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchProjects(search, 0, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.searchProjects(search, pageNumber, projects.itemsPerPage)}
+                            onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchProjects(search, 0, itemsPerPage)}
+                            onPageChanged={(pageNumber: number) => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
                         />
                     </Tab.Pane>
                 )
@@ -138,8 +99,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
                                 </Card.Group>
                             }
                             page={applications}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.searchApplications(search, 0, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.searchApplications(search, pageNumber, applications.itemsPerPage)}
+                            onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchApplications(search, 0, itemsPerPage)}
+                            onPageChanged={(pageNumber: number) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
                         />
                     </Tab.Pane>
                 )
@@ -149,7 +110,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps, SimpleSearchState>
             <React.StrictMode>
                 {errorMessage}
                 <Responsive maxWidth={999} as={Form} className="form-input-margin" onSubmit={() => this.search()}>
-                    <Form.Input style={{ marginBottom: "15px" }} onChange={(_, { value }) => this.setState(() => ({ search: value }))} fluid />
+                    <Form.Input style={{ marginBottom: "15px" }} onChange={(_, { value }) => this.props.setSearch(value)} fluid />
                 </Responsive>
                 <Tab onTabChange={({ target }) => this.setPath(target)} activeIndex={SearchPriorityToNumber(this.props.match.params.priority)} panes={panes} />
             </React.StrictMode>
@@ -180,4 +141,21 @@ const SearchPriorityToNumber = (search: String): number => {
     return 0;
 }
 
-export default connect()(SimpleSearch)
+const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
+    setFilesLoading: (loading: boolean) => dispatch(SSActions.setFilesLoading(loading)),
+    setApplicationsLoading: (loading: boolean) => dispatch(SSActions.setApplicationsLoading(loading)),
+    setProjectsLoading: (loading: boolean) => dispatch(SSActions.setProjectsLoading(loading)),
+    setError: (error?: string) => dispatch(SSActions.setErrorMessage(error)),
+    searchFiles: async (query: string, page: number, itemsPerPage: number) => dispatch(await SSActions.searchFiles(query, page, itemsPerPage)),
+    searchApplications: async (query: string, page: number, itemsPerPage: number) => dispatch(await SSActions.searchApplications(query, page, itemsPerPage)),
+    searchProjects: async (query: string, page: number, itemsPerPage: number) => dispatch(await SSActions.searchProjects(query, page, itemsPerPage)),
+    setFilesPage: (page: Page<File>) => dispatch(SSActions.receiveFiles(page)),
+    setApplicationsPage: (page: Page<Application>) => dispatch(SSActions.receiveApplications(page)),
+    setProjectsPage: (page: Page<ProjectMetadata>) => dispatch(SSActions.receiveProjects(page)),
+    setSearch: (search: string) => dispatch(SSActions.setSearch(search)),
+    setPrioritizedSearch: (sT: HeaderSearchType) => dispatch(setPrioritizedSearch(sT))
+});
+
+const mapStateToProps = ({ simpleSearch }: ReduxObject) => simpleSearch;
+
+export default connect(mapStateToProps, mapDispatchToProps)(SimpleSearch)

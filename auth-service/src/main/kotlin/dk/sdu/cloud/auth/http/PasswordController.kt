@@ -1,7 +1,6 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.auth.api.Person
-import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserDAO
 import dk.sdu.cloud.auth.services.UserException
 import dk.sdu.cloud.auth.services.checkPassword
@@ -21,7 +20,7 @@ import org.slf4j.LoggerFactory
 class PasswordController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val userDao: UserDAO<DBSession>,
-    private val tokenService: TokenService<DBSession>
+    private val loginResponder: LoginResponder<DBSession>
 ) {
     fun configure(routing: Routing): Unit = with(routing) {
         route("auth") {
@@ -63,21 +62,10 @@ class PasswordController<DBSession>(
                 }
 
                 val validPassword = user.checkPassword(password)
-                if (!validPassword) return@post run {
-                    log.info("Password is not valid")
-                    call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
-                }
+                if (!validPassword) return@post loginResponder.handleUnsuccessfulLogin(call, service)
 
-                val token = tokenService.createAndRegisterTokenFor(user)
-                call.respondRedirect(
-                    "/auth/login-redirect?" +
-                            "service=${service.urlEncoded}" +
-                            "&accessToken=${token.accessToken.urlEncoded}" +
-                            "&refreshToken=${token.refreshToken.urlEncoded}" +
-                            "&csrfToken=${token.csrfToken.urlEncoded}"
-                )
+                loginResponder.handleSuccessfulLogin(call, service, user)
             }
-
         }
     }
 

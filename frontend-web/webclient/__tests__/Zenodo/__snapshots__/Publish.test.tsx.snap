@@ -1,8 +1,18 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Zenodo Publish Mount Zenodo component 1`] = `
-<i
-  aria-hidden="true"
-  className="circle notched loading icon"
-/>
+<div
+  className="ui segment"
+>
+  <h1>
+    You are not connected to Zenodo
+  </h1>
+  <button
+    className="ui button"
+    onClick={[Function]}
+    role="button"
+  >
+    Connect to Zenodo
+  </button>
+</div>
 `;

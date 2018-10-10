@@ -312,7 +312,7 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
         className="container-content"
       >
         <div
-          className="container-padding"
+          className="container-padding responsive-container-margin"
         />
       </div>
     </div>

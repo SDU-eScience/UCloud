@@ -69,24 +69,30 @@ repositories {
 // Private SDUCloud maven repositories
 //
 repositories {
+    def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
+    def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
+
     maven {
         url("https://cloud.sdu.dk/archiva/repository/internal")
         credentials {
-            it.username(eScienceCloudUser)
-            it.password(eScienceCloudPassword)
+            it.username(username)
+            it.password(password)
         }
     }
     maven {
         url("https://cloud.sdu.dk/archiva/repository/snapshots")
         credentials {
-            it.username(eScienceCloudUser)
-            it.password(eScienceCloudPassword)
+            it.username(username)
+            it.password(password)
         }
     }
 }
 
 apply plugin: 'maven-publish'
 publishing {
+    def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
+    def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
+
     repositories {
         it.maven {
             def resolvedUrl = "https://cloud.sdu.dk/archiva/repository/"
@@ -94,8 +100,8 @@ publishing {
             else resolvedUrl += "internal"
             url(resolvedUrl)
             credentials {
-                it.username(eScienceCloudUser)
-                it.password(eScienceCloudPassword)
+                it.username(username)
+                it.password(password)
             }
         }
     }
@@ -175,15 +181,29 @@ task generateBuildConfig() {
 
     String simpleName = project.name.replace("-service", "")
 
-    String packageName = "${project.group}.${simpleName}.api"
-    File packagePath = file("$outputDir/${packageName.replace('.', '/')}")
+    StringBuilder packageName = new StringBuilder()
+    simpleName.split("-").eachWithIndex { String entry, int i ->
+        if (i == 0) packageName.append(entry)
+        else {
+            packageName.append(".")
+            packageName.append(entry)
+        }
+    }
+
+    StringBuilder classNameBuilder = new StringBuilder()
+    simpleName.split("-").eachWithIndex { String entry, int i ->
+        classNameBuilder.append(entry.capitalize())
+    }
+
+    String fullPackageName = "${project.group}.${packageName.toString()}.api"
+    File packagePath = file("$outputDir/${fullPackageName.replace('.', '/')}")
     if (!packagePath.exists()) packagePath.mkdirs()
 
-    String className = "${simpleName.capitalize()}ServiceDescription"
+    String className = "${classNameBuilder.toString()}ServiceDescription"
     File configFile = file("$packagePath/${className}.kt")
     configFile.delete()
     configFile << """
-        package $packageName
+        package $fullPackageName
 
         import dk.sdu.cloud.client.ServiceDescription
 

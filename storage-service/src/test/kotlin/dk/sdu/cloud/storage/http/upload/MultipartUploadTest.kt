@@ -72,7 +72,7 @@ class MultipartUploadTest {
 
                     val fs = mockk<CephFileSystem>()
                     every { fs.openForWriting(any(), any(), any()) } throws FSException.PermissionException()
-                    every { fs.write<Any>(any(), any()) } throws FSException.PermissionException()
+                    every { fs.write(any(), any()) } throws FSException.PermissionException()
 
                     createService(runner, fs)
                 },

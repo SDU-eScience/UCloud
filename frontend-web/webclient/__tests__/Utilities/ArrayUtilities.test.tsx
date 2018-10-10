@@ -1,4 +1,4 @@
-import * as ArrayUtilities from "Utilities/ArrayUtilities";
+import * as ArrayUtilities from "Utilities/CollectionUtilities";
 
 describe("Array Utilities", () => {
     test("Add entry to set where entry is not present", () => {
@@ -20,7 +20,7 @@ describe("Array Utilities", () => {
 
     test("Remove non-existant entry in array", () => {
         const array = [] as number[];
-        expect(ArrayUtilities.removeEntry(array, 2).length).toBe(array.length)
+        expect(ArrayUtilities.removeEntry(array, 2).length).toBe(0);
     });
 
 })

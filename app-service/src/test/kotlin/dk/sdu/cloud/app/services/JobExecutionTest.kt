@@ -41,6 +41,9 @@ class JobExecutionTest {
     lateinit var producer: MappedEventProducer<String, AppEvent>
 
     @RelaxedMockK
+    lateinit var accountProducer: MappedEventProducer<String, JobCompletedEvent>
+
+    @RelaxedMockK
     lateinit var jobsDao: JobDAO<Any>
 
     @RelaxedMockK
@@ -63,7 +66,8 @@ class JobExecutionTest {
 
     lateinit var service: JobExecutionService<Any>
 
-    val emitSlot = ArrayList<AppEvent>()
+    val appEvents = ArrayList<AppEvent>()
+    val accountintEvents = ArrayList<JobCompletedEvent>()
 
 
     // ============================================================
@@ -195,7 +199,8 @@ class JobExecutionTest {
     fun setup() {
         MockKAnnotations.init(this)
 
-        coEvery { producer.emit(capture(emitSlot)) } just Runs
+        coEvery { producer.emit(capture(appEvents)) } just Runs
+        coEvery { accountProducer.emit(capture(accountintEvents)) } just Runs
 
         every { db.openSession() } returns Any()
         every { db.openTransaction(any()) } just Runs
@@ -207,6 +212,7 @@ class JobExecutionTest {
         service = JobExecutionService(
             cloud,
             producer,
+            accountProducer,
             sBatchGenerator,
             db,
             jobsDao,
@@ -385,7 +391,7 @@ class JobExecutionTest {
             }
 
             verifyJobStarted(result, application.description)
-            val captured = emitSlot.first() as AppEvent.Validated
+            val captured = appEvents.first() as AppEvent.Validated
             val workDir = URI(captured.workingDirectory)
 
             assertEquals(1, captured.files.size)
@@ -477,7 +483,7 @@ class JobExecutionTest {
             }
 
             verifyJobStarted(result, application.description)
-            val captured = emitSlot.first() as AppEvent.Validated
+            val captured = appEvents.first() as AppEvent.Validated
             val workDir = URI(captured.workingDirectory)
 
             assertEquals(paths.size, captured.files.size)
@@ -532,7 +538,7 @@ class JobExecutionTest {
             }
 
             verifyJobStarted(result, application.description)
-            val captured = emitSlot.first() as AppEvent.Validated
+            val captured = appEvents.first() as AppEvent.Validated
             val workDir = URI(captured.workingDirectory)
 
             assertEquals(paths.size, captured.files.size)
@@ -592,8 +598,8 @@ class JobExecutionTest {
         // We just check that we actually output the correct event
         service.handleAppEvent(event)
 
-        assertTrue(emitSlot.isNotEmpty())
-        val outputEvent = emitSlot.first() as AppEvent.Completed
+        assertTrue(appEvents.isNotEmpty())
+        val outputEvent = appEvents.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -621,8 +627,8 @@ class JobExecutionTest {
             }
         }
 
-        assertTrue(emitSlot.isNotEmpty())
-        emitSlot.first() as AppEvent.Prepared
+        assertTrue(appEvents.isNotEmpty())
+        appEvents.first() as AppEvent.Prepared
 
         assertEquals(1, fileNameSlot.size)
         assertEquals(1, fileContents.size)
@@ -668,8 +674,8 @@ class JobExecutionTest {
             service.handleAppEvent(event)
         }
 
-        assertTrue(emitSlot.isNotEmpty())
-        emitSlot.first() as AppEvent.Prepared
+        assertTrue(appEvents.isNotEmpty())
+        appEvents.first() as AppEvent.Prepared
 
         assertEquals(2, fileNameSlot.size)
         assertEquals(2, fileContents.size)
@@ -725,8 +731,8 @@ class JobExecutionTest {
             service.handleAppEvent(event)
         }
 
-        assertTrue(emitSlot.isNotEmpty())
-        val outputEvent = emitSlot.first() as AppEvent.Completed
+        assertTrue(appEvents.isNotEmpty())
+        val outputEvent = appEvents.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -802,8 +808,8 @@ class JobExecutionTest {
             service.handleAppEvent(event)
         }
 
-        assertTrue(emitSlot.isNotEmpty())
-        val outputEvent = emitSlot.first() as AppEvent.Completed
+        assertTrue(appEvents.isNotEmpty())
+        val outputEvent = appEvents.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -843,8 +849,8 @@ class JobExecutionTest {
             service.handleAppEvent(event)
         }
 
-        assertTrue(emitSlot.isNotEmpty())
-        val outputEvent = emitSlot.first() as AppEvent.Completed
+        assertTrue(appEvents.isNotEmpty())
+        val outputEvent = appEvents.first() as AppEvent.Completed
         assertFalse(outputEvent.successful)
     }
 
@@ -918,8 +924,8 @@ class JobExecutionTest {
             service.handleAppEvent(event)
         }
 
-        assertTrue(emitSlot.isNotEmpty())
-        val outputEvent = emitSlot.first() as AppEvent.ScheduledAtSlurm
+        assertTrue(appEvents.isNotEmpty())
+        val outputEvent = appEvents.first() as AppEvent.ScheduledAtSlurm
         assertEquals(123L, outputEvent.slurmId)
 
         assertEquals(1, batchJobs.size)
@@ -943,8 +949,8 @@ class JobExecutionTest {
             service.handleAppEvent(event)
         }
 
-        assertTrue(emitSlot.isNotEmpty())
-        val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+        assertTrue(appEvents.isNotEmpty())
+        val outputEvent = appEvents.first() as AppEvent.ExecutionCompleted
         assertFalse(outputEvent.successful)
     }
 
@@ -965,8 +971,8 @@ class JobExecutionTest {
             service.handleAppEvent(event)
         }
 
-        assertTrue(emitSlot.isNotEmpty())
-        val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+        assertTrue(appEvents.isNotEmpty())
+        val outputEvent = appEvents.first() as AppEvent.ExecutionCompleted
         assertFalse(outputEvent.successful)
     }
 
@@ -1017,7 +1023,7 @@ class JobExecutionTest {
             jobsDao.updateJobWithSlurmInformation(any(), systemId, sshUser, jobDirectiory, workingDirectory, slurmId)
         }
 
-        assertEquals(0, emitSlot.size)
+        assertEquals(0, appEvents.size)
     }
 
     private val completedInSlurmEvent = AppEvent.CompletedInSlurm(
@@ -1033,20 +1039,43 @@ class JobExecutionTest {
         123L
     )
 
+    private fun mockJobDuration(
+        statusCode: Int = 0,
+        duration: SimpleDuration = SimpleDuration(1, 2, 3)
+    ): SimpleDuration {
+        every {
+            sshConnection.execWithOutputAsText(match {
+                it.startsWith("sacct") && it.contains("-j")
+            })
+        } returns (statusCode to duration.toString())
+        return duration
+    }
+
+    private fun verifyValidAccounting(completedInSlurmEvent: AppEvent.CompletedInSlurm, duration: SimpleDuration) {
+        val accountingEvent = accountintEvents.single()
+        assertEquals(duration, accountingEvent.duration)
+        assertEquals(completedInSlurmEvent.systemId, accountingEvent.jobId)
+        assertEquals(completedInSlurmEvent.owner, accountingEvent.jobOwner)
+        assertEquals(completedInSlurmEvent.success, accountingEvent.success)
+    }
+
     @Test
     fun testShippingResultsWithDirectoryFailure() {
         objectMockk(FileDescriptions).use {
             val directoryCall =
                 mockk<RESTCallDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage,
                         CreateDirectoryRequest>>()
-            every { FileDescriptions.createDirectory } returns directoryCall
 
+            every { FileDescriptions.createDirectory } returns directoryCall
             coEvery { directoryCall.call(any(), any()) } returns RESTResponse.Err(mockk(relaxed = true))
+            val duration = mockJobDuration()
 
             service.handleAppEvent(completedInSlurmEvent)
-            assertEquals(1, emitSlot.size)
-            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertEquals(1, appEvents.size)
+            val outputEvent = appEvents.first() as AppEvent.ExecutionCompleted
             assertFalse(outputEvent.successful)
+
+            verifyValidAccounting(completedInSlurmEvent, duration)
         }
     }
 
@@ -1061,18 +1090,21 @@ class JobExecutionTest {
                 mockk(relaxed = true),
                 LongRunningResponse.Result(Unit)
             )
+            val duration = mockJobDuration()
 
             every { sshConnection.lsWithGlob(any(), any()) } returns emptyList()
 
             service.handleAppEvent(completedInSlurmEvent)
-            assertEquals(1, emitSlot.size)
+            assertEquals(1, appEvents.size)
 
-            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            val outputEvent = appEvents.first() as AppEvent.ExecutionCompleted
             assertTrue(outputEvent.successful)
 
             completedInSlurmEvent.appWithDependencies.description.outputFileGlobs.forEach {
                 verify { sshConnection.lsWithGlob(workingDirectory, it) }
             }
+
+            verifyValidAccounting(completedInSlurmEvent, duration)
         }
     }
 
@@ -1091,6 +1123,8 @@ class JobExecutionTest {
                 mockStatForRemoteFile(workingDirectory + singleFileGlob, 10L, false)
             }
 
+            val duration = mockJobDuration()
+
             mockUpload()
             val remoteFiles = mockScpDownloadAndGetFileList()
 
@@ -1098,9 +1132,11 @@ class JobExecutionTest {
             service.handleAppEvent(completedInSlurmEvent)
 
             // Check results
-            assertEquals(1, emitSlot.size)
-            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertEquals(1, appEvents.size)
+            val outputEvent = appEvents.first() as AppEvent.ExecutionCompleted
             assertTrue(outputEvent.successful)
+
+            verifyValidAccounting(completedInSlurmEvent, duration)
 
 
             completedInSlurmEvent.appWithDependencies.description.outputFileGlobs.forEach {
@@ -1129,6 +1165,8 @@ class JobExecutionTest {
                 }
             }
 
+            val duration = mockJobDuration()
+
             mockUpload()
             val remoteFiles = mockScpDownloadAndGetFileList()
 
@@ -1136,9 +1174,11 @@ class JobExecutionTest {
             service.handleAppEvent(completedInSlurmEvent)
 
             // Check results
-            assertEquals(1, emitSlot.size)
-            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertEquals(1, appEvents.size)
+            val outputEvent = appEvents.first() as AppEvent.ExecutionCompleted
             assertTrue(outputEvent.successful)
+
+            verifyValidAccounting(completedInSlurmEvent, duration)
 
             completedInSlurmEvent.appWithDependencies.description.outputFileGlobs.forEach {
                 verify { sshConnection.lsWithGlob(workingDirectory, it) }
@@ -1168,6 +1208,8 @@ class JobExecutionTest {
                 }
             }
 
+            val duration = mockJobDuration()
+
             mockUpload()
             val remoteFiles = mockScpDownloadAndGetFileList()
             val (zipOutputs, zipInputs) = mockZipCall(commandFailure = false)
@@ -1178,9 +1220,11 @@ class JobExecutionTest {
             service.handleAppEvent(completedInSlurmEvent)
 
             // Check results
-            assertEquals(1, emitSlot.size)
-            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertEquals(1, appEvents.size)
+            val outputEvent = appEvents.first() as AppEvent.ExecutionCompleted
             assertTrue(outputEvent.successful)
+
+            verifyValidAccounting(completedInSlurmEvent, duration)
 
 
             completedInSlurmEvent.appWithDependencies.description.outputFileGlobs.forEach {
@@ -1213,14 +1257,18 @@ class JobExecutionTest {
                 mockStatForRemoteFile(workingDirectory + singleFileGlob, 10L, false)
             }
 
+            val duration = mockJobDuration()
+
             mockUpload(commandFailure = true)
             mockScpDownloadAndGetFileList()
 
             // Run tests
             service.handleAppEvent(completedInSlurmEvent)
 
-            val outputEvent = emitSlot.single() as AppEvent.ExecutionCompleted
+            val outputEvent = appEvents.single() as AppEvent.ExecutionCompleted
             assertFalse(outputEvent.successful)
+
+            verifyValidAccounting(completedInSlurmEvent, duration)
         }
     }
 
@@ -1239,6 +1287,8 @@ class JobExecutionTest {
                 mockStatForRemoteFile(workingDirectory + singleFileGlob, 10L, false)
             }
 
+            val duration = mockJobDuration()
+
             mockUpload()
             mockScpDownloadAndGetFileList(commandFailure = true)
 
@@ -1246,9 +1296,11 @@ class JobExecutionTest {
             service.handleAppEvent(completedInSlurmEvent)
 
             // Check results
-            assertEquals(1, emitSlot.size)
-            val outputEvent = emitSlot.first() as AppEvent.ExecutionCompleted
+            assertEquals(1, appEvents.size)
+            val outputEvent = appEvents.first() as AppEvent.ExecutionCompleted
             assertFalse(outputEvent.successful)
+
+            verifyValidAccounting(completedInSlurmEvent, duration)
         }
     }
 
@@ -1377,8 +1429,8 @@ class JobExecutionTest {
 
             service.handleAppEvent(event)
 
-            assertEquals(1, emitSlot.size)
-            val outputEvent = emitSlot.first() as AppEvent.Completed
+            assertEquals(1, appEvents.size)
+            val outputEvent = appEvents.first() as AppEvent.Completed
             assertEquals(event.successful, outputEvent.successful)
 
             verify { sshConnection.rm(jobDirectiory, true, true) }
@@ -1404,8 +1456,8 @@ class JobExecutionTest {
 
             service.handleAppEvent(event)
 
-            assertEquals(1, emitSlot.size)
-            val outputEvent = emitSlot.first() as AppEvent.Completed
+            assertEquals(1, appEvents.size)
+            val outputEvent = appEvents.first() as AppEvent.Completed
             assertEquals(event.successful, outputEvent.successful)
 
             verify { sshConnection.rm(jobDirectiory, true, true) }
