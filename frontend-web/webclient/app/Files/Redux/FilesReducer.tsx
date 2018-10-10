@@ -26,6 +26,7 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
                 ...state,
                 page: action.payload.page,
                 loading: false,
+                path: action.payload.path,
                 fileSelectorPath: action.payload.path,
                 fileSelectorPage: action.payload.page,
                 sortOrder: action.payload.sortOrder,

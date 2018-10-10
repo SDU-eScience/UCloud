@@ -13,7 +13,6 @@ import * as Actions from "./Redux/FilesActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
 import { FileIcon, RefreshButton } from "UtilityComponents";
-import { Page } from "Types";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
     FileOptionsProps, FilesTableProps, SortByDropdownProps, FileOperation, ContextButtonsProps, Operation, ContextBarProps,
@@ -79,7 +78,7 @@ class Files extends React.Component<FilesProps> {
             onClick={(_, d) => this.props.checkAllFiles(!!d.checked)}
             checked={page.items.length === selectedFiles.length && page.items.length > 0}
             indeterminate={selectedFiles.length < page.items.length && selectedFiles.length > 0}
-            onChange={(e) => e.stopPropagation()}
+            onChange={e => e.stopPropagation()}
         />);
         const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         const navigate = (path: string) => history.push(`/files/${path}`);
@@ -126,7 +125,7 @@ class Files extends React.Component<FilesProps> {
                         errorMessage={error}
                         onErrorDismiss={this.props.dismissError}
                         customEmptyPage={(<Header.Subheader content="No files in current folder" />)}
-                        pageRenderer={(page) => (
+                        pageRenderer={page => (
                             <FilesTable
                                 onFavoriteFile={favoriteFile}
                                 fileOperations={fileOperations}
@@ -379,11 +378,10 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown,
         fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError, sortingColumns } = files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
-    const checkedFilesCount = page.items.filter(file => file.isChecked).length; // HACK to ensure changes to file checkings are rendered.
     const renamingCount = page.items.filter(file => file.beingRenamed).length;
     const fileCount = page.items.length;
     return {
-        error, fileSelectorError, page, loading, path, checkedFilesCount, favFilesCount, fileSelectorPage, fileSelectorPath,
+        error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
         leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount
     }
@@ -394,27 +392,27 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(undefined)),
     dismissError: () => dispatch(Actions.setErrorMessage()),
     createFolder: () => dispatch(Actions.createFolder()),
-    fetchFiles: async (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => {
+    fetchFiles: async (path, itemsPerPage, pageNumber, sortOrder, sortBy, index?) => {
         dispatch(Actions.updatePath(path));
         dispatch(Actions.setLoading(true));
         if (index != null) dispatch(Actions.setSortingColumn(sortBy, index));
         dispatch(await Actions.fetchFiles(path, itemsPerPage, pageNumber, sortOrder, sortBy));
     },
-    fetchPageFromPath: async (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => {
+    fetchPageFromPath: async (path, itemsPerPage, sortOrder, sortBy) => {
         dispatch(Actions.setLoading(true));
         dispatch(await Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy));
     },
-    updatePath: (path: string) => dispatch(Actions.updatePath(path)),
-    fetchSelectorFiles: async (path: string, pageNumber: number, itemsPerPage: number) => dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
-    showFileSelector: (open: boolean) => dispatch(Actions.fileSelectorShown(open)),
-    setFileSelectorCallback: (callback) => dispatch(Actions.setFileSelectorCallback(callback)),
-    checkFile: (checked: boolean, path: string) => dispatch(Actions.checkFile(checked, path)),
+    updatePath: path => dispatch(Actions.updatePath(path)),
+    fetchSelectorFiles: async (path, pageNumber, itemsPerPage) => dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
+    showFileSelector: open => dispatch(Actions.fileSelectorShown(open)),
+    setFileSelectorCallback: callback => dispatch(Actions.setFileSelectorCallback(callback)),
+    checkFile: (checked, path) => dispatch(Actions.checkFile(checked, path)),
     setPageTitle: () => dispatch(updatePageTitle("Files")),
-    updateFiles: (page: Page<File>) => dispatch(Actions.updateFiles(page)),
-    checkAllFiles: (checked: boolean) => dispatch(Actions.checkAllFiles(checked)),
-    setDisallowedPaths: (disallowedPaths: string[]) => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
+    updateFiles: page => dispatch(Actions.updateFiles(page)),
+    checkAllFiles: checked => dispatch(Actions.checkAllFiles(checked)),
+    setDisallowedPaths: disallowedPaths => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
     showUploader: () => dispatch(setUploaderVisible(true)),
-    setUploaderCallback: (callback) => dispatch(setUploaderCallback(callback))
+    setUploaderCallback: callback => dispatch(setUploaderCallback(callback))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Files);

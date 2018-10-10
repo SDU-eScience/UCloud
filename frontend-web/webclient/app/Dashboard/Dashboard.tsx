@@ -36,8 +36,7 @@ class Dashboard extends React.Component<DashboardProps> {
 
     render() {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
-            analysesLoading, favoriteError, recentFilesError, recentAnalysesError, errorDismissFavorites,
-            errorDismissRecentAnalyses, errorDismissRecentFiles } = this.props;
+            analysesLoading, errors,  } = this.props;
         favoriteFiles.forEach((f: File) => f.favorited = true);
         const favoriteOrUnfavorite = (file: File) => {
             favoriteFile(file, Cloud);
@@ -46,9 +45,7 @@ class Dashboard extends React.Component<DashboardProps> {
 
         return (
             <React.StrictMode>
-                <ErrorMessage error={favoriteError} onDismiss={errorDismissFavorites} />
-                <ErrorMessage error={recentFilesError} onDismiss={errorDismissRecentFiles} />
-                <ErrorMessage error={recentAnalysesError} onDismiss={errorDismissRecentAnalyses} />
+                {errors.length ? <Message list={errors} onDismiss={this.props.errorDismiss} negative /> : null}
                 <Card.Group className="mobile-padding">
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
@@ -178,13 +175,8 @@ const Notification = ({ notification }: { notification: Notification }) => {
 const statusToIconName = (status: string) => status === "SUCCESS" ? "check" : "x";
 const statusToColor = (status: string) => status === "SUCCESS" ? "green" : "red";
 
-const ErrorMessage = ({ error, onDismiss }: { error?: string, onDismiss: () => void }) => error != null ?
-    (<Message content={error} onDismiss={onDismiss} negative />) : null;
-
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
-    errorDismissFavorites: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, undefined)),
-    errorDismissRecentAnalyses: () => dispatch(setErrorMessage(DASHBOARD_RECENT_ANALYSES_ERROR, undefined)),
-    errorDismissRecentFiles: () => dispatch(setErrorMessage(DASHBOARD_RECENT_FILES_ERROR, undefined)),
+    errorDismiss: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, undefined)),
     updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
     setAllLoading: (loading) => dispatch(setAllLoading(loading)),
     fetchFavorites: async () => dispatch(await fetchFavorites()),
@@ -195,22 +187,18 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
 
 const mapStateToProps = (state): DashboardStateProps => {
     const {
+        errors,
         favoriteFiles,
-        favoriteError,
         recentFiles,
-        recentFilesError,
         recentAnalyses,
-        recentAnalysesError,
         favoriteLoading,
         recentLoading,
         analysesLoading,
     } = state.dashboard;
     return {
-        favoriteError,
+        errors,
         favoriteFiles,
-        recentFilesError,
         recentFiles,
-        recentAnalysesError,
         recentAnalyses,
         favoriteLoading,
         recentLoading,

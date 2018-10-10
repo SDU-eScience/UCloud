@@ -198,7 +198,7 @@ export const initStatus = () => ({
     title: ""
 });
 
-export const initDashboard = () => ({
+export const initDashboard = (): DashboardStateProps => ({
     favoriteFiles: [],
     recentFiles: [],
     recentAnalyses: [],
@@ -206,9 +206,7 @@ export const initDashboard = () => ({
     favoriteLoading: false,
     recentLoading: false,
     analysesLoading: false,
-    favoriteError: undefined,
-    recentFilesError: undefined,
-    recentAnalysesError: undefined
+    errors: []
 });
 
 export const initObject = (cloud: SDUCloud): ReduxObject => ({

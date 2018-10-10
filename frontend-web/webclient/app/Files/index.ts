@@ -74,7 +74,6 @@ export interface FilesStateProps { // Redux Props
     sortOrder: SortOrder
     error?: string
     fileSelectorError?: string
-    checkedFilesCount: number
     favFilesCount: number
     renamingCount: number
     fileCount: number

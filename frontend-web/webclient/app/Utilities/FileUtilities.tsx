@@ -25,7 +25,6 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
                         UF.successNotification("File copied.");
                     }
                 });
-            UF.failureNotification(`An error occurred, please try again later.`);
         }); // End forEach
     }); // End Callback
 };
@@ -332,7 +331,5 @@ export const createFolder = (path: string, cloud: Cloud, onSuccess: () => void) 
             onSuccess()
         }
     }).catch(() => UF.failureNotification("An error ocurred trying to creating the file."));
-
-
 
 export const annotationToString = (annotation: Annotation) => AnnotationsMap[annotation];

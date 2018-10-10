@@ -14,16 +14,12 @@ export interface DashboardStateProps {
     analysesLoading: boolean
     recentLoading: boolean
     favoriteFilesLength?: number
-    favoriteError?: string
-    recentFilesError?: string
-    recentAnalysesError?: string
+    errors: string[]
 }
 
 export interface DashboardOperations {
     // Redux operations
-    errorDismissFavorites: () => void
-    errorDismissRecentFiles: () => void
-    errorDismissRecentAnalyses: () => void
+    errorDismiss: () => void
     receiveFavorites: (files: File[]) => void
     updatePageTitle: () => void
     setAllLoading: (loading: boolean) => void

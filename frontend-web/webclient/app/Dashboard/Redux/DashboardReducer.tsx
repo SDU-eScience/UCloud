@@ -25,14 +25,14 @@ const dashboard = (state: DashboardStateProps = initDashboard(), action: Dashboa
         case RECEIVE_RECENT_FILES: {
             return { ...state, recentFiles: action.payload.content, recentLoading: false };
         }
-        case DASHBOARD_FAVORITE_ERROR: {
-            return { ...state, favoriteError: action.payload.error, favoriteLoading: false };
-        }
-        case DASHBOARD_RECENT_ANALYSES_ERROR: {
-            return { ...state, recentAnalysesError: action.payload.error, analysesLoading: false };
-        }
+        case DASHBOARD_FAVORITE_ERROR:
+        case DASHBOARD_RECENT_ANALYSES_ERROR:
         case DASHBOARD_RECENT_FILES_ERROR: {
-            return { ...state, recentFilesError: action.payload.error, recentLoading: false };
+            if (action.payload.error) {
+                return { ...state, errors: state.errors.concat([action.payload.error]) }
+            } else {
+                return { ...state, errors: [] };
+            }
         }
         default: {
             return state;

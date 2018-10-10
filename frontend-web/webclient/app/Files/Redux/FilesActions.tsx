@@ -91,19 +91,15 @@ interface ReceiveFiles extends PayloadAction<typeof RECEIVE_FILES, { path: strin
  * @param {SortOrder} sortOrder - The order in which the files were sorted
  * @param {SortBy} sortBy - the value the sorting was based on
  */
-const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sortBy: SortBy): ReceiveFiles => {
-    // FIXME Checked and rename should be set in reducer
-    page.items.forEach(f => f.isChecked = f.beingRenamed = false);
-    return {
-        type: RECEIVE_FILES,
-        payload: {
-            page,
-            path,
-            sortOrder,
-            sortBy
-        }
+const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sortBy: SortBy): ReceiveFiles => ({
+    type: RECEIVE_FILES,
+    payload: {
+        page,
+        path,
+        sortOrder,
+        sortBy
     }
-};
+});
 
 export type SortingColumn = 0 | 1;
 /**
@@ -153,7 +149,11 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
  */
 export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR>> =>
     Cloud.get(fileLookupQuery(path, itemsPerPage, order, sortBy))
-        .then(({ response }) => receiveFiles(response, getParentPath(path), order, sortBy)).catch(() =>
+        .then(({ response }) => {
+            const i = response.items.findIndex(it => it.path === path);
+            response.items[i].isChecked = true;
+            return receiveFiles(response, getParentPath(path), order, sortBy)
+        }).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
         ); // FIXME Add error handling
 
