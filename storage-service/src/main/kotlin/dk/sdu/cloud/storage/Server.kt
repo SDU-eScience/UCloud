@@ -40,6 +40,11 @@ class Server(
 
     private val allProcessors = ArrayList<EventConsumer<*>>()
 
+    private fun addProcessors(processors: List<EventConsumer<*>>) {
+        processors.forEach { it.installShutdownHandler(this) }
+        allProcessors.addAll(processors)
+    }
+
     override fun start() {
         log.info("Creating core services")
         val isDevelopment = args.contains("--dev")
@@ -70,6 +75,7 @@ class Server(
         val externalFileService = ExternalFileService(processRunner, coreFileSystem, storageEventProducer)
         log.info("Core services constructed!")
 
+        // Kafka
         kStreams = buildStreams { kBuilder ->
             UserProcessor(
                 kBuilder.stream(AuthStreams.UserUpdateStream),
@@ -80,12 +86,14 @@ class Server(
         }
 
         val storageEventProcessor = StorageEventProcessor(kafka)
-        allProcessors.addAll(storageEventProcessor.init())
+        addProcessors(storageEventProcessor.init())
+
         ChecksumProcessor(processRunner, fs, coreFileSystem).also {
             // TODO Doesn't emit events for checksums
             storageEventProcessor.registerHandler(it::handleEvents)
         }
 
+        // HTTP
         httpServer = ktor {
             log.info("Configuring HTTP server")
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)

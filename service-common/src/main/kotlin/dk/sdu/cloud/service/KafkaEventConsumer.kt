@@ -59,19 +59,43 @@ class KafkaEventConsumer<K, V>(
     }
 
     private val processingThread = Thread {
+        var nextPrint = 0L
         while (isRunning) {
-            // Block for first available element
-            val next: KafkaConsumedEvent<Pair<K, V>>? = queue.poll(100, TimeUnit.MILLISECONDS)
-            if (next != null) {
-                val nextBatch = ArrayList<KafkaConsumedEvent<Pair<K, V>>>(queue.remainingCapacity() + 1)
-                nextBatch.add(next)
-                queue.drainTo(nextBatch) // Drain immediately if there are several elements in queue
+            try {
+                // Block for first available element
+                val next: KafkaConsumedEvent<Pair<K, V>>? = queue.poll(100, TimeUnit.MILLISECONDS)
 
-                rootProcessor.accept(nextBatch)
-            } else {
-                // If no element was available before deadline we just notify the root processor that we found nothing.
-                // This can then trigger emission of events that might be collecting in a buffer (for batch processing)
-                rootProcessor.accept(emptyList())
+                if (System.currentTimeMillis() > nextPrint) {
+                    nextPrint = System.currentTimeMillis() + 10_000
+                    log.debug(
+                        "We retrieved an element from the processing thread!" +
+                                "overflowBuffer.size = ${overflowBuffer.size} " +
+                                "queue.size = ${queue.size}"
+                    )
+                }
+
+                try {
+                    if (next != null) {
+                        val nextBatch = ArrayList<KafkaConsumedEvent<Pair<K, V>>>(queue.remainingCapacity() + 1)
+                        nextBatch.add(next)
+                        queue.drainTo(nextBatch) // Drain immediately if there are several elements in queue
+
+                        rootProcessor.accept(nextBatch)
+                    } else {
+                        // If no element was available before deadline we just notify the root processor that we found nothing.
+                        // This can then trigger emission of events that might be collecting in a buffer (for batch processing)
+                        rootProcessor.accept(emptyList())
+                    }
+                } catch (ex: Exception) {
+                    log.info("Caught fatal exception in processing thread!")
+                    log.info(ex.stackTraceToString())
+                    exceptionHandler?.invoke(ex)
+
+                    isRunning = false
+                }
+            } catch (ex: InterruptedException) {
+                log.debug("Was interrupted")
+                log.debug(ex.stackTraceToString())
             }
         }
     }
@@ -83,11 +107,12 @@ class KafkaEventConsumer<K, V>(
         configure(rootProcessor)
         isRunning = true
 
-        executor.submit { internalPoll() }
         processingThread.start()
+        executor.submit { internalPoll() }
         return this
     }
 
+    private var nextPrint = 0L
     private fun internalPoll() {
         try {
             val events = kafkaConsumer
@@ -144,13 +169,24 @@ class KafkaEventConsumer<K, V>(
                     overflowBuffer.addAll(events)
 
                     // Offer as much as possible to the queue and break
+                    var offeredSuccessfully = 0
                     val it = overflowBuffer.iterator()
                     while (it.hasNext()) {
                         val next = it.next()
                         val success = queue.offer(next)
 
-                        if (success) it.remove()
-                        else break
+                        if (success) {
+                            it.remove()
+                            offeredSuccessfully++
+                        } else {
+                            break
+                        }
+                    }
+
+                    if (System.currentTimeMillis() > nextPrint) {
+                        nextPrint = System.currentTimeMillis() + 10_000
+                        log.debug("We managed to move $offeredSuccessfully from the overflow into the queue.")
+                        log.debug("We currently have ${overflowBuffer.size} elements in the overflow buffer.")
                     }
                 } else {
                     queue.addAll(events) // expected to complete immediately
@@ -165,7 +201,13 @@ class KafkaEventConsumer<K, V>(
             }
 
             executor.submit {
-                if (isRunning) internalPoll()
+                if (isRunning) {
+                    internalPoll()
+
+                    if (!processingThread.isAlive) {
+                        log.warn("For some reason the processing thread is no longer alive!")
+                    }
+                }
             }
         } catch (ex: Exception) {
             log.warn("Caught internal exception in KafkaConsumer")
@@ -196,9 +238,17 @@ class KafkaEventConsumer<K, V>(
 
         executor.submit {
             kafkaConsumer.commitSync(
-                recastEvents.groupBy { it.partition }.map { (topicAndPartition, eventsForPartition) ->
-                    topicAndPartition to OffsetAndMetadata(eventsForPartition.maxBy { it.offset }!!.offset + 1)
-                }.toMap()
+                recastEvents
+                    .asSequence()
+                    .groupBy { it.partition }
+                    .map { (topicAndPartition, eventsForPartition) ->
+                        Pair(
+                            topicAndPartition,
+                            OffsetAndMetadata(eventsForPartition.maxBy { it.offset }!!.offset + 1)
+                        )
+                    }
+                    .toList()
+                    .toMap()
             )
         }
     }
