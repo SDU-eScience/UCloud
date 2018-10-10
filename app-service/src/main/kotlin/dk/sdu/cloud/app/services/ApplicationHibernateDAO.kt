@@ -22,7 +22,7 @@ class ApplicationHibernateDAO(
         version: String
     ) {
         val foundApp = internalByNameAndVersion(session, name, version) ?: throw
-                ApplicationException.BadApplication()
+        ApplicationException.BadApplication()
 
         val isFavorite = session.typedQuery<Long>(
             """
@@ -87,10 +87,10 @@ class ApplicationHibernateDAO(
         }
 
         return Page(
-                itemsInTotal.toInt(),
-                paging.itemsPerPage,
-                paging.page,
-                preparedForUserPageItems
+            itemsInTotal.toInt(),
+            paging.itemsPerPage,
+            paging.page,
+            preparedForUserPageItems
         )
     }
 
@@ -120,10 +120,10 @@ class ApplicationHibernateDAO(
             session,
             user,
             Page(
-            itemsInTotal.toInt(),
-            paging.itemsPerPage,
-            paging.page,
-            items
+                itemsInTotal.toInt(),
+                paging.itemsPerPage,
+                paging.page,
+                items
             )
         )
     }
@@ -134,32 +134,32 @@ class ApplicationHibernateDAO(
         query: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationForUser> {
-        //language=HQL
         val count = session.typedQuery<Long>(
+            //language=HQL
             """
-            select count (A.id.name)
-            from ApplicationEntity as A where (A.createdAt) in (
-                select max(createdAt)
-                from ApplicationEntity as B
-                where A.id.name = B.id.name
-                group by id.name
-            ) and A.id.name like '%' || :query || '%'
-            """.trimIndent()
+                select count (A.id.name)
+                from ApplicationEntity as A where (A.createdAt) in (
+                    select max(createdAt)
+                    from ApplicationEntity as B
+                    where A.id.name = B.id.name
+                    group by id.name
+                ) and A.id.name like '%' || :query || '%'
+                """.trimIndent()
         ).setParameter("query", query)
             .uniqueResult()
             .toInt()
 
-        //language=HQL
         val items = session.typedQuery<ApplicationEntity>(
+            //language=HQL
             """
-            from ApplicationEntity as A where (A.createdAt) in (
-                select max(createdAt)
-                from ApplicationEntity as B
-                where A.id.name = B.id.name
-                group by id.name
-            ) and A.id.name like '%' || :query || '%'
-            order by A.id.name
-        """.trimIndent()
+                    from ApplicationEntity as A where (A.createdAt) in (
+                        select max(createdAt)
+                        from ApplicationEntity as B
+                        where A.id.name = B.id.name
+                        group by id.name
+                    ) and A.id.name like '%' || :query || '%'
+                    order by A.id.name
+                """.trimIndent()
         ).setParameter("query", query)
             .paginatedList(paging)
             .map { it.toModel() }
@@ -258,7 +258,7 @@ class ApplicationHibernateDAO(
         if (existing != null) throw ApplicationException.AlreadyExists()
 
         val existingTool = toolDAO.internalByNameAndVersion(session, description.tool.name, description.tool.version)
-            ?: throw ApplicationException.BadToolReference()
+                ?: throw ApplicationException.BadToolReference()
 
         val entity = ApplicationEntity(
             user,
@@ -320,31 +320,28 @@ class ApplicationHibernateDAO(
         }.uniqueResult()?.owner
     }
 
-    private fun preparePageForUser(session: HibernateSession, user: String?, page: Page<Application>): Page<ApplicationForUser>{
+    private fun preparePageForUser(
+        session: HibernateSession,
+        user: String?,
+        page: Page<Application>
+    ): Page<ApplicationForUser> {
         if (!user.isNullOrBlank()) {
             val allFavorites = session
                 .criteria<FavoriteApplicationEntity> { entity[FavoriteApplicationEntity::user] equal user }
                 .list()
 
-            val preparedPageItems = mutableListOf<ApplicationForUser>()
-
-            page.items.forEach { item ->
-                preparedPageItems.add(ApplicationForUser(item, false))
-                allFavorites.forEach { fav ->
-                    if (fav.application.id.name == item.description.info.name &&
-                            fav.application.id.version == item.description.info.version)
-                    {
-                        preparedPageItems.set(preparedPageItems.size-1, ApplicationForUser(item,true))
-                    }
+            val preparedPageItems = page.items.map { item ->
+                val isFavorite = allFavorites.any { fav ->
+                    fav.application.id.name == item.description.info.name &&
+                            fav.application.id.version == item.description.info.version
                 }
+
+                ApplicationForUser(item, isFavorite)
             }
+
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
-        }
-        else{
-            val preparedPageItems = mutableListOf<ApplicationForUser>()
-            page.items.forEach {
-                preparedPageItems.add(ApplicationForUser(it, false))
-            }
+        } else {
+            val preparedPageItems = page.items.map { ApplicationForUser(it, false) }
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         }
     }
@@ -365,5 +362,5 @@ sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) :
     class NotAllowed : ApplicationException("Not allowed", HttpStatusCode.Forbidden)
     class AlreadyExists : ApplicationException("Already exists", HttpStatusCode.Conflict)
     class BadToolReference : ApplicationException("Tool does not exist", HttpStatusCode.BadRequest)
-    class BadApplication: ApplicationException("Application does not exists", HttpStatusCode.BadRequest)
+    class BadApplication : ApplicationException("Application does not exists", HttpStatusCode.BadRequest)
 }
