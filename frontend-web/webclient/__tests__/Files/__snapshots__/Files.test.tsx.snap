@@ -532,8 +532,13 @@ exports[`Files-component Full Files component, full page of files 1`] = `
           <th
             className="three wide"
           >
+            <i
+              aria-hidden="true"
+              className="sync small circular link icon float-right"
+              onClick={[Function]}
+            />
             <span
-              className="items-per-page-padding"
+              className="items-per-page-padding float-right"
             >
               <span>
                 Files per page 
@@ -639,11 +644,6 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 </div>
               </div>
             </span>
-            <i
-              aria-hidden="true"
-              className="sync small circular link icon"
-              onClick={[Function]}
-            />
           </th>
         </tr>
       </thead>

@@ -13,10 +13,20 @@ Array [
     <div
       className="content"
     >
-      <p>
-        No search text provided.
-
-      </p>
+      <div
+        className="header"
+      >
+        Invalid parameters
+      </div>
+      <ul
+        className="list"
+      >
+        <li
+          className="content"
+        >
+          No search text provided.
+        </li>
+      </ul>
     </div>
   </div>,
   <div

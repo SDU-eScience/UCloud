@@ -138,25 +138,44 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
           </a>
         </div>
         <div
-          className="item"
+          className="title"
           onClick={[Function]}
         >
-          <div
-            className="title"
-            onClick={[Function]}
+          <i
+            aria-hidden="true"
+            className="dropdown icon"
+            style={
+              Object {
+                "marginLeft": "15px",
+              }
+            }
+          />
+          <span
+            style={
+              Object {
+                "marginLeft": "15px",
+              }
+            }
           >
-            <i
-              aria-hidden="true"
-              className="dropdown icon"
-            />
             Applications
-          </div>
+          </span>
+        </div>
+        <div
+          className="content"
+        >
           <div
-            className="content"
+            className="ui list"
+            role="list"
           >
             <div
-              className="ui list"
-              role="list"
+              className="item"
+              onClick={[Function]}
+              role="listitem"
+              style={
+                Object {
+                  "paddingLeft": "1em",
+                }
+              }
             >
               <a
                 className="sidebar-option"
@@ -184,6 +203,17 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
                   </div>
                 </div>
               </a>
+            </div>
+            <div
+              className="item"
+              onClick={[Function]}
+              role="listitem"
+              style={
+                Object {
+                  "paddingLeft": "1em",
+                }
+              }
+            >
               <a
                 className="sidebar-option"
                 href="/analyses"
@@ -214,25 +244,44 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
           </div>
         </div>
         <div
-          className="item"
+          className="title"
           onClick={[Function]}
         >
-          <div
-            className="title"
-            onClick={[Function]}
+          <i
+            aria-hidden="true"
+            className="dropdown icon"
+            style={
+              Object {
+                "marginLeft": "15px",
+              }
+            }
+          />
+          <span
+            style={
+              Object {
+                "marginLeft": "16px",
+              }
+            }
           >
-            <i
-              aria-hidden="true"
-              className="dropdown icon"
-            />
             Publishing
-          </div>
+          </span>
+        </div>
+        <div
+          className="content"
+        >
           <div
-            className="content"
+            className="ui list"
+            role="list"
           >
             <div
-              className="ui list"
-              role="list"
+              className="item"
+              onClick={[Function]}
+              role="listitem"
+              style={
+                Object {
+                  "paddingLeft": "1em",
+                }
+              }
             >
               <a
                 className="sidebar-option"
@@ -260,6 +309,17 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
                   </div>
                 </div>
               </a>
+            </div>
+            <div
+              className="item"
+              onClick={[Function]}
+              role="listitem"
+              style={
+                Object {
+                  "paddingLeft": "1em",
+                }
+              }
+            >
               <a
                 className="sidebar-option"
                 href="/zenodo/publish"
@@ -290,25 +350,44 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
           </div>
         </div>
         <div
-          className="item"
+          className="title"
           onClick={[Function]}
         >
-          <div
-            className="title"
-            onClick={[Function]}
+          <i
+            aria-hidden="true"
+            className="dropdown icon"
+            style={
+              Object {
+                "marginLeft": "15px",
+              }
+            }
+          />
+          <span
+            style={
+              Object {
+                "marginLeft": "15px",
+              }
+            }
           >
-            <i
-              aria-hidden="true"
-              className="dropdown icon"
-            />
             Admin
-          </div>
+          </span>
+        </div>
+        <div
+          className="content"
+        >
           <div
-            className="content"
+            className="ui list"
+            role="list"
           >
             <div
-              className="ui list"
-              role="list"
+              className="item"
+              onClick={[Function]}
+              role="listitem"
+              style={
+                Object {
+                  "paddingLeft": "1em",
+                }
+              }
             >
               <a
                 className="sidebar-option"

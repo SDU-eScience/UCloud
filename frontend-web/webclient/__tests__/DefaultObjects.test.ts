@@ -13,9 +13,7 @@ describe("Initialize Redux Objects", () => {
             favoriteLoading: false,
             recentLoading: false,
             analysesLoading: false,
-            favoriteError: undefined,
-            recentFilesError: undefined,
-            recentAnalysesError: undefined
+            errors: []
         })
     });
 
@@ -89,6 +87,7 @@ describe("Initialize Redux Objects", () => {
 
     test("Sidebar", () =>
         expect(Defaults.initSidebar()).toEqual({
+            kcCount: 0,
             open: false,
             loading: false,
             pp: false,
