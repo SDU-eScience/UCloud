@@ -7,7 +7,6 @@ import * as PropTypes from "prop-types";
 import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory, createFolder } from "Utilities/FileUtilities";
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
-import { openUppy } from "Uppy/Redux/UppyActions";
 import { KeyCode } from "DefaultObjects";
 import { FileIcon } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
@@ -24,7 +23,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             error: undefined,
             page: emptyPage,
             modalShown: false,
-            uppyOnUploadSuccess: undefined,
             creatingFolder: false
         };
     }
@@ -49,28 +47,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         }
     }
 
-    uppyOnUploadSuccess = (file, resp, uploadURL) => {
-        if (!this.props.allowUpload) return;
-        // TODO This is a hack.
-        let apiIndex = uploadURL.indexOf("/api/");
-        if (apiIndex === -1) throw "Did not expect upload URL to not contain /api/";
-
-        let apiEndpoint = uploadURL.substring(apiIndex + 5);
-
-        Cloud.head(apiEndpoint).then(it => {
-            console.log("Got a response back!");
-            let path = it.request.getResponseHeader("File-Location");
-            let lastSlash = path.lastIndexOf("/");
-            if (lastSlash === -1) throw `Could not parse name of path: ${path}`;
-            let name = path.substring(lastSlash + 1);
-            let fileObject = {
-                path: path,
-                name: name,
-            };
-            this.props.onFileSelect(fileObject);
-        }); // FIXME Add error handling
-    };
-
     componentDidMount() {
         const { page } = this.state;
         this.fetchFiles(Cloud.homeFolder, page.pageNumber, page.itemsPerPage);
@@ -78,13 +54,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
 
     componentWillUnmount() {
         this.state.promises.cancelPromises();
-    }
-
-    onUppyClose = (): void => {
-        this.props.uppy.off("upload-success", this.state.uppyOnUploadSuccess);
-        this.setState(() => ({
-            uppyOnUploadSuccess: undefined,
-        }));
     }
 
     setSelectedFile = (file) => {
@@ -112,10 +81,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     render() {
         const onUpload = () => {
             if (!this.props.allowUpload) return;
-            this.context.store.dispatch(openUppy(true));
-            let uppy = this.props.uppy;
-            uppy.reset();
-            uppy.once("upload-success", this.uppyOnUploadSuccess);
         };
         const path = this.props.path ? this.props.path : "";
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
@@ -126,7 +91,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     className="readonly mobile-padding"
                     required={this.props.isRequired}
                     placeholder="No file selected"
-                    value={path}
+                    value={replaceHomeFolder(path, Cloud.homeFolder)}
                     action
                 >
                     <input onClick={() => this.setState(() => ({ modalShown: true }))} />

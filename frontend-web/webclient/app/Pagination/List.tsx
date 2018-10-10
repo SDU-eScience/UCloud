@@ -14,6 +14,7 @@ interface ListProps {
 
     // Page results
     page: Page<any>
+    customEntriesPerPage?: boolean
 
     // Error properties  
     errorMessage?: string | (() => React.ReactNode | null)
@@ -32,7 +33,7 @@ export class List extends React.PureComponent<ListProps> {
     }
 
     render() {
-        const props = this.props;
+        const { props } = this;
         const body = this.renderBody();
 
         let errorComponent: React.ReactNode = null;
@@ -46,7 +47,7 @@ export class List extends React.PureComponent<ListProps> {
             <RefreshButton
                 className="pagination-float-right"
                 loading={this.props.loading}
-                onClick={this.props.onRefresh} 
+                onClick={this.props.onRefresh}
             />
         ) : null;
 
@@ -54,12 +55,12 @@ export class List extends React.PureComponent<ListProps> {
             <>
                 {errorComponent}
                 {refreshButton}
-                <Self.EntriesPerPageSelector
+                {!props.customEntriesPerPage ? <Self.EntriesPerPageSelector
                     content="Items per page"
                     className="items-per-page-padding pagination-float-right"
                     entriesPerPage={props.page.itemsPerPage}
                     onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
-                />
+                /> : null}
                 {body}
                 <div>
                     <Self.Buttons
@@ -75,7 +76,7 @@ export class List extends React.PureComponent<ListProps> {
 
 
     private renderBody(): React.ReactNode {
-        const props = this.props;
+        const { props } = this;
         if (props.loading) {
             return <Grid centered verticalAlign="middle" columns={1}>
                 <div className="pagination-loader">

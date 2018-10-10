@@ -32,7 +32,7 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
                 role="listitem"
               >
                 <div
-                  className="right floated content"
+                  className="left floated content"
                 >
                   <i
                     aria-hidden="true"
@@ -63,11 +63,11 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
                 role="listitem"
               >
                 <div
-                  className="right floated content"
+                  className="left floated content"
                 >
                   <i
                     aria-hidden="true"
-                    className="file icon"
+                    className="file outline icon"
                   />
                 </div>
                 Files
@@ -94,7 +94,7 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
                 role="listitem"
               >
                 <div
-                  className="right floated content"
+                  className="left floated content"
                 >
                   <i
                     aria-hidden="true"
@@ -105,122 +105,6 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
               </div>
             </div>
           </a>
-        </div>
-        <div
-          className="item"
-          onClick={[Function]}
-        >
-          <div
-            className="title"
-            onClick={[Function]}
-          >
-            Applications
-            <i
-              aria-hidden="true"
-              className="dropdown icon"
-            />
-          </div>
-          <div
-            className="content"
-          >
-            <div
-              className="ui list"
-              role="list"
-            >
-              <a
-                className="sidebar-option"
-                href="/applications"
-                onClick={[Function]}
-              >
-                <div
-                  className="item item-padding-right"
-                  onClick={[Function]}
-                  role="listitem"
-                >
-                  <i
-                    aria-hidden="true"
-                    className="code icon"
-                  />
-                  Run
-                </div>
-              </a>
-              <a
-                className="sidebar-option"
-                href="/analyses"
-                onClick={[Function]}
-              >
-                <div
-                  className="item item-padding-right"
-                  onClick={[Function]}
-                  role="listitem"
-                >
-                  <i
-                    aria-hidden="true"
-                    className="tasks icon"
-                  />
-                  Results
-                </div>
-              </a>
-            </div>
-          </div>
-        </div>
-        <div
-          className="item"
-          onClick={[Function]}
-        >
-          <div
-            className="title"
-            onClick={[Function]}
-          >
-            <i
-              aria-hidden="true"
-              className="dropdown icon"
-            />
-            Publishing
-          </div>
-          <div
-            className="content"
-          >
-            <div
-              className="ui list"
-              role="list"
-            >
-              <a
-                className="sidebar-option"
-                href="/zenodo"
-                onClick={[Function]}
-              >
-                <div
-                  className="item item-padding-right"
-                  onClick={[Function]}
-                  role="listitem"
-                >
-                  <i
-                    aria-hidden="true"
-                    className="newspaper icon"
-                  />
-                  Publications
-                </div>
-              </a>
-              <a
-                className="sidebar-option"
-                href="/zenodo/publish"
-                onClick={[Function]}
-              >
-                <div
-                  className="item item-padding-right"
-                  onClick={[Function]}
-                  role="listitem"
-                >
-                  <i
-                    aria-hidden="true"
-                    className="edit icon"
-                  />
-                  Publish
-                </div>
-              </a>
-            </div>
-          </div>
         </div>
         <div
           className="item"
@@ -241,11 +125,11 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
                 role="listitem"
               >
                 <div
-                  className="right floated content"
+                  className="left floated content"
                 >
                   <i
                     aria-hidden="true"
-                    className="share icon"
+                    className="share square outline icon"
                   />
                 </div>
                 Shares
@@ -254,25 +138,256 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
           </a>
         </div>
         <div
-          className="item"
+          className="title"
           onClick={[Function]}
         >
-          <div
-            className="title"
-            onClick={[Function]}
+          <i
+            aria-hidden="true"
+            className="dropdown icon"
+            style={
+              Object {
+                "marginLeft": "15px",
+              }
+            }
+          />
+          <span
+            style={
+              Object {
+                "marginLeft": "15px",
+              }
+            }
           >
-            <i
-              aria-hidden="true"
-              className="dropdown icon"
-            />
-            Admin
-          </div>
+            Applications
+          </span>
+        </div>
+        <div
+          className="content"
+        >
           <div
-            className="content"
+            className="ui list"
+            role="list"
           >
             <div
-              className="ui list"
-              role="list"
+              className="item"
+              onClick={[Function]}
+              role="listitem"
+              style={
+                Object {
+                  "paddingLeft": "1em",
+                }
+              }
+            >
+              <a
+                className="sidebar-option"
+                href="/applications"
+                onClick={[Function]}
+              >
+                <div
+                  className="ui list"
+                  role="list"
+                >
+                  <div
+                    className="item"
+                    onClick={[Function]}
+                    role="listitem"
+                  >
+                    <div
+                      className="left floated content"
+                    >
+                      <i
+                        aria-hidden="true"
+                        className="code icon"
+                      />
+                    </div>
+                    Run
+                  </div>
+                </div>
+              </a>
+            </div>
+            <div
+              className="item"
+              onClick={[Function]}
+              role="listitem"
+              style={
+                Object {
+                  "paddingLeft": "1em",
+                }
+              }
+            >
+              <a
+                className="sidebar-option"
+                href="/analyses"
+                onClick={[Function]}
+              >
+                <div
+                  className="ui list"
+                  role="list"
+                >
+                  <div
+                    className="item"
+                    onClick={[Function]}
+                    role="listitem"
+                  >
+                    <div
+                      className="left floated content"
+                    >
+                      <i
+                        aria-hidden="true"
+                        className="tasks icon"
+                      />
+                    </div>
+                    Results
+                  </div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div
+          className="title"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="dropdown icon"
+            style={
+              Object {
+                "marginLeft": "15px",
+              }
+            }
+          />
+          <span
+            style={
+              Object {
+                "marginLeft": "16px",
+              }
+            }
+          >
+            Publishing
+          </span>
+        </div>
+        <div
+          className="content"
+        >
+          <div
+            className="ui list"
+            role="list"
+          >
+            <div
+              className="item"
+              onClick={[Function]}
+              role="listitem"
+              style={
+                Object {
+                  "paddingLeft": "1em",
+                }
+              }
+            >
+              <a
+                className="sidebar-option"
+                href="/zenodo"
+                onClick={[Function]}
+              >
+                <div
+                  className="ui list"
+                  role="list"
+                >
+                  <div
+                    className="item"
+                    onClick={[Function]}
+                    role="listitem"
+                  >
+                    <div
+                      className="left floated content"
+                    >
+                      <i
+                        aria-hidden="true"
+                        className="newspaper icon"
+                      />
+                    </div>
+                    Publications
+                  </div>
+                </div>
+              </a>
+            </div>
+            <div
+              className="item"
+              onClick={[Function]}
+              role="listitem"
+              style={
+                Object {
+                  "paddingLeft": "1em",
+                }
+              }
+            >
+              <a
+                className="sidebar-option"
+                href="/zenodo/publish"
+                onClick={[Function]}
+              >
+                <div
+                  className="ui list"
+                  role="list"
+                >
+                  <div
+                    className="item"
+                    onClick={[Function]}
+                    role="listitem"
+                  >
+                    <div
+                      className="left floated content"
+                    >
+                      <i
+                        aria-hidden="true"
+                        className="edit icon"
+                      />
+                    </div>
+                    Publish
+                  </div>
+                </div>
+              </a>
+            </div>
+          </div>
+        </div>
+        <div
+          className="title"
+          onClick={[Function]}
+        >
+          <i
+            aria-hidden="true"
+            className="dropdown icon"
+            style={
+              Object {
+                "marginLeft": "15px",
+              }
+            }
+          />
+          <span
+            style={
+              Object {
+                "marginLeft": "15px",
+              }
+            }
+          >
+            Admin
+          </span>
+        </div>
+        <div
+          className="content"
+        >
+          <div
+            className="ui list"
+            role="list"
+          >
+            <div
+              className="item"
+              onClick={[Function]}
+              role="listitem"
+              style={
+                Object {
+                  "paddingLeft": "1em",
+                }
+              }
             >
               <a
                 className="sidebar-option"
@@ -280,17 +395,22 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
                 onClick={[Function]}
               >
                 <div
-                  className="item item-padding-right"
-                  onClick={[Function]}
-                  role="listitem"
+                  className="ui list"
+                  role="list"
                 >
-                  <i
-                    aria-hidden="true"
-                    className="user plus icon"
-                  />
                   <div
-                    className="content"
+                    className="item"
+                    onClick={[Function]}
+                    role="listitem"
                   >
+                    <div
+                      className="left floated content"
+                    >
+                      <i
+                        aria-hidden="true"
+                        className="user plus icon"
+                      />
+                    </div>
                     User Creation
                   </div>
                 </div>

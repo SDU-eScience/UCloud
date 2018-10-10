@@ -163,8 +163,6 @@ export interface RunAppState {
 
 export interface RunAppProps {
     match: match<{ appName: string, appVersion: string }>
-    uppy: any
-    uppyOpen: boolean
     history: History
     updatePageTitle: () => void
 }

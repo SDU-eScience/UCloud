@@ -26,9 +26,9 @@ const simpleSearch = (state: SimpleSearchStateProps = initSimpleSearch(), action
             return { ...state, ...action.payload };
         case SET_SIMPLE_SEARCH_ERROR:
             if (!!action.payload.error) {
-                return { ...state, error: `${state.error}${action.payload.error}\n` }
+                return { ...state, errors: state.errors.concat([action.payload.error]) }
             }
-            return { ...state, error: undefined }
+            return { ...state, errors: [] }
         default:
             return state
     }

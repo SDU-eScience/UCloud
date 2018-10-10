@@ -320,7 +320,7 @@ describe("FilesTable Operations being used", () => {
             </Provider>);
         const firstBeingRenamedCount = fullPageStore.getState().files.page.items.filter(it => it.beingRenamed).length;
         expect(firstBeingRenamedCount).toBe(0);
-        node.find(DropdownItem).findWhere(it => it.props().content === "Rename").first().simulate("click");
+        node.find(DropdownItem).findWhere(it => it.type() === "span").findWhere(it => it.text() === "Rename").first().simulate("click");
         // FIXME Must set loading as false as the component tries to fetch new page, I think
         fullPageStore.dispatch(setLoading(false));
 

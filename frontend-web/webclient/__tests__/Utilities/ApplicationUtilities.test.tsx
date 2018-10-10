@@ -9,7 +9,7 @@ describe("Application Utilities", () => {
         expect(
             hpcJobQuery("job", 10, 10, 100, 100)
         ).toBe(
-            "hpc/jobs/follow/job?stdoutLineStart=10&stdoutMaxLines=100&stderrLineStart=10&stderrMaxLines=100"
+            "/hpc/jobs/follow/job?stdoutLineStart=10&stdoutMaxLines=100&stderrLineStart=10&stderrMaxLines=100"
         )
     });
 
@@ -17,7 +17,7 @@ describe("Application Utilities", () => {
         expect(
             hpcJobQuery("job", 10, 10)
         ).toBe(
-            "hpc/jobs/follow/job?stdoutLineStart=10&stdoutMaxLines=1000&stderrLineStart=10&stderrMaxLines=1000"
+            "/hpc/jobs/follow/job?stdoutLineStart=10&stdoutMaxLines=1000&stderrLineStart=10&stderrMaxLines=1000"
         )
     });
 

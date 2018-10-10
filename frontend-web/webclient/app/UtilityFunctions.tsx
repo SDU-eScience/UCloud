@@ -271,7 +271,10 @@ export const inRange = ({ status, min, max }: { status: number, min: number, max
     status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange({ status, min: 200, max: 299 });
 export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
-export const addTrailingSlash = (path: string) => path.endsWith("/") ? path : `${path}/`;
+export const addTrailingSlash = (path: string) => {
+    if (!path) return path;
+    else return path.endsWith("/") ? path : `${path}/`;
+}
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
 export const is5xxStatusCode = (status: number) => inRange({ status, min: 500, max: 599 });
 export const blankOrUndefined = (value?: string): boolean => value == null || value.length == 0 || /^\s*$/.test(value);

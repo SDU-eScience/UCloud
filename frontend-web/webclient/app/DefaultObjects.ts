@@ -1,11 +1,7 @@
-// TODO: Split in to more specific files
-import { tusConfig } from "Configurations";
-import * as Uppy from "uppy";
 import { SidebarOption, Page } from "Types";
 import { Status } from "Navigation";
 import { Analysis, Application } from "Applications";
 import { File } from "Files";
-import SDUCloud from "Authentication/lib";
 import { SortOrder, SortBy } from "Files";
 import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
@@ -60,28 +56,6 @@ export enum SensitivityLevelMap {
     "CONFIDENTIAL",
     "SENSITIVE"
 };
-
-export interface UppyRestriction {
-    maxFileSize?: false | number
-    maxNumberOfFiles?: false | number
-    minNumberOfFiles?: false | number
-    allowedFileTypes: false | number
-}
-
-export const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud): Uppy =>
-    Uppy.Core({
-        autoProceed: false,
-        debug: false,
-        restrictions: restrictions,
-        meta: {
-            sensitive: false,
-        },
-        onBeforeUpload: () => {
-            return cloud.receiveAccessTokenOrRefreshIt().then((data: string) => {
-                tusConfig.headers["Authorization"] = `Bearer ${data}`;
-            });
-        }
-    }).use(Uppy.Tus, tusConfig);
 
 const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`) as SortBy;
@@ -138,6 +112,7 @@ export interface SidebarReduxObject {
     open: boolean
     pp: boolean
     options: SidebarOption[]
+    kcCount: number
 }
 
 export interface HeaderSearchReduxObject {
@@ -161,7 +136,6 @@ export interface Reducers {
     dashboard?: Reducer<DashboardStateProps>
     files?: Reducer<FilesReduxObject>
     uploader?: Reducer<UploaderReduxObject>
-    uppy?: Reducer<any>
     status?: Reducer<StatusReduxObject>
     applications?: Reducer<ApplicationReduxObject>
     notifications?: Reducer<NotificationsReduxObject>
@@ -184,7 +158,6 @@ export interface ReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
     uploader: UploaderReduxObject
-    uppy: { uppy: any, uppyOpen: boolean }
     status: StatusReduxObject,
     applications: ApplicationReduxObject
     notifications: NotificationsReduxObject
@@ -214,18 +187,18 @@ export const initHeader = (): HeaderSearchReduxObject => ({
     prioritizedSearch: "files"
 });
 
-export const initApplications = () => ({
+export const initApplications = (): ApplicationReduxObject => ({
     page: emptyPage,
     loading: false,
     error: undefined
 });
 
-export const initStatus = () => ({
+export const initStatus = (): StatusReduxObject => ({
     status: DefaultStatus,
     title: ""
 });
 
-export const initDashboard = () => ({
+export const initDashboard = (): DashboardStateProps => ({
     favoriteFiles: [],
     recentFiles: [],
     recentAnalyses: [],
@@ -233,15 +206,12 @@ export const initDashboard = () => ({
     favoriteLoading: false,
     recentLoading: false,
     analysesLoading: false,
-    favoriteError: undefined,
-    recentFilesError: undefined,
-    recentAnalysesError: undefined
+    errors: []
 });
 
-export const initObject = (cloud: SDUCloud): ReduxObject => ({
+export const initObject = ({ homeFolder }: { homeFolder: string }): ReduxObject => ({
     dashboard: initDashboard(),
-    files: initFiles(cloud),
-    uppy: initUppy(cloud),
+    files: initFiles({ homeFolder }),
     status: initStatus(),
     applications: initApplications(),
     header: initHeader(),
@@ -255,14 +225,14 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     simpleSearch: initSimpleSearch()
 });
 
-export const initSimpleSearch = () => ({
+export const initSimpleSearch = (): SimpleSearchStateProps => ({
     files: emptyPage,
     filesLoading: false,
     applications: emptyPage,
     applicationsLoading: false,
     projects: emptyPage,
     projectsLoading: false,
-    error: undefined,
+    errors: [],
     search: ""
 })
 
@@ -273,21 +243,22 @@ export const initAnalyses = (): ComponentWithPage<Analysis> => ({
 });
 
 
-export const initZenodo = () => ({
+export const initZenodo = (): ZenodoReduxObject => ({
     connected: false,
     loading: false,
     page: emptyPage,
     error: undefined
 })
 
-export const initSidebar = () => ({
+export const initSidebar = (): SidebarReduxObject => ({
     open: false,
     loading: false,
     pp: false,
+    kcCount: 0,
     options: []
 });
 
-export const initUploads = () => ({
+export const initUploads = (): UploaderReduxObject => ({
     path: "",
     uploads: [],
     visible: false,
@@ -362,9 +333,4 @@ export const initFiles = ({ homeFolder }: { homeFolder: string }): FilesReduxObj
     fileSelectorCallback: () => null,
     fileSelectorError: undefined,
     disallowedPaths: []
-});
-
-export const initUppy = (cloud: SDUCloud) => ({
-    uppy: initializeUppy({ maxNumberOfFiles: 1 } as UppyRestriction, cloud),
-    uppyOpen: false
 });

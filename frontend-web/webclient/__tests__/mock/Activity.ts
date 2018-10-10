@@ -2,43 +2,46 @@ import { Page } from "Types";
 import { Activity } from "Activity";
 
 export const activityPage: Page<Activity> = {
-    itemsInTotal: 2,
+    itemsInTotal: 6,
     itemsPerPage: 25,
     pageNumber: 0,
     items: [
         {
-            type: "counted",
-            operation: "FAVORITE",
-            entries: [{
-                id: "1099513081208",
-                count: 1,
-                path: null
-            }],
-            timestamp: 1537367233647
+            type: "tracked",
+            operation: "MOVED",
+            timestamp: 1538980987204,
+            files: [{ id: "1099513093336", path: "/home/jonas@hinchely.dk/ABC.jpg" }],
+            users: [{ username: "jonas@hinchely.dk" }]
         }, {
-            type: "counted",
+            type: "tracked",
+            operation: "REMOVE_FAVORITE",
+            timestamp: 1538980980927,
+            files: [{ id: "1099513093336", path: "/home/jonas@hinchely.dk/ABC.jpg" }],
+            users: [{ username: "jonas@hinchely.dk" }]
+        }, {
+            type: "tracked",
+            operation: "DELETE",
+            timestamp: 1538980980891,
+            files: [{ id: "1099513095590", path: null }, { id: "1099513095591", path: null }, { id: "1099513095592", path: null }],
+            users: [{ username: "jonas@hinchely.dk" }]
+        }, {
+            type: "tracked",
             operation: "FAVORITE",
-            entries: [{
-                id: "1099513082096",
-                count: 1,
-                path: "/home/jonas@hinchely.dk/Favorites/A folder the sequel(1)"
-            }, {
-                id: "1099513081179",
-                count: 1,
-                path: "/home/jonas@hinchely.dk/Favorites/AdEoA_Blackboard.pdf"
-            }, {
-                id: "1099513082628",
-                count: 1, "path": "/home/jonas@hinchely.dk/Favorites/App Data"
-            }, {
-                id: "1099513080158",
-                count: 17,
-                path: "/home/jonas@hinchely.dk/Favorites/B"
-            }, {
-                id: "1099513082325",
-                count: 1,
-                path: "/home/jonas@hinchely.dk/Favorites/Dan's Master Thesis"
-            }],
-            timestamp: 1537363502687
+            timestamp: 1538980980513,
+            files: [{ id: "1099513093336", path: "/home/jonas@hinchely.dk/ABC.jpg" }],
+            users: [{ username: "jonas@hinchely.dk" }]
+        }, {
+            type: "tracked",
+            operation: "UPDATE",
+            timestamp: 1538980980000,
+            files: [{ id: "1099513095591", path: null }, { id: "1099513095592", path: null }, { id: "1099513095590", path: null }],
+            users: [{ username: "jonas@hinchely.dk" }]
+        }, {
+            type: "tracked",
+            operation: "UPDATE",
+            timestamp: 1538029576000,
+            files: [{ id: "1099513093336", path: "/home/jonas@hinchely.dk/ABC.jpg" }],
+            users: [{ username: "jonas@hinchely.dk" }]
         }],
     pagesInTotal: 0
 }

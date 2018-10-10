@@ -74,7 +74,6 @@ export interface FilesStateProps { // Redux Props
     sortOrder: SortOrder
     error?: string
     fileSelectorError?: string
-    checkedFilesCount: number
     favFilesCount: number
     renamingCount: number
     fileCount: number
@@ -90,21 +89,21 @@ export interface FilesOperations { // Redux operations
     fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
-    checkFile: (checked: boolean, page: Page<File>, newFile: File) => void
+    checkFile: (checked: boolean, path: string) => void
     setPageTitle: () => void
     updateFiles: (files: Page<File>) => void
     updatePath: (path: string) => void
     showFileSelector: (open: boolean) => void
-    checkAllFiles: (checked: boolean, page: Page<File>) => void
+    checkAllFiles: (checked: boolean) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
     showUploader: () => void
     setUploaderCallback: (callback) => void
+    createFolder: () => void
 }
 
 export interface FileSelectorProps {
     allowUpload?: boolean
     onFileSelect: Function
-    uppy?: any
     path: string
     isRequired?: boolean
     canSelectFolders?: boolean
@@ -119,7 +118,6 @@ export interface FileSelectorState {
     loading: boolean
     page: Page<File>
     modalShown: boolean
-    uppyOnUploadSuccess?: Function
     creatingFolder: boolean
 }
 
@@ -138,6 +136,7 @@ export interface FilesTableProps {
     sortBy: SortBy
     onFavoriteFile: (f: File[]) => void
     fileOperations: FileOperation[]
+    customEntriesPerPage?: React.ReactNode
 }
 
 export interface CreateFolderProps {
@@ -153,6 +152,7 @@ export interface FilesTableHeaderProps {
     masterCheckbox?: React.ReactNode
     sortingColumns: [SortBy, SortBy]
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
+    customEntriesPerPage?: React.ReactNode
 }
 
 export interface FilenameAndIconsProps extends IconProps {

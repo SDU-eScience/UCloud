@@ -1,5 +1,6 @@
 import { FileActions } from "./FilesActions";
 import { FilesReduxObject, initFiles } from "DefaultObjects";
+import { newMockFolder } from "Utilities/FileUtilities";
 
 export const RECEIVE_FILES = "RECEIVE_FILES";
 export const UPDATE_FILES = "UPDATE_FILES";
@@ -14,6 +15,9 @@ export const SET_FILE_SELECTOR_CALLBACK = "SET_FILE_SELECTOR_CALLBACK";
 export const SET_DISALLOWED_PATHS = "SET_DISALLOWED_PATHS";
 export const FILES_ERROR = "FILES_ERROR";
 export const SET_FILE_SELECTOR_ERROR = "SET_FILE_SELECTOR_ERROR";
+export const CHECK_ALL_FILES = "CHECK_ALL_FILES";
+export const CHECK_FILE = "CHECK_FILE";
+export const CREATE_FOLDER = "CREATE_FOLDER";
 
 const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: FileActions): FilesReduxObject => {
     switch (action.type) {
@@ -22,6 +26,7 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
                 ...state,
                 page: action.payload.page,
                 loading: false,
+                path: action.payload.path,
                 fileSelectorPath: action.payload.path,
                 fileSelectorPage: action.payload.page,
                 sortOrder: action.payload.sortOrder,
@@ -47,7 +52,7 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
             return { ...state, fileSelectorLoading: true };
         }
         case SET_FILE_SELECTOR_CALLBACK: {
-            return { ...state, fileSelectorCallback: action.callback };
+            return { ...state, fileSelectorCallback: action.payload.callback };
         }
         case SET_FILE_SELECTOR_ERROR: {
             return { ...state, fileSelectorError: action.payload.error }
@@ -58,11 +63,39 @@ const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: 
         case FILES_ERROR: {
             return { ...state, error: action.payload.error, loading: false };
         }
+        case CHECK_ALL_FILES: {
+            return {
+                ...state, page: {
+                    ...state.page, items: state.page.items.map((f) => {
+                        f.isChecked = action.payload.checked;
+                        return f;
+                    })
+                }
+            }
+        }
+        case CHECK_FILE: {
+            return {
+                ...state, page: {
+                    ...state.page, items: state.page.items.map((f) => {
+                        if (action.payload.path === f.path) f.isChecked = action.payload.checked
+                        return f;
+                    })
+                }
+            }
+        }
         case SET_FILES_SORTING_COLUMN: {
             const { sortingColumns } = state;
             sortingColumns[action.index] = action.sortingColumn;
             window.localStorage.setItem(`filesSorting${action.index}`, action.sortingColumn);
             return { ...state, sortingColumns };
+        }
+        case CREATE_FOLDER: {
+            if (state.page.items.some(it => !!it.isMockFolder)) return state;
+            return {
+                ...state, page: {
+                    ...state.page, items: [newMockFolder()].concat([...state.page.items])
+                }
+            };
         }
         default: {
             return state;

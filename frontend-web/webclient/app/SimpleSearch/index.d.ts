@@ -20,7 +20,7 @@ export interface SimpleSearchStateProps {
     applicationsLoading: boolean
     projects: Page<ProjectMetadata>
     projectsLoading: boolean
-    error?: string
+    errors: string[]
     search: string
 }
 

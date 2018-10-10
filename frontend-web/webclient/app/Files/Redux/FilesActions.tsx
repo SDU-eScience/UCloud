@@ -11,7 +11,10 @@ import {
     SET_FILE_SELECTOR_CALLBACK,
     SET_DISALLOWED_PATHS,
     FILES_ERROR,
-    SET_FILE_SELECTOR_ERROR
+    SET_FILE_SELECTOR_ERROR,
+    CHECK_ALL_FILES,
+    CHECK_FILE,
+    CREATE_FOLDER
 } from "./FilesReducer";
 import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
@@ -23,7 +26,8 @@ import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
 export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage<typeof UPDATE_FILES, File> |
     SetLoadingAction<typeof SET_FILES_LOADING> | UpdatePathAction | FileSelectorShownAction |
     ReceiveFileSelectorFilesAction | Action<typeof SET_FILE_SELECTOR_LOADING> | SetFileSelectorCallbackAction |
-    Error<typeof SET_FILE_SELECTOR_ERROR> | SetDisallowedPathsAction | SetSortingColumnAction
+    Error<typeof SET_FILE_SELECTOR_ERROR> | SetDisallowedPathsAction | SetSortingColumnAction | CheckAllFilesAction |
+    CheckFileAction | CreateFolderAction
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
@@ -87,19 +91,15 @@ interface ReceiveFiles extends PayloadAction<typeof RECEIVE_FILES, { path: strin
  * @param {SortOrder} sortOrder - The order in which the files were sorted
  * @param {SortBy} sortBy - the value the sorting was based on
  */
-const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sortBy: SortBy): ReceiveFiles => {
-    // FIXME Checked and rename should be set in reducer
-    page.items.forEach((f) => f.isChecked = f.beingRenamed = false);
-    return {
-        type: RECEIVE_FILES,
-        payload: {
-            page,
-            path,
-            sortOrder,
-            sortBy
-        }
+const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sortBy: SortBy): ReceiveFiles => ({
+    type: RECEIVE_FILES,
+    payload: {
+        page,
+        path,
+        sortOrder,
+        sortBy
     }
-};
+});
 
 export type SortingColumn = 0 | 1;
 /**
@@ -149,7 +149,11 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
  */
 export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR>> =>
     Cloud.get(fileLookupQuery(path, itemsPerPage, order, sortBy))
-        .then(({ response }) => receiveFiles(response, getParentPath(path), order, sortBy)).catch(() =>
+        .then(({ response }) => {
+            const i = response.items.findIndex(it => it.path === path);
+            response.items[i].isChecked = true;
+            return receiveFiles(response, getParentPath(path), order, sortBy)
+        }).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
         ); // FIXME Add error handling
 
@@ -184,14 +188,14 @@ export const setDisallowedPaths = (paths: string[]): SetDisallowedPathsAction =>
     payload: { paths }
 });
 
-interface SetFileSelectorCallbackAction extends Action<typeof SET_FILE_SELECTOR_CALLBACK> { callback: Function }
+type SetFileSelectorCallbackAction = PayloadAction<typeof SET_FILE_SELECTOR_CALLBACK, { callback: Function }>
 /**
  * Callback to be executed on fileselection in FileSelector
  * @param callback - callback to be being executed
  */
 export const setFileSelectorCallback = (callback: Function): SetFileSelectorCallbackAction => ({
     type: SET_FILE_SELECTOR_CALLBACK,
-    callback
+    payload: { callback }
 });
 
 /**
@@ -203,7 +207,22 @@ export const setFileSelectorError = (error?: string): Error<typeof SET_FILE_SELE
     payload: { error }
 });
 
-export const checkAllFiles = (checked: boolean, page: Page<File>) => {
-    page.items.forEach((it) => it.isChecked = checked);
-    return updateFiles(page);
-}
+type CheckAllFilesAction = PayloadAction<typeof CHECK_ALL_FILES, { checked: boolean }>
+export const checkAllFiles = (checked: boolean): CheckAllFilesAction => ({
+    type: CHECK_ALL_FILES,
+    payload: { checked }
+});
+
+type CheckFileAction = PayloadAction<typeof CHECK_FILE, { checked: boolean, path: string }>
+export const checkFile = (checked: boolean, path: string): CheckFileAction => ({
+    type: CHECK_FILE,
+    payload: {
+        checked,
+        path
+    }
+});
+
+type CreateFolderAction = Action<typeof CREATE_FOLDER>
+export const createFolder = () => ({
+    type: CREATE_FOLDER
+});

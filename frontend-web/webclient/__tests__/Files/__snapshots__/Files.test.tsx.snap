@@ -13,7 +13,7 @@ exports[`File operations Files list with items, button, empty FilesOperations 1`
 exports[`File operations Files list with items, button, some fileoperations 1`] = `
 Array [
   <button
-    className="ui basic fluid button context-button-margin"
+    className="ui button context-button-margin pointer-cursor"
     onClick={[Function]}
     role="button"
   >
@@ -21,21 +21,39 @@ Array [
       aria-hidden="true"
       className="share alternate icon"
     />
-    Share
+    <span
+      className="operation-text"
+      style={
+        Object {
+          "fontSize": "16px",
+        }
+      }
+    >
+      Share
+    </span>
   </button>,
   <button
-    className="ui basic fluid button context-button-margin"
+    className="ui button context-button-margin pointer-cursor"
     onClick={[Function]}
     role="button"
   >
     <i
       aria-hidden="true"
-      className="copy icon"
+      className="copy outline icon"
     />
-    Copy
+    <span
+      className="operation-text"
+      style={
+        Object {
+          "fontSize": "16px",
+        }
+      }
+    >
+      Copy
+    </span>
   </button>,
   <button
-    className="ui basic fluid button context-button-margin"
+    className="ui button context-button-margin pointer-cursor"
     onClick={[Function]}
     role="button"
   >
@@ -43,18 +61,36 @@ Array [
       aria-hidden="true"
       className="move icon"
     />
-    Move
+    <span
+      className="operation-text"
+      style={
+        Object {
+          "fontSize": "16px",
+        }
+      }
+    >
+      Move
+    </span>
   </button>,
   <button
-    className="ui red basic fluid button context-button-margin"
+    className="ui button context-button-margin pointer-cursor"
     onClick={[Function]}
     role="button"
   >
     <i
       aria-hidden="true"
-      className="trash icon"
+      className="red trash alternate outline icon"
     />
-    Delete
+    <span
+      className="operation-text"
+      style={
+        Object {
+          "fontSize": "16px",
+        }
+      }
+    >
+      Delete
+    </span>
   </button>,
 ]
 `;
@@ -64,7 +100,7 @@ exports[`File operations Files list with items, dropdown.item, empty FilesOperat
 exports[`File operations Files list with items, dropdown.item, some fileoperations 1`] = `
 Array [
   <div
-    className="item context-button-margin"
+    className="item context-button-margin pointer-cursor"
     onClick={[Function]}
     role="option"
   >
@@ -73,28 +109,38 @@ Array [
       className="share alternate icon"
     />
     <span
-      className="text"
+      className="operation-text"
+      style={
+        Object {
+          "fontSize": "16px",
+        }
+      }
     >
       Share
     </span>
   </div>,
   <div
-    className="item context-button-margin"
+    className="item context-button-margin pointer-cursor"
     onClick={[Function]}
     role="option"
   >
     <i
       aria-hidden="true"
-      className="copy icon"
+      className="copy outline icon"
     />
     <span
-      className="text"
+      className="operation-text"
+      style={
+        Object {
+          "fontSize": "16px",
+        }
+      }
     >
       Copy
     </span>
   </div>,
   <div
-    className="item context-button-margin"
+    className="item context-button-margin pointer-cursor"
     onClick={[Function]}
     role="option"
   >
@@ -103,23 +149,32 @@ Array [
       className="move icon"
     />
     <span
-      className="text"
+      className="operation-text"
+      style={
+        Object {
+          "fontSize": "16px",
+        }
+      }
     >
       Move
     </span>
   </div>,
   <div
-    className="item context-button-margin"
-    color="red"
+    className="item context-button-margin pointer-cursor"
     onClick={[Function]}
     role="option"
   >
     <i
       aria-hidden="true"
-      className="trash icon"
+      className="red trash alternate outline icon"
     />
     <span
-      className="text"
+      className="operation-text"
+      style={
+        Object {
+          "fontSize": "16px",
+        }
+      }
     >
       Delete
     </span>
@@ -137,118 +192,6 @@ exports[`Files-component Full Files component, full page of files 1`] = `
     <div
       className="row"
     />
-    <i
-      aria-hidden="true"
-      className="sync small circular link icon pagination-float-right"
-      onClick={[Function]}
-    />
-    <span
-      className="items-per-page-padding pagination-float-right"
-    >
-      <span>
-        Items per page 
-      </span>
-      <div
-        aria-expanded={false}
-        className="ui compact inline dropdown"
-        onBlur={[Function]}
-        onChange={[Function]}
-        onClick={[Function]}
-        onFocus={[Function]}
-        onMouseDown={[Function]}
-        role="listbox"
-        tabIndex={0}
-      >
-        <div
-          aria-live="polite"
-          className="text"
-          role="alert"
-        >
-          10
-        </div>
-        <i
-          aria-hidden="true"
-          className="dropdown icon"
-          onClick={[Function]}
-        />
-        <div
-          className="menu transition"
-        >
-          <div
-            aria-checked={true}
-            aria-selected={true}
-            className="active selected item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              10
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              25
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              50
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              100
-            </span>
-          </div>
-        </div>
-      </div>
-    </span>
     <table
       className="ui unstackable very basic table"
     >
@@ -285,7 +228,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             />
           </th>
           <th
-            className=""
+            className="two wide"
           >
             <div
               aria-expanded={false}
@@ -436,7 +379,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             />
           </th>
           <th
-            className=""
+            className="two wide"
           >
             <div
               aria-expanded={false}
@@ -587,8 +530,121 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             />
           </th>
           <th
-            className=""
-          />
+            className="three wide"
+          >
+            <i
+              aria-hidden="true"
+              className="sync small circular link icon float-right"
+              onClick={[Function]}
+            />
+            <span
+              className="items-per-page-padding float-right"
+            >
+              <span>
+                Files per page 
+              </span>
+              <div
+                aria-expanded={false}
+                className="ui compact inline dropdown"
+                onBlur={[Function]}
+                onChange={[Function]}
+                onClick={[Function]}
+                onFocus={[Function]}
+                onMouseDown={[Function]}
+                role="listbox"
+                tabIndex={0}
+              >
+                <div
+                  aria-live="polite"
+                  className="text"
+                  role="alert"
+                >
+                  10
+                </div>
+                <i
+                  aria-hidden="true"
+                  className="dropdown icon"
+                  onClick={[Function]}
+                />
+                <div
+                  className="menu transition"
+                >
+                  <div
+                    aria-checked={true}
+                    aria-selected={true}
+                    className="active selected item"
+                    onClick={[Function]}
+                    role="option"
+                    style={
+                      Object {
+                        "pointerEvents": "all",
+                      }
+                    }
+                  >
+                    <span
+                      className="text"
+                    >
+                      10
+                    </span>
+                  </div>
+                  <div
+                    aria-checked={false}
+                    aria-selected={false}
+                    className="item"
+                    onClick={[Function]}
+                    role="option"
+                    style={
+                      Object {
+                        "pointerEvents": "all",
+                      }
+                    }
+                  >
+                    <span
+                      className="text"
+                    >
+                      25
+                    </span>
+                  </div>
+                  <div
+                    aria-checked={false}
+                    aria-selected={false}
+                    className="item"
+                    onClick={[Function]}
+                    role="option"
+                    style={
+                      Object {
+                        "pointerEvents": "all",
+                      }
+                    }
+                  >
+                    <span
+                      className="text"
+                    >
+                      50
+                    </span>
+                  </div>
+                  <div
+                    aria-checked={false}
+                    aria-selected={false}
+                    className="item"
+                    onClick={[Function]}
+                    role="option"
+                    style={
+                      Object {
+                        "pointerEvents": "all",
+                      }
+                    }
+                  >
+                    <span
+                      className="text"
+                    >
+                      100
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </span>
+          </th>
         </tr>
       </thead>
       <tbody
@@ -596,6 +652,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
       >
         <tr
           className="file-row"
+          style={Object {}}
         >
           <td
             className="table-cell-padding-left"
@@ -638,7 +695,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             Only You
           </td>
           <td
-            className=""
+            className="center aligned"
           >
             <div
               aria-expanded={false}
@@ -665,22 +722,27 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 className="menu transition left"
               >
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="edit icon"
+                    className="edit outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Rename
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -689,13 +751,18 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="share alternate icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Share
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -704,28 +771,38 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="download icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Download
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="copy icon"
+                    className="copy outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Copy
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -734,39 +811,52 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="move icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Move
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="red"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="trash icon"
+                    className="red trash alternate outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Delete
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="settings icon"
+                    className="blue settings icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Properties
                   </span>
@@ -777,6 +867,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </tr>
         <tr
           className="file-row"
+          style={Object {}}
         >
           <td
             className="table-cell-padding-left"
@@ -802,9 +893,28 @@ exports[`Files-component Full Files component, full page of files 1`] = `
               onClick={[Function]}
             >
               <i
-                aria-hidden="true"
-                className="blue folder big icon"
-              />
+                className="big icons"
+                style={
+                  Object {
+                    "paddingLeft": "3px",
+                    "paddingRight": "5px",
+                  }
+                }
+              >
+                <i
+                  aria-hidden="true"
+                  className="blue folder icon"
+                />
+                <i
+                  aria-hidden="true"
+                  className="grey users corner icon"
+                  onBlur={[Function]}
+                  onClick={[Function]}
+                  onFocus={[Function]}
+                  onMouseEnter={[Function]}
+                  onMouseLeave={[Function]}
+                />
+              </i>
               AABA
             </a>
             <i
@@ -824,7 +934,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             2 members
           </td>
           <td
-            className=""
+            className="center aligned"
           >
             <div
               aria-expanded={false}
@@ -851,22 +961,27 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 className="menu transition left"
               >
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="edit icon"
+                    className="edit outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Rename
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -875,13 +990,18 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="share alternate icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Share
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -890,28 +1010,38 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="download icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Download
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="copy icon"
+                    className="copy outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Copy
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -920,55 +1050,72 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="move icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Move
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="red"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="trash icon"
+                    className="red trash alternate outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Delete
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="settings icon"
+                    className="blue settings icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Properties
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="group icon"
+                    className="blue group icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Create Project
                   </span>
@@ -979,6 +1126,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </tr>
         <tr
           className="file-row"
+          style={Object {}}
         >
           <td
             className="table-cell-padding-left"
@@ -1026,7 +1174,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             Only You
           </td>
           <td
-            className=""
+            className="center aligned"
           >
             <div
               aria-expanded={false}
@@ -1053,22 +1201,27 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 className="menu transition left"
               >
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="edit icon"
+                    className="edit outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Rename
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1077,13 +1230,18 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="share alternate icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Share
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1092,28 +1250,38 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="download icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Download
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="copy icon"
+                    className="copy outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Copy
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1122,55 +1290,72 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="move icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Move
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="red"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="trash icon"
+                    className="red trash alternate outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Delete
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="settings icon"
+                    className="blue settings icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Properties
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="group icon"
+                    className="blue group icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Create Project
                   </span>
@@ -1181,6 +1366,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </tr>
         <tr
           className="file-row"
+          style={Object {}}
         >
           <td
             className="table-cell-padding-left"
@@ -1228,7 +1414,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             Only You
           </td>
           <td
-            className=""
+            className="center aligned"
           >
             <div
               aria-expanded={false}
@@ -1255,22 +1441,27 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 className="menu transition left"
               >
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="edit icon"
+                    className="edit outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Rename
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1279,13 +1470,18 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="share alternate icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Share
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1294,28 +1490,38 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="download icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Download
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="copy icon"
+                    className="copy outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Copy
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1324,55 +1530,72 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="move icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Move
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="red"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="trash icon"
+                    className="red trash alternate outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Delete
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="settings icon"
+                    className="blue settings icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Properties
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="group icon"
+                    className="blue group icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Create Project
                   </span>
@@ -1383,6 +1606,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </tr>
         <tr
           className="file-row"
+          style={Object {}}
         >
           <td
             className="table-cell-padding-left"
@@ -1430,7 +1654,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             Only You
           </td>
           <td
-            className=""
+            className="center aligned"
           >
             <div
               aria-expanded={false}
@@ -1457,22 +1681,27 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 className="menu transition left"
               >
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="edit icon"
+                    className="edit outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Rename
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1481,13 +1710,18 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="share alternate icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Share
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1496,28 +1730,38 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="download icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Download
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="copy icon"
+                    className="copy outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Copy
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1526,55 +1770,72 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="move icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Move
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="red"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="trash icon"
+                    className="red trash alternate outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Delete
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="settings icon"
+                    className="blue settings icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Properties
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="group icon"
+                    className="blue group icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Create Project
                   </span>
@@ -1585,6 +1846,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </tr>
         <tr
           className="file-row"
+          style={Object {}}
         >
           <td
             className="table-cell-padding-left"
@@ -1632,7 +1894,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             Only You
           </td>
           <td
-            className=""
+            className="center aligned"
           >
             <div
               aria-expanded={false}
@@ -1659,22 +1921,27 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 className="menu transition left"
               >
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="edit icon"
+                    className="edit outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Rename
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1683,13 +1950,18 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="share alternate icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Share
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1698,28 +1970,38 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="download icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Download
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="copy icon"
+                    className="copy outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Copy
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1728,55 +2010,72 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="move icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Move
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="red"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="trash icon"
+                    className="red trash alternate outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Delete
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="settings icon"
+                    className="blue settings icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Properties
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="group icon"
+                    className="blue group icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Create Project
                   </span>
@@ -1787,6 +2086,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </tr>
         <tr
           className="file-row"
+          style={Object {}}
         >
           <td
             className="table-cell-padding-left"
@@ -1834,7 +2134,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             Only You
           </td>
           <td
-            className=""
+            className="center aligned"
           >
             <div
               aria-expanded={false}
@@ -1861,22 +2161,27 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 className="menu transition left"
               >
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="edit icon"
+                    className="edit outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Rename
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1885,13 +2190,18 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="share alternate icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Share
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1900,28 +2210,38 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="download icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Download
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="copy icon"
+                    className="copy outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Copy
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -1930,55 +2250,72 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="move icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Move
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="red"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="trash icon"
+                    className="red trash alternate outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Delete
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="settings icon"
+                    className="blue settings icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Properties
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="group icon"
+                    className="blue group icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Create Project
                   </span>
@@ -1989,6 +2326,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </tr>
         <tr
           className="file-row"
+          style={Object {}}
         >
           <td
             className="table-cell-padding-left"
@@ -2036,7 +2374,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             Only You
           </td>
           <td
-            className=""
+            className="center aligned"
           >
             <div
               aria-expanded={false}
@@ -2063,22 +2401,27 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 className="menu transition left"
               >
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="edit icon"
+                    className="edit outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Rename
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -2087,13 +2430,18 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="share alternate icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Share
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -2102,28 +2450,38 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="download icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Download
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="copy icon"
+                    className="copy outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Copy
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -2132,55 +2490,72 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="move icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Move
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="red"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="trash icon"
+                    className="red trash alternate outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Delete
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="settings icon"
+                    className="blue settings icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Properties
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="group icon"
+                    className="blue group icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Create Project
                   </span>
@@ -2191,6 +2566,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </tr>
         <tr
           className="file-row"
+          style={Object {}}
         >
           <td
             className="table-cell-padding-left"
@@ -2238,7 +2614,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             Only You
           </td>
           <td
-            className=""
+            className="center aligned"
           >
             <div
               aria-expanded={false}
@@ -2265,22 +2641,27 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 className="menu transition left"
               >
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="edit icon"
+                    className="edit outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Rename
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -2289,13 +2670,18 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="share alternate icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Share
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -2304,28 +2690,38 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="download icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Download
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="copy icon"
+                    className="copy outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Copy
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -2334,55 +2730,72 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="move icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Move
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="red"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="trash icon"
+                    className="red trash alternate outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Delete
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="settings icon"
+                    className="blue settings icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Properties
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="group icon"
+                    className="blue group icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Create Project
                   </span>
@@ -2393,6 +2806,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
         </tr>
         <tr
           className="file-row"
+          style={Object {}}
         >
           <td
             className="table-cell-padding-left"
@@ -2444,7 +2858,7 @@ exports[`Files-component Full Files component, full page of files 1`] = `
             Only You
           </td>
           <td
-            className=""
+            className="center aligned"
           >
             <div
               aria-expanded={false}
@@ -2471,22 +2885,27 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                 className="menu transition left"
               >
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="edit icon"
+                    className="edit outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Rename
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -2495,13 +2914,18 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="share alternate icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Share
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -2510,28 +2934,38 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="download icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Download
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="copy icon"
+                    className="copy outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Copy
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
@@ -2540,55 +2974,72 @@ exports[`Files-component Full Files component, full page of files 1`] = `
                     className="move icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Move
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="red"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="trash icon"
+                    className="red trash alternate outline icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Delete
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="settings icon"
+                    className="blue settings icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Properties
                   </span>
                 </div>
                 <div
-                  className="item context-button-margin"
-                  color="blue"
+                  className="item context-button-margin pointer-cursor"
                   onClick={[Function]}
                   role="option"
                 >
                   <i
                     aria-hidden="true"
-                    className="group icon"
+                    className="blue group icon"
                   />
                   <span
-                    className="text"
+                    className="operation-text"
+                    style={
+                      Object {
+                        "fontSize": "16px",
+                      }
+                    }
                   >
                     Edit Project
                   </span>
@@ -2681,7 +3132,9 @@ exports[`Files-component Full Files component, full page of files 1`] = `
   <div
     className="three wide computer column"
   >
-    <div>
+    <div
+      className="margin-top-65"
+    >
       <div>
         <button
           className="ui blue fluid button context-button-margin"
@@ -2706,9 +3159,6 @@ exports[`Files-component Full Files component, full page of files 1`] = `
           Advanced Search
         </a>
       </div>
-      <div
-        className="ui divider"
-      />
     </div>
   </div>
 </div>
@@ -2724,118 +3174,6 @@ exports[`Files-component Full Files component, no files 1`] = `
     <div
       className="row"
     />
-    <i
-      aria-hidden="true"
-      className="sync small circular link icon pagination-float-right"
-      onClick={[Function]}
-    />
-    <span
-      className="items-per-page-padding pagination-float-right"
-    >
-      <span>
-        Items per page 
-      </span>
-      <div
-        aria-expanded={false}
-        className="ui compact inline dropdown"
-        onBlur={[Function]}
-        onChange={[Function]}
-        onClick={[Function]}
-        onFocus={[Function]}
-        onMouseDown={[Function]}
-        role="listbox"
-        tabIndex={0}
-      >
-        <div
-          aria-live="polite"
-          className="text"
-          role="alert"
-        >
-          25
-        </div>
-        <i
-          aria-hidden="true"
-          className="dropdown icon"
-          onClick={[Function]}
-        />
-        <div
-          className="menu transition"
-        >
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              10
-            </span>
-          </div>
-          <div
-            aria-checked={true}
-            aria-selected={true}
-            className="active selected item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              25
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              50
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              100
-            </span>
-          </div>
-        </div>
-      </div>
-    </span>
     <div
       className="sub header"
     >
@@ -2846,7 +3184,9 @@ exports[`Files-component Full Files component, no files 1`] = `
   <div
     className="three wide computer column"
   >
-    <div>
+    <div
+      className="margin-top-65"
+    >
       <div>
         <button
           className="ui blue fluid button context-button-margin"
@@ -2871,9 +3211,6 @@ exports[`Files-component Full Files component, no files 1`] = `
           Advanced Search
         </a>
       </div>
-      <div
-        className="ui divider"
-      />
     </div>
   </div>
 </div>
@@ -2900,7 +3237,7 @@ exports[`FilesTable Render empty 1`] = `
         />
       </th>
       <th
-        className=""
+        className="two wide"
       >
         Path
         <i
@@ -2909,7 +3246,7 @@ exports[`FilesTable Render empty 1`] = `
         />
       </th>
       <th
-        className=""
+        className="two wide"
       >
         Modified at
         <i
@@ -2918,7 +3255,7 @@ exports[`FilesTable Render empty 1`] = `
         />
       </th>
       <th
-        className=""
+        className="three wide"
       />
     </tr>
   </thead>
@@ -2949,7 +3286,7 @@ exports[`FilesTable Render non-empty 1`] = `
         />
       </th>
       <th
-        className=""
+        className="two wide"
       >
         Path
         <i
@@ -2958,7 +3295,7 @@ exports[`FilesTable Render non-empty 1`] = `
         />
       </th>
       <th
-        className=""
+        className="two wide"
       >
         Modified at
         <i
@@ -2967,7 +3304,7 @@ exports[`FilesTable Render non-empty 1`] = `
         />
       </th>
       <th
-        className=""
+        className="three wide"
       />
     </tr>
   </thead>
@@ -2976,6 +3313,7 @@ exports[`FilesTable Render non-empty 1`] = `
   >
     <tr
       className="file-row"
+      style={Object {}}
     >
       <td
         className="table-cell-padding-left"
@@ -3002,7 +3340,7 @@ exports[`FilesTable Render non-empty 1`] = `
         2018-8-27 16:25:00
       </td>
       <td
-        className=""
+        className="center aligned"
       >
         <div
           aria-expanded={false}
@@ -3033,6 +3371,7 @@ exports[`FilesTable Render non-empty 1`] = `
     </tr>
     <tr
       className="file-row"
+      style={Object {}}
     >
       <td
         className="table-cell-padding-left"
@@ -3042,9 +3381,28 @@ exports[`FilesTable Render non-empty 1`] = `
           onClick={[Function]}
         >
           <i
-            aria-hidden="true"
-            className="blue folder big icon"
-          />
+            className="big icons"
+            style={
+              Object {
+                "paddingLeft": "3px",
+                "paddingRight": "5px",
+              }
+            }
+          >
+            <i
+              aria-hidden="true"
+              className="blue folder icon"
+            />
+            <i
+              aria-hidden="true"
+              className="grey users corner icon"
+              onBlur={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onMouseEnter={[Function]}
+              onMouseLeave={[Function]}
+            />
+          </i>
           AABA
         </a>
         <i
@@ -3064,7 +3422,7 @@ exports[`FilesTable Render non-empty 1`] = `
         2018-8-21 15:29:51
       </td>
       <td
-        className=""
+        className="center aligned"
       >
         <div
           aria-expanded={false}
@@ -3095,6 +3453,7 @@ exports[`FilesTable Render non-empty 1`] = `
     </tr>
     <tr
       className="file-row"
+      style={Object {}}
     >
       <td
         className="table-cell-padding-left"
@@ -3126,7 +3485,7 @@ exports[`FilesTable Render non-empty 1`] = `
         2018-8-21 15:22:13
       </td>
       <td
-        className=""
+        className="center aligned"
       >
         <div
           aria-expanded={false}
@@ -3157,6 +3516,7 @@ exports[`FilesTable Render non-empty 1`] = `
     </tr>
     <tr
       className="file-row"
+      style={Object {}}
     >
       <td
         className="table-cell-padding-left"
@@ -3188,7 +3548,7 @@ exports[`FilesTable Render non-empty 1`] = `
         2018-8-21 9:32:44
       </td>
       <td
-        className=""
+        className="center aligned"
       >
         <div
           aria-expanded={false}
@@ -3219,6 +3579,7 @@ exports[`FilesTable Render non-empty 1`] = `
     </tr>
     <tr
       className="file-row"
+      style={Object {}}
     >
       <td
         className="table-cell-padding-left"
@@ -3250,7 +3611,7 @@ exports[`FilesTable Render non-empty 1`] = `
         2018-8-21 9:26:13
       </td>
       <td
-        className=""
+        className="center aligned"
       >
         <div
           aria-expanded={false}
@@ -3281,6 +3642,7 @@ exports[`FilesTable Render non-empty 1`] = `
     </tr>
     <tr
       className="file-row"
+      style={Object {}}
     >
       <td
         className="table-cell-padding-left"
@@ -3312,7 +3674,7 @@ exports[`FilesTable Render non-empty 1`] = `
         2018-8-14 13:06:18
       </td>
       <td
-        className=""
+        className="center aligned"
       >
         <div
           aria-expanded={false}
@@ -3343,6 +3705,7 @@ exports[`FilesTable Render non-empty 1`] = `
     </tr>
     <tr
       className="file-row"
+      style={Object {}}
     >
       <td
         className="table-cell-padding-left"
@@ -3374,7 +3737,7 @@ exports[`FilesTable Render non-empty 1`] = `
         2018-8-13 16:29:48
       </td>
       <td
-        className=""
+        className="center aligned"
       >
         <div
           aria-expanded={false}
@@ -3405,6 +3768,7 @@ exports[`FilesTable Render non-empty 1`] = `
     </tr>
     <tr
       className="file-row"
+      style={Object {}}
     >
       <td
         className="table-cell-padding-left"
@@ -3436,7 +3800,7 @@ exports[`FilesTable Render non-empty 1`] = `
         2018-8-7 10:22:12
       </td>
       <td
-        className=""
+        className="center aligned"
       >
         <div
           aria-expanded={false}
@@ -3467,6 +3831,7 @@ exports[`FilesTable Render non-empty 1`] = `
     </tr>
     <tr
       className="file-row"
+      style={Object {}}
     >
       <td
         className="table-cell-padding-left"
@@ -3498,7 +3863,7 @@ exports[`FilesTable Render non-empty 1`] = `
         2018-8-6 13:32:48
       </td>
       <td
-        className=""
+        className="center aligned"
       >
         <div
           aria-expanded={false}
@@ -3529,6 +3894,7 @@ exports[`FilesTable Render non-empty 1`] = `
     </tr>
     <tr
       className="file-row"
+      style={Object {}}
     >
       <td
         className="table-cell-padding-left"
@@ -3564,7 +3930,7 @@ exports[`FilesTable Render non-empty 1`] = `
         2018-8-6 13:29:15
       </td>
       <td
-        className=""
+        className="center aligned"
       >
         <div
           aria-expanded={false}
