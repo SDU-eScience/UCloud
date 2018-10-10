@@ -105,7 +105,6 @@ export interface FilesOperations { // Redux operations
 export interface FileSelectorProps {
     allowUpload?: boolean
     onFileSelect: Function
-    uppy?: any
     path: string
     isRequired?: boolean
     canSelectFolders?: boolean
@@ -120,7 +119,6 @@ export interface FileSelectorState {
     loading: boolean
     page: Page<File>
     modalShown: boolean
-    uppyOnUploadSuccess?: Function
     creatingFolder: boolean
 }
 

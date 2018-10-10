@@ -15,6 +15,7 @@ import { RunAppProps, RunAppState, JobInfo, MaxTime } from "."
 import { Application, ParameterTypes } from ".";
 import { extractParameters } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
+import { ReduxObject } from "DefaultObjects";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -46,7 +47,6 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             comment: "",
             jobSubmitted: false
         };
-        this.props.uppy.run();
         this.props.updatePageTitle();
     };
 
@@ -226,7 +226,6 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                         onChange={this.onInputChange}
                         comment={this.state.comment}
                         onCommentChange={this.onCommentChange}
-                        uppy={this.props.uppy}
                         jobInfo={this.state.jobInfo}
                         onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
                         tool={this.state.tool}
@@ -252,7 +251,7 @@ const ApplicationHeader = ({ authors, displayName, appName, favorite, version, f
                         Import parameters
                         <input className="import-parameters" type="file" onChange={(e) => { if (e.target.files) importParameters(e.target.files[0]) }} />
                     </Button>
-                <Button as={Link} basic color="blue" content="More information" to={`/appDetails/${appName}/${version}/`} />
+                    <Button as={Link} basic color="blue" content="More information" to={`/appDetails/${appName}/${version}/`} />
                 </Button.Group>
             </Header.Content>
             <Header.Content>
@@ -287,10 +286,6 @@ const Parameters = (props) => {
                 parameter={parameter}
                 onChange={props.onChange}
                 value={value}
-
-                // TODO These should be removed from the parameter interface
-                uppyOpen={props.openUppy}
-                uppy={props.uppy}
             />
         );
     });
@@ -434,10 +429,9 @@ const InputFileParameter = (props) => {
         <GenericParameter parameter={props.parameter}>
             <FileSelector
                 onFileSelect={(file) => internalOnChange(file)}
-                uppy={props.uppy}
                 path={path}
                 isRequired={!props.parameter.optional}
-                allowUpload
+                /* allowUpload */
             />
         </GenericParameter>
     );
@@ -594,6 +588,6 @@ const mapDispatchToProps = (dispatch: Dispatch) => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application"))
 });
 
-const mapStateToProps = ({ uppy }) => uppy;
+const mapStateToProps = ({ }: ReduxObject) => ({});
 
 export default connect(mapStateToProps, mapDispatchToProps)(RunApp);

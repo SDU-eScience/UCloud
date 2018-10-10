@@ -40,15 +40,6 @@ describe("Initialize Redux Objects", () => {
         })))
     });
 
-    // Circular object
-    test.skip("Uppy", () => {
-        const cloud = new Cloud();
-        expect(JSON.parse(JSON.stringify(Defaults.initUppy(cloud)))).toEqual(JSON.parse(JSON.stringify({
-            uppy: Defaults.initializeUppy({ maxNumberOfFiles: 1 } as Defaults.UppyRestriction, cloud),
-            uppyOpen: false
-        })));
-    });
-
     test("Status", () =>
         expect(Defaults.initStatus()).toEqual({
             status: Defaults.DefaultStatus,

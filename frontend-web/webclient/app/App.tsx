@@ -7,7 +7,6 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { initObject } from "DefaultObjects";
 import header from "Navigation/Redux/HeaderReducer";
 import files from "Files/Redux/FilesReducer";
-import uppyReducers from "Uppy/Redux/UppyReducers";
 import status from "Navigation/Redux/StatusReducer";
 import applications from "Applications/Redux/ApplicationsReducer";
 import dashboard from "Dashboard/Redux/DashboardReducer";
@@ -29,7 +28,6 @@ const store = configureStore(initObject(Cloud), {
     dashboard,
     analyses,
     applications,
-    uppy: uppyReducers,
     header,
     status,
     zenodo,

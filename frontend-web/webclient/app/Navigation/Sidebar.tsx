@@ -112,9 +112,12 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
                 <MenuLink icon="question" to={`/activity/`} name="Activity" onClick={closeSidebar} />
             </Menu.Item>
             <Menu.Item>
+                <MenuLink icon="share square outline" to="/shares" name="Shares" onClick={closeSidebar} />
+            </Menu.Item>
+            <Menu.Item>
                 <Accordion.Title onClick={handleClick} index={0} active={activeIndices[0]}>
-                    Applications
                     <Icon name="dropdown" />
+                    Applications
                 </Accordion.Title>
                 <Accordion.Content active={activeIndices[0]} >
                     <List>
@@ -124,16 +127,16 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
                 </Accordion.Content>
             </Menu.Item>
             <Menu.Item>
-                <Accordion.Title content="Publishing" onClick={handleClick} index={1} active={activeIndices[1]} />
+                <Accordion.Title onClick={handleClick} index={1} active={activeIndices[1]}>
+                    <Icon name="dropdown" />
+                    Publishing
+                </Accordion.Title>
                 <Accordion.Content active={activeIndices[1]}>
                     <List>
                         <MenuLink icon="newspaper" name="Publications" to="/zenodo" onClick={closeSidebar} />
                         <MenuLink icon="edit" name="Publish" to="/zenodo/publish" onClick={closeSidebar} />
                     </List>
                 </Accordion.Content>
-            </Menu.Item>
-            <Menu.Item>
-                <MenuLink icon="share square outline" to="/shares" name="Shares" onClick={closeSidebar} />
             </Menu.Item>
             <AdminOptions menuActive={activeIndices[2]} handleClick={handleClick} closeSidebar={closeSidebar} />
         </Accordion>
