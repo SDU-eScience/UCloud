@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonUnwrapped
 import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
 import kotlin.reflect.KProperty0
@@ -15,6 +16,14 @@ data class Application(
     val tool: Tool
 )
 
+data class ApplicationForUser(
+    @JsonUnwrapped
+    val application: Application,
+
+    val favorite: Boolean
+)
+
+// TODO Contains duplicate data: Info, Tool, Tags. Issue #307
 data class NormalizedApplicationDescription(
     val info: NameAndVersion,
     val tool: NameAndVersion,
@@ -23,7 +32,8 @@ data class NormalizedApplicationDescription(
     val description: String,
     val invocation: List<InvocationParameter>,
     val parameters: List<ApplicationParameter<*>>,
-    val outputFileGlobs: List<String>
+    val outputFileGlobs: List<String>,
+    val tags: List<String> = emptyList()
 )
 
 @JsonTypeInfo(
@@ -47,7 +57,10 @@ sealed class ApplicationDescription(val application: String) {
         val description: String,
         invocation: List<Any>,
         val parameters: Map<String, ApplicationParameter<*>> = emptyMap(),
-        outputFileGlobs: List<String> = emptyList()
+        outputFileGlobs: List<String> = emptyList(),
+
+        val tags: List<String> = emptyList()
+
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
 
@@ -66,6 +79,11 @@ sealed class ApplicationDescription(val application: String) {
             ::version.disallowCharacters('\n')
             ::version.requireSize(maxSize = 255)
 
+            tags.forEach {
+                if (it.isBlank()) {
+                    throw ApplicationVerificationException.BadValue(name, "Cannot be empty")
+                }
+            }
             if (authors.isEmpty()) throw ToolVerificationException.BadValue(::authors.name, "Authors is empty")
 
             val badAuthorIndex = authors.indexOfFirst { it.contains("\n") }
@@ -216,7 +234,8 @@ sealed class ApplicationDescription(val application: String) {
                 description,
                 invocation,
                 parameters.values.toList(),
-                outputFileGlobs
+                outputFileGlobs,
+                tags
             )
         }
     }

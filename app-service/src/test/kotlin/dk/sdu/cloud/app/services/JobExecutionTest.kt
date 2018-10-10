@@ -138,7 +138,8 @@ class JobExecutionTest {
                 description = name,
                 invocation = invocation,
                 parameters = parameters,
-                outputFileGlobs = fileGlobs
+                outputFileGlobs = fileGlobs,
+                tags = listOf()
             ),
             dummyTool
         )

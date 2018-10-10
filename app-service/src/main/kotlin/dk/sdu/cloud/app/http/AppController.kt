@@ -24,6 +24,68 @@ class AppController<DBSession>(
     override val baseContext = HPCApplicationDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
+
+        implement(HPCApplicationDescriptions.toggleFavorite) {req ->
+            logEntry(log, req)
+
+            db.withTransaction {
+                source.toggleFavorite(
+                    it,
+                    call.securityPrincipal.username,
+                    req.name,
+                    req.version
+                )
+            }
+
+            ok(HttpStatusCode.OK)
+
+        }
+
+        implement(HPCApplicationDescriptions.retrieveFavorites) {req ->
+            logEntry(log, req)
+
+            val favorites = db.withTransaction {
+                source.retrieveFavorites(
+                    it,
+                    call.securityPrincipal.username,
+                    req.normalize()
+                )
+            }
+
+            ok(favorites)
+        }
+
+        implement(HPCApplicationDescriptions.searchTags) { req ->
+            logEntry(log, req)
+
+            val app = db.withTransaction {
+                source.searchTags(
+                    it,
+                    call.securityPrincipal.username,
+                    req.query,
+                    req.normalize()
+                )
+            }
+
+            ok(app)
+        }
+
+
+        implement(HPCApplicationDescriptions.searchApps) { req ->
+            logEntry(log, req)
+
+            val app = db.withTransaction {
+                source.search(
+                    it,
+                    call.securityPrincipal.username,
+                    req.query,
+                    req.normalize()
+                )
+            }
+
+            ok(app)
+        }
+
         implement(HPCApplicationDescriptions.findByNameAndVersion) { req ->
             logEntry(log, req)
 

@@ -25,7 +25,8 @@ class JobHibernateDaoTest{
         "description",
         mockk(relaxed = true),
         mockk(relaxed = true),
-        listOf("Globs")
+        listOf("Globs"),
+        listOf()
     )
 
     private val normToolDesc = NormalizedToolDescription(

@@ -5,11 +5,13 @@ import dk.sdu.cloud.app.api.*
 import dk.sdu.cloud.app.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.utils.withAuthMock
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.app.services.ToolHibernateDAO
 import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
 import io.ktor.http.HttpHeaders
@@ -63,7 +65,20 @@ class AppTest {
         "app description",
         mockk(relaxed = true),
         mockk(relaxed = true),
-        listOf("glob")
+        listOf("glob"),
+        listOf()
+    )
+
+    private val normAppDesc2 = NormalizedApplicationDescription(
+        NameAndVersion("app", "1.2"),
+        NameAndVersion("name", "2.2"),
+        listOf("Authors"),
+        "title",
+        "app description",
+        mockk(relaxed = true),
+        mockk(relaxed = true),
+        listOf("glob"),
+        listOf()
     )
 
     private val normToolDesc = NormalizedToolDescription(
@@ -93,6 +108,238 @@ class AppTest {
         normAppDesc,
         tool
     )
+
+    @Test
+    fun `Favorite test`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val user = "user"
+                        val toolDao = ToolHibernateDAO()
+                        val appDao = ApplicationHibernateDAO(toolDao)
+                        configureAppServer(db, appDao)
+                        db.withTransaction {
+                            toolDao.create(it, user, normToolDesc)
+                            appDao.create(it, user, normAppDesc)
+                            appDao.create(it, user, normAppDesc2.copy(info = NameAndVersion("App4", "4.4")))
+                        }
+
+                    },
+
+                    test = {
+                        run {
+                            val favorites =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, favorites.status())
+                            val obj = mapper.readTree(favorites.content)
+                            assertEquals(0, obj["itemsInTotal"].asInt())
+                        }
+
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Post,
+                                    "/api/hpc/apps/favorites/App4/4.4")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+
+
+                            val favorites =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+
+                            assertEquals(HttpStatusCode.OK, favorites.status())
+                            val obj = mapper.readTree(favorites.content)
+                            assertEquals(1, obj["itemsInTotal"].asInt())
+                        }
+
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Post,
+                                    "/api/hpc/apps/favorites/App4/4.4")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+
+
+                            val favorites =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+
+                            assertEquals(HttpStatusCode.OK, favorites.status())
+                            val obj = mapper.readTree(favorites.content)
+                            assertEquals(0, obj["itemsInTotal"].asInt())
+                        }
+
+                    }
+                )
+            }
+        }
+    }
+
+
+    @Test
+    fun `Searchtags test`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val user = "user"
+                        val toolDao = ToolHibernateDAO()
+                        val appDao = ApplicationHibernateDAO(toolDao)
+                        configureAppServer(db, appDao)
+                        db.withTransaction {
+                            toolDao.create(it, user, normToolDesc)
+                            appDao.create(it, user, normAppDesc.copy(tags = listOf("tag1", "tag2")))
+                            appDao.create(it, user, normAppDesc2.copy(tags = listOf("tag2", "tag3")))
+                        }
+                    },
+
+                    test = {
+                        //Search for tag that only exists once
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/searchTags?query=tag1&itemsPerPage=10&Page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(1, obj["itemsInTotal"].asInt())
+
+                        }
+                        //Search for tag that are multiple places
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/searchTags?query=tag2&itemsPerPage=10&Page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(2, obj["itemsInTotal"].asInt())
+                        }
+                        //Search for non existing tag
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get,
+                                    "/api/hpc/apps/searchTags?query=a&itemsPerPage=10&Page=0")
+                                {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(0, obj["itemsInTotal"].asInt())
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Search test`() {
+        withDatabase { db ->
+            withAuthMock {
+                withTestApplication(
+                    moduleFunction = {
+                        val user = "user"
+                        val toolDao = ToolHibernateDAO()
+                        val appDao = ApplicationHibernateDAO(toolDao)
+                        configureAppServer(db, appDao)
+                        db.withTransaction {
+                            toolDao.create(it, user, normToolDesc)
+                            appDao.create(it, user, normAppDesc)
+                            appDao.create(it, user, normAppDesc2)
+                        }
+
+                    },
+
+                    test = {
+                        //Search for single instance (query = *am*, result = name)
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=am&itemsPerPage=10&Page=0") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(1, obj["itemsInTotal"].asInt())
+                        }
+                        // Search for everything (query = *, result = app, name)
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=&itemsPerPage=10&Page=0") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(2, obj["itemsInTotal"].asInt())
+                        }
+                        // Search for multiple (query = *a*, result = app, name)
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=a&itemsPerPage=10&Page=0") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(2, obj["itemsInTotal"].asInt())
+                        }
+                        // Search for none (query = *notpossible*, result = null)
+                        run {
+                            val response =
+                                handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=notpossible&itemsPerPage=10&Page=0") {
+                                    addHeader("Job-Id", UUID.randomUUID().toString())
+                                    setUser()
+                                }.response
+
+                            assertEquals(HttpStatusCode.OK, response.status())
+                            val obj = mapper.readTree(response.content)
+                            assertEquals(0, obj["itemsInTotal"].asInt())
+                        }
+                    }
+                )
+            }
+        }
+    }
 
     @Test
     fun `find By Name And Version test`() {
@@ -169,7 +416,7 @@ class AppTest {
                         configureAppServer(db, appDao)
 
                         every { appDao.listLatestVersion(any(), any(), any()) } answers {
-                            val page = Page(1, 10, 0, listOf(app))
+                            val page = Page(1, 10, 0, listOf(ApplicationForUser(app, true)))
                             page
                         }
 

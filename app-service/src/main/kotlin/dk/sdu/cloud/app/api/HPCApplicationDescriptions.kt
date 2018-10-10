@@ -9,6 +9,7 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
 data class FindApplicationAndOptionalDependencies(
@@ -16,11 +17,102 @@ data class FindApplicationAndOptionalDependencies(
     val version: String
 )
 
+data class FavoriteRequest(
+    val name: String,
+    val version: String
+)
+
+data class TagSearchRequest(
+    val query: String,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+
+data class AppSearchRequest(
+    val query: String,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+
 object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
+    val toggleFavorite = callDescription<FavoriteRequest, Unit, CommonErrorMessage> {
+        name = "toggleFavorite"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"favorites"
+            +boundTo(FavoriteRequest::name)
+            +boundTo(FavoriteRequest::version)
+        }
+    }
+
+    val retrieveFavorites = callDescription<PaginationRequest, Page<ApplicationForUser>, CommonErrorMessage> {
+        name = "retrieveFavorites"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"favorites"
+        }
+
+        params {
+            +boundTo(PaginationRequest::itemsPerPage)
+            +boundTo(PaginationRequest::page)
+        }
+    }
+    val searchTags = callDescription<TagSearchRequest, Page<ApplicationForUser>, CommonErrorMessage> {
+        name = "searchTags"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"searchTags"
+        }
+
+        params {
+            +boundTo(TagSearchRequest::query)
+            +boundTo(TagSearchRequest::itemsPerPage)
+            +boundTo(TagSearchRequest::page)
+        }
+    }
+
+    val searchApps = callDescription<AppSearchRequest, Page<ApplicationForUser>, CommonErrorMessage> {
+        name = "searchApps"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"search"
+        }
+
+        params {
+            +boundTo(AppSearchRequest::query)
+            +boundTo(AppSearchRequest::itemsPerPage)
+            +boundTo(AppSearchRequest::page)
+        }
+    }
+
     val findByName = callDescription<FindByNameAndPagination, Page<Application>, CommonErrorMessage> {
-        name = "appsFindByName"
+        name = "findByName"
 
         auth {
             access = AccessRight.READ
@@ -54,8 +146,8 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
         }
     }
 
-    val listAll = callDescription<PaginationRequest, Page<Application>, CommonErrorMessage> {
-        name = "appsListAll"
+    val listAll = callDescription<PaginationRequest, Page<ApplicationForUser>, CommonErrorMessage> {
+        name = "listAll"
         path { using(baseContext) }
 
         auth {
@@ -69,7 +161,7 @@ object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
     }
 
     val create = callDescription<Unit, Unit, CommonErrorMessage> {
-        name = "appsCreate"
+        name = "create"
         method = HttpMethod.Put
 
         auth {

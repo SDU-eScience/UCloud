@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.AppState
+import dk.sdu.cloud.app.api.ApplicationDescription
 import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.service.db.HibernateEntity
@@ -11,6 +12,7 @@ import org.hibernate.annotations.Type
 import java.io.Serializable
 import java.util.*
 import javax.persistence.*
+import kotlin.collections.ArrayList
 
 /**
  * Updated in:
@@ -36,6 +38,37 @@ data class ToolEntity(
 
     @EmbeddedId
     var id: EmbeddedNameAndVersion
+)
+
+/**
+ * Added in:
+ *
+ * - V7__Tags.sql
+ */
+@Entity
+@Table(name = "application_tags")
+class TagEntity(
+    @ManyToOne
+    var application: ApplicationEntity,
+
+    var tag: String,
+
+    @Id
+    @GeneratedValue
+    var id: Long? = null
+)
+
+@Entity
+@Table(name = "favorited_by")
+class FavoriteApplicationEntity(
+    @ManyToOne
+    var application: ApplicationEntity,
+
+    var user: String,
+
+    @Id
+    @GeneratedValue
+    var id: Long? = null
 )
 
 /**
@@ -71,6 +104,9 @@ class ApplicationEntity(
     @EmbeddedId
     var id: EmbeddedNameAndVersion
 ) {
+    @OneToMany
+    var tags: MutableList<TagEntity> = ArrayList()
+
     companion object : HibernateEntity<ApplicationEntity>, WithId<EmbeddedNameAndVersion>
 }
 
