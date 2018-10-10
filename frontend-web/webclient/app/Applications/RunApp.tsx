@@ -58,7 +58,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         this.state.promises.cancelPromises();
     }
 
-    // FIXME Doesn't actually do anything
+    // FIXME Doesn't actually do anything backend-wise
     favoriteApp = () => this.setState(() => ({ favorite: !this.state.favorite }));
 
     onJobSchedulingParamsChange = (field, value, timeField) => {
@@ -428,7 +428,7 @@ const InputFileParameter = (props) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
-                onFileSelect={(file) => internalOnChange(file)}
+                onFileSelect={file => internalOnChange(file)}
                 path={path}
                 isRequired={!props.parameter.optional}
                 /* allowUpload */

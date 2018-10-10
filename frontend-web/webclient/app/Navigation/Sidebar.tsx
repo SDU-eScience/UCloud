@@ -26,7 +26,7 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
         };
     }
 
-    handleClick = (e: React.MouseEvent<HTMLDivElement>, { index }: { index: number }) => {
+    handleClick = (_: React.MouseEvent<HTMLDivElement>, { index }: { index: number }) => {
         const { activeIndices } = this.state;
         activeIndices[index] = !activeIndices[index]
         this.setState({ activeIndices });
@@ -81,14 +81,19 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
 type HandleClick = (e: React.MouseEvent<HTMLDivElement>, d: AccordionTitleProps) => void;
 interface AdminOptionsProps { menuActive: boolean, handleClick: HandleClick, closeSidebar: Function }
 const AdminOptions = ({ menuActive, handleClick, closeSidebar }: AdminOptionsProps) => Cloud.userIsAdmin ? (
-    <Menu.Item>
-        <Accordion.Title content="Admin" onClick={handleClick} index={2} active={menuActive} />
+    <>
+        <Accordion.Title onClick={handleClick} index={2} active={menuActive}>
+            <Icon name="dropdown" style={{ marginLeft: "15px" }} />
+            <span style={{ marginLeft: "15px" }}>Admin</span>
+        </Accordion.Title>
         <Accordion.Content active={menuActive}>
             <List>
-                <MenuLink icon="user plus" name="User Creation" onClick={() => closeSidebar()} to="/admin/usercreation" />
+                <List.Item style={{ paddingLeft: "1em" }}>
+                    <MenuLink icon="user plus" name="User Creation" onClick={() => closeSidebar()} to="/admin/usercreation" />
+                </List.Item>
             </List>
         </Accordion.Content>
-    </Menu.Item>) : null;
+    </>) : null;
 
 interface MobileSidebarProps { handleClick: HandleClick, activeIndices: boolean[], visible: boolean, closeSidebar: Function }
 const MobileSidebar = ({ handleClick, activeIndices, visible, closeSidebar }: MobileSidebarProps) => (
@@ -114,30 +119,34 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
             <Menu.Item>
                 <MenuLink icon="share square outline" to="/shares" name="Shares" onClick={closeSidebar} />
             </Menu.Item>
-            <Menu.Item>
-                <Accordion.Title onClick={handleClick} index={0} active={activeIndices[0]}>
-                    <Icon name="dropdown" />
-                    Applications
-                </Accordion.Title>
-                <Accordion.Content active={activeIndices[0]} >
-                    <List>
+            <Accordion.Title onClick={handleClick} index={0} active={activeIndices[0]}>
+                <Icon name="dropdown" style={{ marginLeft: "15px" }} />
+                <span style={{ marginLeft: "15px" }}>Applications</span>
+            </Accordion.Title>
+            <Accordion.Content active={activeIndices[0]} >
+                <List>
+                    <List.Item style={{ paddingLeft: "1em" }}>
                         <MenuLink icon="code" name="Run" onClick={closeSidebar} to="/applications" />
+                    </List.Item>
+                    <List.Item style={{ paddingLeft: "1em" }}>
                         <MenuLink icon="tasks" name="Results" onClick={closeSidebar} to="/analyses" />
-                    </List>
-                </Accordion.Content>
-            </Menu.Item>
-            <Menu.Item>
-                <Accordion.Title onClick={handleClick} index={1} active={activeIndices[1]}>
-                    <Icon name="dropdown" />
-                    Publishing
-                </Accordion.Title>
-                <Accordion.Content active={activeIndices[1]}>
-                    <List>
+                    </List.Item>
+                </List>
+            </Accordion.Content>
+            <Accordion.Title onClick={handleClick} index={1} active={activeIndices[1]}>
+                <Icon name="dropdown" style={{ marginLeft: "15px" }} />
+                <span style={{ marginLeft: "16px" }}>Publishing</span>
+            </Accordion.Title>
+            <Accordion.Content active={activeIndices[1]}>
+                <List>
+                    <List.Item style={{ paddingLeft: "1em" }}>
                         <MenuLink icon="newspaper" name="Publications" to="/zenodo" onClick={closeSidebar} />
+                    </List.Item>
+                    <List.Item style={{ paddingLeft: "1em" }}>
                         <MenuLink icon="edit" name="Publish" to="/zenodo/publish" onClick={closeSidebar} />
-                    </List>
-                </Accordion.Content>
-            </Menu.Item>
+                    </List.Item>
+                </List>
+            </Accordion.Content>
             <AdminOptions menuActive={activeIndices[2]} handleClick={handleClick} closeSidebar={closeSidebar} />
         </Accordion>
     </>
