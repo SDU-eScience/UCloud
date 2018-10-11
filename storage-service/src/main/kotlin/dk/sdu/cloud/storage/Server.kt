@@ -88,10 +88,14 @@ class Server(
         val storageEventProcessor = StorageEventProcessor(kafka)
         addProcessors(storageEventProcessor.init())
 
+        // We have temporarily disabled the ChecksumProcessor.
+        // TODO We will have to determine later if this should be re-enabled or just removed.
+        /*
         ChecksumProcessor(processRunner, fs, coreFileSystem).also {
             // TODO Doesn't emit events for checksums
             storageEventProcessor.registerHandler(it::handleEvents)
         }
+        */
 
         // HTTP
         httpServer = ktor {

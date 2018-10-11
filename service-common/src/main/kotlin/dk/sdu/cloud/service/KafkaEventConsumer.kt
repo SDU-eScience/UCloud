@@ -152,7 +152,7 @@ class KafkaEventConsumer<K, V>(
                 // Rest goes into overflowBuffer (unbounded).
                 overflowBuffer.addAll(events.slice(remainingCapacity until events.size))
 
-                // Ask kafka not to deliver any more items (for any partition).
+                // Ask kafka not to deliver any more items (for any partition assigned to this thread).
                 // We will resume once the overflowBuffer has been emptied into the queue
                 kafkaConsumer.pause(kafkaConsumer.assignment())
 

@@ -28,7 +28,7 @@ class ChecksumProcessor<Ctx : FSUserContext>(
                 .forEach {
                     try {
                         log.debug("Computing check for for ${it.path}")
-//                        computeAndAttachChecksum(ctx, it.path)
+                        computeAndAttachChecksum(ctx, it.path)
                     } catch (ex: FSException) {
                         log.info("Caught exception while attempting to attach checksum")
                         log.info(ex.stackTraceToString())
