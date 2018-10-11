@@ -1,9 +1,14 @@
 package dk.sdu.cloud.app.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.app.services.ToolHibernateDAO
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.api.NormalizedToolDescription
+import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.Tool
+import dk.sdu.cloud.app.api.ToolBackend
+import dk.sdu.cloud.app.services.ToolHibernateDAO
 import dk.sdu.cloud.app.utils.withAuthMock
 import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.Page
@@ -29,7 +34,7 @@ private fun Application.configureToolServer(
     configureBaseServer(ToolController<HibernateSession>(db, toolDao))
 }
 
-class ToolTest{
+class ToolTest {
 
     private val mapper = jacksonObjectMapper()
 

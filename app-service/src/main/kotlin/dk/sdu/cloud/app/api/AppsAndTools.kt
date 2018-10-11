@@ -290,6 +290,8 @@ data class NormalizedToolDescription(
 @JsonSubTypes(
     JsonSubTypes.Type(value = ToolDescription.V1::class, name = "v1")
 )
+
+private const val MAX_LENGTH = 255
 sealed class ToolDescription(val tool: String) {
     abstract fun normalize(): NormalizedToolDescription
 
@@ -307,9 +309,12 @@ sealed class ToolDescription(val tool: String) {
         val description: String = ""
     ) : ToolDescription("v1") {
         init {
-            if (name.length > 255) throw ToolVerificationException.BadValue(::name.name, "Name is too long")
-            if (version.length > 255) throw ToolVerificationException.BadValue(::version.name, "Version is too long")
-            if (title.length > 255) throw ToolVerificationException.BadValue(::title.name, "Title is too long")
+            if (name.length > MAX_LENGTH)
+                throw ToolVerificationException.BadValue(::name.name, "Name is too long")
+            if (version.length > MAX_LENGTH)
+                throw ToolVerificationException.BadValue(::version.name, "Version is too long")
+            if (title.length > MAX_LENGTH)
+                throw ToolVerificationException.BadValue(::title.name, "Title is too long")
 
             if (name.isBlank()) throw ToolVerificationException.BadValue(::name.name, "Name is blank")
             if (version.isBlank()) throw ToolVerificationException.BadValue(::version.name, "Version is blank")

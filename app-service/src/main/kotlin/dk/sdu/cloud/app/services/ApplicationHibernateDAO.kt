@@ -6,11 +6,19 @@ import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.createCriteriaBuilder
+import dk.sdu.cloud.service.db.createQuery
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.paginatedList
+import dk.sdu.cloud.service.db.typedQuery
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
-import java.util.*
+import java.util.Date
 
+@Suppress("TooManyFunctions") //Does not make sense to split
 class ApplicationHibernateDAO(
     private val toolDAO: ToolHibernateDAO
 ) : ApplicationDAO<HibernateSession> {

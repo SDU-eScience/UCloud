@@ -7,7 +7,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-class InvocationCommandASTTest{
+class InvocationCommandASTTest {
 
     @Test
     fun `Boolean flag test`() {
@@ -21,11 +21,12 @@ class InvocationCommandASTTest{
     @Test
     fun `Boolean flag test - no entry`() {
         val bo = BooleanFlagParameter("variable", "This is the flag")
-        val m = mapOf<ApplicationParameter<*>, Any>(Pair(ApplicationParameter.Bool("not what we are looking for"), true))
+        val m =
+            mapOf<ApplicationParameter<*>, Any>(Pair(ApplicationParameter.Bool("not what we are looking for"), true))
         assertNull(bo.buildInvocationSnippet(m))
     }
 
-    @Test (expected = RuntimeException::class)
+    @Test(expected = RuntimeException::class)
     fun `Boolean flag test - invalid param`() {
         val bo = BooleanFlagParameter("variable", "flag")
         val m = mapOf<ApplicationParameter<*>, Any>(Pair(ApplicationParameter.Text("variable"), mockk(relaxed = true)))

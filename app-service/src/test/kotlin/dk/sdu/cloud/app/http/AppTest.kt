@@ -1,11 +1,17 @@
 package dk.sdu.cloud.app.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.app.services.ApplicationHibernateDAO
-import dk.sdu.cloud.app.utils.withAuthMock
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.app.api.ApplicationForUser
+import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.api.NormalizedToolDescription
+import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.Tool
+import dk.sdu.cloud.app.api.ToolBackend
+import dk.sdu.cloud.app.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.services.ToolHibernateDAO
+import dk.sdu.cloud.app.utils.withAuthMock
 import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
@@ -130,8 +136,10 @@ class AppTest {
                     test = {
                         run {
                             val favorites =
-                                handleRequest(HttpMethod.Get,
-                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0")
+                                handleRequest(
+                                    HttpMethod.Get,
+                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0"
+                                )
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
@@ -144,8 +152,10 @@ class AppTest {
 
                         run {
                             val response =
-                                handleRequest(HttpMethod.Post,
-                                    "/api/hpc/apps/favorites/App4/4.4")
+                                handleRequest(
+                                    HttpMethod.Post,
+                                    "/api/hpc/apps/favorites/App4/4.4"
+                                )
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
@@ -155,8 +165,10 @@ class AppTest {
 
 
                             val favorites =
-                                handleRequest(HttpMethod.Get,
-                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0")
+                                handleRequest(
+                                    HttpMethod.Get,
+                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0"
+                                )
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
@@ -170,8 +182,10 @@ class AppTest {
 
                         run {
                             val response =
-                                handleRequest(HttpMethod.Post,
-                                    "/api/hpc/apps/favorites/App4/4.4")
+                                handleRequest(
+                                    HttpMethod.Post,
+                                    "/api/hpc/apps/favorites/App4/4.4"
+                                )
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
@@ -181,8 +195,10 @@ class AppTest {
 
 
                             val favorites =
-                                handleRequest(HttpMethod.Get,
-                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0")
+                                handleRequest(
+                                    HttpMethod.Get,
+                                    "/api/hpc/apps/favorites?itemsPerPage=10&page=0"
+                                )
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
@@ -222,8 +238,10 @@ class AppTest {
                         //Search for tag that only exists once
                         run {
                             val response =
-                                handleRequest(HttpMethod.Get,
-                                    "/api/hpc/apps/searchTags?query=tag1&itemsPerPage=10&Page=0")
+                                handleRequest(
+                                    HttpMethod.Get,
+                                    "/api/hpc/apps/searchTags?query=tag1&itemsPerPage=10&Page=0"
+                                )
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
@@ -237,8 +255,10 @@ class AppTest {
                         //Search for tag that are multiple places
                         run {
                             val response =
-                                handleRequest(HttpMethod.Get,
-                                    "/api/hpc/apps/searchTags?query=tag2&itemsPerPage=10&Page=0")
+                                handleRequest(
+                                    HttpMethod.Get,
+                                    "/api/hpc/apps/searchTags?query=tag2&itemsPerPage=10&Page=0"
+                                )
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
@@ -251,8 +271,10 @@ class AppTest {
                         //Search for non existing tag
                         run {
                             val response =
-                                handleRequest(HttpMethod.Get,
-                                    "/api/hpc/apps/searchTags?query=a&itemsPerPage=10&Page=0")
+                                handleRequest(
+                                    HttpMethod.Get,
+                                    "/api/hpc/apps/searchTags?query=a&itemsPerPage=10&Page=0"
+                                )
                                 {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
@@ -326,7 +348,10 @@ class AppTest {
                         // Search for none (query = *notpossible*, result = null)
                         run {
                             val response =
-                                handleRequest(HttpMethod.Get, "/api/hpc/apps/search?query=notpossible&itemsPerPage=10&Page=0") {
+                                handleRequest(
+                                    HttpMethod.Get,
+                                    "/api/hpc/apps/search?query=notpossible&itemsPerPage=10&Page=0"
+                                ) {
                                     addHeader("Job-Id", UUID.randomUUID().toString())
                                     setUser()
                                 }.response

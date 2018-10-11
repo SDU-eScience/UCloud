@@ -15,6 +15,7 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
+import io.ktor.request.ContentTransformationException
 import io.ktor.request.receiveText
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
@@ -69,7 +70,7 @@ class ToolController<DBSession>(
 
             val content = try {
                 call.receiveText()
-            } catch (ex: Exception) {
+            } catch (ex: ContentTransformationException) {
                 error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
                 return@implement
             }

@@ -2,9 +2,9 @@ package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.Application
+import dk.sdu.cloud.app.api.BashEscaper.safeBashArgument
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.buildSafeBashString
-import dk.sdu.cloud.app.api.BashEscaper.safeBashArgument
 
 class SBatchGenerator {
     fun generate(

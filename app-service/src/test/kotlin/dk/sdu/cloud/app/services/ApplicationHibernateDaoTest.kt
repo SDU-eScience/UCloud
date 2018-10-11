@@ -1,6 +1,10 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.*
+import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.api.NormalizedToolDescription
+import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
@@ -329,15 +333,17 @@ class ApplicationHibernateDaoTest {
                 val appDAO = ApplicationHibernateDAO(toolDAO)
                 appDAO.create(it, user, normAppDesc)
                 appDAO.create(it, user, normAppDesc3)
-                appDAO.create(it, user, normAppDesc.copy(
-                    info = NameAndVersion("App2", "3.4"),
-                    tags = listOf("tag2", "tag5")
+                appDAO.create(
+                    it, user, normAppDesc.copy(
+                        info = NameAndVersion("App2", "3.4"),
+                        tags = listOf("tag2", "tag5")
                     )
                 )
-                appDAO.create(it, user, normAppDesc.copy(
-                    info = NameAndVersion("App1", "1.4"),
-                    tags = listOf("tag2", "tag4")
-                )
+                appDAO.create(
+                    it, user, normAppDesc.copy(
+                        info = NameAndVersion("App1", "1.4"),
+                        tags = listOf("tag2", "tag4")
+                    )
                 )
 
                 appDAO.toggleFavorite(it, user, "App1", "1.4")
@@ -345,7 +351,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Search for no hits
-                    val hits = appDAO.searchTags(it, user, "tag20", NormalizedPaginationRequest(10,0))
+                    val hits = appDAO.searchTags(it, user, "tag20", NormalizedPaginationRequest(10, 0))
                     println(hits)
 
                     assertEquals(0, hits.itemsInTotal)
@@ -353,7 +359,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Search for one hit tag
-                    val hits = appDAO.searchTags(it, user, "tag1", NormalizedPaginationRequest(10,0))
+                    val hits = appDAO.searchTags(it, user, "tag1", NormalizedPaginationRequest(10, 0))
                     println(hits)
                     val loadedApp = hits.items.first().application.description.description
 
@@ -363,7 +369,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Search for multiple hit tag
-                    val hits = appDAO.searchTags(it, user, "tag2", NormalizedPaginationRequest(10,0))
+                    val hits = appDAO.searchTags(it, user, "tag2", NormalizedPaginationRequest(10, 0))
 
                     var previous = ""
                     hits.items.forEach {
@@ -371,7 +377,7 @@ class ApplicationHibernateDaoTest {
                             assert(false)
                         previous = it.application.description.info.name
                     }
-                    
+
                     assertEquals(3, hits.itemsInTotal)
                     assertEquals("App1", hits.items[0].application.description.info.name)
                     assertEquals("App2", hits.items[1].application.description.info.name)
@@ -384,7 +390,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Search for empty tag. Should be empty since it is not a wildcard search
-                    val hits = appDAO.searchTags(it, user, "", NormalizedPaginationRequest(10,0))
+                    val hits = appDAO.searchTags(it, user, "", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, hits.itemsInTotal)
 
@@ -404,13 +410,15 @@ class ApplicationHibernateDaoTest {
                 val appDAO = ApplicationHibernateDAO(toolDAO)
                 appDAO.create(it, user, normAppDesc)
                 appDAO.create(it, user, normAppDesc3)
-                appDAO.create(it, user, normAppDesc.copy(
-                    info = NameAndVersion("App2", "3.4")
+                appDAO.create(
+                    it, user, normAppDesc.copy(
+                        info = NameAndVersion("App2", "3.4")
+                    )
                 )
-                )
-                appDAO.create(it, user, normAppDesc.copy(
-                    info = NameAndVersion("App1", "1.4")
-                )
+                appDAO.create(
+                    it, user, normAppDesc.copy(
+                        info = NameAndVersion("App1", "1.4")
+                    )
                 )
 
                 run {
@@ -450,7 +458,8 @@ class ApplicationHibernateDaoTest {
             }
         }
     }
-    @Test (expected = ApplicationException.BadApplication::class)
+
+    @Test(expected = ApplicationException.BadApplication::class)
     fun `Favorite test - Not an app`() {
         withDatabase { db ->
             db.withTransaction {

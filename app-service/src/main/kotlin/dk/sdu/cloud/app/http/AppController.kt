@@ -8,10 +8,16 @@ import dk.sdu.cloud.app.api.ApplicationDescription
 import dk.sdu.cloud.app.api.HPCApplicationDescriptions
 import dk.sdu.cloud.app.services.ApplicationDAO
 import dk.sdu.cloud.app.util.yamlMapper
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.ok
+import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import io.ktor.request.ContentTransformationException
 import io.ktor.request.receiveText
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
@@ -25,7 +31,7 @@ class AppController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
 
-        implement(HPCApplicationDescriptions.toggleFavorite) {req ->
+        implement(HPCApplicationDescriptions.toggleFavorite) { req ->
             logEntry(log, req)
 
             db.withTransaction {
@@ -41,7 +47,7 @@ class AppController<DBSession>(
 
         }
 
-        implement(HPCApplicationDescriptions.retrieveFavorites) {req ->
+        implement(HPCApplicationDescriptions.retrieveFavorites) { req ->
             logEntry(log, req)
 
             val favorites = db.withTransaction {
@@ -126,7 +132,7 @@ class AppController<DBSession>(
 
             val content = try {
                 call.receiveText()
-            } catch (ex: Exception) {
+            } catch (ex: ContentTransformationException) {
                 error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
                 return@implement
             }

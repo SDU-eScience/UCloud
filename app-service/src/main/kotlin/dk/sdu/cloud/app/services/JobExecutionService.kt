@@ -2,8 +2,27 @@ package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import com.jcraft.jsch.JSchException
-import dk.sdu.cloud.app.api.*
-import dk.sdu.cloud.app.services.ssh.*
+import dk.sdu.cloud.app.api.AppEvent
+import dk.sdu.cloud.app.api.AppRequest
+import dk.sdu.cloud.app.api.AppState
+import dk.sdu.cloud.app.api.Application
+import dk.sdu.cloud.app.api.ApplicationParameter
+import dk.sdu.cloud.app.api.FileForUploadArchiveType
+import dk.sdu.cloud.app.api.FileTransferDescription
+import dk.sdu.cloud.app.api.JobCompletedEvent
+import dk.sdu.cloud.app.api.ValidatedFileForUpload
+import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
+import dk.sdu.cloud.app.services.ssh.createZipFileOfDirectory
+import dk.sdu.cloud.app.services.ssh.lsWithGlob
+import dk.sdu.cloud.app.services.ssh.mkdir
+import dk.sdu.cloud.app.services.ssh.rm
+import dk.sdu.cloud.app.services.ssh.sbatch
+import dk.sdu.cloud.app.services.ssh.scpDownload
+import dk.sdu.cloud.app.services.ssh.scpUpload
+import dk.sdu.cloud.app.services.ssh.slurmJobInfo
+import dk.sdu.cloud.app.services.ssh.stat
+import dk.sdu.cloud.app.services.ssh.unzip
+import dk.sdu.cloud.app.services.ssh.use
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.RequestOneTimeToken
@@ -11,7 +30,12 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.CreateDirectoryRequest
+import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
+import dk.sdu.cloud.file.api.DownloadByURI
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -28,7 +52,13 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
 import java.nio.file.Files
-import java.util.*
+import java.util.UUID
+
+private const val MAX_TRIES = 3
+private const val SLEEP_SETTING = 150L
+private const val CHUNCK_SIZE = 1024 * 1024
+private const val STREAM_BUFFER_SIZE = 1024 * 64
+private const val ZIP_ERRORSTATUS = 3
 
 class JobExecutionService<DBSession>(
     cloud: RefreshingJWTAuthenticatedCloud,
@@ -67,8 +97,8 @@ class JobExecutionService<DBSession>(
         val slurmId = event.jobId
         val job = db.withTransaction {
             var jobToSlurm: JobInformation? = null
-            for (i in 0..3) {
-                if (i > 0) Thread.sleep(150)
+            for (i in 0..MAX_TRIES) {
+                if (i > 0) Thread.sleep(SLEEP_SETTING)
 
                 jobToSlurm = jobDao.findJobInformationBySlurmId(it, slurmId)
                 if (jobToSlurm != null) break
@@ -183,8 +213,10 @@ class JobExecutionService<DBSession>(
                                 )
                             )
                         } catch (ex: Exception) {
-                            log.warn("Unable to perform accounting for job: systemId: " +
-                                    "${event.systemId}, slurmId: ${event.slurmId}, event: $event")
+                            log.warn(
+                                "Unable to perform accounting for job: systemId: " +
+                                        "${event.systemId}, slurmId: ${event.slurmId}, event: $event"
+                            )
                             log.warn(ex.stackTraceToString())
                         }
 
@@ -394,7 +426,7 @@ class JobExecutionService<DBSession>(
     }
 
     private fun InputStream.copyToWithDebugging(target: OutputStream, bufferSize: Int) {
-        var nextTarget = 1024 * 1024
+        var nextTarget = CHUNCK_SIZE
         target.use { out ->
             this.use { ins ->
                 var writtenInTotal = 0L
@@ -412,7 +444,7 @@ class JobExecutionService<DBSession>(
                         writtenInTotal += read
                         if (writtenInTotal >= nextTarget) {
                             log.debug("Wrote $writtenInTotal bytes")
-                            nextTarget += 1024 * 1024
+                            nextTarget += CHUNCK_SIZE
                         }
                     }
                     out.write(buffer, 0, ptr)
@@ -469,7 +501,7 @@ class JobExecutionService<DBSession>(
 
                     log.debug("File needs extraction writing to file first!")
                     val output = Files.createTempFile("apparchive", ".zip").toFile()
-                    fileDownload.copyToWithDebugging(output.outputStream(), 1024 * 64)
+                    fileDownload.copyToWithDebugging(output.outputStream(), STREAM_BUFFER_SIZE)
                     Pair(output.length(), output.inputStream())
                 } else {
                     Pair(upload.stat.size, fileDownload)
@@ -482,7 +514,7 @@ class JobExecutionService<DBSession>(
                         upload.destinationPath,
                         "0600"
                     ) {
-                        fileInputStream.copyToWithDebugging(it, 1024 * 64)
+                        fileInputStream.copyToWithDebugging(it, STREAM_BUFFER_SIZE)
                     }
                 } catch (ex: Exception) {
                     // TODO Don't treat all errors like this
@@ -508,7 +540,7 @@ class JobExecutionService<DBSession>(
                     }
                 }
 
-                if (zipStatus >= 3) {
+                if (zipStatus >= ZIP_ERRORSTATUS) {
                     log.warn("Unable to extract input files")
                     throw JobInternalException("Internal error")
                 }
@@ -684,7 +716,7 @@ class JobExecutionService<DBSession>(
                                 outputDirectory.removeSuffix("/") + "/" + fileToTransferFromHPC.substringAfterLast('/'),
                                 writer = { out ->
                                     // Closing 'out' is not something the HTTP client likes.
-                                    val buffer = ByteArray(1024 * 64)
+                                    val buffer = ByteArray(STREAM_BUFFER_SIZE)
                                     var hasMoreData = true
                                     while (hasMoreData) {
                                         var ptr = 0

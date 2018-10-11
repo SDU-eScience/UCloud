@@ -12,7 +12,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class ToolHibernateDaoTest{
+class ToolHibernateDaoTest {
 
     private val user = "user1"
     private val normToolDesc = NormalizedToolDescription(
@@ -20,7 +20,7 @@ class ToolHibernateDaoTest{
         "container",
         2,
         2,
-        SimpleDuration(1,0,0),
+        SimpleDuration(1, 0, 0),
         listOf(""),
         listOf("author"),
         "title",
@@ -33,7 +33,7 @@ class ToolHibernateDaoTest{
         "container",
         2,
         2,
-        SimpleDuration(1,0,0),
+        SimpleDuration(1, 0, 0),
         listOf(""),
         listOf("author"),
         "title",
@@ -46,7 +46,7 @@ class ToolHibernateDaoTest{
         "container",
         2,
         2,
-        SimpleDuration(1,0,0),
+        SimpleDuration(1, 0, 0),
         listOf(""),
         listOf("author"),
         "title",
@@ -59,7 +59,7 @@ class ToolHibernateDaoTest{
         "container",
         2,
         2,
-        SimpleDuration(1,0,0),
+        SimpleDuration(1, 0, 0),
         listOf(""),
         listOf("author"),
         "title",
@@ -71,12 +71,12 @@ class ToolHibernateDaoTest{
     fun `find all by name test - no results`() {
         withDatabase { db ->
             val tool = ToolHibernateDAO()
-            val results = tool.findAllByName(db.openSession(), "user", "name", NormalizedPaginationRequest(10,0))
+            val results = tool.findAllByName(db.openSession(), "user", "name", NormalizedPaginationRequest(10, 0))
             assertEquals(0, results.itemsInTotal)
         }
     }
 
-    @Test (expected = ToolException.NotFound::class)
+    @Test(expected = ToolException.NotFound::class)
     fun `find all by name and version test - no results`() {
         withDatabase { db ->
             val tool = ToolHibernateDAO()
@@ -118,13 +118,13 @@ class ToolHibernateDaoTest{
             db.withTransaction {
                 val tool = ToolHibernateDAO()
                 tool.create(it, user, normToolDesc)
-                val result = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10,0))
+                val result = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10, 0))
                 assertEquals(1, result.itemsInTotal)
             }
         }
     }
 
-    @Test (expected = ToolException.AlreadyExists::class)
+    @Test(expected = ToolException.AlreadyExists::class)
     fun `create Test - duplicate`() {
         withDatabase { db ->
             db.withTransaction {
@@ -135,7 +135,7 @@ class ToolHibernateDaoTest{
         }
     }
 
-    @Test (expected = ToolException.NotAllowed::class)
+    @Test(expected = ToolException.NotAllowed::class)
     fun `create Test - not the owner`() {
         withDatabase { db ->
             db.withTransaction {
@@ -152,7 +152,7 @@ class ToolHibernateDaoTest{
             db.withTransaction {
                 val tool = ToolHibernateDAO()
                 tool.create(it, user, normToolDesc)
-                val hits = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10,0))
+                val hits = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10, 0))
                 val description = hits.items.first().description.description
                 assertEquals(normToolDesc.description, description)
                 tool.updateDescription(
@@ -162,7 +162,7 @@ class ToolHibernateDaoTest{
                     normToolDesc.info.version,
                     "This is a new description"
                 )
-                val newHits = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10,0))
+                val newHits = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10, 0))
                 val newDescription = newHits.items.first().description.description
                 assertEquals("This is a new description", newDescription)
             }
@@ -175,7 +175,7 @@ class ToolHibernateDaoTest{
             db.withTransaction {
                 val tool = ToolHibernateDAO()
                 tool.create(it, user, normToolDesc)
-                val hits = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10,0))
+                val hits = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10, 0))
                 assertFalse(hits.items.first().description.authors.contains("new Author"))
                 tool.updateDescription(
                     it,
@@ -185,14 +185,14 @@ class ToolHibernateDaoTest{
                     null,
                     listOf("new Author")
                 )
-                val newHits = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10,0))
+                val newHits = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10, 0))
                 val newAuthorList = newHits.items.first().description.authors
                 assertTrue(newAuthorList.contains("new Author"))
             }
         }
     }
 
-    @Test (expected = ToolException.NotAllowed::class)
+    @Test(expected = ToolException.NotAllowed::class)
     fun `update description Test - not same user`() {
         withDatabase { db ->
             db.withTransaction {
@@ -210,7 +210,7 @@ class ToolHibernateDaoTest{
         }
     }
 
-    @Test (expected = ToolException.NotFound::class)
+    @Test(expected = ToolException.NotFound::class)
     fun `update description Test - description not found`() {
         withDatabase { db ->
             db.withTransaction {

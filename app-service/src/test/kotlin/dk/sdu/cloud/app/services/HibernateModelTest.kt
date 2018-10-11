@@ -1,13 +1,16 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.*
+import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.api.NormalizedToolDescription
+import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.ToolBackend
 import io.mockk.mockk
 import org.junit.Test
 import java.util.*
-
 import kotlin.test.assertEquals
 
-class HibernateModelTest{
+class HibernateModelTest {
 
     //Job entity is covered in another test
 
