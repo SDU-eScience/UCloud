@@ -2,7 +2,7 @@ import * as React from "react";
 import { Icon, IconProps, Header, Popup } from "semantic-ui-react";
 
 interface FileIconProps  extends IconProps { link?: boolean, shared?: boolean, className?:string }
-export const FileIcon = ({ name, size, shared = false, link = false, className = "", color }:FileIconProps) =>
+export const FileIcon = ({ name, size, shared = false, link = false, className = "", color }: FileIconProps) =>
     link || shared ?
         // FIXME Inline style
         <Icon.Group style={{ paddingLeft: "3px", paddingRight: "5px" }} className={className} size={size}>

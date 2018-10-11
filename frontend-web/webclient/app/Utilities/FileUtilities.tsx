@@ -114,7 +114,7 @@ export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyO
 export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`;
 
-// FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes 
+// FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes backend issues
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files/lookup?path=${UF.removeTrailingSlash(path)}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
 
@@ -162,7 +162,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
     return [ // homeFolder contains trailing slash
         `${homeFolder}Favorites`,
         `${homeFolder}Jobs`,
-        `${homeFolder}Trash bin`
+        `${homeFolder}Trash`
     ].some((it) => UF.removeTrailingSlash(it) === filePath)
 };
 
@@ -206,7 +206,7 @@ export const toFileText = (selectedFiles: File[]): string =>
 
 export const isLink = (file: File) => file.link;
 export const isDirectory = (file: File) => file.fileType === "DIRECTORY";
-export const replaceHomeFolder = (path: string, homeFolder: string) => UF.addTrailingSlash(path).replace(UF.addTrailingSlash(homeFolder), "Home/");
+export const replaceHomeFolder = (path: string, homeFolder: string) => path.replace(UF.addTrailingSlash(homeFolder), "Home/");
 
 export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>
     deletionSwal([filePath]).then((result: any) => {
