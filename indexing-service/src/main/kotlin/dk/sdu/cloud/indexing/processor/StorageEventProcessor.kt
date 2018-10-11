@@ -19,7 +19,12 @@ class StorageEventProcessor(
                         maxBatchSize = 1000
                     )
                     .consumeBatchAndCommit { batch ->
+                        log.debug("Handling another batch of ${batch.size} files. Head of batch: " +
+                                "${batch.asSequence().take(5).map { it.second.path }.toList()}...")
+
                         indexingService.bulkHandleEvent(batch.map { it.second })
+
+                        log.debug("Batch complete")
                     }
             }
         }

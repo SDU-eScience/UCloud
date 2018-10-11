@@ -6,6 +6,7 @@ import org.apache.kafka.common.TopicPartition
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 data class KafkaConsumedEvent<V>(
     override val value: V,
@@ -28,17 +29,19 @@ data class KafkaConsumedEvent<V>(
 }
 
 class KafkaEventConsumer<K, V>(
-    private val internalQueueSize: Int,
+    internalQueueSize: Int,
     private val pollTimeoutInMs: Long = 10,
     private val description: StreamDescription<K, V>,
     private val kafkaConsumer: KafkaConsumer<String, String>
 ) : EventConsumer<Pair<K, V>> {
+    private val id = threadIdCounter.getAndIncrement()
+
     private var exceptionHandler: ((Throwable) -> Unit)? = null
 
     override var isRunning = false
         private set
 
-    private val executor = Executors.newSingleThreadExecutor()
+    private val executor = Executors.newSingleThreadExecutor { Thread(it, "kafka-${description.name}-poll-thread-$id") }
     private val queue = ArrayBlockingQueue<KafkaConsumedEvent<Pair<K, V>>>(internalQueueSize)
     private val overflowBuffer = ArrayList<KafkaConsumedEvent<Pair<K, V>>>()
 
@@ -58,7 +61,7 @@ class KafkaEventConsumer<K, V>(
         }
     }
 
-    private val processingThread = Thread {
+    private val processingThread = Thread({
         var nextPrint = 0L
         while (isRunning) {
             try {
@@ -82,8 +85,9 @@ class KafkaEventConsumer<K, V>(
 
                         rootProcessor.accept(nextBatch)
                     } else {
-                        // If no element was available before deadline we just notify the root processor that we found nothing.
-                        // This can then trigger emission of events that might be collecting in a buffer (for batch processing)
+                        // If no element was available before deadline we just notify the root processor that we
+                        // found nothing. This can then trigger emission of events that might be collecting in
+                        // a buffer (for batch processing).
                         rootProcessor.accept(emptyList())
                     }
                 } catch (ex: Exception) {
@@ -98,7 +102,7 @@ class KafkaEventConsumer<K, V>(
                 log.debug(ex.stackTraceToString())
             }
         }
-    }
+    }, "kafka-${description.name}-processing-thread-$id")
 
     override fun configure(
         configure: (processor: EventStreamProcessor<*, Pair<K, V>>) -> Unit
@@ -259,5 +263,7 @@ class KafkaEventConsumer<K, V>(
 
     companion object : Loggable {
         override val log = logger()
+
+        private val threadIdCounter = AtomicInteger(0)
     }
 }

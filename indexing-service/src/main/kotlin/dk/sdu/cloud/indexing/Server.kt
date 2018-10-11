@@ -25,11 +25,16 @@ class Server(
     private val instance: ServiceInstance
 ) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
-    override lateinit var kStreams: KafkaStreams
+    override val kStreams: KafkaStreams? = null
     private val eventConsumers = ArrayList<EventConsumer<*>>()
     private lateinit var elastic: RestHighLevelClient
 
     override val log = logger()
+
+    private fun addConsumers(consumers: List<EventConsumer<*>>) {
+        consumers.forEach { it.installShutdownHandler(this) }
+        eventConsumers.addAll(consumers)
+    }
 
     override fun start() {
         elastic = RestHighLevelClient(
@@ -56,11 +61,8 @@ class Server(
             }
         }
 
-        StorageEventProcessor(kafka, indexingService).init().forEach { processor ->
-            processor.onExceptionCaught { stop() }
-        }
+        addConsumers(StorageEventProcessor(kafka, indexingService).init())
 
-        kStreams = buildStreams { }
         httpServer = ktor {
             installDefaultFeatures(cloud, kafka, instance, requireJobId = true)
 

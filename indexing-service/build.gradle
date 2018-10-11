@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.4.1-SNAPSHOT'
+version '1.4.2-SNAPSHOT'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"
@@ -15,7 +15,7 @@ dependencies {
     compile 'mbuhot:eskotlin:0.4.0'
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'
 
-    compile "dk.sdu.cloud:service-common:0.18.0-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.19.2-SNAPSHOT"
     compile "dk.sdu.cloud:file-api:0.9.1-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"
 }
