@@ -21,7 +21,7 @@ test-pattern: # Configure exclusions for test sources
     - 'ForEachOnRange'
 
 build:
-  maxIssues: 10
+  maxIssues: 20
   weights:
     # complexity: 2
     # LongParameterList: 1
@@ -75,7 +75,7 @@ complexity:
     includeStaticDeclarations: false
   ComplexMethod:
     active: true
-    threshold: 10
+    threshold: 12
     ignoreSingleWhenExpression: false
     ignoreSimpleWhenEntries: false
   LabeledExpression:
@@ -85,10 +85,10 @@ complexity:
     threshold: 150
   LongMethod:
     active: true
-    threshold: 20
+    threshold: 40
   LongParameterList:
     active: true
-    threshold: 6
+    threshold: 7
     ignoreDefaultParameters: true
   MethodOverloading:
     active: false
@@ -313,7 +313,7 @@ naming:
     parameterPattern: '[a-z][A-Za-z0-9]*'
     excludeClassPattern: '$^'
   MatchingDeclarationName:
-    active: true
+    active: false
   MemberNameEqualsClassName:
     active: false
     ignoreOverriddenFunction: true
@@ -416,12 +416,12 @@ style:
     active: true
     ignoreNumbers: '-1,0,1,2'
     ignoreHashCodeFunction: true
-    ignorePropertyDeclaration: false
+    ignorePropertyDeclaration: true
     ignoreConstantDeclaration: true
     ignoreCompanionObjectPropertyDeclaration: true
-    ignoreAnnotation: false
+    ignoreAnnotation: true
     ignoreNamedArgument: true
-    ignoreEnums: false
+    ignoreEnums: true
   MandatoryBracesIfStatements:
     active: false
   MaxLineLength:
