@@ -4,7 +4,13 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.api.AccessToken
+import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
+import dk.sdu.cloud.auth.api.AuthenticationTokens
+import dk.sdu.cloud.auth.api.OneTimeAccessToken
+import dk.sdu.cloud.auth.api.Person
+import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor

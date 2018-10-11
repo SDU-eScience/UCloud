@@ -3,7 +3,6 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.service.db.HibernateSession
 import org.hibernate.annotations.NaturalId
 import javax.persistence.Entity
-import javax.persistence.GeneratedValue
 import javax.persistence.Id
 import javax.persistence.Table
 

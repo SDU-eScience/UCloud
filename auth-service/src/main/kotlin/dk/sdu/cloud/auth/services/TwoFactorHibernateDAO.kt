@@ -1,9 +1,19 @@
 package dk.sdu.cloud.auth.services
 
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
 import org.hibernate.annotations.NaturalId
 import java.util.*
-import javax.persistence.*
+import javax.persistence.Entity
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Inheritance
+import javax.persistence.InheritanceType
+import javax.persistence.ManyToOne
+import javax.persistence.Table
 
 /**
  * A Hibernate implementation of [TwoFactorDAO]

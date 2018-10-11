@@ -6,7 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class UserDAOTest{
+class UserDAOTest {
 
     @Test
     fun `create a user byPassword and check correct and wrong password`() {

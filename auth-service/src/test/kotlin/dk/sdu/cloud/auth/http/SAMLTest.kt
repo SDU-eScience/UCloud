@@ -4,7 +4,12 @@ import com.onelogin.saml2.model.Organization
 import com.onelogin.saml2.settings.Saml2Settings
 import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.auth.services.*
+import dk.sdu.cloud.auth.services.JWTFactory
+import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
+import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.services.TwoFactorChallengeService
+import dk.sdu.cloud.auth.services.UserCreationService
+import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.utils.testJwtFactory
@@ -22,7 +27,11 @@ import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
-import io.mockk.*
+import io.mockk.Runs
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
 import org.junit.Test
 import java.net.URL
 import java.util.*
@@ -76,7 +85,14 @@ class SAMLTest {
             ).configure(this)
         }
 
-        return TestContext(userDao, refreshTokenDao, testJwtFactory, tokenService, authSettings, samlRequestProcessorFactory)
+        return TestContext(
+            userDao,
+            refreshTokenDao,
+            testJwtFactory,
+            tokenService,
+            authSettings,
+            samlRequestProcessorFactory
+        )
     }
 
     private val samlResponse = Util.base64encoder(

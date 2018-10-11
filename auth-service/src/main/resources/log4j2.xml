@@ -24,7 +24,7 @@
         <Logger name="dk.sdu.cloud.service.HealthCheck" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
-         <Logger name="org.hibernate" level="info" additivity="false">
+        <Logger name="org.hibernate" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="com.zaxxer" level="info" additivity="false">

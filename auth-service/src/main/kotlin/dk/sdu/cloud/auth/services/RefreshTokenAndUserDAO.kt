@@ -1,6 +1,10 @@
 package dk.sdu.cloud.auth.services
 
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
 import org.hibernate.annotations.NaturalId
 import java.util.*
 import javax.persistence.Entity

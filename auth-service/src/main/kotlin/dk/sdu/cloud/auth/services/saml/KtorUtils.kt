@@ -5,7 +5,9 @@ import com.onelogin.saml2.util.Util
 import io.ktor.application.ApplicationCall
 import io.ktor.features.origin
 import io.ktor.http.Parameters
-import io.ktor.request.*
+import io.ktor.request.port
+import io.ktor.request.queryString
+import io.ktor.request.uri
 import io.ktor.response.respondRedirect
 import java.io.IOException
 import java.util.*
@@ -90,10 +92,10 @@ object KtorUtils {
      */
     @Throws(IOException::class)
     suspend fun sendRedirect(
-            response: ApplicationCall,
-            location: String,
-            parameters: Map<String, String> = emptyMap(),
-            stay: Boolean = false
+        response: ApplicationCall,
+        location: String,
+        parameters: Map<String, String> = emptyMap(),
+        stay: Boolean = false
     ): String {
         var target = location
 

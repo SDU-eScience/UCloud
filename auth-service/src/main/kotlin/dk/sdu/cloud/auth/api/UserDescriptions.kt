@@ -1,8 +1,8 @@
 package dk.sdu.cloud.auth.api
 
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
@@ -29,22 +29,23 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
 object UserDescriptions : RESTDescriptions("auth.users") {
     const val baseContext = "/auth/users"
 
-    val createNewUser = callDescriptionWithAudit<CreateUserRequest, CreateUserResponse, CommonErrorMessage, CreateUserAudit> {
-        method = HttpMethod.Post
-        name = "createNewUser"
+    val createNewUser =
+        callDescriptionWithAudit<CreateUserRequest, CreateUserResponse, CommonErrorMessage, CreateUserAudit> {
+            method = HttpMethod.Post
+            name = "createNewUser"
 
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ_WRITE
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ_WRITE
+            }
+
+            path {
+                using(baseContext)
+                +"register"
+            }
+
+            body { bindEntireRequestFromBody() }
         }
-
-        path {
-            using(baseContext)
-            +"register"
-        }
-
-        body { bindEntireRequestFromBody() }
-    }
 
     val changePassword =
         callDescriptionWithAudit<ChangePasswordRequest, Unit, CommonErrorMessage, ChangePasswordAudit> {

@@ -30,7 +30,17 @@ buildscript {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
         classpath "org.jetbrains.dokka:dokka-gradle-plugin:${dokka_version}"
         classpath "org.jetbrains.kotlin:kotlin-noarg:$kotlin_version"
+        classpath "gradle.plugin.io.gitlab.arturbosch.detekt:detekt-gradle-plugin:1.0.0.RC9.2"
     }
+}
+
+apply plugin: io.gitlab.arturbosch.detekt.DetektPlugin
+
+detekt {
+    toolVersion = "1.0.0.RC9.2"
+    input = files("src/main/kotlin")
+    filters = ".*/resources/.*,.*/build/.*"
+    config = files("../shared-gradle/detekt.yml")
 }
 
 //

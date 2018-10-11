@@ -4,7 +4,6 @@ import com.warrenstrange.googleauth.GoogleAuthenticator
 import com.warrenstrange.googleauth.GoogleAuthenticatorConfig
 import com.warrenstrange.googleauth.HmacHashFunction
 import java.net.URI
-import java.net.URLEncoder
 
 /**
  * Initial TOTP credentials for a user.

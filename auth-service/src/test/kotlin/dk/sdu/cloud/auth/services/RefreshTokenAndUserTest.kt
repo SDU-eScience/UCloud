@@ -9,7 +9,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class RefreshTokenAndUserTest{
+class RefreshTokenAndUserTest {
 
     @Test
     fun `insert, find and delete`() {
@@ -39,7 +39,7 @@ class RefreshTokenAndUserTest{
         }
     }
 
-    @Test (expected = UserException.NotFound::class)
+    @Test(expected = UserException.NotFound::class)
     fun `insert - user not found`() {
         withDatabase { db ->
             db.withTransaction { session ->
