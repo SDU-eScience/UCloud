@@ -22,7 +22,7 @@ import { configureStore } from "Utilities/ReduxUtilities";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
 
-const store = configureStore(initObject(Cloud), {
+const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
     files,
     dashboard,

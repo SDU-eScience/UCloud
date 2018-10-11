@@ -13,7 +13,7 @@ describe("Uploader actions", () => {
     test("Show Uploader component", () => {
         const shown = true;
         const store = configureStore({
-            files: initFiles({ homeFolder: "/home/user@test.dk/" }),
+            files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
         store.dispatch(UploaderActions.setUploaderVisible(shown))
@@ -23,7 +23,7 @@ describe("Uploader actions", () => {
     test("Hide Uploader component", () => {
         const shown = false;
         const store = configureStore({
-            files: initFiles({ homeFolder: "/home/user@test.dk/" }),
+            files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
         store.dispatch(UploaderActions.setUploaderVisible(shown))
@@ -32,7 +32,7 @@ describe("Uploader actions", () => {
 
     test("Clear Uploader component uploads", () => {
         const store = configureStore({
-            files: initFiles({ homeFolder: "/home/user@test.dk/" }),
+            files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
         store.dispatch(UploaderActions.setUploads([]));
@@ -41,7 +41,7 @@ describe("Uploader actions", () => {
 
     test.skip("Set Uploader component uploads to more than 0", () => {
         const store = configureStore({
-            files: initFiles({ homeFolder: "/home/user@test.dk/" }),
+            files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
         store.dispatch(UploaderActions.setUploads([{

@@ -17,7 +17,7 @@ describe("Initialize Redux Objects", () => {
 
     test("Files", () => {
         const homeFolder = "/home/user@test.dk/"
-        expect(JSON.parse(JSON.stringify(Defaults.initFiles({ homeFolder })))).toEqual(JSON.parse(JSON.stringify({
+        expect(JSON.parse(JSON.stringify(Defaults.initFiles(homeFolder)))).toEqual(JSON.parse(JSON.stringify({
             page: Defaults.emptyPage,
             sortOrder: SortOrder.ASCENDING,
             sortBy: SortBy.PATH,

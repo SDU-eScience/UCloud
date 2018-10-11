@@ -17,7 +17,7 @@ configure({ adapter: new Adapter() });
 describe("Uploader", () => {
     test("Closed Uploader component", () => {
         const store = configureStore({
-            files: initFiles({ homeFolder: "/home/user@test.dk/" }),
+            files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
         expect(create(
@@ -32,7 +32,7 @@ describe("Uploader", () => {
     // FIXME Tests modal, which requires accessing the portal it is being rendered in?
     test.skip("Open Uploader component", () => {
         const store = configureStore({
-            files: initFiles({ homeFolder: "/home/user@test.dk/" }),
+            files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
         store.dispatch(UploaderActions.setUploaderVisible(true));
@@ -47,7 +47,7 @@ describe("Uploader", () => {
 
     test.skip("Render Uploader component with files", () => {
         const store = configureStore({
-            files: initFiles({ homeFolder: "/home/user@test.dk/" }),
+            files: initFiles("/home/user@test.dk/"),
             uploader: initUploads()
         }, { files, uploader });
         store.dispatch(UploaderActions.setUploaderVisible(false));

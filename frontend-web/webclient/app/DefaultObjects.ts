@@ -209,9 +209,9 @@ export const initDashboard = (): DashboardStateProps => ({
     errors: []
 });
 
-export const initObject = ({ homeFolder }: { homeFolder: string }): ReduxObject => ({
+export const initObject = (homeFolder: string): ReduxObject => ({
     dashboard: initDashboard(),
-    files: initFiles({ homeFolder }),
+    files: initFiles(homeFolder),
     status: initStatus(),
     applications: initApplications(),
     header: initHeader(),
@@ -317,7 +317,7 @@ export const identifierTypes = [
     }
 ];
 
-export const initFiles = ({ homeFolder }: { homeFolder: string }): FilesReduxObject => ({
+export const initFiles = (homeFolder: string): FilesReduxObject => ({
     page: emptyPage,
     sortOrder: SortOrder.ASCENDING,
     sortBy: SortBy.PATH,

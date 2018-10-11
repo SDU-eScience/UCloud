@@ -23,7 +23,7 @@ configure({ adapter: new Adapter() });
 
 
 const createMockStore = (filesPage?: Page<File>) => {
-    const store = configureStore({ files: initFiles({ homeFolder: "/home/user@test.abc/" }) }, { files });
+    const store = configureStore({ files: initFiles("/home/user@test.abc/") }, { files });
     if (!!filesPage) {
         store.dispatch(updateFiles(filesPage));
     }

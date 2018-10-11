@@ -6,7 +6,7 @@ import { configureStore } from "Utilities/ReduxUtilities";
 import { initFiles } from "DefaultObjects";
 import files from "Files/Redux/FilesReducer";
 
-const emptyPageStore = configureStore({ files: initFiles({ homeFolder: "/home/user@test.abc/" }) }, { files });
+const emptyPageStore = configureStore({ files: initFiles("/home/user@test.abc/") }, { files });
 
 const nonEmptyPageStore = { ...emptyPageStore };
 nonEmptyPageStore.getState().files.page = mockFiles_SensitivityConfidential;

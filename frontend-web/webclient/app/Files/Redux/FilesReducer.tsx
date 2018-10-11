@@ -19,7 +19,7 @@ export const CHECK_ALL_FILES = "CHECK_ALL_FILES";
 export const CHECK_FILE = "CHECK_FILE";
 export const CREATE_FOLDER = "CREATE_FOLDER";
 
-const files = (state: FilesReduxObject = initFiles({ homeFolder: "" }), action: FileActions): FilesReduxObject => {
+const files = (state: FilesReduxObject = initFiles(""), action: FileActions): FilesReduxObject => {
     switch (action.type) {
         case RECEIVE_FILES: {
             return {
