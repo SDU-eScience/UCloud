@@ -1,7 +1,5 @@
 import * as Defaults from "DefaultObjects";
 import { SortOrder, SortBy } from "Files";
-import Cloud from "Authentication/lib";
-import { stringify } from "querystring";
 
 describe("Initialize Redux Objects", () => {
     test("Dashboard", () => {

@@ -140,7 +140,7 @@ const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (
             <Accordion.Content active={activeIndices[1]}>
                 <List>
                     <List.Item style={{ paddingLeft: "1em" }}>
-                        <MenuLink icon="newspaper" name="Publications" to="/zenodo" onClick={closeSidebar} />
+                        <MenuLink icon="newspaper outline" name="Publications" to="/zenodo" onClick={closeSidebar} />
                     </List.Item>
                     <List.Item style={{ paddingLeft: "1em" }}>
                         <MenuLink icon="edit" name="Publish" to="/zenodo/publish" onClick={closeSidebar} />
