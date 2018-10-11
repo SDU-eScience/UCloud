@@ -1,4 +1,4 @@
-package dk.sdu.cloud.filesearch.api
+package dk.sdu.cloud.indexing.api
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import dk.sdu.cloud.AccessRight
@@ -16,8 +16,8 @@ data class ReverseLookupRequest(val fileId: String) {
 
 data class ReverseLookupResponse(val canonicalPath: List<String?>)
 
-object LookupDescriptions : RESTDescriptions("fileSearch.lookup") {
-    const val baseContext: String = "/api/file-search/lookup"
+object LookupDescriptions : RESTDescriptions("indexing") {
+    const val baseContext: String = "/api/indexing/lookup"
 
     val reverseLookup = callDescription<ReverseLookupRequest, ReverseLookupResponse, CommonErrorMessage> {
         name = "reverseLookup"
