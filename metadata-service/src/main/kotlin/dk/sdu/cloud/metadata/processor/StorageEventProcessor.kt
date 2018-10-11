@@ -1,14 +1,13 @@
 package dk.sdu.cloud.metadata.processor
 
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.metadata.api.ProjectEvent
 import dk.sdu.cloud.metadata.api.ProjectEventConsumer
 import dk.sdu.cloud.metadata.api.ProjectMetadata
 import dk.sdu.cloud.metadata.services.MetadataCommandService
 import dk.sdu.cloud.metadata.services.ProjectException
 import dk.sdu.cloud.metadata.services.ProjectService
-import dk.sdu.cloud.file.api.StorageEvent
-import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.kstream.KStream
 import org.slf4j.LoggerFactory
 
