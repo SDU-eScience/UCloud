@@ -1,7 +1,14 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.ServiceDescription
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.H2_TEST_CONFIG
+import dk.sdu.cloud.service.db.H2_TEST_JDBC_URL
+import dk.sdu.cloud.service.db.HibernateDatabaseConfig
+import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.service.db.POSTGRES_9_5_DIALECT
+import dk.sdu.cloud.service.db.POSTGRES_DRIVER
+import dk.sdu.cloud.service.db.generateDDL
+import dk.sdu.cloud.service.db.postgresJdbcUrl
 import org.flywaydb.core.Flyway
 
 class HibernateFeature : MicroFeature {

@@ -8,21 +8,31 @@ import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.service.JsonSerde.jsonSerdeFromJavaType
-import io.ktor.application.*
+import io.ktor.application.ApplicationCall
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.ApplicationFeature
+import io.ktor.application.application
+import io.ktor.application.call
+import io.ktor.application.featureOrNull
 import io.ktor.features.origin
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.pipeline.PipelineContext
-import io.ktor.request.*
+import io.ktor.request.ApplicationRequest
+import io.ktor.request.contentType
+import io.ktor.request.header
+import io.ktor.request.httpMethod
+import io.ktor.request.uri
+import io.ktor.request.userAgent
 import io.ktor.response.ApplicationSendPipeline
 import io.ktor.util.AttributeKey
 import kotlinx.coroutines.experimental.async
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
-import java.util.*
+import java.util.Collections
 
 @Deprecated(
     "Replaced with SecurityPrincipalToken",
@@ -87,7 +97,8 @@ class KafkaHttpRouteLogger {
 
             @Suppress("UNCHECKED_CAST")
             auditProducer =
-                    kafka.producer.forStream(description.auditStreamProducersOnly) as MappedEventProducer<String, AuditEvent<*>>
+                    kafka.producer.forStream(description.auditStreamProducersOnly)
+                            as MappedEventProducer<String, AuditEvent<*>>
         }
     }
 

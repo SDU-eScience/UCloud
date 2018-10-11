@@ -5,7 +5,11 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.client.AuthenticatedCloud
-import io.ktor.application.*
+import io.ktor.application.Application
+import io.ktor.application.ApplicationCall
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.call
+import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders

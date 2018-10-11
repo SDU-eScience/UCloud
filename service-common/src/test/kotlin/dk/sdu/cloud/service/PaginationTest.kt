@@ -4,7 +4,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class PaginationTest{
+class PaginationTest {
 
     @Test
     fun `Test pagination more items than itemsPerPage`() {
@@ -43,29 +43,29 @@ class PaginationTest{
 
     @Test
     fun `Test normalized pagination Request`() {
-        val p =  PaginationRequest(10, 0).normalize()
+        val p = PaginationRequest(10, 0).normalize()
         assertEquals(10, p.itemsPerPage)
         assertEquals(0, p.page)
 
     }
 
     @Test
-    fun `Test normalized pagination Request - Not listed number of itemsPerPage` () {
-        val p =  PaginationRequest(12, 0).normalize()
+    fun `Test normalized pagination Request - Not listed number of itemsPerPage`() {
+        val p = PaginationRequest(12, 0).normalize()
         assertEquals(10, p.itemsPerPage)
         assertEquals(0, p.page)
     }
 
     @Test
-    fun `Test normalized pagination Request - Page not given` () {
-        val p =  PaginationRequest(10).normalize()
+    fun `Test normalized pagination Request - Page not given`() {
+        val p = PaginationRequest(10).normalize()
         assertEquals(10, p.itemsPerPage)
         assertEquals(0, p.page)
     }
 
     @Test
-    fun `Test paginate list` () {
-        val p = listOf("hello", "new", "list").paginate(PaginationRequest(10,0).normalize())
+    fun `Test paginate list`() {
+        val p = listOf("hello", "new", "list").paginate(PaginationRequest(10, 0).normalize())
         assertEquals(10, p.itemsPerPage)
         assertEquals("hello", p.items.first())
         assertEquals("list", p.items.last())
@@ -74,8 +74,8 @@ class PaginationTest{
     }
 
     @Test
-    fun `Test paginate list - requested non available page` () {
-        val p = listOf("hello", "new", "list").paginate(PaginationRequest(10,2).normalize())
+    fun `Test paginate list - requested non available page`() {
+        val p = listOf("hello", "new", "list").paginate(PaginationRequest(10, 2).normalize())
         assertEquals(10, p.itemsPerPage)
         assertTrue(p.items.isEmpty())
         assertEquals(3, p.itemsInTotal)
@@ -83,9 +83,9 @@ class PaginationTest{
     }
 
     @Test
-    fun `Test mapping Page` () {
+    fun `Test mapping Page`() {
         val p = Page(3, 10, 0, listOf(2, 4, 9))
-        val z = p.mapItems { i: Int -> i*2}
+        val z = p.mapItems { i: Int -> i * 2 }
         assertEquals(18, z.items.last())
         assertEquals(4, z.items.first())
         assertEquals(3, z.itemsInTotal)

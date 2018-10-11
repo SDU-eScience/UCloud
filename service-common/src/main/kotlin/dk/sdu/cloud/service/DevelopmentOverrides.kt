@@ -2,6 +2,8 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.ServiceDescription
 
+private const val DEFAULT_PORT = 8080
+
 class DevelopmentOverrides : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         ctx.requireFeature(ConfigurationFeature)
@@ -17,7 +19,7 @@ class DevelopmentOverrides : MicroFeature {
                     .forEach { (serviceName, destination) ->
                         val splitValue = destination.split(":")
                         val hostname = splitValue[0].takeIf { it.isNotBlank() } ?: "localhost"
-                        val port = if (splitValue.size <= 1) 8080 else splitValue[1].toIntOrNull()
+                        val port = if (splitValue.size <= 1) DEFAULT_PORT else splitValue[1].toIntOrNull()
                         if (port == null) {
                             log.info(
                                 "Unable to parse destination for $serviceName. " +
@@ -25,7 +27,7 @@ class DevelopmentOverrides : MicroFeature {
                             )
                         }
 
-                        serviceDiscoveryOverrides.createOverride(serviceName, port ?: 8080, hostname)
+                        serviceDiscoveryOverrides.createOverride(serviceName, port ?: DEFAULT_PORT, hostname)
                     }
             }
         }
@@ -45,7 +47,6 @@ var Micro.developmentModeEnabled: Boolean
     get() {
         return attributes.getOrNull(DevelopmentOverrides.ENABLED_KEY) ?: false
     }
-
     internal set(value) {
         attributes[DevelopmentOverrides.ENABLED_KEY] = value
     }

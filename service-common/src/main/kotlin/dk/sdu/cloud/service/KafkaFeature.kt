@@ -13,7 +13,7 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.Topology
 import java.io.File
-import java.util.*
+import java.util.Properties
 
 data class KafkaHostConfig(
     val hostname: String,
@@ -21,6 +21,8 @@ data class KafkaHostConfig(
 ) {
     override fun toString(): String = "$hostname:$port"
 }
+
+private const val POLL_TIMEOUT_IN_MS = 10L
 
 class KafkaServices(
     private val streamsConfig: Properties,
@@ -39,7 +41,7 @@ class KafkaServices(
     ): EventConsumer<Pair<K, V>> {
         val consumer = KafkaConsumer<String, String>(consumerConfig)
         consumer.subscribe(listOf(description.name))
-        return KafkaEventConsumer(internalQueueSize, 10, description, consumer)
+        return KafkaEventConsumer(internalQueueSize, POLL_TIMEOUT_IN_MS, description, consumer)
     }
 }
 

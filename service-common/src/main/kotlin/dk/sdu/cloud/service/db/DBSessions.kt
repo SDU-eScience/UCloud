@@ -34,7 +34,10 @@ inline fun <R, Session> DBSessionFactory<Session>.withTransaction(
     }
 }
 
-inline fun <R, Session> DBSessionFactory<Session>.withTransaction(autoCommit: Boolean = true, closure: (Session) -> R): R {
+inline fun <R, Session> DBSessionFactory<Session>.withTransaction(
+    autoCommit: Boolean = true,
+    closure: (Session) -> R
+): R {
     return withSession {
         withTransaction(it, autoCommit) {
             closure(it)

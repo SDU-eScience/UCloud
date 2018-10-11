@@ -2,9 +2,11 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.ServiceDescription
 
+private const val DEFAULT_PORT = 8080
+
 class ServiceInstanceFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
-        val port = ctx.featureOrNull(ServiceDiscoveryOverrides)?.get(serviceDescription.name)?.port ?: 8080
+        val port = ctx.featureOrNull(ServiceDiscoveryOverrides)?.get(serviceDescription.name)?.port ?: DEFAULT_PORT
 
         ctx.serviceInstance = ServiceInstance(
             serviceDescription.definition(),
@@ -50,7 +52,6 @@ var Micro.serviceInstance: ServiceInstance
         requireFeature(ServiceInstanceFeature)
         return attributes[ServiceInstanceFeature.INSTANCE_KEY]
     }
-
     internal set(value) {
         attributes[ServiceInstanceFeature.INSTANCE_KEY] = value
     }

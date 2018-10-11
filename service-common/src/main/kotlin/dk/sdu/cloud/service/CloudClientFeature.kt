@@ -10,8 +10,7 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.pipeline.PipelineContext
 import io.ktor.util.AttributeKey
-import org.asynchttpclient.BoundRequestBuilder
-import java.util.*
+import java.util.UUID
 
 class CloudClient {
     lateinit var baseCloud: AuthenticatedCloud

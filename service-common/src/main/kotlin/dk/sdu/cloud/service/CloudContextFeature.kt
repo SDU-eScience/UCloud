@@ -14,8 +14,10 @@ class CloudContextFeature : MicroFeature {
             )
         } else {
             if (ctx.developmentModeEnabled) {
-                log.warn("Dev mode is enabled but ServiceDiscoverOverrides is not. " +
-                        "Cannot use development mode CloudContext")
+                log.warn(
+                    "Dev mode is enabled but ServiceDiscoverOverrides is not. " +
+                            "Cannot use development mode CloudContext"
+                )
             }
 
             log.info("Using sdu cloud client")

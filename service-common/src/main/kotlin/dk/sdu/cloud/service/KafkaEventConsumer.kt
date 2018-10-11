@@ -27,6 +27,8 @@ data class KafkaConsumedEvent<V>(
     }
 }
 
+private const val POLL_TIMEOUT = 100L
+
 class KafkaEventConsumer<K, V>(
     private val internalQueueSize: Int,
     private val pollTimeoutInMs: Long = 10,
@@ -61,7 +63,7 @@ class KafkaEventConsumer<K, V>(
     private val processingThread = Thread {
         while (isRunning) {
             // Block for first available element
-            val next: KafkaConsumedEvent<Pair<K, V>>? = queue.poll(100, TimeUnit.MILLISECONDS)
+            val next: KafkaConsumedEvent<Pair<K, V>>? = queue.poll(POLL_TIMEOUT, TimeUnit.MILLISECONDS)
             if (next != null) {
                 val nextBatch = ArrayList<KafkaConsumedEvent<Pair<K, V>>>(queue.remainingCapacity() + 1)
                 nextBatch.add(next)
