@@ -1,6 +1,10 @@
 package dk.sdu.cloud.activity.service
 
-import dk.sdu.cloud.activity.api.*
+import dk.sdu.cloud.activity.api.ActivityStreamEntry
+import dk.sdu.cloud.activity.api.CountedFileActivityOperation
+import dk.sdu.cloud.activity.api.StreamFileReference
+import dk.sdu.cloud.activity.api.TrackedFileActivityOperation
+import dk.sdu.cloud.activity.api.UserReference
 import dk.sdu.cloud.activity.services.ActivityStream
 import dk.sdu.cloud.activity.services.ActivityStreamSubject
 import dk.sdu.cloud.activity.services.HibernateActivityStreamDao

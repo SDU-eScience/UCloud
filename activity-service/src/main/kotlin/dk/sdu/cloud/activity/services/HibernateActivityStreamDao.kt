@@ -1,6 +1,10 @@
 package dk.sdu.cloud.activity.services
 
-import dk.sdu.cloud.activity.api.*
+import dk.sdu.cloud.activity.api.ActivityStreamEntry
+import dk.sdu.cloud.activity.api.CountedFileActivityOperation
+import dk.sdu.cloud.activity.api.StreamFileReference
+import dk.sdu.cloud.activity.api.TrackedFileActivityOperation
+import dk.sdu.cloud.activity.api.UserReference
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -10,10 +14,19 @@ import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
 import java.io.Serializable
-import java.util.*
-import javax.persistence.*
-import javax.persistence.criteria.Expression
-import javax.persistence.criteria.Predicate
+import java.util.Date
+import javax.persistence.Embeddable
+import javax.persistence.EmbeddedId
+import javax.persistence.Entity
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Inheritance
+import javax.persistence.InheritanceType
+import javax.persistence.ManyToOne
+import javax.persistence.OneToMany
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
 import kotlin.collections.HashSet
 
 @Embeddable
@@ -156,6 +169,8 @@ data class HActivityStreamFileReference(
     }
 }
 
+private const val THIRTY_MINUTES_IN_MILLS = 1000 * 60 * 30
+
 class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
     override fun createStreamIfNotExists(session: HibernateSession, stream: ActivityStream) {
         // No-op
@@ -164,7 +179,7 @@ class HibernateActivityStreamDao : ActivityStreamDao<HibernateSession> {
 
     override fun insertIntoStream(session: HibernateSession, stream: ActivityStream, entry: ActivityStreamEntry<*>) {
         log.debug("Inserting entry into stream: stream = $stream, entry = $entry")
-        val earliestTimestampForInsertion = Date(entry.timestamp - 1000 * 60 * 30)
+        val earliestTimestampForInsertion = Date(entry.timestamp - THIRTY_MINUTES_IN_MILLS)
 
         val existing = session.criteria<HActivityStreamEntry> {
             val header = entity[HActivityStreamEntry::header]

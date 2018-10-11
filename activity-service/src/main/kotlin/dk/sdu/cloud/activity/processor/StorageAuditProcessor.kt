@@ -5,9 +5,17 @@ import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.services.ActivityService
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.AuditEvent
+import dk.sdu.cloud.service.EventConsumer
+import dk.sdu.cloud.service.EventConsumerFactory
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.auditStream
+import dk.sdu.cloud.service.batched
+import dk.sdu.cloud.service.consumeBatchAndCommit
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.parseAuditMessageOrNull
+import dk.sdu.cloud.service.stackTraceToString
 
 private typealias Transformer = (parsedEvent: JsonNode) -> List<ActivityEvent>?
 
@@ -25,6 +33,7 @@ class StorageAuditProcessor<DBSession>(
         this::transformMove
     )
 
+    @Suppress("TooGenericExceptionCaught")
     fun init(): List<EventConsumer<*>> = (0 until parallelism).map { _ ->
         streamFactory.createConsumer(FileDescriptions.auditStream).configure { root ->
             root

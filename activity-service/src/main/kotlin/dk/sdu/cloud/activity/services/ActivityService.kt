@@ -1,6 +1,11 @@
 package dk.sdu.cloud.activity.services
 
-import dk.sdu.cloud.activity.api.*
+import dk.sdu.cloud.activity.api.ActivityEvent
+import dk.sdu.cloud.activity.api.ActivityStreamEntry
+import dk.sdu.cloud.activity.api.CountedFileActivityOperation
+import dk.sdu.cloud.activity.api.StreamFileReference
+import dk.sdu.cloud.activity.api.TrackedFileActivityOperation
+import dk.sdu.cloud.activity.api.UserReference
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
@@ -8,10 +13,17 @@ import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.jwtAuth
 import dk.sdu.cloud.filesearch.api.LookupDescriptions
 import dk.sdu.cloud.filesearch.api.ReverseLookupRequest
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.withCausedBy
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.awaitAll
+
+private const val CHUNCK_SIZE = 100
+
 
 class ActivityService<DBSession>(
     private val activityDao: ActivityEventDao<DBSession>,
@@ -163,7 +175,7 @@ class ActivityService<DBSession>(
                     entry.files.map { it.id }
                 }
             }
-        }.asSequence().toSet().asSequence().chunked(100).toList()
+        }.asSequence().toSet().asSequence().chunked(CHUNCK_SIZE).toList()
 
         val fileIdToCanonicalPath = fileIdsInChunks
             .map { chunkOfIds ->
