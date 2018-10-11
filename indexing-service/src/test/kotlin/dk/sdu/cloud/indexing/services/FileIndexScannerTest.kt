@@ -9,13 +9,17 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.objectMockk
+import io.mockk.use
 import kotlinx.coroutines.experimental.io.ByteReadChannel
 import org.elasticsearch.client.RestHighLevelClient
 import org.junit.Test
 import java.io.File
 
-class FileIndexScannerTest{
+class FileIndexScannerTest {
 
     @Test
     fun `test scanner`() {
@@ -68,11 +72,11 @@ class FileIndexScannerTest{
                     val response = mockk<HttpResponse>()
 
                     every { response.status } returns HttpStatusCode.BadRequest
-                    every { response.content} answers {
+                    every { response.content } answers {
                         ByteReadChannel(ByteArray(10))
                     }
                     every { response.headers } answers {
-                        Headers.build {  }
+                        Headers.build { }
                     }
 
                     RESTResponse.Err(

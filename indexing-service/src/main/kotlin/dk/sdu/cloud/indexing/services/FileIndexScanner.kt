@@ -3,18 +3,26 @@ package dk.sdu.cloud.indexing.services
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.indexing.util.*
-import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemRequest
 import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
-import kotlinx.coroutines.experimental.*
+import dk.sdu.cloud.indexing.util.depth
+import dk.sdu.cloud.indexing.util.lazyAssert
+import dk.sdu.cloud.indexing.util.parent
+import dk.sdu.cloud.indexing.util.scrollThroughSearch
+import dk.sdu.cloud.indexing.util.source
+import dk.sdu.cloud.indexing.util.term
+import dk.sdu.cloud.service.Loggable
+import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.awaitAll
+import kotlinx.coroutines.experimental.runBlocking
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.client.RestHighLevelClient
-import java.util.*
+
+private const val CHUNK_SIZE = 100
 
 /**
  * Scans through the file indexes and together with the storage-service fixes inconsistencies
@@ -47,7 +55,7 @@ class FileIndexScanner(
             val queue = arrayListOf(HARDCODED_ROOT)
             while (queue.isNotEmpty()) {
                 // Send up to 100 roots per request
-                val queueInChunks = queue.chunked(100).also { queue.clear() }
+                val queueInChunks = queue.chunked(CHUNK_SIZE).also { queue.clear() }
 
                 val localJobs = queueInChunks.map { roots ->
                     async<Unit> {

@@ -3,11 +3,20 @@ package dk.sdu.cloud.indexing.http
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.indexing.services.IndexQueryService
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.FileChecksum
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse
 import dk.sdu.cloud.indexing.api.IndexingServiceDescription
+import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.indexing.utils.withAuthMock
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -16,7 +25,11 @@ import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.objectMockk
+import io.mockk.use
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -227,7 +240,8 @@ class SearchTest {
                         val mapper = jacksonObjectMapper()
                         val obj = mapper.readTree(response.content)
                         assertEquals("1", obj["itemsInTotal"].toString())
-                        assertTrue(obj["items"].toString().contains("\"path\":\"path/to/object\""))                    }
+                        assertTrue(obj["items"].toString().contains("\"path\":\"path/to/object\""))
+                    }
                 }
             )
         }

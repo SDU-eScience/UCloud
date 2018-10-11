@@ -9,7 +9,12 @@ import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.indexing.util.isNullOrEmpty
 import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.indexing.util.term
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
@@ -18,8 +23,10 @@ import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilder
-import java.util.*
 
+private const val MAX_EXPANSION = 10
+private const val BOOST = 0.5f
+private const val MAX_ITEMS_PER_PAGE = 100
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient
 ) : IndexQueryService, ReverseLookupService {
@@ -45,12 +52,12 @@ class ElasticQueryService(
                     match_phrase_prefix {
                         ElasticIndexedFile.FILE_NAME_FIELD to {
                             this.query = query
-                            max_expansions = 10
+                            max_expansions = MAX_EXPANSION
                         }
                     },
 
                     term {
-                        boost = 0.5f
+                        boost = BOOST
                         ElasticIndexedFile.OWNER_FIELD to query
                     }
                 )
@@ -98,7 +105,7 @@ class ElasticQueryService(
                         add(match_phrase_prefix {
                             ElasticIndexedFile.FILE_NAME_FIELD to {
                                 query = name
-                                max_expansions = 10
+                                max_expansions = MAX_EXPANSION
                             }
                         })
                     }
@@ -166,9 +173,10 @@ class ElasticQueryService(
     }
 
     override fun reverseLookupBatch(fileIds: List<String>): List<String?> {
-        if (fileIds.size > 100) throw RPCException("Bad request. Too many file IDs", HttpStatusCode.BadRequest)
+        if (fileIds.size > MAX_ITEMS_PER_PAGE)
+            throw RPCException("Bad request. Too many file IDs", HttpStatusCode.BadRequest)
 
-        val req = PaginationRequest(100, 0).normalize()
+        val req = PaginationRequest(MAX_ITEMS_PER_PAGE, 0).normalize()
         val files = elasticClient.search<ElasticIndexedFile>(mapper, req, FILES_INDEX) {
             bool {
                 filter {

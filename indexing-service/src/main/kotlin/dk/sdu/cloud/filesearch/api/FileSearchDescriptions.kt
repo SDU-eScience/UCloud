@@ -4,10 +4,10 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.WithPaginationRequest
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
 data class SimpleSearchRequest(

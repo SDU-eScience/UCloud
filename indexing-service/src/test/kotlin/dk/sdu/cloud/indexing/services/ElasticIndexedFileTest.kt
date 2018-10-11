@@ -9,7 +9,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
-class ElasticIndexedFileTest{
+class ElasticIndexedFileTest {
 
     @Test
     fun `Simple create ElasticIndexedFile test`() {
@@ -21,7 +21,7 @@ class ElasticIndexedFileTest{
             2,
             FileType.FILE,
             123456,
-            Timestamps(123456789,12345,1234567),
+            Timestamps(123456789, 12345, 1234567),
             FileChecksum("sha", "checksum"),
             false,
             null,

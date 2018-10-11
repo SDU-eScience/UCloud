@@ -2,14 +2,21 @@ package dk.sdu.cloud.indexing.http
 
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import dk.sdu.cloud.filesearch.api.FileSearchDescriptions
 import dk.sdu.cloud.filesearch.api.SearchResult
 import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.indexing.services.toExternalResult
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.cloudClient
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.Logger
