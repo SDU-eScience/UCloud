@@ -15,7 +15,7 @@ private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
     HibernateSessionFactory.create(H2_TEST_CONFIG.copy(showSQLInStdout = true)).use(closure)
 }
 
-class NotificationDAOTest{
+class NotificationDAOTest {
 
     private val user = "user"
     private val notificationInstance = Notification(
@@ -30,7 +30,7 @@ class NotificationDAOTest{
 
     @Test
     fun `create , find, mark, delete test`() {
-        withDatabase {db ->
+        withDatabase { db ->
             db.withTransaction {
                 val dao = NotificationHibernateDAO()
 
@@ -121,7 +121,7 @@ class NotificationDAOTest{
                 val results = dao.findNotifications(it, user, "anotherType")
                 assertEquals(1, results.itemsInTotal)
                 assertEquals(2, results.items.first().id)
-                assertEquals( "You got mail once more!", results.items.first().message)
+                assertEquals("You got mail once more!", results.items.first().message)
             }
         }
     }
@@ -139,7 +139,7 @@ class NotificationDAOTest{
                 val results = dao.findNotifications(it, user, null, date.time)
                 assertEquals(1, results.itemsInTotal)
                 assertEquals(2, results.items.first().id)
-                assertEquals( "You got mail again!", results.items.first().message)
+                assertEquals("You got mail again!", results.items.first().message)
             }
         }
     }
