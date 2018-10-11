@@ -11,7 +11,8 @@ import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.list
 import org.hibernate.annotations.NaturalId
-import java.util.*
+import java.util.Date
+import java.util.Arrays
 import javax.persistence.Entity
 import javax.persistence.EnumType
 import javax.persistence.Enumerated

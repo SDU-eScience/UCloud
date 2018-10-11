@@ -6,7 +6,7 @@ import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import org.hibernate.annotations.NaturalId
-import java.util.*
+import java.util.UUID
 import javax.persistence.Entity
 import javax.persistence.Id
 import javax.persistence.ManyToOne

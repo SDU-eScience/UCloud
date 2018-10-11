@@ -24,7 +24,7 @@ import dk.sdu.cloud.service.serviceInstance
 import java.io.File
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
-import java.util.*
+import java.util.Properties
 import kotlin.collections.set
 
 private fun loadKeysAndInsertIntoProps(

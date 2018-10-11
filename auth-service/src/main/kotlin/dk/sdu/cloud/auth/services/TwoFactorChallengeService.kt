@@ -8,7 +8,7 @@ import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
-import java.util.*
+import java.util.UUID
 
 /**
  * Exceptions that may be thrown by a [TwoFactorChallengeService]

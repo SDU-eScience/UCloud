@@ -41,7 +41,10 @@ import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 import java.security.SecureRandom
-import java.util.*
+import java.util.Base64
+
+private const val ONE_YEAR_IN_MILLS = 1000 * 60 * 60 * 24 * 365L
+private const val PASSWORD_BYTES = 64
 
 class Server(
     private val db: HibernateSessionFactory,
@@ -109,7 +112,7 @@ class Server(
                 if (existingDevAdmin == null) {
                     log.info("Creating a dummy admin")
                     val random = SecureRandom()
-                    val passwordBytes = ByteArray(64)
+                    val passwordBytes = ByteArray(PASSWORD_BYTES)
                     random.nextBytes(passwordBytes)
                     val password = Base64.getEncoder().encodeToString(passwordBytes)
 
@@ -122,7 +125,7 @@ class Server(
                     )
 
                     userCreationService.blockingCreateUser(user)
-                    val token = tokenService.createAndRegisterTokenFor(user, 1000 * 60 * 60 * 24 * 365L)
+                    val token = tokenService.createAndRegisterTokenFor(user, ONE_YEAR_IN_MILLS)
 
                     log.info("Username: admin@dev")
                     log.info("accessToken = ${token.accessToken}")
