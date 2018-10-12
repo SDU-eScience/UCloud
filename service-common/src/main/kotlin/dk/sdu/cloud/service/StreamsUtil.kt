@@ -3,7 +3,7 @@ package dk.sdu.cloud.service
 import java.io.InputStream
 import java.io.OutputStream
 
-const val DEFAULT_BUFFER_SIZE = 1024 * 64
+private const val DEFAULT_BUFFER_SIZE = 1024 * 64
 
 fun InputStream.transferTo(output: OutputStream, bufferSize: Int = DEFAULT_BUFFER_SIZE) {
     output.use { out ->

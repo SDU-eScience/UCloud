@@ -11,10 +11,14 @@ import dk.sdu.cloud.file.api.WriteConflictPolicy
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.defaultForFilePath
-import okhttp3.*
+import okhttp3.MediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
 import okio.BufferedSink
 import org.slf4j.LoggerFactory
-import java.util.*
+import java.util.UUID
 
 data class BulkUploadErrorMessage(val message: String, val rejectedUploads: List<String>)
 
@@ -22,12 +26,17 @@ data class UploadRequestAudit(val path: String, val sensitivityLevel: Sensitivit
 data class MultiPartUploadAudit(val request: UploadRequestAudit?)
 data class BulkUploadAudit(val path: String, val policy: WriteConflictPolicy, val owner: String)
 
+private const val OK_STATUSCODE_START = 200
+private const val OK_STATUSCODE_END = 299
+private const val BAD_REQUEST_STATUSCODE_START= 400
+private const val BAD_REQUEST_STATUSCODE_END = 499
+
 object MultiPartUploadDescriptions : RESTDescriptions("upload") {
     const val baseContext = "/api/upload"
     private val client = OkHttpClient()
 
     // TODO FIXME Really need that multi-part support
-    val upload = callDescriptionWithAudit<Unit, Unit, CommonErrorMessage, MultiPartUploadAudit> (
+    val upload = callDescriptionWithAudit<Unit, Unit, CommonErrorMessage, MultiPartUploadAudit>(
         body = {
             method = HttpMethod.Post
             name = "upload"
@@ -149,11 +158,11 @@ object MultiPartUploadDescriptions : RESTDescriptions("upload") {
         val response = client.newCall(request).execute()
         val code = response.code()
         when (code) {
-            in 200..299 -> {
+            in OK_STATUSCODE_START..OK_STATUSCODE_END -> {
                 // Everything is good
             }
 
-            in 400..499 -> {
+            in BAD_REQUEST_STATUSCODE_START..BAD_REQUEST_STATUSCODE_END -> {
                 throw IllegalArgumentException("Bad request created! ${response.body()?.string()}")
             }
 

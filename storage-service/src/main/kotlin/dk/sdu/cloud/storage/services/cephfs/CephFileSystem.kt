@@ -3,12 +3,21 @@ package dk.sdu.cloud.storage.services.cephfs
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.FSACLEntity
+import dk.sdu.cloud.storage.services.FSResult
+import dk.sdu.cloud.storage.services.FileAttribute
+import dk.sdu.cloud.storage.services.FileRow
+import dk.sdu.cloud.storage.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.storage.services.StorageUserDao
+import dk.sdu.cloud.storage.services.asBitSet
 import dk.sdu.cloud.storage.util.joinPath
 import dk.sdu.cloud.storage.util.normalize
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+
+
+private const val NOT_FOUND = -2
 
 class CephFileSystem(
     private val userDao: StorageUserDao,
@@ -61,7 +70,7 @@ class CephFileSystem(
                 val sequence = toList.iterator()
                 val realFrom = sequence.next()
                     .takeIf { !it.startsWith(EXIT) }
-                    ?.toCloudPath() ?: return@runCommand FSResult(-2)
+                    ?.toCloudPath() ?: return@runCommand FSResult(NOT_FOUND)
 
                 val realTo = sequence.next().toCloudPath()
 
@@ -160,7 +169,10 @@ class CephFileSystem(
         )
     }
 
-    override fun makeDirectory(ctx: CephFSCommandRunner, path: String): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
+    override fun makeDirectory(
+        ctx: CephFSCommandRunner,
+        path: String
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.MKDIR,
@@ -366,7 +378,7 @@ class CephFileSystem(
         val entity = this
         return when (entity) {
             is FSACLEntity.User -> {
-                val user = userDao.findStorageUser(entity.user) ?: return FSResult(-2)
+                val user = userDao.findStorageUser(entity.user) ?: return FSResult(NOT_FOUND)
                 FSResult(0, FSACLEntity.User(user))
             }
 
@@ -481,6 +493,7 @@ class CephFileSystem(
         private const val EXIT = "EXIT:"
         private const val ATTRIBUTE_PREFIX = "user."
 
+        @Suppress("ObjectPropertyNaming")
         private val CREATED_OR_MODIFIED_ATTRIBUTES = setOf(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
@@ -496,6 +509,7 @@ class CephFileSystem(
             FileAttribute.SENSITIVITY
         )
 
+        @Suppress("ObjectPropertyNaming")
         private val MOVED_ATTRIBUTES = setOf(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
@@ -503,6 +517,7 @@ class CephFileSystem(
             FileAttribute.OWNER
         )
 
+        @Suppress("ObjectPropertyNaming")
         private val DELETED_ATTRIBUTES = setOf(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,

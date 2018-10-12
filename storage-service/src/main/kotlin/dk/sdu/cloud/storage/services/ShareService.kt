@@ -15,7 +15,11 @@ import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.share.api.*
+import dk.sdu.cloud.share.api.CreateShareRequest
+import dk.sdu.cloud.share.api.Share
+import dk.sdu.cloud.share.api.ShareId
+import dk.sdu.cloud.share.api.ShareState
+import dk.sdu.cloud.share.api.SharesByPath
 import dk.sdu.cloud.storage.util.homeDirectory
 import dk.sdu.cloud.storage.util.joinPath
 import io.ktor.http.HttpStatusCode
@@ -128,8 +132,8 @@ class ShareService<DBSession, Ctx : FSUserContext>(
             cloud
         ) as? RESTResponse.Ok ?: throw ShareException.InternalError("Could not look up user")
 
-        lookup.result.results[share.sharedWith] ?:
-        throw ShareException.BadRequest("The user you are attempting to share with does not exist")
+        lookup.result.results[share.sharedWith]
+                ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
 
         val rewritten = Share(
             owner = ctx.user,

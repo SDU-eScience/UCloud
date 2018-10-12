@@ -6,7 +6,7 @@ import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.batched
 import dk.sdu.cloud.service.consumeBatchAndCommit
-import java.util.*
+import java.util.Collections
 
 typealias StorageEventHandler = (List<StorageEvent>) -> Unit
 

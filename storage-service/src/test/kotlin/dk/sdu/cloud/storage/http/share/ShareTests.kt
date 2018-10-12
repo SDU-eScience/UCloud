@@ -3,7 +3,10 @@ package dk.sdu.cloud.storage.http.share
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.LookupUsersResponse
+import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.notification.api.FindByNotificationId
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -26,7 +29,10 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.mockk
+import io.mockk.objectMockk
+import io.mockk.use
 import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals

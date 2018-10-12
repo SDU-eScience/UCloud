@@ -9,7 +9,12 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
-import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.services.TusDAO
+import dk.sdu.cloud.storage.services.TusUploadCreationCommand
+import dk.sdu.cloud.storage.services.withContext
 import dk.sdu.cloud.storage.util.joinPath
 import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.TusExtensions
@@ -33,12 +38,16 @@ import io.ktor.routing.route
 import kotlinx.coroutines.experimental.io.readAvailable
 import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
-import java.util.*
+import java.util.Base64
 
 // TODO FIXME HANDLE EXCEPTIONS
 // TODO FIXME HANDLE EXCEPTIONS
 // TODO FIXME HANDLE EXCEPTIONS
 // TODO FIXME HANDLE EXCEPTIONS
+private const val PAYLOAD_TOO_LARGE_STATUSCODE= 413
+private const val INTERNAL_BUFFER_SIZE = 1024 * 32
+private const val ALLOWED_NUMBER_OF_TOKENS = 3
+
 class TusController<DBSession, Ctx : FSUserContext>(
     private val db: DBSessionFactory<DBSession>,
     private val tusDao: TusDAO<DBSession>,
@@ -151,7 +160,9 @@ class TusController<DBSession, Ctx : FSUserContext>(
                             "Resource of length $length is larger than allowed maximum " +
                                     "${serverConfiguration.maxSizeInBytes}"
                         )
-                        return@handle call.respond(HttpStatusCode(413, "Request Entity Too Large"))
+                        return@handle call.respond(
+                            HttpStatusCode(PAYLOAD_TOO_LARGE_STATUSCODE, "Request Entity Too Large")
+                        )
                     }
 
                     val metadataHeader = call.request.headers[TusHeaders.UploadMetadata] ?: return@handle run {
@@ -266,7 +277,7 @@ class TusController<DBSession, Ctx : FSUserContext>(
             log.info("Starting upload for: $initialState")
             // Start reading some contents
             val channel = call.request.receiveChannel()
-            val internalBuffer = ByteArray(1024 * 32)
+            val internalBuffer = ByteArray(INTERNAL_BUFFER_SIZE)
             commandRunnerFactory.withContext(initialState.owner) { ctx ->
                 fs.write(
                     ctx,
@@ -313,7 +324,7 @@ class TusController<DBSession, Ctx : FSUserContext>(
         companion object {
             fun parse(value: String): SimpleSemanticVersion? {
                 val tokens = value.split('.')
-                if (tokens.size != 3) return null
+                if (tokens.size != ALLOWED_NUMBER_OF_TOKENS) return null
                 val mapped = tokens.map { it.toIntOrNull() }
                 if (mapped.any { it == null }) return null
                 return SimpleSemanticVersion(mapped[0]!!, mapped[1]!!, mapped[2]!!)

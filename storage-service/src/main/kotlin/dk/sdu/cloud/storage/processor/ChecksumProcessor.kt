@@ -3,12 +3,19 @@ package dk.sdu.cloud.storage.processor
 import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.storage.SERVICE_USER
-import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.storage.services.withContext
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.unwrap
 import org.slf4j.LoggerFactory
 import java.math.BigInteger
 import java.security.MessageDigest
+
+private const val BUFFER_SIZE = 4096 * 1024
+private const val HEX_INTEGER = 16
 
 class ChecksumProcessor<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
@@ -36,7 +43,7 @@ class ChecksumProcessor<Ctx : FSUserContext>(
         return coreFs.read(ctx, path) {
             var bytesRead = 0L
             val digest = getMessageDigest(algorithm)
-            val buffer = ByteArray(4096 * 1024)
+            val buffer = ByteArray(BUFFER_SIZE)
             while (true) {
                 val read = read(buffer).takeIf { it != -1 } ?: break
                 bytesRead += read
@@ -106,7 +113,7 @@ class ChecksumProcessor<Ctx : FSUserContext>(
 
         private fun ByteArray.toHexString(): String {
             val bi = BigInteger(1, this)
-            val hex = bi.toString(16)
+            val hex = bi.toString(HEX_INTEGER)
             val paddingLength = this.size * 2 - hex.length
             return if (paddingLength > 0) {
                 String.format("%0" + paddingLength + "d", 0) + hex

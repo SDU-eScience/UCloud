@@ -15,6 +15,7 @@ import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.selects.select
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.IOError
 import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
 
@@ -64,14 +65,39 @@ fun <T> FSResult<T>.unwrap(): T {
     }
 }
 
+private const val OPERATION_NOT_PERMITED = 1
+private const val NO_SUCH_FILE_OR_DIR = 2
+private const val IO_ERROR = 5
+private const val NO_SUCH_DEVICE_OR_ADDRESS = 6
+private const val PERMISSION_DENIED = 13
+private const val DEVICE_OR_RESOURCE_BUSY = 16
+private const val FILE_EXISTS = 17
+private const val NO_SUCH_DEVICE = 19
+private const val NOT_A_DIRECTORY = 20
+private const val IS_A_DIRECTORY = 21
+private const val INVALID_ARGUMENT = 22
+private const val FILE_TABLE_OVERFLOW = 23
+private const val TOO_MANY_OPEN_FILES = 24
+private const val FILE_TOO_LARGE = 27
+private const val NO_SPACE_LEFT_ON_DEVICE = 28
+private const val READ_ONLY_FILE_SYSTEM = 30
+private const val TOO_MANY_LINKS = 31
+private const val PROTOCOL_NOT_SUPPORTED = 93
+
+
 fun throwExceptionBasedOnStatus(status: Int): Nothing {
     when (status.absoluteValue) {
-        // TODO Constants for errnos
-        1, 20, 21, 22 -> throw FSException.BadRequest()
-        2, 93 -> throw FSException.NotFound()
-        5, 6, 16, 19, 23, 24, 27, 28, 30, 31 -> throw FSException.IOException()
-        13 -> throw FSException.PermissionException()
-        17 -> throw FSException.AlreadyExists()
+        OPERATION_NOT_PERMITED, NOT_A_DIRECTORY, IS_A_DIRECTORY, INVALID_ARGUMENT -> throw FSException.BadRequest()
+
+        NO_SUCH_FILE_OR_DIR, PROTOCOL_NOT_SUPPORTED -> throw FSException.NotFound()
+
+        IO_ERROR, NO_SUCH_DEVICE_OR_ADDRESS, DEVICE_OR_RESOURCE_BUSY,
+        NO_SUCH_DEVICE, FILE_TABLE_OVERFLOW, TOO_MANY_OPEN_FILES, FILE_TOO_LARGE,
+        NO_SPACE_LEFT_ON_DEVICE, READ_ONLY_FILE_SYSTEM, TOO_MANY_LINKS -> throw FSException.IOException()
+
+        PERMISSION_DENIED -> throw FSException.PermissionException()
+
+        FILE_EXISTS -> throw FSException.AlreadyExists()
 
         else -> throw FSException.CriticalException("Unknown status code $status")
     }
@@ -117,6 +143,8 @@ sealed class CallResult<S, E>(val status: HttpStatusCode) {
     class Error<S, E>(val item: E, status: HttpStatusCode) : CallResult<S, E>(status)
 }
 
+private const val DELAY_IN_SECONDS = 10L
+
 suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, CommonErrorMessage, *>.tryWithFSAndTimeout(
     factory: FSCommandRunnerFactory<Ctx>,
     user: String,
@@ -131,7 +159,7 @@ suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, Comm
         }
     }
 
-    val timeout = async { delay(10, TimeUnit.SECONDS) }
+    val timeout = async { delay(DELAY_IN_SECONDS, TimeUnit.SECONDS) }
 
     select<Unit> {
         result.onAwait {

@@ -2,8 +2,8 @@ package dk.sdu.cloud.storage.http.files
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.withTestApplication
