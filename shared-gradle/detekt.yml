@@ -21,7 +21,7 @@ test-pattern: # Configure exclusions for test sources
     - 'ForEachOnRange'
 
 build:
-  maxIssues: 40
+  maxIssues: 400
   weights:
     # complexity: 2
     # LongParameterList: 1
@@ -56,7 +56,7 @@ comments:
     active: false
     endOfSentenceFormat: ([.?!][ \t\n\r\f<])|([.?!]$)
   UndocumentedPublicClass:
-    active: false
+    active: true
     searchInNestedClass: true
     searchInInnerClass: true
     searchInInnerObject: true
