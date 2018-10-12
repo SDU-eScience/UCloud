@@ -5,16 +5,29 @@ import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.service.bearer
+import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.zenodo.api.*
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.jobId
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.zenodo.api.ZenodoAccessRedirectURL
+import dk.sdu.cloud.zenodo.api.ZenodoConnectedStatus
+import dk.sdu.cloud.zenodo.api.ZenodoDescriptions
+import dk.sdu.cloud.zenodo.api.ZenodoPublishCommand
+import dk.sdu.cloud.zenodo.api.ZenodoPublishResponse
 import dk.sdu.cloud.zenodo.services.PublicationService
 import dk.sdu.cloud.zenodo.services.ZenodoRPCService
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 import java.net.URL
+
+private const val TWO_HOURS_IN_MILLS = 1000 * 60 * 60 * 2L
 
 class ZenodoController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -34,7 +47,7 @@ class ZenodoController<DBSession>(
                         AuthDescriptions.requestOneTimeTokenWithAudience.requiredAuthScope.toString(),
                         FileDescriptions.download.requiredAuthScope.toString()
                     ),
-                    1000 * 60 * 60 * 2L
+                    TWO_HOURS_IN_MILLS
                 ),
                 call.cloudClient
             )
@@ -104,7 +117,10 @@ class ZenodoController<DBSession>(
     companion object {
         private val log = LoggerFactory.getLogger(ZenodoController::class.java)
 
+        @Suppress("ObjectPropertyNaming")
         private val ALLOWED_PROTOCOLS = setOf("http", "https")
+
+        @Suppress("ObjectPropertyNaming")
         private val ALLOWED_HOSTS = setOf("localhost", "cloud.sdu.dk")
     }
 }

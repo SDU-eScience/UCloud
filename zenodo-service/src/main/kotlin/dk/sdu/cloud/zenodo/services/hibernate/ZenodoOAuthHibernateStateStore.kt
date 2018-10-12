@@ -5,7 +5,7 @@ import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.zenodo.services.OAuthTokens
 import dk.sdu.cloud.zenodo.services.ZenodoOAuthStateStore
-import java.util.*
+import java.util.Date
 
 class ZenodoOAuthHibernateStateStore : ZenodoOAuthStateStore<HibernateSession> {
     override fun storeStateTokenForUser(session: HibernateSession, cloudUser: String, token: String, returnTo: String) {
