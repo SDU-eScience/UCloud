@@ -2,7 +2,6 @@ package dk.sdu.cloud.indexing
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.indexing.http.LookupController
-import dk.sdu.cloud.indexing.http.SearchController
 import dk.sdu.cloud.indexing.processor.StorageEventProcessor
 import dk.sdu.cloud.indexing.services.ElasticIndexingService
 import dk.sdu.cloud.indexing.services.ElasticQueryService
@@ -68,7 +67,6 @@ class Server(
 
             routing {
                 configureControllers(
-                    SearchController(queryService),
                     LookupController(queryService)
                 )
             }

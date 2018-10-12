@@ -85,8 +85,10 @@ class FileIndexScanner(
                         val rootsToContinueOn = deliveryResponse.result.shouldContinue.filterValues { it }.keys
                         val newRoots = rootsToContinueOn.flatMap { root ->
                             rootToMaterialized[root]!!
+                                .asSequence()
                                 .filter { it.fileType == FileType.DIRECTORY && !it.isLink }
                                 .map { it.path }
+                                .toList()
                         }
 
                         synchronized(queueLock) {
