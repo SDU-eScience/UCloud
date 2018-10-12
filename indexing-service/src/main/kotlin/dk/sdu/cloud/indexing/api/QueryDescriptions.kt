@@ -18,11 +18,19 @@ data class AllOf<Pred : Any>(val allOf: List<AnyOf<Pred>>) {
     init {
         if (allOf.isEmpty()) throw IllegalArgumentException("allOf cannot be empty")
     }
+
+    companion object {
+        fun <Pred : Any> with(vararg list: Pred): PredicateCollection<Pred> = AllOf(list.map { AnyOf(listOf(it)) } )
+    }
 }
 
-data class AnyOf<Pred : Any>(val anyOf: List<Pred>, val negate: Boolean) {
+data class AnyOf<Pred : Any>(val anyOf: List<Pred>, val negate: Boolean = false) {
     init {
         if (anyOf.isEmpty()) throw IllegalArgumentException("anyOf cannot be empty")
+    }
+
+    companion object {
+        fun <Pred : Any> with(vararg list: Pred): PredicateCollection<Pred> = AllOf(listOf(AnyOf(list.toList())))
     }
 }
 
@@ -30,10 +38,15 @@ enum class ComparisonOperator {
     GREATER_THAN,
     GREATER_THAN_EQUALS,
     LESS_THAN,
-    LESS_THAN_EQUALS
+    LESS_THAN_EQUALS,
+
+    /**
+     * Will override any other [ComparisonOperator] within a [PredicateCollection]
+     */
+    EQUALS
 }
 
-data class Comparison<Value>(val value: Value, val operator: ComparisonOperator)
+data class Comparison<Value : Any>(val value: Value, val operator: ComparisonOperator)
 
 /**
  * A query for files. It is used in various request classes.

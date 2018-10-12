@@ -37,7 +37,7 @@ import org.elasticsearch.search.aggregations.Aggregations
 import org.elasticsearch.search.aggregations.metrics.avg.Avg
 import org.elasticsearch.search.aggregations.metrics.max.Max
 import org.elasticsearch.search.aggregations.metrics.min.Min
-import org.elasticsearch.search.aggregations.metrics.percentiles.PercentileRanks
+import org.elasticsearch.search.aggregations.metrics.percentiles.Percentiles
 import org.elasticsearch.search.aggregations.metrics.sum.Sum
 import org.elasticsearch.search.builder.SearchSourceBuilder
 
@@ -206,7 +206,9 @@ class ElasticQueryService(
 
     override fun newQuery(query: FileQuery, paging: NormalizedPaginationRequest): Page<EventMaterializedStorageFile> {
         return elasticClient.search<ElasticIndexedFile>(mapper, paging, FILES_INDEX) {
-            searchBasedOnQuery(query)
+            searchBasedOnQuery(query).also {
+                log.debug(it.toString())
+            }
         }.mapItems { it.toMaterializedFile() }
     }
 
@@ -214,10 +216,10 @@ class ElasticQueryService(
         return with(fileQuery) {
             bool {
                 should = ArrayList<QueryBuilder>().apply {
-                    if (fileNameQuery != null) {
+                    fileNameQuery?.forEach { q ->
                         add(match_phrase_prefix {
                             ElasticIndexedFile.FILE_NAME_FIELD to {
-                                this.query = fileNameQuery
+                                this.query = q
                                 max_expansions = 10
                             }
                         })
@@ -225,31 +227,38 @@ class ElasticQueryService(
                 }
 
                 filter = ArrayList<QueryBuilder>().also { list ->
-                    list.add(terms { ElasticIndexedFile.PATH_FIELD to roots })
+                    val filteredRoots = roots.asSequence().filter { it != "/" }.map { it.removeSuffix("/") }.toList()
+                    if (filteredRoots.isNotEmpty()) {
+                        list.add(terms { ElasticIndexedFile.PATH_FIELD to filteredRoots })
+                    }
 
-                    id.addClauses(list, ElasticIndexedFile.ID_FIELD)
-                    owner.addClauses(list, ElasticIndexedFile.OWNER_FIELD)
-                    fileNameExact.addClauses(list, ElasticIndexedFile.FILE_NAME_FIELD)
-                    extensions.addClauses(list, ElasticIndexedFile.FILE_NAME_EXTENSION)
-                    fileTypes.addClauses(list, ElasticIndexedFile.FILE_TYPE_FIELD)
-                    fileDepth.addClauses(list, ElasticIndexedFile.FILE_DEPTH_FIELD)
-                    createdAt.addClauses(list, ElasticIndexedFile.TIMESTAMP_CREATED_FIELD)
-                    modifiedAt.addClauses(list, ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD)
-                    sensitivity.addClauses(list, ElasticIndexedFile.SENSITIVITY_FIELD)
-                    annotations.addClauses(list, ElasticIndexedFile.ANNOTATIONS_FIELD)
-                    linkTarget.addClauses(list, ElasticIndexedFile.LINK_TARGET_FIELD)
-                    linkTargetId.addClauses(list, ElasticIndexedFile.LINK_TARGET_ID_FIELD)
-                    size.addClauses(list, ElasticIndexedFile.SIZE_FIELD)
+                    id.addClausesIfExists(list, ElasticIndexedFile.ID_FIELD)
+                    owner.addClausesIfExists(list, ElasticIndexedFile.OWNER_FIELD)
+                    fileNameExact.addClausesIfExists(list, ElasticIndexedFile.FILE_NAME_FIELD)
+                    extensions.addClausesIfExists(list, ElasticIndexedFile.FILE_NAME_EXTENSION)
+                    fileTypes.addClausesIfExists(list, ElasticIndexedFile.FILE_TYPE_FIELD)
+                    fileDepth.addClausesIfExists(list, ElasticIndexedFile.FILE_DEPTH_FIELD)
+                    createdAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_CREATED_FIELD)
+                    modifiedAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD)
+                    sensitivity.addClausesIfExists(list, ElasticIndexedFile.SENSITIVITY_FIELD)
+                    annotations.addClausesIfExists(list, ElasticIndexedFile.ANNOTATIONS_FIELD)
+                    linkTarget.addClausesIfExists(list, ElasticIndexedFile.LINK_TARGET_FIELD)
+                    linkTargetId.addClausesIfExists(list, ElasticIndexedFile.LINK_TARGET_ID_FIELD)
+                    size.addClausesIfExists(list, ElasticIndexedFile.SIZE_FIELD)
 
                     if (fileIsLink != null) {
                         list.add(terms { ElasticIndexedFile.FILE_IS_LINK_FIELD to listOf(fileIsLink) })
                     }
                 }
+            }.also {
+                if (it.should().isNotEmpty()) {
+                    it.minimumShouldMatch(1)
+                }
             }
         }
     }
 
-    private inline fun <reified P : Any> PredicateCollection<P>?.addClauses(
+    private inline fun <reified P : Any> PredicateCollection<P>?.addClausesIfExists(
         list: MutableList<QueryBuilder>,
         fieldName: String
     ) {
@@ -284,14 +293,23 @@ class ElasticQueryService(
     }
 
     private fun <P : Comparison<*>> AnyOf<P>.toComparisonQuery(fieldName: String): QueryBuilder {
-        val rangeQuery = range {
-            fieldName to {
-                anyOf.forEach {
-                    when (it.operator) {
-                        ComparisonOperator.GREATER_THAN -> gt = it.value
-                        ComparisonOperator.GREATER_THAN_EQUALS -> gte = it.value
-                        ComparisonOperator.LESS_THAN -> lt = it.value
-                        ComparisonOperator.LESS_THAN_EQUALS -> lte = it.value
+        val equalsTerm = anyOf.find { it.operator == ComparisonOperator.EQUALS }
+
+        val query = if (equalsTerm != null) {
+            terms {
+                fieldName to listOf(equalsTerm.value)
+            }
+        } else {
+            range {
+                fieldName to {
+                    anyOf.forEach {
+                        when (it.operator) {
+                            ComparisonOperator.GREATER_THAN -> gt = it.value
+                            ComparisonOperator.GREATER_THAN_EQUALS -> gte = it.value
+                            ComparisonOperator.LESS_THAN -> lt = it.value
+                            ComparisonOperator.LESS_THAN_EQUALS -> lte = it.value
+                            ComparisonOperator.EQUALS -> throw IllegalStateException("Assertion error")
+                        }
                     }
                 }
             }
@@ -299,10 +317,10 @@ class ElasticQueryService(
 
         return if (negate) {
             bool {
-                must_not = listOf(rangeQuery)
+                must_not = listOf(query)
             }
         } else {
-            rangeQuery
+            query
         }
     }
 
@@ -320,13 +338,14 @@ class ElasticQueryService(
                     addNumericAggregations(builder, it, ElasticIndexedFile.FILE_DEPTH_FIELD)
                 }
             })
+            println(source().toString())
         }
 
         val size = statisticsRequest.size?.let {
             retrieveNumericAggregate(result.aggregations, it, ElasticIndexedFile.SIZE_FIELD)
         }
 
-        val fileDepth = statisticsRequest.size?.let {
+        val fileDepth = statisticsRequest.fileDepth?.let {
             retrieveNumericAggregate(result.aggregations, it, ElasticIndexedFile.FILE_DEPTH_FIELD)
         }
 
@@ -422,8 +441,8 @@ class ElasticQueryService(
 
         val percentiles = if (numericStatisticsRequest.percentiles.isNotEmpty()) {
             val variableName = NumericStat.PERCENTILES.computeVariableName(fieldName)
-            val aggregation = aggregations.get<PercentileRanks>(variableName)!!
-            numericStatisticsRequest.percentiles.map { aggregation.percent(it) }
+            val aggregation = aggregations.get<Percentiles>(variableName)!!
+            numericStatisticsRequest.percentiles.map { aggregation.percentile(it) }
         } else emptyList()
 
         return NumericStatistics(
