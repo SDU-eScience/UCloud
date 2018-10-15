@@ -263,7 +263,7 @@ object QueryDescriptions : RESTDescriptions("indexing") {
 
     val query = callDescription<QueryRequest, QueryResponse, CommonErrorMessage> {
         name = "query"
-        method = HttpMethod.Get
+        method = HttpMethod.Post
 
         auth {
             roles = Roles.PRIVILEDGED
@@ -279,7 +279,7 @@ object QueryDescriptions : RESTDescriptions("indexing") {
 
     val statistics = callDescription<StatisticsRequest, StatisticsResponse, CommonErrorMessage> {
         name = "statistics"
-        method = HttpMethod.Get
+        method = HttpMethod.Post
 
         auth {
             roles = Roles.PRIVILEDGED

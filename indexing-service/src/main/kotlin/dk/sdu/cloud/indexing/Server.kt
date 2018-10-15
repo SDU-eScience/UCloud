@@ -2,11 +2,20 @@ package dk.sdu.cloud.indexing
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.indexing.http.LookupController
+import dk.sdu.cloud.indexing.http.QueryController
 import dk.sdu.cloud.indexing.processor.StorageEventProcessor
 import dk.sdu.cloud.indexing.services.ElasticIndexingService
 import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.indexing.services.FileIndexScanner
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.EventConsumer
+import dk.sdu.cloud.service.HttpServerProvider
+import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.installShutdownHandler
+import dk.sdu.cloud.service.startServices
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.http.HttpHost
@@ -67,7 +76,8 @@ class Server(
 
             routing {
                 configureControllers(
-                    LookupController(queryService)
+                    LookupController(queryService),
+                    QueryController(queryService)
                 )
             }
         }

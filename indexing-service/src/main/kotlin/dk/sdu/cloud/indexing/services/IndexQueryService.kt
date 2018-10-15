@@ -10,7 +10,7 @@ import dk.sdu.cloud.indexing.api.StatisticsResponse
 interface IndexQueryService {
     fun findFileByIdOrNull(id: String): EventMaterializedStorageFile?
 
-    fun newQuery(query: FileQuery, paging: NormalizedPaginationRequest): Page<EventMaterializedStorageFile>
+    fun query(query: FileQuery, paging: NormalizedPaginationRequest): Page<EventMaterializedStorageFile>
 
-    fun newStatistics(statisticsRequest: StatisticsRequest): StatisticsResponse
+    fun statisticsQuery(statisticsRequest: StatisticsRequest): StatisticsResponse
 }

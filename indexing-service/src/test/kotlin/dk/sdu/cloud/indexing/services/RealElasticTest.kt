@@ -31,7 +31,7 @@ class RealElasticTest {
 
     @Test
     fun `test size of home`() {
-        val result = service.newStatistics(
+        val result = service.statisticsQuery(
             StatisticsRequest(
                 FileQuery(
                     roots = listOf("/home/jonas@hinchely.dk")
@@ -48,7 +48,7 @@ class RealElasticTest {
 
     @Test
     fun `test number of directories`() {
-        val numberOfDirs = service.newStatistics(
+        val numberOfDirs = service.statisticsQuery(
             StatisticsRequest(
                 FileQuery(
                     roots = listOf("/"),
@@ -62,7 +62,7 @@ class RealElasticTest {
 
     @Test
     fun `test stats`() {
-        val result = service.newStatistics(
+        val result = service.statisticsQuery(
             StatisticsRequest(
                 FileQuery(
                     roots = listOf("/"),
@@ -96,7 +96,7 @@ class RealElasticTest {
             dir: String,
             page: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
         ): Page<EventMaterializedStorageFile> {
-            return service.newQuery(
+            return service.query(
                 FileQuery(
                     roots = listOf(dir),
                     fileDepth = AllOf.with(
@@ -116,7 +116,7 @@ class RealElasticTest {
             dir: String,
             page: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
         ): Page<EventMaterializedStorageFile> {
-            return service.newQuery(
+            return service.query(
                 FileQuery(
                     roots = listOf(dir),
                     fileDepth = AllOf.with(
@@ -133,7 +133,7 @@ class RealElasticTest {
 
     @Test
     fun `search for a file`() {
-        val result = service.newQuery(
+        val result = service.query(
             FileQuery(
                 roots = listOf("/home/jonas@hinchely.dk/"),
                 fileNameQuery = listOf("stdout", "stderr")
@@ -146,7 +146,7 @@ class RealElasticTest {
 
     @Test
     fun `files created in the last week`() {
-        val result = service.newQuery(
+        val result = service.query(
             FileQuery(
                 roots = listOf("/"),
                 createdAt = AnyOf.with(

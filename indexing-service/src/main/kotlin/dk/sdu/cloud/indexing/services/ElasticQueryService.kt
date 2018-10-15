@@ -67,7 +67,7 @@ class ElasticQueryService(
         return fileIds.map { files[it]?.path }
     }
 
-    override fun newQuery(query: FileQuery, paging: NormalizedPaginationRequest): Page<EventMaterializedStorageFile> {
+    override fun query(query: FileQuery, paging: NormalizedPaginationRequest): Page<EventMaterializedStorageFile> {
         return elasticClient.search<ElasticIndexedFile>(mapper, paging, FILES_INDEX) {
             searchBasedOnQuery(query).also {
                 log.debug(it.toString())
@@ -187,7 +187,7 @@ class ElasticQueryService(
         }
     }
 
-    override fun newStatistics(statisticsRequest: StatisticsRequest): StatisticsResponse {
+    override fun statisticsQuery(statisticsRequest: StatisticsRequest): StatisticsResponse {
         val result = elasticClient.search(FILES_INDEX) {
             source(SearchSourceBuilder().also { builder ->
                 builder.size(0)
