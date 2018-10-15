@@ -155,7 +155,7 @@ const App = () => (
 
 ReactDOM.render(
     (
-        <ThemeProvider theme>
+        <ThemeProvider legacy={false} customBreakpoints={false} theme>
             <App />
         </ThemeProvider>
     ),

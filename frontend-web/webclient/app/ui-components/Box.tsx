@@ -6,28 +6,28 @@ import theme from './theme'
 const align = responsiveStyle('text-align', 'align')
 
 interface BoxProps {
-  color: string
-  bg: string
-  width: NumberOrStringOrArray
-  w: NumberOrStringOrArray
+  color?: string
+  bg?: string
+  width?: NumberOrStringOrArray
+  w?: NumberOrStringOrArray
   
   /** Margin */
-  m: NumberOrStringOrArray
-  mt: NumberOrStringOrArray
-  mr: NumberOrStringOrArray
-  mb: NumberOrStringOrArray
-  ml: NumberOrStringOrArray
-  mx: NumberOrStringOrArray
-  my: NumberOrStringOrArray
+  m?: NumberOrStringOrArray
+  mt?: NumberOrStringOrArray
+  mr?: NumberOrStringOrArray
+  mb?: NumberOrStringOrArray
+  ml?: NumberOrStringOrArray
+  mx?: NumberOrStringOrArray
+  my?: NumberOrStringOrArray
 
   /** Padding */
-  p: NumberOrStringOrArray
-  pt: NumberOrStringOrArray
-  pr: NumberOrStringOrArray
-  pb: NumberOrStringOrArray
-  pl: NumberOrStringOrArray
-  px: NumberOrStringOrArray
-  py: NumberOrStringOrArray
+  p?: NumberOrStringOrArray
+  pt?: NumberOrStringOrArray
+  pr?: NumberOrStringOrArray
+  pb?: NumberOrStringOrArray
+  pl?: NumberOrStringOrArray
+  px?: NumberOrStringOrArray
+  py?: NumberOrStringOrArray
 }
 
 const Box = styled<BoxProps, "div">("div")`

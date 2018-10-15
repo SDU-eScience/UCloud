@@ -66,9 +66,9 @@ const Badge = styled<BadgeProps, "div">("div")`
 Badge.displayName = 'Badge'
 
 interface BadgeProps {
-  bg: NumberOrStringOrArray
-  px: NumberOrStringOrArray
-  py: NumberOrStringOrArray
+  bg?: NumberOrStringOrArray
+  px?: NumberOrStringOrArray
+  py?: NumberOrStringOrArray
 }
 
 Badge.defaultProps = {
