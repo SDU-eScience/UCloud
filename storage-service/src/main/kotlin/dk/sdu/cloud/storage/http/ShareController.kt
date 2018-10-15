@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.implement
@@ -10,8 +11,8 @@ import dk.sdu.cloud.share.api.ShareDescriptions
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.services.ShareException
 import dk.sdu.cloud.storage.services.ShareService
-import dk.sdu.cloud.storage.services.tryWithShareService
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
@@ -26,50 +27,58 @@ class ShareController<Ctx : FSUserContext>(
         implement(ShareDescriptions.list) {
             logEntry(log, it)
             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                tryWithShareService {
+                try{
                     ok(shareService.list(ctx, it.normalize()))
+                } catch (ex: ShareException){
+                    error(CommonErrorMessage(ex.why), ex.httpStatusCode)
                 }
+
             }
         }
 
         implement(ShareDescriptions.accept) {
-            logEntry(log, it)
-
-            tryWithShareService {
-                tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                    ok(
-                        shareService.updateState(
-                            ctx,
-                            it.id,
-                            ShareState.ACCEPTED
-                        )
-                    )
+             logEntry(log, it)
+             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+                   try {
+                       ok(
+                           shareService.updateState(
+                               ctx,
+                               it.id,
+                               ShareState.ACCEPTED
+                           )
+                       )
+                   } catch (ex: ShareException){
+                       error(CommonErrorMessage(ex.why), ex.httpStatusCode)
                 }
             }
         }
 
         implement(ShareDescriptions.revoke) {
             logEntry(log, it)
-
-            tryWithShareService {
+            try {
                 ok(shareService.deleteShare(call.securityPrincipal.username, it.id))
+            }catch (ex: ShareException) {
+                error(CommonErrorMessage(ex.why), ex.httpStatusCode)
             }
         }
 
         implement(ShareDescriptions.reject) {
             logEntry(log, it)
-
-            tryWithShareService {
+            try {
                 ok(shareService.deleteShare(call.securityPrincipal.username, it.id))
+            } catch (ex: ShareException) {
+                error(CommonErrorMessage(ex.why), ex.httpStatusCode)
             }
         }
 
         implement(ShareDescriptions.update) {
             logEntry(log, it)
 
-            tryWithShareService {
-                tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+                try {
                     ok(shareService.updateRights(ctx, it.id, it.rights))
+                } catch (ex: ShareException) {
+                    error(CommonErrorMessage(ex.why), ex.httpStatusCode)
                 }
             }
         }
@@ -77,13 +86,14 @@ class ShareController<Ctx : FSUserContext>(
         implement(ShareDescriptions.create) {
             logEntry(log, it)
 
-            tryWithShareService {
-                tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+                try{
                     ok(FindByShareId(shareService.create(ctx, it, call.cloudClient)))
+                } catch (ex: ShareException) {
+                    error(CommonErrorMessage(ex.why), ex.httpStatusCode)
                 }
             }
         }
-
     }
 
     companion object {
