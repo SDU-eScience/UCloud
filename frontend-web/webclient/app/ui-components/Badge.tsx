@@ -1,8 +1,8 @@
-import React from 'react'
-import PropTypes from 'prop-types'
+import * as React from 'react'
 import styled from 'styled-components'
 import { theme as themeGet, space, color } from 'styled-system'
 import theme from './theme'
+import { NumberOrStringOrArray } from './Types';
 
 const type = props => {
   const badgeColors = {
@@ -53,7 +53,7 @@ const type = props => {
   )
 }
 
-const Badge = styled.div`
+const Badge = styled<BadgeProps, "div">("div")`
   border-radius: 99999px;
   display: inline-block;
   font-size: ${props => props.theme.fontSizes[0]}px;
@@ -65,16 +65,10 @@ const Badge = styled.div`
 
 Badge.displayName = 'Badge'
 
-const numberStringOrArray = PropTypes.oneOfType([
-  PropTypes.number,
-  PropTypes.string,
-  PropTypes.array
-])
-
-Badge.propTypes = {
-  bg: PropTypes.string,
-  px: numberStringOrArray,
-  py: numberStringOrArray
+interface BadgeProps {
+  bg: NumberOrStringOrArray
+  px: NumberOrStringOrArray
+  py: NumberOrStringOrArray
 }
 
 Badge.defaultProps = {
