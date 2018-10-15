@@ -66,6 +66,8 @@
     "redux": "4.0.0",
     "semantic-ui-css": "^2.4.0",
     "semantic-ui-react": "^0.82.5",
+    "styled-components": "^3.4.10",
+    "styled-system": "3.1.11",
     "sweetalert2": "7.28.4"
   },
   "devDependencies": {
