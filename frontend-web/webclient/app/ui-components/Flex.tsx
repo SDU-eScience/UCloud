@@ -14,9 +14,8 @@ import {
   JustifyContentProps,
   FlexWrapProps,
   FlexDirectionProps
-} from 'styled-system'
-import { NumberOrStringOrArray } from "./Types";
-import theme from './theme'
+} from "styled-system";
+import theme from "./theme"
 
 const Flex = styled<FlexProps, "div">("div")`
   display: flex;

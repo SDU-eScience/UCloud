@@ -3,7 +3,7 @@ import { space, width, color, responsiveStyle } from 'styled-system'
 import { NumberOrStringOrArray } from "./Types";
 import theme from './theme'
 
-const align = responsiveStyle('text-align', 'align')
+//const align = responsiveStyle('text-align', 'align')
 
 interface BoxProps {
   color?: string
@@ -31,7 +31,7 @@ interface BoxProps {
 }
 
 const Box = styled<BoxProps, "div">("div")`
-  ${space} ${width} ${color} ${align};
+  ${space} ${width} ${color};
 `
 
 Box.displayName = 'Box'

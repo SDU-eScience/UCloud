@@ -41,7 +41,7 @@ interface AbsoluteProps {
   zIndex: string | number
 }
 
-const Absolute = styled<AbsoluteProps>(Box)`
+const Absolute = styled<AbsoluteProps>.Box`
   position: absolute;
   ${top} ${bottom} ${left} ${right}
   ${zIndex}
