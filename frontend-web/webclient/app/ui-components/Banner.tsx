@@ -1,11 +1,12 @@
-import React from 'react'
+import * as React from 'react'
 import Box from './Box'
 import Flex from './Flex'
-import Text from './Text'
+import * as Text from './Text'
 import Icon from './Icon'
 import CloseButton from './CloseButton'
-import Heading from './Heading'
-import PropTypes from 'prop-types'
+import * as Heading from './Heading'
+import { NumberOrStringOrArray, TextAlign } from "./Types";
+import { BoxProps } from "./Box";
 
 const bannerColors = {
   green: {
@@ -48,9 +49,21 @@ const bannerColors = {
     color: 'darkBlue',
     icon: 'information'
   }
+};
+
+export interface BannerProps extends BoxProps {
+  header?: string
+  iconName?: string
+  onClose?: () => void
+  showIcon?: boolean
+  text?: string
+  textAlign?: TextAlign
+  bg?: string
+
+  children?: any
 }
 
-const Banner = props => {
+const Banner = (props: BannerProps) => {
   const bannerColor = bannerColors[props.bg] || {}
   const icon = props.iconName || bannerColor.icon
 
@@ -64,11 +77,11 @@ const Banner = props => {
         {!!icon &&
           !!props.showIcon && <Icon name={icon} mr={2} size={24} mt="-2px" />}
         <Box w={1}>
-          <Text align={props.textAlign}>
+          <Text.div align={props.textAlign}>
             <Heading.h5>{props.header}</Heading.h5>
             <Text.span fontSize={1}>{props.text}</Text.span>
             {props.children}
-          </Text>
+          </Text.div>
         </Box>
         {!!props.onClose && (
           <CloseButton
@@ -84,21 +97,12 @@ const Banner = props => {
   )
 }
 
-Banner.displayName = 'Banner'
-
-Banner.propTypes = {
-  header: PropTypes.string,
-  iconName: PropTypes.string,
-  onClose: PropTypes.func,
-  showIcon: PropTypes.bool,
-  text: PropTypes.string,
-  textAlign: PropTypes.string
-}
+Banner.displayName = 'Banner';
 
 Banner.defaultProps = {
   bg: 'green',
   textAlign: 'left',
   showIcon: true
-}
+};
 
-export default Banner
+export default Banner;

@@ -1,11 +1,10 @@
-import React from 'react'
-import PropTypes from 'prop-types'
+import * as React from 'react'
+import * as PropTypes from 'prop-types'
 import styled, {
   ThemeProvider as StyledThemeProvider,
   injectGlobal
 } from 'styled-components'
 import nextTheme from './theme'
-import legacyTheme from './legacyTheme'
 
 injectGlobal`body {
   margin: 0;
@@ -20,8 +19,8 @@ export const Base = styled.div`
   }
 `
 
-const ThemeProvider = ({ legacy, customBreakpoints, ...props }) => {
-  const baseTheme = legacy ? legacyTheme : nextTheme
+const ThemeProvider = ({ customBreakpoints, ...props }) => {
+  const baseTheme = nextTheme
   const breakpoints = customBreakpoints || baseTheme.breakpoints
   const theme = {
     ...baseTheme,

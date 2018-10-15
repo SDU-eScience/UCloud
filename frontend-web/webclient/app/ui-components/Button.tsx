@@ -1,5 +1,4 @@
 import styled from 'styled-components'
-import PropTypes from 'prop-types'
 import { space } from 'styled-system'
 import theme from './theme'
 
@@ -30,7 +29,9 @@ const size = props => {
 
 const fullWidth = props => (props.fullWidth ? { width: '100%' } : null)
 
-const Button = styled.button`
+type BoxProps = any
+
+const Button = styled<BoxProps, "button">("button")`
   -webkit-font-smoothing: antialiased;
   display: inline-block;
   vertical-align: middle;
@@ -58,17 +59,10 @@ const Button = styled.button`
   ${fullWidth} ${size} ${space};
 `
 
-const numberStringOrArray = PropTypes.oneOfType([
-  PropTypes.number,
-  PropTypes.string,
-  PropTypes.array
-])
-
+/*
 Button.propTypes = {
-  /** Size */
   size: PropTypes.oneOf(['small', 'medium', 'large']),
   fullWidth: PropTypes.bool,
-  /** Margin */
   m: numberStringOrArray,
   mt: numberStringOrArray,
   mr: numberStringOrArray,
@@ -76,7 +70,6 @@ Button.propTypes = {
   ml: numberStringOrArray,
   mx: numberStringOrArray,
   my: numberStringOrArray,
-  /** Padding */
   p: numberStringOrArray,
   pt: numberStringOrArray,
   pr: numberStringOrArray,
@@ -85,11 +78,12 @@ Button.propTypes = {
   px: numberStringOrArray,
   py: numberStringOrArray
 }
+*/
 
 Button.defaultProps = {
   theme: theme
-}
+};
 
-Button.displayName = 'Button'
+Button.displayName = 'Button';
 
-export default Button
+export default Button;

@@ -1,8 +1,8 @@
-import React from 'react'
+import * as React from 'react'
 import styled, { css } from 'styled-components'
-import PropTypes from 'prop-types'
 import theme from './theme'
-import { Icon, Box } from '..'
+import { Icon, Box } from '.'
+import { BoxProps } from './Box';
 
 const Checkbox = props => {
   const { disabled, size } = props
@@ -15,7 +15,17 @@ const Checkbox = props => {
   )
 }
 
-const CheckBoxWrapper = Box.extend`
+interface CheckBoxWrapper extends BoxProps {
+  name?: string
+  id: string
+  size?: number
+  defaultChecked?: boolean
+  disabled?: boolean
+  onChange?: () => void
+  theme?: any
+}
+
+const CheckBoxWrapper = styled(Box)`
   display: inline-block;
   position: relative;
   vertical-align: middle;
@@ -31,41 +41,31 @@ const CheckBoxWrapper = Box.extend`
     & ~ svg[data-name='checked'] {
       display: inline-block;
       color: ${props =>
-        props.disabled
-          ? props.theme.colors.borderGray
-          : props.theme.colors.blue};
+    props.disabled
+      ? props.theme.colors.borderGray
+      : props.theme.colors.blue};
     }
 
     & ~ svg[data-name='empty'] {
       display: none;
     }
   }
-`
+`;
 
 const StyledInput = styled.input`
   appearance: none;
   opacity: 0;
   position: absolute;
   z-index: 0;
-`
+`;
 
-Checkbox.displayName = 'Checkbox'
-
-Checkbox.propTypes = {
-  name: PropTypes.string,
-  id: PropTypes.string.isRequired,
-  size: PropTypes.number,
-  defaultChecked: PropTypes.bool,
-  disabled: PropTypes.bool,
-  onChange: PropTypes.func.isRequired,
-  theme: PropTypes.object
-}
+Checkbox.displayName = 'Checkbox';
 
 Checkbox.defaultProps = {
   size: 20,
   disabled: false,
   defaultChecked: false,
   theme: theme
-}
+};
 
-export default Checkbox
+export default Checkbox;

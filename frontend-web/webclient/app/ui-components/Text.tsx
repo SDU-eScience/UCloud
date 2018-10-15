@@ -1,6 +1,7 @@
 import styled from 'styled-components';
 import { fontSize, space, color, responsiveStyle, SpaceProps } from 'styled-system';
 import theme from './theme';
+import { TextAlign } from './Types';
 
 export const caps = props =>
   props.caps
@@ -22,7 +23,7 @@ export const italic = props => (props.italic ? { fontStyle: 'italic' } : null)
 const align = "";
 interface TextProps extends SpaceProps {
   fontSize?: any
-  align?: "left" | "center" | "right" | "justify"
+  align?: TextAlign
   caps?: boolean
   regular?: boolean
   italic?: boolean
@@ -33,9 +34,11 @@ interface TextProps extends SpaceProps {
 const Text = styled<TextProps, "div">("div")`
   ${italic} ${fontSize} ${space} ${color} ${caps} ${regular} ${bold} ${align};
 `
+export const div = Text;
+export const span = Text.withComponent("span");
 
 Text.defaultProps = {
   theme: theme
-}
+};
 
-export default Text
+export default Text;
