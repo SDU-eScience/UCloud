@@ -5,8 +5,8 @@ import theme from './theme';
 export const caps = props =>
   props.caps
     ? {
-        textTransform: 'uppercase'
-      }
+      textTransform: 'uppercase'
+    }
     : null
 
 export const regular = props =>
@@ -18,8 +18,8 @@ export const bold = props =>
 export const italic = props => (props.italic ? { fontStyle: 'italic' } : null)
 
 // FIXME Consqeuence of updated Style-system?
-const align = responsiveStyle('text-align', 'align')
-
+//const align = responsiveStyle('text-align', 'align')
+const align = "";
 interface TextProps extends SpaceProps {
   fontSize?: any
   align?: "left" | "center" | "right" | "justify"

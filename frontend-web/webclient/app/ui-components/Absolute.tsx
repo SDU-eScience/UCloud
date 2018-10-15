@@ -1,5 +1,5 @@
 import styled from 'styled-components'
-import Box from './Box'
+import Box, { BoxProps } from './Box'
 import { responsiveStyle, style } from 'styled-system'
 import { NumberOrStringOrArray } from "./Types";
 
@@ -33,15 +33,15 @@ const zIndex = style({
   numberToPx: false
 })
 
-interface AbsoluteProps {
-  top: NumberOrStringOrArray
-  bottom: NumberOrStringOrArray
-  left: NumberOrStringOrArray
-  right: NumberOrStringOrArray
-  zIndex: string | number
+interface AbsoluteProps extends BoxProps {
+  top?: NumberOrStringOrArray
+  bottom?: NumberOrStringOrArray
+  left?: NumberOrStringOrArray
+  right?: NumberOrStringOrArray
+  zIndex?: string | number
 }
 
-const Absolute = styled<AbsoluteProps>.Box`
+const Absolute = styled<{}, AbsoluteProps>(Box)`
   position: absolute;
   ${top} ${bottom} ${left} ${right}
   ${zIndex}
