@@ -1,9 +1,9 @@
 import styled from 'styled-components'
 import { NumberOrStringOrArray } from "./Types";
 import Box, { BoxProps } from './Box'
-//import { responsiveStyle, style } from 'styled-system'
+import { responsiveStyle, style } from 'styled-system'
 
-/* const top = responsiveStyle({
+const top = responsiveStyle({
   prop: 'top',
   cssProperty: 'top',
   numberToPx: true
@@ -32,7 +32,6 @@ const zIndex = style({
   cssProperty: 'z-index',
   numberToPx: false
 })
-*/
 
 interface RelativeProps extends BoxProps {
   top?: NumberOrStringOrArray
@@ -44,10 +43,9 @@ interface RelativeProps extends BoxProps {
 
 const Relative = styled<{}, RelativeProps>(Box)`
   position: relative;
+  ${top} ${bottom} ${left} ${right}
+  ${zIndex}
 `;
-
-/* ${top} ${bottom} ${left} ${right}
-${zIndex} */
 
 Relative.displayName = 'Relative'
 

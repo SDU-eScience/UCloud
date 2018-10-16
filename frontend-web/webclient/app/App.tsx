@@ -57,28 +57,29 @@ import {
     Absolute,
     Badge,
     Input,
-    Tooltip
-} from 'ui-components';
-import styled from 'styled-components';
+    Tooltip,
+    FormField,
+    Label,
+    Heading
+} from "ui-components";
+import styled from "styled-components";
 
 const HeaderContainer = styled(Flex)`
     background-color: ${props => props.theme.colors["lightBlue"]}
     height: 48px;
     align-items: center;
+    color: #fff;
+    background-color: rgba(0, 85, 213, 1);
 `;
 
+console.log(Heading);
 
 const Logo = () => (
-    <>
-        <Icon name="hotel" legacy mr={2} />
-
-        <Text
-            bold
-            mx={2}
-        >
+    <Box width="107px" ml="28px">
+        <Text>
             SDUCloud
         </Text>
-    </>
+    </Box>
 );
 
 const Notification = () => (
@@ -106,9 +107,15 @@ const SearchInput = styled(Flex)`
     height: 36px;
     align-items: center;
     color: white;
+    background-color: rgba(236, 239, 244, 0.247);
+    border-color: rgba(201, 201, 233, 1);
 
-    input:focus ~ div {
-        color: black;    
+    input:focus ~ div > label > svg {
+        color: black;
+    }
+
+    input ~ div > label > svg {
+        color: white;
     }
 
     input:focus {
@@ -120,17 +127,36 @@ const SearchInput = styled(Flex)`
         border-radius: 5px;
         background-color: rgba(1, 1, 1, 0.1);
         padding: 10px;
-        padding-left: 26px;
+        padding-left: 30px;
     }
 `;
 
+/* 
 const Search = () => (
-    <SearchInput>
-        <Input placeholder="Do search" />
-        <Absolute>
-            <Icon name="flame" legacy={false} />
-        </Absolute>
-    </SearchInput>
+    <SearchField>
+        <Label htmlFor="search_input" />
+        <Input
+            id="search_input"
+            name="email"
+            placeholder="Do search..."
+        />
+        <Icon name="search" size="20" />
+    </SearchField>
+) */
+
+const Search = () => (
+    <Relative>
+        <SearchInput>
+            <Input pl={"30px"}
+                id="search_input"
+            />
+            <Absolute left="6px" top="7px">
+                <Label htmlFor="search_input">
+                    <Icon name="search" size="20" />
+                </Label>
+            </Absolute>
+        </SearchInput>
+    </Relative>
 );
 
 const Header = () => (
@@ -138,8 +164,7 @@ const Header = () => (
         <Logo />
         <Box ml="auto" />
         <Search />
-
-        <Tooltip top left>
+        <Tooltip bottom left>
             Hello
         </Tooltip>
         <Notification />

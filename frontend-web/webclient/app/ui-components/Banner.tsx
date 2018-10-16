@@ -83,15 +83,15 @@ const Banner = (props: BannerProps) => {
             {props.children}
           </Text.div>
         </Box>
-        {/* !!props.onClose && (
-          <CloseButton
+        {!!props.onClose && (
+          {/* <CloseButton
             onClick={props.onClose}
             ml={2}
             size={24}
             title="close"
             mt="-2px"
-          />
-        ) */}
+          /> */}
+        )}
       </Flex>
     </Box>
   )

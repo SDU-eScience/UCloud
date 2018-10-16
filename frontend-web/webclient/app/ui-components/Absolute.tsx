@@ -1,9 +1,9 @@
 import styled from 'styled-components'
 import Box, { BoxProps } from './Box'
-import { style } from "styled-system";
+import { style, responsiveStyle } from "styled-system";
 import { NumberOrStringOrArray } from "./Types";
 
-/* const top = responsiveStyle({
+const top = responsiveStyle({
   prop: 'top',
   cssProperty: 'top',
   numberToPx: true
@@ -29,9 +29,9 @@ const right = responsiveStyle({
 
 const zIndex = style({
   prop: 'zIndex',
-  cssProperty: 'z-index'
+  cssProperty: 'z-index',
+  numberToPx: true
 })
-*/
 
 interface AbsoluteProps extends BoxProps {
   top?: NumberOrStringOrArray
@@ -43,8 +43,8 @@ interface AbsoluteProps extends BoxProps {
 
 const Absolute = styled<{}, AbsoluteProps>(Box)`
   position: absolute;
+  ${top} ${bottom} ${left} ${right}
+  ${zIndex}
 `
-/* ${top} ${bottom} ${left} ${right}
-  ${zIndex} */
 
 export default Absolute

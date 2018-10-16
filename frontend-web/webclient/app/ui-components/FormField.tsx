@@ -74,16 +74,16 @@ class FormField extends React.Component<any> {
   }
 
   render() {
-    const { label, icon, children, onChange, ...props } = this.props
+    const { label, icon, children, onChange, ...props } = this.props;
 
-    let FieldChild
-    let position = -1
-    let LabelChild
-    let BeforeIcon
-    let AfterIcon
-    let fieldId
-    let fieldPlaceholder
-    let iconAdjustment
+    let FieldChild;
+    let position = -1;
+    let LabelChild;
+    let BeforeIcon;
+    let AfterIcon;
+    let fieldId;
+    let fieldPlaceholder;
+    let iconAdjustment;
 
     React.Children.forEach(children, (child, index) => {
       if (!child) return

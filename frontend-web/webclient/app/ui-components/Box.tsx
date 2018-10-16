@@ -1,9 +1,9 @@
 import styled from 'styled-components'
-import { space, width, color, SpaceProps } from 'styled-system'
+import { space, width, color, SpaceProps, responsiveStyle } from 'styled-system'
 import { NumberOrStringOrArray } from "./Types";
 import theme from './theme'
 
-//const align = responsiveStyle('text-align', 'align')
+const align = responsiveStyle('text-align', 'align')
 
 export interface BoxProps extends SpaceProps {
   color?: string
@@ -17,9 +17,8 @@ export interface BoxProps extends SpaceProps {
 }
 
 const Box = styled<BoxProps, "div">("div")`
-  ${space} ${width} ${color};
+  ${space} ${width} ${color} ${align};
 `
-//${align}
 
 Box.displayName = 'Box'
 
