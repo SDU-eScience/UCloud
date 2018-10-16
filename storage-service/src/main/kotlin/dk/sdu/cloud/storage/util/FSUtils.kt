@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.util
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.service.RESTHandler
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSResult
@@ -202,6 +203,8 @@ fun handleFSException(ex: Exception): Pair<CommonErrorMessage, HttpStatusCode> {
         is TooManyRetries -> {
             handleFSException(ex.causes.first())
         }
+
+        is RPCException -> throw ex
 
         else -> {
             fsLog.warn("Unknown FS exception!")

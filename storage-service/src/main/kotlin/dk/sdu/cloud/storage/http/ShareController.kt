@@ -27,59 +27,38 @@ class ShareController<Ctx : FSUserContext>(
         implement(ShareDescriptions.list) {
             logEntry(log, it)
             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                try{
-                    ok(shareService.list(ctx, it.normalize()))
-                } catch (ex: ShareException){
-                    error(CommonErrorMessage(ex.why), ex.httpStatusCode)
-                }
-
+                ok(shareService.list(ctx, it.normalize()))
             }
         }
 
         implement(ShareDescriptions.accept) {
              logEntry(log, it)
              tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                   try {
-                       ok(
-                           shareService.updateState(
-                               ctx,
-                               it.id,
-                               ShareState.ACCEPTED
-                           )
-                       )
-                   } catch (ex: ShareException){
-                       error(CommonErrorMessage(ex.why), ex.httpStatusCode)
-                }
-            }
+                 ok(
+                     shareService.updateState(
+                         ctx,
+                         it.id,
+                         ShareState.ACCEPTED
+                     )
+                 )
+             }
         }
 
         implement(ShareDescriptions.revoke) {
             logEntry(log, it)
-            try {
-                ok(shareService.deleteShare(call.securityPrincipal.username, it.id))
-            }catch (ex: ShareException) {
-                error(CommonErrorMessage(ex.why), ex.httpStatusCode)
-            }
+            ok(shareService.deleteShare(call.securityPrincipal.username, it.id))
         }
 
         implement(ShareDescriptions.reject) {
             logEntry(log, it)
-            try {
-                ok(shareService.deleteShare(call.securityPrincipal.username, it.id))
-            } catch (ex: ShareException) {
-                error(CommonErrorMessage(ex.why), ex.httpStatusCode)
-            }
+            ok(shareService.deleteShare(call.securityPrincipal.username, it.id))
         }
 
         implement(ShareDescriptions.update) {
             logEntry(log, it)
 
             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                try {
-                    ok(shareService.updateRights(ctx, it.id, it.rights))
-                } catch (ex: ShareException) {
-                    error(CommonErrorMessage(ex.why), ex.httpStatusCode)
-                }
+                ok(shareService.updateRights(ctx, it.id, it.rights))
             }
         }
 
@@ -87,11 +66,7 @@ class ShareController<Ctx : FSUserContext>(
             logEntry(log, it)
 
             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                try{
-                    ok(FindByShareId(shareService.create(ctx, it, call.cloudClient)))
-                } catch (ex: ShareException) {
-                    error(CommonErrorMessage(ex.why), ex.httpStatusCode)
-                }
+                ok(FindByShareId(shareService.create(ctx, it, call.cloudClient)))
             }
         }
     }
