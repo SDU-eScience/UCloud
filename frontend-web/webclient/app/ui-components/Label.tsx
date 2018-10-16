@@ -1,6 +1,6 @@
-import styled from 'styled-components'
-import { space, fontSize, fontWeight, color, propTypes } from 'styled-system'
-import theme from './theme'
+import styled from 'styled-components';
+import { space, fontSize, fontWeight, color } from 'styled-system';
+import theme from './theme';
 
 const nowrap = props =>
   props.nowrap
@@ -19,7 +19,9 @@ const accessiblyHide = props =>
       }
     : null
 
-const Label = styled.label`
+export type LabelProps = any;
+
+const Label = styled<LabelProps, "label">("label")`
   font-size: 10px;
   letter-spacing: 0.2px;
   display: block;
@@ -29,22 +31,24 @@ const Label = styled.label`
   ${space} ${fontSize} ${color} ${fontWeight};
   ${nowrap}
   ${accessiblyHide}
-`
+`;
 
+/*
 Label.propTypes = {
   ...propTypes.space,
   ...propTypes.fontSize,
   ...propTypes.color,
   ...propTypes.fontWeight
 }
+*/
 
 Label.defaultProps = {
   fontSize: '10px',
   fontWeight: 'bold',
   color: 'gray',
   theme: theme
-}
+};
 
-Label.displayName = 'Label'
+Label.displayName = 'Label';
 
-export default Label
+export default Label;

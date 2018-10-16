@@ -1,14 +1,14 @@
-import React from 'react'
-import styled from 'styled-components'
-import system, { space, fontSize } from 'styled-system'
+import * as React from 'react';
+import styled from 'styled-components';
+import { space, fontSize } from 'styled-system';
 
-import theme from './theme'
-import Flex from './Flex'
-import Icon from './Icon'
+import theme from './theme';
+import Flex from './Flex';
+import Icon from './Icon';
 
 const ClickableIcon = Icon.extend`
   pointer-events: none;
-`
+`;
 
 const SelectBase = styled.select`
   appearance: none;
@@ -26,7 +26,8 @@ const SelectBase = styled.select`
     border-color: ${system.theme('colors.blue')};
     box-shadow: 0 0 0 1px ${system.theme('colors.blue')};
   }
-`
+`;
+
 SelectBase.defaultProps = {
   theme,
   fontSize: 1,
@@ -34,13 +35,13 @@ SelectBase.defaultProps = {
   pl: 12,
   pr: 32,
   py: 14
-}
+};
 
 const Select = styled(props => (
   <Flex width={1} align="center">
     <SelectBase {...props} />
     <ClickableIcon legacy={false} ml={-32} name="chevronDown" color="gray" />
   </Flex>
-))``
+))``;
 
 export default Select

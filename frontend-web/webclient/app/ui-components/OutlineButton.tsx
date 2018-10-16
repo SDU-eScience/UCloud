@@ -1,10 +1,14 @@
 import styled from 'styled-components'
-import PropTypes from 'prop-types'
 import { color } from 'styled-system'
 import Button from './Button'
 import theme from './theme'
+import { ButtonProps } from 'semantic-ui-react';
 
-const OutlineButton = styled(Button)`
+export interface OutlineButtonProps extends ButtonProps {
+
+}
+
+const OutlineButton = styled<OutlineButtonProps, OutlineButtonProps>(Button)`
   color: ${props => props.theme.colors.blue};
   box-shadow: inset 0 0 0 2px ${props => props.theme.colors.blue};
   background-color: transparent;
@@ -15,12 +19,12 @@ const OutlineButton = styled(Button)`
       ${props => (props.disabled ? null : props.theme.colors.darkBlue)};
     background-color: transparent;
   }
-`
+`;
 
 OutlineButton.defaultProps = {
   theme: theme
-}
+};
 
-OutlineButton.displayName = 'OutlineButton'
+OutlineButton.displayName = 'OutlineButton';
 
-export default OutlineButton
+export default OutlineButton;

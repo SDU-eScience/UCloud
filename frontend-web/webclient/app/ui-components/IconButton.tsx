@@ -1,11 +1,14 @@
-import React from 'react'
+import * as React from 'react'
 import styled from 'styled-components'
 import Icon from './Icon'
-import Button from './Button'
-import PropTypes from 'prop-types'
+import Button, { ButtonProps } from './Button'
 import theme from './theme'
 
-const TransparentButton = styled(Button)`
+export interface IconbuttonProps extends ButtonProps {
+
+}
+
+const TransparentButton = styled<IconbuttonProps, IconbuttonProps>(Button)`
   padding: 0;
   height: auto;
   background-color: transparent;
@@ -14,23 +17,25 @@ const TransparentButton = styled(Button)`
   &:hover {
     background-color: transparent;
   }
-`
+`;
 
-const IconButton = ({ name, size, legacy, color, ...props }) => (
+const IconButton = ({ name, size, legacy, color, ...props }: IconbuttonProps) => (
   <TransparentButton {...props}>
     <Icon name={name} size={size} color={color} legacy={legacy} />
   </TransparentButton>
-)
+);
 
-IconButton.displayName = 'IconButton'
+IconButton.displayName = 'IconButton';
 
+/*
 IconButton.propTypes = {
   onClick: PropTypes.func,
   title: PropTypes.string
-}
+};
+*/
 
 IconButton.defaultProps = {
   theme: theme
 }
 
-export default IconButton
+export default IconButton;

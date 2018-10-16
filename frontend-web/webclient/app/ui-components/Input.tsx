@@ -1,6 +1,5 @@
 import styled, { keyframes } from 'styled-components'
-import { space, theme, propTypes } from 'styled-system'
-import PropTypes from 'prop-types'
+import { space, theme } from 'styled-system'
 import defaultTheme from './theme'
 
 const borders = ({ color, theme }) => {
@@ -17,7 +16,9 @@ const borders = ({ color, theme }) => {
   }
 }
 
-const Input = styled.input`
+export type InputProps = any;
+
+const Input = styled<InputProps, "input">("input")`
   appearance: none;
   display: block;
   width: 100%;
@@ -46,18 +47,20 @@ const Input = styled.input`
   }
 
   ${borders} ${space};
-`
+`;
 
-Input.displayName = 'Input'
+Input.displayName = 'Input';
+/*
 Input.propTypes = {
   id: PropTypes.string.isRequired,
   color: PropTypes.string,
   ...propTypes.borders,
   ...propTypes.space
-}
+};
+*/
 
 Input.defaultProps = {
   theme: defaultTheme
-}
+};
 
-export default Input
+export default Input;

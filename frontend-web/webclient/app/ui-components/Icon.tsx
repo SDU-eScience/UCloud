@@ -1,10 +1,8 @@
 import * as React from 'react'
 import styled from 'styled-components'
-import { space, color, propTypes, cleanElement } from 'styled-system'
-//import icons from '../icons.json' // TODO We are missing this guy!!!
+import { space, color, cleanElement } from 'styled-system'
+import * as icons from './icons.json';
 import theme from './theme'
-
-const icons = {}; // TODO FIXME
 
 const getPath = ({ name }) => {
   return icons[name]
@@ -12,9 +10,6 @@ const getPath = ({ name }) => {
 
 // Remove `space` props from the `svg` element prevents react warnings
 const CleanSvg = cleanElement('svg')
-CleanSvg.propTypes = {
-  ...propTypes.space
-}
 
 const Base = ({ name, size, legacy, ...props }): JSX.Element => {
   const icon = getPath({ name })
@@ -42,15 +37,15 @@ export interface IconProps {
 const Icon = styled(Base)`
   flex: none;
   ${space} ${color};
-`
+`;
 
-Icon.displayName = 'Icon'
+Icon.displayName = 'Icon';
 
 Icon.defaultProps = {
   name: 'checkLight',
   size: 24,
   legacy: true,
   theme: theme
-}
+};
 
 export default Icon;

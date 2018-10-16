@@ -5,12 +5,12 @@ const Image = styled.img`
   display: block;
   max-width: 100%;
   height: auto;
-`
+`;
 
-Image.displayName = 'Image'
+Image.displayName = 'Image';
 
 Image.defaultProps = {
   theme: theme
-}
+};
 
-export default Image
+export default Image;

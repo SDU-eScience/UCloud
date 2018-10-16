@@ -1,13 +1,15 @@
-import styled from 'styled-components'
-import system, { space, borderColor, propTypes } from 'styled-system'
-import theme from './theme'
-import Box from './Box'
-import Input from './Input'
+import styled from 'styled-components';
+import { space, borderColor } from 'styled-system';
+import theme from './theme';
+import Box from './Box';
+import Input from './Input';
 
-const InputGroup = styled.div`
+export type InputGroupProps = any;
+
+const InputGroup = styled<InputGroupProps, "div">("div")`
   display: flex;
   align-items: center;
-  border-radius: ${system.theme('radius')};
+  border-radius: ${theme['radius']};
   border-width: 1px;
   border-style: solid;
   ${borderColor}
@@ -22,16 +24,18 @@ const InputGroup = styled.div`
     border: 0;
     box-shadow: none;
   }
-`
+`;
 
+/*
 InputGroup.propTypes = {
   ...propTypes.space,
   ...propTypes.borderColor
 }
+*/
 
 InputGroup.defaultProps = {
   theme,
   borderColor: 'borderGray'
-}
+};
 
-export default InputGroup
+export default InputGroup;

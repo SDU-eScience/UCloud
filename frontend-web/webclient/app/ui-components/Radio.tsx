@@ -1,15 +1,9 @@
-import React from 'react'
+import * as React from 'react'
 import styled from 'styled-components'
-import PropTypes from 'prop-types'
 import { color } from 'styled-system'
 import theme from './theme'
 import Icon from './Icon'
 import Text from './Text'
-
-const propTypes = {
-  checked: PropTypes.bool,
-  disabled: PropTypes.bool
-}
 
 const Radio = props => {
   const { checked, disabled } = props
@@ -24,7 +18,12 @@ const Radio = props => {
   )
 }
 
-const RadioWrap = styled.div`
+interface RadioWrapProps {
+  checked: boolean
+  disabled: boolean
+}
+
+const RadioWrap = styled<RadioWrapProps, "div">("div")`
   display: inline-block;
   color: ${props => props.theme.colors.borderGray};
   &:hover {
@@ -33,7 +32,7 @@ const RadioWrap = styled.div`
         ? null
         : `color: ${props.theme.colors.blue};`};
   }
-`
+`;
 
 const RadioInput = styled.input`
   appearance: none;
@@ -49,15 +48,15 @@ const RadioInput = styled.input`
   &:disabled ~ svg {
     color: ${props => props.theme.colors.borderGray};
   }
-`
+`;
 
 const RadioIcon = styled(Icon)`
   vertical-align: middle;
-`
+`;
 
 Radio.propTypes = propTypes
 Radio.defaultProps = {
   theme: theme
-}
+};
 
-export default Radio
+export default Radio;
