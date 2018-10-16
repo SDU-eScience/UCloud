@@ -25,38 +25,42 @@ interface CheckBoxWrapper extends BoxProps {
   theme?: any
 }
 
-const CheckBoxWrapper = styled(Box)`
+type TempPropType = { disabled: boolean, theme: any }
+
+const CheckBoxWrapper = styled<any, any>(Box)`
   display: inline-block;
   position: relative;
   vertical-align: middle;
   cursor: pointer;
-  color: ${props =>
+  color: ${(props: TempPropType) =>
     props.disabled ? props.theme.colors.borderGray : props.theme.colors.gray};
 
-  svg[data-name='checked'] {
-    display: none;
-  }
+svg[data - name= 'checked'] {
+  display: none;
+}
 
-  > input:checked {
-    & ~ svg[data-name='checked'] {
-      display: inline-block;
-      color: ${props =>
+  > input: checked {
+    & ~svg[data - name='checked'] {
+    display: inline - block;
+    color: ${
+  (props: TempPropType) =>
     props.disabled
       ? props.theme.colors.borderGray
-      : props.theme.colors.blue};
-    }
-
-    & ~ svg[data-name='empty'] {
-      display: none;
-    }
+      : props.theme.colors.blue
+  };
   }
+
+    & ~svg[data - name='empty'] {
+    display: none;
+  }
+}
 `;
 
 const StyledInput = styled.input`
-  appearance: none;
-  opacity: 0;
-  position: absolute;
-  z-index: 0;
+appearance: none;
+opacity: 0;
+position: absolute;
+z - index: 0;
 `;
 
 Checkbox.displayName = 'Checkbox';

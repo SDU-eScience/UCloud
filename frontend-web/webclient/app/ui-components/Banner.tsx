@@ -3,7 +3,6 @@ import Box from './Box'
 import Flex from './Flex'
 import * as Text from './Text'
 import Icon from './Icon'
-import CloseButton from './CloseButton'
 import * as Heading from './Heading'
 import { NumberOrStringOrArray, TextAlign } from "./Types";
 import { BoxProps } from "./Box";
@@ -64,7 +63,8 @@ export interface BannerProps extends BoxProps {
 }
 
 const Banner = (props: BannerProps) => {
-  const bannerColor = bannerColors[props.bg] || {}
+  let color = bannerColors[props.bg ? props.bg : 0];
+  const bannerColor = !!color ? color : {};
   const icon = props.iconName || bannerColor.icon
 
   return (
@@ -83,7 +83,7 @@ const Banner = (props: BannerProps) => {
             {props.children}
           </Text.div>
         </Box>
-        {!!props.onClose && (
+        {/* !!props.onClose && (
           <CloseButton
             onClick={props.onClose}
             ml={2}
@@ -91,7 +91,7 @@ const Banner = (props: BannerProps) => {
             title="close"
             mt="-2px"
           />
-        )}
+        ) */}
       </Flex>
     </Box>
   )

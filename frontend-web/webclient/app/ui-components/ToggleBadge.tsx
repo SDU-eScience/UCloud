@@ -1,32 +1,28 @@
-import React from 'react'
-import PropTypes from 'prop-types'
+import * as React from 'react'
 import styled from 'styled-components'
-import { theme as themeGet, space, fontSize, propTypes } from 'styled-system'
+import * as StyledSystem from 'styled-system'
 import theme from './theme'
 
-const ToggleBadge = styled.button`
+const ToggleBadge = styled<any, any>("button")`
   border-radius: ${props => props.theme.radius};
   border: 0;
   display: inline-block;
   font-weight: ${props => props.theme.bold};
   font-family: inherit;
   cursor: pointer;
-  background-color: ${props =>
+  background-color: ${(props: any) =>
     props.selected ? props.theme.colors[props.bg] : props.unSelectedBg};
-  color: ${props => props.theme.colors[props.color]};
-  ${space} ${fontSize};
+  color: ${(props: any) => props.theme.colors[props.color]};
+  ${StyledSystem.space} ${StyledSystem.fontSize};
   &:hover {
-    background-color: ${props => props.theme.colors[props.bg]};
+    background-color: ${(props: any) => props.theme.colors[props.bg]};
   }
 `
 
-ToggleBadge.displayName = 'ToggleBadge'
+ToggleBadge.displayName = "ToggleBadge";
 
-ToggleBadge.propTypes = {
-  selected: PropTypes.bool,
-  ...propTypes.space,
-  ...propTypes.fontSize,
-  ...propTypes.color
+interface ToggleBadge extends StyledSystem.SpaceProps, StyledSystem.FontSizeProps, StyledSystem.ColorProps {
+  selected?: boolean
 }
 
 ToggleBadge.defaultProps = {

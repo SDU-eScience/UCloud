@@ -1,12 +1,12 @@
-import styled from 'styled-components';
-import { fontSize, space, color, responsiveStyle, SpaceProps } from 'styled-system';
-import theme from './theme';
-import { TextAlign } from './Types';
+import styled from "styled-components";
+import * as StyledSystem from "styled-system";
+import theme from "./theme";
+import { TextAlign } from "./Types";
 
 export const caps = props =>
   props.caps
     ? {
-      textTransform: 'uppercase'
+      textTransform: "uppercase"
     }
     : null
 
@@ -21,18 +21,19 @@ export const italic = props => (props.italic ? { fontStyle: 'italic' } : null)
 // FIXME Consqeuence of updated Style-system?
 //const align = responsiveStyle('text-align', 'align')
 const align = "";
-interface TextProps extends SpaceProps {
-  fontSize?: any
+interface TextProps extends StyledSystem.SpaceProps {
+  fontSize?: number | string
   align?: TextAlign
   caps?: boolean
   regular?: boolean
   italic?: boolean
   color?: string
   bold?: boolean
+  mx?: string | number
 }
 
 const Text = styled<TextProps, "div">("div")`
-  ${italic} ${fontSize} ${space} ${color} ${caps} ${regular} ${bold} ${align};
+  ${italic} ${StyledSystem.fontSize} ${StyledSystem.space} ${StyledSystem.color} ${caps} ${regular} ${bold} ${align};
 `
 export const div = Text;
 export const span = Text.withComponent("span");

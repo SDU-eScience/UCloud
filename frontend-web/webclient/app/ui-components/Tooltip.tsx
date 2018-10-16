@@ -1,6 +1,5 @@
-import React from 'react'
-import PropTypes from 'prop-types'
-import Box from './Box'
+import * as React from "react";
+import Box, { BoxProps } from './Box'
 
 import theme from './theme'
 
@@ -9,13 +8,13 @@ import styled from 'styled-components'
 const arrowShadow = props => {
   return props.top
     ? {
-        'box-shadow':
-          '-9.66px 9.66px 8px 0 rgba(0,0,0,0.04), -4px 4px 4px 0 rgba(0,0,0,0.08)'
-      }
+      'box-shadow':
+        '-9.66px 9.66px 8px 0 rgba(0,0,0,0.04), -4px 4px 4px 0 rgba(0,0,0,0.08)'
+    }
     : {
-        'box-shadow':
-          '-1.41px 1.41px 1px 0 rgba(0,0,0,0.01), -3.66px 3.66px 8px 0 rgba(0,0,0,0.04)'
-      }
+      'box-shadow':
+        '-1.41px 1.41px 1px 0 rgba(0,0,0,0.01), -3.66px 3.66px 8px 0 rgba(0,0,0,0.04)'
+    }
 }
 
 const arrowAlign = props => {
@@ -29,27 +28,27 @@ const arrowAlign = props => {
 const arrowPosition = props => {
   return props.top
     ? {
-        'transform-origin': '0 0',
-        transform: 'rotate(-45deg)',
-        bottom: '-10px'
-      }
+      'transform-origin': '0 0',
+      transform: 'rotate(-45deg)',
+      bottom: '-10px'
+    }
     : {
-        'transform-origin': '0 0',
-        transform: 'rotate(-225deg)',
-        top: '0'
-      }
+      'transform-origin': '0 0',
+      transform: 'rotate(-225deg)',
+      top: '0'
+    }
 }
 
 const arrow = props => {
   return props.top
     ? {
-        'transform-origin': '0 0',
-        transform: 'rotate(-45deg)'
-      }
+      'transform-origin': '0 0',
+      transform: 'rotate(-45deg)'
+    }
     : {
-        'transform-origin': '0 0',
-        transform: 'rotate(-225deg)'
-      }
+      'transform-origin': '0 0',
+      transform: 'rotate(-225deg)'
+    }
 }
 
 const tooltipPosition = props => {
@@ -64,7 +63,7 @@ const tooltipAlign = props => {
       : null
 }
 
-const TooltipContent = styled(Box)`
+const TooltipContent = styled<any, any>(Box)`
   display: inline;
   box-shadow: ${({ theme }) => theme.boxShadows[1]};
   font-size: ${({ theme }) => theme.fontSizes[0]}px;
@@ -74,7 +73,7 @@ const TooltipContent = styled(Box)`
   background: ${({ theme, bg }) => theme.colors[bg]};
   text-align: center;
 
-  ${tooltipPosition} ${tooltipAlign} &::after {
+  ${tooltipPosition as any} ${tooltipAlign as any} &::after {
     content: '';
     position: absolute;
     width: 0;
@@ -84,20 +83,20 @@ const TooltipContent = styled(Box)`
     border-color: transparent transparent ${({ theme, bg }) => theme.colors[bg]}
       ${({ theme, bg }) => theme.colors[bg]};
 
-    ${arrow} ${arrowPosition} ${arrowAlign} ${arrowShadow};
+    ${arrow} ${arrowPosition as any} ${arrowAlign as any} ${arrowShadow};
   }
 `
 
-const propTypes = {
-  children: PropTypes.any.isRequired,
-  bg: PropTypes.string,
-  color: PropTypes.string,
-  bottom: PropTypes.bool,
-  top: PropTypes.bool,
-  center: PropTypes.bool,
-  left: PropTypes.bool,
-  right: PropTypes.bool,
-  zIndex: PropTypes.oneOfType([PropTypes.number, PropTypes.string])
+interface Tooltip {
+  children: React.ReactNode
+  bg: string
+  color: string
+  bottom: boolean
+  top: boolean
+  center: boolean
+  left: boolean
+  right: boolean
+  zIndex: number | string
 }
 
 const defaultProps = {
@@ -119,7 +118,6 @@ const Tooltip = ({ children, ...props }) => {
   )
 }
 
-Tooltip.propTypes = propTypes
-Tooltip.defaultProps = defaultProps
+Tooltip.defaultProps = defaultProps;
 
-export default Tooltip
+export default Tooltip;

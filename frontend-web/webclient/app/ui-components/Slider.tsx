@@ -1,17 +1,20 @@
-import React from 'react'
 import styled from 'styled-components'
 import { Range } from 'rc-slider'
-import { space, color, theme as getTheme, propTypes } from 'styled-system'
-import theme from './theme'
+import * as StyledSystem from "styled-system";
 
-const Slider = styled(Range)`
+//{ space, color, theme as getTheme, SpaceProps, ColorProps } from 'styled-system'
+import theme from './theme';
+
+console.log(StyledSystem);
+
+const Slider = styled<any, SliderProps>(Range)`
   position: relative;
   height: 32px;
   padding-top: 12px;
   border-radius: 9999px;
   touch-action: none;
 
-  ${space} ${color} & .rc-slider-rail, & .rc-slider-track {
+  ${StyledSystem.space} ${StyledSystem.color} & .rc-slider-rail, & .rc-slider-track {
     height: 8px;
   }
   & .rc-slider-handle {
@@ -24,7 +27,7 @@ const Slider = styled(Range)`
   & .rc-slider-rail {
     position: absolute;
     width: 100%;
-    background-color: ${getTheme('colors.lightGray')};
+    background-color: ${StyledSystem.theme('colors.lightGray')};
     border-radius: 9999px;
   }
 
@@ -49,12 +52,12 @@ const Slider = styled(Range)`
     &:active {
     }
     &:focus {
-      box-shadow: 0 0 0 2px ${getTheme('colors.alphablue')};
+      box-shadow: 0 0 0 2px ${StyledSystem.theme('colors.alphablue')};
     }
   }
 
   &.rc-slider-disabled {
-    color: ${getTheme('colors.borderGray')};
+    color: ${StyledSystem.theme('colors.borderGray')};
     .rc-slider-track {
     }
     .rc-slider-handle {
@@ -70,9 +73,9 @@ Slider.defaultProps = {
   theme
 }
 
-Slider.propTypes = {
-  ...propTypes.space,
-  ...propTypes.color
+interface SliderProps extends StyledSystem.SpaceProps, StyledSystem.ColorProps {
+  allowCross: boolean
+  color: string
 }
 
 export default Slider

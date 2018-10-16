@@ -1,13 +1,12 @@
-import React from 'react'
-import PropTypes from 'prop-types'
-import styled, { keyframes } from 'styled-components'
-import Box from './Box'
-import Flex from './Flex'
-import Select from './Select'
-import Icon from './Icon'
-import Label from './Label'
-import Input from './Input'
-import theme from './theme'
+import * as React from "react"
+import styled, { keyframes } from "styled-components"
+import Box from "./Box"
+import Flex from "./Flex"
+import Select from "./Select"
+import Icon from "./Icon"
+import Label from "./Label"
+import Input from "./Input"
+import theme from "./theme"
 
 const Root = styled(Box)`
   & ${Box} {
@@ -31,24 +30,27 @@ const labelStyles = {
 const getFieldStyles = showLabel => {
   return showLabel
     ? {
-        paddingTop: '20px',
-        paddingBottom: '8px',
-        transition: 'padding-top 0.1s, padding-bottom 0.1s'
-      }
+      paddingTop: '20px',
+      paddingBottom: '8px',
+      transition: 'padding-top 0.1s, padding-bottom 0.1s'
+    }
     : {
-        paddingTop: '14px',
-        paddingBottom: '14px',
-        transition: 'padding-top 0.1s, padding-bottom 0.1s'
-      }
+      paddingTop: '14px',
+      paddingBottom: '14px',
+      transition: 'padding-top 0.1s, padding-bottom 0.1s'
+    }
 }
 
-const noop = () => {}
+const noop = () => { }
 
 const formElements = [Input, Select]
 
 const isFormElement = element => formElements.includes(element)
 
-class FormField extends React.Component {
+class FormField extends React.Component<any> {
+
+  private fieldRef: any;
+
   static defaultProps = {
     // for backwards-compatibility
     onChange: noop,
@@ -65,7 +67,7 @@ class FormField extends React.Component {
   hasValue = () => {
     const { children } = this.props
     return React.Children.toArray(children).reduce(
-      (a, child) =>
+      (a, child: any) =>
         a || (child && isFormElement(child.type) && child.props.value),
       false
     )
@@ -86,8 +88,7 @@ class FormField extends React.Component {
     React.Children.forEach(children, (child, index) => {
       if (!child) return
 
-      const { type, props } = child
-      switch (type) {
+      switch ((child as any).type) {
         case Label:
           LabelChild = child
           break
@@ -171,65 +172,9 @@ class FormField extends React.Component {
   }
 }
 
-FormField.propTypes = {
-  alwaysShowLabel: PropTypes.bool,
-  children: function(props, propName, componentName) {
-    const prop = props[propName]
-    let count = 0
-    let position = 0
-    let labelCount = 0
-    let firstIconPosition = -1
-    let secondIconPosition = 999
-    let iconCount = 0
-    React.Children.forEach(prop, function(child, index) {
-      if (child === null) return
-      switch (child.type) {
-        case Input:
-          position = index
-          count++
-          break
-        case Icon:
-          if (iconCount === 0) {
-            firstIconPosition = index
-          } else {
-            secondIconPosition = index
-          }
-          iconCount++
-          break
-        case Label:
-          labelCount++
-          break
-        default:
-          return new Error(
-            `'${child.type}' is not a valid child for '${componentName}'`
-          )
-      }
-    })
-
-    if (!count) {
-      return new Error(
-        `No 'Input or Select' child found for '${componentName}'. Please update your component to use the compound version of this component and pass an Input or Select component as the child`
-      )
-    }
-    if (labelCount > 1) {
-      return new Error(
-        `Exactly 0 or 1 'Label' children should be supplied to '${componentName}'`
-      )
-    }
-    if (iconCount > 2) {
-      return new Error(
-        `Up to 2 'Icon' children are supported by '${componentName}'`
-      )
-    }
-    if (
-      iconCount === 2 &&
-      (firstIconPosition > position || secondIconPosition < position)
-    ) {
-      return new Error(
-        `If 2 'Icons' are provided, the 'Field' component must be positioned between them as children of '${componentName}'`
-      )
-    }
-  }
+interface FormFieldProps {
+  alwaysShowLabel?: boolean
+  children: any
 }
 
 export default FormField

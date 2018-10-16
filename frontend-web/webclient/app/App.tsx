@@ -47,21 +47,18 @@ ReactDOM.render(
     document.getElementById("app")
 );
 
-import { 
+import {
     Flex,
-    Box, 
-    Text, 
+    Box,
+    Text,
     Icon,
-    ThemeProvider, 
-    Relative, 
-    Absolute, 
-    Badge, 
+    ThemeProvider,
+    Relative,
+    Absolute,
+    Badge,
     Input,
     Tooltip
 } from 'ui-components';
-
-import * as PropTypes from 'prop-types'
-
 import styled from 'styled-components';
 
 const HeaderContainer = styled(Flex)`
@@ -73,7 +70,7 @@ const HeaderContainer = styled(Flex)`
 
 const Logo = () => (
     <>
-        <Icon name="hotel" mr={2} />
+        <Icon name="hotel" legacy mr={2} />
 
         <Text
             bold
@@ -88,7 +85,7 @@ const Notification = () => (
     <>
         <Relative top="0" left="0">
             <Flex justify="center" width="60px">
-                <Icon name="notification" />
+                <Icon name="notification" legacy={false} />
             </Flex>
 
             <Absolute top="-12px" left="28px">
@@ -131,7 +128,7 @@ const Search = () => (
     <SearchInput>
         <Input placeholder="Do search" />
         <Absolute>
-            <Icon name="flame" />
+            <Icon name="flame" legacy={false} />
         </Absolute>
     </SearchInput>
 );
@@ -144,7 +141,7 @@ const Header = () => (
 
         <Tooltip top left>
             Hello
-        </Tooltip>        
+        </Tooltip>
         <Notification />
     </HeaderContainer>
 );
@@ -155,7 +152,7 @@ const App = () => (
 
 ReactDOM.render(
     (
-        <ThemeProvider legacy={false} customBreakpoints={false} theme>
+        <ThemeProvider customBreakpoints={[]}>
             <App />
         </ThemeProvider>
     ),

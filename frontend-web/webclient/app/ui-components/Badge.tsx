@@ -1,7 +1,7 @@
-import styled from 'styled-components'
-import { theme as themeGet, space, color } from 'styled-system'
-import theme from './theme'
-import { NumberOrStringOrArray } from './Types';
+import styled from "styled-components";
+import { theme as themeGet, space, color } from "styled-system";
+import theme from "./theme";
+import { NumberOrStringOrArray } from "./Types";
 
 const type = props => {
   const badgeColors = {

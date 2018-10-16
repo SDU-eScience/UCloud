@@ -8,11 +8,11 @@ import {
 import Box, { BoxProps } from './Box';
 import theme from './theme';
 
-export interface RaitingBadgeProps extends BoxProps, FontWeightProps, 
+export interface RatingBadgeProps extends BoxProps, FontWeightProps, 
     BorderRadiusProps {
 }
 
-const RatingBadge = styled<RaitingBadgeProps, RaitingBadgeProps>(Box)`
+const RatingBadge = styled<any, any>(Box)`
   display: inline-block;
   line-height: 1.5;
   ${fontWeight} ${borderRadius};

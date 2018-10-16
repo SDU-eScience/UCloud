@@ -1,6 +1,6 @@
 import * as React from 'react';
-import styled from 'styled-components';
-import { space, fontSize } from 'styled-system';
+import styled, { ThemeProps } from 'styled-components';
+import { space, fontSize, theme as themeGet } from 'styled-system';
 
 import theme from './theme';
 import Flex from './Flex';
@@ -10,21 +10,30 @@ const ClickableIcon = Icon.extend`
   pointer-events: none;
 `;
 
-const SelectBase = styled.select`
+interface SelectProps { 
+  theme?: any
+  fontSize?: number | string
+  m?: number | string
+  pl?: number | string
+  pr?: number | string
+  py?: number | string
+}
+
+const SelectBase = styled<SelectProps, "select">("select")`
   appearance: none;
   display: block;
   width: 100%;
   font-family: inherit;
   color: inherit;
   background-color: transparent;
-  border-radius: ${system.theme('radius')};
+  border-radius: ${themeGet('radius')};
   border-width: 1px;
   border-style: solid;
-  border-color: ${system.theme('colors.borderGray')};
+  border-color: ${themeGet('colors.borderGray')};
   ${space} ${fontSize} &:focus {
     outline: none;
-    border-color: ${system.theme('colors.blue')};
-    box-shadow: 0 0 0 1px ${system.theme('colors.blue')};
+    border-color: ${themeGet('colors.blue')};
+    box-shadow: 0 0 0 1px ${themeGet('colors.blue')};
   }
 `;
 

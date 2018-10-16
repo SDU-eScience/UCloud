@@ -10,7 +10,7 @@ injectGlobal`body {
   margin: 0;
 }`
 
-export const Base = styled.div`
+export const Base = styled<any, any>("div")`
   font-family: ${props => props.theme.font};
   line-height: 1.4;
 

@@ -55,6 +55,7 @@
     "moment-timezone": "^0.5.21",
     "npm": "6.4.1",
     "prop-types": "15.6.2",
+    "rc-slider": "^8.6.3",
     "react": "16.5.2",
     "react-datepicker": "^1.6.0",
     "react-dom": "16.5.2",
@@ -66,8 +67,8 @@
     "redux": "4.0.0",
     "semantic-ui-css": "^2.4.0",
     "semantic-ui-react": "^0.82.5",
-    "styled-components": "^3.4.10",
-    "styled-system": "3.1.11",
+    "styled-components": "^3.2.4",
+    "styled-system": "1.0.8",
     "sweetalert2": "7.28.4"
   },
   "devDependencies": {

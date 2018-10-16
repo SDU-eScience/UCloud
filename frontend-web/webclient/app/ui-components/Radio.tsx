@@ -54,7 +54,6 @@ const RadioIcon = styled(Icon)`
   vertical-align: middle;
 `;
 
-Radio.propTypes = propTypes
 Radio.defaultProps = {
   theme: theme
 };
