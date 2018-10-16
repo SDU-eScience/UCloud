@@ -6,6 +6,7 @@ import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.CephFSUserDao
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
 import org.junit.Test
+import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
 
@@ -17,6 +18,7 @@ class CephUploadTest {
         val cephFs = CephFileSystem(userDao, fsRoot.absolutePath)
         val factory = CephFSCommandRunnerFactory(userDao, true)
         val owner = SERVICE_USER
+
         factory.withContext(owner) { ctx ->
             run {
                 val result = cephFs.openForWriting(ctx, "/file.txt", true)

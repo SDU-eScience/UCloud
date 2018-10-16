@@ -20,6 +20,7 @@ import dk.sdu.cloud.storage.http.ShareController
 import dk.sdu.cloud.storage.http.files.configureServerWithFileController
 import dk.sdu.cloud.storage.http.files.setUser
 import dk.sdu.cloud.storage.services.ACLService
+import dk.sdu.cloud.storage.services.ShareException
 import dk.sdu.cloud.storage.services.ShareHibernateDAO
 import dk.sdu.cloud.storage.services.ShareService
 import dk.sdu.cloud.storage.util.cloudToCephFsDAOWithFixedAnswer
@@ -95,6 +96,7 @@ class ShareTests {
                         }.response
 
                         assertEquals(HttpStatusCode.OK, response.status())
+
                         val mapper = jacksonObjectMapper()
                         val id = response.content!!.let { mapper.readValue<FindByShareId>(it).id }
 
@@ -504,6 +506,144 @@ class ShareTests {
         }
     }
 
+    @Test
+    fun `Test sharing with yourself`() {
+        objectMockk(NotificationDescriptions, UserDescriptions).use {
+            coEvery { NotificationDescriptions.create.call(any(), any()) } answers {
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    FindByNotificationId(0)
+                )
+            }
+
+            coEvery { UserDescriptions.lookupUsers.call(any(), any()) } answers {
+                val payload = args.first() as LookupUsersRequest
+
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    LookupUsersResponse(payload.users.map { it to UserLookup(it, Role.USER) }.toMap())
+                )
+            }
+
+            withAuthMock {
+                val user = "user1"
+
+                withTestApplication(
+                    moduleFunction = {
+                        configureServerWithFileController(
+                            userDao = cloudToCephFsDAOWithFixedAnswer(user)
+                        ) {
+                            val db = HibernateSessionFactory.create(
+                                H2_TEST_CONFIG.copy(
+                                    usePool = false,
+                                    showSQLInStdout = true
+                                )
+                            )
+                            val aclService = ACLService(it.fs)
+                            val shareService = ShareService(db, ShareHibernateDAO(), it.runner, aclService, it.coreFs)
+
+                            configureControllers(ShareController(shareService, it.runner))
+                        }
+                    },
+
+                    test = {
+                        val insertResponse = handleRequest(HttpMethod.Put, "/api/shares") {
+                            setUser(user, Role.USER)
+                            setBody(
+                                """
+                            {
+                            "sharedWith" : "$user",
+                            "path" : "/home/$user/folder/a",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                            )
+                        }.response
+                        assertEquals(HttpStatusCode.BadRequest, insertResponse.status())
+                    }
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test create - duplicate`() {
+        objectMockk(NotificationDescriptions, UserDescriptions).use {
+            coEvery { NotificationDescriptions.create.call(any(), any()) } answers {
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    FindByNotificationId(0)
+                )
+            }
+
+            coEvery { UserDescriptions.lookupUsers.call(any(), any()) } answers {
+                val payload = args.first() as LookupUsersRequest
+
+                RESTResponse.Ok(
+                    mockk(relaxed = true),
+                    LookupUsersResponse(payload.users.map { it to UserLookup(it, Role.USER) }.toMap())
+                )
+            }
+
+            withAuthMock {
+                val userToRunAs = "user"
+                val userToShareWith = "user1"
+
+                withTestApplication(
+                    moduleFunction = {
+                        configureServerWithFileController(
+                            userDao = cloudToCephFsDAOWithFixedAnswer(userToRunAs)
+                        ) {
+                            val db = HibernateSessionFactory.create(
+                                H2_TEST_CONFIG.copy(
+                                    usePool = false,
+                                    showSQLInStdout = true
+                                )
+                            )
+                            val aclService = ACLService(it.fs)
+                            val shareService = ShareService(db, ShareHibernateDAO(), it.runner, aclService, it.coreFs)
+
+                            configureControllers(ShareController(shareService, it.runner))
+                        }
+                    },
+
+                    test = {
+                        run {
+                            val insertResponse = handleRequest(HttpMethod.Put, "/api/shares") {
+                                setUser(userToRunAs, Role.USER)
+                                setBody(
+                                    """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/folder/a",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                                )
+                            }.response
+                            assertEquals(HttpStatusCode.OK, insertResponse.status())
+                        }
+
+                        run {
+                            val insertResponse = handleRequest(HttpMethod.Put, "/api/shares") {
+                                setUser(userToRunAs, Role.USER)
+                                setBody(
+                                    """
+                            {
+                            "sharedWith" : "$userToShareWith",
+                            "path" : "/home/$userToShareWith/folder/a",
+                            "rights" : ["READ", "EXECUTE"]
+                            }
+                            """.trimIndent()
+                                )
+                            }.response
+                            assertEquals(HttpStatusCode.Conflict, insertResponse.status())
+                        }
+                    }
+                )
+            }
+        }
+    }
     /*
     @Test
     fun createNotOwnerOfFilesTest() {

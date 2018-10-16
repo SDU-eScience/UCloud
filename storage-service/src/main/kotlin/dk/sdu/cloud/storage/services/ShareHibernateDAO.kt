@@ -160,6 +160,8 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         user: String,
         share: Share
     ): Long {
+        if (user == share.sharedWith) throw ShareException.BadRequest("Cannot share file with yourself")
+
         val exists = session.criteria<ShareEntity> {
             allOf(
                 entity[ShareEntity::path] equal literal(share.path),
@@ -167,8 +169,9 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             )
         }.uniqueResult() != null
 
-        if (exists) throw ShareException.DuplicateException()
-
+        if (exists) {
+            throw ShareException.DuplicateException()
+        }
         return session.save(share.toEntity(copyId = false)) as Long
     }
 
