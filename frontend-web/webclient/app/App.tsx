@@ -70,16 +70,16 @@ const HeaderContainer = styled(Flex)`
     align-items: center;
     color: #fff;
     background-color: rgba(0, 85, 213, 1);
+
+    * {
+        font-family: "Roboto", Arial, Helvetica, sans-serif;
+    }
 `;
 
-console.log(Heading);
-
 const Logo = () => (
-    <Box width="107px" ml="28px">
-        <Text>
-            SDUCloud
+    <Text fontSize="3">
+        SDUCloud
         </Text>
-    </Box>
 );
 
 const Notification = () => (
@@ -110,6 +110,10 @@ const SearchInput = styled(Flex)`
     background-color: rgba(236, 239, 244, 0.247);
     border-color: rgba(201, 201, 233, 1);
 
+    input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input::-moz-placeholder { 
+        color: black;
+    }
+
     input:focus ~ div > label > svg {
         color: black;
     }
@@ -131,24 +135,12 @@ const SearchInput = styled(Flex)`
     }
 `;
 
-/* 
-const Search = () => (
-    <SearchField>
-        <Label htmlFor="search_input" />
-        <Input
-            id="search_input"
-            name="email"
-            placeholder="Do search..."
-        />
-        <Icon name="search" size="20" />
-    </SearchField>
-) */
-
 const Search = () => (
     <Relative>
         <SearchInput>
             <Input pl={"30px"}
                 id="search_input"
+                placeholder="Do search..."
             />
             <Absolute left="6px" top="7px">
                 <Label htmlFor="search_input">
