@@ -1,12 +1,12 @@
 import * as React from 'react';
 import styled, { ThemeProps } from 'styled-components';
-import { space, fontSize, theme as themeGet } from 'styled-system';
+import { space, fontSize, themeGet } from 'styled-system';
 
 import theme from './theme';
 import Flex from './Flex';
 import Icon from './Icon';
 
-const ClickableIcon = Icon.extend`
+const ClickableIcon = styled(Icon)`
   pointer-events: none;
 `;
 
@@ -19,7 +19,7 @@ interface SelectProps {
   py?: number | string
 }
 
-const SelectBase = styled<SelectProps, "select">("select")`
+const SelectBase = styled("select")<SelectProps>`
   appearance: none;
   display: block;
   width: 100%;
@@ -49,7 +49,7 @@ SelectBase.defaultProps = {
 const Select = styled(props => (
   <Flex width={1} align="center">
     <SelectBase {...props} />
-    <ClickableIcon legacy={false} ml={-32} name="chevronDown" color="gray" />
+    <ClickableIcon ml={-32} name="chevronDown" color="gray" />
   </Flex>
 ))``;
 

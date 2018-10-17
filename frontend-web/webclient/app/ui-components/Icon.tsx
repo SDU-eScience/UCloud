@@ -1,20 +1,22 @@
 import * as React from 'react'
 import styled from 'styled-components'
-import { space, color, cleanElement } from 'styled-system'
-import { icons } from "./icons.json";
-import theme from "./theme"
+import { space, color } from 'styled-system'
+import { icons } from './icons.json'
+import theme from './theme'
 
-const getPath = ({ name, legacy }) => legacy ? icons.legacy[name] : icons[name];
+const getPath = ({ name }) => icons[name]
 
-// Remove `space` props from the `svg` element prevents react warnings
-const CleanSvg = cleanElement('svg')
+const Svg = styled.svg`
+  flex: none;
+  ${space} ${color};
+`
 
-function Base({ name, size, legacy, ...props }): JSX.Element {
-  const icon = getPath({ name, legacy })
+const IconBase = ({ name, size, ...props }): JSX.Element  => {
+  const icon = getPath({ name })
   if (!icon) return (<></>);
 
   return (
-    <CleanSvg
+    <Svg
       {...props}
       viewBox={icon.viewBox}
       width={size}
@@ -22,7 +24,7 @@ function Base({ name, size, legacy, ...props }): JSX.Element {
       fill="currentcolor"
     >
       <path d={icon.path} />
-    </CleanSvg>
+    </Svg>
   )
 }
 
@@ -32,18 +34,18 @@ export interface IconProps {
   color: string
 }
 
-const Icon = styled(Base)`
+const Icon = styled(IconBase)`
   flex: none;
   ${space} ${color};
 `;
 
-Icon.displayName = 'Icon';
+Icon.displayName = 'Icon'
 
 Icon.defaultProps = {
+  theme,
   name: 'checkLight',
-  size: 24,
-  legacy: true,
-  theme: theme
-};
+  size: 24
+}
 
-export default Icon;
+
+export default Icon

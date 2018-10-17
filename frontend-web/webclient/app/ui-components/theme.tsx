@@ -1,4 +1,4 @@
-const createMediaQuery = n => `@media screen and (min-width:${n}em)`
+const createMediaQuery = n => `@media screen and (min-width:${n})`
 
 const addAliases = (arr, aliases) =>
   aliases.forEach((key, i) =>
@@ -10,7 +10,7 @@ const addAliases = (arr, aliases) =>
     })
   )
 
-export const breakpoints = [32, 40, 48, 64]
+export const breakpoints = [32, 40, 48, 64].map(n => n + 'em')
 
 export const mediaQueries = breakpoints.map(createMediaQuery)
 
@@ -21,17 +21,24 @@ addAliases(mediaQueries, aliases)
 
 export const space = [0, 4, 8, 16, 32, 64, 128]
 
-export const font = `'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif`
+export const font = `Roboto,Montserrat,'Helvetica Neue',Helvetica,Arial,sans-serif`
 
-export const fontSizes = [12, 14, 16, 20, 24, 32, 48]
+export const fontSizes = [12, 14, 16, 20, 24, 32, 40, 56, 72]
 
-export const regular = 400
-export const bold = 600
+export const medium = 500
+export const bold = 700
+export const regular = medium
 
 // styled-system's `fontWeight` function can hook into the `fontWeights` object
 export const fontWeights = {
-  regular,
-  bold
+  medium,
+  bold,
+  regular
+}
+
+export const lineHeights = {
+  standard: 1.5,
+  display: 1.25
 }
 
 const letterSpacings = {
@@ -39,17 +46,84 @@ const letterSpacings = {
   caps: '0.025em'
 }
 
+export const textStyles = {
+  display8: {
+    fontSize: fontSizes[8] + 'px',
+    fontWeight: fontWeights.bold,
+    lineHeight: lineHeights.display
+  },
+  display7: {
+    fontSize: fontSizes[7] + 'px',
+    fontWeight: fontWeights.bold,
+    lineHeight: lineHeights.display
+  },
+  display6: {
+    fontSize: fontSizes[6] + 'px',
+    fontWeight: fontWeights.bold,
+    lineHeight: lineHeights.display
+  },
+  display5: {
+    fontSize: fontSizes[5] + 'px',
+    fontWeight: fontWeights.bold,
+    lineHeight: lineHeights.display
+  },
+  display4: {
+    fontSize: fontSizes[4] + 'px',
+    fontWeight: fontWeights.bold,
+    lineHeight: lineHeights.display
+  },
+  display3: {
+    fontSize: fontSizes[3] + 'px',
+    fontWeight: fontWeights.bold,
+    lineHeight: lineHeights.display
+  },
+  display2: {
+    fontSize: fontSizes[2] + 'px',
+    fontWeight: fontWeights.bold,
+    lineHeight: lineHeights.display
+  },
+  display1: {
+    fontSize: fontSizes[1] + 'px',
+    fontWeight: fontWeights.bold,
+    lineHeight: lineHeights.display
+  },
+  display0: {
+    fontSize: fontSizes[0] + 'px',
+    fontWeight: fontWeights.bold,
+    lineHeight: lineHeights.display,
+    letterSpacing: letterSpacings.caps,
+    textTransform: 'uppercase'
+  },
+  body2: {
+    fontSize: fontSizes[2] + 'px',
+    fontWeight: fontWeights.medium,
+    lineHeight: lineHeights.standard
+  },
+  body1: {
+    fontSize: fontSizes[1] + 'px',
+    fontWeight: fontWeights.medium,
+    lineHeight: lineHeights.standard
+  },
+  body0: {
+    fontSize: fontSizes[0] + 'px',
+    fontWeight: fontWeights.medium,
+    lineHeight: lineHeights.standard
+  }
+}
+
+
 // color palette
 const black = '#000'
 const white = '#fff'
 const text = '#001833'
 const lightBlue = '#cdf'
-const blue = '#007aff' // primary
+const blue = '#0055d5' // primary
 const darkBlue = '#049'
-const lightGray = '#f6f8fa'
+const lightGray = '#ebeff3'
 const borderGray = '#d1d6db'
-const gray = '#687B8E' // primary
-const darkGray = '#364049'
+const gray = '#ebeff3' // primary
+const midGray = '#c9d3df'
+const darkGray = '#5365d7'
 const lightGreen = '#cec'
 const green = '#0a0' // secondary
 const darkGreen = '#060'
@@ -62,22 +136,9 @@ const darkOrange = '#a50'
 const lightPurple = '#ecf'
 const purple = '#70b' // secondary
 const darkPurple = '#407'
+const lightYellow = '#fedc2a'
+const yellow = '#fff3c0'
 
-// tints
-const flatten = (name, colors) =>
-  colors.reduce((a, b, i) => {
-    const color = {
-      [name + i]: b
-    }
-    return { ...a, ...color }
-  }, {})
-
-const blues = [lightBlue, lightBlue, blue, blue]
-const grays = [lightGray, lightGray, gray, gray]
-const greens = [lightGreen, lightGreen, green, green]
-const reds = [lightRed, lightRed, red, red]
-const oranges = [lightOrange, lightOrange, orange, orange]
-const purples = [lightPurple, lightPurple, purple, purple]
 
 const colors = {
   black,
@@ -97,25 +158,116 @@ const colors = {
   lightRed,
   darkRed,
   orange,
-  lightOrange,
   darkOrange,
   purple,
   lightPurple,
-  darkPurple,
-  blues,
-  greens,
-  reds,
-  oranges,
-  purples,
-  ...flatten('blue', blues),
-  ...flatten('gray', grays),
-  ...flatten('green', greens),
-  ...flatten('red', reds),
-  ...flatten('orange', oranges),
-  ...flatten('purple', purples)
+
+  // deprecated
+  lightOrange,
+  darkPurple
 }
 
+
 export { colors }
+
+export const colorStyles = {
+  whiteOnText: {
+    color: colors.white,
+    backgroundColor: colors.text
+  },
+  whiteOnGray: {
+    color: colors.white,
+    backgroundColor: colors.gray
+  },
+  textOnLightGray: {
+    color: colors.text,
+    backgroundColor: colors.lightGray
+  },
+  whiteOnBlue: {
+    color: colors.white,
+    backgroundColor: colors.blue
+  },
+  blueOnLightBlue: {
+    color: colors.blue,
+    backgroundColor: colors.lightBlue
+  },
+  whiteOnGreen: {
+    color: colors.white,
+    backgroundColor: colors.green
+  },
+  greenOnLightGreen: {
+    color: colors.green,
+    backgroundColor: colors.lightGreen
+  },
+  whiteOnRed: {
+    color: colors.white,
+    backgroundColor: colors.red
+  },
+  redOnLightRed: {
+    color: colors.red,
+    backgroundColor: colors.lightRed
+  },
+  textOnOrange: {
+    color: colors.text,
+    backgroundColor: colors.orange
+  },
+  whiteOnPurple: {
+    color: colors.white,
+    backgroundColor: colors.purple
+  },
+  purpleOnLightPurple: {
+    color: colors.purple,
+    backgroundColor: colors.lightPurple
+  },
+  textOnWhite: {
+    color: colors.text,
+    backgroundColor: colors.white
+  },
+  grayOnWhite: {
+    color: colors.gray,
+    backgroundColor: colors.white
+  },
+  blueOnWhite: {
+    color: colors.blue,
+    backgroundColor: colors.white
+  },
+  greenOnWhite: {
+    color: colors.green,
+    backgroundColor: colors.white
+  },
+  redOnWhite: {
+    color: colors.red,
+    backgroundColor: colors.white
+  },
+  purpleOnWhite: {
+    color: colors.purple,
+    backgroundColor: colors.white
+  },
+  whiteOnDarkOrange: {
+    color: colors.white,
+    backgroundColor: colors.darkOrange
+  },
+  // info: textOnLightGray
+  info: {
+    color: colors.text,
+    backgroundColor: colors.lightGray
+  },
+  // success: whiteOnGreen
+  success: {
+    color: colors.white,
+    backgroundColor: colors.green
+  },
+  //warning: textOnOrange
+  warning: {
+    color: colors.text,
+    backgroundColor: colors.orange
+  },
+  // danger: whiteOnRed
+  danger: {
+    color: colors.white,
+    backgroundColor: colors.red
+  }
+}
 
 // styled-system's `borderRadius` function can hook into the `radii` object/array
 export const radii = [0, 2, 6]
@@ -165,10 +317,13 @@ const theme = {
   font,
   fontSizes,
   fontWeights,
+  lineHeights,
   letterSpacings,
   regular,
   bold,
+  textStyles,
   colors,
+  colorStyles,
   radii,
   radius,
   boxShadows,

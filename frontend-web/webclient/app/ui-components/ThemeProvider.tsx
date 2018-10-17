@@ -10,9 +10,10 @@ injectGlobal`body {
   margin: 0;
 }`
 
-export const Base = styled<any, any>("div")`
+export const Base = styled("div")<any>`
   font-family: ${props => props.theme.font};
-  line-height: 1.4;
+  line-height: ${props => props.theme.lineHeights.standard};
+  font-weight: ${props => props.theme.fontWeights.medium};
 
   * {
     box-sizing: border-box;
@@ -20,10 +21,9 @@ export const Base = styled<any, any>("div")`
 `
 
 const ThemeProvider = ({ customBreakpoints, ...props }) => {
-  const baseTheme = nextTheme
-  const breakpoints = customBreakpoints || baseTheme.breakpoints
+  const breakpoints = customBreakpoints || nextTheme.breakpoints
   const theme = {
-    ...baseTheme,
+    ...nextTheme,
     breakpoints
   }
 
@@ -35,8 +35,6 @@ const ThemeProvider = ({ customBreakpoints, ...props }) => {
 }
 
 ThemeProvider.propTypes = {
-  /** Enable legacy color palette */
-  legacy: PropTypes.bool,
   /** Array of pixel values for custom breakpoint overrides */
   customBreakpoints: PropTypes.arrayOf(PropTypes.number)
 }

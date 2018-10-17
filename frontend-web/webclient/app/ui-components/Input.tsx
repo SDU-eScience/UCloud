@@ -1,5 +1,5 @@
 import styled, { keyframes } from 'styled-components'
-import { space, theme as themeGet } from 'styled-system'
+import { space, themeGet } from 'styled-system'
 import defaultTheme from './theme'
 
 const borders = ({ color, theme }) => {
@@ -18,7 +18,7 @@ const borders = ({ color, theme }) => {
 
 export type InputProps = any;
 
-const Input = styled<InputProps, "input">("input")`
+const Input = styled("input")<InputProps>`
   appearance: none;
   display: block;
   width: 100%;

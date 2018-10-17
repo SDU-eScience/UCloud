@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { theme as themeGet, space, color } from "styled-system";
+import { themeGet, space, color } from "styled-system";
 import theme from "./theme";
 import { NumberOrStringOrArray } from "./Types";
 
@@ -52,7 +52,7 @@ const type = props => {
   )
 }
 
-const Badge = styled<BadgeProps, "div">("div")`
+const Badge = styled("div")<BadgeProps>`
   border-radius: 99999px;
   display: inline-block;
   font-size: ${props => props.theme.fontSizes[0]}px;

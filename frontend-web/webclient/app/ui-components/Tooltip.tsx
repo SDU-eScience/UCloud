@@ -63,7 +63,7 @@ const tooltipAlign = props => {
       : null
 }
 
-const TooltipContent = styled<any, any>(Box)`
+const TooltipContent = styled(Box)<any>`
   display: inline;
   box-shadow: ${({ theme }) => theme.boxShadows[1]};
   font-size: ${({ theme }) => theme.fontSizes[0]}px;
@@ -103,9 +103,8 @@ const defaultProps = {
   position: 'bottom',
   color: 'text',
   bg: 'white',
-  align: 'right',
   theme: theme,
-  zIndex: 'auto'
+  zIndex: 9999
 }
 
 const Tooltip = ({ children, ...props }) => {

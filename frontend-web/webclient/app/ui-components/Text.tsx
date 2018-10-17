@@ -19,7 +19,7 @@ export const bold = props =>
 export const italic = props => (props.italic ? { fontStyle: 'italic' } : null)
 
 // FIXME Consqeuence of updated Style-system?
-//const align = responsiveStyle('text-align', 'align')
+//const align = style('text-align', 'align')
 const align = "";
 interface TextProps extends StyledSystem.SpaceProps {
   fontSize?: number | string
@@ -30,9 +30,10 @@ interface TextProps extends StyledSystem.SpaceProps {
   color?: string
   bold?: boolean
   mx?: string | number
+  ml?: string | number
 }
 
-const Text = styled<TextProps, "div">("div")`
+const Text = styled("div")<TextProps>`
   ${italic} ${StyledSystem.fontSize} ${StyledSystem.space} ${StyledSystem.color} ${caps} ${regular} ${bold} ${align};
 `
 export const div = Text;

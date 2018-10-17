@@ -21,7 +21,7 @@ const TransparentButton = styled<IconbuttonProps, IconbuttonProps>(Button)`
 
 const IconButton = ({ name, size, legacy, color, ...props }: IconbuttonProps) => (
   <TransparentButton {...props}>
-    <Icon name={name} size={size} color={color} legacy={legacy} />
+    <Icon name={name} size={size} color={color} />
   </TransparentButton>
 );
 

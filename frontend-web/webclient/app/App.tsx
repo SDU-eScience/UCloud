@@ -47,6 +47,7 @@ ReactDOM.render(
     document.getElementById("app")
 );
 
+import Avatar from "avataaars";
 import {
     Flex,
     Box,
@@ -65,28 +66,24 @@ import {
 import styled from "styled-components";
 
 const HeaderContainer = styled(Flex)`
-    background-color: ${props => props.theme.colors["lightBlue"]}
     height: 48px;
     align-items: center;
-    color: #fff;
-    background-color: rgba(0, 85, 213, 1);
-
-    * {
-        font-family: "Roboto", Arial, Helvetica, sans-serif;
-    }
+    position: fixed;
+    top: 0;
+    width: 100%;
 `;
 
 const Logo = () => (
-    <Text fontSize="3">
+    <Text fontSize={4} ml="24px">
         SDUCloud
-        </Text>
+    </Text>
 );
 
 const Notification = () => (
     <>
         <Relative top="0" left="0">
-            <Flex justify="center" width="60px">
-                <Icon name="notification" legacy={false} />
+            <Flex justifyContent="center" width="60px">
+                <Icon name="notification" />
             </Flex>
 
             <Absolute top="-12px" left="28px">
@@ -151,8 +148,33 @@ const Search = () => (
     </Relative>
 );
 
+const ClippedBox = styled(Flex)`
+    align-items: center;
+    overflow: hidden;
+    height: 48px;
+`;
+
+const UserAvatar = () => (
+    <ClippedBox mr="8px" width="60px">
+        <Avatar 
+            style={{ width: "64px", height: "60px" }}
+            avatarStyle='Circle'
+            topType='LongHairCurly'
+            accessoriesType='Sunglasses'
+            hairColor='Brown'
+            facialHairType='Blank'
+            clotheType='CollarSweater'
+            clotheColor='PastelRed'
+            eyeType='Default'
+            eyebrowType='Default'
+            mouthType='Smile'
+            skinColor='Light'
+        />
+    </ClippedBox>
+);
+
 const Header = () => (
-    <HeaderContainer>
+    <HeaderContainer color='lightGray' bg='blue'>
         <Logo />
         <Box ml="auto" />
         <Search />
@@ -160,6 +182,7 @@ const Header = () => (
             Hello
         </Tooltip>
         <Notification />
+        <UserAvatar />
     </HeaderContainer>
 );
 

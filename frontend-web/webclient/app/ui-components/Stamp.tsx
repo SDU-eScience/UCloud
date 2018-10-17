@@ -1,31 +1,31 @@
 import styled from "styled-components"
-import * as StyledSystem from "styled-system"
+import { themeGet, space, fontSize, color } from 'styled-system'
 import theme from "./theme"
 import { NumberOrStringOrArray } from "./Types";
 
-const Stamp = styled<StampProps, "div">("div")`
+const Stamp = styled("div")<StampProps>`
   display: inline-flex;
   align-items: center;
   vertical-align: top;
   min-height: 24px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: ${StyledSystem.theme('letterSpacings.caps')};
+  letter-spacing: ${themeGet('letterSpacings.caps')};
   border-radius: 2px;
   border-width: 1px;
   border-style: solid;
   border-color: ${() => theme.colors.borderGray};
-  ${StyledSystem.space} ${StyledSystem.fontSize} ${StyledSystem.color};
+  ${space} ${fontSize} ${color};
 `
 
 Stamp.displayName = "Stamp";
 
 interface StampProps {
-  bg: string
-  px: NumberOrStringOrArray
-  py: NumberOrStringOrArray
-  theme: any
-  fontSize: number | string
+  bg?: string
+  px?: NumberOrStringOrArray
+  py?: NumberOrStringOrArray
+  theme?: any
+  fontSize?: number | string
 }
 
 Stamp.defaultProps = {
