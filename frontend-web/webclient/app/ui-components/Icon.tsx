@@ -15,7 +15,7 @@ const IconBase = ({ name, size, ...props }): JSX.Element => {
   const icon = getPath({ name })
   if (!icon) return (<></>);
 
-  const listPath = icon.path.map((path, i: number) =>
+  const listPath = icon.path.map((path: [string, string?], i: number) =>
     //fill can be null, in which case it will not render 
     <path key={i} d={path[0]} fill={path[1]} />
   )

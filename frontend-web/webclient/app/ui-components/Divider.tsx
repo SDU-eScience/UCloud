@@ -1,8 +1,8 @@
 import styled from 'styled-components'
 import theme from './theme'
-import { space, width, borderColor } from 'styled-system'
+import { space, width, borderColor, SpaceProps, WidthProps, BorderColorProps } from 'styled-system'
 
-export type DividerProps = any;
+export interface DividerProps extends SpaceProps, WidthProps, BorderColorProps {} ;
 
 const Divider = styled<DividerProps, "hr">("hr")`
   border: 0;
@@ -19,13 +19,5 @@ Divider.defaultProps = {
   ml: 0,
   mr: 0
 };
-
-/*
-Divider.propTypes = {
-  ...propTypes.space,
-  ...propTypes.width,
-  ...propTypes.borderColor
-};
-*/
 
 export default Divider;

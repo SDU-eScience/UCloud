@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Dropdown as SDropdown, Icon as SIcon, Popup, Feed, Divider } from "semantic-ui-react";
+import { Dropdown as SDropdown, Icon as SIcon, Popup, Feed, Divider as SDivider } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
@@ -19,7 +19,8 @@ import {
     Relative,
     Absolute,
     Input,
-    Label
+    Label,
+    Divider
 } from "ui-components";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import Notification from "Notifications";
@@ -54,7 +55,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
         const { prioritizedSearch } = this.props;
         return (
             <HeaderContainer color='lightGray' bg='blue'>
-                <Logo />
+                <Logo onClick={() => history.push("/dashboard/")} />
                 <Box ml="auto" />
                 <Search
                     onChange={searchText => this.setState(() => ({ searchText }))}
@@ -86,21 +87,21 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                     on="click"
                     position="bottom right"
                 />
-                <Dropdown>
-                    <DropdownContent>
+                {/* <Dropdown>
+                    <span><UserAvatar /></span>
+                    <DropdownContent left={-60}>
                         <p>Welcome, {Cloud.userInfo.firstNames}</p>
-                        <p>
-                            <Link to={"/usersettings/settings"}>
-                                <SIcon name="settings" />
-                                Settings
-                            </Link>
-                        </p>
-                        <p onClick={() => Cloud.logout()}>
+                        <Divider width={138} ml={"-16px"} mt={"-2px"} mb={"12px"} />
+                        <p><Link style={{ color: "black" }} to={"/usersettings/settings"}>
+                            <SIcon name="settings" />
+                            Settings
+                        </Link></p>
+                        <p style={{ cursor: "pointer" }} onClick={() => Cloud.logout()}>
+                            <SIcon name="sign out" />
                             Logout
-                            <Icon name="sign out" />
                         </p>
                     </DropdownContent>
-                </Dropdown>
+                </Dropdown> */}
             </HeaderContainer >
         )
     }
@@ -114,8 +115,8 @@ const HeaderContainer = styled(Flex)`
     width: 100%;
 `;
 
-const Logo = () => (
-    <Text fontSize={4} ml="24px">
+const Logo = ({ onClick }) => (
+    <Text onClick={onClick} fontSize={4} ml="24px">
         SDUCloud
     </Text>
 );
