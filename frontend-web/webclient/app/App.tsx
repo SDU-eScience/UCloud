@@ -41,7 +41,7 @@ const store = configureStore(initObject(Cloud.homeFolder), {
 
 ReactDOM.render(
     <Provider store={store}>
-        <ThemeProvider customBreakpoints={[]}>
+        <ThemeProvider>
             <BrowserRouter basename="app">
                 <Core />
             </BrowserRouter>
