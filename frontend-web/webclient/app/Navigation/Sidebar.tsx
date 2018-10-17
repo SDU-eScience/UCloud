@@ -1,12 +1,13 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Menu, Sidebar, Icon, Accordion, List, Responsive, AccordionTitleProps, SemanticICONS } from "semantic-ui-react";
+import { Menu, Sidebar as SSidebar, Icon, Accordion, List, Responsive, AccordionTitleProps, SemanticICONS } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { connect } from "react-redux";
 import { setSidebarState } from "./Redux/SidebarActions";
 import { PP } from "UtilityComponents";
 import { ReduxObject } from "DefaultObjects";
 import { Dispatch } from "redux";
+import Sidebar from "ui-components/Sidebar";
 
 interface SidebarProps {
     open: boolean
@@ -37,26 +38,17 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
         const { activeIndices } = this.state;
         const sidebarIsOpen = open && window.innerWidth < 1000;
 
-        const content = (
-            <div className="container-wrapper">
-                <div className="container-content">
-                    <div className="container-padding responsive-container-margin">
-                        {this.props.children}
-                    </div>
-                </div>
-            </div>
-        );
-
         return (
             <>
                 <Responsive minWidth={1000}>
                     <Accordion as={Menu} vertical borderless fixed="left" className="my-sidebar">
                         <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={() => setSidebarState(false)} />
+
                     </Accordion>
-                    {content}
+                    {/* content */}
                 </Responsive>
 
-                <Responsive maxWidth={999} as={Sidebar.Pushable} style={{ zIndex: -1 }}>
+                <Responsive maxWidth={999} as={SSidebar.Pushable} style={{ zIndex: -1 }}>
                     <MobileSidebar
                         closeSidebar={() => setSidebarState(false)}
                         visible={open}
@@ -64,12 +56,12 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
                         activeIndices={activeIndices}
                     />
 
-                    <Sidebar.Pusher style={{ zIndex: -1 }}
+                    <SSidebar.Pusher style={{ zIndex: -1 }}
                         onClick={() => setSidebarState(false)}
                         dimmed={sidebarIsOpen}
                     >
-                        {content}
-                    </Sidebar.Pusher>
+                        {/* content */}
+                    </SSidebar.Pusher>
                 </Responsive>
             </ >
         );
@@ -95,11 +87,11 @@ const AdminOptions = ({ menuActive, handleClick, closeSidebar }: AdminOptionsPro
 
 interface MobileSidebarProps { handleClick: HandleClick, activeIndices: boolean[], visible: boolean, closeSidebar: Function }
 const MobileSidebar = ({ handleClick, activeIndices, visible, closeSidebar }: MobileSidebarProps) => (
-    <Sidebar animation="overlay" visible={visible}>
+    <SSidebar animation="overlay" visible={visible}>
         <Accordion as={Menu} borderless vertical fixed="left" className="my-sidebar">
             <SidebarMenuItems closeSidebar={closeSidebar} handleClick={handleClick} activeIndices={activeIndices} />
         </Accordion>
-    </Sidebar>
+    </SSidebar>
 );
 
 const SidebarMenuItems = ({ handleClick, closeSidebar, activeIndices }) => (

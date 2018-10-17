@@ -4,8 +4,7 @@ import Text from './Text'
 import Icon from './Icon'
 import Flex from './Flex'
 import Box from './Box'
-import theme from "./theme";
-import { string } from "prop-types";
+import Link from "./Link";
 
 
 const SideBarContainer = styled(Flex)`
@@ -23,41 +22,52 @@ const SideBarElementContainer = styled(Flex)`
     flex-flow: row;
     align-items: center;
     clear: none;
+    :hover {
+        color: ${props => props.theme.colors["blue"]};
+        cursor: pointer;
+        svg {
+            filter: saturate(500%);
+        }
+    }
 `
 
-const SideBarElement =  ({ icon, label, showLabel }) => (
-    <SideBarElementContainer pl="24px">
-        <Icon name={icon} size="24" />
-        { showLabel &&
-            <Text fontSize={3} pl="20px">
-                {label}
-            </Text>
-        }
-    </SideBarElementContainer>
-
+const SideBarElement = ({ icon, label, showLabel, to }) => (
+    <Link to={to}>
+        <SideBarElementContainer pl="24px">
+            <Icon name={icon} size="24" />
+            {showLabel &&
+                <Text fontSize={3} pl="20px">
+                    {label}
+                </Text>
+            }
+        </SideBarElementContainer>
+    </Link>
 );
 
 const SideBarSpacer = (props) => (
     <Box mt="20px" />
 );
 
-export const sideBarMenuElements = [{icon: "dashboard", label: "Dashboard"},
-                                    {icon: "files", label: "Files"},
-                                    {icon: "apps", label: "Apps"},
-                                    {icon: "publish", label: "Publish"},
-                                    {icon: "activity", label: "Activity"},
-                                    {icon: "admin", label: "Admin"},
-                                    ];
+type MenuElement = { icon: string, label: string, to: string };
+export const sideBarMenuElements: MenuElement[] = [
+    { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
+    { icon: "files", label: "Files", to: "/files/" },
+    { icon: "shares", label: "Shares", to: "/shares/"},
+    { icon: "apps", label: "Apps", to: "/applications/" },
+    { icon: "publish", label: "Publish", to: "/zenodo/publish/" },
+    { icon: "activity", label: "Activity", to: "/activity/" },
+    { icon: "admin", label: "Admin", to: "/admin/userCreation/" },
+];
 
-const Sidebar = ({sideBarEntries, showLabel}) => (
+const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { sideBarEntries?: any, showLabel?: boolean }) => (
     <SideBarContainer color='darkGray' bg='lightGray'>
-        {sideBarMenuElements.map( ({icon, label}) => (
-            <>
+        {sideBarMenuElements.map(({ icon, label, to }) => (
+            <React.Fragment key={label}>
                 <SideBarSpacer />
-                <SideBarElement icon={icon} label={label} showLabel={showLabel} />
-            </>
+                <SideBarElement icon={icon} label={label} showLabel={showLabel} to={to} />
+            </React.Fragment>
         ))}
     </SideBarContainer>
 );
 
-export default Sidebar
+export default Sidebar;

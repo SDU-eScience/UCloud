@@ -25,6 +25,7 @@ import {
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import Notification from "Notifications";
 import styled from "styled-components";
+import { ArrowUp, HiddenArrowUp } from "ui-components/Arrow";
 
 interface HeaderProps {
     sidebarOpen?: boolean
@@ -89,6 +90,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                 />
                 {/* <Dropdown>
                     <span><UserAvatar /></span>
+                    <HiddenArrowUp />
                     <DropdownContent left={-60}>
                         <p>Welcome, {Cloud.userInfo.firstNames}</p>
                         <Divider width={138} ml={"-16px"} mt={"-2px"} mb={"12px"} />
@@ -102,7 +104,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                         </p>
                     </DropdownContent>
                 </Dropdown> */}
-            </HeaderContainer >
+            </HeaderContainer>
         )
     }
 }
