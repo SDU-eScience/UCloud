@@ -7,21 +7,20 @@ import {
   justifyContent,
   flexWrap,
   flexDirection,
-  SpaceProps, WidthProps, ColorProps, AlignItemsProps, JustifyContentProps, FlexWrapProps, FlexDirectionProps
+  SpaceProps, WidthProps, ColorProps, AlignItemsProps, 
+  JustifyContentProps, FlexWrapProps, FlexDirectionProps
 } from 'styled-system'
 import theme from "./theme"
 
 
-interface FlexProps extends SpaceProps, WidthProps, ColorProps, AlignItemsProps, JustifyContentProps, FlexWrapProps, FlexDirectionProps {
-  align?: any
-  width?: any
-  mt?: any
-  mr?: any
-  ml?: any
-  children?: any
-  justify?: any
-  bg?: any
-}
+interface FlexProps extends SpaceProps, 
+                            WidthProps, 
+                            ColorProps, 
+                            AlignItemsProps, 
+                            JustifyContentProps, 
+                            FlexWrapProps, 
+                            FlexDirectionProps 
+{}
 
 
 const Flex = styled("div") <FlexProps>`

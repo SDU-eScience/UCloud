@@ -1,9 +1,10 @@
 import * as React from 'react'
 import Box from './Box'
 import Flex from './Flex'
-import * as Text from './Text'
+import Text, { TextSpan } from './Text'
 import Icon from './Icon'
-import * as Heading from './Heading'
+import Heading from './Heading'
+import CloseButton from './CloseButton'
 import { NumberOrStringOrArray, TextAlign } from "./Types";
 import { BoxProps } from "./Box";
 
@@ -57,14 +58,13 @@ export interface BannerProps extends BoxProps {
   showIcon?: boolean
   text?: string
   textAlign?: TextAlign
-  bg?: string
+  bg: string
 
   children?: any
 }
 
-const Banner = (props: BannerProps) => {
-  let color = bannerColors[props.bg ? props.bg : 0];
-  const bannerColor = !!color ? color : {};
+const Banner = props => {
+  const bannerColor = bannerColors[props.bg] || {}
   const icon = props.iconName || bannerColor.icon
 
   return (
@@ -73,24 +73,24 @@ const Banner = (props: BannerProps) => {
       bg={bannerColor.backgroundColor || props.bg}
       color={bannerColor.color || props.color}
     >
-      <Flex justify="space-between" align="flex-start">
+      <Flex justifyContent="space-between" alignItems="flex-start">
         {!!icon &&
           !!props.showIcon && <Icon name={icon} mr={2} size={24} mt="-2px" />}
-        <Box w={1}>
-          <Text.div align={props.textAlign}>
+        <Box width={1}>
+          <Text textAlign={props.textAlign}>
             <Heading.h5>{props.header}</Heading.h5>
-            <Text.span fontSize={1}>{props.text}</Text.span>
+            <TextSpan fontSize={1}>{props.text}</TextSpan>
             {props.children}
-          </Text.div>
+          </Text>
         </Box>
         {!!props.onClose && (
-          {/* <CloseButton
+          <CloseButton
             onClick={props.onClose}
             ml={2}
             size={24}
             title="close"
             mt="-2px"
-          /> */}
+          />
         )}
       </Flex>
     </Box>

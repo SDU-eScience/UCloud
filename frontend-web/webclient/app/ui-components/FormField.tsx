@@ -136,7 +136,7 @@ class FormField extends React.Component<any> {
             style: labelStyles,
             htmlFor: fieldId
           })}
-        <Flex align="center" width={1} mt={0}>
+        <Flex alignItems="center" width={1} mt={0}>
           {BeforeIcon && (
             <Box
               mr={-4}
