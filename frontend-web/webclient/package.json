@@ -49,8 +49,6 @@
     "icons": "node scripts/parse-icons.js"
   },
   "dependencies": {
-    "@types/json-schema": "^7.0.1",
-    "@types/styled-system": "^3.0.5",
     "avataaars": "^1.2.0",
     "jsonwebtoken": "8.3.0",
     "loaders.css": "0.1.2",
@@ -76,6 +74,8 @@
     "sweetalert2": "7.28.4"
   },
   "devDependencies": {
+    "@types/json-schema": "^7.0.1",
+    "@types/styled-system": "^3.0.5",
     "@babel/core": "^7.1.2",
     "@types/enzyme": "^3.1.14",
     "@types/enzyme-adapter-react-16": "^1.0.3",
