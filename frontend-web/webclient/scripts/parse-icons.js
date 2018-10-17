@@ -44,10 +44,11 @@ const flattenChildren = (a, b) => {
 
 const getPath = nodes =>
   nodes.children
-    .reduce(flattenChildren, [])
+// do not join paths
+//   .reduce(flattenChildren, [])
     .filter(child => child.type === 'path')
-    .map(child => child.properties.d)
-    .join(' ')
+    .map(child => [child.properties.d.replace(/\n|\t/g,' '), child.properties.fill])
+//  .join(' ')
 
 const getViewBox = nodes => nodes.properties.viewBox
 

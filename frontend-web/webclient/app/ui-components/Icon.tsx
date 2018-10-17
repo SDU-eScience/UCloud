@@ -15,6 +15,11 @@ const IconBase = ({ name, size, ...props }): JSX.Element  => {
   const icon = getPath({ name })
   if (!icon) return (<></>);
 
+  const listPath=icon.path.map( path =>
+  //fill can be null, in which case it will not render 
+    <path d={path[0]} fill={path[1]}/>
+  )
+
   return (
     <Svg
       {...props}
@@ -23,7 +28,7 @@ const IconBase = ({ name, size, ...props }): JSX.Element  => {
       height={size}
       fill="currentcolor"
     >
-      <path d={icon.path} />
+    {listPath}  
     </Svg>
   )
 }
