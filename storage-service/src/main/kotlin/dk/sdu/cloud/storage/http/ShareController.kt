@@ -1,6 +1,5 @@
 package dk.sdu.cloud.storage.http
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.implement
@@ -11,7 +10,6 @@ import dk.sdu.cloud.share.api.ShareDescriptions
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSUserContext
-import dk.sdu.cloud.storage.services.ShareException
 import dk.sdu.cloud.storage.services.ShareService
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.routing.Route
@@ -67,6 +65,20 @@ class ShareController<Ctx : FSUserContext>(
 
             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
                 ok(FindByShareId(shareService.create(ctx, it, call.cloudClient)))
+            }
+        }
+
+       /* implement(ShareDescriptions.listByPath) {
+            logEntry(log, it)
+
+
+        }*/
+
+        implement(ShareDescriptions.listByStatus) {
+            logEntry(log, it)
+
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+                ok(shareService.listSharesByStatus(ctx, it.status, it.normalize()))
             }
         }
     }

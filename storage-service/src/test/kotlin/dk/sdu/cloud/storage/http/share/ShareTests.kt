@@ -37,9 +37,11 @@ import io.mockk.use
 import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ShareTests {
-    // Possible problem when tests are run on other computer. Schulz is not the owner of the filesystem.
+
     @Test
     fun createListAndAcceptTest() {
         objectMockk(NotificationDescriptions, UserDescriptions).use {
@@ -82,16 +84,17 @@ class ShareTests {
                     },
 
                     test = {
+
                         val response = handleRequest(HttpMethod.Put, "/api/shares") {
                             setUser(userToRunAs, Role.USER)
                             setBody(
                                 """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/a",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
+                        {
+                        "sharedWith" : "$userToShareWith",
+                        "path" : "/home/$userToShareWith/folder/a",
+                        "rights" : ["READ", "EXECUTE"]
+                        }
+                        """.trimIndent()
                             )
                         }.response
 
@@ -100,26 +103,56 @@ class ShareTests {
                         val mapper = jacksonObjectMapper()
                         val id = response.content!!.let { mapper.readValue<FindByShareId>(it).id }
 
-                        val response1 = handleRequest(HttpMethod.Get, "/api/shares?itemsPerPage=10&page=0") {
-                            setUser(userToRunAs, Role.USER)
-                        }.response
+                        run {
+                            val getResponse = handleRequest(HttpMethod.Get, "/api/shares?itemsPerPage=10&page=0") {
+                                setUser(userToRunAs, Role.USER)
+                            }.response
 
-                        assertEquals(HttpStatusCode.OK, response1.status())
+                            assertEquals(HttpStatusCode.OK, getResponse.status())
+                        }
 
-                        val response2 = handleRequest(HttpMethod.Post, "/api/shares/accept/$id") {
-                            setUser(userToShareWith, Role.USER)
-                        }.response
+                        run {
+                            val listByStatusResponse = handleRequest(HttpMethod.Get, "api/shares/ACCEPTED") {
+                                setUser(userToRunAs, Role.USER)
+                            }.response
 
-                        assertEquals(HttpStatusCode.OK, response2.status())
+                            assertEquals(HttpStatusCode.OK, listByStatusResponse.status())
+                            val obj = mapper.readTree(listByStatusResponse.content)
+                            assertEquals(0, obj["itemsInTotal"].asInt())
+                            assertTrue(obj["items"].toList().isEmpty())
 
-                        val response3 = handleRequest(HttpMethod.Get, "/api/shares?itemsPerPage=10&page=0") {
-                            setUser(userToShareWith, Role.USER)
-                        }.response
+                        }
 
-                        assertEquals(HttpStatusCode.OK, response3.status())
-                        val obj = mapper.readValue<Page<SharesByPath>>(response3.content!!)
-                        val share = obj.items.first().shares.find { it.id == id }
-                        assertEquals(share?.state.toString(), "ACCEPTED")
+                        run {
+                            val acceptedResponse = handleRequest(HttpMethod.Post, "/api/shares/accept/$id") {
+                                setUser(userToShareWith, Role.USER)
+                            }.response
+
+                            assertEquals(HttpStatusCode.OK, acceptedResponse.status())
+                        }
+
+                        run {
+                            val listByStatusResponse = handleRequest(HttpMethod.Get, "api/shares/ACCEPTED") {
+                                setUser(userToRunAs, Role.USER)
+                            }.response
+
+                            assertEquals(HttpStatusCode.OK, listByStatusResponse.status())
+                            val obj = mapper.readTree(listByStatusResponse.content)
+                            assertEquals(1, obj["itemsInTotal"].asInt())
+                            assertFalse(obj["items"].toList().isEmpty())
+                            assertEquals("/home/user1/folder/a", obj["items"].first().first().textValue())
+                        }
+
+                        run {
+                            val getRespose = handleRequest(HttpMethod.Get, "/api/shares?itemsPerPage=10&page=0") {
+                                setUser(userToShareWith, Role.USER)
+                            }.response
+
+                            assertEquals(HttpStatusCode.OK, getRespose.status())
+                            val obj = mapper.readValue<Page<SharesByPath>>(getRespose.content!!)
+                            val share = obj.items.first().shares.find { it.id == id }
+                            assertEquals(share?.state.toString(), "ACCEPTED")
+                        }
                     }
                 )
             }

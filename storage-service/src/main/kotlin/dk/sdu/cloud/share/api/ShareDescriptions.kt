@@ -21,6 +21,18 @@ data class CreateShareRequest(
     val rights: Set<AccessRight>
 )
 
+data class ListByPathRequest(
+    val path: String,
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
+
+data class ListByStatus(
+    val status: ShareState,
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
+) : WithPaginationRequest
+
 data class SharesByPath(
     val path: String,
     val sharedBy: String,
@@ -52,7 +64,7 @@ object ShareDescriptions : RESTDescriptions("shares") {
     const val baseContext = "/api/shares"
 
     val list = callDescription<ListSharesRequest, Page<SharesByPath>, CommonErrorMessage> {
-        name = "listShare"
+        name = "list"
         method = HttpMethod.Get
 
         auth {
@@ -69,8 +81,46 @@ object ShareDescriptions : RESTDescriptions("shares") {
         }
     }
 
+    val listByStatus = callDescription<ListByStatus, Page<SharesByPath>, CommonErrorMessage> {
+        name = "listByStatus"
+        method = HttpMethod.Get
+
+        auth {
+            access = AuthAccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +boundTo(ListByStatus::status)
+        }
+
+        params {
+            +boundTo(ListByStatus::itemsPerPage)
+            +boundTo(ListByStatus::page)
+        }
+    }
+
+    /*val listByPath = callDescription<ListByPathRequest, Page<SharesByPath>, CommonErrorMessage> {
+        name = "listByPath"
+        method = HttpMethod.Get
+
+        auth {
+            access = AuthAccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+        }
+
+        params {
+            +boundTo(ListByPathRequest::path)
+            +boundTo(ListByPathRequest::itemsPerPage)
+            +boundTo(ListByPathRequest::page)
+        }
+    }*/
+
     val create = callDescription<CreateShareRequest, FindByShareId, CommonErrorMessage> {
-        name = "createShare"
+        name = "create"
         method = HttpMethod.Put
 
         auth {
@@ -87,7 +137,7 @@ object ShareDescriptions : RESTDescriptions("shares") {
     }
 
     val update = callDescription<UpdateShareRequest, Unit, CommonErrorMessage> {
-        name = "updateShare"
+        name = "update"
         method = HttpMethod.Post
 
         auth {
@@ -104,7 +154,7 @@ object ShareDescriptions : RESTDescriptions("shares") {
     }
 
     val revoke = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        name = "revokeShare"
+        name = "revoke"
         method = HttpMethod.Post
 
         auth {
@@ -119,7 +169,7 @@ object ShareDescriptions : RESTDescriptions("shares") {
     }
 
     val reject = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        name = "rejectShare"
+        name = "reject"
         method = HttpMethod.Post
 
         auth {
@@ -134,7 +184,7 @@ object ShareDescriptions : RESTDescriptions("shares") {
     }
 
     val accept = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        name = "acceptShare"
+        name = "accept"
         method = HttpMethod.Post
 
         auth {

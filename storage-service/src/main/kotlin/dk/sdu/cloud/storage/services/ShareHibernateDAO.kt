@@ -129,6 +129,65 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         )
     }
 
+    override fun listByStatus(
+        session: HibernateSession,
+        user: String,
+        status: ShareState,
+        paging: NormalizedPaginationRequest
+    ): Page<SharesByPath> {
+        val count = session.countWithPredicate<ShareEntity>(
+            distinct = true,
+            selection = { entity[ShareEntity::path] },
+            predicate = {
+                allOf(
+                    isAuthorized(user, requireOwnership = false),
+                    entity[ShareEntity::state] equal literal(status)
+                )
+            }
+        )
+
+        val distinctPaths = session.createCriteriaBuilder<String, ShareEntity>().run {
+            with(criteria) {
+                select(entity[ShareEntity::path])
+                distinct(true)
+
+                where(
+                    allOf(isAuthorized(user, requireOwnership = false),
+                        entity[ShareEntity::state] equal literal(status))
+                )
+
+                orderBy(ascending(entity[ShareEntity::path]))
+            }
+        }.createQuery(session).paginatedList(paging)
+
+        // Retrieve all shares for these paths and group
+        val items = session
+            .criteria<ShareEntity>(
+                orderBy = {
+                    listOf(ascending(entity[ShareEntity::filename]))
+                },
+
+                predicate = {
+                    allOf(
+                        entity[ShareEntity::path] isInCollection distinctPaths,
+                        isAuthorized(user, requireOwnership = false),
+                        entity[ShareEntity::state] equal literal(status)
+                    )
+                }
+            )
+            .list()
+            .map { it.toModel() }
+            .let { groupByPath(user, it) }
+
+        return Page(
+            count.toInt(),
+            paging.itemsPerPage,
+            paging.page,
+            items
+        )
+    }
+
+
     override fun findSharesForPath(
         session: HibernateSession,
         user: String,

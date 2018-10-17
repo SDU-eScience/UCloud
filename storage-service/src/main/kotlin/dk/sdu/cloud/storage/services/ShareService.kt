@@ -66,6 +66,14 @@ class ShareService<DBSession, Ctx : FSUserContext>(
         return db.withTransaction { shareDAO.findSharesForPath(it, ctx.user, path) }
     }
 
+    fun listSharesByStatus(
+        ctx: Ctx,
+        status: ShareState,
+        paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
+    ) :Page<SharesByPath> {
+        return db.withTransaction { shareDAO.listByStatus(it, ctx.user, status, paging) }
+    }
+
     suspend fun create(
         ctx: Ctx,
         share: CreateShareRequest,
