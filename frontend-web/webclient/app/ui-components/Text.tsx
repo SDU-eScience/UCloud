@@ -1,5 +1,14 @@
 import styled from "styled-components";
-import * as StyledSystem from "styled-system";
+import {
+  textStyle,
+  fontSize,
+  fontWeight,
+  textAlign,
+  lineHeight,
+  space,
+  color, 
+  SpaceProps
+} from 'styled-system'
 import theme from "./theme";
 import { TextAlign } from "./Types";
 
@@ -21,7 +30,7 @@ export const italic = props => (props.italic ? { fontStyle: 'italic' } : null)
 // FIXME Consqeuence of updated Style-system?
 //const align = style('text-align', 'align')
 const align = "";
-interface TextProps extends StyledSystem.SpaceProps {
+interface TextProps extends SpaceProps {
   fontSize?: number | string
   align?: TextAlign
   caps?: boolean
@@ -34,10 +43,22 @@ interface TextProps extends StyledSystem.SpaceProps {
 }
 
 const Text = styled("div")<TextProps>`
-  ${italic} ${StyledSystem.fontSize} ${StyledSystem.space} ${StyledSystem.color} ${caps} ${regular} ${bold} ${align};
-`
+  ${textStyle}
+  ${fontSize}
+  ${fontWeight}
+  ${textAlign}
+  ${lineHeight}
+  ${space}
+  ${color}
+  ${caps}
+  ${regular}
+  ${bold}
+  ${italic} 
+  `
 export const div = Text;
 export const span = Text.withComponent("span");
+export const p = Text.withComponent("p");
+export const s = Text.withComponent("s");
 
 Text.defaultProps = {
   theme: theme
