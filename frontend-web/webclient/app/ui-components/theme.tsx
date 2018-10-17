@@ -121,9 +121,9 @@ const blue = '#0055d5' // primary
 const darkBlue = '#049'
 const lightGray = '#ebeff3'
 const borderGray = '#d1d6db'
-const gray = '#ebeff3' // primary
-const midGray = '#c9d3df'
-const darkGray = '#5365d7'
+const gray = '#c9d3df' // primary
+const midGray = '#53657d'
+const darkGray = '#53657d'
 const lightGreen = '#cec'
 const green = '#0a0' // secondary
 const darkGreen = '#060'
@@ -149,6 +149,7 @@ const colors = {
   darkBlue,
   gray,
   lightGray,
+  midGray,
   borderGray,
   darkGray,
   green,
