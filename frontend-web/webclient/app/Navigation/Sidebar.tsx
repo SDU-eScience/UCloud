@@ -52,13 +52,11 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
                 <Responsive minWidth={1000}>
                     <Accordion as={Menu} vertical borderless fixed="left" className="my-sidebar">
                         <SidebarMenuItems handleClick={this.handleClick} activeIndices={activeIndices} closeSidebar={() => setSidebarState(false)} />
-                        <PP visible={this.props.pp} />
                     </Accordion>
-
                     {content}
                 </Responsive>
 
-                <Responsive maxWidth={999} as={Sidebar.Pushable}>
+                <Responsive maxWidth={999} as={Sidebar.Pushable} style={{ zIndex: -1 }}>
                     <MobileSidebar
                         closeSidebar={() => setSidebarState(false)}
                         visible={open}
@@ -66,7 +64,7 @@ class SidebarComponent extends React.Component<SidebarProps, SidebarState> {
                         activeIndices={activeIndices}
                     />
 
-                    <Sidebar.Pusher
+                    <Sidebar.Pusher style={{ zIndex: -1 }}
                         onClick={() => setSidebarState(false)}
                         dimmed={sidebarIsOpen}
                     >
