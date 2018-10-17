@@ -136,7 +136,7 @@ class Uploader extends React.Component<UploaderProps> {
                             <Dropzone className="dropzone" onDrop={this.onFilesAdded}>
                                 <p>
                                     <Icon name="cloud upload" />
-                                    Drop files here or <a href="#" onClick={e => e.preventDefault()}>browse</a>
+                                    Drop files here or <a href="#">browse</a>
                                 </p>
                                 <p>
                                     <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
@@ -145,7 +145,7 @@ class Uploader extends React.Component<UploaderProps> {
                         </div>
                     </Modal.Description>
                 </Modal.Content>
-            </Modal>
+            </Modal >
 
         );
     }
