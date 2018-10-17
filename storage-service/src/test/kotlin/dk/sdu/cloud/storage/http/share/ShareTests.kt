@@ -85,7 +85,16 @@ class ShareTests {
 
                     test = {
 
-                        val response = handleRequest(HttpMethod.Put, "/api/shares") {
+                        run {
+                            val getByPathResponse = handleRequest(HttpMethod.Get,
+                                "api/shares/byPath?path=/home/$userToShareWith/folder/a") {
+                                setUser(userToRunAs, Role.USER)
+                            }.response
+
+                            assertEquals(HttpStatusCode.NotFound, getByPathResponse.status())
+                        }
+
+                        val createResponse = handleRequest(HttpMethod.Put, "/api/shares") {
                             setUser(userToRunAs, Role.USER)
                             setBody(
                                 """
@@ -98,10 +107,19 @@ class ShareTests {
                             )
                         }.response
 
-                        assertEquals(HttpStatusCode.OK, response.status())
+                        assertEquals(HttpStatusCode.OK, createResponse.status())
 
                         val mapper = jacksonObjectMapper()
-                        val id = response.content!!.let { mapper.readValue<FindByShareId>(it).id }
+                        val id = createResponse.content!!.let { mapper.readValue<FindByShareId>(it).id }
+
+                        run {
+                            val getByPathResponse = handleRequest(HttpMethod.Get,
+                                "api/shares/byPath?path=/home/$userToShareWith/folder/a") {
+                                setUser(userToRunAs, Role.USER)
+                            }.response
+
+                            assertEquals(HttpStatusCode.OK, getByPathResponse.status())
+                        }
 
                         run {
                             val getResponse = handleRequest(HttpMethod.Get, "/api/shares?itemsPerPage=10&page=0") {

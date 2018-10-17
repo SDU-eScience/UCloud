@@ -36,7 +36,7 @@ interface ShareDAO<Session> {
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
     ): Page<SharesByPath>
 
-    fun findSharesForPath(
+    fun findShareForPath(
         session: Session,
         user: String,
         path: String

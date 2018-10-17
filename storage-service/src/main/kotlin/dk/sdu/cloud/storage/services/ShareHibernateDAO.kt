@@ -188,7 +188,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
     }
 
 
-    override fun findSharesForPath(
+    override fun findShareForPath(
         session: HibernateSession,
         user: String,
         path: String

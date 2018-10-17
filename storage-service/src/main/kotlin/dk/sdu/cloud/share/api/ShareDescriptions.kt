@@ -21,11 +21,9 @@ data class CreateShareRequest(
     val rights: Set<AccessRight>
 )
 
-data class ListByPathRequest(
-    val path: String,
-    override val itemsPerPage: Int? = null,
-    override val page: Int? = null
-) : WithPaginationRequest
+data class FindByPathRequest(
+    val path: String
+)
 
 data class ListByStatus(
     val status: ShareState,
@@ -100,8 +98,8 @@ object ShareDescriptions : RESTDescriptions("shares") {
         }
     }
 
-    /*val listByPath = callDescription<ListByPathRequest, Page<SharesByPath>, CommonErrorMessage> {
-        name = "listByPath"
+    val findByPath = callDescription<FindByPathRequest, SharesByPath, CommonErrorMessage> {
+        name = "findByPath"
         method = HttpMethod.Get
 
         auth {
@@ -110,14 +108,13 @@ object ShareDescriptions : RESTDescriptions("shares") {
 
         path {
             using(baseContext)
+            + "byPath"
         }
 
         params {
-            +boundTo(ListByPathRequest::path)
-            +boundTo(ListByPathRequest::itemsPerPage)
-            +boundTo(ListByPathRequest::page)
+            +boundTo(FindByPathRequest::path)
         }
-    }*/
+    }
 
     val create = callDescription<CreateShareRequest, FindByShareId, CommonErrorMessage> {
         name = "create"
