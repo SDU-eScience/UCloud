@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject"
-import { Popup, Feed, Icon, SemanticICONS, Label, Button, Divider } from 'semantic-ui-react';
+import { Popup, Feed, SemanticICONS, Icon as SIcon, Label, Button, Divider } from 'semantic-ui-react';
 import { Redirect } from "react-router";
 import * as moment from "moment";
 import { connect } from "react-redux";
@@ -11,6 +11,7 @@ import { History } from "history";
 import Status from "Navigation/Status";
 import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
 import { Dispatch } from "redux";
+import { Relative, Flex, Icon, Badge, Absolute } from "ui-components";
 
 interface NotificationProps {
     page: Page<Notification>
@@ -71,11 +72,6 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         }
 
         const unreadLength = page.items.filter((e) => !e.read).length;
-        const label = unreadLength + activeUploads > 0 ? (
-            <Label color="red" floating circular>
-                {unreadLength + activeUploads}
-            </Label>
-        ) : null;
         const uploads = activeUploads > 0 ? (
             <>
                 <Button
@@ -87,13 +83,20 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                 <Divider />
             </>
         ) : null;
+        const badgeCount = unreadLength + activeUploads;
         return (
-            <Popup
+            <Popup style={{ marginRight: "10px" }}
                 trigger={
-                    <Button color="blue" className="notification-button-padding" circular>
-                        <Icon className="notification-button-padding" name="bell" />
-                        {label}
-                    </Button>
+                    <Flex>
+                        <Relative top="0" left="0">
+                            <Flex justifyContent="center" width="60px">
+                                <Icon name="notification" />
+                            </Flex>
+                            {badgeCount > 0 ? <Absolute top="-12px" left="28px">
+                                <Badge bg="red">{unreadLength + activeUploads}</Badge>
+                            </Absolute> : null}
+                        </Relative>
+                    </Flex>
                 }
                 content={
                     <Feed>
@@ -139,7 +142,7 @@ class NotificationEntry extends React.Component<NotificationEntryProps, any> {
     public render() {
         return (
             <Feed.Event className={"notification " + (this.props.notification.read ? "read " : "unread ")} onClick={() => this.handleAction()}>
-                <Feed.Label><Icon name={this.resolveEventIcon(this.props.notification.type)} /></Feed.Label>
+                <Feed.Label><SIcon name={this.resolveEventIcon(this.props.notification.type)} /></Feed.Label>
                 <Feed.Content>
                     <Feed.Date content={moment(this.props.notification.ts.toString(), "x").fromNow()} />
                     <Feed.Summary>{this.props.notification.message}</Feed.Summary>

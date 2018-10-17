@@ -8,23 +8,23 @@ import {
   flexWrap,
   flexDirection,
   SpaceProps, WidthProps, ColorProps, AlignItemsProps, JustifyContentProps, FlexWrapProps, FlexDirectionProps
- } from 'styled-system'
+} from 'styled-system'
 import theme from "./theme"
 
 
 interface FlexProps extends SpaceProps, WidthProps, ColorProps, AlignItemsProps, JustifyContentProps, FlexWrapProps, FlexDirectionProps {
-    align?: any
-    width?: any
-    mt?: any
-    mr?: any
-    ml?: any
-    children?: any
-    justify?: any
-    bg?: any
+  align?: any
+  width?: any
+  mt?: any
+  mr?: any
+  ml?: any
+  children?: any
+  justify?: any
+  bg?: any
 }
 
 
-const Flex = styled("div")<FlexProps>`
+const Flex = styled("div") <FlexProps>`
   display: flex;
   ${space} ${width} ${color} ${alignItems} ${justifyContent}
   ${flexDirection}

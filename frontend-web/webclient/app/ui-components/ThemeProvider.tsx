@@ -10,7 +10,7 @@ injectGlobal`body {
   margin: 0;
 }`
 
-export const Base = styled("div")<any>`
+export const Base = styled("div")<ThemeProviderProps>`
   font-family: ${props => props.theme.font};
   line-height: ${props => props.theme.lineHeights.standard};
   font-weight: ${props => props.theme.fontWeights.medium};
@@ -34,9 +34,8 @@ const ThemeProvider = ({ customBreakpoints, ...props }) => {
   )
 }
 
-ThemeProvider.propTypes = {
-  /** Array of pixel values for custom breakpoint overrides */
-  customBreakpoints: PropTypes.arrayOf(PropTypes.number)
+interface ThemeProviderProps {
+  customBreakpoints?: number[]
 }
 
 export default ThemeProvider

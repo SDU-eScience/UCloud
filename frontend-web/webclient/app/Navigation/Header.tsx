@@ -1,18 +1,29 @@
 import * as React from "react";
-import { Input, Menu, Dropdown, Icon, Responsive, Header as HeaderTag, Form } from "semantic-ui-react";
+import { Dropdown as SDropdown, Icon as SIcon, Popup, Feed, Divider } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
 import * as PropTypes from "prop-types";
 import { Dispatch } from "redux";
-import Notifications from "Notifications";
 import { setSidebarState } from "./Redux/SidebarActions";
 import Avatar from "avataaars";
 import { History } from "history";
-import { infoNotification } from "UtilityFunctions";
 import { HeaderStateToProps } from "Navigation";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
-import { ReduxObject } from "DefaultObjects";
+import { ReduxObject, KeyCode } from "DefaultObjects";
+import {
+    Flex,
+    Box,
+    Text,
+    Icon,
+    Relative,
+    Absolute,
+    Input,
+    Label
+} from "ui-components";
+import { Dropdown, DropdownContent } from "ui-components/Dropdown";
+import Notification from "Notifications";
+import styled from "styled-components";
 
 interface HeaderProps {
     sidebarOpen?: boolean
@@ -38,106 +49,158 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
     }
 
     public render() {
-        const { sidebarOpen, prioritizedSearch, setSidebarOpen } = this.props;
         const { history } = this.context.router;
-        const sidebarIcon = sidebarOpen ? "triangle left" : "triangle right";
         const { searchText } = this.state;
-
+        const { prioritizedSearch } = this.props;
         return (
-            <Menu className="menu-padding" fixed="top" inverted attached borderless size="tiny" >
-                <Responsive maxWidth={999} as={Menu.Item} onClick={() => setSidebarOpen(!sidebarOpen)}>
-                    <Icon.Group size="large">
-                        <Icon name="sidebar" />
-                        <Icon corner color="grey" size="huge" name={sidebarIcon} />
-                    </Icon.Group>
-                </Responsive>
-
-                <Menu.Item>
-                    <Link to={"/dashboard"}>
-                        <HeaderTag><h3 className="logo">SDUCloud</h3></HeaderTag>
-                    </Link>
-                </Menu.Item>
-
-                <Responsive as={Menu.Item} minWidth={1000}>
-                    <Dropdown
-                        icon="users"
-                        floating
-                        labeled
-                        button
-                        className="icon"
-                        options={[
-                            { text: "Data Stream Processing", value: "p1" },
-                            { text: "Event generator for Beyond Standard Model (BSM) physics", value: "p2" },
-                            { text: "Motif Discovery with Homer", value: "p3" },
-                        ]}
-                        onChange={() => infoNotification("Note: this feature has not been implemented yet")}
-                        defaultValue="p1"
-                    />
-                </Responsive>
-
-                <Menu.Menu position="right">
-                    <Menu.Item>
-                        <Responsive minWidth={1000}>
-                            <Form
-                                size="tiny"
-                                onSubmit={(e) => {
-                                    e.preventDefault();
-                                    if (!!searchText) history.push(`/simplesearch/${prioritizedSearch}/${searchText}`)
-                                }}
-                            >
-                                <Input
-                                    value={searchText}
-                                    onChange={(_, { value }) => this.setState(() => ({ searchText: value }))}
-                                    className="header-search"
-                                    fluid
-                                    icon="search"
-                                    placeholder="Search for files, apps, and projects..."
-                                />
-                            </Form>
-                        </Responsive>
-                        <Responsive maxWidth={999} as={Link} to={`/simplesearch/${prioritizedSearch}/`}>
-                            <Icon name="search" />
-                        </Responsive>
-                    </Menu.Item>
-                    <Menu.Item>
-                        <Notifications />
-                    </Menu.Item>
-                    <Dropdown
-                        item
-                        icon={null}
-                        trigger={
-                            <Avatar
-                                style={{ width: "32px", height: "32px" }}
-                                avatarStyle="Circle"
-                                topType="NoHair"
-                                accessoriesType="Blank"
-                                facialHairType="Blank"
-                                clotheType="GraphicShirt"
-                                clotheColor="Blue02"
-                                graphicType="Bear"
-                                eyeType="Default"
-                                eyebrowType="Default"
-                                mouthType="Smile"
-                                skinColor="Light"
-                            />
-                        }
-                    >
-                        <Dropdown.Menu>
-                            <Dropdown.Item disabled>
-                                Welcome, {Cloud.userInfo.firstNames}
-                            </Dropdown.Item>
-                            <Dropdown.Item as={Link} to={"/usersettings/settings"}>
-                                <Icon name="settings" />
+            <HeaderContainer color='lightGray' bg='blue'>
+                <Logo />
+                <Box ml="auto" />
+                <Search
+                    onChange={searchText => this.setState(() => ({ searchText }))}
+                    navigate={() => history.push(`/simplesearch/${prioritizedSearch}/${searchText}`)}
+                    searchText={searchText} />
+                <Notification />
+                <Popup style={{ marginRight: "10px" }}
+                    trigger={
+                        <Flex>
+                            <UserAvatar />
+                        </Flex>
+                    }
+                    content={
+                        <Feed>
+                            <p>Welcome, {Cloud.userInfo.firstNames}</p>
+                            <Divider />
+                            <p>
+                                <Link style={{ color: "black" }} to={"/usersettings/settings"}>
+                                    <SIcon name="settings" />
+                                    Settings
+                                </Link>
+                            </p>
+                            <p onClick={() => Cloud.logout()}>
+                                <SIcon name="sign out" />
+                                Logout
+                            </p>
+                        </Feed>
+                    }
+                    on="click"
+                    position="bottom right"
+                />
+                <Dropdown>
+                    <DropdownContent>
+                        <p>Welcome, {Cloud.userInfo.firstNames}</p>
+                        <p>
+                            <Link to={"/usersettings/settings"}>
+                                <SIcon name="settings" />
                                 Settings
-                            </Dropdown.Item>
-                            <Dropdown.Item text="Logout" icon="sign out" onClick={() => Cloud.logout()} />
-                        </Dropdown.Menu>
-                    </Dropdown>
-                </Menu.Menu>
-            </Menu>
-        );
+                            </Link>
+                        </p>
+                        <p onClick={() => Cloud.logout()}>
+                            Logout
+                            <Icon name="sign out" />
+                        </p>
+                    </DropdownContent>
+                </Dropdown>
+            </HeaderContainer >
+        )
     }
 }
+
+const HeaderContainer = styled(Flex)`
+    height: 48px;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    width: 100%;
+`;
+
+const Logo = () => (
+    <Text fontSize={4} ml="24px">
+        SDUCloud
+    </Text>
+);
+
+const SearchInput = styled(Flex)`
+    width: 300px;
+    height: 36px;
+    align-items: center;
+    color: white;
+    background-color: rgba(236, 239, 244, 0.247);
+    border-color: rgba(201, 201, 233, 1);
+
+    input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input:-moz-placeholder {
+        color: white;
+    }
+    
+    input:focus::-webkit-input-placeholder, input:focus::-moz-placeholder, input:focus::-ms-input-placeholder, input:focus::-moz-placeholder {
+        color: black;
+    }
+
+    input:focus ~ div > label > svg {
+        color: black;
+    }
+
+    input ~ div > label > svg {
+        color: white;
+    }
+
+    input:focus {
+        color: black;
+        background-color: white; 
+    }
+
+    input {
+        border-radius: 5px;
+        background-color: rgba(1, 1, 1, 0.1);
+        padding: 10px;
+        padding-left: 30px;
+    }
+`;
+
+const Search = ({ searchText, onChange, navigate }) => (
+    <Relative>
+        <SearchInput>
+            <Input pl="30px"
+                id="search_input"
+                value={searchText}
+                type="text"
+                onChange={e => onChange(e.target.value)}
+                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) navigate(); }}
+                placeholder="Do search..."
+            />
+            <Absolute left="6px" top="7px">
+                <Label htmlFor="search_input">
+                    <Icon name="search" size="20" />
+                </Label>
+            </Absolute>
+        </SearchInput>
+    </Relative>
+);
+
+const ClippedBox = styled(Flex)`
+    align-items: center;
+    overflow: hidden;
+    height: 48px;
+`;
+
+const UserAvatar = () => (
+    <ClippedBox mr="8px" width="60px">
+        <Avatar
+            style={{ width: "64px", height: "60px" }}
+            avatarStyle="Circle"
+            topType="LongHairCurly"
+            accessoriesType="Sunglasses"
+            hairColor="Brown"
+            facialHairType="Blank"
+            clotheType="CollarSweater"
+            clotheColor="PastelRed"
+            eyeType="Default"
+            eyebrowType="Default"
+            mouthType="Smile"
+            skinColor="Light"
+        />
+    </ClippedBox>
+);
 
 interface HeaderOperations {
     setSidebarOpen: (open: boolean) => void
@@ -145,7 +208,7 @@ interface HeaderOperations {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
-    setSidebarOpen: (open: boolean) => dispatch(setSidebarState(open)),
+    setSidebarOpen: (open) => dispatch(setSidebarState(open)),
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus())
 });
 
