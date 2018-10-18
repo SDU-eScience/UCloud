@@ -1,0 +1,14 @@
+---
+master:
+  persistence:
+    storageClass: rbd
+  heapSize: 1024m
+
+data:
+  persistence:
+    storageClass: rbd
+    size: 50Gi
+  heapSize: 4096m
+
+client:
+  heapSize: 1024m

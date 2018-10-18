@@ -1,0 +1,25 @@
+ssh_agent_auth: true
+nodes:
+  - address: 10.135.0.24
+    internal_address: 10.135.0.24
+    user: dthrane
+    role: [controlplane,worker,etcd]
+  - address: 10.135.0.25
+    internal_address: 10.135.0.25
+    user: dthrane
+    role: [controlplane,worker,etcd]
+  - address: 10.135.0.26
+    internal_address: 10.135.0.26
+    user: dthrane
+    role: [controlplane,worker,etcd]
+
+bastion_host:
+  address: 10.135.0.200
+  user: dthrane
+  port: 22
+
+services:
+  etcd:
+    snapshot: true
+    creation: 6h
+    retention: 24h

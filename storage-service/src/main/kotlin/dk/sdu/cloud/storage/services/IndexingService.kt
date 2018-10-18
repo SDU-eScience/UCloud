@@ -150,7 +150,10 @@ class IndexingService<Ctx : FSUserContext>(
         // them. We need to traverse those
         eventCollector.addAll(
             newFiles.filter { it.value.fileType == FileType.DIRECTORY }.flatMap { (_, directory) ->
-                fs.tree(ctx, directory.path, STORAGE_EVENT_MODE).map { it.toCreatedEvent() }
+                log.debug("Looking at $directory")
+                val result = fs.tree(ctx, directory.path, STORAGE_EVENT_MODE).map { it.toCreatedEvent() }
+                log.debug("Done with $directory")
+                result
             }
         )
 
