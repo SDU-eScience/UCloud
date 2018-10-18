@@ -28,7 +28,7 @@ WORKDIR /usr/src/app
 FROM build-dependencies as build-production-ready
 
 # The name of the service. Used to identify the executable
-ENV SERVICE_NAME=indexing-service
+ENV SERVICE_NAME=filesearch-service
 
 # Copy application code into /usr/src/app
 COPY . /usr/src/app/
@@ -47,7 +47,7 @@ RUN source $HOME/.bashrc && \
     cp build/distributions/*.tar /opt/service.tar && \
     cd /opt/service && \
     tar xvf ../service.tar --strip-components=1 && \
-    mv /opt/service/bin/${SERVICE_NAME} /opt/service/bin/service 
+    mv /opt/service/bin/${SERVICE_NAME} /opt/service/bin/service
 
 #
 # Production container is only capable of running the code
