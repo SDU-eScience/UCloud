@@ -9,19 +9,19 @@ export default class PromiseKeeper {
     }
 
     makeCancelable<T>(promise: Promise<T>): CancelablePromise<T> {
-        let hasCanceled_ = false;
         let cancelablePromise = new CancelablePromise<T>();
+        cancelablePromise.hasCanceled_ = false;
         cancelablePromise.promise = new Promise((resolve: any, reject: any) => {
             promise.then(
                 val => {
                     cancelablePromise.isComplete = true;
                     this._cleanup();
-                    hasCanceled_ ? reject({ isCanceled: true }) : resolve(val);
+                    cancelablePromise.hasCanceled_ ? reject({ isCanceled: true }) : resolve(val);
                 },
                 error => {
                     cancelablePromise.isComplete = true;
                     this._cleanup();
-                    hasCanceled_ ? reject({ isCanceled: true }) : reject(error)
+                    cancelablePromise.hasCanceled_ ? reject({ isCanceled: true }) : reject(error)
                 }
             );
         });

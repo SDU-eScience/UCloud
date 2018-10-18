@@ -38,6 +38,11 @@ sealed class RESTResponse<out T, out E> {
     data class Err<out T, out E>(override val response: HttpResponse, val error: E? = null) : RESTResponse<T, E>()
 }
 
+private const val DELAY_TIME = 250
+private const val INTERNAL_ERRORCODE_START = 500
+private const val INTERAL_ERRORCODE_STOP = 599
+private const val NUMBER_OF_ATTEMPTS = 5
+
 abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, private val namespace: String) {
     private val resolvedEndpoint = resolvedEndpoint.removePrefix("/")
 
@@ -57,7 +62,7 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, private 
         var attempts = 0
         while (true) {
             attempts++
-            if (attempts == 5) throw ConnectException("Too many retries!")
+            if (attempts == NUMBER_OF_ATTEMPTS) throw ConnectException("Too many retries!")
 
             val endpoint = context.parent.resolveEndpoint(namespace).removeSuffix("/")
             val url = "$endpoint/$resolvedEndpoint"
@@ -89,10 +94,10 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, private 
                     log.warn("Unable to deserialize _successful_ message!")
                     RESTResponse.Err(resp)
                 }
-            } else if (resp.status.value in 500..599) {
+            } else if (resp.status.value in INTERNAL_ERRORCODE_START..INTERAL_ERRORCODE_STOP) {
                 log.info("Caught server error!")
                 log.info("Call was: $this, response was: $resp")
-                delay(250)
+                delay(DELAY_TIME)
 
                 val ex = ConnectException("Remote server had an internal server error (${resp.status})")
                 val shouldRetry = context.parent.tryReconfigurationOnConnectException(this, ex)

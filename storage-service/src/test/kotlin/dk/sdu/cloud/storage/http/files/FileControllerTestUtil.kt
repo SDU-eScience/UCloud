@@ -11,9 +11,13 @@ import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.definition
 import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.storage.api.*
+import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.http.FilesController
-import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FavoriteService
+import dk.sdu.cloud.storage.services.FileAnnotationService
+import dk.sdu.cloud.storage.services.FileLookupService
+import dk.sdu.cloud.storage.services.StorageUserDao
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
@@ -21,12 +25,15 @@ import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
 import dk.sdu.cloud.storage.util.simpleCloudToCephFSDao
 import io.ktor.application.Application
-import io.ktor.application.install
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.routing.Routing
 import io.ktor.routing.routing
-import io.ktor.server.testing.*
+import io.ktor.server.testing.TestApplicationEngine
+import io.ktor.server.testing.TestApplicationRequest
+import io.ktor.server.testing.TestApplicationResponse
+import io.ktor.server.testing.handleRequest
+import io.ktor.server.testing.setBody
 import io.mockk.mockk
 import java.io.File
 

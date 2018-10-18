@@ -33,4 +33,3 @@ interface ActivityStreamDao<Session> {
         pagination: NormalizedPaginationRequest
     ): Page<ActivityStreamEntry<*>>
 }
-

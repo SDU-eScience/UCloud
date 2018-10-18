@@ -31,7 +31,7 @@ test("Don't add trailing slash to string", () =>
 );
 
 test("Add trailing slash to empty string", () =>
-    expect(UF.addTrailingSlash("")).toBe("/")
+    expect(UF.addTrailingSlash("")).toBe("")
 );
 
 // Remove trailing slash
@@ -50,21 +50,13 @@ test("Empty string, no action", () =>
 
 // Prettier string
 
-test("Prettify string", () =>
-    expect(UF.prettierString("HELLO,_WORLD")).toBe("Hello, world")
-);
+test("Prettify string", () => expect(UF.prettierString("HELLO,_WORLD")).toBe("Hello, world"));
 
-test("Prettify string, upper and lower case", () =>
-    expect(UF.prettierString("hEllO,_WorlD")).toBe("Hello, world")
-);
+test("Prettify string, upper and lower case", () => expect(UF.prettierString("hEllO,_WorlD")).toBe("Hello, world"));
 
-test("Prettify lowercase string", () =>
-    expect(UF.prettierString("path")).toBe("Path")
-);
+test("Prettify lowercase string", () => expect(UF.prettierString("path")).toBe("Path"));
 
-test("Prettify 'empty' string", () =>
-    expect(UF.prettierString("__")).toBe("  ")
-);
+test("Prettify 'empty' string", () => expect(UF.prettierString("__")).toBe("  "));
 
 // Blank or null
 

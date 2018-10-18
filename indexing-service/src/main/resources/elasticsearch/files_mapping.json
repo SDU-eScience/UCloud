@@ -6,20 +6,19 @@
           "type": "custom",
           "tokenizer": "path-tokenizer"
         },
-
         "extension-analyzer": {
           "type": "custom",
           "tokenizer": "extension-tokenizer",
-          "filter": ["lowercase"]
+          "filter": [
+            "lowercase"
+          ]
         }
       },
-
       "tokenizer": {
         "path-tokenizer": {
           "type": "path_hierarchy",
           "delimiter": "/"
         },
-
         "extension-tokenizer": {
           "type": "path_hierarchy",
           "delimiter": ".",
@@ -42,7 +41,6 @@
             "keyword": {
               "type": "keyword"
             },
-
             "extension": {
               "type": "text",
               "analyzer": "extension-analyzer",

@@ -1,6 +1,16 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.*
+import dk.sdu.cloud.app.api.AppRequest
+import dk.sdu.cloud.app.api.Application
+import dk.sdu.cloud.app.api.ApplicationParameter
+import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.api.NormalizedToolDescription
+import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.Tool
+import dk.sdu.cloud.app.api.ToolBackend
+import dk.sdu.cloud.app.api.VariableInvocationParameter
+import dk.sdu.cloud.app.api.WordInvocationParameter
 import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.hamcrest.CoreMatchers.containsString
 import org.hamcrest.CoreMatchers.hasItem
@@ -43,7 +53,8 @@ class SBatchGeneratorTest {
                 info = NameAndVersion("app", "1.0.0"),
                 invocation = listOf(WordInvocationParameter("hello")),
                 parameters = emptyList(),
-                outputFileGlobs = emptyList()
+                outputFileGlobs = emptyList(),
+                tags = listOf()
             ),
             tool
         )
@@ -90,7 +101,8 @@ class SBatchGeneratorTest {
                     ApplicationParameter.Text("greeting", false, null, "greeting", "greeting"),
                     ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
                 ),
-                outputFileGlobs = emptyList()
+                outputFileGlobs = emptyList(),
+                tags = listOf()
             ),
             tool
         )
@@ -146,7 +158,8 @@ class SBatchGeneratorTest {
                     ApplicationParameter.Bool("boo", false, null, "boo", "boo", trueValue = "yes", falseValue = "no"),
                     ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
                 ),
-                outputFileGlobs = emptyList()
+                outputFileGlobs = emptyList(),
+                tags = listOf()
             ),
             tool
         )

@@ -1,7 +1,5 @@
 package dk.sdu.cloud.storage.http
 
-import dk.sdu.cloud.auth.api.PRIVILEGED_ROLES
-import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemAudit
 import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemResponse
 import dk.sdu.cloud.file.api.FileDescriptions
@@ -36,7 +34,7 @@ class IndexingController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.deliverMaterializedFileSystem) { req ->
             logEntry(log, req)
-            audit(DeliverMaterializedFileSystemAudit( req.rootsToMaterialized.keys.toList()))
+            audit(DeliverMaterializedFileSystemAudit(req.rootsToMaterialized.keys.toList()))
 
             tryWithFS {
                 val result = indexingService.runDiffOnRoots(req.rootsToMaterialized)

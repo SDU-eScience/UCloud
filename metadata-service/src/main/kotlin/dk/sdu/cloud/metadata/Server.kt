@@ -1,6 +1,7 @@
 package dk.sdu.cloud.metadata
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.metadata.api.ProjectEvents
 import dk.sdu.cloud.metadata.http.MetadataController
 import dk.sdu.cloud.metadata.http.ProjectsController
@@ -8,9 +9,17 @@ import dk.sdu.cloud.metadata.processor.StorageEventProcessor
 import dk.sdu.cloud.metadata.services.ElasticMetadataService
 import dk.sdu.cloud.metadata.services.ProjectHibernateDAO
 import dk.sdu.cloud.metadata.services.ProjectService
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.HttpServerProvider
+import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.buildStreams
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.service.forStream
+import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.service.stream
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.http.HttpHost

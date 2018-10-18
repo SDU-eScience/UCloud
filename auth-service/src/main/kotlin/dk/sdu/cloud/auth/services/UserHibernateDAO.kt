@@ -4,10 +4,24 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.list
 import org.hibernate.annotations.NaturalId
-import java.util.*
-import javax.persistence.*
+import java.util.Date
+import java.util.Arrays
+import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
+import javax.persistence.Id
+import javax.persistence.Inheritance
+import javax.persistence.InheritanceType
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
 
 /**
  * Updated in:

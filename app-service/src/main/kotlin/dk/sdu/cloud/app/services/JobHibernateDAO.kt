@@ -9,7 +9,8 @@ import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
-import java.util.*
+import java.util.UUID
+import java.util.Date
 
 class JobHibernateDAO(
     private val applicationDAO: ApplicationHibernateDAO

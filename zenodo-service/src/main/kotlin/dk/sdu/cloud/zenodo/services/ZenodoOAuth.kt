@@ -10,10 +10,7 @@ import dk.sdu.cloud.zenodo.util.HttpClient
 import dk.sdu.cloud.zenodo.util.asDynamicJson
 import java.io.File
 import java.net.URL
-import java.util.*
-
-private const val SANDBOX_BASE = "https://sandbox.zenodo.org"
-private const val PRODUCTION_BASE = "https://zenodo.org"
+import java.util.UUID
 
 interface ZenodoOAuthStateStore<Session> {
     fun storeStateTokenForUser(session: Session, cloudUser: String, token: String, returnTo: String)
@@ -80,6 +77,10 @@ class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore<Unit> {
         )
     }
 }
+private const val SANDBOX_BASE = "https://sandbox.zenodo.org"
+private const val PRODUCTION_BASE = "https://zenodo.org"
+private const val OK_STATUSCODE_START = 200
+private const val OK_STATUSCODE_END = 299
 
 class ZenodoOAuth<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -127,7 +128,7 @@ class ZenodoOAuth<DBSession>(
             addFormParam("code", code)
         }
 
-        if (response.statusCode !in 200..299) return null
+        if (response.statusCode !in OK_STATUSCODE_START..OK_STATUSCODE_END) return null
         parseOAuthResponse(response.asDynamicJson()).also { resp ->
             if (resp != null) db.withTransaction { stateStore.storeAccessAndRefreshToken(it, user, resp) }
         }
@@ -143,7 +144,7 @@ class ZenodoOAuth<DBSession>(
             addFormParam("refresh_token", refreshToken)
         }
 
-        if (response.statusCode !in 200..299) return null
+        if (response.statusCode !in OK_STATUSCODE_START..OK_STATUSCODE_END) return null
         return parseOAuthResponse(response.asDynamicJson()).also { resp ->
             if (resp != null) db.withTransaction { stateStore.storeAccessAndRefreshToken(it, user, resp) }
         }
@@ -179,9 +180,11 @@ data class OAuthTokens(
     val expired: Boolean get() = System.currentTimeMillis() > expiresAt
 }
 
+private const val TO_MILLS = 1000
+
 private fun parseOAuthResponse(node: JsonNode): OAuthTokens? {
     val accessToken = node["access_token"].asText() ?: return null
-    val expiresAt = node["expires_in"].longValue() * 1000 + System.currentTimeMillis()
+    val expiresAt = node["expires_in"].longValue() * TO_MILLS + System.currentTimeMillis()
     val refreshToken = node["refresh_token"].asText() ?: return null
 
     return OAuthTokens(accessToken, expiresAt, refreshToken)

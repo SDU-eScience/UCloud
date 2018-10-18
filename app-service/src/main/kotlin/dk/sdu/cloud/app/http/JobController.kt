@@ -11,11 +11,24 @@ import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.bearer
+import dk.sdu.cloud.service.cloudClient
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.jobId
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.withCausedBy
 import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
+
+private const val ONE_DAY_IN_MILLS = 1000 * 60 * 60 * 24L
+private const val INTERNAL_ERRORCODE_START = 500
+private const val INTERNAL_ERRORCODE_STOP = 599
 
 class JobController<DBSession>(
     private val jobService: JobService<DBSession>
@@ -51,7 +64,7 @@ class JobController<DBSession>(
                             FileDescriptions.download.requiredAuthScope.toString(),
                             FileDescriptions.createDirectory.requiredAuthScope.toString()
                         ),
-                        1000 * 60 * 60 * 24L
+                        ONE_DAY_IN_MILLS
                     ),
                     call.cloudClient
                 )
@@ -71,7 +84,8 @@ class JobController<DBSession>(
                 val uuid = jobService.startJob(extendedToken, req, userCloud)
                 ok(JobStartedResponse(uuid))
             } catch (ex: JobException) {
-                if (ex.statusCode.value in 500..599) log.warn(ex.stackTraceToString())
+                if (ex.statusCode.value in
+                    INTERNAL_ERRORCODE_START..INTERNAL_ERRORCODE_STOP) log.warn(ex.stackTraceToString())
                 error(CommonErrorMessage(ex.message ?: "An error has occurred"), ex.statusCode)
             }
         }

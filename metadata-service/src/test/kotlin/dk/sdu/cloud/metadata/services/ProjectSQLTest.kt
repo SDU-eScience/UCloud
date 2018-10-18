@@ -1,8 +1,6 @@
 package dk.sdu.cloud.metadata.services
 
 import dk.sdu.cloud.metadata.utils.withDatabase
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
-import dk.sdu.cloud.service.db.HibernateSessionFactory
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -11,11 +9,12 @@ import kotlin.test.assertTrue
 class ProjectSQLTest {
     private val projectOwner = "user"
     private val project1 = Project(null, "home/sdu/user", "home/sdu/user", projectOwner, "Project Description")
-    private val project2 = Project(null, "home/sdu/user/extra", "home/sdu/user/extra", projectOwner, "Project Description")
+    private val project2 =
+        Project(null, "home/sdu/user/extra", "home/sdu/user/extra", projectOwner, "Project Description")
 
 
     @Test
-    fun `find By Id test`(){
+    fun `find By Id test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(project1)
@@ -28,7 +27,7 @@ class ProjectSQLTest {
     }
 
     @Test
-    fun `find By Id - Not found - test`(){
+    fun `find By Id - Not found - test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(project1)
@@ -51,7 +50,7 @@ class ProjectSQLTest {
         }
     }
 
-    @Test (expected = ProjectException.NotFound::class)
+    @Test(expected = ProjectException.NotFound::class)
     fun `find Best Matching Project By Path - Not Found - test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
@@ -64,7 +63,7 @@ class ProjectSQLTest {
     }
 
     @Test
-    fun `delete project by ID test`(){
+    fun `delete project by ID test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())
             projectService.createProject(project1)
@@ -138,7 +137,7 @@ class ProjectSQLTest {
         }
     }
 
-    @Test (expected = ProjectException.NotFound::class)
+    @Test(expected = ProjectException.NotFound::class)
     fun `update project - not existing ID - test`() {
         withDatabase { db ->
             val projectService = ProjectService(db, ProjectHibernateDAO())

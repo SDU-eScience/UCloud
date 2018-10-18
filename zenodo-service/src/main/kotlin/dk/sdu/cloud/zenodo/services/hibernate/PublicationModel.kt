@@ -7,8 +7,18 @@ import dk.sdu.cloud.zenodo.api.ZenodoPublicationStatus
 import dk.sdu.cloud.zenodo.api.ZenodoPublicationWithFiles
 import dk.sdu.cloud.zenodo.api.ZenodoUpload
 import java.io.Serializable
-import java.util.*
-import javax.persistence.*
+import java.util.Date
+import javax.persistence.Embeddable
+import javax.persistence.EmbeddedId
+import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.JoinColumn
+import javax.persistence.ManyToOne
+import javax.persistence.OneToMany
+import javax.persistence.Table
 
 @Entity
 @Table(name = "publication_data_objects")
@@ -71,4 +81,5 @@ internal fun PublicationEntity.toModel(): ZenodoPublicationWithFiles = ZenodoPub
     dataObjects.map { it.toModel() }
 )
 
-internal fun PublicationDataObjectEntity.toModel(): ZenodoUpload = ZenodoUpload(id.dataObjectPath, uploaded, modifiedAt.time)
+internal fun PublicationDataObjectEntity.toModel(): ZenodoUpload =
+    ZenodoUpload(id.dataObjectPath, uploaded, modifiedAt.time)

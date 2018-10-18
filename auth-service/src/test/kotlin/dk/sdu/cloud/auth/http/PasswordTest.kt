@@ -1,14 +1,19 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.auth.services.*
+import dk.sdu.cloud.auth.services.JWTFactory
+import dk.sdu.cloud.auth.services.PersonUtils
+import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
+import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.services.TwoFactorChallengeService
+import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.utils.testJwtFactory
 import dk.sdu.cloud.auth.utils.withAuthMock
 import dk.sdu.cloud.auth.utils.withDatabase
-import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -26,7 +31,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class PasswordTest{
+class PasswordTest {
     private data class TestContext(
         val userDao: UserHibernateDAO,
         val refreshTokenDao: RefreshTokenHibernateDAO,
@@ -104,12 +109,18 @@ class PasswordTest{
 
                         assertEquals(HttpStatusCode.Found, response.status())
                         println(response.headers.allValues())
-                        assertTrue(response.headers.values("Location").toString()
-                            .contains("/auth/login-redirect?service=_service"))
-                        assertTrue(response.headers.values("Location").toString()
-                            .contains("accessToken="))
-                        assertTrue(response.headers.values("Location").toString()
-                            .contains("refreshToken="))
+                        assertTrue(
+                            response.headers.values("Location").toString()
+                                .contains("/auth/login-redirect?service=_service")
+                        )
+                        assertTrue(
+                            response.headers.values("Location").toString()
+                                .contains("accessToken=")
+                        )
+                        assertTrue(
+                            response.headers.values("Location").toString()
+                                .contains("refreshToken=")
+                        )
 
                     }
                 )

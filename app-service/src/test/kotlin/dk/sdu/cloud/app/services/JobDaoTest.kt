@@ -4,7 +4,7 @@ import dk.sdu.cloud.app.api.AppState
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class JobDaoTest{
+class JobDaoTest {
 
     @Test
     fun `create simple job Info`() {

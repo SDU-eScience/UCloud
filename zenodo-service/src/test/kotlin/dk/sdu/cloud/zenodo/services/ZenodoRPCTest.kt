@@ -3,7 +3,11 @@ package dk.sdu.cloud.zenodo.services
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.zenodo.util.HttpClient
 import io.ktor.http.HttpStatusCode
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.objectMockk
+import io.mockk.use
 import kotlinx.coroutines.experimental.runBlocking
 import org.asynchttpclient.Response
 import org.junit.Test
@@ -49,9 +53,11 @@ class ZenodoRPCTest {
     private val decodedJWT = mockk<DecodedJWT>(relaxed = true).also {
         every { it.subject } returns "user"
     }
-    private val oToken = OAuthTokens("access",
-        System.currentTimeMillis()+10000,
-        "refresh")
+    private val oToken = OAuthTokens(
+        "access",
+        System.currentTimeMillis() + 10000,
+        "refresh"
+    )
 
     @Test
     fun `is connected test`() {
@@ -69,7 +75,7 @@ class ZenodoRPCTest {
     fun `validate Token test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.get(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns 200
@@ -80,7 +86,7 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = MissingOAuthToken::class)
+    @Test(expected = MissingOAuthToken::class)
     fun `validate Token - missing auth - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns null
@@ -88,11 +94,11 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `validate Token - timeout - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.get(any(), any()) } answers {
                 throw TimeoutException()
             }
@@ -100,11 +106,11 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `validate Token - Unauthorized -  test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.get(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns HttpStatusCode.Unauthorized.value
@@ -114,11 +120,11 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `validate Token - Forbidden -  test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.get(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns HttpStatusCode.Forbidden.value
@@ -128,11 +134,11 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `validate Token - Internal Server Error 500 -  test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.get(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns 500
@@ -142,11 +148,11 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `validate Token - unknown response status -  test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.get(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns 300
@@ -160,11 +166,11 @@ class ZenodoRPCTest {
     fun `create Deposition test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns 200
-                every {response.responseBody} returns responseBody
+                every { response.responseBody } returns responseBody
                 response
             }
             val result = runBlocking { zenodo.createDeposition(decodedJWT.subject) }
@@ -172,7 +178,7 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = MissingOAuthToken::class)
+    @Test(expected = MissingOAuthToken::class)
     fun `create Deposition - Missing auth - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns null
@@ -181,11 +187,11 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `create Deposition - timeout - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 throw TimeoutException()
             }
@@ -193,11 +199,11 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `create Deposition - Unauthorized - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns HttpStatusCode.Unauthorized.value
@@ -207,11 +213,11 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `create Deposition - Forbidden - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns HttpStatusCode.Forbidden.value
@@ -221,11 +227,11 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `create Deposition - Internal error 500 - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns 500
@@ -235,11 +241,11 @@ class ZenodoRPCTest {
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `create Deposition - Unknown response status - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns 300
@@ -253,143 +259,160 @@ class ZenodoRPCTest {
     fun `create upload test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns 200
                 response
             }
-            val result = runBlocking { zenodo.createUpload(
-                decodedJWT.subject,
-                "depositionID",
-                "FileName",
-                File("Pathname")
-            ) }
+            val result = runBlocking {
+                zenodo.createUpload(
+                    decodedJWT.subject,
+                    "depositionID",
+                    "FileName",
+                    File("Pathname")
+                )
+            }
             assertEquals(Unit, result)
         }
     }
 
-    @Test (expected = MissingOAuthToken::class)
+    @Test(expected = MissingOAuthToken::class)
     fun `create upload - missing auth - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns null
 
-            runBlocking { zenodo.createUpload(
-                decodedJWT.subject,
-                "depositionID",
-                "FileName",
-                File("Pathname")
-            ) }
+            runBlocking {
+                zenodo.createUpload(
+                    decodedJWT.subject,
+                    "depositionID",
+                    "FileName",
+                    File("Pathname")
+                )
+            }
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `create upload - Timeout - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 throw TimeoutException()
             }
-            runBlocking { zenodo.createUpload(
-                decodedJWT.subject,
-                "depositionID",
-                "FileName",
-                File("Pathname")
-            ) }
+            runBlocking {
+                zenodo.createUpload(
+                    decodedJWT.subject,
+                    "depositionID",
+                    "FileName",
+                    File("Pathname")
+                )
+            }
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `create upload - Unauthorized - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns HttpStatusCode.Unauthorized.value
                 response
             }
-            runBlocking { zenodo.createUpload(
-                decodedJWT.subject,
-                "depositionID",
-                "FileName",
-                File("Pathname")
-            ) }
+            runBlocking {
+                zenodo.createUpload(
+                    decodedJWT.subject,
+                    "depositionID",
+                    "FileName",
+                    File("Pathname")
+                )
+            }
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `create upload - Forbidden - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns HttpStatusCode.Forbidden.value
                 response
             }
-            runBlocking { zenodo.createUpload(
-                decodedJWT.subject,
-                "depositionID",
-                "FileName",
-                File("Pathname")
-            ) }
+            runBlocking {
+                zenodo.createUpload(
+                    decodedJWT.subject,
+                    "depositionID",
+                    "FileName",
+                    File("Pathname")
+                )
+            }
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `create upload - Internal Server Error 500 - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns 500
                 response
             }
-            runBlocking { zenodo.createUpload(
-                decodedJWT.subject,
-                "depositionID",
-                "FileName",
-                File("Pathname")
-            , 4) }
+            runBlocking {
+                zenodo.createUpload(
+                    decodedJWT.subject,
+                    "depositionID",
+                    "FileName",
+                    File("Pathname")
+                    , 4
+                )
+            }
         }
     }
 
-    @Test (expected = TooManyRetries::class)
+    @Test(expected = TooManyRetries::class)
     fun `create upload - Unknown response status - test`() {
         objectMockk(HttpClient).use {
             coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-            every {  oauth.baseUrl } returns "baseURL"
+            every { oauth.baseUrl } returns "baseURL"
             coEvery { HttpClient.post(any(), any()) } answers {
                 val response = mockk<Response>()
                 every { response.statusCode } returns 300
                 response
             }
-            runBlocking { zenodo.createUpload(
-                decodedJWT.subject,
-                "depositionID",
-                "FileName",
-                File("Pathname")
-            ) }
+            runBlocking {
+                zenodo.createUpload(
+                    decodedJWT.subject,
+                    "depositionID",
+                    "FileName",
+                    File("Pathname")
+                )
+            }
         }
     }
 
     @Test
     fun `create Authorization URL test`() {
         every { oauth.createAuthorizationUrl(any(), any(), any()) } answers {
-            val url = URL("http", "localhost", 5000,"/home")
+            val url = URL("http", "localhost", 5000, "/home")
             url
         }
-        assertEquals("http://localhost:5000/home",
-            zenodo.createAuthorizationUrl(decodedJWT.subject, "returnTo").toString())
+        assertEquals(
+            "http://localhost:5000/home",
+            zenodo.createAuthorizationUrl(decodedJWT.subject, "returnTo").toString()
+        )
     }
 
     private val metadata = mapOf("1" to "x", "2" to "y", "-1" to "zz")
 
     @Test
-    fun `zenodoDepositionEntity simple Creation - test`(){
+    fun `zenodoDepositionEntity simple Creation - test`() {
         val entity = ZenodoDepositionEntity(
             "22-2-12",
             listOf(File("path")),
@@ -417,7 +440,7 @@ class ZenodoRPCTest {
         assertEquals(299299, entity.owner)
         assertEquals(2, entity.record_id)
         assertEquals("state", entity.state)
-        assertTrue( entity.submitted)
+        assertTrue(entity.submitted)
         assertEquals("title", entity.title)
 
         assertEquals("path", entity.files.firstOrNull().toString())

@@ -1,6 +1,10 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.FileChecksum
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.Timestamps
 import io.mockk.every
 import io.mockk.mockk
 import org.elasticsearch.ElasticsearchStatusException
@@ -14,7 +18,7 @@ import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.rest.RestStatus
 import org.junit.Test
 
-class ElasticIndexingTest{
+class ElasticIndexingTest {
 
     private val eventCreatedOrRefreshed = StorageEvent.CreatedOrRefreshed(
         "id",
@@ -82,7 +86,7 @@ class ElasticIndexingTest{
         elastic.migrate()
     }
 
-    @Test (expected = RuntimeException::class)
+    @Test(expected = RuntimeException::class)
     fun `test migration - failure`() {
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
@@ -94,7 +98,7 @@ class ElasticIndexingTest{
         elastic.migrate()
     }
 
-    @Test (expected = ElasticsearchStatusException::class)
+    @Test(expected = ElasticsearchStatusException::class)
     fun `test migration - exception in delete`() {
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
@@ -109,7 +113,7 @@ class ElasticIndexingTest{
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
 
-        every { rest.update( any() ) } answers {
+        every { rest.update(any()) } answers {
             val response = UpdateResponse()
             response
         }
@@ -122,7 +126,7 @@ class ElasticIndexingTest{
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
 
-        every { rest.delete( any()) } answers {
+        every { rest.delete(any()) } answers {
             val response = DeleteResponse()
             response
         }
@@ -136,7 +140,7 @@ class ElasticIndexingTest{
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
 
-        every { rest.update( any()) } answers {
+        every { rest.update(any()) } answers {
             val response = UpdateResponse()
             response
         }
@@ -150,7 +154,7 @@ class ElasticIndexingTest{
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
 
-        every { rest.update( any()) } answers {
+        every { rest.update(any()) } answers {
             val response = UpdateResponse()
             response
         }
@@ -163,7 +167,7 @@ class ElasticIndexingTest{
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
 
-        every { rest.update( any()) } answers {
+        every { rest.update(any()) } answers {
             val response = UpdateResponse()
             response
         }
@@ -176,7 +180,7 @@ class ElasticIndexingTest{
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
 
-        every { rest.update( any()) } answers {
+        every { rest.update(any()) } answers {
             val response = UpdateResponse()
             response
         }
@@ -190,7 +194,7 @@ class ElasticIndexingTest{
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
 
-        every { rest.update( any()) } answers {
+        every { rest.update(any()) } answers {
             val response = UpdateResponse()
             response
         }
@@ -204,18 +208,22 @@ class ElasticIndexingTest{
         val rest = mockk<RestHighLevelClient>(relaxed = true)
         val elastic = ElasticIndexingService(rest)
 
-        every { rest.bulk( any()) } answers {
+        every { rest.bulk(any()) } answers {
             val response = mockk<BulkResponse>()
             every { response.items } answers {
-                val a = Array(1) { i -> BulkItemResponse(i, mockk<DocWriteRequest.OpType>(),
-                    BulkItemResponse.Failure("index", "doc", "2", IllegalArgumentException()))}
+                val a = Array(1) { i ->
+                    BulkItemResponse(
+                        i, mockk<DocWriteRequest.OpType>(),
+                        BulkItemResponse.Failure("index", "doc", "2", IllegalArgumentException())
+                    )
+                }
                 println(a[0])
                 a
             }
             response
         }
 
-        every { rest.update( any()) } answers {
+        every { rest.update(any()) } answers {
             val response = UpdateResponse()
             response
         }

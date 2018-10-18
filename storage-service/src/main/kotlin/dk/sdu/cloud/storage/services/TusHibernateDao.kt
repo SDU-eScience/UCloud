@@ -1,9 +1,21 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.file.api.SensitivityLevel
-import java.util.*
-import javax.persistence.*
+import dk.sdu.cloud.service.db.CriteriaBuilderContext
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import java.util.Date
+import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
 import javax.persistence.criteria.Predicate
 
 @Entity
@@ -68,7 +80,7 @@ class TusHibernateDAO : TusDAO<HibernateSession> {
         user: String,
         uploadCreationCommand: TusUploadCreationCommand
     ): Long {
-        val entity = with (uploadCreationCommand) {
+        val entity = with(uploadCreationCommand) {
             TusUploadEntity(
                 0,
                 Date(),

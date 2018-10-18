@@ -1,8 +1,8 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import { Grid, Dropdown, Label, Header, Form, Button, Input, Message } from "semantic-ui-react";
-import { addEntryIfNotPresent } from "Utilities/ArrayUtilities"
-import { infoNotification, failureNotification } from "UtilityFunctions";
+import { addEntryIfNotPresent } from "Utilities/CollectionUtilities"
+import { infoNotification } from "UtilityFunctions";
 import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation, PossibleTime } from ".";
 import DatePicker from "react-datepicker";
 import { Moment } from "moment";

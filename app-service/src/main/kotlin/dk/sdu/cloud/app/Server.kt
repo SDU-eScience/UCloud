@@ -5,11 +5,26 @@ import dk.sdu.cloud.app.api.HPCStreams
 import dk.sdu.cloud.app.http.AppController
 import dk.sdu.cloud.app.http.JobController
 import dk.sdu.cloud.app.http.ToolController
-import dk.sdu.cloud.app.services.*
+import dk.sdu.cloud.app.services.ApplicationHibernateDAO
+import dk.sdu.cloud.app.services.JobExecutionService
+import dk.sdu.cloud.app.services.JobHibernateDAO
+import dk.sdu.cloud.app.services.JobService
+import dk.sdu.cloud.app.services.SBatchGenerator
+import dk.sdu.cloud.app.services.SlurmPollAgent
+import dk.sdu.cloud.app.services.ToolHibernateDAO
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.HttpServerProvider
+import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.buildStreams
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.service.forStream
+import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.service.stream
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -17,6 +32,9 @@ import org.slf4j.Logger
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
+
+private const val POLL_INTERVAL = 15L
+
 
 class Server(
     override val kafka: KafkaServices,
@@ -43,7 +61,7 @@ class Server(
         log.info("Init Application Services")
         val sshPool = SSHConnectionPool(config.ssh)
         val sbatchGenerator = SBatchGenerator()
-        slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, 15L, TimeUnit.SECONDS)
+        slurmPollAgent = SlurmPollAgent(sshPool, scheduledExecutor, 0L, POLL_INTERVAL, TimeUnit.SECONDS)
 
         val toolDao = ToolHibernateDAO()
         val applicationDao = ApplicationHibernateDAO(toolDao)

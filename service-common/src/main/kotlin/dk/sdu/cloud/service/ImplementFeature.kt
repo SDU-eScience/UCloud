@@ -8,8 +8,18 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.*
-import io.ktor.application.*
+import dk.sdu.cloud.client.RESTBody
+import dk.sdu.cloud.client.RESTCallDescription
+import dk.sdu.cloud.client.RESTPathSegment
+import dk.sdu.cloud.client.RESTQueryParameter
+import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.client.toKtorTemplate
+import io.ktor.application.Application
+import io.ktor.application.ApplicationCall
+import io.ktor.application.application
+import io.ktor.application.call
+import io.ktor.application.featureOrNull
+import io.ktor.application.install
 import io.ktor.features.conversionService
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -240,7 +250,8 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
 
                         if (CommonErrorMessage::class.java == restCall.responseTypeFailure.type) {
                             val message =
-                                if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why else "Internal Server Error"
+                                if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why
+                                else "Internal Server Error"
 
                             @Suppress("UNCHECKED_CAST")
                             restHandler.error(CommonErrorMessage(message) as E, ex.httpStatusCode)
@@ -261,8 +272,10 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                         warnMissingFinalize(restCall)
                     }
                 } catch (ex: Exception) {
-                    log.warn("Caught exception while handling implement. Exception was not caught in the normal " +
-                            "handler.")
+                    log.warn(
+                        "Caught exception while handling implement. Exception was not caught in the normal " +
+                                "handler."
+                    )
                     log.warn(ex.stackTraceToString())
                     call.respond(HttpStatusCode.InternalServerError)
                 }
@@ -309,6 +322,9 @@ private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): P
     }
 }
 
+private const val OK_STATUSCODE_START = 200
+private const val OK_STATUSCODE_STOP = 299
+
 class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
     private val payload: P,
     val boundTo: PipelineContext<*, ApplicationCall>,
@@ -327,19 +343,19 @@ class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
     }
 
     suspend fun ok(result: S, status: HttpStatusCode = HttpStatusCode.OK) {
-        assert(status.value in 200..299)
+        assert(status.value in OK_STATUSCODE_START..OK_STATUSCODE_STOP)
         finalize(result)
 
         if (result == Unit) call.respond(status)
         else {
             call.respondText(contentType = ContentType.Application.Json, status = status) {
-               defaultMapper.writerFor(restCall.responseTypeSuccess).writeValueAsString(result)
+                defaultMapper.writerFor(restCall.responseTypeSuccess).writeValueAsString(result)
             }
         }
     }
 
     suspend fun error(error: E, status: HttpStatusCode) {
-        assert(status.value !in 200..299)
+        assert(status.value !in OK_STATUSCODE_START..OK_STATUSCODE_STOP)
         finalize(error)
 
         if (error == Unit) call.respond(status)

@@ -2,7 +2,7 @@ package dk.sdu.cloud.service.db
 
 import org.junit.Test
 
-class DBSessionsTest{
+class DBSessionsTest {
 
     @Test //Unnecessary to test since it does not do anything, but gives coverage
     fun `test fake DBSessionFactory`() {

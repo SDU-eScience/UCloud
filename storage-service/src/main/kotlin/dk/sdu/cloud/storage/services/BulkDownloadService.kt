@@ -1,7 +1,7 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.util.FSException
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarHeader
@@ -9,6 +9,8 @@ import org.kamranzafar.jtar.TarOutputStream
 import org.slf4j.LoggerFactory
 import java.io.OutputStream
 import java.util.zip.GZIPOutputStream
+
+private const val TAR_PERMISSION = 511
 
 class BulkDownloadService<Ctx : FSUserContext>(
     private val fs: CoreFileSystemService<Ctx>
@@ -34,7 +36,7 @@ class BulkDownloadService<Ctx : FSUserContext>(
                                 stat.size,
                                 stat.timestamps.modified,
                                 stat.fileType == FileType.DIRECTORY,
-                                511 // TODO! (0777)
+                                TAR_PERMISSION // TODO! (0777)
                             )
                         )
                     )

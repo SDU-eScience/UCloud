@@ -16,11 +16,11 @@ class FSResult<T>(
 sealed class FSACLEntity {
     abstract val serializedEntity: String
 
-    data class User(val user: String): FSACLEntity() {
+    data class User(val user: String) : FSACLEntity() {
         override val serializedEntity: String = "u:$user"
     }
 
-    data class Group(val group: String): FSACLEntity() {
+    data class Group(val group: String) : FSACLEntity() {
         override val serializedEntity: String = "g:$group"
     }
 
@@ -36,14 +36,14 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         to: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-    
+
     fun move(
         ctx: Ctx,
         from: String,
         to: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.Moved>>
-    
+
     fun listDirectory(
         ctx: Ctx,
         directory: String,
@@ -54,35 +54,35 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         path: String
     ): FSResult<List<StorageEvent.Deleted>>
-    
+
     fun openForWriting(
         ctx: Ctx,
         path: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-    
+
     fun write(
         ctx: Ctx,
         writer: (OutputStream) -> Unit
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-    
+
     fun tree(
         ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>>
-    
+
     fun makeDirectory(
         ctx: Ctx,
         path: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
-    
+
     fun getExtendedAttribute(
         ctx: Ctx,
         path: String,
         attribute: String
     ): FSResult<String>
-    
+
     fun setExtendedAttribute(
         ctx: Ctx,
         path: String,

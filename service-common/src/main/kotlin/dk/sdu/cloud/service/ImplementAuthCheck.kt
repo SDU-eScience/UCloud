@@ -2,7 +2,11 @@ package dk.sdu.cloud.service
 
 import com.auth0.jwt.interfaces.Claim
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.*
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.client.RESTCallDescription
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline

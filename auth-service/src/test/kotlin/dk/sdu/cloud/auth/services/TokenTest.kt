@@ -5,7 +5,11 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.auth.utils.*
+import dk.sdu.cloud.auth.utils.createJWTWithTestAlgorithm
+import dk.sdu.cloud.auth.utils.testJwtFactory
+import dk.sdu.cloud.auth.utils.testJwtVerifier
+import dk.sdu.cloud.auth.utils.withAuthMock
+import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -40,7 +44,8 @@ class TokenTest {
         db.withTransaction {
             try {
                 userDao.delete(it, person.id)
-            } catch(_: Exception) {}
+            } catch (_: Exception) {
+            }
 
             userDao.insert(it, person)
         }

@@ -15,9 +15,9 @@ data class HashedPasswordAndSalt(val hashedPassword: ByteArray, val salt: ByteAr
 
 internal object PersonUtils {
     private val RNG = SecureRandom()
-    private val SALT_LENGTH = 16
-    private val ITERATIONS = 10000
-    private val KEY_LENGTH = 256
+    private val saltLength = 16
+    private val iterations = 10000
+    private val keyLength = 256
 
     fun createUserByPassword(
         firstNames: String, lastName: String, email: String, role: Role,
@@ -70,7 +70,7 @@ internal object PersonUtils {
         val passwordArr = password.toCharArray()
         try {
             val skf = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA512")
-            val spec = PBEKeySpec(passwordArr, salt, ITERATIONS, KEY_LENGTH)
+            val spec = PBEKeySpec(passwordArr, salt, iterations, keyLength)
             val key = skf.generateSecret(spec)
             return HashedPasswordAndSalt(key.encoded, salt)
         } catch (e: NoSuchAlgorithmException) {
@@ -80,7 +80,7 @@ internal object PersonUtils {
         }
     }
 
-    private fun genSalt(): ByteArray = ByteArray(SALT_LENGTH).also { RNG.nextBytes(it) }
+    private fun genSalt(): ByteArray = ByteArray(saltLength).also { RNG.nextBytes(it) }
 }
 
 fun Person.ByPassword.checkPassword(plainPassword: String): Boolean {

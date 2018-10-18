@@ -1,0 +1,39 @@
+---
+persistence:
+  size: 10Gi
+  storageClass: rbd
+
+elasticsearch:
+  host: elasticsearch-client.elasticsearch.svc.cluster.local
+
+inputs:
+  kafka: |-
+    input {
+      kafka {
+        topics => ["http.logs"]
+        auto_offset_reset => "earliest"
+        bootstrap_servers => "kafka.kafka.svc.cluster.local:9092"
+      }
+    }
+
+filters:
+  kafka: |-
+    filter {
+      json {
+        source => "message"
+      }
+      mutate {
+        lowercase => "requestName"
+        remove_field => "message"
+      }
+    }
+
+outputs:
+  kafka: |-
+    output {
+      elasticsearch {
+        hosts => ["http://elasticsearch-client.elasticsearch.svc.cluster.local:9200"]
+        manage_template => false
+        index => "http_logs_%{requestName}"
+      }
+    }

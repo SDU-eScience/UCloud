@@ -80,7 +80,7 @@ data class ProjectMetadata(
 
     override val subjects: List<Subject>? = null,
     override val relatedIdentifiers: List<RelatedIdentifier>? = null
-): UserEditableProjectMetadata {
+) : UserEditableProjectMetadata {
     init {
         if (title.isBlank()) throw IllegalArgumentException("Metadata 'title' cannot be blank")
         if (description.isBlank()) throw IllegalArgumentException("Metadata 'description' cannot be blank")

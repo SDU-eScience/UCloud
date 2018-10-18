@@ -10,9 +10,17 @@ import dk.sdu.cloud.auth.services.OneTimeTokenDAO
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.util.urlEncoded
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.RESTHandler
+import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.bearer
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.error
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.ok
+import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.service.toSecurityToken
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
@@ -33,7 +41,29 @@ import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.route
 import io.ktor.util.escapeHTML
-import kotlinx.html.*
+import kotlinx.html.ButtonType
+import kotlinx.html.FORM
+import kotlinx.html.FlowContent
+import kotlinx.html.FormMethod
+import kotlinx.html.HTML
+import kotlinx.html.InputType
+import kotlinx.html.a
+import kotlinx.html.body
+import kotlinx.html.button
+import kotlinx.html.div
+import kotlinx.html.form
+import kotlinx.html.h1
+import kotlinx.html.h3
+import kotlinx.html.head
+import kotlinx.html.i
+import kotlinx.html.id
+import kotlinx.html.img
+import kotlinx.html.input
+import kotlinx.html.link
+import kotlinx.html.meta
+import kotlinx.html.p
+import kotlinx.html.script
+import kotlinx.html.title
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.MalformedURLException
@@ -501,7 +531,7 @@ class CoreAuthController<DBSession>(
                     ) {
                         attributes["autocomplete"] = "off"
 
-                        div(classes = "ui stacked segment") {
+                        div(classes = "ui segment") {
                             this@form.form()
                         }
                     }

@@ -4,7 +4,7 @@ import dk.sdu.cloud.indexing.util.lazyAssert
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class LazyAssertTest{
+class LazyAssertTest {
 
     @Test
     fun `Lazy assert Test`() {
@@ -17,7 +17,8 @@ class LazyAssertTest{
             lazyAssert { false }
         } catch (e: AssertionError) {
             assertEquals("Assertion failed", e.message)
-        }    }
+        }
+    }
 
     @Test
     fun `Lazy assert Test fail - own message`() {

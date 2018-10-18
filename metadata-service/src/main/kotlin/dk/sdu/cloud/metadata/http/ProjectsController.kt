@@ -3,6 +3,9 @@ package dk.sdu.cloud.metadata.http
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.jwtAuth
+import dk.sdu.cloud.file.api.AnnotateFileRequest
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.metadata.api.CreateProjectResponse
 import dk.sdu.cloud.metadata.api.ProjectDescriptions
 import dk.sdu.cloud.metadata.api.ProjectEvent
@@ -10,14 +13,20 @@ import dk.sdu.cloud.metadata.api.ProjectEventProducer
 import dk.sdu.cloud.metadata.services.Project
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.metadata.services.tryWithProject
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.file.api.AnnotateFileRequest
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.bearer
+import dk.sdu.cloud.service.cloudClient
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.jobId
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.withCausedBy
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 
+private const val NOT_FOUND_STATUSCODE = 404
 class ProjectsController(
     private val projectEventProducer: ProjectEventProducer,
     private val projectService: ProjectService<*>
@@ -34,7 +43,7 @@ class ProjectsController(
 
                 val rootStat = FileDescriptions.stat.call(FindByPath(request.fsRoot), cloud)
                 if (rootStat !is RESTResponse.Ok) {
-                    if (rootStat.status == 404) {
+                    if (rootStat.status == NOT_FOUND_STATUSCODE) {
                         error(CommonErrorMessage("Could not find project root"), HttpStatusCode.NotFound)
                         return@implement
                     } else {

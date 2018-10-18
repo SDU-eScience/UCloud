@@ -5,7 +5,7 @@ import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.validateAnnotation
 import dk.sdu.cloud.storage.util.unwrap
 import kotlinx.coroutines.experimental.launch
-import java.util.*
+import java.util.UUID
 
 class FileAnnotationService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,

@@ -26,6 +26,13 @@ data class ZenodoRPCFailure(
     val errors: Map<String, Any>?
 ) : ZenodoRPCException("Error while communicating with Zenodo", HttpStatusCode.BadGateway)
 
+private const val NUMBER_OF_RETRIES = 5
+private const val DELAY_IN_MILLS = 500
+private const val OK_STATUSCODE_START = 200
+private const val OK_STATUSCODE_END = 299
+private const val INTERNAL_STATUSCODE_START = 500
+private const val INTERNAL_STATUSCODE_END = 599
+
 class ZenodoRPCService(
     private val oauthService: ZenodoOAuth<*>
 ) {
@@ -34,7 +41,7 @@ class ZenodoRPCService(
     }
 
     suspend fun validateUser(user: String, retries: Int = 0) {
-        if (retries >= 5) throw TooManyRetries()
+        if (retries >= NUMBER_OF_RETRIES) throw TooManyRetries()
 
         val token =
             oauthService.retrieveTokenOrRefresh(user) ?: throw MissingOAuthToken()
@@ -44,13 +51,13 @@ class ZenodoRPCService(
                 setHeader(HttpHeaders.Authorization, "Bearer ${token.accessToken}")
             }
         } catch (ex: TimeoutException) {
-            delay(500)
+            delay(DELAY_IN_MILLS)
             return validateUser(user, retries + 1)
         }
 
         try {
             when (rawResponse.statusCode) {
-                in 200..299 -> {
+                in OK_STATUSCODE_START..OK_STATUSCODE_END -> {
                     // All is good
                     return
                 }
@@ -60,8 +67,8 @@ class ZenodoRPCService(
                     throw MissingOAuthToken()
                 }
 
-                in 500..599 -> {
-                    delay(500)
+                in INTERNAL_STATUSCODE_START..INTERNAL_STATUSCODE_END -> {
+                    delay(DELAY_IN_MILLS)
                     return validateUser(user, retries + 1)
                 }
 
@@ -77,7 +84,7 @@ class ZenodoRPCService(
     }
 
     suspend fun createDeposition(user: String, retries: Int = 0): ZenodoDepositionEntity {
-        if (retries >= 5) throw TooManyRetries()
+        if (retries >= NUMBER_OF_RETRIES) throw TooManyRetries()
 
         val token =
             oauthService.retrieveTokenOrRefresh(user) ?: throw MissingOAuthToken()
@@ -89,13 +96,13 @@ class ZenodoRPCService(
                 setBody("{}")
             }
         } catch (ex: TimeoutException) {
-            delay(500)
+            delay(DELAY_IN_MILLS)
             return createDeposition(user, retries + 1)
         }
 
         return try {
             when (rawResponse.statusCode) {
-                in 200..299 -> {
+                in OK_STATUSCODE_START..OK_STATUSCODE_END -> {
                     rawResponse.asJson()
                 }
 
@@ -104,8 +111,8 @@ class ZenodoRPCService(
                     throw MissingOAuthToken()
                 }
 
-                in 500..599 -> {
-                    delay(500)
+                in INTERNAL_STATUSCODE_START..INTERNAL_STATUSCODE_END -> {
+                    delay(DELAY_IN_MILLS)
                     return createDeposition(user, retries + 1)
                 }
 
@@ -127,7 +134,7 @@ class ZenodoRPCService(
         filePart: File,
         retries: Int = 0
     ) {
-        if (retries >= 5) throw TooManyRetries()
+        if (retries >= NUMBER_OF_RETRIES) throw TooManyRetries()
 
         val token = oauthService.retrieveTokenOrRefresh(user) ?: throw MissingOAuthToken()
 
@@ -138,13 +145,13 @@ class ZenodoRPCService(
                 addBodyPart(FilePart("file", filePart, null, null, fileName))
             }
         } catch (ex: TimeoutException) {
-            delay(500)
+            delay(DELAY_IN_MILLS)
             return createUpload(user, depositionId, fileName, filePart, retries + 1)
         }
 
         return try {
             when (response.statusCode) {
-                in 200..299 -> {
+                in OK_STATUSCODE_START..OK_STATUSCODE_END -> {
                     // Do nothing, all is good.
                 }
 
@@ -153,8 +160,8 @@ class ZenodoRPCService(
                     throw MissingOAuthToken()
                 }
 
-                in 500..599 -> {
-                    delay(500)
+                in INTERNAL_STATUSCODE_START..INTERNAL_STATUSCODE_END -> {
+                    delay(DELAY_IN_MILLS)
                     return createUpload(user, depositionId, fileName, filePart, retries + 1)
                 }
 
@@ -178,6 +185,9 @@ class ZenodoRPCService(
     }
 }
 
+//Entity may not be changes since Zenodo dictates the attributes.
+// Only if changes are made from Zenodos side
+@Suppress("ConstructorParameterNaming")
 data class ZenodoDepositionEntity(
     val created: String,
     val files: List<Any>,

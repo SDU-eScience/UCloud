@@ -3,7 +3,14 @@ package dk.sdu.cloud.indexing
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.auth.api.refreshingJwtCloud
 import dk.sdu.cloud.indexing.api.IndexingServiceDescription
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.configuration
+import dk.sdu.cloud.service.initWithDefaultFeatures
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.kafka
+import dk.sdu.cloud.service.runScriptHandler
+import dk.sdu.cloud.service.serverProvider
+import dk.sdu.cloud.service.serviceInstance
 import java.net.InetAddress
 import java.net.UnknownHostException
 

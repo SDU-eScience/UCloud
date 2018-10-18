@@ -3,7 +3,6 @@ package dk.sdu.cloud.metadata.http
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.auth.api.protect
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
@@ -18,7 +17,6 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
-import io.ktor.application.install
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -28,7 +26,11 @@ import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.objectMockk
+import io.mockk.use
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals

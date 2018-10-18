@@ -12,77 +12,31 @@ import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RESTHandler
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.share.api.*
+import dk.sdu.cloud.share.api.CreateShareRequest
+import dk.sdu.cloud.share.api.Share
+import dk.sdu.cloud.share.api.ShareId
+import dk.sdu.cloud.share.api.ShareState
+import dk.sdu.cloud.share.api.SharesByPath
 import dk.sdu.cloud.storage.util.homeDirectory
 import dk.sdu.cloud.storage.util.joinPath
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.launch
 import org.slf4j.LoggerFactory
 
-sealed class ShareException(override val message: String) : RuntimeException(message) {
-    class NotFound : ShareException("Not found")
-    class NotAllowed : ShareException("Not allowed")
-    class DuplicateException : ShareException("Already exists")
-    class PermissionException : ShareException("Not allowed")
-    class BadRequest(why: String) : ShareException("Bad request: $why")
-    class InternalError(val why: String) : ShareException("Internal error")
+sealed class ShareException(override val message: String, statusCode: HttpStatusCode) : RPCException(message, statusCode) {
+    class NotFound : ShareException("Not found", HttpStatusCode.NotFound)
+    class NotAllowed : ShareException("Not allowed", HttpStatusCode.Forbidden)
+    class DuplicateException : ShareException("Already exists", HttpStatusCode.Conflict)
+    class PermissionException : ShareException("Not allowed", HttpStatusCode.Forbidden)
+    class BadRequest(why: String) : ShareException("Bad request: $why", HttpStatusCode.BadRequest)
+    class InternalError(why: String) : ShareException("Internal error: $why", HttpStatusCode.InternalServerError)
 }
 
 private val log = LoggerFactory.getLogger(ShareService::class.java)
-
-suspend fun RESTHandler<*, *, CommonErrorMessage, *>.handleShareException(ex: Exception) {
-    when (ex) {
-        is ShareException -> {
-            @Suppress("UNUSED_VARIABLE")
-            val ignored = when (ex) {
-                is ShareException.NotFound -> {
-                    error(CommonErrorMessage(ex.message), HttpStatusCode.NotFound)
-                }
-
-                is ShareException.NotAllowed -> {
-                    error(CommonErrorMessage(ex.message), HttpStatusCode.Forbidden)
-                }
-
-                is ShareException.DuplicateException -> {
-                    error(CommonErrorMessage(ex.message), HttpStatusCode.Conflict)
-                }
-                is ShareException.PermissionException -> {
-                    error(CommonErrorMessage(ex.message), HttpStatusCode.Forbidden)
-                }
-                is ShareException.BadRequest -> {
-                    error(CommonErrorMessage(ex.message), HttpStatusCode.BadRequest)
-                }
-                is ShareException.InternalError -> {
-                    log.warn(ex.why)
-                    error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
-                }
-            }
-        }
-
-        is IllegalArgumentException -> {
-            log.debug("Bad request:")
-            log.debug(ex.stackTraceToString())
-            error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-        }
-
-        else -> {
-            log.warn("Unknown exception caught in share service!")
-            log.warn(ex.stackTraceToString())
-            error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
-        }
-    }
-}
-
-suspend inline fun RESTHandler<*, *, CommonErrorMessage, *>.tryWithShareService(body: () -> Unit) {
-    try {
-        body()
-    } catch (ex: Exception) {
-        handleShareException(ex)
-    }
-}
 
 class ShareService<DBSession, Ctx : FSUserContext>(
     private val db: DBSessionFactory<DBSession>,
@@ -128,8 +82,8 @@ class ShareService<DBSession, Ctx : FSUserContext>(
             cloud
         ) as? RESTResponse.Ok ?: throw ShareException.InternalError("Could not look up user")
 
-        lookup.result.results[share.sharedWith] ?:
-        throw ShareException.BadRequest("The user you are attempting to share with does not exist")
+        lookup.result.results[share.sharedWith]
+                ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
 
         val rewritten = Share(
             owner = ctx.user,

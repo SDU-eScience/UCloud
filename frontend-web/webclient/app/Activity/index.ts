@@ -2,8 +2,8 @@ import { ActivityReduxObject  } from "DefaultObjects";
 
 export type Activity = CountedActivity | TrackedActivity;
 
-export type CountedOperations = "FAVORITE" | "DOWNLOAD";
-export type TrackedOperations = "CREATE" | "UPDATE" | "DELETE" | "MOVED";
+export type CountedOperations = "DOWNLOAD";
+export type TrackedOperations = "CREATE" | "UPDATE" | "DELETE" | "MOVED" | "FAVORITE" | "REMOVE_FAVORITE";
 
 interface CountedActivityEntry {
     id: string
@@ -20,7 +20,7 @@ export interface CountedActivity {
 
 interface TrackedActivityFile {
     id: string
-    path: string
+    path: string | null
 }
 
 export interface TrackedActivity {
@@ -28,11 +28,17 @@ export interface TrackedActivity {
     operation: TrackedOperations
     files: TrackedActivityFile[]
     timestamp: number
+    users: ActivityUser[]
+}
+
+interface ActivityUser {
+    username: string
 }
 
 export interface ActivityDispatchProps {
     fetchActivity: (pageNumber: number, pageSize: number) => void
     setError: (error?: string) => void
+    setPageTitle: () => void
 }
 
 export interface ActivityProps extends ActivityReduxObject, ActivityDispatchProps { }

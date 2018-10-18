@@ -22,6 +22,8 @@ data class SimpleSSHConfig(
     }
 }
 
+private const val CHARLIMIT_DEFAULT = 1024L * 1024L
+
 class SSHConnection(val session: Session) {
     fun openExecChannel(): ChannelExec = session.openChannel("exec") as ChannelExec
     fun openSFTPChannel(): ChannelSftp = session.openChannel("sftp") as ChannelSftp
@@ -43,7 +45,7 @@ class SSHConnection(val session: Session) {
             Pair(fixedStatus, res)
         }
 
-    fun execWithOutputAsText(command: String, charLimit: Long = 1024 * 1024): Pair<Int, String> =
+    fun execWithOutputAsText(command: String, charLimit: Long = CHARLIMIT_DEFAULT): Pair<Int, String> =
         exec(command) {
             log.debug("Running command: $command")
             inputStream.bufferedReader().use {

@@ -3,10 +3,12 @@ package dk.sdu.cloud.storage.services.cephfs
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.storage.SERVICE_UNIX_USER
+import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.services.StorageUserDao
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.util.*
+import java.util.Base64
 
 class CephFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
     private val cloudToUser = HashMap<String, String>()
@@ -40,12 +42,16 @@ class CephFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
     override fun findCloudUser(unixUser: String, verify: Boolean): String? {
         if (verify) TODO("Username verification not yet implemented")
 
+        if (unixUser == SERVICE_UNIX_USER) {
+            return SERVICE_USER
+        }
+
         return if (unixUser.startsWith(B64_PREFIX)) {
             val encodedName = unixUser.substring(B64_PREFIX.length).replace('.', '=')
             String(decoder.decode(encodedName), USERNAME_CHARSET)
         } else {
             if (isDevelopment) userToCloud[unixUser]
-            else throw IllegalArgumentException("Unsupported unix user")
+            else throw IllegalArgumentException("Unsupported unix user: '$unixUser'")
         }
     }
 
@@ -65,6 +71,7 @@ class CephFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
         // We use a non-standard file-name and URL safe base64 encoding with '.' as the padding
         // character as opposed to '='. This makes the encoding Unix username safe
         private const val B64_PREFIX = "b64"
+        @Suppress("ObjectPropertyNaming")
         private val USERNAME_CHARSET = Charsets.UTF_8
 
         private val encoder = Base64.getUrlEncoder()

@@ -1,17 +1,19 @@
 import * as React from "react";
-import { Button, Header, Form } from "semantic-ui-react";
+import { Button, Header, Form, Message } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { fetchPublications, setZenodoLoading } from "./Redux/ZenodoActions";
+import { setZenodoLoading, setErrorMessage } from "./Redux/ZenodoActions";
 import { connect } from "react-redux";
 import { History } from "history";
-import { removeEntry } from "Utilities/ArrayUtilities";
+import { removeEntry } from "Utilities/CollectionUtilities";
 import { failureNotification } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { File } from "Files";
+import { SET_ZENODO_ERROR } from "Zenodo/Redux/ZenodoReducer";
+import { Dispatch } from "redux";
 
 interface ZenodoPublishState {
     files: string[]
@@ -23,9 +25,16 @@ interface ZenodoPublishProps {
     loading: boolean
     connected: boolean
     history: History
+    error?: string
 }
 
-class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishState> {
+interface ZenodoPublishOperations {
+    updatePageTitle: () => void
+    setLoading: (loading: boolean) => void
+    setErrorMessage: (error?: string) => void
+}
+
+class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOperations, ZenodoPublishState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -33,23 +42,19 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
             name: "",
             requestSent: false,
         };
-        const { dispatch, connected } = props;
-        dispatch(updatePageTitle("Zenodo Publish"));
-        if (!connected) {
-            dispatch(setZenodoLoading(true));
-            dispatch(fetchPublications(0, 10));
-        }
+        props.updatePageTitle();
     }
+
+    componentWillUnmount = () => this.props.setErrorMessage();
 
     submit = (e) => {
         e.preventDefault();
         const filePaths = this.state.files.filter(filePath => filePath);
-        // FIXME Is not necessary as submit button isn't clickable if neither is 
-        if (!filePaths.length || !this.state.name) return;
         Cloud.post("/zenodo/publish/", { filePaths, name: this.state.name }).then((res) => {
             this.props.history.push(`/zenodo/info/${res.response.publicationId}`);
-        }); // FIXME Error handling
-        this.setState(() => ({ requestSent: true }));
+            this.setState(() => ({ requestSent: true }));
+        }).catch(_ => this.props.setErrorMessage("An error occurred publishing. Please try again later."));
+
     }
 
     removeFile = (index: number) => {
@@ -71,9 +76,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
     newFile() {
         const files = this.state.files.slice();
         files.push("");
-        this.setState(() => ({
-            files,
-        }));
+        this.setState(() => ({ files }));
     }
 
     render() {
@@ -90,6 +93,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps, ZenodoPublishSta
                         File Selection
                     </Header.Content>
                 </Header>
+                {this.props.error ? <Message error content={this.props.error} onDismiss={() => this.props.setErrorMessage(undefined)} /> : null}
                 <Form onSubmit={(e) => this.submit(e)}>
                     <FileSelections
                         handleFileSelection={this.handleFileSelection}
@@ -144,5 +148,10 @@ const FileSelections = ({ files, handleFileSelection, removeFile }: { files: str
     </>
 );
 
-const mapStateToProps = ({ zenodo }) => ({ connected: zenodo.connected, loading: zenodo.loading });
-export default connect(mapStateToProps)(ZenodoPublish);
+const mapStateToProps = ({ zenodo }) => zenodo;
+const mapDispatchToProps = (dispatch: Dispatch): ZenodoPublishOperations => ({
+    updatePageTitle: () => dispatch(updatePageTitle("Zenodo Publish")),
+    setErrorMessage: (error?: string) => dispatch(setErrorMessage(SET_ZENODO_ERROR, error)),
+    setLoading: (loading: boolean) => dispatch(setZenodoLoading(loading))
+})
+export default connect(mapStateToProps, mapDispatchToProps)(ZenodoPublish);

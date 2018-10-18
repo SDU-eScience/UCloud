@@ -17,7 +17,7 @@ import java.io.Serializable
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Types
-import java.util.*
+import java.util.Properties
 
 const val JSONB_TYPE = "dk.sdu.cloud.service.db.JsonbType"
 const val JSONB_LIST_TYPE = "dk.sdu.cloud.service.db.JsonbCollectionType"

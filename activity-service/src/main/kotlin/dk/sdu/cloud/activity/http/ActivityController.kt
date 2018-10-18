@@ -2,9 +2,14 @@ package dk.sdu.cloud.activity.http
 
 import dk.sdu.cloud.activity.api.ActivityDescriptions
 import dk.sdu.cloud.activity.services.ActivityService
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.bearer
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.jobId
+import dk.sdu.cloud.service.logEntry
 import io.ktor.routing.Route
 
 class ActivityController<DBSession>(

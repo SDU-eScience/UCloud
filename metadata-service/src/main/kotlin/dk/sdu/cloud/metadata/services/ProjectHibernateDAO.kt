@@ -1,8 +1,18 @@
 package dk.sdu.cloud.metadata.services
 
-import dk.sdu.cloud.service.db.*
-import java.util.*
-import javax.persistence.*
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.WithTimestamps
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.typedQuery
+import java.util.Date
+import javax.persistence.Column
+import javax.persistence.Entity
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Table
 
 @Entity
 @Table(name = "projects")

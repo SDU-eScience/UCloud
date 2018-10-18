@@ -229,7 +229,7 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val removeFavorite = callDescriptionWithAudit<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage,
             SingleFileAudit<FavoriteCommand>> {
-        name= "removeFavorite"
+        name = "removeFavorite"
         method = HttpMethod.Delete
 
         auth {

@@ -1,7 +1,12 @@
 package dk.sdu.cloud.app.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.app.api.*
+import dk.sdu.cloud.app.api.AppRequest
+import dk.sdu.cloud.app.api.AppState
+import dk.sdu.cloud.app.api.FollowStdStreamsRequest
+import dk.sdu.cloud.app.api.FollowStdStreamsResponse
+import dk.sdu.cloud.app.api.JobWithStatus
+import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.services.ssh.linesInRange
 import dk.sdu.cloud.app.services.ssh.use
@@ -12,6 +17,8 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import java.io.File
 import kotlin.math.min
+
+private const val FIXED_MAX_LINES = 1000
 
 class JobService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -58,8 +65,8 @@ class JobService<DBSession>(
         if (job.workingDirectory == null) return respond()
 
         sshPool.use {
-            val stdOutLines = min(lines.stdoutMaxLines, 1000)
-            val stdErrLines = min(lines.stderrMaxLines, 1000)
+            val stdOutLines = min(lines.stdoutMaxLines, FIXED_MAX_LINES)
+            val stdErrLines = min(lines.stderrMaxLines, FIXED_MAX_LINES)
 
             val workingDirectory = File(job.workingDirectory)
             val stdoutFile = workingDirectory.resolve("stdout.txt")

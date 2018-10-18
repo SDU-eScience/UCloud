@@ -1,0 +1,10 @@
+def initialize() {
+
+  stage('build Accounting') {
+    sh '''cd accounting-compute-service
+    ./gradlew clean
+    ./gradlew build -x test'''
+  }
+}
+
+return this

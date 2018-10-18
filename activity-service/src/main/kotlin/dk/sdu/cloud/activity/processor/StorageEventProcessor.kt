@@ -4,7 +4,11 @@ import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.services.ActivityService
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.EventConsumer
+import dk.sdu.cloud.service.EventConsumerFactory
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.batched
+import dk.sdu.cloud.service.consumeBatchAndCommit
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 

@@ -1,17 +1,16 @@
 package dk.sdu.cloud.service
 
-import org.apache.kafka.clients.admin.AdminClient
-import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.utils.Bytes
 import org.apache.kafka.streams.Consumed
-import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.apache.kafka.streams.Topology
-import org.apache.kafka.streams.kstream.*
+import org.apache.kafka.streams.kstream.KGroupedStream
+import org.apache.kafka.streams.kstream.KStream
+import org.apache.kafka.streams.kstream.KTable
+import org.apache.kafka.streams.kstream.Materialized
+import org.apache.kafka.streams.kstream.Produced
+import org.apache.kafka.streams.kstream.Serialized
 import org.apache.kafka.streams.state.KeyValueStore
-import java.util.*
 import kotlin.reflect.KClass
 
 fun <K, V> StreamsBuilder.stream(description: StreamDescription<K, V>): KStream<K, V> =

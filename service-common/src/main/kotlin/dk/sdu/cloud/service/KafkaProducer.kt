@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory
 import kotlin.coroutines.experimental.suspendCoroutine
 import kotlin.math.min
 
+private const val MAX_INDEX = 100
+
 class EventProducer<in K, in V>(
     private val producer: KafkaProducer<String, String>,
     private val description: StreamDescription<K, V>
@@ -17,7 +19,7 @@ class EventProducer<in K, in V>(
         val stringKey = String(description.keySerde.serializer().serialize(description.name, key))
         val stringValue = String(description.valueSerde.serializer().serialize(description.name, value))
 
-        log.debug("Emitting event: $stringKey : ${stringValue.substring(0, min(100, stringValue.length))}")
+        log.debug("Emitting event: $stringKey : ${stringValue.substring(0, min(MAX_INDEX, stringValue.length))}")
         producer.send(ProducerRecord(description.name, stringKey, stringValue)) { result, ex ->
             if (ex == null) cont.resume(result)
             else cont.resumeWithException(ex)

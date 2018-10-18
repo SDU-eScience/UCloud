@@ -2,6 +2,7 @@ package dk.sdu.cloud.activity.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.activity.api.StreamFileReference.WithOpCount
 import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest

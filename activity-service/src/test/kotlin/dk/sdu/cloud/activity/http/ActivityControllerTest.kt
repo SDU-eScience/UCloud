@@ -9,7 +9,12 @@ import dk.sdu.cloud.activity.util.setUser
 import dk.sdu.cloud.activity.util.withAuthMock
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.defaultMapper
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.paginate
 import io.ktor.application.Application
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -17,7 +22,11 @@ import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.withTestApplication
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals

@@ -9,8 +9,21 @@ import dk.sdu.cloud.service.db.WithId
 import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Type
 import java.io.Serializable
-import java.util.*
-import javax.persistence.*
+import java.util.Date
+import java.util.UUID
+import javax.persistence.Column
+import javax.persistence.EmbeddedId
+import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.ManyToOne
+import javax.persistence.OneToMany
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
+import kotlin.collections.ArrayList
 
 /**
  * Updated in:
@@ -36,6 +49,37 @@ data class ToolEntity(
 
     @EmbeddedId
     var id: EmbeddedNameAndVersion
+)
+
+/**
+ * Added in:
+ *
+ * - V7__Tags.sql
+ */
+@Entity
+@Table(name = "application_tags")
+class TagEntity(
+    @ManyToOne
+    var application: ApplicationEntity,
+
+    var tag: String,
+
+    @Id
+    @GeneratedValue
+    var id: Long? = null
+)
+
+@Entity
+@Table(name = "favorited_by")
+class FavoriteApplicationEntity(
+    @ManyToOne
+    var application: ApplicationEntity,
+
+    var user: String,
+
+    @Id
+    @GeneratedValue
+    var id: Long? = null
 )
 
 /**
@@ -71,6 +115,9 @@ class ApplicationEntity(
     @EmbeddedId
     var id: EmbeddedNameAndVersion
 ) {
+    @OneToMany
+    var tags: MutableList<TagEntity> = ArrayList()
+
     companion object : HibernateEntity<ApplicationEntity>, WithId<EmbeddedNameAndVersion>
 }
 

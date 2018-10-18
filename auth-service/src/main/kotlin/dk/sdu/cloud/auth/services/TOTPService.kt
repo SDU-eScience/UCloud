@@ -4,7 +4,6 @@ import com.warrenstrange.googleauth.GoogleAuthenticator
 import com.warrenstrange.googleauth.GoogleAuthenticatorConfig
 import com.warrenstrange.googleauth.HmacHashFunction
 import java.net.URI
-import java.net.URLEncoder
 
 /**
  * Initial TOTP credentials for a user.
@@ -23,8 +22,8 @@ import java.net.URLEncoder
  * @param periodInSeconds determines how long a "period" should be. A period is how long a code stays valid for. This is
  * unused by the Google Authenticator App.
  *
- * @param algorithm determines which HMAC algorithm to use. This is unused by the Google Authenticator App (it always uses
- * [TOTPAlgorithm.SHA1])
+ * @param algorithm determines which HMAC algorithm to use. This is unused by the Google Authenticator App (it always
+ * uses [TOTPAlgorithm.SHA1])
  */
 data class TOTPCredentials(
     val secretBase32Encoded: String,
@@ -109,6 +108,8 @@ interface TOTPService {
     fun verify(sharedSecret: String, verificationCode: Int): Boolean
 }
 
+private const val TO_SECONDS = 1000
+
 /**
  * Implements the [TOTPService] using the wstrange/google-authenticator library
  *
@@ -125,7 +126,7 @@ class WSTOTPService : TOTPService {
             credentials.scratchCodes,
             config.hmacHashFunction.toAlgorithm(),
             config.codeDigits,
-            (config.timeStepSizeInMillis / 1000).toInt()
+            (config.timeStepSizeInMillis / TO_SECONDS).toInt()
         )
     }
 

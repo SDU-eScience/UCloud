@@ -19,7 +19,6 @@ import java.io.IOException
 import java.security.InvalidKeyException
 import java.security.NoSuchAlgorithmException
 import java.security.SignatureException
-import java.util.*
 
 private val LOGGER = LoggerFactory.getLogger("")
 
@@ -36,8 +35,10 @@ fun Saml2Settings.validateOrThrow(): Saml2Settings {
 // This is a ktor port of the provided Auth class by java-saml-toolkit
 // For the most part this just copy & pastes the solution and replaces servlet parts with ktor equivalents
 // TODO The paramsMap is a hack. We can only call receive once, this is why we need it.
-class SamlRequestProcessor(private val settings: Saml2Settings, private val call: ApplicationCall,
-                           private val paramsMap: Parameters? = null) {
+class SamlRequestProcessor(
+    private val settings: Saml2Settings, private val call: ApplicationCall,
+    private val paramsMap: Parameters? = null
+) {
     /**
      * NameID.
      */
@@ -120,19 +121,19 @@ class SamlRequestProcessor(private val settings: Saml2Settings, private val call
 
     @Throws(IOException::class, SettingsException::class)
     suspend fun login(
-            returnTo: String? = null,
-            forceAuthn: Boolean = false,
-            isPassive: Boolean = false,
-            setNameIdPolicy: Boolean = false,
-            stay: Boolean = false
+        returnTo: String? = null,
+        forceAuthn: Boolean = false,
+        isPassive: Boolean = false,
+        setNameIdPolicy: Boolean = false,
+        stay: Boolean = false
     ): String {
         val parameters = HashMap<String, String>()
 
         val authnRequest = AuthnRequest(
-                settings,
-                forceAuthn,
-                isPassive,
-                setNameIdPolicy
+            settings,
+            forceAuthn,
+            isPassive,
+            setNameIdPolicy
         )
 
         val samlRequest = authnRequest.encodedAuthnRequest
@@ -165,11 +166,11 @@ class SamlRequestProcessor(private val settings: Saml2Settings, private val call
 
     @Throws(IOException::class, XMLEntityException::class, SettingsException::class)
     suspend fun logout(
-            returnTo: String? = null,
-            nameId: String? = null,
-            sessionIndex: String? = null,
-            stay: Boolean = false,
-            nameidFormat: String? = null
+        returnTo: String? = null,
+        nameId: String? = null,
+        sessionIndex: String? = null,
+        stay: Boolean = false,
+        nameidFormat: String? = null
     ): String {
         val parameters = HashMap<String, String>()
 
@@ -238,8 +239,8 @@ class SamlRequestProcessor(private val settings: Saml2Settings, private val call
 
     @Throws(Exception::class)
     suspend fun processSLO(
-            keepLocalSession: Boolean = false,
-            requestId: String? = null
+        keepLocalSession: Boolean = false,
+        requestId: String? = null
     ) {
         val httpRequest = KtorUtils.makeHttpRequest(this.call, paramsMap)
 
@@ -331,10 +332,10 @@ class SamlRequestProcessor(private val settings: Saml2Settings, private val call
 
     @Throws(SettingsException::class, IllegalArgumentException::class)
     private fun buildSignature(
-            samlMessage: String,
-            relayState: String?,
-            signAlgorithm: String,
-            type: String
+        samlMessage: String,
+        relayState: String?,
+        signAlgorithm: String,
+        type: String
     ): String {
         var actualSignAlgorithm = signAlgorithm
         if (StringUtils.isEmpty(actualSignAlgorithm)) {

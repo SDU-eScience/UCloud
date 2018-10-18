@@ -3,10 +3,23 @@ package dk.sdu.cloud.activity.services
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
-import java.util.*
-import javax.persistence.*
+import java.util.Date
+import javax.persistence.Column
+import javax.persistence.Entity
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Index
+import javax.persistence.Inheritance
+import javax.persistence.InheritanceType
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
 
 interface ActivityEventDao<Session> {
     fun findByFileId(
@@ -146,6 +159,8 @@ sealed class ActivityEventEntity {
     }
 }
 
+private const val LIMIT_OF_QUEUE_SAVES = 50
+
 class HibernateActivityEventDao : ActivityEventDao<HibernateSession> {
     override fun findByFileId(
         session: HibernateSession,
@@ -160,7 +175,7 @@ class HibernateActivityEventDao : ActivityEventDao<HibernateSession> {
     override fun insertBatch(session: HibernateSession, events: List<ActivityEvent>) {
         events.forEachIndexed { index, activityEvent ->
             session.save(ActivityEventEntity.fromEvent(activityEvent))
-            if (index % 50 == 0) {
+            if (index % LIMIT_OF_QUEUE_SAVES == 0) {
                 session.flush()
                 session.clear()
             }

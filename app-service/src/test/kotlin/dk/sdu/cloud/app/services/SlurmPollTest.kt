@@ -2,22 +2,26 @@ package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.services.ssh.SSHConnection
 import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
-import io.mockk.*
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.runs
+import io.mockk.verify
 import org.junit.Test
 import java.lang.Exception
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-class SlurmPollTest{
+class SlurmPollTest {
 
     @Test
-    fun `normal run test` () {
+    fun `normal run test`() {
         val ssh = mockk<SSHConnectionPool>()
         val scheduledExeService = Executors.newSingleThreadScheduledExecutor()
         val sshConnect = mockk<SSHConnection>()
         every { ssh.borrowConnection() } answers {
             every { sshConnect.execWithOutputAsText(any(), any()) } returns Pair(0, "8282|COMPLETED|0")
-            Pair(0,sshConnect)
+            Pair(0, sshConnect)
         }
         every { ssh.returnConnection(0) } just runs
 
@@ -33,7 +37,7 @@ class SlurmPollTest{
     }
 
     @Test
-    fun `normal run - exception caught, continue test` () {
+    fun `normal run - exception caught, continue test`() {
         val ssh = mockk<SSHConnectionPool>()
         val scheduledExeService = Executors.newSingleThreadScheduledExecutor()
 
@@ -52,7 +56,7 @@ class SlurmPollTest{
         verify { ssh.borrowConnection() }
     }
 
-    @Test (expected = IllegalStateException::class)
+    @Test(expected = IllegalStateException::class)
     fun `start Test - already running`() {
         val ssh = mockk<SSHConnectionPool>()
         val scheduledExeService = Executors.newSingleThreadScheduledExecutor()

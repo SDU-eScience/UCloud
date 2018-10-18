@@ -7,14 +7,14 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.file.api.DownloadByURI
+import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.stream
 import dk.sdu.cloud.service.withCausedBy
-import dk.sdu.cloud.file.api.DownloadByURI
-import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.api.ZenodoPublicationStatus
 import dk.sdu.cloud.zenodo.api.ZenodoPublishCommand
@@ -28,6 +28,8 @@ import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.nio.file.Files
+
+private const val BUFFER_SIZE = 4096
 
 class PublishProcessor<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -120,7 +122,7 @@ class PublishProcessor<DBSession>(
         command: ZenodoPublishCommand,
         cloud: AuthenticatedCloud
     ): List<File> {
-        val buffer = ByteArray(4096)
+        val buffer = ByteArray(BUFFER_SIZE)
         return command.request.filePaths.mapNotNull {
             val tokenResponse = AuthDescriptions.requestOneTimeTokenWithAudience.call(
                 RequestOneTimeToken(FileDescriptions.download.requiredAuthScope.toString()), cloud

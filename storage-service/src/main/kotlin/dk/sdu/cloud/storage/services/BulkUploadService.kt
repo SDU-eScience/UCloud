@@ -89,7 +89,9 @@ class BulkUploadService<Ctx : FSUserContext>(
                                     createdDirectories += parentDir
                                     try {
                                         fs.makeDirectory(ctx, parentDir)
-                                    } catch (ex: FSException.AlreadyExists) {}
+                                    } catch (ex: FSException.AlreadyExists) {
+                                        log.debug("Parent directory allready exists")
+                                    }
                                 }
 
                                 fs.write(ctx, targetPath, conflictPolicy) { cappedStream.copyTo(this) }

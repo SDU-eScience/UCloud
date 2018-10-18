@@ -1,14 +1,15 @@
 package dk.sdu.cloud.storage.util
 
 import java.io.IOException
-import java.util.*
+import java.util.Arrays
 import kotlin.math.min
 
 /**
  * An efficient stream searching class based on the Knuth-Morris-Pratt algorithm.
  * For more on the algorithm works see: http://www.inf.fh-flensburg.de/lang/algorithmen/pattern/kmpen.htm.
  *
- * Code is based on: https://github.com/twitter/elephant-bird/blob/master/core/src/main/java/com/twitter/elephantbird/util/StreamSearcher.java
+ * Code is based on: https://github.com/twitter/elephant-bird/blob/master/core
+ *                  /src/main/java/com/twitter/elephantbird/util/StreamSearcher.java
  *
  * Code has been ported to Kotlin and tweaked to fit our use-case.
  */
@@ -23,9 +24,9 @@ class StreamSearcher internal constructor(pattern: ByteArray) {
 
     /**
      * Searches for the next occurrence of the pattern in the stream, starting from the current stream position. Note
-     * that the position of the stream is changed. If a match is found, the stream points to the end of the match -- i.e. the
-     * byte AFTER the pattern. Else, the stream is entirely consumed. The latter is because InputStream semantics make it difficult to have
-     * another reasonable default, i.e. leave the stream unchanged.
+     * that the position of the stream is changed. If a match is found, the stream points to the end of the match --
+     * i.e. the byte AFTER the pattern. Else, the stream is entirely consumed. The latter is because InputStream
+     * semantics make it difficult to have another reasonable default, i.e. leave the stream unchanged.
      *
      * @return bytes consumed if found, -1 otherwise.
      */

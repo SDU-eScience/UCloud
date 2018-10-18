@@ -1,17 +1,15 @@
-// TODO: Split in to more specific files
-import { tusConfig } from "Configurations";
-import * as Uppy from "uppy";
 import { SidebarOption, Page } from "Types";
 import { Status } from "Navigation";
 import { Analysis, Application } from "Applications";
 import { File } from "Files";
-import SDUCloud from "Authentication/lib";
 import { SortOrder, SortBy } from "Files";
 import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
 import { Notification } from "Notifications";
 import { Upload } from "Uploader";
 import { Activity } from "Activity";
+import { Reducer } from "redux";
+import { SimpleSearchStateProps } from "SimpleSearch";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -59,28 +57,6 @@ export enum SensitivityLevelMap {
     "SENSITIVE"
 };
 
-export interface UppyRestriction {
-    maxFileSize?: false | number
-    maxNumberOfFiles?: false | number
-    minNumberOfFiles?: false | number
-    allowedFileTypes: false | number
-}
-
-export const initializeUppy = (restrictions: UppyRestriction, cloud: SDUCloud): Uppy =>
-    Uppy.Core({
-        autoProceed: false,
-        debug: false,
-        restrictions: restrictions,
-        meta: {
-            sensitive: false,
-        },
-        onBeforeUpload: () => {
-            return cloud.receiveAccessTokenOrRefreshIt().then((data: string) => {
-                tusConfig.headers["Authorization"] = `Bearer ${data}`;
-            });
-        }
-    }).use(Uppy.Tus, tusConfig);
-
 const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`) as SortBy;
     if (!sortingColumn || !(sortingColumn in SortBy)) {
@@ -109,79 +85,89 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     fileSelectorError?: string
     sortingColumns: [SortBy, SortBy]
     fileSelectorLoading: boolean
-    fileSelectorShown: false
+    fileSelectorShown: boolean
     fileSelectorPage: Page<File>
     fileSelectorPath: string
     fileSelectorCallback: Function
     disallowedPaths: string[]
 }
 
-interface NotificationsReduxObject extends ComponentWithPage<Notification> {
+export type AnalysisReduxObject = ComponentWithPage<Analysis>;
+
+export interface NotificationsReduxObject extends ComponentWithPage<Notification> {
     redirectTo: string
 }
 
-interface ZenodoReduxObject extends ComponentWithPage<Publication> {
+export interface ZenodoReduxObject extends ComponentWithPage<Publication> {
     connected: boolean
 }
 
-interface StatusReduxObject {
+export interface StatusReduxObject {
     status: Status
     title: string
 }
 
-interface SidebarReduxObject {
+export interface SidebarReduxObject {
     loading: boolean
     open: boolean
     pp: boolean
     options: SidebarOption[]
+    kcCount: number
 }
 
-interface HeaderSearchReduxObject {
+export interface HeaderSearchReduxObject {
     prioritizedSearch: HeaderSearchType
 }
 
-export interface ActivityReduxObject extends ComponentWithPage<Activity> { }
+export type ApplicationReduxObject = ComponentWithPage<Application>;
+export type ActivityReduxObject = ComponentWithPage<Activity>
 
 export type HeaderSearchType = "files" | "applications" | "projects";
- 
-interface UploaderReduxObject {
+
+export interface UploaderReduxObject {
     uploads: Upload[]
     visible: boolean
     path: string
     allowMultiple: boolean
-    onFilesUploaded: () => void
+    onFilesUploaded: (p: string) => void
 }
 
-
-// FIXME Add typesafety
 export interface Reducers {
-    dashboard?: any
-    files?: any
-    uploader?: any
-    uppy?: any
-    status?: any
-    applications?: any
-    notifications?: any
-    analyses?: any
-    zenodo?: any
-    header?: any
-    sidebar?: any
-    activity?: any
+    dashboard?: Reducer<DashboardStateProps>
+    files?: Reducer<FilesReduxObject>
+    uploader?: Reducer<UploaderReduxObject>
+    status?: Reducer<StatusReduxObject>
+    applications?: Reducer<ApplicationReduxObject>
+    notifications?: Reducer<NotificationsReduxObject>
+    analyses?: Reducer<AnalysisReduxObject>
+    zenodo?: Reducer<ZenodoReduxObject>
+    header?: Reducer<HeaderSearchReduxObject>
+    sidebar?: Reducer<SidebarReduxObject>
+    activity?: Reducer<ActivityReduxObject>
+    detailedResult?: Reducer<DetailedResultReduxObject>
 }
+
+export type DetailedResultReduxObject = ComponentWithPage<File>
+export const initDetailedResult = (): DetailedResultReduxObject => ({
+    page: emptyPage,
+    loading: false,
+    error: undefined
+});
 
 export interface ReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
     uploader: UploaderReduxObject
-    uppy: { uppy: any, uppyOpen: boolean }
     status: StatusReduxObject,
-    applications: ComponentWithPage<Application>
+    applications: ApplicationReduxObject
     notifications: NotificationsReduxObject
-    analyses: ComponentWithPage<Analysis>
+    analyses: AnalysisReduxObject
     zenodo: ZenodoReduxObject
     header: HeaderSearchReduxObject
     sidebar: SidebarReduxObject
     activity: ActivityReduxObject
+    detailedResult: DetailedResultReduxObject
+    simpleSearch: SimpleSearchStateProps
 }
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -201,18 +187,18 @@ export const initHeader = (): HeaderSearchReduxObject => ({
     prioritizedSearch: "files"
 });
 
-export const initApplications = () => ({
+export const initApplications = (): ApplicationReduxObject => ({
     page: emptyPage,
     loading: false,
     error: undefined
 });
 
-export const initStatus = () => ({
+export const initStatus = (): StatusReduxObject => ({
     status: DefaultStatus,
     title: ""
 });
 
-export const initDashboard = () => ({
+export const initDashboard = (): DashboardStateProps => ({
     favoriteFiles: [],
     recentFiles: [],
     recentAnalyses: [],
@@ -220,15 +206,12 @@ export const initDashboard = () => ({
     favoriteLoading: false,
     recentLoading: false,
     analysesLoading: false,
-    favoriteError: undefined,
-    recentFilesError: undefined,
-    recentAnalysesError: undefined
+    errors: []
 });
 
-export const initObject = (cloud: SDUCloud): ReduxObject => ({
+export const initObject = ({ homeFolder }: { homeFolder: string }): ReduxObject => ({
     dashboard: initDashboard(),
-    files: initFiles(cloud),
-    uppy: initUppy(cloud),
+    files: initFiles({ homeFolder }),
     status: initStatus(),
     applications: initApplications(),
     header: initHeader(),
@@ -237,8 +220,21 @@ export const initObject = (cloud: SDUCloud): ReduxObject => ({
     zenodo: initZenodo(),
     sidebar: initSidebar(),
     uploader: initUploads(),
-    activity: initActivity()
+    activity: initActivity(),
+    detailedResult: initDetailedResult(),
+    simpleSearch: initSimpleSearch()
 });
+
+export const initSimpleSearch = (): SimpleSearchStateProps => ({
+    files: emptyPage,
+    filesLoading: false,
+    applications: emptyPage,
+    applicationsLoading: false,
+    projects: emptyPage,
+    projectsLoading: false,
+    errors: [],
+    search: ""
+})
 
 export const initAnalyses = (): ComponentWithPage<Analysis> => ({
     page: emptyPage,
@@ -247,21 +243,22 @@ export const initAnalyses = (): ComponentWithPage<Analysis> => ({
 });
 
 
-export const initZenodo = () => ({
+export const initZenodo = (): ZenodoReduxObject => ({
     connected: false,
     loading: false,
     page: emptyPage,
     error: undefined
 })
 
-export const initSidebar = () => ({
+export const initSidebar = (): SidebarReduxObject => ({
     open: false,
     loading: false,
     pp: false,
+    kcCount: 0,
     options: []
 });
 
-export const initUploads = () => ({
+export const initUploads = (): UploaderReduxObject => ({
     path: "",
     uploads: [],
     visible: false,
@@ -336,9 +333,4 @@ export const initFiles = ({ homeFolder }: { homeFolder: string }): FilesReduxObj
     fileSelectorCallback: () => null,
     fileSelectorError: undefined,
     disallowedPaths: []
-});
-
-export const initUppy = (cloud: SDUCloud) => ({
-    uppy: initializeUppy({ maxNumberOfFiles: 1 } as UppyRestriction, cloud),
-    uppyOpen: false
 });

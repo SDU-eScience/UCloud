@@ -1,17 +1,17 @@
 export const SET_ANALYSES_LOADING = "SET_ANALYSES_LOADING";
 export const RECEIVE_ANALYSES = "RECEIVE_ANALYSES";
 export const SET_ANALYSES_ERROR = "SET_ANALYSES_ERROR";
+import { AnalysisReduxObject, initAnalyses } from "DefaultObjects";
+import { AnalysesActions } from "./AnalysesActions";
 
-const analyses = (state = [], action) => {
+const analyses = (state: AnalysisReduxObject = initAnalyses(), action: AnalysesActions): AnalysisReduxObject => {
     switch (action.type) {
+        case SET_ANALYSES_ERROR: 
         case RECEIVE_ANALYSES: {
-            return { ...state, page: action.page, loading: false };
+            return { ...state, ...action.payload, loading: false };
         }
         case SET_ANALYSES_LOADING: {
-            return { ...state, loading: action.loading };
-        }
-        case SET_ANALYSES_ERROR: {
-            return { ...state, error: action.error, loading: false }
+            return { ...state, ...action.payload };
         }
         default: {
             return state;

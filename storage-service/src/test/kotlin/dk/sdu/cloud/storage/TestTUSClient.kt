@@ -1,6 +1,9 @@
 package dk.sdu.cloud.storage
 
-import dk.sdu.cloud.client.*
+import dk.sdu.cloud.client.CloudContext
+import dk.sdu.cloud.client.PreparedRESTCall
+import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.client.jwtAuth
 import dk.sdu.cloud.tus.api.TusDescriptions
 import dk.sdu.cloud.tus.api.UploadCreationCommand
 import dk.sdu.cloud.tus.api.start

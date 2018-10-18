@@ -4,6 +4,7 @@ import { Dispatch } from "redux";
 import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
+import { DetailedResultReduxObject } from "DefaultObjects";
 
 export interface ApplicationsProps extends ApplicationsStateProps, ApplicationsOperations { }
 
@@ -24,7 +25,7 @@ export interface ApplicationsOperations {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     fetchApplications: (a: number, b: number) => void
-    updateApplications: (applications: Page<Application>) => void
+    receiveApplications: (applications: Page<Application>) => void
 }
 
 export interface ApplicationsStateProps {
@@ -54,9 +55,15 @@ export interface AnalysesState {
     reloadIntervalId: number
 }
 
+export interface DetailedResultOperations {
+    receivePage: (page: Page<File>) => void,
+    setPageTitle: (jobId: string) => void
+    setLoading: (loading: boolean) => void
+    detailedResultError: (error:string) => void
+    fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
+}
 
-export interface DetailedResultProps {
-    dispatch: Dispatch
+export interface DetailedResultProps extends DetailedResultReduxObject, DetailedResultOperations {
     match: match<{ jobId: string }>
     history: History
 }
@@ -105,8 +112,6 @@ interface ApplicationDescription {
 }
 
 export interface DetailedResultState {
-    page: Page<File>
-    loading: boolean
     complete: boolean
     appState: string
     status: string
@@ -158,8 +163,6 @@ export interface RunAppState {
 
 export interface RunAppProps {
     match: match<{ appName: string, appVersion: string }>
-    uppy: any
-    uppyOpen: boolean
     history: History
     updatePageTitle: () => void
 }

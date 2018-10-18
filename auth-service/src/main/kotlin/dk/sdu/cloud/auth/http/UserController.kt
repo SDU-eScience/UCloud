@@ -1,15 +1,23 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.api.ChangePasswordAudit
+import dk.sdu.cloud.auth.api.CreateUserAudit
+import dk.sdu.cloud.auth.api.LookupUsersResponse
+import dk.sdu.cloud.auth.api.ServicePrincipal
+import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserDAO
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.response.respond
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
 
 class UserController<DBSession>(
@@ -17,12 +25,13 @@ class UserController<DBSession>(
     private val userDAO: UserDAO<DBSession>,
     private val userCreationService: UserCreationService<DBSession>,
     private val tokenService: TokenService<DBSession>
-): Controller {
+) : Controller {
     override val baseContext = UserDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(UserDescriptions.createNewUser) { req ->
             logEntry(log, req)
+            audit(CreateUserAudit(req.username, req.role))
 
             if (req.role != Role.SERVICE) {
                 val person = PersonUtils.createUserByPassword(
@@ -34,13 +43,13 @@ class UserController<DBSession>(
                 )
 
                 userCreationService.createUser(person)
-                audit(CreateUserAudit(req.username, req.role))
-                ok(Unit)
+                val tokens = tokenService.createAndRegisterTokenFor(person)
+                ok(tokens)
             } else {
                 val user = ServicePrincipal(req.username, Role.SERVICE)
                 userCreationService.createUser(user)
 
-                call.respond(tokenService.createAndRegisterTokenFor(user))
+                ok(tokenService.createAndRegisterTokenFor(user))
             }
         }
 

@@ -1,7 +1,12 @@
 package dk.sdu.cloud.auth.api
 
 import dk.sdu.cloud.client.ServiceDescription
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.MicroAttributeKey
+import dk.sdu.cloud.service.MicroFeature
+import dk.sdu.cloud.service.MicroFeatureFactory
+import dk.sdu.cloud.service.cloudContext
+import dk.sdu.cloud.service.configuration
 
 class RefreshingJWTCloudFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -24,7 +29,6 @@ var Micro.refreshingJwtCloud: RefreshingJWTAuthenticatedCloud
         requireFeature(RefreshingJWTCloudFeature)
         return attributes[RefreshingJWTCloudFeature.REFRESHING_CLOUD_KEY]
     }
-
     set(value) {
         attributes[RefreshingJWTCloudFeature.REFRESHING_CLOUD_KEY] = value
     }

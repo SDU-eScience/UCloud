@@ -5,9 +5,8 @@ import dk.sdu.cloud.indexing.util.fileName
 import dk.sdu.cloud.indexing.util.parent
 import org.junit.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
-class FileNameTest{
+class FileNameTest {
 
     @Test
     fun `testing filename extension`() {

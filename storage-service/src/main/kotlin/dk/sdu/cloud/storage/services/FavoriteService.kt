@@ -5,7 +5,7 @@ import dk.sdu.cloud.storage.util.fileName
 import dk.sdu.cloud.storage.util.joinPath
 
 class FavoriteService<Ctx : FSUserContext>(val fs: CoreFileSystemService<Ctx>) {
-     fun markAsFavorite(ctx: Ctx, fileToFavorite: String) {
+    fun markAsFavorite(ctx: Ctx, fileToFavorite: String) {
         val favoritesDirectory = favoritesDirectory(ctx)
         if (!fs.exists(ctx, favoritesDirectory)) {
             fs.makeDirectory(ctx, favoritesDirectory)

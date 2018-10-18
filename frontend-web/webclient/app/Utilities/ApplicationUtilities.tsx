@@ -5,16 +5,21 @@ import { Page } from "Types";
 
 
 export const hpcJobQuery = (id: string, stdoutLine: number, stderrLine: number, stdoutMaxLines: number = 1000, stderrMaxLines: number = 1000) =>
-    `hpc/jobs/follow/${id}?stdoutLineStart=${stdoutLine}&stdoutMaxLines=${stdoutMaxLines}&stderrLineStart=${stderrLine}&stderrMaxLines=${stderrMaxLines}`;
+    `/hpc/jobs/follow/${id}?stdoutLineStart=${stdoutLine}&stdoutMaxLines=${stdoutMaxLines}&stderrLineStart=${stderrLine}&stderrMaxLines=${stderrMaxLines}`;
 
 export const hpcJobsQuery = (itemsPerPage: number, page: number): string =>
     `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`;
 
-export const hpcApplicationsQuery = (page: number, itemsPerPage: number) => `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`
+export const hpcFavoriteApp = (name: string, version: string) => `hpc/apps/favorites?name=${name}&version=${version}`;
+
+export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
+    `/hpc/apps/favorites?pageNumber=${itemsPerPage}&pageNumber=${pageNumber}`;
+
+export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
+    `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
 
 
 /**
-* //FIXME Missing backend functionality
 * Favorites an application. 
 * @param {Application} Application the application to be favorited
 * @param {Cloud} cloud The cloud instance for requests
@@ -24,21 +29,16 @@ export const favoriteApplicationFromPage = (application: Application, page: Page
     if (a) {
         a.favorite = !a.favorite;
         infoNotification("Backend functionality for favoriting applications missing");
+        cloud.post(hpcFavoriteApp(a.description.info.name, a.description.info.version)).catch(() =>
+            failureNotification("An error occurred favoriting application.")
+        );
     } else {
-        failureNotification("An error occurred ")
+        failureNotification("An error occurred favoriting application.");
     }
     return page;
-    /*  
-    const { info } = a.description;
-    if (a.favorite) {
-        cloud.post(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-    } else {
-        cloud.delete(`/applications/favorite?name=${info.name}&version=${info.name}`, {})
-    } 
-    */
 }
 
-interface AllowedParameterKey { name: string, type: ParameterTypes}
+interface AllowedParameterKey { name: string, type: ParameterTypes }
 export const extractParameters = (parameters, allowedParameterKeys: AllowedParameterKey[], siteVersion: number) => {
     let extractedParameters = {};
     if (siteVersion === 1) {

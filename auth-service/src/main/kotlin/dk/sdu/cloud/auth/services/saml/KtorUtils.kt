@@ -5,10 +5,15 @@ import com.onelogin.saml2.util.Util
 import io.ktor.application.ApplicationCall
 import io.ktor.features.origin
 import io.ktor.http.Parameters
-import io.ktor.request.*
+import io.ktor.request.port
+import io.ktor.request.queryString
+import io.ktor.request.uri
 import io.ktor.response.respondRedirect
 import java.io.IOException
-import java.util.*
+
+private const val NORMAL_PORT_1 = 80
+private const val NORMAL_PORT_2 = 443
+private const val NORMAL_PORT_3 = 0
 
 object KtorUtils {
     internal var runningInProduction = true
@@ -44,7 +49,7 @@ object KtorUtils {
             val serverPort = call.request.port()
             val scheme = call.request.origin.scheme
             val name = call.request.origin.host
-            if (serverPort == 80 || serverPort == 443 || serverPort == 0) {
+            if (serverPort == NORMAL_PORT_1 || serverPort == NORMAL_PORT_2 || serverPort == NORMAL_PORT_3) {
                 String.format("%s://%s", scheme, name)
             } else {
                 String.format("%s://%s:%s", scheme, name, serverPort)
@@ -90,10 +95,10 @@ object KtorUtils {
      */
     @Throws(IOException::class)
     suspend fun sendRedirect(
-            response: ApplicationCall,
-            location: String,
-            parameters: Map<String, String> = emptyMap(),
-            stay: Boolean = false
+        response: ApplicationCall,
+        location: String,
+        parameters: Map<String, String> = emptyMap(),
+        stay: Boolean = false
     ): String {
         var target = location
 

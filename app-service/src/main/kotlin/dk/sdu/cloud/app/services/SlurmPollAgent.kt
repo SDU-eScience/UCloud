@@ -47,6 +47,7 @@ class SlurmPollAgent(
         listeners.remove(listener)
     }
 
+    @Suppress("TooGenericExceptionCaught") //For now
     private fun tick() {
         try {
             log.debug("Ticking: ${active.size}")

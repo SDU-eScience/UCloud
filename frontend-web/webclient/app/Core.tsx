@@ -14,7 +14,6 @@ import Sidebar from "Navigation/Sidebar";
 import ZenodoPublish from "Zenodo/Publish";
 import ZenodoHome from "Zenodo/Zenodo";
 import ZenodoInfo from "Zenodo/Info";
-import UppyWrapper from "Uppy/UppyWrapper";
 import UserCreation from "Admin/UserCreation";
 import UserSettings from "UserSettings/UserSettings";
 import DetailedFileSearch from "Files/DetailedFileSearch";
@@ -61,8 +60,7 @@ const Core = () => (
                 <Route component={NotFound} />
             </Switch>
         </Sidebar>
-        <UppyWrapper />
-    </ >
+    </>
 );
 
 export default Core;

@@ -1,8 +1,16 @@
 package dk.sdu.cloud.zenodo
 
 import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.HttpServerProvider
+import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.buildStreams
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.service.forStream
+import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.http.ZenodoController
 import dk.sdu.cloud.zenodo.processors.PublishProcessor
@@ -11,7 +19,6 @@ import dk.sdu.cloud.zenodo.services.ZenodoRPCService
 import dk.sdu.cloud.zenodo.services.hibernate.PublicationHibernateDAO
 import dk.sdu.cloud.zenodo.services.hibernate.ZenodoOAuthHibernateStateStore
 import io.ktor.application.call
-import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
@@ -29,7 +36,7 @@ class Server(
     private val config: Configuration,
     private val ktor: HttpServerProvider,
     private val instance: ServiceInstance
-): CommonServer {
+) : CommonServer {
     override val log: Logger = logger()
 //    override val endpoints = listOf("/api/zenodo", "/zenodo/oauth")
 
@@ -44,7 +51,8 @@ class Server(
             clientId = config.zenodo.clientId,
 
             // TODO FIX THIS
-            callback = if (config.production) "https://cloud.sdu.dk/zenodo/oauth" else "http://localhost:42250/zenodo/oauth",
+            callback = if (config.production) "https://cloud.sdu.dk/zenodo/oauth"
+                        else "http://localhost:42250/zenodo/oauth",
 
             stateStore = ZenodoOAuthHibernateStateStore(),
 

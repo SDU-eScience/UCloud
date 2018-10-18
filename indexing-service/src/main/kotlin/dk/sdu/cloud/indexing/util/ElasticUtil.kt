@@ -9,7 +9,11 @@ import dk.sdu.cloud.service.stackTraceToString
 import mbuhot.eskotlin.query.QueryData
 import mbuhot.eskotlin.query.initQuery
 import org.elasticsearch.action.ActionListener
-import org.elasticsearch.action.search.*
+import org.elasticsearch.action.search.ClearScrollRequest
+import org.elasticsearch.action.search.ClearScrollResponse
+import org.elasticsearch.action.search.SearchRequest
+import org.elasticsearch.action.search.SearchResponse
+import org.elasticsearch.action.search.SearchScrollRequest
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.index.query.QueryBuilder
@@ -27,7 +31,9 @@ inline fun <reified T : Any> SearchResponse.paginated(
             try {
                 mapper.readValue<T>(it.sourceAsString)
             } catch (ex: Exception) {
-                ElasticQueryService.log.info("Unable to deserialize ElasticIndexedFile from source: ${it.sourceAsString}")
+                ElasticQueryService.log.info(
+                    "Unable to deserialize ElasticIndexedFile from source: ${it.sourceAsString}"
+                )
                 null
             }
         }
@@ -65,6 +71,8 @@ fun RestHighLevelClient.search(vararg indices: String, builder: SearchRequest.()
     return search(SearchRequest(*indices).also(builder))
 }
 
+private const val SEARCH_REQUEST_SIZE = 1000
+
 fun RestHighLevelClient.scrollThroughSearch(
     indices: List<String>,
     builder: SearchRequest.() -> Unit,
@@ -72,7 +80,7 @@ fun RestHighLevelClient.scrollThroughSearch(
 ) {
     val request = SearchRequest(*indices.toTypedArray())
         .also {
-            it.source().sort("_doc").size(1000)
+            it.source().sort("_doc").size(SEARCH_REQUEST_SIZE)
             it.scroll(TimeValue.timeValueMinutes(1))
         }
         .also(builder)
