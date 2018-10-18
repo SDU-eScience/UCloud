@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: filesearch-service
-        image: registry.dev-sdu-cloud.dk/sdu-cloud/filesearch-service:1.4.1
+        image: registry.cloud.sdu.dk.dk/sdu-cloud/filesearch-service:0.1.0
         command:
         - /opt/service/bin/service
         - --config-dir

@@ -13,7 +13,7 @@ spec:
 
           containers:
           - name: indexing-service
-            image: registry.dev-sdu-cloud.dk/sdu-cloud/indexing-service:1.4.1
+            image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.4.1
             command:
             - /opt/service/bin/service
             - --config-dir
