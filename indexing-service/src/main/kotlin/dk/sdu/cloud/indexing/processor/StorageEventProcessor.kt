@@ -1,5 +1,6 @@
 package dk.sdu.cloud.indexing.processor
 
+import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.indexing.services.IndexingService
 import dk.sdu.cloud.service.EventConsumer
@@ -9,6 +10,11 @@ import dk.sdu.cloud.service.batched
 import dk.sdu.cloud.service.consumeBatchAndCommit
 import org.slf4j.Logger
 
+/**
+ * Processes [StorageEvent]s
+ *
+ * @see IndexingService
+ */
 class StorageEventProcessor(
     private val streamFactory: EventConsumerFactory,
     private val indexingService: IndexingService,

@@ -139,8 +139,13 @@ fun SearchSourceBuilder.paginated(paging: NormalizedPaginationRequest) {
     size(paging.itemsPerPage)
 }
 
-// Fixes an issue in the term DSL that didn't allow non-string values
+/**
+ * Fixes an issue in the term DSL that didn't allow non-string values
+ */
 class FixedTermBlock {
+    /**
+     * Data container for elasticsearch
+     */
     class TermData(
         var name: String? = null,
         var value: Any? = null

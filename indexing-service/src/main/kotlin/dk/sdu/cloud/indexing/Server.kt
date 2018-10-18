@@ -24,6 +24,9 @@ import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import kotlin.system.exitProcess
 
+/**
+ * The primary server class for indexing-service
+ */
 class Server(
     private val elasticHostAndPort: ElasticHostAndPort,
     override val kafka: KafkaServices,

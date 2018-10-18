@@ -14,6 +14,9 @@ import dk.sdu.cloud.service.serviceInstance
 import java.net.InetAddress
 import java.net.UnknownHostException
 
+/**
+ * A host:port pair for Elasticsearch
+ */
 data class ElasticHostAndPort(
     val host: String,
     val port: Int = 9200

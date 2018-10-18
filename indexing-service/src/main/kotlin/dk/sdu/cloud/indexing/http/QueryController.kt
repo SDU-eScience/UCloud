@@ -8,6 +8,9 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import io.ktor.routing.Route
 
+/**
+ * A controller for [QueryDescriptions]
+ */
 class QueryController(
     private val queryService: IndexQueryService
 ) : Controller {

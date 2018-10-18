@@ -9,6 +9,9 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import io.ktor.routing.Route
 
+/**
+ * A controller for [LookupDescriptions]
+ */
 class LookupController(
     private val lookupService: ReverseLookupService
 ) : Controller {

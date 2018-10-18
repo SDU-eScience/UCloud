@@ -7,6 +7,9 @@ import dk.sdu.cloud.indexing.api.FileQuery
 import dk.sdu.cloud.indexing.api.StatisticsRequest
 import dk.sdu.cloud.indexing.api.StatisticsResponse
 
+/**
+ * Provides query operations of the file index.
+ */
 interface IndexQueryService {
     fun findFileByIdOrNull(id: String): EventMaterializedStorageFile?
 

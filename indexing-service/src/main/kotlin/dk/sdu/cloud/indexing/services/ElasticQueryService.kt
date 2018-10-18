@@ -36,6 +36,9 @@ import org.elasticsearch.search.aggregations.metrics.percentiles.Percentiles
 import org.elasticsearch.search.aggregations.metrics.sum.Sum
 import org.elasticsearch.search.builder.SearchSourceBuilder
 
+/**
+ * An implementation of [IndexQueryService] and [ReverseLookupService] using an Elasticsearch backend.
+ */
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient
 ) : IndexQueryService, ReverseLookupService {
