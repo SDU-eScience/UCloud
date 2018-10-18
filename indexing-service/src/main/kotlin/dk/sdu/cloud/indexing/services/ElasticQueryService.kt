@@ -56,9 +56,12 @@ class ElasticQueryService(
     }
 
     override fun reverseLookupBatch(fileIds: List<String>): List<String?> {
-        if (fileIds.size > 100) throw RPCException("Bad request. Too many file IDs", HttpStatusCode.BadRequest)
+        if (fileIds.size > MAX_FILES_IN_REVERSE_BATCH_LOOKUP) throw RPCException(
+            "Bad request. Too many file IDs",
+            HttpStatusCode.BadRequest
+        )
 
-        val req = PaginationRequest(100, 0).normalize()
+        val req = PaginationRequest(MAX_FILES_IN_REVERSE_BATCH_LOOKUP, 0).normalize()
         val files = elasticClient.search<ElasticIndexedFile>(mapper, req, FILES_INDEX) {
             bool {
                 filter {
@@ -86,7 +89,7 @@ class ElasticQueryService(
                         add(match_phrase_prefix {
                             ElasticIndexedFile.FILE_NAME_FIELD to {
                                 this.query = q
-                                max_expansions = 10
+                                max_expansions = FILE_NAME_QUERY_MAX_EXPANSIONS
                             }
                         })
                     }
@@ -270,6 +273,8 @@ class ElasticQueryService(
 
             if (numericStatisticsRequest.percentiles.isNotEmpty()) {
                 val variableName = NumericStat.PERCENTILES.computeVariableName(fieldName)
+
+                @Suppress("SpreadOperator")
                 aggregation(
                     AggregationBuilders
                         .percentiles(variableName)
@@ -325,5 +330,9 @@ class ElasticQueryService(
 
         private const val FILES_INDEX = ElasticIndexingService.FILES_INDEX
         private const val DOC_TYPE = ElasticIndexingService.DOC_TYPE
+
+        private const val MAX_FILES_IN_REVERSE_BATCH_LOOKUP = 100
+
+        private const val FILE_NAME_QUERY_MAX_EXPANSIONS = 10
     }
 }

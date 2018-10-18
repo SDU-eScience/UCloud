@@ -15,6 +15,8 @@ import dk.sdu.cloud.indexing.util.scrollThroughSearch
 import dk.sdu.cloud.indexing.util.source
 import dk.sdu.cloud.indexing.util.term
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.RPCException
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.awaitAll
 import kotlinx.coroutines.experimental.runBlocking
@@ -83,9 +85,8 @@ class FileIndexScanner(
                             )
 
                         if (deliveryResponse !is RESTResponse.Ok) {
-                            throw RuntimeException(
-                                "Could not deliver reference FS: " +
-                                        "${deliveryResponse.status} - ${deliveryResponse.rawResponseBody}"
+                            throw FileIndexScanException.CouldNotDeliver(
+                                "${deliveryResponse.status} - ${deliveryResponse.rawResponseBody}"
                             )
                         }
 
@@ -150,4 +151,15 @@ class FileIndexScanner(
 
         private const val HARDCODED_ROOT = "/home"
     }
+}
+
+/**
+ * Exceptions that might occur during [FileIndexScanner.scan]
+ */
+sealed class FileIndexScanException(why: String, statusCode: HttpStatusCode) : RPCException(why, statusCode) {
+    /**
+     * Thrown if it is not possible to deliver the reference file system (from the file index) to the storage system
+     */
+    class CouldNotDeliver(why: String) :
+        FileIndexScanException("Could not deliver reference system: $why", HttpStatusCode.BadGateway)
 }

@@ -25,12 +25,13 @@ class StorageEventProcessor(
             streamFactory.createConsumer(StorageEvents.events).configure { root ->
                 root
                     .batched(
-                        batchTimeout = 500,
-                        maxBatchSize = 1000
+                        batchTimeout = BATCH_TIMEOUT_MS,
+                        maxBatchSize = MAX_ITEMS_IN_BATCH
                     )
                     .consumeBatchAndCommit { batch ->
                         log.debug("Handling another batch of ${batch.size} files. Head of batch: " +
-                                "${batch.asSequence().take(5).map { it.second.path }.toList()}...")
+                                "${batch.asSequence().take(DEBUG_ELEMENTS_IN_LOG).map { it.second.path }.toList()}..."
+                        )
 
                         indexingService.bulkHandleEvent(batch.map { it.second })
 
@@ -42,5 +43,10 @@ class StorageEventProcessor(
 
     companion object : Loggable {
         override val log: Logger = logger()
+
+        private const val BATCH_TIMEOUT_MS = 500L
+        private const val MAX_ITEMS_IN_BATCH = 1000
+
+        private const val DEBUG_ELEMENTS_IN_LOG = 5
     }
 }

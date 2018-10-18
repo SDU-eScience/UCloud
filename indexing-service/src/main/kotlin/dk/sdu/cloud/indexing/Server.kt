@@ -61,6 +61,7 @@ class Server(
         val queryService = ElasticQueryService(elastic)
 
         if (args.contains("--scan")) {
+            @Suppress("TooGenericExceptionCaught")
             try {
                 val scanner = FileIndexScanner(cloud, elastic)
                 scanner.scan()
