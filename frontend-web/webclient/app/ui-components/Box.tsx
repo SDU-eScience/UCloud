@@ -15,7 +15,7 @@ const Box = styled("div")<BoxProps>`
   ${space} ${width} ${color} ${textAlign};
 `
 
-Box.displayName = 'Box'
+Box.displayName = "Box"
 
 Box.defaultProps = {
   theme: theme

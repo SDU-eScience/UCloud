@@ -7,7 +7,7 @@ import {
   lineHeight,
   space,
   color, 
-  SpaceProps, TextAlignProps, FontSizeProps, ColorProps
+  SpaceProps, TextAlignProps, FontSizeProps, ColorProps, alignContent
 } from 'styled-system'
 import theme from "./theme";
 import { TextAlign } from "./Types";
@@ -27,17 +27,17 @@ export const bold = props =>
 
 export const italic = props => (props.italic ? { fontStyle: 'italic' } : null)
 
-// FIXME Consqeuence of updated Style-system?
-//const align = style('text-align', 'align')
-const align = "";
 interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps {
+  align?: "left" | "right"
   caps?: boolean
   regular?: boolean
   italic?: boolean
   bold?: boolean
+  cursor?: string
 }
 
 const Text = styled("div")<TextProps>`
+  cursor: ${props => props.cursor};
   ${textStyle}
   ${fontSize}
   ${fontWeight}
@@ -48,14 +48,15 @@ const Text = styled("div")<TextProps>`
   ${caps}
   ${regular}
   ${bold}
-  ${italic} 
-  `
+  ${italic}
+`;
 export const div = Text;
 export const TextSpan = Text.withComponent("span");
 export const TextP = Text.withComponent("p");
 export const TextS = Text.withComponent("s");
 
 Text.defaultProps = {
+  cursor: "auto",
   theme: theme
 };
 

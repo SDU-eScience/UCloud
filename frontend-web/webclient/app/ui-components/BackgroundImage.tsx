@@ -11,6 +11,7 @@ const height = props => (props.height ? { height: props.height } : null)
 interface BackgroundImageProps {
   image?: string
   width?: NumberOrStringOrArray
+  height?: NumberOrStringOrArray
 }
 
 const BackgroundImage = styled<BackgroundImageProps, "div">("div")`

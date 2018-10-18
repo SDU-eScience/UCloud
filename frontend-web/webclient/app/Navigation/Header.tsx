@@ -118,7 +118,7 @@ const HeaderContainer = styled(Flex)`
 `;
 
 const Logo = ({ onClick }) => (
-    <Text onClick={onClick} fontSize={4} ml="24px">
+    <Text cursor="pointer" onClick={onClick} fontSize={4} ml="24px">
         SDUCloud
     </Text>
 );
