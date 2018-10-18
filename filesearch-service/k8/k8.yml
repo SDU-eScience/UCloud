@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: filesearch-service-deployment
+  labels:
+    app: filesearch-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: filesearch-service
+  template:
+    metadata:
+      labels:
+        app: filesearch-service
+    spec:
+      containers:
+      - name: filesearch-service
+        image: registry.dev-sdu-cloud.dk/sdu-cloud/filesearch-service:1.4.1
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: filesearch-refresh-token
+
+      imagePullSecrets:
+      - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: filesearch
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: filesearch-service
