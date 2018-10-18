@@ -29,10 +29,19 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.Logger
 
+/**
+ * An exception that can be thrown when searching in files
+ */
 sealed class SearchException(why: String, statusCode: HttpStatusCode) : RPCException(why, statusCode) {
+    /**
+     * For internal server errors. Likely to be external.
+     */
     class InternalServerError : SearchException("Internal Server Error", HttpStatusCode.InternalServerError)
 }
 
+/**
+ * A controller for [FileSearchDescriptions]
+ */
 class SearchController : Controller {
     override val baseContext: String = FileSearchDescriptions.baseContext
 

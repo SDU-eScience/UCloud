@@ -10,12 +10,18 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
+/**
+ * @see FileSearchDescriptions.simpleSearch
+ */
 data class SimpleSearchRequest(
     val query: String,
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
 
+/**
+ * @see FileSearchDescriptions.advancedSearch
+ */
 data class AdvancedSearchRequest(
     val fileName: String?,
     val extensions: List<String>?,
@@ -29,11 +35,19 @@ data class AdvancedSearchRequest(
     override val page: Int?
 ) : WithPaginationRequest
 
+/**
+ * A search result, returned to you when searching for files.
+ *
+ * This is a simplified view of a file.
+ */
 data class SearchResult(
     val path: String,
     val fileType: FileType
 )
 
+/**
+ * Contains REST calls for searching in files
+ */
 object FileSearchDescriptions : RESTDescriptions("fileSearch") {
     const val baseContext: String = "/api/file-search"
 

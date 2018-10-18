@@ -14,6 +14,9 @@ import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 
+/**
+ * A server for the filesearch-service
+ */
 class Server(
     override val kafka: KafkaServices,
     private val http: HttpServerProvider,
