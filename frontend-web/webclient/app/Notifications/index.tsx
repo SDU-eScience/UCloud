@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject"
-import { Popup, Feed, SemanticICONS, Icon as SIcon, Label, Button, Divider } from 'semantic-ui-react';
+import { Popup, Feed, SemanticICONS, Icon as SIcon, Button, Divider } from 'semantic-ui-react';
 import { Redirect } from "react-router";
 import * as moment from "moment";
 import { connect } from "react-redux";
@@ -90,7 +90,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                     <Flex>
                         <Relative top="0" left="0">
                             <Flex justifyContent="center" width="60px">
-                                <Icon name="notification" />
+                                <Icon cursor="pointer" name="notification" />
                             </Flex>
                             {badgeCount > 0 ? <Absolute top="-12px" left="28px">
                                 <Badge bg="red">{unreadLength + activeUploads}</Badge>

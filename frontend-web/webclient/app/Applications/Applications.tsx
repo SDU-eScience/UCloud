@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "Pagination";
-import { Card, Icon, Rating, List } from "semantic-ui-react";
+import { Card as SCard, Icon as SIcon, Rating as SRating, List as SList } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
     fetchApplications,
@@ -19,6 +19,7 @@ import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
+import { ApplicationCard, CardGroup } from "ui-components/Card";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
@@ -48,9 +49,14 @@ class Applications extends React.Component<ApplicationsProps> {
                     errorMessage={error}
                     onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
                     pageRenderer={({ items }: Page<Application>) =>
-                        <Card.Group className="card-margin">
-                            {items.map((app, index) => <SingleApplication key={index} app={app} favoriteApp={favoriteApp} />)}
-                        </Card.Group>
+                        <CardGroup>
+                            {items.map((app, index) =>
+                                <React.Fragment key={index}>
+                                    <ApplicationCard appDescription={app.description}/>
+                                    {/* <SingleApplication key={index} app={app} favoriteApp={favoriteApp} /> */}
+                                </React.Fragment>
+                            )}
+                        </CardGroup>
                     }
                     page={page}
                     onItemsPerPageChanged={(size) => fetchApplications(0, size)}
@@ -74,34 +80,34 @@ export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) 
         backgroundImage: `url('${image}')`
     };
     return (
-        <Card>
+        <SCard>
             <div style={hex}>
                 <Link to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}>
                     <div className="app-image" style={imageStyle} />
                 </Link>
             </div>
-            <Card.Content>
-                <List horizontal floated="right">
-                    {!!favoriteApp ? <List.Item>
-                        <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => !!favoriteApp ? favoriteApp(app) : null} />
-                    </List.Item> : null}
-                    <List.Item>
+            <SCard.Content>
+                <SList horizontal floated="right">
+                    {!!favoriteApp ? <SList.Item>
+                        <SRating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => !!favoriteApp ? favoriteApp(app) : null} />
+                    </SList.Item> : null}
+                    <SList.Item>
                         <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
-                            <Icon color="green" name="play" />
+                            <SIcon color="green" name="play" />
                         </Link>
-                    </List.Item>
-                </List>
-                <Card.Header
+                    </SList.Item>
+                </SList>
+                <SCard.Header
                     as={Link}
                     to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}
                     content={app.description.title}
                 />
-                <Card.Meta content={app.description.info.version} />
-            </Card.Content>
-            <Card.Content extra>
+                <SCard.Meta content={app.description.info.version} />
+            </SCard.Content>
+            <SCard.Content extra>
                 {description.length > 72 ? `${description.slice(0, 72)}...` : description}
-            </Card.Content>
-        </Card>
+            </SCard.Content>
+        </SCard>
     );
 }
 

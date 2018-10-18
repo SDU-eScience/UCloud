@@ -35,12 +35,14 @@ const IconBase = ({ name, size, ...props }): JSX.Element => {
 
 export interface IconProps {
   name: string
-  size: string | number
-  color: string
+  size?: string | number
+  color?: string
+  cursor?: string
 }
 
-const Icon = styled(IconBase)`
+const Icon = styled(IconBase) <IconProps>`
   flex: none;
+  cursor: ${(props: IconProps) => props.cursor}
   ${space} ${color};
 `;
 
@@ -48,9 +50,19 @@ Icon.displayName = 'Icon'
 
 Icon.defaultProps = {
   theme,
+  cursor: "auto",
   name: 'checkLight',
   size: 24
 }
+
+// Use to see every available icon.
+export const EveryIcon = () => (
+  <>
+    {Object.keys(icons).map((it, i) => (
+      <span><span>{it}</span>: <Icon name={it} key={i} />, </span>
+    ))}
+  </>
+);
 
 
 export default Icon

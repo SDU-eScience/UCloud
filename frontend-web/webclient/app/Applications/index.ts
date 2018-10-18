@@ -59,7 +59,7 @@ export interface DetailedResultOperations {
     receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
-    detailedResultError: (error:string) => void
+    detailedResultError: (error: string) => void
     fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
 }
 
@@ -100,7 +100,7 @@ interface ApplicationInfo {
     version: string
 }
 
-interface ApplicationDescription {
+export interface ApplicationDescription {
     info: ApplicationInfo
     tool: ApplicationInfo
     authors: string[]
@@ -224,51 +224,48 @@ interface VarInvocation {
     variableSeparator: string
 }
 
+type Info = { name: string, version: string }
+export interface Description {
+    info: Info
+    tool: Info
+    authors: string[]
+    title: string
+    description: string
+    invocation: Invocation[]
+    parameters: ApplicationParameter[]
+    outputFileGlobs: [string, string]
+}
+interface Tool {
+    owner: string
+    createdAt: number
+    modifiedAt: number
+    description: ToolDescription
+}
+
+interface ToolDescription {
+    info: Info
+    container: string
+    defaultNumberOfNodes: number,
+    defaultTasksPerNode: number,
+    defaultMaxTime: {
+        hours: number
+        minutes: number
+        seconds: number
+    }
+    requiredModules: any[],
+    authors: string[]
+    title: string,
+    description: string
+    backend: string
+}
+
 
 export interface ApplicationInformation {
     owner: string
     favorite?: boolean
     createdAt, modifiedAt: number
-    description: {
-        info: {
-            name: string
-            version: string
-        }
-        tool: {
-            name: string
-            version: string
-        }
-        authors: string[]
-        title: string
-        description: string
-        invocation: Invocation[]
-        parameters: ApplicationParameter[]
-        outputFileGlobs: [string, string]
-    }
-    tool: {
-        owner: string
-        createdAt: number
-        modifiedAt: number
-        description: {
-            info: {
-                name: string
-                version: string
-            }
-            container: string
-            defaultNumberOfNodes: number,
-            defaultTasksPerNode: number,
-            defaultMaxTime: {
-                hours: number
-                minutes: number
-                seconds: number
-            }
-            requiredModules: any[],
-            authors: string[]
-            title: string,
-            description: string
-            backend: string
-        }
-    }
+    description: Description
+    tool: Tool
 }
 
 export enum ParameterTypes {

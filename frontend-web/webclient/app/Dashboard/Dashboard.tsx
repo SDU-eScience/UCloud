@@ -7,19 +7,16 @@ import { favoriteFile, getParentPath, getFilenameFromPath } from "Utilities/File
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
-import { Card, List, Icon, Message } from "semantic-ui-react";
+import { Card as SCard, List as SList, Icon as SIcon, Message as SMessage } from "semantic-ui-react";
 import * as moment from "moment";
 import { FileIcon } from "UtilityComponents";
-import {
-    DASHBOARD_FAVORITE_ERROR,
-    DASHBOARD_RECENT_ANALYSES_ERROR,
-    DASHBOARD_RECENT_FILES_ERROR
-} from "./Redux/DashboardReducer";
+import { DASHBOARD_FAVORITE_ERROR } from "./Redux/DashboardReducer";
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 import { Notification } from "Notifications";
 import { Analysis } from "Applications";
 import { File, FileType } from "Files";
 import { Dispatch } from "redux";
+import Icon, { EveryIcon } from "ui-components/Icon";
 
 class Dashboard extends React.Component<DashboardProps> {
     constructor(props) {
@@ -36,7 +33,7 @@ class Dashboard extends React.Component<DashboardProps> {
 
     render() {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
-            analysesLoading, errors,  } = this.props;
+            analysesLoading, errors, } = this.props;
         favoriteFiles.forEach((f: File) => f.favorited = true);
         const favoriteOrUnfavorite = (file: File) => {
             favoriteFile(file, Cloud);
@@ -45,8 +42,8 @@ class Dashboard extends React.Component<DashboardProps> {
 
         return (
             <React.StrictMode>
-                {errors.length ? <Message list={errors} onDismiss={this.props.errorDismiss} negative /> : null}
-                <Card.Group className="mobile-padding">
+                {errors.length ? <SMessage list={errors} onDismiss={this.props.errorDismiss} negative /> : null}
+                <SCard.Group className="mobile-padding">
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
                         isLoading={favoriteLoading}
@@ -55,7 +52,7 @@ class Dashboard extends React.Component<DashboardProps> {
                     <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
                     <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
                     <DashboardNotifications notifications={notifications} />
-                </Card.Group>
+                </SCard.Group>
             </React.StrictMode>
         );
     }
@@ -64,106 +61,106 @@ class Dashboard extends React.Component<DashboardProps> {
 const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: Function }) => {
     const noFavorites = files.length || isLoading ? null : (<h3><small>No favorites found</small></h3>);
     const filesList = files.map((file: File, i: number) =>
-        (<List.Item key={i} className="itemPadding">
-            <List.Content floated="right">
-                <Icon name="star" color="blue" onClick={() => favorite(file)} />
-            </List.Content>
+        (<SList.Item key={i} className="itemPadding">
+            <SList.Content floated="right">
+                <SIcon name="star" color="blue" onClick={() => favorite(file)} />
+            </SList.Content>
             <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={200} />
-        </List.Item>)
+        </SList.Item>)
     );
 
     return (
-        <Card fluid={window.innerWidth <= 645}>
-            <Card.Content>
-                <Card.Header content="Favorite files" />
+        <SCard fluid={window.innerWidth <= 645}>
+            <SCard.Content>
+                <SCard.Header content="Favorite files" />
                 <DefaultLoading loading={isLoading} />
                 {noFavorites}
-                <List divided size={"large"}>
+                <SList divided size={"large"}>
                     {filesList}
-                </List>
-            </Card.Content >
-        </Card >)
+                </SList>
+            </SCard.Content >
+        </SCard>)
 };
 
 const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 117 | 200 }) =>
-    <List.Content>
+    <SList.Content>
         <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={undefined} link={link} color="grey" />
         <Link to={`/files/${type === "FILE" ? getParentPath(path) : path}`}>
             <span className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(path)}</span>
         </Link>
-    </List.Content>
+    </SList.Content>
 
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => {
     return (
-        <Card fluid={window.innerWidth <= 645}>
-            <Card.Content>
-                <Card.Header content="Recently used files" />
+        <SCard fluid={window.innerWidth <= 645}>
+            <SCard.Content>
+                <SCard.Header content="Recently used files" />
                 {isLoading || files.length ? null : (<h3><small>No recently used files</small></h3>)}
                 <DefaultLoading loading={isLoading} />
-                <List divided size={"large"}>
+                <SList divided size={"large"}>
                     {files.map((file, i) => (
-                        <List.Item key={i} className="itemPadding">
-                            <List.Content floated="right">
-                                <List.Description>{moment(new Date(file.modifiedAt)).fromNow()}</List.Description>
-                            </List.Content>
+                        <SList.Item key={i} className="itemPadding">
+                            <SList.Content floated="right">
+                                <SList.Description>{moment(new Date(file.modifiedAt)).fromNow()}</SList.Description>
+                            </SList.Content>
                             <ListFileContent path={file.path} type={file.fileType} link={file.link} pixelsWide={117} />
-                        </List.Item>
+                        </SList.Item>
                     ))}
-                </List>
-            </Card.Content>
-        </Card>);
+                </SList>
+            </SCard.Content>
+        </SCard>);
 };
 
 const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLoading: boolean }) => (
-    <Card fluid={window.innerWidth <= 645}>
-        <Card.Content>
-            <Card.Header content="Recent Analyses" />
+    <SCard fluid={window.innerWidth <= 645}>
+        <SCard.Content>
+            <SCard.Header content="Recent Analyses" />
             <DefaultLoading loading={isLoading} />
             {isLoading || analyses.length ? null : (<h3><small>No Analyses found</small></h3>)}
-            <List divided size={"large"}>
+            <SList divided size={"large"}>
                 {analyses.map((analysis: Analysis, index: number) =>
-                    <List.Item key={index} className="itemPadding">
-                        <List.Content floated="right" content={toLowerCaseAndCapitalize(analysis.state)} />
-                        <List.Icon name={statusToIconName(analysis.state)} color={statusToColor(analysis.state)} />
-                        <List.Content>
+                    <SList.Item key={index} className="itemPadding">
+                        <SList.Content floated="right" content={toLowerCaseAndCapitalize(analysis.state)} />
+                        <SList.Icon name={statusToIconName(analysis.state)} color={statusToColor(analysis.state)} />
+                        <SList.Content>
                             <Link to={`/analyses/${analysis.jobId}`}>{analysis.appName}</Link>
-                        </List.Content>
-                    </List.Item>
+                        </SList.Content>
+                    </SList.Item>
                 )}
-            </List>
-        </Card.Content>
-    </Card>
+            </SList>
+        </SCard.Content>
+    </SCard>
 );
 
 const DashboardNotifications = ({ notifications }: { notifications: Notification[] }) => (
-    <Card fluid={window.innerWidth <= 645}>
-        <Card.Content>
-            <Card.Header content="Recent notifications" />
+    <SCard fluid={window.innerWidth <= 645}>
+        <SCard.Content>
+            <SCard.Header content="Recent notifications" />
             {notifications.length === 0 ? <h3><small>No notifications</small></h3> : null}
-            <List divided>
+            <SList divided>
                 {notifications.slice(0, 10).map((n: Notification, i: number) =>
-                    <List.Item key={i}>
+                    <SList.Item key={i}>
                         <Notification notification={n} />
-                    </List.Item>
+                    </SList.Item>
                 )}
-            </List>
-        </Card.Content>
-    </Card>
+            </SList>
+        </SCard.Content>
+    </SCard>
 );
 
-const DashboardAccounting = () => {}
+const DashboardAccounting = () => { }
 
 const Notification = ({ notification }: { notification: Notification }) => {
     switch (notification.type) {
         case "SHARE_REQUEST":
             return (
                 <>
-                    <List.Content floated="right">
-                        <List.Description content={moment(new Date(notification.ts as number)).fromNow()} />
-                    </List.Content>
-                    <List.Icon name="share alternate" color="blue" verticalAlign="middle" />
-                    <List.Content header="Share Request" description={notification.message} />
+                    <SList.Content floated="right">
+                        <SList.Description content={moment(new Date(notification.ts as number)).fromNow()} />
+                    </SList.Content>
+                    <SList.Icon name="share alternate" color="blue" verticalAlign="middle" />
+                    <SList.Content header="Share Request" description={notification.message} />
                 </>
             )
         default: {
