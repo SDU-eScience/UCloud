@@ -9,9 +9,9 @@ import Link from "./Link";
 
 const SideBarContainer = styled(Flex)`
     position: fixed;
-    top: 0;
-    width: 190px;
-    margin-top: 48px;
+    top:48px;
+    //width: 190px;
+    //margin-top: 48px;
     height: 100%;
     flex-flow: column;
     border-right: 1px solid ${props => props.theme.colors["gray"]}
@@ -33,10 +33,12 @@ const SideBarElementContainer = styled(Flex)`
 
 const SideBarElement = ({ icon, label, showLabel, to }) => (
     <Link to={to}>
-        <SideBarElementContainer pl="24px">
-            <Icon name={icon} size="24" />
+        <SideBarElementContainer >
+            <Flex mx="22px" alignItems='center'> 
+                <Icon name={icon} size="24" />
+            </Flex>
             {showLabel &&
-                <Text fontSize={3} pl="20px">
+                <Text fontSize={3}>
                     {label}
                 </Text>
             }
@@ -60,7 +62,7 @@ export const sideBarMenuElements: MenuElement[] = [
 ];
 
 const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { sideBarEntries?: any, showLabel?: boolean }) => (
-    <SideBarContainer color='darkGray' bg='lightGray'>
+    <SideBarContainer color='darkGray' bg='lightGray' width={["auto", "190px"]}>
         {sideBarMenuElements.map(({ icon, label, to }) => (
             <React.Fragment key={label}>
                 <SideBarSpacer />
