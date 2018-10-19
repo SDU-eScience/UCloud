@@ -34,13 +34,20 @@ sealed class RESTResponse<out T, out E> {
     val statusText: String get() = response.status.description
     val rawResponseBody: String get() = runBlocking { response.readText() }
 
-    data class Ok<out T, out E>(override val response: HttpResponse, val result: T) : RESTResponse<T, E>()
-    data class Err<out T, out E>(override val response: HttpResponse, val error: E? = null) : RESTResponse<T, E>()
+    internal fun HttpResponse.toPrettyString(): String = "[$status]: ${rawResponseBody.take(500)}"
+
+    data class Ok<out T, out E>(override val response: HttpResponse, val result: T) : RESTResponse<T, E>() {
+        override fun toString(): String = "OK(${response.toPrettyString()}, $result)"
+    }
+
+    data class Err<out T, out E>(override val response: HttpResponse, val error: E? = null) : RESTResponse<T, E>() {
+        override fun toString(): String = "Err(${response.toPrettyString()}, $error)"
+    }
 }
 
 private const val DELAY_TIME = 250
-private const val INTERNAL_ERRORCODE_START = 500
-private const val INTERAL_ERRORCODE_STOP = 599
+private const val INTERNAL_ERROR_CODE_START = 500
+private const val INTERNAL_ERROR_CODE_STOP = 599
 private const val NUMBER_OF_ATTEMPTS = 5
 
 abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, private val namespace: String) {
@@ -94,7 +101,7 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, private 
                     log.warn("Unable to deserialize _successful_ message!")
                     RESTResponse.Err(resp)
                 }
-            } else if (resp.status.value in INTERNAL_ERRORCODE_START..INTERAL_ERRORCODE_STOP) {
+            } else if (resp.status.value in INTERNAL_ERROR_CODE_START..INTERNAL_ERROR_CODE_STOP) {
                 log.info("Caught server error!")
                 log.info("Call was: $this, response was: $resp")
                 delay(DELAY_TIME)
