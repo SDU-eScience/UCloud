@@ -51,10 +51,7 @@ class Applications extends React.Component<ApplicationsProps> {
                     pageRenderer={({ items }: Page<Application>) =>
                         <CardGroup>
                             {items.map((app, index) =>
-                                <React.Fragment key={index}>
-                                    <ApplicationCard appDescription={app.description}/>
-                                    {/* <SingleApplication key={index} app={app} favoriteApp={favoriteApp} /> */}
-                                </React.Fragment>
+                                <ApplicationCard key={index} appDescription={app.description}/>
                             )}
                         </CardGroup>
                     }

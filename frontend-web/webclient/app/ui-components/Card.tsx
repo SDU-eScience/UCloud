@@ -7,8 +7,8 @@ import theme from "./theme";
 import { borderRadius, BoxShadowProps, BorderProps, BorderRadiusProps, BorderColorProps, HeightProps, height } from "styled-system";
 import Relative from "./Relative";
 import Absolute from "./Absolute";
-import { Description, ApplicationDescription } from "Applications";
-import Icon, { IconProps } from "./Icon";
+import { ApplicationDescription } from "Applications";
+import Icon from "./Icon";
 import { Link } from "react-router-dom";
 
 const boxShadow = props => {
@@ -92,6 +92,9 @@ export const ApplicationCard = ({ appDescription }: { appDescription: Applicatio
               v {appDescription.info.version}
             </Text>
           </Absolute>
+          {/* <Absolute>
+            <Icon name="star" />
+          </Absolute> */}
           <Absolute top={"86px"} left={"200px"}>
             <Link to={`/applications/${appDescription.info.name}/${appDescription.info.version}/`}>
               <PlayIcon />
