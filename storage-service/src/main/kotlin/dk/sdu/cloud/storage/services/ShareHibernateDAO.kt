@@ -86,46 +86,15 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         paging: NormalizedPaginationRequest
     ): Page<SharesByPath> {
         // Query number of paths and retrieve for current page
-        val itemsInTotal = session.countWithPredicate<ShareEntity>(
-            distinct = true,
-            selection = { entity[ShareEntity::path] },
-            predicate = { isAuthorized(user, requireOwnership = false) }
-        )
+        val itemsInTotal = getNumberOfSharesStatusFilterPossible(session, user, false)
 
-        val distinctPaths = session.createCriteriaBuilder<String, ShareEntity>().run {
-            with(criteria) {
-                select(entity[ShareEntity::path])
-                distinct(true)
-
-                where(isAuthorized(user, requireOwnership = false))
-
-                orderBy(ascending(entity[ShareEntity::path]))
-            }
-        }.createQuery(session).paginatedList(paging)
-
-        // Retrieve all shares for these paths and group
-        val groupedByPath = session
-            .criteria<ShareEntity>(
-                orderBy = {
-                    listOf(ascending(entity[ShareEntity::filename]))
-                },
-
-                predicate = {
-                    allOf(
-                        entity[ShareEntity::path] isInCollection distinctPaths,
-                        isAuthorized(user, requireOwnership = false)
-                    )
-                }
-            )
-            .list()
-            .map { it.toModel() }
-            .let { groupByPath(user, it) }
+        val items = getSharesStatusFilterPossible(session, user, false, paging)
 
         return Page(
             itemsInTotal.toInt(),
             paging.itemsPerPage,
             paging.page,
-            groupedByPath
+            items
         )
     }
 
@@ -135,25 +104,63 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         status: ShareState,
         paging: NormalizedPaginationRequest
     ): Page<SharesByPath> {
-        val count = session.countWithPredicate<ShareEntity>(
+        val count = getNumberOfSharesStatusFilterPossible(session, user, true, status)
+
+        val items = getSharesStatusFilterPossible(session, user, true, paging, status)
+
+        return Page(
+            count.toInt(),
+            paging.itemsPerPage,
+            paging.page,
+            items
+        )
+    }
+
+    private fun getNumberOfSharesStatusFilterPossible(
+        session: HibernateSession,
+        user: String,
+        statusSearch: Boolean,
+        status: ShareState? = ShareState.ACCEPTED
+    ): Long {
+        return session.countWithPredicate<ShareEntity>(
             distinct = true,
             selection = { entity[ShareEntity::path] },
             predicate = {
-                allOf(
-                    isAuthorized(user, requireOwnership = false),
-                    entity[ShareEntity::state] equal literal(status)
-                )
+                if (statusSearch) {
+                    allOf(
+                        isAuthorized(user, requireOwnership = false),
+                        entity[ShareEntity::state] equal status
+                    )
+                } else {
+                    allOf(isAuthorized(user, requireOwnership = false))
+                }
             }
         )
+    }
 
-        val distinctPaths = session.createCriteriaBuilder<String, ShareEntity>().run {
+    private fun getSharesStatusFilterPossible(
+        session: HibernateSession,
+        user: String,
+        statusSearch: Boolean,
+        paging: NormalizedPaginationRequest,
+        status: ShareState? = ShareState.ACCEPTED
+    ): List<SharesByPath> {
+        val distinctPaths =  session.createCriteriaBuilder<String, ShareEntity>().run {
             with(criteria) {
                 select(entity[ShareEntity::path])
                 distinct(true)
 
                 where(
-                    allOf(isAuthorized(user, requireOwnership = false),
-                        entity[ShareEntity::state] equal literal(status))
+                    if (statusSearch) {
+                        allOf(
+                            isAuthorized(user, requireOwnership = false),
+                            entity[ShareEntity::state] equal status
+                        )
+                    } else {
+                        allOf(
+                            isAuthorized(user, requireOwnership = false)
+                        )
+                    }
                 )
 
                 orderBy(ascending(entity[ShareEntity::path]))
@@ -168,25 +175,26 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
                 },
 
                 predicate = {
-                    allOf(
-                        entity[ShareEntity::path] isInCollection distinctPaths,
-                        isAuthorized(user, requireOwnership = false),
-                        entity[ShareEntity::state] equal literal(status)
-                    )
+                    if (statusSearch) {
+                        allOf(
+                            entity[ShareEntity::path] isInCollection distinctPaths,
+                            isAuthorized(user, requireOwnership = false),
+                            entity[ShareEntity::state] equal status
+                        )
+                    } else {
+                        allOf(
+                            entity[ShareEntity::path] isInCollection distinctPaths,
+                            isAuthorized(user, requireOwnership = false)
+                        )
+                    }
                 }
             )
             .list()
             .map { it.toModel() }
             .let { groupByPath(user, it) }
 
-        return Page(
-            count.toInt(),
-            paging.itemsPerPage,
-            paging.page,
-            items
-        )
+        return items
     }
-
 
     override fun findShareForPath(
         session: HibernateSession,

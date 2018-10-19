@@ -71,18 +71,16 @@ class ShareController<Ctx : FSUserContext>(
         implement(ShareDescriptions.findByPath) {
             logEntry(log, it)
 
-            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                ok(shareService.findSharesForPath(ctx, it.path))
-            }
+            ok(shareService.findSharesForPath(call.securityPrincipal.username, it.path))
+
 
         }
 
         implement(ShareDescriptions.listByStatus) {
             logEntry(log, it)
 
-            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                ok(shareService.listSharesByStatus(ctx, it.status, it.normalize()))
-            }
+            ok(shareService.listSharesByStatus(call.securityPrincipal.username, it.status, it.normalize()))
+
         }
     }
 

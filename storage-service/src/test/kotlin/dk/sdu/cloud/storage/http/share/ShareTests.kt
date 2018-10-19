@@ -17,6 +17,7 @@ import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.share.api.FindByShareId
 import dk.sdu.cloud.share.api.SharesByPath
 import dk.sdu.cloud.storage.http.ShareController
+import dk.sdu.cloud.storage.http.files.call
 import dk.sdu.cloud.storage.http.files.configureServerWithFileController
 import dk.sdu.cloud.storage.http.files.setUser
 import dk.sdu.cloud.storage.services.ACLService
@@ -27,6 +28,8 @@ import dk.sdu.cloud.storage.util.cloudToCephFsDAOWithFixedAnswer
 import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.testing.TestApplicationEngine
+import io.ktor.server.testing.TestApplicationResponse
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
@@ -41,6 +44,26 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ShareTests {
+
+    private fun TestApplicationEngine.createShare(
+        path: String,
+        userToRunAs: String = "user",
+        userToShareWith: String = "user1"
+    ): TestApplicationResponse {
+        return handleRequest(HttpMethod.Put, "/api/shares") {
+            setUser(userToRunAs, Role.USER)
+            setBody(
+                """
+                    {
+                    "sharedWith" : "$userToShareWith",
+                    "path" : "$path",
+                    "rights" : ["READ", "EXECUTE"]
+                    }
+                    """.trimIndent()
+            )
+        }.response
+    }
+
 
     @Test
     fun createListAndAcceptTest() {
@@ -94,18 +117,7 @@ class ShareTests {
                             assertEquals(HttpStatusCode.NotFound, getByPathResponse.status())
                         }
 
-                        val createResponse = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                        {
-                        "sharedWith" : "$userToShareWith",
-                        "path" : "/home/$userToShareWith/folder/a",
-                        "rights" : ["READ", "EXECUTE"]
-                        }
-                        """.trimIndent()
-                            )
-                        }.response
+                        val createResponse = createShare("/home/$userToShareWith/folder/a")
 
                         assertEquals(HttpStatusCode.OK, createResponse.status())
 
@@ -220,61 +232,17 @@ class ShareTests {
                     },
 
                     test = {
-                        val insertResponse = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/a",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse = createShare("/home/$userToShareWith/folder/a")
                         assertEquals(HttpStatusCode.OK, insertResponse.status())
 
-                        val insertResponse2 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/c",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse2 = createShare("/home/$userToShareWith/folder/c")
                         assertEquals(HttpStatusCode.OK, insertResponse2.status())
 
-                        val insertResponse3 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/b",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse3 = createShare("/home/$userToShareWith/folder/b")
 
                         assertEquals(HttpStatusCode.OK, insertResponse3.status())
 
-                        val insertResponse4 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/another-one/file",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse4 = createShare("/home/$userToShareWith/another-one/file")
 
                         assertEquals(HttpStatusCode.OK, insertResponse4.status())
 
@@ -343,181 +311,49 @@ class ShareTests {
                     },
 
                     test = {
-                        val insertResponse = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/a",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse = createShare("/home/$userToShareWith/folder/a")
                         assertEquals(HttpStatusCode.OK, insertResponse.status())
 
-                        val insertResponse2 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/c",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse2 = createShare("/home/$userToShareWith/folder/c")
                         assertEquals(HttpStatusCode.OK, insertResponse2.status())
 
-                        val insertResponse3 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/b",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse3 = createShare("/home/$userToShareWith/folder/b")
 
                         assertEquals(HttpStatusCode.OK, insertResponse3.status())
 
-                        val insertResponse4 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/another-one/b",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse4 = createShare("/home/$userToShareWith/another-one/b")
 
                         assertEquals(HttpStatusCode.OK, insertResponse4.status())
 
-                        val insertResponse5 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/d",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse5 = createShare("/home/$userToShareWith/folder/d")
 
                         assertEquals(HttpStatusCode.OK, insertResponse5.status())
 
-                        val insertResponse6 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/another-one/g",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse6 = createShare("/home/$userToShareWith/another-one/g")
 
                         assertEquals(HttpStatusCode.OK, insertResponse6.status())
 
-                        val insertResponse7 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/one/a",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse7 = createShare("/home/$userToShareWith/one/a")
 
                         assertEquals(HttpStatusCode.OK, insertResponse7.status())
 
-                        val insertResponse8 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/one/i",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse8 = createShare("/home/$userToShareWith/one/i")
 
                         assertEquals(HttpStatusCode.OK, insertResponse8.status())
 
-                        val insertResponse9 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/one/file",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse9 = createShare("/home/$userToShareWith/one/file")
 
                         assertEquals(HttpStatusCode.OK, insertResponse9.status())
 
-                        val insertResponse10 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/one/j",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse10 = createShare("/home/$userToShareWith/one/j")
 
                         assertEquals(HttpStatusCode.OK, insertResponse10.status())
 
-                        val insertResponse11 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/another-one/h",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse11 = createShare("/home/$userToShareWith/another-one/h")
 
                         assertEquals(HttpStatusCode.OK, insertResponse11.status())
 
-                        val insertResponse12 = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(userToRunAs, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/e",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse12 = createShare("/home/$userToShareWith/folder/e")
 
                         assertEquals(HttpStatusCode.OK, insertResponse12.status())
 
@@ -598,18 +434,7 @@ class ShareTests {
                     },
 
                     test = {
-                        val insertResponse = handleRequest(HttpMethod.Put, "/api/shares") {
-                            setUser(user, Role.USER)
-                            setBody(
-                                """
-                            {
-                            "sharedWith" : "$user",
-                            "path" : "/home/$user/folder/a",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                            )
-                        }.response
+                        val insertResponse = createShare("/home/$user/folder/a", user, user)
                         assertEquals(HttpStatusCode.BadRequest, insertResponse.status())
                     }
                 )
@@ -660,34 +485,12 @@ class ShareTests {
 
                     test = {
                         run {
-                            val insertResponse = handleRequest(HttpMethod.Put, "/api/shares") {
-                                setUser(userToRunAs, Role.USER)
-                                setBody(
-                                    """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/a",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                                )
-                            }.response
+                            val insertResponse = createShare("/home/$userToShareWith/folder/a")
                             assertEquals(HttpStatusCode.OK, insertResponse.status())
                         }
 
                         run {
-                            val insertResponse = handleRequest(HttpMethod.Put, "/api/shares") {
-                                setUser(userToRunAs, Role.USER)
-                                setBody(
-                                    """
-                            {
-                            "sharedWith" : "$userToShareWith",
-                            "path" : "/home/$userToShareWith/folder/a",
-                            "rights" : ["READ", "EXECUTE"]
-                            }
-                            """.trimIndent()
-                                )
-                            }.response
+                            val insertResponse = createShare("/home/$userToShareWith/folder/a")
                             assertEquals(HttpStatusCode.Conflict, insertResponse.status())
                         }
                     }
