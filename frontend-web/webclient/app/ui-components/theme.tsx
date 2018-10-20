@@ -21,12 +21,12 @@ addAliases(mediaQueries, aliases)
 
 export const space = [0, 4, 8, 16, 32, 64, 128]
 
-export const font = `Roboto,Montserrat,'Helvetica Neue',Helvetica,Arial,sans-serif`
+export const font = `'IBM Plex Sans',sans-serif`
 
 export const fontSizes = [12, 14, 16, 20, 24, 32, 40, 56, 72]
 
-export const medium = 500
-export const bold = 700
+export const medium = 300
+export const bold = 400
 export const regular = medium
 
 // styled-system's `fontWeight` function can hook into the `fontWeights` object

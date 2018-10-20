@@ -38,7 +38,7 @@ const SideBarElement = ({ icon, label, showLabel, to }) => (
                 <Icon name={icon} size="24" />
             </Flex>
             {showLabel &&
-                <Text fontSize={3}>
+                <Text fontSize={3} bold>
                     {label}
                 </Text>
             }
