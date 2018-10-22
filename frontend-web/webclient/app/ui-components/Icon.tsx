@@ -4,7 +4,7 @@ import { space, color } from 'styled-system'
 import { icons } from './icons.json'
 import theme from './theme'
 
-const getPath = ({ name }) => icons[name]
+const getPath = ({ name }) => icons[name];
 
 const Svg = styled.svg`
   flex: none;
@@ -58,13 +58,13 @@ Icon.defaultProps = {
 // Use to see every available icon.
 export const EveryIcon = () => (
   <>
-    {Object.keys(icons).map((it: IconName , i) =>
+    {Object.keys(icons).map((it: IconName, i: number) =>
       (<span><span>{it}</span>: <Icon name={it} key={i} />, </span>)
     )}
   </>
 );
 
-type IconName = 
+export type IconName =
   "ac" |
   "accessible" |
   "activity" |

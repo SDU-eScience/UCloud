@@ -82,7 +82,7 @@ export const ApplicationCard = ({ appDescription }: { appDescription: Applicatio
                         </Text>
                     </Absolute>
                     <Absolute top="10px" left="215px">
-                        <Icon name="starFilled" />
+                        <Icon cursor="pointer" name="starEmpty" />
                     </Absolute>
                     <Absolute top={"86px"} left={"200px"}>
                         <Link to={`/applications/${appDescription.info.name}/${appDescription.info.version}/`}>

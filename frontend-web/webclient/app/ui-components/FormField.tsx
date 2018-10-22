@@ -3,7 +3,7 @@ import styled, { keyframes } from "styled-components"
 import Box from "./Box"
 import Flex from "./Flex"
 import Select from "./Select"
-import Icon from "./Icon"
+import Icon, { IconName } from "./Icon"
 import Label from "./Label"
 import Input from "./Input"
 import theme from "./theme"
@@ -24,20 +24,20 @@ const fadeIn = keyframes`
   }
 `
 const labelStyles = {
-  animation: fadeIn + ' 0.3s'
+  animation: fadeIn + " 0.3s"
 }
 
 const getFieldStyles = showLabel => {
   return showLabel
     ? {
-      paddingTop: '20px',
-      paddingBottom: '8px',
-      transition: 'padding-top 0.1s, padding-bottom 0.1s'
+      paddingTop: "20px",
+      paddingBottom: "8px",
+      transition: "padding-top 0.1s, padding-bottom 0.1s"
     }
     : {
-      paddingTop: '14px',
-      paddingBottom: '14px',
-      transition: 'padding-top 0.1s, padding-bottom 0.1s'
+      paddingTop: "14px",
+      paddingBottom: "14px",
+      transition: "padding-top 0.1s, padding-bottom 0.1s"
     }
 }
 
@@ -47,7 +47,15 @@ const formElements = [Input, Select]
 
 const isFormElement = element => formElements.includes(element)
 
-class FormField extends React.Component<any> {
+class FormField extends React.Component<{
+  onChange: (e) => void
+  label: string
+  icon: IconName
+  id: string
+  placeholder: string
+  size: number
+  alwaysShowLabel: boolean
+}> {
 
   private fieldRef: any;
 
@@ -60,7 +68,7 @@ class FormField extends React.Component<any> {
   // for backwards-compatibility
   handleChange = onChange => e => {
     this.props.onChange(e)
-    if (typeof onChange !== 'function') return
+    if (typeof onChange !== "function") return
     onChange(e)
   }
 
@@ -119,7 +127,7 @@ class FormField extends React.Component<any> {
       LabelChild = <Label>{label}</Label>
     }
     if (!FieldChild) {
-      FieldChild = <Input />
+      FieldChild = <Input id={this.props.id} />
     }
 
     const showLabel =
@@ -141,7 +149,7 @@ class FormField extends React.Component<any> {
             <Box
               mr={-4}
               ml={`${8 - iconAdjustment}px`}
-              mt={showLabel ? '-12px' : '2px'}
+              mt={showLabel ? "-12px" : "2px"}
             >
               {BeforeIcon}
             </Box>
@@ -172,9 +180,4 @@ class FormField extends React.Component<any> {
   }
 }
 
-interface FormFieldProps {
-  alwaysShowLabel?: boolean
-  children: any
-}
-
-export default FormField
+export default FormField;

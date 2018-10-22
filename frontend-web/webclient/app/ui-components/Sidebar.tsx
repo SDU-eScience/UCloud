@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 import Text from './Text'
-import Icon from './Icon'
+import Icon, { IconName } from './Icon'
 import Flex from './Flex'
 import Box from './Box'
 import Link from "./Link";
@@ -30,15 +30,15 @@ const SideBarElementContainer = styled(Flex)`
         }
     }
 `
-
-const SideBarElement = ({ icon, label, showLabel, to }) => (
+interface SidebarElementProps { icon: IconName, label: string, showLabel: boolean, to: string }
+const SideBarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => (
     <Link to={to}>
         <SideBarElementContainer >
-            <Flex mx="22px" alignItems='center'> 
-                <Icon name={icon} size="24" />
+            <Flex mx="22px" alignItems='center'>
+                <Icon cursor="pointer" name={icon} size="24" />
             </Flex>
             {showLabel &&
-                <Text fontSize={3} bold>
+                <Text cursor="pointer" fontSize={3} bold>
                     {label}
                 </Text>
             }
@@ -46,15 +46,15 @@ const SideBarElement = ({ icon, label, showLabel, to }) => (
     </Link>
 );
 
-const SideBarSpacer = (props) => (
+const SideBarSpacer = () => (
     <Box mt="20px" />
 );
 
-type MenuElement = { icon: string, label: string, to: string };
+type MenuElement = { icon: IconName, label: string, to: string };
 export const sideBarMenuElements: MenuElement[] = [
     { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
     { icon: "files", label: "Files", to: "/files/" },
-    { icon: "shares", label: "Shares", to: "/shares/"},
+    { icon: "shares", label: "Shares", to: "/shares/" },
     { icon: "apps", label: "Apps", to: "/applications/" },
     { icon: "publish", label: "Publish", to: "/zenodo/publish/" },
     { icon: "activity", label: "Activity", to: "/activity/" },
