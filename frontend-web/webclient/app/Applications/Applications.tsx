@@ -10,7 +10,7 @@ import {
 } from "./Redux/ApplicationsActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
-import { Application } from ".";
+import { Application, ApplicationDescription } from ".";
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
 // Requires at least TS 3.0.0
@@ -19,7 +19,8 @@ import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
-import { ApplicationCard, CardGroup } from "ui-components/Card";
+import { CardGroup, Card, PlayIcon } from "ui-components/Card";
+import { Relative, BackgroundImage, Box, Absolute, Text, Icon } from "ui-components";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
@@ -51,7 +52,7 @@ class Applications extends React.Component<ApplicationsProps> {
                     pageRenderer={({ items }: Page<Application>) =>
                         <CardGroup>
                             {items.map((app, index) =>
-                                <ApplicationCard key={index} appDescription={app.description}/>
+                                <ApplicationCard key={index} appDescription={app.description} />
                             )}
                         </CardGroup>
                     }
@@ -62,6 +63,44 @@ class Applications extends React.Component<ApplicationsProps> {
             </React.StrictMode >);
     }
 }
+
+export const ApplicationCard = ({ appDescription }: { appDescription: ApplicationDescription }) => (
+    <Card height={212} width={252}>
+        <Relative>
+            <BackgroundImage
+                height="138px"
+                image="https://placekitten.com/212/138">
+                <Box p={4}>
+                    <Absolute top="16px" left="10px">
+                        <Text fontSize={2} align="left" color="grey">
+                            {appDescription.info.name}
+                        </Text>
+                    </Absolute>
+                    <Absolute top={"34px"} left={"14px"}>
+                        <Text fontSize={"xxs-small"} align="left" color="grey">
+                            v {appDescription.info.version}
+                        </Text>
+                    </Absolute>
+                    <Absolute top="10px" left="215px">
+                        <Icon name="starFilled" />
+                    </Absolute>
+                    <Absolute top={"86px"} left={"200px"}>
+                        <Link to={`/applications/${appDescription.info.name}/${appDescription.info.version}/`}>
+                            <PlayIcon />
+                        </Link>
+                    </Absolute>
+                </Box>
+            </BackgroundImage>
+        </Relative>
+        <Relative>
+            <Text>
+                {appDescription.description.slice(0, 100)}
+            </Text>
+        </Relative>
+    </Card>
+);
+
+
 
 interface SingleApplicationProps { app: Application, favoriteApp?: (app: Application) => void }
 export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {

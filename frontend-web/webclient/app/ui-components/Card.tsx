@@ -39,7 +39,7 @@ export interface CardProps extends HeightProps, BoxProps, BorderColorProps, BoxS
   borderWidth?: number | string
 }
 
-const Card = styled(Box) <CardProps>`
+export const Card = styled(Box) <CardProps>`
   ${height} ${boxShadow} ${boxBorder} ${borderRadius};
 `;
 
@@ -72,44 +72,7 @@ export const PlayIconBase = styled(Icon)`
   }
 `;
 
-const PlayIcon = () => (<PlayIconBase cursor={"pointer"} name="play" size={38} />);
-
-
-export const ApplicationCard = ({ appDescription }: { appDescription: ApplicationDescription }) => (
-  <Card height={212} width={252}>
-    <Relative>
-      <BackgroundImage
-        height="138px"
-        image="https://placekitten.com/212/138">
-        <Box p={4}>
-          <Absolute top="16px" left="10px">
-            <Text fontSize={2} align="left" color="grey">
-              {appDescription.info.name}
-            </Text>
-          </Absolute>
-          <Absolute top={"34px"} left={"14px"}>
-            <Text fontSize={"xxs-small"} align="left" color="grey">
-              v {appDescription.info.version}
-            </Text>
-          </Absolute>
-          <Absolute top="10px" left="215px">
-            <Icon name="starFilled" />
-          </Absolute>
-          <Absolute top={"86px"} left={"200px"}>
-            <Link to={`/applications/${appDescription.info.name}/${appDescription.info.version}/`}>
-              <PlayIcon />
-            </Link>
-          </Absolute>
-        </Box>
-      </BackgroundImage>
-    </Relative>
-    <Relative>
-      <Text>
-        {appDescription.description.slice(0, 100)}
-      </Text>
-    </Relative>
-  </Card>
-);
+export const PlayIcon = () => (<PlayIconBase cursor={"pointer"} name="play" size={38} />);
 
 Card.displayName = "Card";
 
