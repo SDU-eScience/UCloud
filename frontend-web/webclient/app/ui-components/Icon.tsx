@@ -184,7 +184,7 @@ export type IconName =
   "apps" |
   "starRibbon" |
   "starFilled" |
-  "star_empty" |
+  "starEmpty" |
   "activity" |
   "dashboard" |
   "shares" |
