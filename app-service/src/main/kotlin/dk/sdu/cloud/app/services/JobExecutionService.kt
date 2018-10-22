@@ -53,6 +53,13 @@ import java.io.OutputStream
 import java.net.URI
 import java.nio.file.Files
 import java.util.UUID
+import kotlin.collections.ArrayList
+import kotlin.collections.List
+import kotlin.collections.Map
+import kotlin.collections.flatMap
+import kotlin.collections.forEach
+import kotlin.collections.last
+import kotlin.collections.map
 
 private const val MAX_TRIES = 3
 private const val SLEEP_SETTING = 150L
@@ -421,6 +428,7 @@ class JobExecutionService<DBSession>(
 
             result.add(
                 ValidatedFileForUpload(
+                    input.name,
                     stat,
                     name,
                     destinationPath,
@@ -815,5 +823,4 @@ class JobInternalException(message: String) : JobException(message, HttpStatusCo
 class JobNotFoundException(entity: String) : JobException("Not found: $entity", HttpStatusCode.NotFound)
 class JobNotAllowedException : JobException("Not allowed", HttpStatusCode.Unauthorized)
 class JobBadApplication : JobException("Application not found", HttpStatusCode.BadRequest)
-
 

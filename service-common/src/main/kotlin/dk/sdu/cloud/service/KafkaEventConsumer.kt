@@ -70,6 +70,7 @@ class KafkaEventConsumer<K, V>(
 
                 if (System.currentTimeMillis() > nextPrint) {
                     nextPrint = System.currentTimeMillis() + 10_000
+
                     log.debug(
                         "We retrieved an element from the processing thread!" +
                                 "overflowBuffer.size = ${overflowBuffer.size} " +
@@ -119,6 +120,16 @@ class KafkaEventConsumer<K, V>(
     private var nextPrint = 0L
     private fun internalPoll() {
         try {
+            if (System.currentTimeMillis() > nextPrint) {
+                nextPrint = System.currentTimeMillis() + 10_000
+                log.debug(
+                    "Current assignment is: " +
+                            kafkaConsumer.assignment().joinToString {
+                                "[topic=${it.topic()}, partition=${it.partition()}]"
+                            }
+                )
+            }
+
             val events = kafkaConsumer
                 .poll(pollTimeoutInMs)
                 .map {

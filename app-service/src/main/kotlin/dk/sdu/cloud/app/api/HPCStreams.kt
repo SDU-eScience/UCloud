@@ -8,7 +8,12 @@ import dk.sdu.cloud.service.KafkaRequest
 
 object HPCStreams : KafkaDescriptions() {
     val appEvents = stream<String, AppEvent>("appEvents") { it.systemId }
+    val newJobEvents = stream<String, JobStateChange>("app.job-state") { it.systemId }
 }
+
+data class JobStateChange(val systemId: String, val newState: JobState)
+@Deprecated("No longer in use", replaceWith = ReplaceWith("JobState"))
+typealias AppState = JobState
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -113,30 +118,39 @@ sealed class AppEvent {
         val successful: Boolean,
         val message: String
     ) : AppEvent()
-
 }
 
-enum class AppState {
+enum class JobState {
     /**
      * The job has been validated and is ready to be processed for scheduling
      */
     VALIDATED,
+
     /**
-     * The job has all of its dependencies shipped to HPC and is ready to be scheduled
+     * The job has all of its dependencies shipped to compute and is ready to be scheduled
      */
     PREPARED,
+
     /**
-     * The job has been scheduled in Slurm
+     * The job has been scheduled
      */
     SCHEDULED,
+
     /**
      * The job is currently running in the HPC environment
      */
     RUNNING,
+
     /**
-     * The job has completed succesfully
+     * The job has completed successfully, but is in the process of transferring files.
+     */
+    TRANSFER_SUCCESS,
+
+    /**
+     * The job has completed successfully
      */
     SUCCESS,
+
     /**
      * The job has completed unsuccessfully
      */
@@ -150,6 +164,7 @@ enum class AppState {
 }
 
 data class ValidatedFileForUpload(
+    val id: String,
     val stat: StorageFile,
     val destinationFileName: String,
     val destinationPath: String,

@@ -7,7 +7,6 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 
 interface ApplicationDAO<Session> {
-
     fun toggleFavorite(
         session: Session,
         user: String,
