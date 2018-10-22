@@ -48,6 +48,7 @@ Card.defaultProps = {
 export const CardGroup = styled.div`
   display: flex;
   flex-wrap: wrap;
+  margin-top: 25px;
   & > div {
     margin: 5px 5px 5px 5px;
     height: 212px;
