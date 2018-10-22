@@ -26,7 +26,7 @@ import { EllipsedText } from "ui-components/Text";
 const COLORS_KEYS = Object.keys(MaterialColors);
 
 // We need dynamic import due to nature of the import
-const blurOverlay = require("Assets/Images/BlurOverlayByDan.png");
+const blurOverlay = require("Assets/Images/circuitboard-bg.png");
 
 class Applications extends React.Component<ApplicationsProps> {
 
@@ -70,14 +70,15 @@ export const ApplicationCard = ({ appDescription }: { appDescription: Applicatio
         <Relative>
             <BackgroundImage
                 height="138px"
-                image="https://placekitten.com/212/138">
+                color={hexFromAppName(appDescription.info.name)}
+                image={blurOverlay}>
                 <Box p={4}>
-                    <Absolute top="16px" left="10px">
+                    <Absolute top="6px" left="10px">
                         <Text fontSize={2} align="left" color="grey">
                             {appDescription.info.name}
                         </Text>
                     </Absolute>
-                    <Absolute top={"34px"} left={"14px"}>
+                    <Absolute top={"26px"} left={"14px"}>
                         <Text fontSize={"xxs-small"} align="left" color="grey">
                             v {appDescription.info.version}
                         </Text>
@@ -90,7 +91,7 @@ export const ApplicationCard = ({ appDescription }: { appDescription: Applicatio
                             by {appDescription.authors.join(", ")}
                         </EllipsedText>
                     </Absolute>
-                    <Absolute top={"86px"} left={"200px"}>
+                    <Absolute top="86px" left="200px">
                         <Link to={`/applications/${appDescription.info.name}/${appDescription.info.version}/`}>
                             <PlayIcon />
                         </Link>
@@ -99,21 +100,20 @@ export const ApplicationCard = ({ appDescription }: { appDescription: Applicatio
             </BackgroundImage>
         </Relative>
         <Relative>
-            <Text>
-                {appDescription.description.slice(0, 100)}
-            </Text>
+            <Absolute left="14px" top="6px">
+                <Text>
+                    {appDescription.description.slice(0, 100)}
+                </Text>
+            </Absolute>
         </Relative>
-    </Card>
+    </Card >
 );
 
 
 
 interface SingleApplicationProps { app: Application, favoriteApp?: (app: Application) => void }
 export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
-    const hashCode = toHashCode(app.description.info.name);
-    const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
-    const mClength = MaterialColors[color].length;
-    const hex = { background: MaterialColors[color][(hashCode % mClength)] };
+    const hex = hexFromAppName(app.description.info.name);
     const even = app.modifiedAt % 2 === 0;
     const { description } = app.description;
     const image = even ? blurOverlay : `https://placekitten.com/200/200`;
@@ -123,7 +123,7 @@ export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) 
     };
     return (
         <SCard>
-            <div style={hex}>
+            <div style={{ background: hex }}>
                 <Link to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}>
                     <div className="app-image" style={imageStyle} />
                 </Link>
@@ -151,6 +151,13 @@ export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) 
             </SCard.Content>
         </SCard>
     );
+}
+
+function hexFromAppName(name: string): string {
+    const hashCode = toHashCode(name);
+    const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
+    const mClength = MaterialColors[color].length;
+    return MaterialColors[color][(hashCode % mClength)];
 }
 
 function toHashCode(name: string): number {
