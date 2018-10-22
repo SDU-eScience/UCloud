@@ -54,16 +54,19 @@ class ShareService<DBSession, Ctx : FSUserContext>(
         return db.withTransaction { shareDAO.list(it, ctx.user, paging) }
     }
 
-    fun retrieveShareForPath(
-        ctx: Ctx,
+    fun findSharesForPath(
+        user: String,
         path: String
     ): SharesByPath {
-        val stat = fs.statOrNull(ctx, path, setOf(FileAttribute.OWNER)) ?: throw ShareException.NotFound()
-        if (stat.owner != ctx.user) {
-            throw ShareException.NotAllowed()
-        }
+        return db.withTransaction { shareDAO.findShareForPath(it, user, path) }
+    }
 
-        return db.withTransaction { shareDAO.findSharesForPath(it, ctx.user, path) }
+    fun listSharesByStatus(
+        user: String,
+        status: ShareState,
+        paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
+    ) :Page<SharesByPath> {
+        return db.withTransaction { shareDAO.listByStatus(it, user, status, paging) }
     }
 
     suspend fun create(
