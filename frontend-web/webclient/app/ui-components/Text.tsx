@@ -6,7 +6,7 @@ import {
   textAlign,
   lineHeight,
   space,
-  color, 
+  color,
   SpaceProps, TextAlignProps, FontSizeProps, ColorProps, alignContent
 } from 'styled-system'
 import theme from "./theme";
@@ -36,7 +36,7 @@ interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProp
   cursor?: string
 }
 
-const Text = styled("div")<TextProps>`
+const Text = styled("div") <TextProps>`
   cursor: ${props => props.cursor};
   ${textStyle}
   ${fontSize}
@@ -54,6 +54,16 @@ export const div = Text;
 export const TextSpan = Text.withComponent("span");
 export const TextP = Text.withComponent("p");
 export const TextS = Text.withComponent("s");
+
+interface EllipsedTextProps extends TextProps { width: number }
+export const EllipsedText = styled(Text) <EllipsedTextProps>`
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: ${props => props.width}px;
+  display: inline-block;
+`;
+
 
 Text.defaultProps = {
   cursor: "auto",

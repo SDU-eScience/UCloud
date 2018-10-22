@@ -1,5 +1,5 @@
-import styled from 'styled-components'
-import theme from './theme'
+import styled from "styled-components"
+import theme from "./theme"
 
 const maxWidth = props =>
   props.maxWidth
@@ -25,6 +25,6 @@ Container.defaultProps = {
   theme: theme
 };
 
-Container.displayName = 'Container';
+Container.displayName = "Container";
 
 export default Container;

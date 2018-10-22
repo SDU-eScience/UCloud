@@ -14,7 +14,8 @@ export const HiddenArrowUp = styled(ArrowUp)`
     display: none;
 `;
   
-/*   .arrow-down {
+/*  
+  .arrow-down {
     width: 0; 
     height: 0; 
     border-left: 20px solid transparent;

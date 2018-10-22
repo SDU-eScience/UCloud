@@ -25,6 +25,6 @@ BackgroundImage.defaultProps = {
   theme: theme
 }
 
-BackgroundImage.displayName = 'BackgroundImage'
+BackgroundImage.displayName = "BackgroundImage";
 
-export default BackgroundImage
+export default BackgroundImage;

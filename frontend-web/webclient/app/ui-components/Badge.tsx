@@ -58,11 +58,11 @@ const Badge = styled("div")<BadgeProps>`
   font-size: ${props => props.theme.fontSizes[0]}px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: ${themeGet('letterSpacings.caps')};
+  letter-spacing: ${themeGet("letterSpacings.caps")};
   ${space} ${type} ${color};
 `
 
-Badge.displayName = 'Badge'
+Badge.displayName = "Badge";
 
 interface BadgeProps {
   bg?: NumberOrStringOrArray

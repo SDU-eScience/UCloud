@@ -1,8 +1,7 @@
 import styled from 'styled-components'
 import Box, { BoxProps } from './Box'
 import { NumberOrStringOrArray } from "./Types";
-import { top, right, bottom, left, zIndex } from 'styled-system'
-
+import { top, right, bottom, left, zIndex } from "styled-system";
 
 interface AbsoluteProps extends BoxProps {
   top?: NumberOrStringOrArray
@@ -18,6 +17,6 @@ const Absolute = styled(Box)<AbsoluteProps>`
   ${zIndex}
 `
 
-Absolute.displayName = 'Absolute'
+Absolute.displayName = "Absolute";
 
 export default Absolute

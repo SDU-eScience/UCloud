@@ -1,53 +1,53 @@
-import * as React from 'react'
-import Box from './Box'
-import Flex from './Flex'
-import Text, { TextSpan } from './Text'
-import Icon from './Icon'
-import Heading from './Heading'
-import CloseButton from './CloseButton'
-import { NumberOrStringOrArray, TextAlign } from "./Types";
+import * as React from "react"
+import Box from "./Box"
+import Flex from "./Flex"
+import Text, { TextSpan } from "./Text"
+import Icon from "./Icon"
+import Heading from "./Heading"
+import CloseButton from "./CloseButton"
+import { TextAlign } from "./Types";
 import { BoxProps } from "./Box";
 
 const bannerColors = {
   green: {
-    backgroundColor: 'green',
-    color: 'white',
-    icon: 'success'
+    backgroundColor: "green",
+    color: "white",
+    icon: "success"
   },
   lightGreen: {
-    backgroundColor: 'lightGreen',
-    color: 'darkGreen',
-    icon: 'success'
+    backgroundColor: "lightGreen",
+    color: "darkGreen",
+    icon: "success"
   },
   red: {
-    backgroundColor: 'red',
-    color: 'white',
-    icon: 'warning'
+    backgroundColor: "red",
+    color: "white",
+    icon: "warning"
   },
   lightRed: {
-    backgroundColor: 'lightRed',
-    color: 'darkRed',
-    icon: 'warning'
+    backgroundColor: "lightRed",
+    color: "darkRed",
+    icon: "warning"
   },
   orange: {
-    backgroundColor: 'orange',
-    color: 'white',
-    icon: 'attention'
+    backgroundColor: "orange",
+    color: "white",
+    icon: "attention"
   },
   lightOrange: {
-    backgroundColor: 'lightOrange',
-    color: 'darkOrange',
-    icon: 'attention'
+    backgroundColor: "lightOrange",
+    color: "darkOrange",
+    icon: "attention"
   },
   blue: {
-    backgroundColor: 'blue',
-    color: 'white',
-    icon: 'information'
+    backgroundColor: "blue",
+    color: "white",
+    icon: "information"
   },
   lightBlue: {
-    backgroundColor: 'lightBlue',
-    color: 'darkBlue',
-    icon: 'information'
+    backgroundColor: "lightBlue",
+    color: "darkBlue",
+    icon: "information"
   }
 };
 
@@ -97,11 +97,11 @@ const Banner = props => {
   )
 }
 
-Banner.displayName = 'Banner';
+Banner.displayName = "Banner";
 
 Banner.defaultProps = {
-  bg: 'green',
-  textAlign: 'left',
+  bg: "green",
+  textAlign: "left",
   showIcon: true
 };
 

@@ -1,15 +1,14 @@
-import * as React from 'react'
-import IconButton from './IconButton'
-import theme from './theme'
+import * as React from "react";
+import IconButton from "./IconButton";
 
 const CloseButton = props => <IconButton {...props} name="close" />
 
 CloseButton.defaultProps = {
   size: 24,
-  title: 'close'
+  title: "close"
 }
 
 
-CloseButton.displayName = 'CloseButton'
+CloseButton.displayName = "CloseButton";
 
-export default CloseButton
+export default CloseButton;

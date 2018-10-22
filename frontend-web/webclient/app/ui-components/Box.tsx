@@ -1,7 +1,6 @@
 import styled from 'styled-components'
 import { space, width, color, textAlign, 
          SpaceProps, WidthProps, ColorProps, AlignItemsProps,  } from 'styled-system'
-import { NumberOrStringOrArray } from "./Types";
 import theme from './theme'
 
 

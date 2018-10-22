@@ -57,13 +57,13 @@ svg[data - name= 'checked'] {
 `;
 
 const StyledInput = styled.input`
-appearance: none;
-opacity: 0;
-position: absolute;
-z - index: 0;
+  appearance: none;
+  opacity: 0;
+  position: absolute;
+  z - index: 0;
 `;
 
-Checkbox.displayName = 'Checkbox';
+Checkbox.displayName = "Checkbox";
 
 Checkbox.defaultProps = {
   size: 20,

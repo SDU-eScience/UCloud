@@ -21,6 +21,7 @@ import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { CardGroup, Card, PlayIcon } from "ui-components/Card";
 import { Relative, BackgroundImage, Box, Absolute, Text, Icon } from "ui-components";
+import { EllipsedText } from "ui-components/Text";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
@@ -83,6 +84,11 @@ export const ApplicationCard = ({ appDescription }: { appDescription: Applicatio
                     </Absolute>
                     <Absolute top="10px" left="215px">
                         <Icon cursor="pointer" name="starEmpty" />
+                    </Absolute>
+                    <Absolute top="112px" left="10px">
+                        <EllipsedText width={180} title={`by ${appDescription.authors.join(", ")}`} color="grey">
+                            by {appDescription.authors.join(", ")}
+                        </EllipsedText>
                     </Absolute>
                     <Absolute top={"86px"} left={"200px"}>
                         <Link to={`/applications/${appDescription.info.name}/${appDescription.info.version}/`}>
