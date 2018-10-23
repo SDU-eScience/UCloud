@@ -1,30 +1,31 @@
-import styled from 'styled-components'
-import { color } from 'styled-system'
-import Button from './Button'
-import theme from './theme'
-import { ButtonProps } from 'semantic-ui-react';
+import styled from "styled-components";
+import Button from "./Button";
+import { ButtonStyleProps } from "styled-system";
+import theme from "./theme";
 
-export interface OutlineButtonProps extends ButtonProps {
+export interface OutlineButtonProps extends ButtonStyleProps { }
 
-}
+// FIXME Have color return text color (color) and outline color (border 3rd arg) as two different things
 
-const OutlineButton = styled<OutlineButtonProps, OutlineButtonProps>(Button)`
-  color: ${props => props.theme.colors.blue};
-  box-shadow: inset 0 0 0 2px ${props => props.theme.colors.blue};
+const OutlineButton = styled(Button) <OutlineButtonProps>`
+  color: ${props => props.color ? props.color : props.theme.colors.blue};
+  border: 1px solid ${props => props.color ? props.color : props.theme.colors.blue};
+  border-radius: 3px;
   background-color: transparent;
 
   &:hover {
-    color: ${props => (props.disabled ? null : props.theme.colors.darkBlue)};
-    box-shadow: inset 0 0 0 2px
-      ${props => (props.disabled ? null : props.theme.colors.darkBlue)};
+    color: ${props => (props.disabled ? null : (props.color ? props.color : props.theme.colors.darkBlue))};
+    border: 1px solid ${props => props.color ? props.color : props.theme.colors.blue};
+    border-radius: 3px;
     background-color: transparent;
+    transition: ease 0.1s;
   }
 `;
 
 OutlineButton.defaultProps = {
-  theme: theme
+  theme
 };
 
-OutlineButton.displayName = 'OutlineButton';
+OutlineButton.displayName = "OutlineButton";
 
 export default OutlineButton;

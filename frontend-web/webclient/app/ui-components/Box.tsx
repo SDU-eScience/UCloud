@@ -1,7 +1,7 @@
-import styled from 'styled-components'
+import styled from "styled-components";
 import { space, width, color, textAlign, 
-         SpaceProps, WidthProps, ColorProps, AlignItemsProps,  } from 'styled-system'
-import theme from './theme'
+         SpaceProps, WidthProps, ColorProps, AlignItemsProps  } from "styled-system";
+import theme from "./theme";
 
 
 export interface BoxProps extends SpaceProps,
@@ -14,10 +14,10 @@ const Box = styled("div")<BoxProps>`
   ${space} ${width} ${color} ${textAlign};
 `
 
-Box.displayName = "Box"
+Box.displayName = "Box";
 
 Box.defaultProps = {
-  theme: theme
+  theme
 }
 
-export default Box
+export default Box;

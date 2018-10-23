@@ -10,6 +10,6 @@ Truncate.defaultProps = {
   theme: theme
 }
 
-Truncate.displayName = 'Truncate'
+Truncate.displayName = "Truncate";
 
 export default Truncate

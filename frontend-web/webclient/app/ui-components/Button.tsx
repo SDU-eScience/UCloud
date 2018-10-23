@@ -1,37 +1,35 @@
 import styled from "styled-components";
-import { space } from "styled-system";
+import { space, ButtonStyleProps, SpaceProps } from "styled-system";
 import theme from "./theme";
 
-const size = props => {
-  switch (props.size) {
+const size = ({ size, theme }) => {
+  switch (size) {
     case "small":
       return {
-        fontSize: `${props.theme.fontSizes[0]}px`,
+        fontSize: `${theme.fontSizes[0]}px`,
         padding: "7px 12px"
       }
     case "medium":
       return {
-        fontSize: `${props.theme.fontSizes[1]}px`,
+        fontSize: `${theme.fontSizes[1]}px`,
         padding: "9.5px 18px"
       }
     case "large":
       return {
-        fontSize: `${props.theme.fontSizes[2]}px`,
+        fontSize: `${theme.fontSizes[2]}px`,
         padding: "12px 22px"
       }
     default:
       return {
-        fontSize: `${props.theme.fontSizes[1]}px`,
+        fontSize: `${theme.fontSizes[1]}px`,
         padding: "9.5px 18px"
       }
   }
-}
+};
 
-const fullWidth = props => (props.fullWidth ? { width: "100%" } : null)
+const fullWidth = (props) => (props.fullWidth ? { width: "100%" } : null)
 
-export type ButtonProps = any;
-
-const Button = styled<ButtonProps, "button">("button")`
+const Button = styled.button<ButtonStyleProps & { fullWidth?: boolean } & SpaceProps>`
   -webkit-font-smoothing: antialiased;
   display: inline-block;
   vertical-align: middle;
@@ -52,36 +50,16 @@ const Button = styled<ButtonProps, "button">("button")`
   }
 
   &:hover {
+    transition: ease 0.3s;
     background-color: ${props =>
-      props.disabled ? null : props.theme.colors.darkBlue};
+    props.disabled ? null : props.theme.colors.darkBlue};
   }
 
   ${fullWidth} ${size} ${space};
-`
-
-/*
-Button.propTypes = {
-  size: PropTypes.oneOf(['small', 'medium', 'large']),
-  fullWidth: PropTypes.bool,
-  m: numberStringOrArray,
-  mt: numberStringOrArray,
-  mr: numberStringOrArray,
-  mb: numberStringOrArray,
-  ml: numberStringOrArray,
-  mx: numberStringOrArray,
-  my: numberStringOrArray,
-  p: numberStringOrArray,
-  pt: numberStringOrArray,
-  pr: numberStringOrArray,
-  pb: numberStringOrArray,
-  pl: numberStringOrArray,
-  px: numberStringOrArray,
-  py: numberStringOrArray
-}
-*/
+`;
 
 Button.defaultProps = {
-  theme: theme
+  theme
 };
 
 Button.displayName = "Button";

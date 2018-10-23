@@ -17,7 +17,7 @@ const borders = ({ color, theme }: { color?: ColorValue, theme?: any }) => {
 }
 
 export interface InputProps extends BorderProps, SpaceProps {
-  id: string
+  id?: string
   color?: string
 }
 
@@ -55,6 +55,7 @@ const Input = styled("input")<InputProps>`
 Input.displayName = "Input";
 
 Input.defaultProps = {
+  id: "default",
   theme: defaultTheme
 };
 

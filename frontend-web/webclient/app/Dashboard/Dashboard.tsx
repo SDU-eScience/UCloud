@@ -33,7 +33,7 @@ class Dashboard extends React.Component<DashboardProps> {
 
     render() {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
-            analysesLoading, errors, } = this.props;
+            analysesLoading, errors } = this.props;
         favoriteFiles.forEach((f: File) => f.favorited = true);
         const favoriteOrUnfavorite = (file: File) => {
             favoriteFile(file, Cloud);
@@ -179,6 +179,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     fetchFavorites: async () => dispatch(await fetchFavorites()),
     fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
+    // FIXME: Make action instead
     receiveFavorites: (files) => dispatch(receiveFavorites(files))
 });
 

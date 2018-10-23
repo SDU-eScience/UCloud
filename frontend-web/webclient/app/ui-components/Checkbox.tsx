@@ -1,11 +1,11 @@
 import * as React from 'react'
 import styled, { css } from 'styled-components'
 import theme from './theme'
-import { Icon, Box } from '.'
+import { Icon, Box } from './'
 import { BoxProps } from './Box';
 
 const Checkbox = props => {
-  const { disabled, size } = props
+  const { disabled, size } = props;
   return (
     <CheckBoxWrapper disabled={disabled}>
       <StyledInput type="checkbox" {...props} />
@@ -16,60 +16,47 @@ const Checkbox = props => {
 }
 
 interface CheckBoxWrapper extends BoxProps {
-  name?: string
-  id: string
-  size?: number
-  defaultChecked?: boolean
-  disabled?: boolean
-  onChange?: () => void
-  theme?: any
+  disabled: boolean
 }
 
-type TempPropType = { disabled: boolean, theme: any }
-
-const CheckBoxWrapper = styled<any, any>(Box)`
+const CheckBoxWrapper = Box.extend<CheckBoxWrapper>`
   display: inline-block;
   position: relative;
   vertical-align: middle;
   cursor: pointer;
-  color: ${(props: TempPropType) =>
+  color: ${props =>
     props.disabled ? props.theme.colors.borderGray : props.theme.colors.gray};
-
-svg[data - name= 'checked'] {
-  display: none;
-}
-
-  > input: checked {
-    & ~svg[data - name='checked'] {
-    display: inline - block;
-    color: ${
-  (props: TempPropType) =>
-    props.disabled
-      ? props.theme.colors.borderGray
-      : props.theme.colors.blue
-  };
-  }
-
-    & ~svg[data - name='empty'] {
+  svg[data-name="checked"] {
     display: none;
   }
-}
-`;
+  > input:checked {
+    & ~ svg[data-name="checked"] {
+      display: inline-block;
+      color: ${props =>
+        props.disabled
+          ? props.theme.colors.borderGray
+          : props.theme.colors.blue};
+    }
+    & ~ svg[data-name="empty"] {
+      display: none;
+    }
+  }
+`
 
 const StyledInput = styled.input`
   appearance: none;
   opacity: 0;
   position: absolute;
-  z - index: 0;
-`;
+  z-index: 0;
+`
 
 Checkbox.displayName = "Checkbox";
 
 Checkbox.defaultProps = {
   size: 20,
+  checked: false,
   disabled: false,
-  defaultChecked: false,
   theme: theme
-};
+}
 
 export default Checkbox;

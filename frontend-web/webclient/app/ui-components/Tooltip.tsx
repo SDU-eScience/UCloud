@@ -51,7 +51,7 @@ const arrow = props => {
     }
 }
 
-const tooltipPosition = props => {
+const tooltipPosition = (props) => {
   return props.top ? { bottom: '-8px' } : { top: 0 }
 }
 
@@ -63,7 +63,11 @@ const tooltipAlign = props => {
       : null
 }
 
-const TooltipContent = styled(Box)<any>`
+interface TooltipContentProps extends BoxProps {
+  bg?: any
+};
+
+const TooltipContent = styled(Box)<TooltipContentProps>`
   display: inline;
   box-shadow: ${({ theme }) => theme.boxShadows[1]};
   font-size: ${({ theme }) => theme.fontSizes[0]}px;
@@ -83,7 +87,7 @@ const TooltipContent = styled(Box)<any>`
     border-color: transparent transparent ${({ theme, bg }) => theme.colors[bg]}
       ${({ theme, bg }) => theme.colors[bg]};
 
-    ${arrow} ${arrowPosition as any} ${arrowAlign as any} ${arrowShadow};
+    ${arrow} ${arrowPosition as any} ${arrowAlign  as any} ${arrowShadow};
   }
 `
 
@@ -100,16 +104,16 @@ interface Tooltip {
 }
 
 const defaultProps = {
-  position: 'bottom',
-  color: 'text',
-  bg: 'white',
+  position: "bottom",
+  color: "text",
+  bg: "white",
   theme: theme,
   zIndex: 9999
 }
 
 const Tooltip = ({ children, ...props }) => {
   return (
-    <div style={{ position: 'relative', zIndex: props.zIndex }}>
+    <div style={{ position: "relative", zIndex: props.zIndex }}>
       <TooltipContent p={2} mb={3} mt={2} {...props}>
         {children}
       </TooltipContent>
