@@ -3,7 +3,11 @@ package dk.sdu.cloud.app.http
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.services.JobExecutionService
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
 
 class CallbackController<DBSession>(
