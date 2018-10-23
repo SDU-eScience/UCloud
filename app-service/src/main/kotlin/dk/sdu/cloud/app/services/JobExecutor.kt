@@ -7,7 +7,6 @@ import dk.sdu.cloud.app.api.JobCompletedEvent
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.copyFrom
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.client.AuthenticatedCloud
@@ -28,7 +27,7 @@ import kotlinx.coroutines.experimental.runBlocking
 
 // This does the management (but doesn't run jobs)
 class JobExecutionService<DBSession>(
-    private val cloud: RefreshingJWTAuthenticatedCloud,
+    private val serviceCloud: RefreshingJWTAuthenticatedCloud,
 
     private val stateChangeProducer: MappedEventProducer<String, JobStateChange>,
     private val accountingEventProducer: MappedEventProducer<String, JobCompletedEvent>,
@@ -70,7 +69,7 @@ class JobExecutionService<DBSession>(
                 JobState.VALIDATED -> {
                     // Ask backend to prepare the job
                     transferFilesFromJob(jobWithToken)
-                    backend.jobPrepared.call(job, cloud).orThrow()
+                    backend.jobPrepared.call(job, serviceCloud).orThrow()
                 }
 
                 JobState.PREPARED, JobState.SCHEDULED -> {
@@ -103,11 +102,10 @@ class JobExecutionService<DBSession>(
         val descriptions = computationBackendService.getByName(job.backend)
         job.files.map { file ->
             async {
-                // TODO FIXME We don't want to send this accessToken to other services!
-                val downloadCloud = cloud.parent.jwtAuth(accessToken)
+                val userCloud = serviceCloud.parent.jwtAuth(accessToken)
                 val fileStream = (FileDescriptions.download.call(
                     DownloadByURI(file.sourcePath, null),
-                    downloadCloud
+                    userCloud
                 ) as? RESTResponse.Ok)?.response?.content?.toInputStream()
 
                 // TODO We need to be a bit careful throwing exceptions in a co-routine
@@ -116,7 +114,7 @@ class JobExecutionService<DBSession>(
                 }
 
                 val (statusCode, _) = descriptions.submitFile(
-                    cloud = cloud,
+                    cloud = serviceCloud,
                     job = job,
                     parameterName = file.id,
                     causedBy = null,

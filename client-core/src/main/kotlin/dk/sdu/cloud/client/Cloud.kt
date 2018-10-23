@@ -34,7 +34,7 @@ sealed class RESTResponse<out T, out E> {
     val statusText: String get() = response.status.description
     val rawResponseBody: String get() = runBlocking { response.readText() }
 
-    internal fun HttpResponse.toPrettyString(): String = "[$status]: ${rawResponseBody.take(500)}"
+    protected fun HttpResponse.toPrettyString(): String = "[$status]: ${rawResponseBody.take(500)}"
 
     data class Ok<out T, out E>(override val response: HttpResponse, val result: T) : RESTResponse<T, E>() {
         override fun toString(): String = "OK(${response.toPrettyString()}, $result)"

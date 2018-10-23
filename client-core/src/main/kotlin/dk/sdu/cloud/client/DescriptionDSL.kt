@@ -25,12 +25,6 @@ class RESTCallDescriptionBuilder<Request : Any, Success : Any, Error : Any, Audi
 ) {
     var method: HttpMethod = HttpMethod.Get
     var name: String? = null
-    @Deprecated(message = "Use name instead", replaceWith = ReplaceWith("name"))
-    var prettyName: String?
-        get() = name
-        set(value) {
-            name = value
-        }
 
     internal var path: RESTPath<Request>? = null
     internal var body: RESTBody<Request, *>? = null

@@ -3,7 +3,6 @@ package dk.sdu.cloud.client
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.http.HttpMethod
 import org.slf4j.LoggerFactory
 
 abstract class RESTDescriptions(val namespace: String) {
@@ -49,14 +48,6 @@ abstract class RESTDescriptions(val namespace: String) {
         )
         builder.body()
         return builder.build(namespace, additionalRequestConfiguration).also { register(it) }
-    }
-
-    /**
-     * Registers a ktor style template in this container.
-     */
-    @Deprecated(message = "Deprecated. Use register with a description instead.")
-    protected fun register(template: String, method: HttpMethod) {
-        // Do nothing. Not backwards compatible
     }
 
     @PublishedApi
