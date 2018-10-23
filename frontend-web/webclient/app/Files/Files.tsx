@@ -4,7 +4,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import {
     Dropdown as SDropdown, Icon as SIcon, Table as STable, Header as SHeader, Input as SInput,
-    Grid as SGrid, Responsive as SResponsive, Checkbox as SCheckbox
+    Grid as SGrid, Responsive as SResponsive, Checkbox as SCheckbox, TableCell
 } from "semantic-ui-react";
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
@@ -27,8 +27,8 @@ import {
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
 import { Dispatch } from "redux";
-import { Checkbox, Button, OutlineButton, Icon, Box } from "ui-components";
-import { TextSpan } from "ui-components/Text";
+import Table, { TableRow } from "ui-components/Table";
+import { Button, OutlineButton, Icon, Box } from "ui-components";
 import InlinedRelative from "ui-components/InlinedRelative";
 
 class Files extends React.Component<FilesProps> {
@@ -98,7 +98,7 @@ class Files extends React.Component<FilesProps> {
         const fileOperations: FileOperation[] = [
             {
                 text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)),
-                disabled: (files: File[]) => false, icon: "edit outline", color: undefined
+                disabled: () => false, icon: "edit outline", color: undefined
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
@@ -197,9 +197,9 @@ export const FilesTable = ({
                 customEntriesPerPage={customEntriesPerPage}
             />
             <tbody>
-                {files.map((file: File, i: number) => (
+                {files.map((file, i) => (
                     // FIXME Use :has() or parent selector when available
-                    <STable.Row className="file-row" style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
+                    <TableRow className="file-row" style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
                         <FilenameAndIcons
                             file={file}
                             onFavoriteFile={onFavoriteFile}
@@ -216,7 +216,7 @@ export const FilesTable = ({
                                 </SDropdown.Menu>
                             </SDropdown>
                         </STable.Cell>
-                    </STable.Row>)
+                    </TableRow>)
                 )}
             </tbody>
         </STable>
@@ -295,10 +295,10 @@ const PredicatedCheckbox = ({ predicate, checked, onClick }) =>
 const PredicatedFavorite = ({ predicate, item, onClick }) =>
     predicate ? (
         <Icon
-            size={30}
-            color="lightBlue"
+            size={15}
+            color="blue"
             name={item.favorited ? "starFilled" : "starEmpty"}
-            className={`${item.favorited ? "" : "file-data"} favorite-padding`}
+            className={`${item.favorited ? "" : "file-data"}`}
             onClick={onClick}
         />
     ) : null;
@@ -327,7 +327,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     );
     const nameLink = <FileLink file={file}>{icon}{fileName}</FileLink>;
     return file.beingRenamed ?
-        <STable.Cell className="table-cell-padding-left">
+        <TableCell className="table-cell-padding-left">
             <SInput
                 defaultValue={fileName}
                 onKeyDown={(e) => { if (!!onRenameFile) onRenameFile(e.keyCode, file, e.target.value) }}
@@ -340,15 +340,15 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                 <input />
                 <OutlineButton size="tiny" color="red" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton>
             </SInput>
-        </STable.Cell> :
-        <STable.Cell className="table-cell-padding-left">
+        </TableCell> :
+        <TableCell className="table-cell-padding-left">
             {checkbox}
             {nameLink}
             <GroupIcon isProject={isProject(file)} />
-            <InlinedRelative pl="7px" top="9px">
+            <InlinedRelative pl="7px">
                 <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={() => onFavoriteFile([file])} />
             </InlinedRelative>
-        </STable.Cell>
+        </TableCell>
 };
 
 const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
@@ -399,7 +399,7 @@ function Chevron(props) {
 
 const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
-    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError(undefined)),
+    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError()),
     dismissError: () => dispatch(Actions.setErrorMessage()),
     createFolder: () => dispatch(Actions.createFolder()),
     fetchFiles: async (path, itemsPerPage, pageNumber, sortOrder, sortBy, index?) => {

@@ -228,9 +228,9 @@ export const extensionType = (ext: string): ExtensionType => {
 
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): SemanticICONS => {
     const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
-    if (homeFolderReplaced === "Home/Jobs/") return "tasks";
-    if (homeFolderReplaced === "Home/Favorites/") return "star";
-    if (homeFolderReplaced === "Home/Trash/") return "trash alternate outline";
+    if (homeFolderReplaced === "Home/Jobs") return "tasks";
+    if (homeFolderReplaced === "Home/Favorites") return "star";
+    if (homeFolderReplaced === "Home/Trash") return "trash alternate outline";
     if (type === "DIRECTORY") return "folder";
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {

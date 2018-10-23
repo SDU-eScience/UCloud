@@ -113,31 +113,31 @@ export const textStyles = {
 
 
 // color palette
-const black = '#000'
-const white = '#fff'
-const text = '#001833'
-const lightBlue = '#cdf'
-const blue = '#0055d5' // primary
-const darkBlue = '#049'
-const lightGray = '#ebeff3'
-const borderGray = '#d1d6db'
-const gray = '#c9d3df' // primary
-const midGray = '#53657d'
-const darkGray = '#53657d'
-const lightGreen = '#cec'
-const green = '#0a0' // secondary
-const darkGreen = '#060'
-const lightRed = '#fcc'
-const red = '#c00' // secondary
-const darkRed = '#800'
-const lightOrange = '#feb'
-const orange = '#fa0' // secondary
-const darkOrange = '#a50'
-const lightPurple = '#ecf'
-const purple = '#70b' // secondary
-const darkPurple = '#407'
-const lightYellow = '#fedc2a'
-const yellow = '#fff3c0'
+const black = "#000";
+const white = "#fff";
+const text = "#001833";
+const lightBlue = "#cdf";
+const blue = "#0055d5"; // primary
+const darkBlue = "#049";
+const lightGray = "#ebeff3";
+const borderGray = "#d1d6db";
+const gray = "#c9d3df"; // primary
+const midGray = "#53657d";
+const darkGray = "#53657d";
+const lightGreen = "#cec";
+const green = "#0a0"; // secondary
+const darkGreen = "#060";
+const lightRed = "#fcc";
+const red = "#c00"; // secondary
+const darkRed = "#800";
+const lightOrange = "#feb";
+const orange = "#fa0"; // secondary
+const darkOrange = "#a50";
+const lightPurple = "#ecf";
+const purple = "#70b"; // secondary
+const darkPurple = "#407";
+const lightYellow = "#fedc2a";
+const yellow = "#fff3c0";
 
 
 const colors = {
