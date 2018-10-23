@@ -13,8 +13,6 @@ abstract class RESTDescriptions(val namespace: String) {
 
     /**
      * Creates a [RESTCallDescription] and registers it in the container.
-     *
-     * To do this manually create a description and call [register] with the template.
      */
     protected inline fun <reified Request : Any, reified Success : Any, reified Error : Any> callDescription(
         mapper: ObjectMapper = defaultMapper,
@@ -26,8 +24,6 @@ abstract class RESTDescriptions(val namespace: String) {
 
     /**
      * Creates a [RESTCallDescription] and registers it in the container.
-     *
-     * To do this manually create a description and call [register] with the template.
      */
     protected inline fun <
             reified Request : Any,

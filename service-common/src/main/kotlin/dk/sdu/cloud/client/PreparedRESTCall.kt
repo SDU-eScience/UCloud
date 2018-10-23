@@ -1,57 +1,26 @@
 package dk.sdu.cloud.client
 
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.apache.Apache
-import io.ktor.client.features.json.JacksonSerializer
-import io.ktor.client.features.json.JsonFeature
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
-import io.ktor.client.request.header
 import io.ktor.client.response.HttpResponse
-import io.ktor.client.response.readText
 import io.ktor.http.isSuccess
+import io.ktor.http.takeFrom
 import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
-import java.io.PrintWriter
-import java.io.StringWriter
 import java.net.ConnectException
-
-internal val httpClient = HttpClient(Apache) {
-    install(JsonFeature) {
-        serializer = JacksonSerializer()
-    }
-}
-
-private fun Exception.stackTraceToString(): String = StringWriter().apply {
-    printStackTrace(PrintWriter(this))
-}.toString()
-
-sealed class RESTResponse<out T, out E> {
-    abstract val response: HttpResponse
-
-    val status: Int get() = response.status.value
-    val statusText: String get() = response.status.description
-    val rawResponseBody: String get() = runBlocking { response.readText() }
-
-    protected fun HttpResponse.toPrettyString(): String = "[$status]: ${rawResponseBody.take(500)}"
-
-    data class Ok<out T, out E>(override val response: HttpResponse, val result: T) : RESTResponse<T, E>() {
-        override fun toString(): String = "OK(${response.toPrettyString()}, $result)"
-    }
-
-    data class Err<out T, out E>(override val response: HttpResponse, val error: E? = null) : RESTResponse<T, E>() {
-        override fun toString(): String = "Err(${response.toPrettyString()}, $error)"
-    }
-}
 
 private const val DELAY_TIME = 250
 private const val INTERNAL_ERROR_CODE_START = 500
 private const val INTERNAL_ERROR_CODE_STOP = 599
 private const val NUMBER_OF_ATTEMPTS = 5
 
-abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, private val namespace: String) {
-    private val resolvedEndpoint = resolvedEndpoint.removePrefix("/")
+abstract class PreparedRESTCall<out T, out E>(private val namespace: String) {
+    private var resolvedEndpoint: String? = null
+
+    constructor(resolvedEndpoint: String, namespace: String) : this(namespace) {
+        this.resolvedEndpoint = resolvedEndpoint.removePrefix("/")
+    }
 
     companion object {
         private val log = LoggerFactory.getLogger(PreparedRESTCall::class.java)
@@ -60,6 +29,11 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, private 
     abstract fun HttpRequestBuilder.configure()
     abstract fun deserializeSuccess(response: HttpResponse): T
     abstract fun deserializeError(response: HttpResponse): E?
+
+    protected open fun resolveEndpoint(): String {
+        return resolvedEndpoint ?: throw IllegalStateException("Missing resolved endpoint. " +
+                "Must implement resolveEndpoint()")
+    }
 
     suspend fun call(context: AuthenticatedCloud): RESTResponse<T, E> {
         // While loop is used for retries in case of connection issues.
@@ -72,6 +46,8 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, private 
             if (attempts == NUMBER_OF_ATTEMPTS) throw ConnectException("Too many retries!")
 
             val endpoint = context.parent.resolveEndpoint(namespace).removeSuffix("/")
+            val resolvedEndpoint = resolveEndpoint()
+
             val url = "$endpoint/$resolvedEndpoint"
             val resp = try {
                 httpClient.get<HttpResponse>(url) {
@@ -125,33 +101,3 @@ abstract class PreparedRESTCall<out T, out E>(resolvedEndpoint: String, private 
         }
     }
 }
-
-interface CloudContext {
-    fun resolveEndpoint(namespace: String): String
-    fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean
-}
-
-class SDUCloud(private val endpoint: String) : CloudContext {
-    override fun resolveEndpoint(namespace: String): String = endpoint
-
-    override fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean {
-        // There is not much to do if gateway is not responding
-        return false
-    }
-}
-
-interface AuthenticatedCloud {
-    val parent: CloudContext
-    fun HttpRequestBuilder.configureCall()
-}
-
-class JWTAuthenticatedCloud(
-    override val parent: CloudContext,
-    val token: String // token is kept public such that tools may check if JWT has expired
-) : AuthenticatedCloud {
-    override fun HttpRequestBuilder.configureCall() {
-        header("Authorization", "Bearer $token")
-    }
-}
-
-fun CloudContext.jwtAuth(token: String) = JWTAuthenticatedCloud(this, token)

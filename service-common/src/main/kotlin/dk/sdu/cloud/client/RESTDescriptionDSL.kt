@@ -85,7 +85,8 @@ class RESTAuthBuilder {
     var access: AccessRight? = null
 
     fun build(): RESTAuth {
-        val access = access ?: throw RESTDSLException("""
+        val access = access ?: throw RESTDSLException(
+            """
                 Missing auth.access!
 
                 This property describes if the operation is read or read/write.
@@ -117,7 +118,8 @@ class RESTAuthBuilder {
                         access = AccessRight.READ
                     }
                 }
-            """.trimIndent())
+            """.trimIndent()
+        )
 
         return RESTAuth(roles, access)
     }

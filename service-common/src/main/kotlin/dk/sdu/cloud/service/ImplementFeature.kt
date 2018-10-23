@@ -41,10 +41,6 @@ import kotlin.reflect.jvm.javaType
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.service.ServerSupport")
 
-internal fun Exception.stackTraceToString(): String = StringWriter().apply {
-    printStackTrace(PrintWriter(this))
-}.toString()
-
 object RESTServerSupport {
     var defaultMapper: ObjectMapper = jacksonObjectMapper().apply {
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
