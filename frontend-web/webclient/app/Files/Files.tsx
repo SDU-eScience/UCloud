@@ -3,8 +3,8 @@ import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import {
-    Dropdown as SDropdown, Icon as SIcon, Table as STable, Header as SHeader, Input as SInput,
-    Grid as SGrid, Responsive as SResponsive, Checkbox as SCheckbox, TableCell
+    Dropdown as SDropdown, Icon as SIcon, Header as SHeader, Input as SInput,
+    Grid as SGrid, Responsive as SResponsive, Checkbox as SCheckbox
 } from "semantic-ui-react";
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
@@ -27,9 +27,9 @@ import {
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
 import { Dispatch } from "redux";
-import Table, { TableRow } from "ui-components/Table";
-import { Button, OutlineButton, Icon, Box } from "ui-components";
+import { Button, OutlineButton, Icon, Box, Text } from "ui-components";
 import InlinedRelative from "ui-components/InlinedRelative";
+import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
 
 class Files extends React.Component<FilesProps> {
 
@@ -120,9 +120,9 @@ class Files extends React.Component<FilesProps> {
                         <SResponsive
                             as={ContextButtons}
                             maxWidth={991}
-                            createFolder={() => this.props.createFolder()}
+                            createFolder={props.createFolder}
                             currentPath={path}
-                            showUploader={this.props.showUploader}
+                            showUploader={props.showUploader}
                         />
                         <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
                     </SGrid.Row>
@@ -170,7 +170,7 @@ class Files extends React.Component<FilesProps> {
                     fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
                     loading={props.fileSelectorLoading}
                     errorMessage={props.fileSelectorError}
-                    onErrorDismiss={() => props.onFileSelectorErrorDismiss()}
+                    onErrorDismiss={props.onFileSelectorErrorDismiss}
                     onlyAllowFolders
                     canSelectFolders
                     page={props.fileSelectorPage}
@@ -185,7 +185,7 @@ export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
     fileOperations, sortOrder, onFavoriteFile, sortBy, customEntriesPerPage
 }: FilesTableProps) => (
-        <STable unstackable basic="very">
+        <Table>
             <FilesTableHeader
                 onDropdownSelect={onDropdownSelect}
                 sortOrder={sortOrder}
@@ -196,10 +196,10 @@ export const FilesTable = ({
                 sortBy={sortBy}
                 customEntriesPerPage={customEntriesPerPage}
             />
-            <tbody>
+            <TableBody>
                 {files.map((file, i) => (
                     // FIXME Use :has() or parent selector when available
-                    <TableRow className="file-row" style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
+                    <TableRow style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
                         <FilenameAndIcons
                             file={file}
                             onFavoriteFile={onFavoriteFile}
@@ -207,23 +207,23 @@ export const FilesTable = ({
                             onRenameFile={onRenameFile}
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
-                        <SResponsive as={STable.Cell} minWidth={768} content={sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)} />
-                        <SResponsive as={STable.Cell} minWidth={768} content={sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)} />
-                        <STable.Cell textAlign="center">
+                        <SResponsive as={TableCell} minWidth={768}>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</SResponsive>
+                        <SResponsive as={TableCell} minWidth={768}>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</SResponsive>
+                        <TableCell>
                             <SDropdown direction="left" icon="ellipsis horizontal">
                                 <SDropdown.Menu>
                                     <FileOperations files={[file]} fileOperations={fileOperations} As={SDropdown.Item} />
                                 </SDropdown.Menu>
                             </SDropdown>
-                        </STable.Cell>
+                        </TableCell>
                     </TableRow>)
                 )}
-            </tbody>
-        </STable>
+            </TableBody>
+        </Table>
     );
 
 const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder, minWidth = undefined }: ResponsiveTableColumnProps) => (
-    <SResponsive minWidth={minWidth} as={STable.HeaderCell} width="2">
+    <SResponsive minWidth={minWidth} as={TableHeaderCell} textAlign="left">
         <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
         <Chevron name={iconName} />
     </SResponsive>
@@ -233,13 +233,13 @@ const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
     sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
 
 const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => null, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy, customEntriesPerPage }: FilesTableHeaderProps) => (
-    <STable.Header>
-        <tr>
-            <STable.HeaderCell className="filename-row" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
+    <TableHeader>
+        <TableRow>
+            <TableHeaderCell textAlign="left" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
                 {masterCheckbox}
                 Filename
                 <Chevron className="float-right" name={toSortingIcon(SortBy.PATH)} />
-            </STable.HeaderCell>
+            </TableHeaderCell>
             {sortingColumns.map((sC, i) => (
                 <ResponsiveTableColumn
                     key={i}
@@ -252,11 +252,11 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
                     iconName={toSortingIcon(sC)}
                 />
             ))}
-            <STable.HeaderCell width="3">
+            <TableHeaderCell colSpan={3} textAlign="right">
                 {customEntriesPerPage}
-            </STable.HeaderCell>
-        </tr>
-    </STable.Header>
+            </TableHeaderCell>
+        </TableRow>
+    </TableHeader>
 );
 
 const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isSortedBy }: SortByDropdownProps) => asDropdown ? (
@@ -327,7 +327,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     );
     const nameLink = <FileLink file={file}>{icon}{fileName}</FileLink>;
     return file.beingRenamed ?
-        <TableCell className="table-cell-padding-left">
+        <TableCell>
             <SInput
                 defaultValue={fileName}
                 onKeyDown={(e) => { if (!!onRenameFile) onRenameFile(e.keyCode, file, e.target.value) }}
@@ -341,7 +341,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                 <OutlineButton size="tiny" color="red" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton>
             </SInput>
         </TableCell> :
-        <TableCell className="table-cell-padding-left">
+        <TableCell>
             {checkbox}
             {nameLink}
             <GroupIcon isProject={isProject(file)} />

@@ -8,7 +8,7 @@ const maxWidth = props =>
 
 type ContainerProps = any;
 
-const Container = styled<ContainerProps, "div">("div")`
+const Container = styled("div") <{ maxWidth?: number }> `
   margin-left: auto;
   margin-right: auto;
 
