@@ -1,9 +1,14 @@
 import styled from "styled-components";
-import { space, ButtonStyleProps, SpaceProps } from "styled-system";
+import { space, ButtonStyleProps, SpaceProps, SizeProps } from "styled-system";
 import theme from "./theme";
 
 const size = ({ size, theme }) => {
   switch (size) {
+    case "tiny":
+      return {
+        fontSize: `${theme.fontSizes[0]}px`,
+        padding: "6.5px 12px"
+      }
     case "small":
       return {
         fontSize: `${theme.fontSizes[0]}px`,
@@ -29,7 +34,7 @@ const size = ({ size, theme }) => {
 
 const fullWidth = (props) => (props.fullWidth ? { width: "100%" } : null)
 
-const Button = styled.button<ButtonStyleProps & { fullWidth?: boolean } & SpaceProps>`
+const Button = styled.button<ButtonStyleProps & { fullWidth?: boolean } & SpaceProps & SizeProps>` 
   -webkit-font-smoothing: antialiased;
   display: inline-block;
   vertical-align: middle;

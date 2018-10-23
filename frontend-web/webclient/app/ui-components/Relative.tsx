@@ -17,6 +17,6 @@ const Relative = styled(Box)<RelativeProps>`
   ${zIndex}
 `
 
-Relative.displayName = 'Relative'
+Relative.displayName = "Relative";
 
 export default Relative

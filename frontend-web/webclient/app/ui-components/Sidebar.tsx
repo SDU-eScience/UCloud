@@ -62,7 +62,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, auditing: Side
     general: {
         items: [
             { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
-            { icon: "files", label: "Files", to: "/files/" },
+            { icon: "files", label: "Files", to: `/files/${Cloud.homeFolder}` },
             { icon: "shares", label: "Shares", to: "/shares/" },
             { icon: "apps", label: "Apps", to: "/applications/" },
             { icon: "publish", label: "Publish", to: "/zenodo/publish/" },

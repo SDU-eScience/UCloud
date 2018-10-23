@@ -3,8 +3,8 @@ import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import {
-    Dropdown as SDropdown, Button as SButton, Icon as SIcon, Table as STable, Header as SHeader, Input as SInput,
-    Grid as SGrid, Responsive as SResponsive, Checkbox as SCheckbox, Divider as SDivider
+    Dropdown as SDropdown, Icon as SIcon, Table as STable, Header as SHeader, Input as SInput,
+    Grid as SGrid, Responsive as SResponsive, Checkbox as SCheckbox
 } from "semantic-ui-react";
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
@@ -27,19 +27,21 @@ import {
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
 import { Dispatch } from "redux";
-import { Checkbox, Button, OutlineButton } from "ui-components";
+import { Checkbox, Button, OutlineButton, Icon, Box } from "ui-components";
+import { TextSpan } from "ui-components/Text";
+import InlinedRelative from "ui-components/InlinedRelative";
 
 class Files extends React.Component<FilesProps> {
 
     componentDidMount() {
-        const { page, fetchFiles, sortOrder, sortBy, history, setPageTitle, prioritizeFileSearch } = this.props;
-        setPageTitle();
+        const { page, sortOrder, sortBy, history, prioritizeFileSearch, ...props } = this.props;
+        props.setPageTitle();
         prioritizeFileSearch();
-        this.props.setUploaderCallback(
-            (path: string) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)
+        props.setUploaderCallback(
+            (path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)
         );
         if (!this.urlPath) { history.push(`/files/${Cloud.homeFolder}/`); }
-        else { fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy); }
+        else { props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy); }
     }
 
     get urlPath(): string { return this.props.match.params[0]; }
@@ -75,7 +77,7 @@ class Files extends React.Component<FilesProps> {
 
     render() {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
-            rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, error } = this.props;
+            rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
         const checkbox = (<SCheckbox
             className="hidden-checkbox checkbox-margin"
@@ -126,8 +128,8 @@ class Files extends React.Component<FilesProps> {
                     </SGrid.Row>
                     <Pagination.List
                         loading={loading}
-                        errorMessage={error}
-                        onErrorDismiss={this.props.dismissError}
+                        errorMessage={props.error}
+                        onErrorDismiss={props.dismissError}
                         customEmptyPage={(<SHeader.Subheader content="No files in current folder" />)}
                         pageRenderer={page => (
                             <FilesTable
@@ -155,25 +157,25 @@ class Files extends React.Component<FilesProps> {
                 </SGrid.Column>
                 <SResponsive as={SGrid.Column} computer={3} minWidth={992}>
                     <ContextBar
-                        showUploader={this.props.showUploader}
+                        showUploader={props.showUploader}
                         fileOperations={fileOperations}
                         files={selectedFiles}
-                        createFolder={() => this.props.createFolder()}
+                        createFolder={() => props.createFolder()}
                     />
                 </SResponsive>
                 <FileSelectorModal
-                    show={this.props.fileSelectorShown}
-                    onHide={() => this.props.showFileSelector(false)}
-                    path={this.props.fileSelectorPath}
-                    fetchFiles={(path, pageNumber, itemsPerPage) => this.props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
-                    loading={this.props.fileSelectorLoading}
-                    errorMessage={this.props.fileSelectorError}
-                    onErrorDismiss={() => this.props.onFileSelectorErrorDismiss()}
+                    show={props.fileSelectorShown}
+                    onHide={() => showFileSelector(false)}
+                    path={props.fileSelectorPath}
+                    fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
+                    loading={props.fileSelectorLoading}
+                    errorMessage={props.fileSelectorError}
+                    onErrorDismiss={() => props.onFileSelectorErrorDismiss()}
                     onlyAllowFolders
                     canSelectFolders
-                    page={this.props.fileSelectorPage}
-                    setSelectedFile={this.props.fileSelectorCallback}
-                    disallowedPaths={this.props.disallowedPaths}
+                    page={props.fileSelectorPage}
+                    setSelectedFile={props.fileSelectorCallback}
+                    disallowedPaths={props.disallowedPaths}
                 />
             </SGrid>);
     }
@@ -203,7 +205,7 @@ export const FilesTable = ({
                             onFavoriteFile={onFavoriteFile}
                             hasCheckbox={masterCheckbox != null}
                             onRenameFile={onRenameFile}
-                            onCheckFile={(checked: boolean) => onCheckFile(checked, file)}
+                            onCheckFile={checked => onCheckFile(checked, file)}
                         />
                         <SResponsive as={STable.Cell} minWidth={768} content={sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)} />
                         <SResponsive as={STable.Cell} minWidth={768} content={sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)} />
@@ -223,9 +225,9 @@ export const FilesTable = ({
 const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder, minWidth = undefined }: ResponsiveTableColumnProps) => (
     <SResponsive minWidth={minWidth} as={STable.HeaderCell} width="2">
         <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
-        <SIcon className="float-right" name={iconName} />
+        <Chevron name={iconName} />
     </SResponsive>
-)
+);
 
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
     sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
@@ -236,7 +238,7 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
             <STable.HeaderCell className="filename-row" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
                 {masterCheckbox}
                 Filename
-                <SIcon className="float-right" name={toSortingIcon(SortBy.PATH)} />
+                <Chevron className="float-right" name={toSortingIcon(SortBy.PATH)} />
             </STable.HeaderCell>
             {sortingColumns.map((sC, i) => (
                 <ResponsiveTableColumn
@@ -270,10 +272,10 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
     </SDropdown>) : <>{UF.prettierString(currentSelection)}</>;
 
 const ContextBar = ({ files, ...props }: ContextBarProps) => (
-    <div className="margin-top-65">
+    <Box mt="65px">
         <ContextButtons showUploader={props.showUploader} createFolder={props.createFolder} />
         <FileOptions files={files} {...props} />
-    </div>
+    </Box>
 );
 
 const ContextButtons = ({ createFolder, showUploader }: ContextButtonsProps) => (
@@ -292,9 +294,10 @@ const PredicatedCheckbox = ({ predicate, checked, onClick }) =>
 
 const PredicatedFavorite = ({ predicate, item, onClick }) =>
     predicate ? (
-        <SIcon
-            color="blue"
-            name={item.favorited ? "star" : "star outline"}
+        <Icon
+            size={30}
+            color="lightBlue"
+            name={item.favorited ? "starFilled" : "starEmpty"}
             className={`${item.favorited ? "" : "file-data"} favorite-padding`}
             onClick={onClick}
         />
@@ -335,15 +338,16 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                 {checkbox}
                 {icon}
                 <input />
-                <SButton content="Cancel" size="small" color="red" basic onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
+                <OutlineButton size="tiny" color="red" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton>
             </SInput>
-
         </STable.Cell> :
         <STable.Cell className="table-cell-padding-left">
             {checkbox}
             {nameLink}
             <GroupIcon isProject={isProject(file)} />
-            <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={() => onFavoriteFile([file])} />
+            <InlinedRelative pl="7px" top="9px">
+                <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={() => onFavoriteFile([file])} />
+            </InlinedRelative>
         </STable.Cell>
 };
 
@@ -386,6 +390,12 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
         leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount
     }
 };
+
+function Chevron(props) {
+    if (props.name === "chevron down") return (<Icon className="float-right" rotation={0} name="chevronDown" />);
+    else if (props.name === "chevron up") return (<Icon className="float-right" rotation={180} name="chevronDown" />);
+    return null;
+}
 
 const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),

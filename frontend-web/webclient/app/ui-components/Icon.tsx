@@ -1,6 +1,6 @@
 import * as React from 'react'
 import styled from 'styled-components'
-import { space, color } from 'styled-system'
+import { space, color } from "styled-system"
 import { icons } from './icons.json'
 import theme from './theme'
 
@@ -17,7 +17,7 @@ const IconBase = ({ name, size, ...props }): JSX.Element => {
 
   const listPath = icon.path.map((path: [string, string?], i: number) =>
     //fill can be null, in which case it will not render 
-    <path key={i} d={path[0]} fill={path[1]} />
+    <path key={i} d={path[0]} fill={props.color ? props.color : path[1]} />
   )
 
   return (
@@ -37,12 +37,14 @@ export interface IconProps {
   name: IconName
   size?: string | number
   color?: string
+  rotation?: number
   cursor?: string
 }
 
 const Icon = styled(IconBase) <IconProps>`
   flex: none;
-  cursor: ${(props: IconProps) => props.cursor}
+  cursor: ${props => props.cursor};
+  ${props => props.rotation ? `transform: rotate(${props.rotation}deg);` : ""}
   ${space} ${color};
 `;
 
@@ -66,32 +68,32 @@ export const EveryIcon = () => (
 );
 
 export type IconName =
-  "activity"      |
-  "admin"         |
-  "apps"          |
-  "boxChecked"    |
-  "boxEmpty"      |
-  "chevronDown"   |
-  "copy"          |
-  "dashboard"     |
-  "delete"        |
-  "download"      |
-  "files"         |
-  "move"          |
-  "notification"  |
-  "open"          |
-  "play"          |
-  "publish"       |
-  "radioChecked"  |
-  "radioEmpty"    |
-  "rename"        |
-  "search"        |
-  "shares"        |
-  "starFilled"    |
-  "starRibbon"    |
-  "starEmpty"     |
-  "trash "        |
-  "upload"        |
+  "activity" |
+  "admin" |
+  "apps" |
+  "boxChecked" |
+  "boxEmpty" |
+  "chevronDown" |
+  "copy" |
+  "dashboard" |
+  "delete" |
+  "download" |
+  "files" |
+  "move" |
+  "notification" |
+  "open" |
+  "play" |
+  "publish" |
+  "radioChecked" |
+  "radioEmpty" |
+  "rename" |
+  "search" |
+  "shares" |
+  "starFilled" |
+  "starRibbon" |
+  "starEmpty" |
+  "trash " |
+  "upload" |
   "uploadFolder";
 
 export default Icon
