@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.app.api.HPCToolDescriptions
+import dk.sdu.cloud.app.api.ToolDescriptions
 import dk.sdu.cloud.app.api.ToolDescription
 import dk.sdu.cloud.app.services.ToolDAO
 import dk.sdu.cloud.app.util.yamlMapper
@@ -25,10 +25,10 @@ class ToolController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val source: ToolDAO<DBSession>
 ) : Controller {
-    override val baseContext = HPCToolDescriptions.baseContext
+    override val baseContext = ToolDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
-        implement(HPCToolDescriptions.findByName) { req ->
+        implement(ToolDescriptions.findByName) { req ->
             logEntry(log, req)
             val result = db.withTransaction {
                 source.findAllByName(
@@ -42,7 +42,7 @@ class ToolController<DBSession>(
             ok(result)
         }
 
-        implement(HPCToolDescriptions.findByNameAndVersion) { req ->
+        implement(ToolDescriptions.findByNameAndVersion) { req ->
             logEntry(log, req)
             val result = db.withTransaction {
                 source.findByNameAndVersion(
@@ -56,7 +56,7 @@ class ToolController<DBSession>(
             ok(result)
         }
 
-        implement(HPCToolDescriptions.listAll) { req ->
+        implement(ToolDescriptions.listAll) { req ->
             logEntry(log, req)
             ok(
                 db.withTransaction {
@@ -65,7 +65,7 @@ class ToolController<DBSession>(
             )
         }
 
-        implement(HPCToolDescriptions.create) { req ->
+        implement(ToolDescriptions.create) { req ->
             logEntry(log, req)
 
             val content = try {

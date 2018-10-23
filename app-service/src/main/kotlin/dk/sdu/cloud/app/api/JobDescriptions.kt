@@ -9,10 +9,13 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import io.ktor.http.HttpMethod
 
+@Deprecated("Replaced with JobDescriptions", ReplaceWith("JobDescriptions"))
+typealias HPCJobDescriptions = JobDescriptions
+
 /**
  * Call descriptions for the endpoint `/api/hpc/jobs`
  */
-object HPCJobDescriptions : RESTDescriptions("hpc.jobs") {
+object JobDescriptions : RESTDescriptions("hpc.jobs") {
     const val baseContext = "/api/hpc/jobs"
 
     /**
@@ -196,7 +199,7 @@ data class FollowStdStreamsResponse(
     /**
      * The application's current state
      */
-    val state: AppState,
+    val state: JobState,
 
     /**
      * The current status

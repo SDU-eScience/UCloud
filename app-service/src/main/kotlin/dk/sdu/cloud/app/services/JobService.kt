@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.services
 
+/*
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.AppState
@@ -96,3 +97,4 @@ class JobService<DBSession>(
     }
 }
 
+*/

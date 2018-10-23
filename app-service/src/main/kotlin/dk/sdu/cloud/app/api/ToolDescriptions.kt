@@ -15,7 +15,10 @@ data class FindByNameAndPagination(
     override val page: Int?
 ) : WithPaginationRequest
 
-object HPCToolDescriptions : RESTDescriptions("hpc.tools") {
+@Deprecated("Replaced with ToolDescriptions", ReplaceWith("ToolDescriptions"))
+typealias HPCToolDescriptions = ToolDescriptions
+
+object ToolDescriptions : RESTDescriptions("hpc.tools") {
     val baseContext = "/api/hpc/tools"
 
     val findByNameAndVersion = callDescription<FindByNameAndVersion, Tool, CommonErrorMessage> {

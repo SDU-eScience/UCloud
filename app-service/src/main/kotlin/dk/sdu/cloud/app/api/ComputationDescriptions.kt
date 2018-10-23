@@ -124,6 +124,30 @@ abstract class ComputationDescriptions(namespace: String) : RESTDescriptions("ap
         body { bindEntireRequestFromBody() }
     }
 
+
+    val follow = callDescription<FollowStdStreamsRequest, FollowStdStreamsResponse, CommonErrorMessage> {
+        name = "follow"
+        method = HttpMethod.Get
+
+        path {
+            using(baseContext)
+            +"follow"
+            +boundTo(FollowStdStreamsRequest::jobId)
+        }
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        params {
+            +boundTo(FollowStdStreamsRequest::stderrLineStart)
+            +boundTo(FollowStdStreamsRequest::stderrMaxLines)
+            +boundTo(FollowStdStreamsRequest::stdoutLineStart)
+            +boundTo(FollowStdStreamsRequest::stdoutMaxLines)
+        }
+    }
+
     fun submitFile(
         cloud: RefreshingJWTAuthenticatedCloud,
 

@@ -83,7 +83,7 @@ class HibernateModelTest {
         assertEquals("original doc", app.tool.originalDocument)
         assertEquals("original doc", app.originalDocument)
 
-        val tag = TagEntity(
+        val tag = ApplicationTagEntity(
             app,
             "tag1"
         )

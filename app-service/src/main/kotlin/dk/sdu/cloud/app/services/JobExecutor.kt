@@ -18,6 +18,7 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.orThrow
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.experimental.async
@@ -26,7 +27,7 @@ import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.experimental.runBlocking
 
 // This does the management (but doesn't run jobs)
-class JobExecutionService2<DBSession>(
+class JobExecutionService<DBSession>(
     private val cloud: RefreshingJWTAuthenticatedCloud,
 
     private val stateChangeProducer: MappedEventProducer<String, JobStateChange>,
@@ -34,15 +35,17 @@ class JobExecutionService2<DBSession>(
 
     private val db: DBSessionFactory<DBSession>,
     private val jobVerificationService: JobVerificationService<DBSession>,
-    private val computationBackendService: ComputationBackendService
+    private val computationBackendService: ComputationBackendService,
+    private val jobDao: JobDao<DBSession>
 ) {
     suspend fun startJob(
         req: AppRequest.Start,
         principal: DecodedJWT,
         cloud: AuthenticatedCloud
     ): String {
-        val initialState = validateJob(req, principal, cloud)
+        val (initialState, jobWithToken) = validateJob(req, principal, cloud)
         stateChangeProducer.emit(initialState)
+        db.withTransaction { session -> jobDao.create(session, jobWithToken) }
         return initialState.systemId
     }
 
@@ -59,13 +62,14 @@ class JobExecutionService2<DBSession>(
         // Retrieve job details
         // Call appropriate handler based on state
         runBlocking {
-            val job = findJobForId(event.systemId)
+            val jobWithToken = findJobForId(event.systemId)
+            val (job, _) = jobWithToken
             val backend = computationBackendService.getByName(job.backend)
 
             when (event.newState) {
                 JobState.VALIDATED -> {
                     // Ask backend to prepare the job
-                    transferFilesFromJob(job)
+                    transferFilesFromJob(jobWithToken)
                     backend.jobPrepared.call(job, cloud).orThrow()
                 }
 
@@ -85,23 +89,22 @@ class JobExecutionService2<DBSession>(
         req: AppRequest.Start,
         principal: DecodedJWT,
         cloud: AuthenticatedCloud
-    ): JobStateChange {
+    ): Pair<JobStateChange, VerifiedJobWithAccessToken> {
         val descriptions = computationBackendService.getByName(resolveBackend(req.backend))
         val unverifiedJob = UnverifiedJob(req, principal)
-        val verifiedJob = jobVerificationService.verifyOrThrow(unverifiedJob, cloud)
-        descriptions.jobVerified.call(verifiedJob, cloud).orThrow()
+        val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, cloud)
+        descriptions.jobVerified.call(jobWithToken.job, cloud).orThrow()
 
-        return JobStateChange(verifiedJob.id, JobState.VALIDATED)
+        return Pair(JobStateChange(jobWithToken.job.id, JobState.VALIDATED), jobWithToken)
     }
 
-    private fun resolveBackend(backend: String?): String = backend ?: "abacus"
-
-    private suspend fun transferFilesFromJob(job: VerifiedJob) {
+    private suspend fun transferFilesFromJob(jobWithToken: VerifiedJobWithAccessToken) {
+        val (job, accessToken) = jobWithToken
         val descriptions = computationBackendService.getByName(job.backend)
         job.files.map { file ->
             async {
                 // TODO FIXME We don't want to send this accessToken to other services!
-                val downloadCloud = cloud.parent.jwtAuth(job.accessToken)
+                val downloadCloud = cloud.parent.jwtAuth(accessToken)
                 val fileStream = (FileDescriptions.download.call(
                     DownloadByURI(file.sourcePath, null),
                     downloadCloud
@@ -125,7 +128,7 @@ class JobExecutionService2<DBSession>(
         }.awaitAll()
     }
 
-    private fun findJobForId(id: String): VerifiedJob = TODO()
+    private fun findJobForId(id: String): VerifiedJobWithAccessToken = TODO()
 
     companion object : Loggable {
         override val log = logger()
@@ -141,3 +144,5 @@ inline fun <T, E> RESTResponse<T, E>.orThrowOnError(
         else -> throw IllegalStateException()
     }
 }
+
+fun resolveBackend(backend: String?): String = backend ?: "abacus"

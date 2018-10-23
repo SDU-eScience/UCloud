@@ -5,7 +5,7 @@ import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.ApplicationDescription
-import dk.sdu.cloud.app.api.HPCApplicationDescriptions
+import dk.sdu.cloud.app.api.ApplicationDescriptions
 import dk.sdu.cloud.app.services.ApplicationDAO
 import dk.sdu.cloud.app.util.yamlMapper
 import dk.sdu.cloud.service.Controller
@@ -27,11 +27,11 @@ class AppController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val source: ApplicationDAO<DBSession>
 ) : Controller {
-    override val baseContext = HPCApplicationDescriptions.baseContext
+    override val baseContext = ApplicationDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
 
-        implement(HPCApplicationDescriptions.toggleFavorite) { req ->
+        implement(ApplicationDescriptions.toggleFavorite) { req ->
             logEntry(log, req)
 
             db.withTransaction {
@@ -47,7 +47,7 @@ class AppController<DBSession>(
 
         }
 
-        implement(HPCApplicationDescriptions.retrieveFavorites) { req ->
+        implement(ApplicationDescriptions.retrieveFavorites) { req ->
             logEntry(log, req)
 
             val favorites = db.withTransaction {
@@ -61,7 +61,7 @@ class AppController<DBSession>(
             ok(favorites)
         }
 
-        implement(HPCApplicationDescriptions.searchTags) { req ->
+        implement(ApplicationDescriptions.searchTags) { req ->
             logEntry(log, req)
 
             val app = db.withTransaction {
@@ -77,7 +77,7 @@ class AppController<DBSession>(
         }
 
 
-        implement(HPCApplicationDescriptions.searchApps) { req ->
+        implement(ApplicationDescriptions.searchApps) { req ->
             logEntry(log, req)
 
             val app = db.withTransaction {
@@ -92,7 +92,7 @@ class AppController<DBSession>(
             ok(app)
         }
 
-        implement(HPCApplicationDescriptions.findByNameAndVersion) { req ->
+        implement(ApplicationDescriptions.findByNameAndVersion) { req ->
             logEntry(log, req)
 
             val app = db.withTransaction {
@@ -107,7 +107,7 @@ class AppController<DBSession>(
             ok(app)
         }
 
-        implement(HPCApplicationDescriptions.findByName) { req ->
+        implement(ApplicationDescriptions.findByName) { req ->
             logEntry(log, req)
 
             val result = db.withTransaction {
@@ -117,7 +117,7 @@ class AppController<DBSession>(
             ok(result)
         }
 
-        implement(HPCApplicationDescriptions.listAll) { req ->
+        implement(ApplicationDescriptions.listAll) { req ->
             logEntry(log, req)
 
             ok(
@@ -127,7 +127,7 @@ class AppController<DBSession>(
             )
         }
 
-        implement(HPCApplicationDescriptions.create) { req ->
+        implement(ApplicationDescriptions.create) { req ->
             logEntry(log, req)
 
             val content = try {

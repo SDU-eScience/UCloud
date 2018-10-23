@@ -41,7 +41,6 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
         user: String?,
         paging: NormalizedPaginationRequest
     ): Page<Tool> {
-        //language=HQL
         val count = session.typedQuery<Long>(
             """
             select count (A.id.name)
@@ -54,7 +53,6 @@ class ToolHibernateDAO : ToolDAO<HibernateSession> {
         """.trimIndent()
         ).uniqueResult().toInt()
 
-        //language=HQL
         val items = session.typedQuery<ToolEntity>(
             """
             from ToolEntity as A where (A.createdAt) in (

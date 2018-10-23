@@ -25,6 +25,11 @@ data class UnverifiedJob(
     val principal: DecodedJWT
 )
 
+data class VerifiedJobWithAccessToken(
+    val job: VerifiedJob,
+    val accessToken: String
+)
+
 class JobVerificationService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val applicationDAO: ApplicationDAO<DBSession>
@@ -32,7 +37,7 @@ class JobVerificationService<DBSession>(
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
         cloud: AuthenticatedCloud
-    ): VerifiedJob {
+    ): VerifiedJobWithAccessToken {
         val jobId = UUID.randomUUID().toString()
         val application = findApplication(unverifiedJob)
         val verifiedParameters = verifyParameters(application, unverifiedJob)
@@ -43,16 +48,19 @@ class JobVerificationService<DBSession>(
         val tasksPerNode = unverifiedJob.request.tasksPerNode ?: application.tool.description.defaultTasksPerNode
         val maxTime = unverifiedJob.request.maxTime ?: application.tool.description.defaultMaxTime
 
-        return VerifiedJob(
-            application,
-            files,
-            jobId,
-            unverifiedJob.principal.subject,
-            numberOfJobs,
-            tasksPerNode,
-            maxTime,
-            unverifiedJob.principal.token,
-            verifiedParameters
+        return VerifiedJobWithAccessToken(
+            VerifiedJob(
+                application,
+                files,
+                jobId,
+                unverifiedJob.principal.subject,
+                numberOfJobs,
+                tasksPerNode,
+                maxTime,
+                verifiedParameters,
+                resolveBackend(unverifiedJob.request.backend)
+            ),
+            unverifiedJob.principal.token
         )
     }
 
@@ -62,7 +70,7 @@ class JobVerificationService<DBSession>(
                 applicationDAO.findByNameAndVersion(session, job.principal.subject, name, version)
             }
         } catch (ex: ApplicationException.NotFound) {
-            throw JobValidationException("Application '${job.request.application}' does not exist")
+            throw JobException.VerificationError("Application '${job.request.application}' does not exist")
         }
     }
 
@@ -73,7 +81,7 @@ class JobVerificationService<DBSession>(
                 try {
                     appParameter.name to appParameter.map(userParameters[appParameter.name])
                 } catch (ex: IllegalArgumentException) {
-                    throw JobValidationException("Bad parameter: ${appParameter.name}. ${ex.message}")
+                    throw JobException.VerificationError("Bad parameter: ${appParameter.name}. ${ex.message}")
                 }
             }.toMap()
         )
@@ -114,12 +122,12 @@ class JobVerificationService<DBSession>(
         val sourcePath = transferDescription.source
         val stat = FileDescriptions.stat.call(FindByPath(sourcePath), cloud)
             .orThrowOnError {
-                throw JobValidationException("Missing file in storage: $sourcePath. Are you sure it exists?")
+                throw JobException.VerificationError("Missing file in storage: $sourcePath. Are you sure it exists?")
             }
             .result
 
         if (stat.fileType != desiredFileType) {
-            throw JobValidationException(
+            throw JobException.VerificationError(
                 "Expected type of ${fileAppParameter.name} to be " +
                         "$desiredFileType, but instead got a ${stat.fileType}"
             )
@@ -129,7 +137,7 @@ class JobVerificationService<DBSession>(
         // the working directory.
         val destinationPath = File(workDir.toURL().path, transferDescription.destination).normalize().path
         if (!destinationPath.startsWith(workDir.path)) {
-            throw JobValidationException(
+            throw JobException.VerificationError(
                 "Not allowed to leave working directory via relative paths. Please avoid using '..' in paths."
             )
         }

@@ -8,7 +8,6 @@ data class VerifiedJob(
     val nodes: Int,
     val tasksPerNode: Int,
     val maxTime: SimpleDuration,
-    val accessToken: String,
     val jobInput: VerifiedJobInput,
     val backend: String
 )

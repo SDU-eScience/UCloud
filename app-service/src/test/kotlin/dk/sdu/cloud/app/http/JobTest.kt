@@ -7,7 +7,6 @@ import dk.sdu.cloud.app.api.JobWithStatus
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.services.JobInformation
 import dk.sdu.cloud.app.services.JobService
-import dk.sdu.cloud.app.services.JobServiceException
 import dk.sdu.cloud.app.utils.withAuthMock
 import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.auth.api.AuthDescriptions

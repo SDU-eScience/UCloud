@@ -34,7 +34,10 @@ data class AppSearchRequest(
     override val page: Int?
 ) : WithPaginationRequest
 
-object HPCApplicationDescriptions : RESTDescriptions("hpc.apps") {
+@Deprecated("Replaced with ApplicationDescriptions", ReplaceWith("ApplicationDescriptions"))
+typealias HPCApplicationDescriptions = ApplicationDescriptions
+
+object ApplicationDescriptions : RESTDescriptions("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
     val toggleFavorite = callDescription<FavoriteRequest, Unit, CommonErrorMessage> {
