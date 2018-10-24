@@ -15,8 +15,8 @@ export const TableRow = styled.tr`
     }
 `;
 
-export const TableCell = styled.td<TextAlignProps>`
-    ${textAlign}
+export const TableCell = styled.td`
+
 `;
 
 export const TableHeader = styled.thead`

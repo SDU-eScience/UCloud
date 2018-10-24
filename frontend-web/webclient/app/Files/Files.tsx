@@ -3,7 +3,8 @@ import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import {
-    Dropdown as SDropdown, Icon as SIcon, Input as SInput, Grid as SGrid, Responsive as SResponsive, Checkbox as SCheckbox
+    Dropdown as SDropdown, Icon as SIcon, Header as SHeader, Input as SInput,
+    Grid as SGrid, Responsive as SResponsive, Checkbox as SCheckbox
 } from "semantic-ui-react";
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
@@ -26,11 +27,9 @@ import {
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
 import { Dispatch } from "redux";
-import { Button, OutlineButton, Icon, Box, Text, Heading } from "ui-components";
+import { Button, OutlineButton, Icon, Box, Text } from "ui-components";
 import InlinedRelative from "ui-components/InlinedRelative";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
-import { Dropdown, DropdownContent } from "ui-components/Dropdown";
-import ClickableDropdown from "ui-components/ClickableDropdown";
 
 class Files extends React.Component<FilesProps> {
 
@@ -131,7 +130,7 @@ class Files extends React.Component<FilesProps> {
                         loading={loading}
                         errorMessage={props.error}
                         onErrorDismiss={props.dismissError}
-                        customEmptyPage={(<Heading>No files in current folder</Heading>)}
+                        customEmptyPage={(<SHeader.Subheader content="No files in current folder" />)}
                         pageRenderer={page => (
                             <FilesTable
                                 onFavoriteFile={favoriteFile}
@@ -210,10 +209,12 @@ export const FilesTable = ({
                         />
                         <SResponsive as={TableCell} minWidth={768}>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</SResponsive>
                         <SResponsive as={TableCell} minWidth={768}>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</SResponsive>
-                        <TableCell textAlign="center">
-                            <ClickableDropdown width="175px" trigger={<SIcon name="ellipsis horizontal" />}>
-                                <FileOperations files={[file]} fileOperations={fileOperations} As={SDropdown.Item} />
-                            </ClickableDropdown>
+                        <TableCell>
+                            <SDropdown direction="left" icon="ellipsis horizontal">
+                                <SDropdown.Menu>
+                                    <FileOperations files={[file]} fileOperations={fileOperations} As={SDropdown.Item} />
+                                </SDropdown.Menu>
+                            </SDropdown>
                         </TableCell>
                     </TableRow>)
                 )}
@@ -287,7 +288,8 @@ const ContextButtons = ({ createFolder, showUploader }: ContextButtonsProps) => 
 
 const PredicatedCheckbox = ({ predicate, checked, onClick }) =>
     predicate ? (
-        <SCheckbox checked={checked} onClick={onClick} className="checkbox-margin" onChange={e => e.stopPropagation()} />
+        <SCheckbox checked={checked} onClick={onClick} type="checkbox"
+            className="hidden-checkbox checkbox-margin" onChange={e => e.stopPropagation()} />
     ) : null;
 
 const PredicatedFavorite = ({ predicate, item, onClick }) =>
@@ -351,7 +353,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
 
 const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
     <div>
-        <Heading>{toFileText(files)}</Heading>
+        <SHeader as="h3">{toFileText(files)}</SHeader>
         <FileOperations files={files} fileOperations={fileOperations} As="div" />
     </div>
 ) : null;
@@ -359,8 +361,9 @@ const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.lengt
 export const FileOperations = ({ files, fileOperations, As }) => files.length && fileOperations.length ?
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
-        if (fileOp.predicate) {
-            operation = fileOp.predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
+        if ((fileOp as PredicatedOperation).predicate) {
+            operation = fileOp as PredicatedOperation
+            operation = operation.predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
         }
         operation = operation as Operation;
         return !operation.disabled(files, Cloud) ? (

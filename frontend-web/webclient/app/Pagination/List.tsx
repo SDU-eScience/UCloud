@@ -59,14 +59,14 @@ export class List extends React.PureComponent<ListProps> {
                     content="Items per page"
                     className="items-per-page-padding pagination-float-right"
                     entriesPerPage={props.page.itemsPerPage}
-                    onChange={perPage => ifPresent(props.onItemsPerPageChanged, c => c(perPage))}
+                    onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
                 /> : null}
                 {body}
                 <div>
                     <Self.Buttons
                         as="span"
                         currentPage={props.page.pageNumber}
-                        toPage={(page) => ifPresent(props.onPageChanged, c => c(page))}
+                        toPage={(page) => ifPresent(props.onPageChanged, (c) => c(page))}
                         totalPages={props.page.pagesInTotal}
                     />
                 </div>
@@ -91,7 +91,7 @@ export class List extends React.PureComponent<ListProps> {
                             No results.
                             <a
                                 href="#"
-                                onClick={(e) => { e.preventDefault(); ifPresent(props.onRefresh, c => c()) }}
+                                onClick={(e) => { e.preventDefault(); ifPresent(props.onRefresh, (c) => c()) }}
                             >
                                 {" Try again?"}
                             </a>

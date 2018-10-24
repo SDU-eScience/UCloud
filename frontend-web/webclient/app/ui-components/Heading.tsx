@@ -1,7 +1,7 @@
 import Text from './Text'
 import theme from './theme'
 
-const Heading = Text.withComponent('h3')
+const Heading: any = Text.withComponent('h3')
 
 Heading.displayName = 'Heading'
 Heading.defaultProps = {
