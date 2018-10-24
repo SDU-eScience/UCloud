@@ -57,11 +57,6 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any, AuditE
     }
 }
 
-fun <S : Any, E : Any> RESTCallDescription<Unit, S, E, *>.prepare(): PreparedRESTCall<S, E> = prepare(Unit)
-
-suspend fun <S : Any, E : Any> RESTCallDescription<Unit, S, E, *>.call(cloud: AuthenticatedCloud): RESTResponse<S, E> =
-    call(Unit, cloud)
-
 sealed class RESTBody<Request : Any, Property : Any> {
     abstract val ref: TypeReference<Property>
 

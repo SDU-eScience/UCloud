@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.api.refreshingJwtCloud
 import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.configuration
+import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.initWithDefaultFeatures
 import dk.sdu.cloud.service.install
@@ -35,6 +36,7 @@ fun main(args: Array<String>) {
         micro.serverProvider,
         micro.hibernateDatabase,
         micro.serviceInstance,
-        config
+        config,
+        micro.developmentModeEnabled
     ).start()
 }

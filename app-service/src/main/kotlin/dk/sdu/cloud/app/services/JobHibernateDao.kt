@@ -20,6 +20,7 @@ import dk.sdu.cloud.service.mapItems
 import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Type
 import java.util.*
+import javax.persistence.Column
 import javax.persistence.Embedded
 import javax.persistence.Entity
 import javax.persistence.EnumType
@@ -62,6 +63,7 @@ data class JobInformationEntity(
 
     var backendName: String,
 
+    @Column(length = 4096)
     var accessToken: String,
 
     override var createdAt: Date,

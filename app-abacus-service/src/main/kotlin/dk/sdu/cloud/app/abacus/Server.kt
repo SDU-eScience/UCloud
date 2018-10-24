@@ -61,7 +61,7 @@ class Server(
         log.info("Core services initialized")
 
         httpServer = ktor {
-            installDefaultFeatures(cloud, kafka, instance)
+            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
 
             routing {
                 configureControllers(
