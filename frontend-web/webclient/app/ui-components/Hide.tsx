@@ -20,33 +20,31 @@ const breakpoints = props => ({
   xl: `@media screen and (min-width: ${props.theme.breakpoints[3]}em)`
 })
 
-const hidden = key => props =>
+export const hidden = key => props =>
   props[key]
     ? {
       [breakpoints(props)[key]]: {
-        display: 'none'
+        display: "none"
       }
     }
     : null
 
 export interface HideProps extends BoxProps {
-  xs: boolean
-  sm: boolean
-  md: boolean
-  lg: boolean
-  xl: boolean
+  xs?: boolean
+  sm?: boolean
+  md?: boolean
+  lg?: boolean
+  xl?: boolean
 }
 
-const Hide = styled(Box)`
-  ${hidden('xs')} ${hidden('sm')} ${hidden('md')} ${hidden('lg')} ${hidden(
-    'xl'
-  )};
+const Hide = styled(Box)<HideProps>`
+  ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
 
 Hide.defaultProps = {
   theme: theme
 };
 
-Hide.displayName = 'Hide';
+Hide.displayName = "Hide";
 
 export default Hide;

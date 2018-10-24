@@ -7,6 +7,7 @@ import Box from "./Box";
 import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { PP } from "UtilityComponents";
 
 
 const SideBarContainer = styled(Flex)`
@@ -84,6 +85,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
                 {iteration !== Object.keys(sideBarMenuElements).length - 1 ? (<Divider mt="10px" mb="10px" />) : null}
             </React.Fragment>
         )}
+        <PP visible={false} />
     </SideBarContainer>
 );
 

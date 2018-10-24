@@ -2,9 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import {
-    Dropdown as SDropdown, Icon as SIcon, Input as SInput, Grid as SGrid, Responsive as SResponsive, Checkbox as SCheckbox
-} from "semantic-ui-react";
+import { Dropdown as SDropdown, Icon as SIcon, Input as SInput, Checkbox as SCheckbox } from "semantic-ui-react";
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
@@ -18,18 +16,17 @@ import { FileIcon, RefreshButton } from "UtilityComponents";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
     FileOptionsProps, FilesTableProps, SortByDropdownProps, FileOperation, ContextButtonsProps, Operation, ContextBarProps,
-    PredicatedOperation, ResponsiveTableColumnProps
+    ResponsiveTableColumnProps
 } from ".";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
     startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
-import { Dispatch } from "redux";
-import { Button, OutlineButton, Icon, Box, Text, Heading } from "ui-components";
 import InlinedRelative from "ui-components/InlinedRelative";
+import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex } from "ui-components";
+import { Dispatch } from "redux";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
-import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 
 class Files extends React.Component<FilesProps> {
@@ -52,10 +49,10 @@ class Files extends React.Component<FilesProps> {
         if (key === KeyCode.ESC) {
             const item = page.items.find(f => f.path === file.path);
             if (item !== undefined) item.beingRenamed = false;
-            page.items = page.items.filter(it => !it.isMockFolder);
+            page.items = page.items.filter(file => !file.isMockFolder);
             updateFiles(page);
         } else if (key === KeyCode.ENTER) {
-            const fileNames = page.items.map((it) => getFilenameFromPath(it.path));
+            const fileNames = page.items.map(file => getFilenameFromPath(file.path));
             if (isInvalidPathName(name, fileNames)) return;
             const fullPath = `${UF.addTrailingSlash(path)}${name}`;
             if (file.isMockFolder) {
@@ -115,18 +112,12 @@ class Files extends React.Component<FilesProps> {
             </>
         );
         return (
-            <SGrid>
-                <SGrid.Column computer={13} tablet={16}>
-                    <SGrid.Row>
-                        <SResponsive
-                            as={ContextButtons}
-                            maxWidth={991}
-                            createFolder={props.createFolder}
-                            currentPath={path}
-                            showUploader={props.showUploader}
-                        />
-                        <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
-                    </SGrid.Row>
+            <Flex flexDirection="row">
+                <Box width={[1, 13 / 16]}>
+                    <Hide lg xl>
+                        <ContextButtons createFolder={props.createFolder} showUploader={props.showUploader} />
+                    </Hide>
+                    <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
                     <Pagination.List
                         loading={loading}
                         errorMessage={props.error}
@@ -155,15 +146,15 @@ class Files extends React.Component<FilesProps> {
                         page={page}
                         onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
                     />
-                </SGrid.Column>
-                <SResponsive as={SGrid.Column} computer={3} minWidth={992}>
+                </Box>
+                <Hide xs sm md width={3 / 16}>
                     <ContextBar
                         showUploader={props.showUploader}
                         fileOperations={fileOperations}
                         files={selectedFiles}
                         createFolder={() => props.createFolder()}
                     />
-                </SResponsive>
+                </Hide>
                 <FileSelectorModal
                     show={props.fileSelectorShown}
                     onHide={() => showFileSelector(false)}
@@ -178,7 +169,7 @@ class Files extends React.Component<FilesProps> {
                     setSelectedFile={props.fileSelectorCallback}
                     disallowedPaths={props.disallowedPaths}
                 />
-            </SGrid>);
+            </Flex>);
     }
 }
 
@@ -208,11 +199,11 @@ export const FilesTable = ({
                             onRenameFile={onRenameFile}
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
-                        <SResponsive as={TableCell} minWidth={768}>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</SResponsive>
-                        <SResponsive as={TableCell} minWidth={768}>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</SResponsive>
+                        <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</TableCell>
+                        <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</TableCell>
                         <TableCell textAlign="center">
                             <ClickableDropdown width="175px" trigger={<SIcon name="ellipsis horizontal" />}>
-                                <FileOperations files={[file]} fileOperations={fileOperations} As={SDropdown.Item} />
+                                <FileOperations files={[file]} fileOperations={fileOperations} As={"div"} />
                             </ClickableDropdown>
                         </TableCell>
                     </TableRow>)
@@ -221,11 +212,11 @@ export const FilesTable = ({
         </Table>
     );
 
-const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder, minWidth = undefined }: ResponsiveTableColumnProps) => (
-    <SResponsive minWidth={minWidth} as={TableHeaderCell} textAlign="left">
+const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder }: ResponsiveTableColumnProps) => (
+    <TableHeaderCell xs sm md textAlign="left">
         <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
         <Chevron name={iconName} />
-    </SResponsive>
+    </TableHeaderCell>
 );
 
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
@@ -278,17 +269,16 @@ const ContextBar = ({ files, ...props }: ContextBarProps) => (
 );
 
 const ContextButtons = ({ createFolder, showUploader }: ContextButtonsProps) => (
-    <div>
+    <Box pl="5px" pr="5px">
         <Button mt="3px" color="blue" fullWidth onClick={showUploader}>Upload Files</Button>
         <OutlineButton mt="3px" color="black" fullWidth onClick={createFolder}>New folder</OutlineButton>
-        <Link to={`/filesearch`}><OutlineButton color="green" mt="3px" fullWidth>Advanced Search</OutlineButton></Link>
-    </div>
+        <Link to="/filesearch"><OutlineButton color="green" mt="3px" fullWidth>Advanced Search</OutlineButton></Link>
+    </Box>
 );
 
-const PredicatedCheckbox = ({ predicate, checked, onClick }) =>
-    predicate ? (
-        <SCheckbox checked={checked} onClick={onClick} className="checkbox-margin" onChange={e => e.stopPropagation()} />
-    ) : null;
+const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
+    <SCheckbox checked={checked} onClick={onClick} className="checkbox-margin" onChange={e => e.stopPropagation()} />
+) : null;
 
 const PredicatedFavorite = ({ predicate, item, onClick }) =>
     predicate ? (
@@ -364,11 +354,7 @@ export const FileOperations = ({ files, fileOperations, As }) => files.length &&
         }
         operation = operation as Operation;
         return !operation.disabled(files, Cloud) ? (
-            <As
-                key={i}
-                className="context-button-margin pointer-cursor"
-                onClick={() => (operation as Operation).onClick(files, Cloud)}
-            >
+            <As key={i} onClick={() => (operation as Operation).onClick(files, Cloud)}>
                 <SIcon color={operation.color} name={operation.icon} />
                 <span className="operation-text" style={{ fontSize: "16px" }}>{operation.text}</span>
             </As>

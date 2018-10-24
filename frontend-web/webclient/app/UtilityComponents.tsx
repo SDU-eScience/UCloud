@@ -98,7 +98,7 @@ export class PP extends React.Component<{ visible: boolean}, {duration: number}>
                     <animate attributeName="cy" dur={`${this.state.duration}ms`} repeatCount="indefinite" keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1" values="62;56;59;65;67;73;76;81;74;70;62"/>
                 </ellipse>
             </svg>
-            <input type="range" min="200" max="2000" value={this.state.duration} step="1" id="animationDuration" onChange={({target}) => this.updateDuration(parseInt(target.value))}/>
+            <input style={{ direction: "rtl" }} type="range" min="200" max="2000" value={this.state.duration} step="1" id="animationDuration" onChange={({target}) => this.updateDuration(parseInt(target.value))}/>
             </div>
             )
     }

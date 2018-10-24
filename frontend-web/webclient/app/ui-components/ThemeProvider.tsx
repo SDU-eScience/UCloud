@@ -20,8 +20,7 @@ export const Base = styled("div")<ThemeProviderProps>`
   }
 `
 
-const ThemeProvider = ({ customBreakpoints = nextTheme.breakpoints, ...props }) => {
-  const breakpoints = customBreakpoints || nextTheme.breakpoints
+const ThemeProvider = ({ breakpoints = nextTheme.breakpoints, ...props }) => {
   const theme = {
     ...nextTheme,
     breakpoints

@@ -60,40 +60,39 @@ Icon.defaultProps = {
 // Use to see every available icon.
 export const EveryIcon = () => (
   <>
-    {Object.keys(icons).map((it: IconName, i: number) => {
-      console.log(it);
-      return (<span><span>{it}</span>: <Icon name={it} key={i} />, </span>)
-    })}
+    {Object.keys(icons).map((it: IconName, i: number) =>
+      (<span><span>{it}</span>: <Icon name={it} key={i} />, </span>)
+    )}
   </>
 );
 
 export type IconName =
-  "activity" |
-  "admin" |
-  "apps" |
-  "boxChecked" |
-  "boxEmpty" |
-  "chevronDown" |
-  "copy" |
-  "dashboard" |
-  "delete" |
-  "download" |
-  "files" |
-  "move" |
+  "activity"     |
+  "admin"        |
+  "apps"         |
+  "boxChecked"   |
+  "boxEmpty"     |
+  "chevronDown"  |
+  "copy"         |
+  "dashboard"    |
+  "delete"       |
+  "download"     |
+  "files"        |
+  "move"         |
   "notification" |
-  "open" |
-  "play" |
-  "publish" |
+  "open"         |
+  "play"         |
+  "publish"      |
   "radioChecked" |
-  "radioEmpty" |
-  "rename" |
-  "search" |
-  "shares" |
-  "starFilled" |
-  "starRibbon" |
-  "starEmpty" |
-  "trash " |
-  "upload" |
+  "radioEmpty"   |
+  "rename"       |
+  "search"       |
+  "shares"       |
+  "starFilled"   |
+  "starRibbon"   |
+  "starEmpty"    |
+  "trash"        |
+  "upload"       |
   "uploadFolder";
 
 export default Icon

@@ -1,13 +1,16 @@
 import styled from "styled-components";
 import { textAlign, TextAlignProps } from "styled-system";
+import { HideProps, hidden } from "./Hide";
 
 const Table = styled.table`
     width: 100%;
+    border: 0px;
 `;
 
 export const TableBody = styled.tbody``;
 
 export const TableRow = styled.tr`
+
     & > td {
         border-top: 1px solid rgba(34,36,38,.1);
         padding-top: 11px;
@@ -15,8 +18,10 @@ export const TableRow = styled.tr`
     }
 `;
 
-export const TableCell = styled.td<TextAlignProps>`
-    ${textAlign}
+export const TableCell = styled.td<TextAlignProps & HideProps>`
+    border: 0px;
+    ${textAlign};
+    ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
 
 export const TableHeader = styled.thead`
@@ -24,8 +29,10 @@ export const TableHeader = styled.thead`
     padding-bottom: 11px;
 `;
 
-export const TableHeaderCell = styled.th<TextAlignProps>`
-    ${textAlign}
+export const TableHeaderCell = styled.th<TextAlignProps & HideProps>`
+    border: 0px;
+    ${textAlign};
+    ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
 
 

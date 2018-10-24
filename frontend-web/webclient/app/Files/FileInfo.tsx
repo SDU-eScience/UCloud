@@ -51,7 +51,6 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations, FileI
         const { page, loading } = this.props;
         const file = page.items.find(file => file.path === removeTrailingSlash(this.path));
         if (!file) { return (<DefaultLoading loading={true} />) }
-        console.log(file.path);
         const fileName = replaceHomeFolder(isDirectory(file) ? addTrailingSlash(file.path) : file.path, Cloud.homeFolder);
         return (
             <Container className="container-margin" >
