@@ -1,23 +1,30 @@
 def initialize() {
+
+  try {
     stage('build auth-service') {
-        sh '''cd auth-service
-            ./gradlew clean
-            ./gradlew build -x test'''
+      sh '''cd auth-service
+        ./gradlew clean
+        ./gradlew build -x test'''
     }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'auth-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'auth-service-detekt-Report', reportTitles: ''])
+  }
 
-    try {
-        stage('test auth-service') {
-            sh '''cd auth-service
-                ./gradlew test'''
-        }
-    } catch (e) {
-        echo "Test FAILED"
-    } finally {
-        junit '**/auth-service/build/test-results/**/*.xml'
-        def currentResult = currentBuild.result ?: 'SUCCESS'
-        return currentResult
-
+  try {
+    stage('test auth-service') {
+      sh '''cd auth-service
+          ./gradlew test'''
     }
+  } catch (e) {
+      echo "Test FAILED"
+  } finally {
+      def currentResult = currentBuild.result ?: 'SUCCESS'
+      return currentResult
+
+  }
 }
 
 return this

@@ -1,10 +1,18 @@
 def initialize() {
 
-  stage('build Accounting') {
-    sh '''cd accounting-compute-service
-    ./gradlew clean
-    ./gradlew build -x test'''
+	try {
+	  stage('build Accounting') {
+	    sh '''cd accounting-compute-service
+	    ./gradlew clean
+	    ./gradlew build -x test'''
+	  }
+	} catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'accounting-compute-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'accounting-compute-service-detekt-Report', reportTitles: ''])
   }
+
 }
 
 return this

@@ -1,11 +1,17 @@
 def initialize() {
 
-  stage('build zenodo-service') {
-    sh '''cd zenodo-service
-    ./gradlew clean
-    ./gradlew build -x test'''
+  try {
+    stage('build zenodo-service') {
+      sh '''cd zenodo-service
+      ./gradlew clean
+      ./gradlew build -x test'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'zenodo-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'zenodo-service-detekt-Report', reportTitles: ''])
   }
-
   try {
     stage('test zenodo-service') {
       sh '''cd zenodo-service
@@ -14,7 +20,6 @@ def initialize() {
   } catch (e) {
       echo "Test FAILED"
   } finally {
-    junit '**/zenodo-service/build/test-results/**/*.xml'      
     def currentResult = currentBuild.result ?: 'SUCCESS'
     return currentResult
   }

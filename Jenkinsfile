@@ -45,16 +45,6 @@ node {
                 ]
             )
         }
-        def lastSuccessfulCommit = getLastSuccessfulCommit()
-        def currentCommit = commitHashForBuild(currentBuild.rawBuild)
-        def numberOfCommits = 0
-        if (lastSuccessfulCommit) {
-            commits = sh(
-                script: "git rev-list $currentCommit \"^$lastSuccessfulCommit\"",
-                returnStdout: true
-            ).split('\n')
-            numberOfCommits = commits.length
-        }
 
         def needToBuild = []
 
@@ -72,18 +62,12 @@ node {
                 serviceList.add(item)
             }
         }
-
-        stage('Check for') {
-            for (String item : serviceList) {
-                if (checkFolderForDiffs(item, numberOfCommits)) {
-                    needToBuild.add(item + "/Jenkinsfile")
-                    println(item + " is added to build queue")
-                } else {
-                    println('No Changes ' + item + ' - Already build')
-                }
-            }
+        for (String item : serviceList) {
+            needToBuild.add(item + "/Jenkinsfile")
         }
+    
         String currentResult
+        Boolean allSucceed = true
         for (String item : needToBuild) {
             def loaded = load(item)
             if (item == 'frontend-web/Jenkinsfile') continue
@@ -101,26 +85,22 @@ node {
 
                 if (currentResult == 'UNSTABLE') {
                     echo "Build is unstable"
-                    withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
+                    allSucceed = false
+                    /*withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
                         slackSend(
                             baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/',
                             message: 'Build Unstable',
                             token: "$slackToken"
                         )
-                    }
-                }
+                    }*/
+                    error('Aborting due to caught error - marked as unstable')
 
-                if (currentResult == 'SUCCESS') {
-                    jacoco(
-                        execPattern: '**/**.exec',
-                        exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
-                        sourcePattern: '**/src/main/kotlin/**'
-                    )
                 }
 
                 if (currentResult == 'FAILURE') {
                     println("FAIL")
-                    withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
+                    allSucceed = false
+                    /*withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
                         withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
                             slackSend(
                                 baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/',
@@ -128,9 +108,19 @@ node {
                                 token: "$slackToken"
                             )
                         }
-                    }
+                    }*/
+                    error('Aborting due to caught error - marked as failure')
                 }
             }
+        }
+
+        if (allSucceed) {
+            junit '**/build/test-results/**/*.xml'      
+            jacoco(
+                execPattern: '**/**.exec',
+                exclusionPattern: '**/src/test/**/*.class,**/AuthMockingKt.class,**/DatabaseSetupKt.class',
+                sourcePattern: '**/src/main/kotlin/**'
+            )
         }
     }
 }

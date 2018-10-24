@@ -1,11 +1,17 @@
 def initialize() {
 
-  stage('build indexing-service') {
-    sh '''cd indexing-service
-    ./gradlew clean
-    ./gradlew build -x test'''
+  try {
+    stage('build indexing-service') {
+      sh '''cd indexing-service
+      ./gradlew clean
+      ./gradlew build -x test'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'indexing-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'indexing-service-detekt-Report', reportTitles: ''])
   }
-
   try {
     stage('test indexing-service') {
       sh '''cd indexing-service
@@ -14,7 +20,6 @@ def initialize() {
   } catch (e) {
       echo "Test FAILED"
   } finally {
-    junit '**/indexing-service/build/test-results/**/*.xml'      
     def currentResult = currentBuild.result ?: 'SUCCESS'
     return currentResult
   }

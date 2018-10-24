@@ -1,11 +1,18 @@
 def initialize() {
 
-  stage('build notification-service') {
-    sh '''cd notification-service
-    ./gradlew clean
-    ./gradlew build -x test'''
+  try {
+    stage('build notification-service') {
+      sh '''cd notification-service
+      ./gradlew clean
+      ./gradlew build -x test'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'notification-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'notification-service-detekt-Report', reportTitles: ''])
   }
-
+  
   try {
     stage('test notification-service') {
       sh '''cd notification-service
@@ -14,7 +21,6 @@ def initialize() {
   } catch (e) {
       echo "Test FAILED"
   } finally {
-    junit '**/notification-service/build/test-results/**/*.xml'      
     def currentResult = currentBuild.result ?: 'SUCCESS'
     return currentResult
   }

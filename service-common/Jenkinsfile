@@ -1,9 +1,17 @@
 def initialize() {
 
-  stage('build service-common') {
-    sh '''cd service-common
-    ./gradlew clean
-    ./gradlew build -x test'''
+  try {
+    stage('build service-common') {
+      sh '''cd service-common
+      ./gradlew clean
+      ./gradlew build -x test
+      ./gradlew detekt'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'service-common/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'service-common-detekt-Report', reportTitles: ''])
   }
 
   try {
@@ -14,7 +22,6 @@ def initialize() {
   } catch (e) {
       echo "Test FAILED"
   } finally {
-    junit '**/service-common/build/test-results/**/*.xml'      
     def currentResult = currentBuild.result ?: 'SUCCESS'
     return currentResult
   }
