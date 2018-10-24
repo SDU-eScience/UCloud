@@ -86,13 +86,13 @@ node {
                 if (currentResult == 'UNSTABLE') {
                     echo "Build is unstable"
                     allSucceed = false
-                    /*withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
+                    withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
                         slackSend(
                             baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/',
                             message: 'Build Unstable',
                             token: "$slackToken"
                         )
-                    }*/
+                    }
                     error('Aborting due to caught error - marked as unstable')
 
                 }
@@ -100,7 +100,7 @@ node {
                 if (currentResult == 'FAILURE') {
                     println("FAIL")
                     allSucceed = false
-                    /*withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
+                    withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
                         withCredentials([string(credentialsId: "slackToken", variable: "slackToken")]) {
                             slackSend(
                                 baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/',
@@ -108,7 +108,7 @@ node {
                                 token: "$slackToken"
                             )
                         }
-                    }*/
+                    }
                     error('Aborting due to caught error - marked as failure')
                 }
             }
