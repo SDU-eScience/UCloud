@@ -12,9 +12,6 @@ print(v[v.index(\"'\") + 1:v_dash])
 name=`grep "rootProject" settings.gradle | cut -c 21- | rev | cut -f 2 -d "'" | rev`
 echo "Tagging as ${name}:${version}"
 
-rm -rf shared-gradle
-cp -r ../shared-gradle shared-gradle
-
 docker build \
     --target production \
     --build-arg GRADLE_PROPS="`cat ~/.gradle/esci.properties`" \
@@ -22,4 +19,3 @@ docker build \
     -t "${name}:${version}" \
     .
 
-rm -rf shared-gradle

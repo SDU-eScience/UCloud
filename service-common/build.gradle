@@ -1,3 +1,5 @@
+import java.nio.channels.*
+import java.nio.file.Files
 
 buildscript {
     ext.kotlin_version = "1.2.61"
@@ -22,7 +24,15 @@ detekt {
     toolVersion = "1.0.0.RC9.2"
     input = files("src/main/kotlin")
     filters = ".*/resources/.*,.*/build/.*"
-    config = files("../shared-gradle/detekt.yml")
+
+    // https://stackoverflow.com/a/921400
+    def currentVersion = "v0.1.0"
+    URL website = new URL("https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/$currentVersion/detekt.yml")
+    ReadableByteChannel rbc = Channels.newChannel(website.openStream())
+    def outputFile = Files.createTempFile("detekt", ".yml").toFile()
+    FileOutputStream fos = new FileOutputStream(outputFile)
+    fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE)
+    config = files(outputFile.absolutePath)
 }
 
 group "dk.sdu.cloud"

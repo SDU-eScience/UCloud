@@ -4,7 +4,7 @@ version '1.3.2'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.zenodo.MainKt"
 
-apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.1.0/sdu-cloud.gradle"
 
 dependencies {
     compile 'dk.sdu.cloud:service-common:0.18.0-SNAPSHOT'

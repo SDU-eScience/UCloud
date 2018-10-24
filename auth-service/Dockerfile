@@ -29,7 +29,6 @@ ENV SERVICE_NAME="${SERVICE_NAME}"
 
 # Copy application code into /usr/src/app
 COPY . /usr/src/app/
-COPY shared-gradle /usr/src/shared-gradle/
 WORKDIR /usr/src/app/
 
 # Copy gradle.properties
