@@ -34,8 +34,8 @@ import kotlin.reflect.full.primaryConstructor
 
 class StreamingFile(
     val contentType: ContentType,
-    val length: Long,
-    val fileName: String,
+    val length: Long?,
+    val fileName: String?,
     val payload: InputStream
 ) {
     companion object {
@@ -54,6 +54,78 @@ private data class IngoingMultipart(
     val multipart: MultiPartData
 )
 
+/**
+ * Provides a way for services to communicate in multipart requests.
+ *
+ * The underlying [Request] type is a bit special, so you must take care both when sending and receiving messages.
+ * The [MultipartRequest] will attempt to deliver a block of the request as soon as we would have to block for a large
+ * chunk. Concretely, [MultipartRequest] considers all instances of [StreamingFile] to be a large chunk and will
+ * deliver a message to the server as soon as the first byte is received. The [StreamingFile] then provides access to
+ * this chunk through the [StreamingFile.payload].
+ *
+ * Because of the need to deliver the [Request] when the first byte of a [StreamingFile] is seen we must put some
+ * constraints on the [Request]. Specifically anything coming after the initial [StreamingFile], including the
+ * initial [StreamingFile], must be nullable. This allows the [MultipartRequest] to deliver the [Request] with
+ * partial data.
+ *
+ * A [StreamingFile] will only ever be not-null in a single call of [receiveBlocks]. The [StreamingFile.payload] is not
+ * valid outside of [receiveBlocks].
+ *
+ * Consider the following example:
+ *
+ * ```kotlin
+ * data class Wrapper<T>(val value: T)
+ *
+ * data class JsonPayload(
+ *     val foo: Int,
+ *     val bar: String,
+ *     val list: List<Wrapper<String>>
+ * )
+ *
+ * data class FormRequest(
+ *     val normal: String,
+ *     val json: JsonPayload,
+ *     val streamingOne: StreamingFile?, // everything past the initial StreamingFile is nullable
+ *     val normal2: String?,
+ *     val streamingTwo: StreamingFile?
+ * )
+ *
+ * object MultipartDescriptions : RESTDescriptions("foo") {
+ *     val multipart = callDescription<MultipartRequest<FormRequest>, Unit, Unit> {
+ *         name = "multipart"
+ *         method = HttpMethod.Post
+ *
+ *         auth {
+ *             access = AccessRight.READ
+ *         }
+ *
+ *         path {
+ *             +"foo"
+ *         }
+ *
+ *         body { bindEntireRequestFromBody() }
+ *      }
+ * }
+ *
+ * implement(MultipartDescriptions.multipart) { req ->
+ *     // On a valid call this will call the handler of receiveBlocks twice.
+ *     // On invalid calls it might be called less than twice (either 0 or 1).
+ *     req.receiveBlocks {
+ *         println(it)
+ *
+ *         if (it.streamingOne != null) {
+ *             println("Streaming one: ${it.streamingOne.payload.bufferedReader().readText()}")
+ *         }
+ *
+ *         if (it.streamingTwo != null) {
+ *             println("Streaming two: ${it.streamingTwo.payload.bufferedReader().readText()}")
+ *         }
+ *     }
+ *
+ *     ok(Unit)
+ * }
+ * ```
+ */
 class MultipartRequest<Request : Any> private constructor() {
     private var outgoing: Request? = null
     private var ingoing: IngoingMultipart? = null
@@ -86,7 +158,13 @@ class MultipartRequest<Request : Any> private constructor() {
             }.toMap()
 
             @Suppress("UNCHECKED_CAST")
-            val block = constructor.callBy(params) as Request
+            val block = try {
+                constructor.callBy(params) as Request
+            } catch (ex: Exception) {
+                log.debug(ex.stackTraceToString())
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            }
+
             consumer(block)
 
             isSendingFinal = partsSeen.size == knownProps.size
@@ -98,7 +176,7 @@ class MultipartRequest<Request : Any> private constructor() {
             val prop = knownProps[name] ?: run { part.dispose(); return@forEachPart }
 
             partsSeen.add(prop.name)
-            val parsedPart = parsePart(ingoing, prop, part)
+            val parsedPart = parsePart(prop, part)
             builder[name] = parsedPart
 
             if (parsedPart is StreamingFile) {
@@ -116,11 +194,7 @@ class MultipartRequest<Request : Any> private constructor() {
         if (!isSendingFinal) send()
     }
 
-    private fun findConstructor(type: KClass<*>): KFunction<Any> {
-        return type.primaryConstructor ?: type.constructors.single()
-    }
-
-    private fun parsePart(ingoing: IngoingMultipart, prop: KProperty1<Request, *>, part: PartData): Any? {
+    private fun parsePart(prop: KProperty1<Request, *>, part: PartData): Any? {
         val propType = prop.returnType.classifier as? KClass<*>
             ?: throw IllegalStateException("Cannot find type of ${prop.name}")
 
@@ -136,7 +210,6 @@ class MultipartRequest<Request : Any> private constructor() {
 
         when (part) {
             is PartData.FormItem -> {
-
                 val isJson = contentType.match(ContentType.Application.Json)
 
                 return if (isJson) {
@@ -171,26 +244,36 @@ class MultipartRequest<Request : Any> private constructor() {
                         Double::class -> part.value.toDoubleOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                         Boolean::class -> part.value.toBoolean()
-                        else -> throw IllegalArgumentException("Cannot convert value ${prop.name}")
+                        else -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
                 }
             }
 
-            is PartData.FileItem -> {
+            is PartData.BinaryItem, is PartData.FileItem -> {
+                if (propType != StreamingFile::class) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                val provider = when (part) {
+                    is PartData.FileItem -> part.provider
+                    is PartData.BinaryItem -> part.provider
+                    else -> throw IllegalStateException()
+                }
+
                 return StreamingFile(
                     contentType,
-                    part.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: -1L,
-                    part.originalFileName ?: "unknown" ,
-                    part.provider().asStream()
+                    part.headers[HttpHeaders.ContentLength]?.toLongOrNull(),
+                    (part as? PartData.FileItem)?.originalFileName,
+                    provider().asStream()
                 )
             }
-
-            else -> TODO()
         }
     }
 
     companion object : RequestBodyParamMarshall<MultipartRequest<*>>, Loggable {
         override val log = logger()
+
+        private fun findConstructor(type: KClass<*>): KFunction<Any> {
+            return type.primaryConstructor ?: type.constructors.single()
+        }
 
         private fun getRequestTypeFromDescription(restCallDescription: RESTCallDescription<*, *, *, *>): KClass<Any> {
             val requestType = (restCallDescription.requestType.type as ParameterizedType).actualTypeArguments[0]
@@ -233,12 +316,18 @@ class MultipartRequest<Request : Any> private constructor() {
             }
 
             val klass = getRequestTypeFromDescription(description)
+            val constructor = findConstructor(klass)
 
             val outgoing = value.outgoing ?: throw IllegalStateException()
 
             return MultiPartContent.build {
-                // TODO The order of this is very important. It must match the same order that the constructor is using
-                klass.memberProperties.forEach { prop ->
+                // The order of this is very important. It must match the same order that the constructor is using
+                val memberProperties = klass.memberProperties
+
+                constructor.parameters.forEach { param ->
+                    val prop = memberProperties.find { it.name == param.name } ?:
+                        throw IllegalStateException("Request types must be simple data classes!")
+
                     val name = prop.name
                     val propValue = prop.get(outgoing)
 
