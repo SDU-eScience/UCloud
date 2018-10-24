@@ -19,7 +19,7 @@ dependencies {
     compile 'com.google.guava:guava:23.4-jre'
     compile "com.squareup.okhttp3:okhttp:3.11.0"
 
-    compile 'dk.sdu.cloud:service-common:0.19.2-SNAPSHOT'
+    compile 'dk.sdu.cloud:service-common:0.20.0-SNAPSHOT'
     compile "dk.sdu.cloud:file-api:0.11.0-SNAPSHOT"
     compile "dk.sdu.cloud:upload-api:0.11.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"

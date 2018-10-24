@@ -6,17 +6,23 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.mapItems
 import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Type
 import java.util.*
 import javax.persistence.Embedded
 import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
 import javax.persistence.Id
 import javax.persistence.Table
 
@@ -34,6 +40,7 @@ data class JobInformationEntity(
 
     var status: String,
 
+    @Enumerated(EnumType.STRING)
     var state: JobState,
 
     var nodes: Int,
@@ -41,7 +48,7 @@ data class JobInformationEntity(
     var tasksPerNode: Int,
 
     @Type(type = JSONB_TYPE)
-    var parameters: Map<String, Any?>,
+    var parameters: Map<String, Any?>, // TODO We won't be able to deserialize this!
 
     @Type(type = JSONB_TYPE)
     var files: List<ValidatedFileForUpload>,
@@ -74,7 +81,7 @@ class JobHibernateDao(
             job.owner,
             job.application.description.info.toEmbedded(),
             "Verified",
-            JobState.VALIDATED,
+            job.currentState,
             job.nodes,
             job.tasksPerNode,
             job.jobInput.asMap(),
@@ -113,6 +120,20 @@ class JobHibernateDao(
             ?.toModel(session)
     }
 
+    override fun list(
+        session: HibernateSession,
+        owner: String,
+        pagination: NormalizedPaginationRequest
+    ): Page<VerifiedJobWithAccessToken> {
+        return session.paginatedCriteria<JobInformationEntity>(
+            pagination,
+            orderBy = { listOf(descinding(entity[JobInformationEntity::createdAt])) },
+            predicate = {
+                entity[JobInformationEntity::owner] equal owner
+            }
+        ).mapItems { it.toModel(session) } // TODO This will do a query for every single result!
+    }
+
     private fun JobInformationEntity.toModel(session: HibernateSession): VerifiedJobWithAccessToken =
         VerifiedJobWithAccessToken(
             VerifiedJob(
@@ -124,7 +145,8 @@ class JobHibernateDao(
                 tasksPerNode,
                 SimpleDuration(maxTimeHours, maxTimeMinutes, maxTimeSeconds),
                 VerifiedJobInput(parameters),
-                backendName
+                backendName,
+                state
             ),
             accessToken
         )

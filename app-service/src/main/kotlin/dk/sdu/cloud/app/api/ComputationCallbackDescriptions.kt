@@ -6,7 +6,9 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
+import dk.sdu.cloud.client.MultipartRequest
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.client.StreamingFile
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
@@ -26,14 +28,14 @@ data class JobCompletedRequest(
     val success: Boolean
 )
 
+data class SubmitComputationResult(
+    val jobId: String,
+    val filePath: String,
+    val fileData: StreamingFile
+)
+
 object ComputationCallbackDescriptions : RESTDescriptions("app.compute") {
     val baseContext = "/api/app/compute"
-
-    const val SUBMIT_FILE_FIELD_FILE_NAME = "fileName"
-    const val SUBMIT_FILE_FIELD_FILE_DATA = "fileData"
-    const val SUBMIT_FILE_FIELD_LENGTH = "fileLength"
-
-    private val client = OkHttpClient()
 
     /**
      * Posts a new status for a live job.
@@ -79,14 +81,8 @@ object ComputationCallbackDescriptions : RESTDescriptions("app.compute") {
      * Submits a file for a job.
      *
      * This can only happen while the job is in state [JobState.RUNNING]
-     *
-     * It is submitted as a multi-part form (not currently supported in service-common).
-     *
-     * @see SUBMIT_FILE_FIELD_FILE_NAME
-     * @see SUBMIT_FILE_FIELD_LENGTH
-     * @see SUBMIT_FILE_FIELD_FILE_DATA
      */
-    val submitFile = callDescription<Unit, Unit, CommonErrorMessage> {
+    val submitFile = callDescription<MultipartRequest<SubmitComputationResult>, Unit, CommonErrorMessage> {
         name = "submitFile"
         method = HttpMethod.Post
 
@@ -131,60 +127,5 @@ object ComputationCallbackDescriptions : RESTDescriptions("app.compute") {
         }
 
         body { bindEntireRequestFromBody() }
-    }
-
-    fun submitFile(
-        cloud: RefreshingJWTAuthenticatedCloud,
-
-        fileName: String,
-        fileLength: Long,
-
-        causedBy: String? = null,
-
-        dataWriter: (BufferedSink) -> Unit
-    ): Pair<HttpStatusCode, String> {
-        val token = cloud.tokenRefresher.retrieveTokenRefreshIfNeeded()
-        return submitFile(cloud.parent, token, fileName, fileLength, causedBy, dataWriter)
-    }
-
-    fun submitFile(
-        cloud: CloudContext,
-        token: String,
-
-        fileName: String,
-        fileLength: Long,
-
-        causedBy: String? = null,
-
-        dataWriter: (BufferedSink) -> Unit
-    ): Pair<HttpStatusCode, String> {
-        val endpoint = cloud.resolveEndpoint(namespace).removeSuffix("/") + baseContext + "/submit"
-        val streamingBody = object : RequestBody() {
-            override fun contentType(): MediaType {
-                return MediaType.parse(ContentType.Application.OctetStream.toString())!!
-            }
-
-            override fun writeTo(sink: BufferedSink) {
-                dataWriter(sink)
-            }
-        }
-
-        val requestBody = MultipartBody.Builder().run {
-            setType(MultipartBody.FORM)
-            addFormDataPart(SUBMIT_FILE_FIELD_FILE_NAME, fileName)
-            addFormDataPart(SUBMIT_FILE_FIELD_LENGTH, fileLength.toString())
-            addFormDataPart(SUBMIT_FILE_FIELD_FILE_DATA, "file", streamingBody)
-        }.build()
-
-        val request = Request.Builder().run {
-            header("Authorization", "Bearer $token")
-            if (causedBy != null) header("Caused-By", causedBy)
-
-            url(endpoint)
-            post(requestBody)
-        }.build()
-
-        val response = client.newCall(request).execute()
-        return HttpStatusCode.fromValue(response.code()) to (response.body()?.string() ?: "")
     }
 }

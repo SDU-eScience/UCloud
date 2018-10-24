@@ -9,5 +9,8 @@ data class VerifiedJob(
     val tasksPerNode: Int,
     val maxTime: SimpleDuration,
     val jobInput: VerifiedJobInput,
-    val backend: String
+    val backend: String,
+    val currentState: JobState,
+    val createdAt: Long = System.currentTimeMillis(),
+    val modifiedAt: Long = System.currentTimeMillis()
 )

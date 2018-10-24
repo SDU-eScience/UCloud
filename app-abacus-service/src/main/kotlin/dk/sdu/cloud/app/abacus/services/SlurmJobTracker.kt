@@ -10,7 +10,12 @@ import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.StateChangeRequest
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.orThrow
+import dk.sdu.cloud.service.stackTraceToString
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
 
 class SlurmJobTracker(
@@ -21,10 +26,18 @@ class SlurmJobTracker(
 ) {
     private val listener: SlurmEventListener = {
         runBlocking {
-            try {
-                processEvent(it)
+            val systemId = try {
+                resolveSlurmIdToSystemId(it.jobId)
             } catch (ex: Exception) {
-                handleException(ex, it)
+                log.warn("Received slurm event for job we don't know about!")
+                log.warn("Event was $it")
+                return@runBlocking
+            }
+
+            try {
+                processEvent(systemId, it)
+            } catch (ex: Exception) {
+                handleException(ex, systemId, it)
             }
         }
     }
@@ -37,9 +50,7 @@ class SlurmJobTracker(
         slurmPollAgent.removeListener(listener)
     }
 
-    private suspend fun processEvent(event: SlurmEvent) {
-        val systemId = resolveSlurmIdToSystemId(event.jobId)
-
+    private suspend fun processEvent(systemId: String, event: SlurmEvent) {
         when (event) {
             is SlurmEventRunning -> {
                 ComputationCallbackDescriptions.requestStateChange.call(
@@ -84,14 +95,40 @@ class SlurmJobTracker(
         return sshConnectionPool.use { slurmJobInfo(slurmId) }
     }
 
-    private fun handleException(exception: Exception, event: SlurmEvent) {
-        // TODO The main service is not aware of these exceptions automatically. We must notify them that we are failing.
-        // TODO The main service is not aware of these exceptions automatically. We must notify them that we are failing.
-        // TODO The main service is not aware of these exceptions automatically. We must notify them that we are failing.
-        // TODO The main service is not aware of these exceptions automatically. We must notify them that we are failing.
-        // TODO The main service is not aware of these exceptions automatically. We must notify them that we are failing.
-        // TODO The main service is not aware of these exceptions automatically. We must notify them that we are failing.
+    private suspend fun handleException(exception: Exception, systemId: String, event: SlurmEvent) {
+        val message =
+            if (exception is RPCException && exception.httpStatusCode != HttpStatusCode.InternalServerError) {
+                exception.why
+            } else {
+                null
+            }
+
+        if (exception !is RPCException) {
+            log.warn("Unexpected exception: $event [$systemId]")
+            log.warn(exception.stackTraceToString())
+        } else {
+            log.debug("Expected exception: $event [$systemId]")
+            log.debug(exception.stackTraceToString())
+        }
+
+        val stateResult = ComputationCallbackDescriptions.requestStateChange.call(
+            StateChangeRequest(
+                systemId,
+                JobState.FAILURE,
+                message ?: "Internal error"
+            ),
+            cloud
+        )
+
+        if (stateResult is RESTResponse.Err) {
+            log.warn("Could not notify orchestrator about failure $event [$systemId]")
+            log.warn(stateResult.response.toString())
+        }
     }
 
     private fun resolveSlurmIdToSystemId(slurmId: Long): String = TODO()
+
+    companion object : Loggable {
+        override val log = logger()
+    }
 }

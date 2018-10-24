@@ -1,6 +1,8 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.JobState
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 
 interface JobDao<Session> {
     fun create(
@@ -25,5 +27,11 @@ interface JobDao<Session> {
         systemId: String,
         owner: String? = null
     ): VerifiedJobWithAccessToken?
+
+    fun list(
+        session: Session,
+        owner: String,
+        pagination: NormalizedPaginationRequest
+    ): Page<VerifiedJobWithAccessToken>
 }
 

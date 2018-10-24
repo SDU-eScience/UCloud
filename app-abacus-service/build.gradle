@@ -10,7 +10,7 @@ dependencies {
     compile 'com.jcraft:jsch:0.1.54'
     compile 'com.google.guava:guava:23.4-jre'
 
-    compile 'dk.sdu.cloud:service-common:0.19.2-SNAPSHOT'
+    compile 'dk.sdu.cloud:service-common:0.20.0-SNAPSHOT'
     compile 'dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT'
     compile 'dk.sdu.cloud:app-api:0.9.0-SNAPSHOT'
 }

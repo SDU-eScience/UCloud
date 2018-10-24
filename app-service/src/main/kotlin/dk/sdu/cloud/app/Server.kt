@@ -3,11 +3,13 @@ package dk.sdu.cloud.app
 import dk.sdu.cloud.app.api.AccountingEvents
 import dk.sdu.cloud.app.api.JobStreams
 import dk.sdu.cloud.app.http.AppController
+import dk.sdu.cloud.app.http.CallbackController
 import dk.sdu.cloud.app.http.JobController
 import dk.sdu.cloud.app.http.ToolController
 import dk.sdu.cloud.app.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.services.ComputationBackendService
-import dk.sdu.cloud.app.services.JobExecutionService
+import dk.sdu.cloud.app.services.JobOrchestrator
+import dk.sdu.cloud.app.services.JobFileService
 import dk.sdu.cloud.app.services.JobHibernateDao
 import dk.sdu.cloud.app.services.JobVerificationService
 import dk.sdu.cloud.app.services.ToolHibernateDAO
@@ -47,23 +49,26 @@ class Server(
 
         val toolDao = ToolHibernateDAO()
         val applicationDao = ApplicationHibernateDAO(toolDao)
+
+        val computationBackendService = ComputationBackendService(config.backends)
         val jobDao = JobHibernateDao(applicationDao)
         val jobVerificationService = JobVerificationService(db, applicationDao)
-        val computationBackendService = ComputationBackendService(config.backends)
+        val jobFileService = JobFileService(cloud)
 
-        val jobExecutionService = JobExecutionService(
+        val jobOrchestrator = JobOrchestrator(
             cloud,
             kafka.producer.forStream(JobStreams.jobStateEvents),
             kafka.producer.forStream(AccountingEvents.jobCompleted),
             db,
             jobVerificationService,
             computationBackendService,
+            jobFileService,
             jobDao
         )
 
         kStreams = buildStreams { kBuilder ->
             kBuilder.stream(JobStreams.jobStateEvents).foreach { _, event ->
-                jobExecutionService.handleStateChange(event)
+                jobOrchestrator.handleStateChange(event)
             }
         }
 
@@ -78,7 +83,9 @@ class Server(
                         applicationDao
                     ),
 
-                    JobController(jobExecutionService),
+                    JobController(db, jobOrchestrator, jobDao),
+
+                    CallbackController(jobOrchestrator),
 
                     ToolController(
                         db,

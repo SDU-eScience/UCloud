@@ -130,7 +130,7 @@ class MultipartRequest<Request : Any> private constructor() {
     private var outgoing: Request? = null
     private var ingoing: IngoingMultipart? = null
 
-    suspend fun receiveBlocks(consumer: (Request) -> Unit) {
+    suspend fun receiveBlocks(consumer: suspend (Request) -> Unit) {
         val ingoing = ingoing ?: throw IllegalStateException("Not an ingoing MultipartRequest")
 
         @Suppress("UNCHECKED_CAST")
@@ -143,7 +143,7 @@ class MultipartRequest<Request : Any> private constructor() {
         val builder = HashMap<String, Any?>()
         var isSendingFinal = false
 
-        fun send() {
+        suspend fun send() {
             val params = constructor.parameters.mapNotNull {
                 val value = builder[it.name]
                 if (value == null) {

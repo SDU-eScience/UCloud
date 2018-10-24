@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.api.Application
 import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.FileForUploadArchiveType
 import dk.sdu.cloud.app.api.FileTransferDescription
+import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
@@ -58,7 +59,8 @@ class JobVerificationService<DBSession>(
                 tasksPerNode,
                 maxTime,
                 verifiedParameters,
-                resolveBackend(unverifiedJob.request.backend)
+                resolveBackend(unverifiedJob.request.backend),
+                JobState.VALIDATED
             ),
             unverifiedJob.principal.token
         )

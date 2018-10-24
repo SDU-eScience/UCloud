@@ -110,7 +110,7 @@ class JobExecutionTest {
     @RelaxedMockK
     lateinit var toolDao: ToolDAO<Any>
 
-    lateinit var service: JobExecutionService<Any>
+    lateinit var service: JobOrchestrator<Any>
 
     val appEvents = ArrayList<AppEvent>()
     val accountintEvents = ArrayList<JobCompletedEvent>()
@@ -255,7 +255,7 @@ class JobExecutionTest {
             Pair(0, sshConnection)
         }
 
-        service = JobExecutionService(
+        service = JobOrchestrator(
             cloud,
             producer,
             accountProducer,

@@ -12,7 +12,7 @@ class ComputationBackendService(
 ) {
     private val backends = backends.toSet()
 
-    fun getByName(backend: String, principal: SecurityPrincipal? = null): NamedComputationBackendDescriptions {
+    fun getAndVerifyByName(backend: String, principal: SecurityPrincipal? = null): NamedComputationBackendDescriptions {
         if (backend !in backends) throw ComputationBackendException.UnrecognizedBackend(backend)
         if (principal != null && principal.username != backendPrincipalName(backend)) {
             throw ComputationBackendException.UntrustedSource()

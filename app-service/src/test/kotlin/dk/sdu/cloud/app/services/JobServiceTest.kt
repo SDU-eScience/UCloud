@@ -58,7 +58,7 @@ class JobServiceTest {
             withDatabase { db ->
                 val jobDao = mockk<JobHibernateDAO>()
                 val ssh = mockk<SSHConnectionPool>()
-                val jobExecution = mockk<JobExecutionService<Session>>()
+                val jobExecution = mockk<JobOrchestrator<Session>>()
                 val jService = JobService(db, jobDao, ssh, jobExecution)
 
                 every { jobDao.findAllJobsWithStatus(any(), any(), any()) } answers {
@@ -80,7 +80,7 @@ class JobServiceTest {
             withDatabase { db ->
                 val jobDao = mockk<JobHibernateDAO>()
                 val ssh = mockk<SSHConnectionPool>()
-                val jobExecution = mockk<JobExecutionService<Session>>()
+                val jobExecution = mockk<JobOrchestrator<Session>>()
                 val jService = JobService(db, jobDao, ssh, jobExecution)
 
                 every { jobDao.findJobById(any(), any(), any()) } returns jobWithStatus
@@ -97,7 +97,7 @@ class JobServiceTest {
             withDatabase { db ->
                 val jobDao = mockk<JobHibernateDAO>()
                 val ssh = mockk<SSHConnectionPool>()
-                val jobExecution = mockk<JobExecutionService<Session>>()
+                val jobExecution = mockk<JobOrchestrator<Session>>()
                 val jService = JobService(db, jobDao, ssh, jobExecution)
 
                 every { jobDao.findJobById(any(), any(), any()) } returns null
@@ -113,7 +113,7 @@ class JobServiceTest {
             withDatabase { db ->
                 val jobDao = mockk<JobHibernateDAO>()
                 val ssh = mockk<SSHConnectionPool>()
-                val jobExecution = mockk<JobExecutionService<Session>>()
+                val jobExecution = mockk<JobOrchestrator<Session>>()
                 val jService = JobService(db, jobDao, ssh, jobExecution)
 
                 every { jobDao.findJobInformationByJobId(any(), any(), any()) } returns createJobInfo(AppState.SUCCESS)
@@ -129,7 +129,7 @@ class JobServiceTest {
             withDatabase { db ->
                 val jobDao = mockk<JobHibernateDAO>()
                 val ssh = mockk<SSHConnectionPool>()
-                val jobExecution = mockk<JobExecutionService<Session>>()
+                val jobExecution = mockk<JobOrchestrator<Session>>()
                 val jService = JobService(db, jobDao, ssh, jobExecution)
 
                 val app = mockk<AppRequest.Start>()
@@ -151,7 +151,7 @@ class JobServiceTest {
                 val ssh = mockk<SSHConnectionPool>()
                 // TODO
 
-                val jobExecution = mockk<JobExecutionService<Session>>()
+                val jobExecution = mockk<JobOrchestrator<Session>>()
                 val jService = JobService(db, jobDao, ssh, jobExecution)
 
                 val streamRequest = FollowStdStreamsRequest(

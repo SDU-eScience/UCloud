@@ -15,14 +15,18 @@ import dk.sdu.cloud.app.abacus.services.ssh.use
 import dk.sdu.cloud.app.abacus.util.CappedInputStream
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.FileForUploadArchiveType
+import dk.sdu.cloud.app.api.SubmitComputationResult
 import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.app.api.copyFrom
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.client.MultipartRequest
+import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.client.StreamingFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.stackTraceToString
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.isSuccess
+import kotlinx.coroutines.experimental.runBlocking
 import java.io.File
 import java.io.InputStream
 
@@ -125,13 +129,14 @@ class JobFileService(
                     throw JobFileException.NotSupported("Output file too large")
                 }
 
-                transferFileFromCompute(fileToTransferFromHPC, transfer, fileLength)
+                transferFileFromCompute(job.id, fileToTransferFromHPC, transfer, fileLength)
             }
         }
 
     }
 
     private fun SSHConnection.transferFileFromCompute(
+        jobId: String,
         filePath: String,
         originalFileName: String,
         length: Long
@@ -139,16 +144,23 @@ class JobFileService(
         val transferStatus =
             try {
                 scpDownload(filePath) { ins ->
-                    val (statusCode, _) = ComputationCallbackDescriptions.submitFile(
-                        cloud = cloud,
-                        fileName = filePath,
-                        fileLength = length,
-                        dataWriter = { it.copyFrom(ins) }
-                    )
-
-                    if (!statusCode.isSuccess()) {
-                        throw JobFileException.UploadToCloudFailed(originalFileName)
-                    }
+                    runBlocking {
+                        ComputationCallbackDescriptions.submitFile.call(
+                            MultipartRequest.create(
+                                SubmitComputationResult(
+                                    jobId,
+                                    filePath,
+                                    StreamingFile(
+                                        ContentType.Application.OctetStream,
+                                        length,
+                                        filePath,
+                                        ins
+                                    )
+                                )
+                            ),
+                            cloud
+                        )
+                    } as? RESTResponse.Ok ?: throw JobFileException.UploadToCloudFailed(originalFileName)
                 }
             } catch (ex: Exception) {
                 log.warn("Caught exception while uploading file to SDUCloud")
