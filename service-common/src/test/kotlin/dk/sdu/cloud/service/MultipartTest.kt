@@ -57,6 +57,12 @@ data class EvilFormRequest3(
     val normal2: JsonPayload? // Should fail because type is incorrect
 )
 
+data class BadFormRequest(
+    val normal: String,
+    val streamingOne: StreamingFile?,
+    val shouldHaveBeenNullable: String
+)
+
 object MultipartDescriptions : RESTDescriptions("foo") {
     val evilMultipart = callDescription<MultipartRequest<EvilFormRequest>, Unit, Unit> {
         name = "multipart"
@@ -117,6 +123,21 @@ object MultipartDescriptions : RESTDescriptions("foo") {
 
         body { bindEntireRequestFromBody() }
     }
+
+    val invalidMultipart = callDescription<MultipartRequest<BadFormRequest>, Unit, Unit> {
+        name = "invalidMultipart"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            +"bar"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
 }
 
 class MultipartTest {
@@ -148,6 +169,11 @@ class MultipartTest {
                         }
                     }
 
+                    ok(Unit)
+                }
+
+                implement(MultipartDescriptions.invalidMultipart) { req ->
+                    req.receiveBlocks { }
                     ok(Unit)
                 }
             }
@@ -234,6 +260,23 @@ class MultipartTest {
 
             assertEquals(1, callCount)
             assertEquals(expectedText1, text1)
+            assertEquals(HttpStatusCode.BadRequest.value, result.status)
+        }
+
+        runBlocking {
+            val expectedText1 = "Hello"
+            val file = Files.createTempFile("", ".txt").toFile().also { it.writeText(expectedText1) }
+            val result = MultipartDescriptions.invalidMultipart.call(
+                MultipartRequest.create(
+                    BadFormRequest(
+                        "normal",
+                        StreamingFile.fromFile(file),
+                        "w1"
+                    )
+                ),
+                cloud
+            )
+
             assertEquals(HttpStatusCode.BadRequest.value, result.status)
         }
 

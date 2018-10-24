@@ -13,6 +13,8 @@ import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTPathSegment
 import dk.sdu.cloud.client.RESTQueryParameter
 import dk.sdu.cloud.client.RequestBodyParamMarshall
+import dk.sdu.cloud.client.RequestPathSegmentMarshall
+import dk.sdu.cloud.client.RequestQueryParamMarshall
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.client.toKtorTemplate
 import io.ktor.application.Application
@@ -165,141 +167,141 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                                 }
                             }
 
-                    // Retrieve argument values from path (if any)
-                    val valuesFromPath = try {
-                        restCall.path.segments.mapNotNull { it.bindValuesFromCall(call) }.toMap()
-                    } catch (ex: IllegalArgumentException) {
-                        log.debug("Caught illegal argument exception when constructing values from path")
-                        log.debug(ex.stackTraceToString())
-                        return@handle call.respond(HttpStatusCode.BadRequest)
-                    }
-
-                    // Retrieve arguments from query parameters (if any)
-                    val valuesFromParams = try {
-                        restCall
-                            .params
-                            ?.parameters
-                            ?.mapNotNull {
-                                it.bindValuesFromCall(call)
-                            }?.toMap()
-                    } catch (ex: IllegalArgumentException) {
-                        log.debug("Caught illegal argument exception when constructing values from params")
-                        log.debug(ex.stackTraceToString())
-                        return@handle call.respond(HttpStatusCode.BadRequest)
-                    } ?: emptyMap()
-
-                    val allValuesFromRequest = valuesFromPath + valuesFromParams
-
-                    if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
-                        val requestClass = restCall.requestType.type as? Class<*> ?: throw IllegalStateException(
-                            "${restCall.fullName}'s request type is not a simple class. " +
-                                    "This is required."
-                        )
-
-                        val requestClassKotlin = if (requestClass.isKotlinClass()) {
-                            @Suppress("UNCHECKED_CAST")
-                            requestClass.kotlin as KClass<P>
-                        } else {
-                            throw IllegalStateException(
-                                "${restCall.fullName}'s request type is not a kotlin " +
-                                        "class. This is required."
-                            )
+                        // Retrieve argument values from path (if any)
+                        val valuesFromPath = try {
+                            restCall.path.segments.mapNotNull { it.bindValuesFromCall(call) }.toMap()
+                        } catch (ex: IllegalArgumentException) {
+                            log.debug("Caught illegal argument exception when constructing values from path")
+                            log.debug(ex.stackTraceToString())
+                            return@handle call.respond(HttpStatusCode.BadRequest)
                         }
 
-                        val constructor =
-                            requestClassKotlin.primaryConstructor ?: requestClassKotlin.constructors.single()
+                        // Retrieve arguments from query parameters (if any)
+                        val valuesFromParams = try {
+                            restCall
+                                .params
+                                ?.parameters
+                                ?.mapNotNull {
+                                    it.bindValuesFromCall(call)
+                                }?.toMap()
+                        } catch (ex: IllegalArgumentException) {
+                            log.debug("Caught illegal argument exception when constructing values from params")
+                            log.debug(ex.stackTraceToString())
+                            return@handle call.respond(HttpStatusCode.BadRequest)
+                        } ?: emptyMap()
 
-                        val resolvedArguments = constructor.parameters.map {
-                            val name = it.name ?: run {
+                        val allValuesFromRequest = valuesFromPath + valuesFromParams
+
+                        if (restCall.body !is RESTBody.BoundToEntireRequest<*>) {
+                            val requestClass = restCall.requestType.type as? Class<*> ?: throw IllegalStateException(
+                                "${restCall.fullName}'s request type is not a simple class. " +
+                                        "This is required."
+                            )
+
+                            val requestClassKotlin = if (requestClass.isKotlinClass()) {
+                                @Suppress("UNCHECKED_CAST")
+                                requestClass.kotlin as KClass<P>
+                            } else {
                                 throw IllegalStateException(
-                                    "Unable to determine name of property in request " +
-                                            "type. Please use a data class instead to solve this problem."
+                                    "${restCall.fullName}'s request type is not a kotlin " +
+                                            "class. This is required."
                                 )
                             }
 
-                            if (name !in allValuesFromRequest) {
-                                // If not found in path, check if this is param bound to the body
-                                if (restCall.body is RESTBody.BoundToSubProperty<*, *>) {
-                                    val body = restCall.body as RESTBody.BoundToSubProperty
-                                    if (body.property.name == it.name) {
-                                        return@map it to valueFromBody
-                                    }
+                            val constructor =
+                                requestClassKotlin.primaryConstructor ?: requestClassKotlin.constructors.single()
+
+                            val resolvedArguments = constructor.parameters.map {
+                                val name = it.name ?: run {
+                                    throw IllegalStateException(
+                                        "Unable to determine name of property in request " +
+                                                "type. Please use a data class instead to solve this problem."
+                                    )
                                 }
 
-                                // All arguments were collected successfully from the request, but we still
-                                // can't satisfy this constructor parameter. As a result it must be a bug in
-                                // the description.
-                                throw IllegalStateException("The property '$name' was not bound in description!")
+                                if (name !in allValuesFromRequest) {
+                                    // If not found in path, check if this is param bound to the body
+                                    if (restCall.body is RESTBody.BoundToSubProperty<*, *>) {
+                                        val body = restCall.body as RESTBody.BoundToSubProperty
+                                        if (body.property.name == it.name) {
+                                            return@map it to valueFromBody
+                                        }
+                                    }
+
+                                    // All arguments were collected successfully from the request, but we still
+                                    // can't satisfy this constructor parameter. As a result it must be a bug in
+                                    // the description.
+                                    throw IllegalStateException("The property '$name' was not bound in description!")
+                                }
+
+                                it to allValuesFromRequest[name]
+                            }.toMap()
+
+                            try {
+                                constructor.callBy(resolvedArguments)
+                            } catch (ex: IllegalArgumentException) {
+                                log.debug("Caught (validation) exception during construction of request object!")
+                                log.debug(ex.stackTraceToString())
+
+                                return@handle call.respond(HttpStatusCode.BadRequest)
+                            } catch (ex: Exception) {
+                                log.warn("Caught exception during construction of request object!")
+                                log.warn(ex.stackTraceToString())
+
+                                return@handle call.respond(HttpStatusCode.InternalServerError)
                             }
-
-                            it to allValuesFromRequest[name]
-                        }.toMap()
-
-                        try {
-                            constructor.callBy(resolvedArguments)
-                        } catch (ex: IllegalArgumentException) {
-                            log.debug("Caught (validation) exception during construction of request object!")
-                            log.debug(ex.stackTraceToString())
-
-                            return@handle call.respond(HttpStatusCode.BadRequest)
-                        } catch (ex: Exception) {
-                            log.warn("Caught exception during construction of request object!")
-                            log.warn(ex.stackTraceToString())
-
-                            return@handle call.respond(HttpStatusCode.InternalServerError)
+                        } else {
+                            @Suppress("UNCHECKED_CAST")
+                            // Request bound to body. We just need to cast the already parsed body. Type safety is
+                            // ensured by builder.
+                            valueFromBody as P
                         }
-                    } else {
-                        @Suppress("UNCHECKED_CAST")
-                        // Request bound to body. We just need to cast the already parsed body. Type safety is
-                        // ensured by builder.
-                        valueFromBody as P
-                    }
-                }
-
-                val restHandler = RESTHandler(payload, this, logResponse, restCall)
-                try {
-                    // Call the handler with the payload
-                    restHandler.handler(payload)
-                } catch (ex: RPCException) {
-                    if (ex.httpStatusCode == HttpStatusCode.InternalServerError) {
-                        log.warn("Internal server error in ${restCall.fullName}")
-                        log.warn(ex.stackTraceToString())
                     }
 
-                    if (CommonErrorMessage::class.java == restCall.responseTypeFailure.type) {
-                        val message =
-                            if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why
-                            else "Internal Server Error"
+                    val restHandler = RESTHandler(payload, this, logResponse, restCall)
+                    try {
+                        // Call the handler with the payload
+                        restHandler.handler(payload)
+                    } catch (ex: RPCException) {
+                        if (ex.httpStatusCode == HttpStatusCode.InternalServerError) {
+                            log.warn("Internal server error in ${restCall.fullName}")
+                            log.warn(ex.stackTraceToString())
+                        }
 
-                        @Suppress("UNCHECKED_CAST")
-                        restHandler.error(CommonErrorMessage(message) as E, ex.httpStatusCode)
-                    } else {
-                        log.info(ex.stackTraceToString())
+                        if (CommonErrorMessage::class.java == restCall.responseTypeFailure.type) {
+                            val message =
+                                if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why
+                                else "Internal Server Error"
 
-                        log.info(
-                            "Cannot auto-complete exception message when error type is not " +
-                                    "CommonErrorMessage. Please catch exceptions yourself."
-                        )
-                        call.respond(ex.httpStatusCode)
+                            @Suppress("UNCHECKED_CAST")
+                            restHandler.error(CommonErrorMessage(message) as E, ex.httpStatusCode)
+                        } else {
+                            log.info(ex.stackTraceToString())
+
+                            log.info(
+                                "Cannot auto-complete exception message when error type is not " +
+                                        "CommonErrorMessage. Please catch exceptions yourself."
+                            )
+                            call.respond(ex.httpStatusCode)
+                        }
+
+                        restHandler.okContentDeliveredExternally()
                     }
 
-                    restHandler.okContentDeliveredExternally()
+                    if (!restHandler.finalized) {
+                        warnMissingFinalize(restCall)
+                    }
+                } catch (ex: Exception) {
+                    log.warn(
+                        "Caught exception while handling implement. Exception was not caught in the normal " +
+                                "handler."
+                    )
+                    log.warn(ex.stackTraceToString())
+                    call.respond(HttpStatusCode.InternalServerError)
                 }
-
-                if (!restHandler.finalized) {
-                    warnMissingFinalize(restCall)
-                }
-            } catch (ex: Exception) {
-            log.warn(
-                "Caught exception while handling implement. Exception was not caught in the normal " +
-                        "handler."
-            )
-            log.warn(ex.stackTraceToString())
-            call.respond(HttpStatusCode.InternalServerError)
-        }
+            }
         }
     }
-}
 }
 
 sealed class InputParsingResponse {
@@ -423,24 +425,32 @@ fun <R : Any> RESTPathSegment<R>.bindValuesFromCall(call: ApplicationCall): Pair
     return when (this) {
         is RESTPathSegment.Property<R, *> -> {
             val parameter = call.parameters[property.name]
-            if (!property.returnType.isMarkedNullable && parameter == null) {
-                throw IllegalArgumentException("Invalid message. Missing parameter '${property.name}'")
-            }
+            @Suppress("UNCHECKED_CAST")
+            val companion =
+                resolveCompanionInstanceFromType(property.returnType.javaType) as? RequestPathSegmentMarshall<Any>
 
-            val converted = if (parameter != null) {
-                try {
-                    call.application.conversionService.fromValues(listOf(parameter), property.returnType.javaType)
-                } catch (ex: DataConversionException) {
-                    throw IllegalArgumentException(ex)
-                } catch (ex: NoSuchElementException) {
-                    // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
-                    throw IllegalArgumentException(ex)
-                }
+            if (companion != null) {
+                companion.deserializeSegment(this, call)
             } else {
-                null
-            }
+                if (!property.returnType.isMarkedNullable && parameter == null) {
+                    throw IllegalArgumentException("Invalid message. Missing parameter '${property.name}'")
+                }
 
-            Pair(property.name, converted)
+                val converted = if (parameter != null) {
+                    try {
+                        call.application.conversionService.fromValues(listOf(parameter), property.returnType.javaType)
+                    } catch (ex: DataConversionException) {
+                        throw IllegalArgumentException(ex)
+                    } catch (ex: NoSuchElementException) {
+                        // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
+                        throw IllegalArgumentException(ex)
+                    }
+                } else {
+                    null
+                }
+
+                Pair(property.name, converted)
+            }
         }
 
         else -> null
@@ -450,37 +460,44 @@ fun <R : Any> RESTPathSegment<R>.bindValuesFromCall(call: ApplicationCall): Pair
 fun <R : Any> RESTQueryParameter<R>.bindValuesFromCall(call: ApplicationCall): Pair<String, Any?>? {
     return when (this) {
         is RESTQueryParameter.Property<R, *> -> {
-            val parameter = call.request.queryParameters[property.name]
-            if (!property.returnType.isMarkedNullable && parameter == null) {
-                throw IllegalArgumentException("Invalid message. Missing parameter '${property.name}'")
-            }
+            @Suppress("UNCHECKED_CAST")
+            val companion =
+                resolveCompanionInstanceFromType(property.returnType.javaType) as? RequestQueryParamMarshall<Any>
 
-            val converted = if (parameter != null) {
-                try {
-                    when (property.returnType.classifier) {
-                        Boolean::class -> {
-                            if (parameter.isEmpty()) true
-                            else parameter.toBoolean()
-                        }
-
-                        else -> {
-                            call.application.conversionService.fromValues(
-                                listOf(parameter),
-                                property.returnType.javaType
-                            )
-                        }
-                    }
-                } catch (ex: DataConversionException) {
-                    throw IllegalArgumentException(ex)
-                } catch (ex: NoSuchElementException) {
-                    // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
-                    throw IllegalArgumentException(ex)
-                }
+            if (companion != null) {
+                companion.deserializeQueryParam(this, call)
             } else {
-                null
-            }
+                val parameter = call.request.queryParameters[property.name]
+                if (!property.returnType.isMarkedNullable && parameter == null) {
+                    throw IllegalArgumentException("Invalid message. Missing parameter '${property.name}'")
+                }
 
-            Pair(property.name, converted)
+                val converted = if (parameter != null) {
+                    try {
+                        when (property.returnType.classifier) {
+                            Boolean::class -> {
+                                if (parameter.isEmpty()) true
+                                else parameter.toBoolean()
+                            }
+
+                            else -> {
+                                call.application.conversionService.fromValues(
+                                    listOf(parameter),
+                                    property.returnType.javaType
+                                )
+                            }
+                        }
+                    } catch (ex: DataConversionException) {
+                        throw IllegalArgumentException(ex)
+                    } catch (ex: NoSuchElementException) {
+                        // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
+                        throw IllegalArgumentException(ex)
+                    }
+                } else {
+                    null
+                }
+                Pair(property.name, converted)
+            }
         }
     }
 }

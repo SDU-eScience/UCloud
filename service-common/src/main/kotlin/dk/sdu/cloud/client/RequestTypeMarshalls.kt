@@ -5,10 +5,12 @@ import io.ktor.application.ApplicationCall
 import io.ktor.pipeline.PipelineContext
 
 interface RequestPathSegmentMarshall<R> {
+    fun deserializeSegment(segment: RESTPathSegment<*>, call: ApplicationCall): Pair<String, Any?>?
     fun serializePathSegment(segment: RESTPathSegment<*>, value: R): String
 }
 
 interface RequestQueryParamMarshall<R> {
+    fun deserializeQueryParam(segment: RESTQueryParameter<*>, call: ApplicationCall): Pair<String, Any?>?
     fun serializeQueryParam(param: RESTQueryParameter<*>, value: R): Pair<String, String>
 }
 
