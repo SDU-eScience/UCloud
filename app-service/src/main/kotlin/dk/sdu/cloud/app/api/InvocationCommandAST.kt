@@ -18,14 +18,16 @@ private val log = LoggerFactory.getLogger(InvocationParameter::class.java)
     JsonSubTypes.Type(value = VariableInvocationParameter::class, name = "var")
 )
 sealed class InvocationParameter {
-    abstract fun buildInvocationSnippet(parameters: Map<ApplicationParameter<*>, Any?>): String?
+    abstract fun buildInvocationSnippet(parameters: AppParametersWithValues): String?
 }
 
 class WordInvocationParameter(val word: String) : InvocationParameter() {
-    override fun buildInvocationSnippet(parameters: Map<ApplicationParameter<*>, Any?>): String? {
+    override fun buildInvocationSnippet(parameters: AppParametersWithValues): String? {
         return word
     }
 }
+
+typealias AppParametersWithValues = Map<ApplicationParameter<*>, ParsedApplicationParameter?>
 
 class VariableInvocationParameter(
     val variableNames: List<String>,
@@ -35,7 +37,7 @@ class VariableInvocationParameter(
     val suffixVariable: String = "",
     val variableSeparator: String = " "
 ) : InvocationParameter() {
-    override fun buildInvocationSnippet(parameters: Map<ApplicationParameter<*>, Any?>): String? {
+    override fun buildInvocationSnippet(parameters: AppParametersWithValues): String? {
         val relevantTypesToValue = parameters.filter { it.key.name in variableNames }
         val nameToTypeAndValue = relevantTypesToValue.entries.associateBy { it.key.name }
 
@@ -44,12 +46,12 @@ class VariableInvocationParameter(
             log.warn("Could not find the following parameters: $notFound")
         }
 
-        val middlePart = variableNames.mapNotNull {
+        val middlePart = variableNames.asSequence().mapNotNull {
             val typeAndValue = nameToTypeAndValue[it] ?: return@mapNotNull null
             val value = typeAndValue.value ?: return@mapNotNull null
 
             @Suppress("UNCHECKED_CAST")
-            val parameter = typeAndValue.key as ApplicationParameter<Any>
+            val parameter = typeAndValue.key as ApplicationParameter<ParsedApplicationParameter>
 
             prefixVariable +
                     BashEscaper.safeBashArgument(parameter.toInvocationArgument(value)) +
@@ -64,17 +66,17 @@ class BooleanFlagParameter(
     val variableName: String,
     val flag: String
 ) : InvocationParameter() {
-    override fun buildInvocationSnippet(parameters: Map<ApplicationParameter<*>, Any?>): String? {
+    override fun buildInvocationSnippet(parameters: AppParametersWithValues): String? {
         val parameter = parameters.filterKeys { it.name == variableName }.keys.singleOrNull()
-                ?: return null
+            ?: return null
 
-        val value = parameters[parameter] as? Boolean ?: throw InvalidParamUsage(
+        val value = parameters[parameter] as? BooleanApplicationParameter ?: throw InvalidParamUsage(
             "Invalid type",
             this,
             parameters
         )
 
-        return if (value) flag else null
+        return if (value.value) flag else null
     }
 }
 
@@ -88,7 +90,7 @@ private data class InvalidParamUsage(
     }
 }
 
-fun Iterable<InvocationParameter>.buildSafeBashString(parameters: Map<ApplicationParameter<*>, Any>): String =
+fun Iterable<InvocationParameter>.buildSafeBashString(parameters: AppParametersWithValues): String =
     mapNotNull {
         try {
             it.buildInvocationSnippet(parameters)

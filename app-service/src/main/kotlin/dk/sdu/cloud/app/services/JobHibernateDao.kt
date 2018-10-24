@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.api.VerifiedJob
@@ -48,7 +49,7 @@ data class JobInformationEntity(
     var tasksPerNode: Int,
 
     @Type(type = JSONB_TYPE)
-    var parameters: Map<String, Any?>, // TODO We won't be able to deserialize this!
+    var parameters: Map<String, ParsedApplicationParameter?>,
 
     @Type(type = JSONB_TYPE)
     var files: List<ValidatedFileForUpload>,
