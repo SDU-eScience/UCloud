@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Dropdown as SDropdown, Icon as SIcon, Input as SInput, Checkbox as SCheckbox } from "semantic-ui-react";
+import { Icon as SIcon, Input as SInput, Checkbox as SCheckbox } from "semantic-ui-react";
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
@@ -24,10 +24,11 @@ import {
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
 import InlinedRelative from "ui-components/InlinedRelative";
-import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex } from "ui-components";
+import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex, Divider } from "ui-components";
 import { Dispatch } from "redux";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 
 class Files extends React.Component<FilesProps> {
 
@@ -203,7 +204,7 @@ export const FilesTable = ({
                         <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</TableCell>
                         <TableCell textAlign="center">
                             <ClickableDropdown width="175px" trigger={<SIcon name="ellipsis horizontal" />}>
-                                <FileOperations files={[file]} fileOperations={fileOperations} As={"div"} />
+                                <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
                             </ClickableDropdown>
                         </TableCell>
                     </TableRow>)
@@ -250,16 +251,17 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
 );
 
 const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isSortedBy }: SortByDropdownProps) => asDropdown ? (
-    <SDropdown simple text={UF.prettierString(currentSelection)}>
-        <SDropdown.Menu>
-            <SDropdown.Item text={UF.prettierString(SortOrder.ASCENDING)} onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)} disabled={sortOrder === SortOrder.ASCENDING && isSortedBy} />
-            <SDropdown.Item text={UF.prettierString(SortOrder.DESCENDING)} onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)} disabled={sortOrder === SortOrder.DESCENDING && isSortedBy} />
-            <SDropdown.Divider />
+    <Dropdown>
+        {UF.prettierString(currentSelection)}
+        <DropdownContent cursor="pointer">
+            <Box ml="-16px" mr="-16px" pl="15px" onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)} /* disabled={sortOrder === SortOrder.ASCENDING && isSortedBy} */>{UF.prettierString(SortOrder.ASCENDING)}</Box>
+            <Box ml="-16px" mr="-16px" pl="15px" onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)} /* disabled={sortOrder === SortOrder.DESCENDING && isSortedBy} */>{UF.prettierString(SortOrder.DESCENDING)}</Box>
+            <Divider ml="-16px" mr="-16px" />
             {Object.keys(SortBy).filter(it => it !== currentSelection).map((sortByKey: SortBy, i) => (
-                <SDropdown.Item key={i} onClick={() => onSelect(sortOrder, sortByKey)} text={UF.prettierString(sortByKey)} />
+                <Box ml="-16px" mr="-16px" pl="15px" key={i} onClick={() => onSelect(sortOrder, sortByKey)}>{UF.prettierString(sortByKey)}</Box>
             ))}
-        </SDropdown.Menu>
-    </SDropdown>) : <>{UF.prettierString(currentSelection)}</>;
+        </DropdownContent>
+    </Dropdown>) : <>{UF.prettierString(currentSelection)}</>;
 
 const ContextBar = ({ files, ...props }: ContextBarProps) => (
     <Box mt="65px">
@@ -341,12 +343,12 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
 
 const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
     <div>
-        <Heading>{toFileText(files)}</Heading>
-        <FileOperations files={files} fileOperations={fileOperations} As="div" />
+        <Heading pl="5px" pt="5px">{toFileText(files)}</Heading>
+        <FileOperations files={files} fileOperations={fileOperations} As={Box} pl="30px" />
     </div>
 ) : null;
 
-export const FileOperations = ({ files, fileOperations, As }) => files.length && fileOperations.length ?
+export const FileOperations = ({ files, fileOperations, As, ...props }) => files.length && fileOperations.length ?
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
         if (fileOp.predicate) {
@@ -354,7 +356,7 @@ export const FileOperations = ({ files, fileOperations, As }) => files.length &&
         }
         operation = operation as Operation;
         return !operation.disabled(files, Cloud) ? (
-            <As key={i} onClick={() => (operation as Operation).onClick(files, Cloud)}>
+            <As key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
                 <SIcon color={operation.color} name={operation.icon} />
                 <span className="operation-text" style={{ fontSize: "16px" }}>{operation.text}</span>
             </As>
