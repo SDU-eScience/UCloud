@@ -1,29 +1,3 @@
-def checkFolderForDiffs(path, numberOfCommits) {
-    try {
-        // git diff will return 1 for changes (failure) which is caught in catch, or
-        // 0 meaning no changes 
-        sh "git diff --quiet --exit-code HEAD~${numberOfCommits}..HEAD ${path}"
-        return false
-    } catch (ignored) {
-        return true
-    }
-}
-
-def getLastSuccessfulCommit() {
-    def lastSuccessfulHash = null
-    def lastSuccessfulBuild = currentBuild.rawBuild.getPreviousSuccessfulBuild()
-    if (lastSuccessfulBuild) {
-        lastSuccessfulHash = commitHashForBuild(lastSuccessfulBuild)
-    }
-    return lastSuccessfulHash
-}
-
-@NonCPS
-def commitHashForBuild(build) {
-    def scmAction = build?.actions.find { action -> action instanceof jenkins.scm.api.SCMRevisionAction }
-    return scmAction?.revision?.hash
-}
-
 node {
     if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup') {
         stage('Checkout') {
@@ -80,7 +54,7 @@ node {
                 currentResult = loaded.initialize()
 
                 println("current result = " + currentResult)
-                currentResult = currentBuild.result ?: 'SUCCESS'
+                currentResult = currentResult ?: 'SUCCESS'
                 println("current result after ?: = " + currentResult)
 
                 if (currentResult == 'UNSTABLE') {

@@ -19,11 +19,10 @@ def initialize() {
       ./gradlew test'''
     } 
   } catch (e) {
-      echo "Test FAILED"
-  } finally {
-    def currentResult = currentBuild.result ?: 'SUCCESS'
-    return currentResult
+    echo "Test FAILED"
+    return currentBuild.result ?: 'UNSTABLE'
   }
+  return currentBuild.result ?: 'SUCCESS'
 }
 
 return this
