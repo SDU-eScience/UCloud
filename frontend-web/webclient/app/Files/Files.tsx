@@ -6,7 +6,7 @@ import { Icon as SIcon, Input as SInput, Checkbox as SCheckbox } from "semantic-
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
-import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
+import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import * as UF from "UtilityFunctions";
 import { KeyCode, ReduxObject } from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";

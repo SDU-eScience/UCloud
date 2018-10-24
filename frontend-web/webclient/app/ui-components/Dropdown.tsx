@@ -37,8 +37,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
         cursor: ${props => props.cursor}
     }
     
-    /* FIXME too specific */
-    & > div > i {
+    & i {
         margin-right: 1em;
     }
 `;

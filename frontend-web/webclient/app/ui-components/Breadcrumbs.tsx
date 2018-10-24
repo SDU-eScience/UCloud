@@ -1,29 +1,60 @@
 import * as React from "react";
-import { Breadcrumb } from "semantic-ui-react";
-import { BreadCrumbMapping, Breadcrumbs as BreadCrumbsList } from ".";
+import styled from "styled-components";
 
-export const BreadCrumbs = ({ currentPath, navigate, homeFolder }: BreadCrumbsList) => {
+// https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
+const BreadCrumbsBase = styled.ul<{ divider?: string }>`
+    padding: 10px 16px;
+    list-style: none;
+
+    & li {
+        display: inline;
+        font-size: 18px;
+    }
+
+    & li + li:before {
+        padding: 8px;
+        color: black;
+        content: "${props => props.divider}";
+    }
+
+    & li span {
+        color: #0275d8;
+        text-decoration: none;
+    }
+
+    & li span:hover {
+        color: #01447e;
+        text-decoration: none;
+    }
+`;
+
+export interface BreadcrumbsList { currentPath: string, navigate: (path: string) => void, homeFolder: string }
+
+export interface BreadCrumbMapping {
+    actualPath: string
+    local: string
+}
+
+export const BreadCrumbs = ({ currentPath, navigate, homeFolder }: BreadcrumbsList) => {
     if (!currentPath) return null;
     const pathsMapping = buildBreadCrumbs(currentPath, homeFolder);
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map((path, index) => (
-        <React.Fragment key={index}>
-            <Breadcrumb.Section onClick={() => navigate(`${path.actualPath}`)} link>
+        <li key={index}>
+            <span onClick={() => navigate(`${path.actualPath}`)}>
                 {path.local}
-            </Breadcrumb.Section>
-            <Breadcrumb.Divider />
-        </React.Fragment>
+            </span>
+        </li>
     ));
 
     return (
-        <Breadcrumb size="large" className="breadcrumb-margin">
+        <BreadCrumbsBase divider="/">
             {breadcrumbs}
-            <Breadcrumb.Section active>
+            <li>
                 {activePathsMapping.local}
-            </Breadcrumb.Section>
-            <Breadcrumb.Divider />
-        </Breadcrumb>
+            </li>
+        </BreadCrumbsBase>
     );
 }
 
