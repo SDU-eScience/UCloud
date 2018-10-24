@@ -218,9 +218,7 @@ export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback:
     });
 
 export const getParentPath = (path: string): string => {
-    if (!path) {
-        return "";
-    }
+    if (path.length === 0) return path;
     let splitPath = path.split("/");
     splitPath = splitPath.filter(path => path);
     let parentPath = "/";
