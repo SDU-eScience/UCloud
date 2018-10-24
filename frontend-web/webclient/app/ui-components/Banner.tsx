@@ -3,7 +3,7 @@ import Box from "./Box"
 import Flex from "./Flex"
 import Text, { TextSpan } from "./Text"
 import Icon, { IconName } from "./Icon"
-import Heading from "./Heading"
+import * as Heading from "./Heading"
 import CloseButton from "./CloseButton"
 import { TextAlign } from "./Types";
 import { BoxProps } from "./Box";
