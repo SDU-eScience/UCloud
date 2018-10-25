@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import { left, width } from "styled-system";
+import { left, width, minWidth } from "styled-system";
 import { CursorProperty } from "csstype";
 
 
@@ -27,7 +27,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     background-color: ${props => props.theme.colors.white}
     color: black;
     width: ${props => props.width};
-    min-width: 138px;
+    min-width: ${props => props.minWidth ? props.minWidth : "138" }px;
     box-shadow: 0px 0px 3px 1px rgba(0, 0, 0, 0.2);
     padding: 12px 16px;
     z-index: 1;
@@ -46,7 +46,8 @@ DropdownContent.defaultProps = {
     hover: true,
     width: "138px",
     disabled: false,
-    cursor: "auto"
+    cursor: "auto",
+    minWidth: "138px"
 }
 
 interface DropdownContentProps {
@@ -54,5 +55,6 @@ interface DropdownContentProps {
     hover?: boolean
     width?: string
     disabled?: boolean
+    minWidth?: string
     cursor?: string // FIXME There must be a type
 }

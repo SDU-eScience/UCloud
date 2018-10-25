@@ -3,7 +3,13 @@ import * as ReactDOM from "react-dom";
 import { Dropdown, DropdownContent } from "./Dropdown";
 
 type ClickableDropdownState = { open: boolean }
-type ClickableDropdownProps = { children: React.ReactNode, trigger: React.ReactNode, width?: string }
+type ClickableDropdownProps = {
+    children: React.ReactNode,
+    trigger: React.ReactNode,
+    width?: string,
+    minWidth?: string
+    left?: string
+}
 
 class ClickableDropdown extends React.Component<ClickableDropdownProps, ClickableDropdownState> {
     constructor(props) {
@@ -23,11 +29,12 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
     }
 
     render() {
+        const { ...props } = this.props;
         return (
             <Dropdown>
                 <span onClick={() => this.setState(() => ({ open: !this.state.open }))}>{this.props.trigger}</span>
                 {this.state.open ?
-                    <DropdownContent width={this.props.width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
+                    <DropdownContent left={props.left} minWidth={this.props.minWidth} width={this.props.width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
                         {this.props.children}
                     </DropdownContent> : null}
             </Dropdown>
