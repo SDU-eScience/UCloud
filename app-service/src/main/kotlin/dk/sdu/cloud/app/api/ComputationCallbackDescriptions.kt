@@ -95,6 +95,8 @@ object ComputationCallbackDescriptions : RESTDescriptions("app.compute") {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
+
+        body { bindEntireRequestFromBody() }
     }
 
     val lookup = callDescription<FindByStringId, VerifiedJob, CommonErrorMessage> {
@@ -104,6 +106,7 @@ object ComputationCallbackDescriptions : RESTDescriptions("app.compute") {
         path {
             using(baseContext)
             +"lookup"
+            +boundTo(FindByStringId::id)
         }
 
         auth {

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.services
 
+import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
 
@@ -16,5 +17,6 @@ sealed class JobException(why: String, httpStatusCode: HttpStatusCode) : RPCExce
     class TransferError(why: String = "") :
         JobException("Could not transfer files to computation. $why", HttpStatusCode.BadRequest)
 
-    class BadStateTransition(why: String = "") : JobException("Bad state transition", HttpStatusCode.BadRequest)
+    class BadStateTransition(from: JobState, to: JobState) :
+        JobException("Bad state transition ($from -> $to)", HttpStatusCode.BadRequest)
 }

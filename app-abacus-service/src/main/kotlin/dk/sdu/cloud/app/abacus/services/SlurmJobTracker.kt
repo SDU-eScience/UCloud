@@ -13,16 +13,20 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
 
-class SlurmJobTracker(
+class SlurmJobTracker<DBSession>(
     private val slurmPollAgent: SlurmPollAgent,
     private val jobFileService: JobFileService,
     private val sshConnectionPool: SSHConnectionPool,
-    private val cloud: AuthenticatedCloud
+    private val cloud: AuthenticatedCloud,
+    private val db: DBSessionFactory<DBSession>,
+    private val jobDao: JobDao<DBSession>
 ) {
     private val listener: SlurmEventListener = {
         runBlocking {
@@ -122,11 +126,13 @@ class SlurmJobTracker(
 
         if (stateResult is RESTResponse.Err) {
             log.warn("Could not notify orchestrator about failure $event [$systemId]")
-            log.warn(stateResult.response.toString())
+            log.warn(stateResult.toString())
         }
     }
 
-    private fun resolveSlurmIdToSystemId(slurmId: Long): String = TODO()
+    private fun resolveSlurmIdToSystemId(slurmId: Long): String =
+        db.withTransaction { jobDao.resolveSystemId(it, slurmId) }
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
     companion object : Loggable {
         override val log = logger()

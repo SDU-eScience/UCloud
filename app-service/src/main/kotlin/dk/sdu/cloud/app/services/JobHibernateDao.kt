@@ -104,13 +104,13 @@ class JobHibernateDao(
     override fun updateStatus(session: HibernateSession, systemId: String, status: String) {
         val entity = JobInformationEntity[session, systemId] ?: throw JobException.NotFound("job: $systemId")
         entity.status = status
-        session.update(entity)
+        session.save(entity)
     }
 
     override fun updateState(session: HibernateSession, systemId: String, state: JobState) {
         val entity = JobInformationEntity[session, systemId] ?: throw JobException.NotFound("job: $systemId")
         entity.state = state
-        session.update(entity)
+        session.save(entity)
     }
 
     override fun findOrNull(

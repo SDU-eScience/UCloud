@@ -111,7 +111,7 @@ class JobOrchestrator<DBSession>(
                 stateChangeProducer.emit(event)
                 handleStateChangeImmediately(jobWithToken, event)
             } else {
-                throw JobException.BadStateTransition()
+                throw JobException.BadStateTransition(job.currentState, event.newState)
             }
         }
     }
@@ -163,6 +163,10 @@ class JobOrchestrator<DBSession>(
      * Handles a state change immediately (as we emit it to Kafka)
      */
     private suspend fun handleStateChangeImmediately(jobWithToken: VerifiedJobWithAccessToken, event: JobStateChange) {
+        db.withTransaction {
+            jobDao.updateState(it, event.systemId, event.newState)
+        }
+
         when (event.newState) {
             JobState.TRANSFER_SUCCESS -> {
                 // We need to create the directory immediately
@@ -189,6 +193,9 @@ class JobOrchestrator<DBSession>(
                     JobState.VALIDATED -> {
                         // Ask backend to prepare the job
                         transferFilesToCompute(jobWithToken)
+                        db.withTransaction {
+                            jobDao.updateState(it, job.id, JobState.PREPARED)
+                        }
                         backend.jobPrepared.call(job, serviceCloud).orThrow()
                     }
 
@@ -256,9 +263,10 @@ class JobOrchestrator<DBSession>(
         private val validStateTransitions: Map<JobState, Set<JobState>> = mapOf(
             JobState.VALIDATED to (setOf(JobState.PREPARED) + finalStates),
             JobState.PREPARED to (setOf(JobState.SCHEDULED, JobState.RUNNING) + finalStates),
-            JobState.SCHEDULED to (setOf(JobState.RUNNING) + finalStates),
+            // We allow scheduled to skip running in case of quick jobs
+            JobState.SCHEDULED to (setOf(JobState.RUNNING, JobState.TRANSFER_SUCCESS) + finalStates),
             JobState.RUNNING to (setOf(JobState.TRANSFER_SUCCESS, JobState.FAILURE)),
-            JobState.TRANSFER_SUCCESS to (setOf(JobState.SUCCESS)),
+            JobState.TRANSFER_SUCCESS to (setOf(JobState.SUCCESS, JobState.FAILURE)),
             JobState.FAILURE to emptySet(),
             JobState.SUCCESS to emptySet()
         )

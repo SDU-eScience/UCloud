@@ -13,7 +13,7 @@ import io.ktor.routing.Route
 
 class ComputeController(
     private val jobFileService: JobFileService,
-    private val slurmService: SlurmScheduler
+    private val slurmService: SlurmScheduler<*>
 ) : Controller {
     override val baseContext: String = AbacusComputationDescriptions.baseContext
 

@@ -4,8 +4,21 @@ data class SBatchSubmissionResult(val exitCode: Int, val output: String, val job
 
 private val submitRegex = Regex("Submitted batch job (\\d+)")
 
-fun SSHConnection.sbatch(file: String, vararg args: String): SBatchSubmissionResult {
-    val (exit, output) = exec("sbatch $file ${args.joinToString(" ")}") { inputStream.reader().readText() }
+fun SSHConnection.sbatch(
+    file: String,
+    reservation: String? = null,
+    vararg args: String
+): SBatchSubmissionResult {
+    val command = ArrayList<String>().apply {
+        add("sbatch")
+        if (reservation != null) {
+            BashEscaper.safeBashArgument("--reservation=$reservation")
+        }
+        add(BashEscaper.safeBashArgument(file))
+        addAll(args)
+    }.joinToString(" ")
+
+    val (exit, output) = exec(command) { inputStream.reader().readText() }
 
     val match = submitRegex.find(output)
     return if (match != null) {

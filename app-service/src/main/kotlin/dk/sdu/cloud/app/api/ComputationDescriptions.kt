@@ -46,6 +46,8 @@ abstract class ComputationDescriptions(namespace: String) : RESTDescriptions("ap
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
+
+        body { bindEntireRequestFromBody() }
     }
 
     /**

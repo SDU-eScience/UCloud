@@ -1,12 +1,14 @@
 package dk.sdu.cloud.app
 
 import dk.sdu.cloud.app.api.AccountingEvents
-import dk.sdu.cloud.app.api.ApplicationDescription
-import dk.sdu.cloud.app.api.ApplicationDescriptions
+import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.JobStreams
 import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.ToolDescription
+import dk.sdu.cloud.app.api.VariableInvocationParameter
+import dk.sdu.cloud.app.api.WordInvocationParameter
 import dk.sdu.cloud.app.http.AppController
 import dk.sdu.cloud.app.http.CallbackController
 import dk.sdu.cloud.app.http.JobController
@@ -58,7 +60,7 @@ class Server(
         val toolDao = ToolHibernateDAO()
         val applicationDao = ApplicationHibernateDAO(toolDao)
 
-        val computationBackendService = ComputationBackendService(config.backends)
+        val computationBackendService = ComputationBackendService(config.backends, developmentModeEnabled)
         val jobDao = JobHibernateDao(applicationDao)
         val jobVerificationService = JobVerificationService(db, applicationDao)
         val jobFileService = JobFileService(cloud)
@@ -85,11 +87,11 @@ class Server(
                         it,
                         "admin@dev",
                         ToolDescription.V1(
-                            name = "tool",
+                            name = "figlet",
                             version = "1.0.0",
-                            title = "Tool",
-                            container = "tool",
-                            backend = ToolBackend.UDOCKER,
+                            title = "figlet",
+                            container = "figlet.simg",
+                            backend = ToolBackend.SINGULARITY,
                             authors = listOf("Dan Thrane")
                         ).normalize()
                     )
@@ -97,15 +99,23 @@ class Server(
                     applicationDao.create(
                         it,
                         "admin@dev",
-                        ApplicationDescription.V1(
-                            name = "app",
-                            version = "1.0.0",
-                            tool = NameAndVersion("tool", "1.0.0"),
+                        NormalizedApplicationDescription(
+                            info = NameAndVersion("figlet", "1.0.0"),
+                            tool = NameAndVersion("figlet", "1.0.0"),
                             authors = listOf("Dan Thrane"),
-                            title = "App",
-                            description = "Description",
-                            invocation = listOf("foo")
-                        ).normalize()
+                            title = "figlet",
+                            description = "figlet",
+                            invocation = listOf(
+                                WordInvocationParameter("figlet"),
+                                VariableInvocationParameter(listOf("text"))
+                            ),
+                            parameters = listOf(
+                                ApplicationParameter.Text(
+                                    name = "text"
+                                )
+                            ),
+                            outputFileGlobs = listOf("stdout.txt", "stderr.txt")
+                        )
                     )
 
                     log.info("Created development 'tool@1.0.0' and 'app@1.0.0'")
@@ -121,7 +131,7 @@ class Server(
 
         httpServer = ktor {
             log.info("Configuring HTTP server")
-            installDefaultFeatures(cloud, kafka, instance)
+            installDefaultFeatures(cloud, kafka, instance, requireJobId = !developmentModeEnabled)
 
             routing {
                 configureControllers(

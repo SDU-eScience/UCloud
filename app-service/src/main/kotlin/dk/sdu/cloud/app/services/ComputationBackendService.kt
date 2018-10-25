@@ -8,14 +8,17 @@ import io.ktor.http.HttpStatusCode
 class NamedComputationBackendDescriptions(name: String) : ComputationDescriptions(name)
 
 class ComputationBackendService(
-    backends: List<String>
+    backends: List<String>,
+    private val developmentModeEnabled: Boolean
 ) {
     private val backends = backends.toSet()
 
     fun getAndVerifyByName(backend: String, principal: SecurityPrincipal? = null): NamedComputationBackendDescriptions {
         if (backend !in backends) throw ComputationBackendException.UnrecognizedBackend(backend)
-        if (principal != null && principal.username != backendPrincipalName(backend)) {
-            throw ComputationBackendException.UntrustedSource()
+        if (!developmentModeEnabled) {
+            if (principal != null && principal.username != backendPrincipalName(backend)) {
+                throw ComputationBackendException.UntrustedSource()
+            }
         }
 
         return NamedComputationBackendDescriptions(backend)

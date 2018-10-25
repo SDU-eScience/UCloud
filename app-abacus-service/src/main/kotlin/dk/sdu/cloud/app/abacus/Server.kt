@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.abacus
 
 import dk.sdu.cloud.app.abacus.http.ComputeController
 import dk.sdu.cloud.app.abacus.services.JobFileService
+import dk.sdu.cloud.app.abacus.services.JobInMemoryDao
 import dk.sdu.cloud.app.abacus.services.SBatchGenerator
 import dk.sdu.cloud.app.abacus.services.SlurmJobTracker
 import dk.sdu.cloud.app.abacus.services.SlurmPollAgent
@@ -13,6 +14,7 @@ import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
@@ -38,7 +40,7 @@ class Server(
 
     private lateinit var scheduledExecutor: ScheduledExecutorService
     private lateinit var slurmPollAgent: SlurmPollAgent
-    private lateinit var slurmTracker: SlurmJobTracker
+    private lateinit var slurmTracker: SlurmJobTracker<HibernateSession>
 
     override fun start() {
         log.info("Initializing core services")
@@ -54,9 +56,20 @@ class Server(
             pollUnit = TimeUnit.SECONDS
         )
 
+        val jobDao = JobInMemoryDao()
         val jobFileService = JobFileService(sshPool, cloud, config.workingDirectory)
-        val slurmService = SlurmScheduler(sshPool, jobFileService, sBatchGenerator, slurmPollAgent)
-        slurmTracker = SlurmJobTracker(slurmPollAgent, jobFileService, sshPool, cloud).also { it.init() }
+        val slurmScheduler =
+            SlurmScheduler(
+                sshPool,
+                jobFileService,
+                sBatchGenerator,
+                slurmPollAgent,
+                db,
+                jobDao,
+                cloud,
+                config.reservation
+            )
+        slurmTracker = SlurmJobTracker(slurmPollAgent, jobFileService, sshPool, cloud, db, jobDao).also { it.init() }
 
         log.info("Core services initialized")
 
@@ -65,7 +78,7 @@ class Server(
 
             routing {
                 configureControllers(
-                    ComputeController(jobFileService, slurmService)
+                    ComputeController(jobFileService, slurmScheduler)
                 )
             }
         }

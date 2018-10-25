@@ -18,7 +18,8 @@ import dk.sdu.cloud.service.serviceInstance
 data class HPCConfig(
     val ssh: SimpleSSHConfig,
     val slurmPollIntervalSeconds: Long = 15L,
-    val workingDirectory: String = "/scratch/sduescience/jobs"
+    val workingDirectory: String = "/scratch/sduescience/jobs",
+    val reservation: String? = null
 )
 
 fun main(args: Array<String>) {
