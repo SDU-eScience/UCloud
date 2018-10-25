@@ -17,7 +17,7 @@ const SideBarContainer = styled(Flex)`
     //margin-top: 48px;
     height: 100%;
     flex-flow: column;
-    border-right: 1px solid ${props => props.theme.colors["gray"]}
+    border-right: 1px solid ${props => props.theme.colors.gray}
 `;
 
 const SideBarElementContainer = styled(Flex)`
@@ -26,7 +26,7 @@ const SideBarElementContainer = styled(Flex)`
     align-items: center;
     clear: none;
     :hover {
-        color: ${props => props.theme.colors["blue"]};
+        color: ${props => props.theme.colors.blue};
         cursor: pointer;
         svg {
             filter: saturate(500%);
