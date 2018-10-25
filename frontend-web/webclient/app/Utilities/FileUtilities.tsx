@@ -70,7 +70,7 @@ const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => file
  * @returns Share and Download operations for files
  */
 export const StateLessOperations = (): Operation[] => [
-    { text: "Share", onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => false, icon: "share alternate", color: undefined },
+    { text: "Share", onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => false, icon: "shares", color: undefined },
     { text: "Download", onClick: (files: File[], cloud: Cloud) => downloadFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => !UF.downloadAllowed(files), icon: "download", color: undefined }
 ];
 
@@ -78,7 +78,7 @@ export const StateLessOperations = (): Operation[] => [
  * @returns Move and Copy operations for files
  */
 export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): Operation[] => [
-    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files), icon: "copy outline", color: undefined },
+    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files), icon: "copy", color: undefined },
     { text: "Move", onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "move", color: undefined }
 ];
 
@@ -88,7 +88,7 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
  * @returns the Delete operation in an array
  */
 export const DeleteFileOperation = (onDeleted: () => void): Operation[] => [
-    { text: "Delete", onClick: (files: File[], cloud: Cloud) => batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "trash alternate outline", color: "red" }
+    { text: "Delete", onClick: (files: File[], cloud: Cloud) => batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "delete", color: "red" }
 ];
 
 /**

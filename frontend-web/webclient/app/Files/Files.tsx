@@ -29,6 +29,7 @@ import { Dispatch } from "redux";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
+import { EveryIcon } from "ui-components/Icon";
 
 class Files extends React.Component<FilesProps> {
 
@@ -100,7 +101,7 @@ class Files extends React.Component<FilesProps> {
         const fileOperations: FileOperation[] = [
             {
                 text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)),
-                disabled: () => false, icon: "edit outline", color: undefined
+                disabled: () => false, icon: "rename", color: undefined
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
@@ -363,10 +364,10 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
 };
 
 const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
-    <div>
+    <Box>
         <Heading pl="5px" pt="5px">{toFileText(files)}</Heading>
         <FileOperations files={files} fileOperations={fileOperations} As={Box} pl="30px" />
-    </div>
+    </Box>
 ) : null;
 
 export const FileOperations = ({ files, fileOperations, As, ...props }) => files.length && fileOperations.length ?
@@ -376,9 +377,10 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) => files
             operation = fileOp.predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
         }
         operation = operation as Operation;
+        console.log(operation.icon)
         return !operation.disabled(files, Cloud) ? (
             <As key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
-                <SIcon color={operation.color} name={operation.icon} />
+                <Icon size={16} color={operation.color} name={operation.icon} />
                 <span>{operation.text}</span>
             </As>
         ) : null;

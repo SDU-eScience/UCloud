@@ -37,7 +37,11 @@ export const DropdownContent = styled.div<DropdownContentProps>`
         cursor: ${props => props.cursor}
     }
     
-    & i {
+    & svg {
+        margin-right: 1em;
+    }
+
+    & > svg ~ span {
         margin-right: 1em;
     }
 `;

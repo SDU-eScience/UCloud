@@ -7,6 +7,7 @@ import { Moment } from "moment";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
+import { IconName } from "ui-components/Icon";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -227,7 +228,7 @@ export interface MobileButtonsProps {
 }
 
 export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
-export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: SemanticICONS, color?: SemanticCOLORS }
+export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: SemanticICONS | IconName, color?: SemanticCOLORS }
 export type FileOperation = Operation | PredicatedOperation
 
 export interface ContextButtonsProps {
@@ -262,7 +263,7 @@ export interface DetailedFileSearchState {
     error?: string
 }
 
-export interface ContextBarProps extends ContextButtonsProps, FileOptionsProps { }
+export type ContextBarProps = ContextButtonsProps & FileOptionsProps
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 
