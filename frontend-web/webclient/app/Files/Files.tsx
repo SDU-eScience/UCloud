@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import Link from "ui-components/Link";
-import { Icon as SIcon, Input as SInput } from "semantic-ui-react";
+import { Icon as SIcon } from "semantic-ui-react";
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
@@ -24,7 +24,7 @@ import {
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
 import InlinedRelative from "ui-components/InlinedRelative";
-import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex, Divider, Checkbox, Label } from "ui-components";
+import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex, Divider, Checkbox, Label, Input } from "ui-components";
 import { Dispatch } from "redux";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -316,7 +316,7 @@ const FileLink = ({ file, children }) => {
 
 function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile = () => null }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
-    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(e) => onCheckFile(e.target.checked)} />
+    const checkbox = <Box ml="9px" mt="4px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(e) => onCheckFile(e.target.checked)} /></Box>
     const icon = (
         <FileIcon
             color={isDirectory(file) ? "blue" : "grey"}
@@ -328,25 +328,27 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     return file.beingRenamed ?
         <TableCell>
             <Flex>
-                <SInput
-                    defaultValue={fileName}
-                    onKeyDown={(e) => { if (!!onRenameFile) onRenameFile(e.keyCode, file, e.target.value) }}
-                    autoFocus
-                    transparent
-                    fluid
-                >
-                    {checkbox}
+                {checkbox}
+                <Box ml="9px">
                     {icon}
-                    <input />
+                </Box>
+                <Input
+                    pb="6px"
+                    pt="8px"
+                    mt="-2px"
+                    noBorder
+                    width="100%"
+                    autoFocus
+                    onKeyDown={(e) => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
+                />
+                <Box>
                     <OutlineButton size="tiny" color="red" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton>
-                </SInput>
+                </Box>
             </Flex>
-        </TableCell> :
+        </TableCell > :
         <TableCell>
             <Flex>
-                <Box ml="9px" mt="4px">
-                    {checkbox}
-                </Box>
+                {checkbox}
                 <Box ml="9px">
                     {nameLink}
                 </Box>

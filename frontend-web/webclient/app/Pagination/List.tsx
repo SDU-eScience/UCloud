@@ -57,7 +57,6 @@ export class List extends React.PureComponent<ListProps> {
                 {refreshButton}
                 {!props.customEntriesPerPage ? <Self.EntriesPerPageSelector
                     content="Items per page"
-                    className="items-per-page-padding pagination-float-right"
                     entriesPerPage={props.page.itemsPerPage}
                     onChange={perPage => ifPresent(props.onItemsPerPageChanged, c => c(perPage))}
                 /> : null}

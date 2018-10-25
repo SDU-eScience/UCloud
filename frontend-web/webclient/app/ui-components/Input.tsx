@@ -1,8 +1,9 @@
 import styled from 'styled-components'
-import { space, themeGet, BorderProps, SpaceProps, ColorValue } from 'styled-system'
+import { space, themeGet, BorderProps, SpaceProps, ColorValue, lineHeight } from 'styled-system'
 import defaultTheme from './theme'
 
-const borders = ({ color, theme }: { color?: ColorValue, theme?: any }) => {
+const borders = ({ color, theme, noBorder }: { color?: ColorValue, theme?: any, noBorder?: boolean }) => {
+  if (noBorder) return "";
   const borderColor = color ? theme.colors[color] : theme.colors.borderGray
   const focusColor = color ? borderColor : theme.colors.blue
   return {
@@ -19,9 +20,10 @@ const borders = ({ color, theme }: { color?: ColorValue, theme?: any }) => {
 export interface InputProps extends BorderProps, SpaceProps {
   id?: string
   color?: string
+  noBorder?: boolean
 }
 
-const Input = styled("input")<InputProps>`
+const Input = styled("input") <InputProps>`
   appearance: none;
   display: block;
   width: 100%;
@@ -56,7 +58,8 @@ Input.displayName = "Input";
 
 Input.defaultProps = {
   id: "default",
-  theme: defaultTheme
+  theme: defaultTheme,
+  noBorder: false
 };
 
 export default Input;

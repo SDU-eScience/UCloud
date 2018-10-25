@@ -33,9 +33,6 @@ interface EntriesPerPageSelector {
     entriesPerPage: number,
     onChange: (size: number) => void,
     content?: string
-
-    as?: string
-    className?: string
 }
 
 export const EntriesPerPageSelector = ({
@@ -43,7 +40,7 @@ export const EntriesPerPageSelector = ({
     onChange,
     content
 }: EntriesPerPageSelector) => (
-        <ClickableDropdown left={"55px"} minWidth={"80px"} width={"80px"}
+        <ClickableDropdown left={"85px"} minWidth={"80px"} width={"80px"}
             trigger={<Flex><Box> {`${content} ${entriesPerPage}`}</Box><Box><Icon name="chevronDown" /></Box></Flex>}>
             {EntriesPerPageSelectorOptions.map((opt, i) =>
                 <Box ml="-17px" mr="-17px" key={i} onClick={() => entriesPerPage === opt.value ? undefined : onChange(opt.value)}>

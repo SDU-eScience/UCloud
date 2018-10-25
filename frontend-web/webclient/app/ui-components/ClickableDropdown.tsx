@@ -19,7 +19,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
     }
 
     componentWillUnmount() {
-        document.removeEventListener('click', this.handleClickOutside, true);
+        document.removeEventListener("click", this.handleClickOutside, true);
     }
 
     // https://stackoverflow.com/questions/32553158/detect-click-outside-react-component#42234988
@@ -34,7 +34,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
             <Dropdown>
                 <span onClick={() => this.setState(() => ({ open: !this.state.open }))}>{this.props.trigger}</span>
                 {this.state.open ?
-                    <DropdownContent left={props.left} minWidth={this.props.minWidth} width={this.props.width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
+                    <DropdownContent cursor="pointer" left={props.left} minWidth={this.props.minWidth} width={this.props.width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
                         {this.props.children}
                     </DropdownContent> : null}
             </Dropdown>
