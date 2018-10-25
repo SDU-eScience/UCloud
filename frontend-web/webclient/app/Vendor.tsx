@@ -7,7 +7,6 @@ import "LoadingIcon/colors.scss";
 import "semantic-ui-css/semantic.min.css";
 import "Applications/wizard.scss";
 import "Applications/Applications.scss";
-import "Breadcrumbs/Breadcrumbs.scss";
 import "Dashboard/dashboard.scss";
 import "react-datepicker/dist/react-datepicker.css";
 import "Files/Files.scss";

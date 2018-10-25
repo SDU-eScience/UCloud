@@ -1,5 +1,5 @@
 import Cloud from "Authentication/lib";
-import { File, MoveCopyOperations, Operation, SortOrder, SortBy, Annotation, AnnotationsMap, PredicatedOperation } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, Annotation, AnnotationsMap, PredicatedOperation, FileType } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal from "sweetalert2";
@@ -205,7 +205,7 @@ export const toFileText = (selectedFiles: File[]): string =>
     `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected.`
 
 export const isLink = (file: File) => file.link;
-export const isDirectory = (file: File) => file.fileType === "DIRECTORY";
+export const isDirectory = (file: { fileType: FileType}) => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string) => path.replace(UF.addTrailingSlash(homeFolder), "Home/");
 
 export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>

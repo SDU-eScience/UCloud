@@ -28,6 +28,10 @@ const BreadCrumbsBase = styled.ul<{ divider?: string }>`
     }
 `;
 
+BreadCrumbsBase.defaultProps = {
+    divider: "/"
+}
+
 export interface BreadcrumbsList { currentPath: string, navigate: (path: string) => void, homeFolder: string }
 
 export interface BreadCrumbMapping {

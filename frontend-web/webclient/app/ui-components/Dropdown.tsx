@@ -24,11 +24,11 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     border-radius: 5px;
     ${props => props.hover ? "display: none;" : ""}
     position: absolute;
-    background-color: rgba(235, 239, 243, 1); /* #fff */
+    background-color: ${props => props.theme.colors.white}
     color: black;
     width: ${props => props.width};
     min-width: 138px;
-    box-shadow: 0px 3px 3px 1px rgba(0, 0, 0, 0.2);
+    box-shadow: 0px 0px 3px 1px rgba(0, 0, 0, 0.2);
     padding: 12px 16px;
     z-index: 1;
     text-align: left;

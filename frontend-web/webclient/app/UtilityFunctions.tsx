@@ -7,7 +7,8 @@ import { dateToString } from "Utilities/DateUtilities";
 import {
     getFilenameFromPath,
     fileSizeToString,
-    replaceHomeFolder
+    replaceHomeFolder,
+    isDirectory
 } from "Utilities/FileUtilities";
 
 /**
@@ -231,7 +232,7 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
     if (homeFolderReplaced === "Home/Jobs") return "tasks";
     if (homeFolderReplaced === "Home/Favorites") return "star";
     if (homeFolderReplaced === "Home/Trash") return "trash alternate outline";
-    if (type === "DIRECTORY") return "folder";
+    if (isDirectory({fileType: type})) return "folder";
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {
         return "file outline";

@@ -2,7 +2,7 @@ import * as React from "react";
 import { Modal, Button, List, Input } from "semantic-ui-react";
 import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { BreadCrumbs } from "Breadcrumbs/Breadcrumbs";
+import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import * as PropTypes from "prop-types";
 import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory, createFolder } from "Utilities/FileUtilities";
 import * as uf from "UtilityFunctions";

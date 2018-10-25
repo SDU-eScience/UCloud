@@ -25,7 +25,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
     render() {
         return (
             <Dropdown>
-                <span onClick={() => this.setState(() => ({ open: true }))}>{this.props.trigger}</span>
+                <span onClick={() => this.setState(() => ({ open: !this.state.open }))}>{this.props.trigger}</span>
                 {this.state.open ?
                     <DropdownContent width={this.props.width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
                         {this.props.children}

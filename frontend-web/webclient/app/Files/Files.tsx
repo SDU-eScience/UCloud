@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
-import { Icon as SIcon, Input as SInput, Checkbox as SCheckbox } from "semantic-ui-react";
+import { Icon as SIcon, Input as SInput } from "semantic-ui-react";
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
@@ -24,7 +24,7 @@ import {
     isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
 } from "Utilities/FileUtilities";
 import InlinedRelative from "ui-components/InlinedRelative";
-import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex, Divider } from "ui-components";
+import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex, Divider, Checkbox, Label } from "ui-components";
 import { Dispatch } from "redux";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -78,13 +78,16 @@ class Files extends React.Component<FilesProps> {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
-        const checkbox = (<SCheckbox
-            className="hidden-checkbox checkbox-margin"
-            onClick={(_, d) => this.props.checkAllFiles(!!d.checked)}
-            checked={page.items.length === selectedFiles.length && page.items.length > 0}
-            indeterminate={selectedFiles.length < page.items.length && selectedFiles.length > 0}
-            onChange={e => e.stopPropagation()}
-        />);
+        const checkbox = (
+            <Label>
+                <Checkbox
+                    onClick={e => this.props.checkAllFiles(!!e.target.checked)}
+                    checked={page.items.length === selectedFiles.length && page.items.length > 0}
+                    indeterminate={selectedFiles.length < page.items.length && selectedFiles.length > 0}
+                    onChange={e => e.stopPropagation()}
+                />
+            </Label>
+        );
         const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         const navigate = (path: string) => history.push(`/files/${path}`);
         const fetchPageFromPath = (path: string) => {
@@ -105,7 +108,6 @@ class Files extends React.Component<FilesProps> {
             <>
                 <RefreshButton loading={loading} onClick={refetch} className="float-right" />
                 <Pagination.EntriesPerPageSelector
-                    className="items-per-page-padding float-right"
                     entriesPerPage={page.itemsPerPage}
                     content="Files per page"
                     onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
@@ -226,10 +228,17 @@ const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
 const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => null, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy, customEntriesPerPage }: FilesTableHeaderProps) => (
     <TableHeader>
         <TableRow>
-            <TableHeaderCell textAlign="left" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
-                {masterCheckbox}
-                Filename
-                <Chevron className="float-right" name={toSortingIcon(SortBy.PATH)} />
+            <TableHeaderCell textAlign="left">
+                <Flex>
+                    <Box ml="9px">
+                        {masterCheckbox}
+                    </Box>
+                    <Box ml="9px" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
+                        Filename
+                    </Box>
+                    <Box ml="auto" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)} />
+                    <Chevron className="float-right" name={toSortingIcon(SortBy.PATH)} />
+                </Flex>
             </TableHeaderCell>
             {sortingColumns.map((sC, i) => (
                 <ResponsiveTableColumn
@@ -279,7 +288,7 @@ const ContextButtons = ({ createFolder, showUploader }: ContextButtonsProps) => 
 );
 
 const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
-    <SCheckbox checked={checked} onClick={onClick} className="checkbox-margin" onChange={e => e.stopPropagation()} />
+    <Label><Checkbox checked={checked} onClick={onClick} onChange={e => e.stopPropagation()} /></Label>
 ) : null;
 
 const PredicatedFavorite = ({ predicate, item, onClick }) =>
@@ -307,7 +316,7 @@ const FileLink = ({ file, children }) => {
 
 function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile = () => null }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
-    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(_, { checked }) => onCheckFile(checked)} />
+    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(e) => onCheckFile(e.target.checked)} />
     const icon = (
         <FileIcon
             color={isDirectory(file) ? "blue" : "grey"}
@@ -318,26 +327,36 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     const nameLink = <FileLink file={file}>{icon}{fileName}</FileLink>;
     return file.beingRenamed ?
         <TableCell>
-            <SInput
-                defaultValue={fileName}
-                onKeyDown={(e) => { if (!!onRenameFile) onRenameFile(e.keyCode, file, e.target.value) }}
-                autoFocus
-                transparent
-                fluid
-            >
-                {checkbox}
-                {icon}
-                <input />
-                <OutlineButton size="tiny" color="red" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton>
-            </SInput>
+            <Flex>
+                <SInput
+                    defaultValue={fileName}
+                    onKeyDown={(e) => { if (!!onRenameFile) onRenameFile(e.keyCode, file, e.target.value) }}
+                    autoFocus
+                    transparent
+                    fluid
+                >
+                    {checkbox}
+                    {icon}
+                    <input />
+                    <OutlineButton size="tiny" color="red" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton>
+                </SInput>
+            </Flex>
         </TableCell> :
         <TableCell>
-            {checkbox}
-            {nameLink}
-            <GroupIcon isProject={isProject(file)} />
-            <InlinedRelative pl="7px">
-                <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={() => onFavoriteFile([file])} />
-            </InlinedRelative>
+            <Flex>
+                <Box ml="9px" mt="4px">
+                    {checkbox}
+                </Box>
+                <Box ml="9px">
+                    {nameLink}
+                </Box>
+                <Box>
+                    <GroupIcon isProject={isProject(file)} />
+                    <InlinedRelative top="3px" pl="7px">
+                        <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={() => onFavoriteFile([file])} />
+                    </InlinedRelative>
+                </Box>
+            </Flex>
         </TableCell>
 };
 
@@ -358,7 +377,7 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) => files
         return !operation.disabled(files, Cloud) ? (
             <As key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
                 <SIcon color={operation.color} name={operation.icon} />
-                <span className="operation-text" style={{ fontSize: "16px" }}>{operation.text}</span>
+                <span>{operation.text}</span>
             </As>
         ) : null;
     }) : null;
