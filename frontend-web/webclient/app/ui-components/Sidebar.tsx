@@ -35,7 +35,7 @@ const SideBarElementContainer = styled(Flex)`
 `
 interface SidebarElementProps { icon: IconName, label: string, showLabel: boolean, to: string }
 const SideBarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => (
-    <Link to={to}>
+    <Link color={"midGray"} to={to}>
         <SideBarElementContainer >
             <Flex mx="22px" alignItems='center'>
                 <Icon cursor="pointer" name={icon} size="24" />

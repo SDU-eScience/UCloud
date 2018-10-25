@@ -23,6 +23,7 @@ const BreadCrumbsBase = styled.ul<{ divider?: string }>`
     }
 
     & li span:hover {
+        cursor: pointer;
         color: #01447e;
         text-decoration: none;
     }
