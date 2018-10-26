@@ -12,6 +12,8 @@ import Status from "Navigation/Status";
 import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
 import { Dispatch } from "redux";
 import { Relative, Flex, Icon, Badge, Absolute } from "ui-components";
+import { Dropdown } from "ui-components/Dropdown";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
 interface NotificationProps {
     page: Page<Notification>
@@ -85,29 +87,25 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         ) : null;
         const badgeCount = unreadLength + activeUploads;
         return (
-            <Popup style={{ marginRight: "10px" }}
-                trigger={
-                    <Flex>
-                        <Relative top="0" left="0">
-                            <Flex justifyContent="center" width="60px">
-                                <Icon cursor="pointer" name="notification" />
-                            </Flex>
-                            {badgeCount > 0 ? <Absolute top="-12px" left="28px">
-                                <Badge bg="red">{unreadLength + activeUploads}</Badge>
-                            </Absolute> : null}
-                        </Relative>
-                    </Flex>
-                }
-                content={
-                    <Feed>
-                        {entries.length ? entries : <NoNotifications />}
-                        <Divider />
-                        {uploads}
-                        <Status />
-                    </Feed>}
-                on="click"
-                position="bottom right"
-            />
+            <ClickableDropdown width={"200px"} left={"-135px"} trigger={
+                <Flex>
+                    <Relative top="0" left="0">
+                        <Flex justifyContent="center" width="60px">
+                            <Icon cursor="pointer" name="notification" />
+                        </Flex>
+                        {badgeCount > 0 ? <Absolute top="-12px" left="28px">
+                            <Badge bg="red">{unreadLength + activeUploads}</Badge>
+                        </Absolute> : null}
+                    </Relative>
+                </Flex>
+            }>
+                <Feed style={{ backgroundColor: "unset" }}>
+                    {entries.length ? entries : <NoNotifications />}
+                </Feed>
+                <Divider />
+                {uploads}
+                <Status />
+            </ClickableDropdown>
         );
     }
 }

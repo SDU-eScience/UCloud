@@ -2,7 +2,7 @@ import * as React from "react";
 import { Dropdown as SDropdown, Icon as SIcon, Popup, Feed, Divider as SDivider } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
-import { Link } from "react-router-dom";
+import Link from "ui-components/Link";
 import * as PropTypes from "prop-types";
 import { Dispatch } from "redux";
 import { setSidebarState } from "./Redux/SidebarActions";
@@ -26,6 +26,7 @@ import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import Notification from "Notifications";
 import styled from "styled-components";
 import { ArrowUp, HiddenArrowUp } from "ui-components/Arrow";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
 interface HeaderProps {
     sidebarOpen?: boolean
@@ -63,47 +64,18 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                     navigate={() => history.push(`/simplesearch/${prioritizedSearch}/${searchText}`)}
                     searchText={searchText} />
                 <Notification />
-                <Popup style={{ marginRight: "10px" }}
-                    trigger={
-                        <Flex>
-                            <UserAvatar />
-                        </Flex>
-                    }
-                    content={
-                        <Feed>
-                            <p>Welcome, {Cloud.userInfo.firstNames}</p>
-                            <Divider />
-                            <p>
-                                <Link style={{ color: "black" }} to={"/usersettings/settings"}>
-                                    <SIcon name="settings" />
-                                    Settings
-                                </Link>
-                            </p>
-                            <p onClick={() => Cloud.logout()}>
-                                <SIcon name="sign out" />
-                                Logout
-                            </p>
-                        </Feed>
-                    }
-                    on="click"
-                    position="bottom right"
-                />
-                {/* <Dropdown>
-                    <span><UserAvatar /></span>
-                    <HiddenArrowUp />
-                    <DropdownContent left={-60}>
-                        <p>Welcome, {Cloud.userInfo.firstNames}</p>
-                        <Divider width={138} ml={"-16px"} mt={"-2px"} mb={"12px"} />
-                        <p><Link style={{ color: "black" }} to={"/usersettings/settings"}>
-                            <SIcon name="settings" />
-                            Settings
-                        </Link></p>
-                        <p style={{ cursor: "pointer" }} onClick={() => Cloud.logout()}>
-                            <SIcon name="sign out" />
-                            Logout
-                        </p>
-                    </DropdownContent>
-                </Dropdown> */}
+                <ClickableDropdown left={"-100%"} trigger={<Flex><UserAvatar /></Flex>}>
+                    <Box style={{ backgroundColor: "unset" }}>Welcome, {Cloud.userInfo.firstNames}</Box>
+                    <Divider />
+                    <Link color="black" to={"/usersettings/settings"}>
+                        <SIcon name="settings" />
+                        Settings
+                    </Link>
+                    <Box onClick={Cloud.logout}>
+                        <SIcon name="sign out" />
+                        Logout
+                    </Box>
+                </ClickableDropdown>
             </HeaderContainer>
         )
     }
