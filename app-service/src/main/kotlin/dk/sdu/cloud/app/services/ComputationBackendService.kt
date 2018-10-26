@@ -12,6 +12,7 @@ class ComputationBackendService(
     private val developmentModeEnabled: Boolean
 ) {
     private val backends = backends.toSet()
+    private val cachedBackends = HashMap<String, NamedComputationBackendDescriptions>()
 
     fun getAndVerifyByName(backend: String, principal: SecurityPrincipal? = null): NamedComputationBackendDescriptions {
         if (backend !in backends) throw ComputationBackendException.UnrecognizedBackend(backend)
@@ -21,7 +22,9 @@ class ComputationBackendService(
             }
         }
 
-        return NamedComputationBackendDescriptions(backend)
+        return cachedBackends[backend] ?: (NamedComputationBackendDescriptions(backend).also {
+            cachedBackends[backend] = it
+        })
     }
 
     fun backendPrincipalName(backend: String) = "_$backend"

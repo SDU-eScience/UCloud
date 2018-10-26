@@ -64,14 +64,24 @@ class JobOrchestrator<DBSession>(
                 log.debug(ex.stackTraceToString())
             }
 
-            db.withTransaction { session ->
-                jobDao.updateStatus(session, jobId, message ?: "Internal error")
+            try {
+                db.withTransaction { session ->
+                    jobDao.updateStatus(session, jobId, message ?: "Internal error")
+                }
+
+                stateChangeProducer.emit(JobStateChange(jobId, JobState.FAILURE))
+            } catch (cleanupException: Exception) {
+                log.info("Exception while cleaning up (most likely to job not existing)")
+                log.info(cleanupException.stackTraceToString())
             }
 
-            stateChangeProducer.emit(JobStateChange(jobId, JobState.FAILURE))
-
-            if (rethrow) throw ex
-            else null
+            if (rethrow) {
+                log.debug("Rethrowing exception")
+                throw ex
+            } else {
+                log.debug("Not rethrowing exception")
+                null
+            }
         }
     }
 
@@ -108,8 +118,10 @@ class JobOrchestrator<DBSession>(
 
             val validStates = validStateTransitions[job.currentState] ?: emptySet()
             if (proposedState in validStates) {
-                stateChangeProducer.emit(event)
-                handleStateChangeImmediately(jobWithToken, event)
+                if (proposedState != job.currentState) {
+                    stateChangeProducer.emit(event)
+                    handleStateChangeImmediately(jobWithToken, event)
+                }
             } else {
                 throw JobException.BadStateTransition(job.currentState, event.newState)
             }
@@ -267,7 +279,8 @@ class JobOrchestrator<DBSession>(
             JobState.SCHEDULED to (setOf(JobState.RUNNING, JobState.TRANSFER_SUCCESS) + finalStates),
             JobState.RUNNING to (setOf(JobState.TRANSFER_SUCCESS, JobState.FAILURE)),
             JobState.TRANSFER_SUCCESS to (setOf(JobState.SUCCESS, JobState.FAILURE)),
-            JobState.FAILURE to emptySet(),
+            // In case of really bad failures we allow for a "failure -> failure" transition
+            JobState.FAILURE to setOf(JobState.FAILURE),
             JobState.SUCCESS to emptySet()
         )
     }

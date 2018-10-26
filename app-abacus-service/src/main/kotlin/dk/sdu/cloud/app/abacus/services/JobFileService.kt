@@ -143,17 +143,21 @@ class JobFileService(
     ) {
         val transferStatus =
             try {
+                val parsedFilePath = File(filePath)
+                val filesRoot = filesDirectoryForJob(jobId)
+                val relativePath = parsedFilePath.relativeTo(filesRoot).path
+
                 scpDownload(filePath) { ins ->
                     runBlocking {
                         ComputationCallbackDescriptions.submitFile.call(
                             MultipartRequest.create(
                                 SubmitComputationResult(
                                     jobId,
-                                    filePath,
+                                    relativePath,
                                     StreamingFile(
                                         ContentType.Application.OctetStream,
                                         length,
-                                        filePath,
+                                        relativePath,
                                         ins
                                     )
                                 )

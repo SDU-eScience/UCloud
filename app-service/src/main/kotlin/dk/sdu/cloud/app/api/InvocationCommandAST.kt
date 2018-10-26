@@ -42,7 +42,8 @@ class VariableInvocationParameter(
         val nameToTypeAndValue = relevantTypesToValue.entries.associateBy { it.key.name }
 
         if (relevantTypesToValue.size != variableNames.size) {
-            val notFound = parameters.filter { it.key.name !in variableNames }.map { it.key.name }
+            val paramNames = parameters.map { it.key.name }.toSet()
+            val notFound = variableNames.filter { it !in paramNames }
             log.warn("Could not find the following parameters: $notFound")
         }
 

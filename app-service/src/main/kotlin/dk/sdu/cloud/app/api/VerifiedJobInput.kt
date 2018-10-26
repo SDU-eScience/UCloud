@@ -3,7 +3,7 @@ package dk.sdu.cloud.app.api
 import java.util.*
 
 class VerifiedJobInput(
-    private val backingData: Map<String, ParsedApplicationParameter?>
+    val backingData: Map<String, ParsedApplicationParameter?>
 ) {
     operator fun get(name: String): Any? {
         return backingData[name]

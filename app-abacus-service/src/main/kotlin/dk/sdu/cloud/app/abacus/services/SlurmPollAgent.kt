@@ -47,7 +47,7 @@ class SlurmPollAgent(
         listeners.remove(listener)
     }
 
-    @Suppress("TooGenericExceptionCaught") //For now
+    @Suppress("TooGenericExceptionCaught") // For now
     private fun tick() {
         try {
             log.debug("Ticking: ${active.size}")
@@ -66,6 +66,13 @@ class SlurmPollAgent(
 
                         listeners.forEach { listener -> listener(it) }
                     }
+
+                    val toSkip = active.filter { it == SLURM_ID_SKIP }
+                    toSkip.forEach {
+                        val event = SlurmEventEnded(it)
+                        listeners.forEach { listener -> listener(event) }
+                    }
+                    active.removeAll(toSkip)
                 }
                 lastPoll = ZonedDateTime.now()
             }
@@ -78,5 +85,9 @@ class SlurmPollAgent(
         log.info("Stopping slurm poll agent")
 
         future!!.cancel(true)
+    }
+
+    companion object {
+        const val SLURM_ID_SKIP = -1337L
     }
 }

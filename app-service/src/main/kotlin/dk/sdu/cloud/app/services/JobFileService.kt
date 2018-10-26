@@ -5,8 +5,10 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.jwtAuth
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
+import java.io.File
 import java.io.InputStream
 
 class JobFileService(
@@ -32,9 +34,31 @@ class JobFileService(
         filePath: String,
         fileData: InputStream
     ) {
+        log.debug("Accepting file at $filePath for ${jobWithToken.job.id}")
+
+        val parsedFilePath = File(filePath)
+        val relativePath = if (parsedFilePath.isAbsolute) {
+            ".$filePath" // TODO This might be a bad idea
+        } else {
+            filePath
+        }
+
+        log.debug("The relative path is $relativePath")
+
+        val rootDestination = File(jobFolder(jobWithToken.job.id, jobWithToken.job.owner))
+        val destPath = File(rootDestination, relativePath)
+
+        log.debug("The destination path is ${destPath.path}")
+
         val (_, accessToken) = jobWithToken
-        MultiPartUploadDescriptions.callUpload(cloudContext, accessToken, filePath) { it.copyFrom(fileData) }
+        MultiPartUploadDescriptions.callUpload(cloudContext, accessToken, destPath.path) {
+            it.copyFrom(fileData)
+        }
     }
 
     private fun jobFolder(jobId: String, user: String): String = "/home/$user/Jobs/$jobId"
+
+    companion object : Loggable {
+        override val log = logger()
+    }
 }

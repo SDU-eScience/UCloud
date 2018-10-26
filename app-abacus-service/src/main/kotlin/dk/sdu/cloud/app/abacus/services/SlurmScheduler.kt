@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.abacus.services
 
+import dk.sdu.cloud.app.abacus.services.ssh.SSHConnection
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.abacus.services.ssh.sbatch
 import dk.sdu.cloud.app.abacus.services.ssh.scpUpload
@@ -33,19 +34,24 @@ class SlurmScheduler<DBSession>(
         val sbatchScript = sBatchGenerator.generate(job, jobFileService.filesDirectoryForJob(job.id).absolutePath)
         val file = Files.createTempFile("sbatch", ".sh").toFile().also { it.writeText(sbatchScript) }
         val fileLocation = jobFileService.rootDirectoryForJob(job.id).resolve("sbatch.sh").absolutePath
+
         val slurmJobId: Long = sshConnectionPool.use {
             scpUpload(file, fileLocation, "0700")
             if (reservation != null) {
                 log.info("SCHEDULING JOB WITH A RESERVATION '$reservation'")
             }
-            val (_, output, slurmJobId) = sbatch(fileLocation, reservation = reservation)
 
-            if (slurmJobId == null) {
-                log.warn("Got back a null slurm job id!")
-                log.warn("Output from job: $output")
-                throw SlurmException.BadResponse()
+            if (reservation != SPECIAL_RESERVATION_SKIP) {
+                val (_, output, slurmJobId) = sbatch(fileLocation, reservation = reservation)
+                if (slurmJobId == null) {
+                    log.warn("Got back a null slurm job id!")
+                    log.warn("Output from job: $output")
+                    throw SlurmException.BadResponse()
+                }
+                slurmJobId
+            } else {
+                fakeCompleteSlurmJob(job)
             }
-            slurmJobId
         }
 
         // TODO Restarting the service will cause this information to be lost
@@ -55,8 +61,28 @@ class SlurmScheduler<DBSession>(
         ComputationCallbackDescriptions.requestStateChange.call(StateChangeRequest(job.id, JobState.SCHEDULED), cloud)
     }
 
+    private fun SSHConnection.fakeCompleteSlurmJob(job: VerifiedJob): Long {
+        log.info("SKIPPING SLURM QUEUE JUST FAKING AN ALREADY COMPLETED JOB")
+
+        val filesRoot = jobFileService.filesDirectoryForJob(job.id)
+        val stdoutFile = Files.createTempFile("stdout", ".txt").toFile().also {
+            it.writeText("This is the stdout.txt file")
+        }
+
+        val stderrFile = Files.createTempFile("stderr", ".txt").toFile().also {
+            it.writeText("This is the stderr.txt file")
+        }
+
+        scpUpload(stdoutFile, filesRoot.resolve("stdout.txt").absolutePath, "0600")
+        scpUpload(stderrFile, filesRoot.resolve("stderr.txt").absolutePath, "0600")
+
+        return SlurmPollAgent.SLURM_ID_SKIP
+    }
+
     companion object : Loggable {
         override val log = logger()
+
+        const val SPECIAL_RESERVATION_SKIP = "RESERVATION_SKIP_SLURM"
     }
 }
 

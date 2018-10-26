@@ -162,10 +162,26 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
     JsonSubTypes.Type(value = DoubleApplicationParameter::class, name = "double"),
     JsonSubTypes.Type(value = StringApplicationParameter::class, name = "string")
 )
-sealed class ParsedApplicationParameter
+sealed class ParsedApplicationParameter {
+    abstract val type: String // This is not ideal, but it fixes the serialization issue
+}
 
-data class FileTransferDescription(val source: String, val destination: String) : ParsedApplicationParameter()
-data class BooleanApplicationParameter(val value: Boolean) : ParsedApplicationParameter()
-data class IntApplicationParameter(val value: Int) : ParsedApplicationParameter()
-data class DoubleApplicationParameter(val value: Double) : ParsedApplicationParameter()
-data class StringApplicationParameter(val value: String) : ParsedApplicationParameter()
+data class FileTransferDescription(val source: String, val destination: String) : ParsedApplicationParameter() {
+    override val type = "file"
+}
+
+data class BooleanApplicationParameter(val value: Boolean) : ParsedApplicationParameter() {
+    override val type = "bool"
+}
+
+data class IntApplicationParameter(val value: Int) : ParsedApplicationParameter() {
+    override val type = "int"
+}
+
+data class DoubleApplicationParameter(val value: Double) : ParsedApplicationParameter() {
+    override val type = "double"
+}
+
+data class StringApplicationParameter(val value: String) : ParsedApplicationParameter() {
+    override val type = "string"
+}
