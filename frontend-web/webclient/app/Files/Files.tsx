@@ -2,7 +2,6 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Cloud } from "Authentication/SDUCloudObject";
 import Link from "ui-components/Link";
-import { Icon as SIcon } from "semantic-ui-react";
 import { setUploaderVisible, setUploaderCallback } from "Uploader/Redux/UploaderActions";
 import { dateToString } from "Utilities/DateUtilities";
 import * as Pagination from "Pagination";
@@ -29,7 +28,6 @@ import { Dispatch } from "redux";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
-import { EveryIcon } from "ui-components/Icon";
 
 class Files extends React.Component<FilesProps> {
 
@@ -206,7 +204,7 @@ export const FilesTable = ({
                         <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</TableCell>
                         <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</TableCell>
                         <TableCell textAlign="center">
-                            <ClickableDropdown width="175px" trigger={<SIcon name="ellipsis horizontal" />}>
+                            <ClickableDropdown width="175px" trigger={<i className="fas fa-ellipsis-h" />}>
                                 <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
                             </ClickableDropdown>
                         </TableCell>
@@ -303,7 +301,8 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
         />
     ) : null;
 
-const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<SIcon className="group-icon-padding" name="users" />) : null;
+// FIXME Use own icons when available
+const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<i style={{ paddingLeft: "10px" }} className="fas fa-users" />) : null;
 
 const FileLink = ({ file, children }) => {
     if (isDirectory(file)) {
