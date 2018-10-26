@@ -92,7 +92,7 @@ class JobController<DBSession>(
 
         implement(JobDescriptions.follow) { req ->
             logEntry(log, req)
-            error(CommonErrorMessage("Not yet implemented"), HttpStatusCode.BadRequest)
+            ok(jobOrchestrator.followStreams(req))
         }
     }
 
@@ -102,7 +102,7 @@ class JobController<DBSession>(
             job.id,
             job.owner,
             job.currentState,
-            "Unknown",
+            job.status,
             job.application.description.info.name,
             job.application.description.info.version,
             job.createdAt,

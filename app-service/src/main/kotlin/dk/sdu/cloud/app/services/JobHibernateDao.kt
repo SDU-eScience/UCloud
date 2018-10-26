@@ -107,9 +107,12 @@ class JobHibernateDao(
         session.save(entity)
     }
 
-    override fun updateState(session: HibernateSession, systemId: String, state: JobState) {
+    override fun updateStateAndStatus(session: HibernateSession, systemId: String, state: JobState, status: String?) {
         val entity = JobInformationEntity[session, systemId] ?: throw JobException.NotFound("job: $systemId")
         entity.state = state
+        if (status != null) {
+            entity.status = status
+        }
         session.save(entity)
     }
 
@@ -149,7 +152,10 @@ class JobHibernateDao(
                 SimpleDuration(maxTimeHours, maxTimeMinutes, maxTimeSeconds),
                 VerifiedJobInput(parameters),
                 backendName,
-                state
+                state,
+                status,
+                createdAt.time,
+                modifiedAt.time
             ),
             accessToken
         )

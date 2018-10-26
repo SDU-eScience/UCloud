@@ -3,6 +3,9 @@ package dk.sdu.cloud.app.services
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.api.AppRequest
+import dk.sdu.cloud.app.api.FollowStdStreamsRequest
+import dk.sdu.cloud.app.api.FollowStdStreamsResponse
+import dk.sdu.cloud.app.api.InternalFollowStdStreamsRequest
 import dk.sdu.cloud.app.api.JobCompletedEvent
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.JobStateChange
@@ -49,6 +52,7 @@ class JobOrchestrator<DBSession>(
      *
      * Will return the result if [rethrow] is false, otherwise the original exception is thrown without wrapping.
      */
+    @Suppress("TooGenericExceptionCaught")
     private suspend inline fun <R> withJobExceptionHandler(jobId: String, rethrow: Boolean = true, body: () -> R): R? {
         return try {
             body()
@@ -109,7 +113,11 @@ class JobOrchestrator<DBSession>(
         return Pair(JobStateChange(jobWithToken.job.id, JobState.VALIDATED), jobWithToken)
     }
 
-    suspend fun handleProposedStateChange(event: JobStateChange, securityPrincipal: SecurityPrincipal) {
+    suspend fun handleProposedStateChange(
+        event: JobStateChange,
+        newStatus: String?,
+        securityPrincipal: SecurityPrincipal
+    ) {
         withJobExceptionHandler(event.systemId) {
             val proposedState = event.newState
             val jobWithToken = findJobForId(event.systemId)
@@ -120,11 +128,21 @@ class JobOrchestrator<DBSession>(
             if (proposedState in validStates) {
                 if (proposedState != job.currentState) {
                     stateChangeProducer.emit(event)
-                    handleStateChangeImmediately(jobWithToken, event)
+                    handleStateChangeImmediately(jobWithToken, event, newStatus)
                 }
             } else {
                 throw JobException.BadStateTransition(job.currentState, event.newState)
             }
+        }
+    }
+
+    suspend fun handleAddStatus(jobId: String, newStatus: String, securityPrincipal: SecurityPrincipal) {
+        // We don't cancel the job if this fails
+        val (job, _) = findJobForId(jobId)
+        computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
+
+        db.withTransaction {
+            jobDao.updateStatus(it, jobId, newStatus)
         }
     }
 
@@ -140,6 +158,7 @@ class JobOrchestrator<DBSession>(
 
             handleProposedStateChange(
                 JobStateChange(jobId, if (success) JobState.SUCCESS else JobState.FAILURE),
+                null,
                 securityPrincipal
             )
 
@@ -171,12 +190,45 @@ class JobOrchestrator<DBSession>(
         }
     }
 
+    suspend fun followStreams(
+        request: FollowStdStreamsRequest
+    ): FollowStdStreamsResponse {
+        val (job, _) = findJobForId(request.jobId)
+        val backend = computationBackendService.getAndVerifyByName(job.backend, null)
+        val internalResult = backend.follow.call(
+            InternalFollowStdStreamsRequest(
+                job,
+                request.stdoutLineStart,
+                request.stdoutMaxLines,
+                request.stderrLineStart,
+                request.stderrMaxLines
+            ),
+            serviceCloud
+        ).orThrow()
+
+        return FollowStdStreamsResponse(
+            internalResult.stdout,
+            internalResult.stdoutNextLine,
+            internalResult.stderr,
+            internalResult.stderrNextLine,
+            job.application.description.info,
+            job.currentState,
+            job.status,
+            job.currentState.isFinal(),
+            job.id
+        )
+    }
+
     /**
      * Handles a state change immediately (as we emit it to Kafka)
      */
-    private suspend fun handleStateChangeImmediately(jobWithToken: VerifiedJobWithAccessToken, event: JobStateChange) {
+    private suspend fun handleStateChangeImmediately(
+        jobWithToken: VerifiedJobWithAccessToken,
+        event: JobStateChange,
+        newStatus: String?
+    ) {
         db.withTransaction {
-            jobDao.updateState(it, event.systemId, event.newState)
+            jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
         }
 
         when (event.newState) {
@@ -206,7 +258,7 @@ class JobOrchestrator<DBSession>(
                         // Ask backend to prepare the job
                         transferFilesToCompute(jobWithToken)
                         db.withTransaction {
-                            jobDao.updateState(it, job.id, JobState.PREPARED)
+                            jobDao.updateStateAndStatus(it, job.id, JobState.PREPARED)
                         }
                         backend.jobPrepared.call(job, serviceCloud).orThrow()
                     }

@@ -60,7 +60,8 @@ class JobVerificationService<DBSession>(
                 maxTime,
                 verifiedParameters,
                 resolveBackend(unverifiedJob.request.backend),
-                JobState.VALIDATED
+                JobState.VALIDATED,
+                "Validated"
             ),
             unverifiedJob.principal.token
         )

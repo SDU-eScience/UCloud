@@ -10,10 +10,11 @@ interface JobDao<Session> {
         jobWithToken: VerifiedJobWithAccessToken
     )
 
-    fun updateState(
+    fun updateStateAndStatus(
         session: Session,
         systemId: String,
-        state: JobState
+        state: JobState,
+        status: String? = null
     )
 
     fun updateStatus(

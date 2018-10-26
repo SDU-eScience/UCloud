@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.abacus.http
 
 import dk.sdu.cloud.app.abacus.api.AbacusComputationDescriptions
 import dk.sdu.cloud.app.abacus.services.JobFileService
+import dk.sdu.cloud.app.abacus.services.JobTail
 import dk.sdu.cloud.app.abacus.services.SlurmScheduler
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -13,7 +14,8 @@ import io.ktor.routing.Route
 
 class ComputeController(
     private val jobFileService: JobFileService,
-    private val slurmService: SlurmScheduler<*>
+    private val slurmService: SlurmScheduler<*>,
+    private val jobTail: JobTail
 ) : Controller {
     override val baseContext: String = AbacusComputationDescriptions.baseContext
 
@@ -58,6 +60,12 @@ class ComputeController(
 
             jobFileService.cleanup(req.id)
             ok(Unit)
+        }
+
+        implement(AbacusComputationDescriptions.follow) { req ->
+            logEntry(log, req)
+
+            ok(jobTail.followStdStreams(req))
         }
     }
 

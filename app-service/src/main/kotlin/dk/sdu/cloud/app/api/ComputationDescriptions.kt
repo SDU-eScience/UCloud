@@ -114,14 +114,13 @@ abstract class ComputationDescriptions(namespace: String) : RESTDescriptions("ap
     }
 
 
-    val follow = callDescription<FollowStdStreamsRequest, FollowStdStreamsResponse, CommonErrorMessage> {
+    val follow = callDescription<InternalFollowStdStreamsRequest, InternalStdStreamsResponse, CommonErrorMessage> {
         name = "follow"
-        method = HttpMethod.Get
+        method = HttpMethod.Post
 
         path {
             using(baseContext)
             +"follow"
-            +boundTo(FollowStdStreamsRequest::jobId)
         }
 
         auth {
@@ -129,11 +128,6 @@ abstract class ComputationDescriptions(namespace: String) : RESTDescriptions("ap
             access = AccessRight.READ
         }
 
-        params {
-            +boundTo(FollowStdStreamsRequest::stderrLineStart)
-            +boundTo(FollowStdStreamsRequest::stderrMaxLines)
-            +boundTo(FollowStdStreamsRequest::stdoutLineStart)
-            +boundTo(FollowStdStreamsRequest::stdoutMaxLines)
-        }
+        body { bindEntireRequestFromBody() }
     }
 }

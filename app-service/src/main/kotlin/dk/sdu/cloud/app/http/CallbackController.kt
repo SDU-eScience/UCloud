@@ -5,11 +5,9 @@ import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.services.JobOrchestrator
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
-import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 
 class CallbackController<DBSession>(
@@ -36,13 +34,18 @@ class CallbackController<DBSession>(
         implement(ComputationCallbackDescriptions.requestStateChange) { req ->
             logEntry(log, req)
 
-            jobOrchestrator.handleProposedStateChange(JobStateChange(req.id, req.newState), call.securityPrincipal)
+            jobOrchestrator.handleProposedStateChange(
+                JobStateChange(req.id, req.newState),
+                req.newStatus,
+                call.securityPrincipal
+            )
             ok(Unit)
         }
 
         implement(ComputationCallbackDescriptions.addStatus) { req ->
             logEntry(log, req)
-            throw RPCException.fromStatusCode(HttpStatusCode.NotImplemented)
+            jobOrchestrator.handleAddStatus(req.id, req.status, call.securityPrincipal)
+            ok(Unit)
         }
 
         implement(ComputationCallbackDescriptions.completed) { req ->

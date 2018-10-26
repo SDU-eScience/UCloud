@@ -216,3 +216,48 @@ data class FollowStdStreamsResponse(
      */
     val id: String
 )
+
+data class InternalFollowStdStreamsRequest(
+    val job: VerifiedJob,
+
+    /**
+     * The line index to start at (0-indexed) for stdout
+     *
+     * Must be positive
+     */
+    val stdoutLineStart: Int,
+
+    /**
+     * The maximum amount of lines to retrieve for stdout. Fewer lines can be returned.
+     */
+    val stdoutMaxLines: Int,
+
+    /**
+     * The line index to start at (0-indexed) for stderr
+     *
+     * Must be positive
+     */
+    val stderrLineStart: Int,
+
+    /**
+     * The maximum amount of lines to retrieve for stderr. Fewer lines can be returned.
+     *
+     * Must be positive
+     */
+    val stderrMaxLines: Int
+) {
+    init {
+        if (stderrMaxLines < 0) throw IllegalArgumentException("stderrMaxLines < 0")
+        if (stdoutMaxLines < 0) throw IllegalArgumentException("stdoutMaxLines < 0")
+        if (stdoutLineStart < 0) throw IllegalArgumentException("stdoutLineStart < 0")
+        if (stderrLineStart < 0) throw IllegalArgumentException("stderrLinesStart < 0")
+    }
+}
+
+
+data class InternalStdStreamsResponse(
+    val stdout: String,
+    val stdoutNextLine: Int,
+    val stderr: String,
+    val stderrNextLine: Int
+)

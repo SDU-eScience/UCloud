@@ -11,6 +11,7 @@ data class VerifiedJob(
     val jobInput: VerifiedJobInput,
     val backend: String,
     val currentState: JobState,
+    val status: String,
     val createdAt: Long = System.currentTimeMillis(),
     val modifiedAt: Long = System.currentTimeMillis()
 )
