@@ -12,13 +12,13 @@ fun SSHConnection.sbatch(
     val command = ArrayList<String>().apply {
         add("sbatch")
         if (reservation != null) {
-            BashEscaper.safeBashArgument("--reservation=$reservation")
+            add(BashEscaper.safeBashArgument("--reservation=$reservation"))
         }
         add(BashEscaper.safeBashArgument(file))
         addAll(args)
     }.joinToString(" ")
 
-    val (exit, output) = exec(command) { inputStream.reader().readText() }
+    val (exit, output) = execWithOutputAsText(command)
 
     val match = submitRegex.find(output)
     return if (match != null) {

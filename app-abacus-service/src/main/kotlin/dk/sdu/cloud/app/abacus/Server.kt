@@ -2,7 +2,7 @@ package dk.sdu.cloud.app.abacus
 
 import dk.sdu.cloud.app.abacus.http.ComputeController
 import dk.sdu.cloud.app.abacus.services.JobFileService
-import dk.sdu.cloud.app.abacus.services.JobInMemoryDao
+import dk.sdu.cloud.app.abacus.services.JobHibernateDao
 import dk.sdu.cloud.app.abacus.services.JobTail
 import dk.sdu.cloud.app.abacus.services.SBatchGenerator
 import dk.sdu.cloud.app.abacus.services.SlurmJobTracker
@@ -57,7 +57,7 @@ class Server(
             pollUnit = TimeUnit.SECONDS
         )
 
-        val jobDao = JobInMemoryDao()
+        val jobDao = JobHibernateDao()
         val jobFileService = JobFileService(sshPool, cloud, config.workingDirectory)
         val slurmScheduler =
             SlurmScheduler(

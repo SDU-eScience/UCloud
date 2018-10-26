@@ -29,6 +29,7 @@ class SlurmJobTracker<DBSession>(
     private val jobDao: JobDao<DBSession>
 ) {
     private val listener: SlurmEventListener = {
+        @Suppress("TooGenericExceptionCaught")
         runBlocking {
             val systemId = try {
                 resolveSlurmIdToSystemId(it.jobId)

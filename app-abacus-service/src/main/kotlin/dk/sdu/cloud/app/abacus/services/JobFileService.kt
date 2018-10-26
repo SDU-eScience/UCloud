@@ -64,10 +64,11 @@ class JobFileService(
         sshConnectionPool.use {
             mkdir(location.parent, createParents = true)
 
+            @Suppress("TooGenericExceptionCaught")
             try {
                 scpUpload(length, location.name, location.parent, "0600") { outs ->
                     cappedStream.copyTo(outs)
-                }
+                }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativeLocation)
             } catch (ex: Exception) {
                 // Maybe a bit too generic
                 log.warn("Caught exception during upload")
@@ -124,11 +125,6 @@ class JobFileService(
                 val (fileToTransferFromHPC, fileLength) = prepareForTransfer(sourceFile, source, transfer)
                 log.debug("Downloading file from $fileToTransferFromHPC")
 
-                if (fileLength >= Int.MAX_VALUE) {
-                    log.warn("sourceFile.size (${sourceFile.size}) >= Int.MAX_VALUE. Currently not supported")
-                    throw JobFileException.NotSupported("Output file too large")
-                }
-
                 transferFileFromCompute(job.id, fileToTransferFromHPC, transfer, fileLength)
             }
         }
@@ -142,6 +138,7 @@ class JobFileService(
         length: Long
     ) {
         val transferStatus =
+            @Suppress("TooGenericExceptionCaught")
             try {
                 val parsedFilePath = File(filePath)
                 val filesRoot = filesDirectoryForJob(jobId)
