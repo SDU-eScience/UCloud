@@ -1,14 +1,14 @@
-package dk.sdu.cloud.app.services
+package dk.sdu.cloud.app.abacus.service
 
-import dk.sdu.cloud.app.services.ssh.SSHConnection
-import dk.sdu.cloud.app.services.ssh.SSHConnectionPool
+import dk.sdu.cloud.app.abacus.services.SlurmPollAgent
+import dk.sdu.cloud.app.abacus.services.ssh.SSHConnection
+import dk.sdu.cloud.app.abacus.services.ssh.SSHConnectionPool
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.verify
 import org.junit.Test
-import java.lang.Exception
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 

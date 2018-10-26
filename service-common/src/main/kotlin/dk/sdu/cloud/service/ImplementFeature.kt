@@ -373,7 +373,7 @@ class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
     }
 
     suspend fun error(error: E, status: HttpStatusCode) {
-        assert(status.isSuccess())
+        assert(!status.isSuccess())
         finalize(error)
 
         if (error == Unit) call.respond(status)

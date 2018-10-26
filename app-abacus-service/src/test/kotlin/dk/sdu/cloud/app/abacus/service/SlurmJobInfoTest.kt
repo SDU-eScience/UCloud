@@ -1,8 +1,8 @@
-package dk.sdu.cloud.app.services
+package dk.sdu.cloud.app.abacus.service
 
+import dk.sdu.cloud.app.abacus.services.ssh.SSHConnection
+import dk.sdu.cloud.app.abacus.services.ssh.slurmJobInfo
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.services.ssh.SSHConnection
-import dk.sdu.cloud.app.services.ssh.slurmJobInfo
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify

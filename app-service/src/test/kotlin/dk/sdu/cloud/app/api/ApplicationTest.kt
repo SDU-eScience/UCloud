@@ -4,7 +4,6 @@ import org.junit.Test
 import kotlin.test.assertEquals
 
 class ApplicationTest {
-
     @Test
     fun `Create simple Input App Param`() {
         val input = ApplicationParameter.InputDirectory(
@@ -41,7 +40,7 @@ class ApplicationTest {
         val app = ApplicationParameter.Integer(
             "name",
             false,
-            2,
+            IntApplicationParameter(2),
             "title",
             "description",
             1,
@@ -56,15 +55,15 @@ class ApplicationTest {
         assertEquals("integer", app.type)
         assertEquals(false, app.optional)
         assertEquals("unitName", app.unitName)
-        assertEquals(2, app.defaultValue)
+        assertEquals(2, app.defaultValue?.value)
         assertEquals(2, app.max)
         assertEquals(1, app.min)
         assertEquals(0, app.step)
 
         val result = app.map(3)
-        assertEquals(3, result)
+        assertEquals(3, result?.value)
 
-        val arg = app.toInvocationArgument(10)
+        val arg = app.toInvocationArgument(IntApplicationParameter(10))
         assertEquals("10", arg)
     }
 
@@ -73,7 +72,7 @@ class ApplicationTest {
         val app = ApplicationParameter.FloatingPoint(
             "name",
             false,
-            2.2,
+            DoubleApplicationParameter(2.2),
             "title",
             "description",
             1.1,
@@ -88,15 +87,15 @@ class ApplicationTest {
         assertEquals("floating_point", app.type)
         assertEquals(false, app.optional)
         assertEquals("unitName", app.unitName)
-        assertEquals(2.2, app.defaultValue)
+        assertEquals(2.2, app.defaultValue?.value)
         assertEquals(2.2, app.max)
         assertEquals(1.1, app.min)
         assertEquals(0.0, app.step)
 
         val result = app.map(3)
-        assertEquals(3.0, result)
+        assertEquals(3.0, result?.value)
 
-        val arg = app.toInvocationArgument(10.11)
+        val arg = app.toInvocationArgument(DoubleApplicationParameter(10.11))
         assertEquals("10.11", arg)
     }
 }

@@ -16,7 +16,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ApplicationHibernateDaoTest {
-
     private val user = "user"
     private val normAppDesc = NormalizedApplicationDescription(
         NameAndVersion("name", "2.2"),

@@ -1,25 +1,21 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.AppState
+import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.ToolBackend
+import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.app.utils.withDatabase
-import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
-import io.mockk.every
-import io.mockk.just
 import io.mockk.mockk
-import io.mockk.runs
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class JobHibernateDaoTest {
-
     private val user = "User1"
     private val systemId = UUID.randomUUID().toString()
     private val appName = "Name of application"
@@ -50,77 +46,42 @@ class JobHibernateDaoTest {
         ToolBackend.UDOCKER
     )
 
-    private fun tool(date: Date): ToolEntity {
-        return ToolEntity(
-            user,
-            date,
-            date,
-            normToolDesc,
-            "original Document",
-            EmbeddedNameAndVersion()
-        )
-    }
-
-    private fun appEnt(date: Date): ApplicationEntity {
-        return ApplicationEntity(
-            user,
-            date,
-            date,
-            normAppDesc,
-            "original Document",
-            tool(date),
-            EmbeddedNameAndVersion()
-        )
-    }
-
     @Test
-    fun `create, find and update slurminfo and update jobinfo test`() {
+    fun `create, find and update jobinfo test`() {
         val toolDao = ToolHibernateDAO()
         val appDao = ApplicationHibernateDAO(toolDao)
-        val jobHibDao = JobHibernateDAO(appDao)
+        val jobHibDao = JobHibernateDao(appDao)
 
         withDatabase { db ->
             db.withTransaction {
                 toolDao.create(it, user, normToolDesc)
                 appDao.create(it, user, normAppDesc)
-                jobHibDao.createJob(it, user, systemId, appName, version, "$user/USER")
+                val app = appDao.findByNameAndVersion(it, null, appName, version)
+                val jobWithToken = VerifiedJobWithAccessToken(
+                    VerifiedJob(
+                        app,
+                        emptyList(),
+                        systemId,
+                        user,
+                        1,
+                        1,
+                        SimpleDuration(0, 1, 0),
+                        VerifiedJobInput(emptyMap()),
+                        "abacus",
+                        JobState.VALIDATED,
+                        "Unknown"
+                    ),
+                    "token"
+                )
+                jobHibDao.create(it, jobWithToken)
 
-                val result = jobHibDao.findJobInformationByJobId(it, user, systemId)
-                assertEquals(AppState.VALIDATED, result?.state)
-                assertNull(result?.slurmId)
+                val result = jobHibDao.findOrNull(it, systemId, user)
+                assertEquals(JobState.VALIDATED, result?.job?.currentState)
 
-                val result2 = jobHibDao.findJobById(it, user, systemId)
-                assertEquals(AppState.VALIDATED, result2?.state)
+                jobHibDao.updateStateAndStatus(it, systemId, JobState.SUCCESS)
+                val result2 = jobHibDao.findOrNull(it, systemId, user)
+                assertEquals(JobState.SUCCESS, result2?.job?.currentState)
 
-                val hits = jobHibDao.findAllJobsWithStatus(it, user, NormalizedPaginationRequest(10, 0))
-                val result3 = hits.items.first()
-                assertEquals(AppState.VALIDATED, result3.state)
-
-                jobHibDao.updateJobWithSlurmInformation(it, systemId, "sshUser", "jobDir", "workDir", 8282)
-                val result4 = jobHibDao.findJobInformationBySlurmId(it, 8282)
-                assertEquals("sshUser", result4?.sshUser)
-                assertEquals("2.2", result4?.appVersion)
-
-                jobHibDao.updateJobBySystemId(it, systemId, AppState.SUCCESS)
-                val result5 = jobHibDao.findJobById(it, user, systemId)
-                assertEquals(AppState.SUCCESS, result5?.state)
-
-            }
-        }
-    }
-
-    @Test(expected = JobBadApplication::class)
-    fun `create test - bad job application`() {
-        val appDao = mockk<ApplicationHibernateDAO>()
-        val jobHibDao = JobHibernateDAO(appDao)
-
-        every { appDao.create(any(), any(), any()) } just runs
-
-        every { appDao.internalByNameAndVersion(any(), any(), any()) } returns null
-
-        withDatabase { db ->
-            db.withTransaction {
-                jobHibDao.createJob(it, user, systemId, appName, version, "$user/USER")
             }
         }
     }

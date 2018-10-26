@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.abacus
 import dk.sdu.cloud.app.abacus.http.ComputeController
 import dk.sdu.cloud.app.abacus.services.JobFileService
 import dk.sdu.cloud.app.abacus.services.JobInMemoryDao
+import dk.sdu.cloud.app.abacus.services.JobTail
 import dk.sdu.cloud.app.abacus.services.SBatchGenerator
 import dk.sdu.cloud.app.abacus.services.SlurmJobTracker
 import dk.sdu.cloud.app.abacus.services.SlurmPollAgent
@@ -70,6 +71,7 @@ class Server(
                 config.reservation
             )
         slurmTracker = SlurmJobTracker(slurmPollAgent, jobFileService, sshPool, cloud, db, jobDao).also { it.init() }
+        val jobTail = JobTail(sshPool, jobFileService)
 
         log.info("Core services initialized")
 
@@ -78,7 +80,7 @@ class Server(
 
             routing {
                 configureControllers(
-                    ComputeController(jobFileService, slurmScheduler)
+                    ComputeController(jobFileService, slurmScheduler, jobTail)
                 )
             }
         }
