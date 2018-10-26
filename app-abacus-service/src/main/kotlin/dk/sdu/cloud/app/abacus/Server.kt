@@ -41,7 +41,6 @@ class Server(
 
     private lateinit var scheduledExecutor: ScheduledExecutorService
     private lateinit var slurmPollAgent: SlurmPollAgent
-    private lateinit var slurmTracker: SlurmJobTracker<HibernateSession>
 
     override fun start() {
         log.info("Initializing core services")
@@ -70,7 +69,9 @@ class Server(
                 cloud,
                 config.reservation
             )
-        slurmTracker = SlurmJobTracker(slurmPollAgent, jobFileService, sshPool, cloud, db, jobDao).also { it.init() }
+        val slurmTracker = SlurmJobTracker(jobFileService, sshPool, cloud, db, jobDao)
+        slurmPollAgent.addListener(slurmTracker.listener)
+
         val jobTail = JobTail(sshPool, jobFileService)
 
         log.info("Core services initialized")
@@ -94,6 +95,5 @@ class Server(
 
         slurmPollAgent.stop()
         scheduledExecutor.shutdown()
-        slurmTracker.stop()
     }
 }

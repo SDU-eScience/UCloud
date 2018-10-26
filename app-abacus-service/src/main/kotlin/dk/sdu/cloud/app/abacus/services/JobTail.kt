@@ -28,7 +28,7 @@ class JobTail(
                 // We can continue
             }
 
-            else -> respond()
+            else -> return respond()
         }
 
         val shouldFollowStdout = lines.stdoutMaxLines > 0

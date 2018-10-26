@@ -21,14 +21,13 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
 
 class SlurmJobTracker<DBSession>(
-    private val slurmPollAgent: SlurmPollAgent,
     private val jobFileService: JobFileService,
     private val sshConnectionPool: SSHConnectionPool,
     private val cloud: AuthenticatedCloud,
     private val db: DBSessionFactory<DBSession>,
     private val jobDao: JobDao<DBSession>
 ) {
-    private val listener: SlurmEventListener = {
+    val listener: SlurmEventListener = {
         @Suppress("TooGenericExceptionCaught")
         runBlocking {
             val systemId = try {
@@ -45,14 +44,6 @@ class SlurmJobTracker<DBSession>(
                 handleException(ex, systemId, it)
             }
         }
-    }
-
-    fun init() {
-        slurmPollAgent.addListener(listener)
-    }
-
-    fun stop() {
-        slurmPollAgent.removeListener(listener)
     }
 
     private suspend fun processEvent(systemId: String, event: SlurmEvent) {

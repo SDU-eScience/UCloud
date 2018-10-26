@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.abacus.service
 
 import com.jcraft.jsch.SftpATTRS
+import dk.sdu.cloud.app.abacus.service.JobData.job
 import dk.sdu.cloud.app.abacus.services.JobFileException
 import dk.sdu.cloud.app.abacus.services.JobFileService
 import dk.sdu.cloud.app.abacus.services.ssh.LSWithGlobResult
@@ -49,52 +50,6 @@ class JobFileServiceTest {
     private val cloud: RefreshingJWTAuthenticatedCloud
     private val service: JobFileService
     private val workingDirectory = "/work/"
-    private val tool = Tool(
-        "appOwner",
-        System.currentTimeMillis(),
-        System.currentTimeMillis(),
-        NormalizedToolDescription(
-            NameAndVersion("tool", "1"),
-            "container",
-            1,
-            1,
-            SimpleDuration(1, 0, 0),
-            emptyList(),
-            listOf("Author"),
-            "tool",
-            "tool",
-            ToolBackend.SINGULARITY
-        )
-    )
-    private val application = Application(
-        "appOwner",
-        System.currentTimeMillis(),
-        System.currentTimeMillis(),
-        NormalizedApplicationDescription(
-            NameAndVersion("app", "1"),
-            tool.description.info,
-            listOf("Author"),
-            "app",
-            "appDescription",
-            listOf(WordInvocationParameter("test")),
-            emptyList(),
-            listOf("stdout.txt", "stderr.txt"),
-            emptyList()
-        ),
-        tool
-    )
-    private val job: VerifiedJob = VerifiedJob(
-        application,
-        emptyList(),
-        "someId",
-        "someOwner",
-        1,
-        1,
-        SimpleDuration(1, 0, 0),
-        VerifiedJobInput(emptyMap()),
-        "abacus",
-        JobState.TRANSFER_SUCCESS
-    )
 
     init {
         every { connectionPool.borrowConnection() } returns Pair(0, connection)
