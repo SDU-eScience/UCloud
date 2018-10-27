@@ -93,6 +93,8 @@ export type IconName =
   "starEmpty"    |
   "trash"        |
   "upload"       |
-  "uploadFolder";
+  "uploadFolder" |
+  "properties"   |
+  "projects";
 
 export default Icon

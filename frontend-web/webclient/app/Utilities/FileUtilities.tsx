@@ -95,11 +95,11 @@ export const DeleteFileOperation = (onDeleted: () => void): Operation[] => [
  * @returns Properties and Project Operations for files.
  */
 export const HistoryFilesOperations = (history: History): [Operation, PredicatedOperation] => [
-    { text: "Properties", onClick: (files: File[], cloud: Cloud) => history.push(`/fileInfo/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1, icon: "settings", color: "blue" },
+    { text: "Properties", onClick: (files: File[], cloud: Cloud) => history.push(`/fileInfo/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1, icon: "properties", color: "blue" },
     {
         predicate: (files: File[], cloud: Cloud) => isProject(files[0]),
-        onTrue: { text: "Edit Project", onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
-        onFalse: { text: "Create Project", onClick: (files: File[], cloud: Cloud) => UF.createProject(files[0].path, cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[], cloud: Cloud) => files.length !== 1 || !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
+        onTrue: { text: "Edit Project", onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => !canBeProject(files, cloud.homeFolder), icon: "projects", color: "blue" },
+        onFalse: { text: "Create Project", onClick: (files: File[], cloud: Cloud) => UF.createProject(files[0].path, cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[], cloud: Cloud) => files.length !== 1 || !canBeProject(files, cloud.homeFolder), icon: "projects", color: "blue" },
     }
 ];
 
