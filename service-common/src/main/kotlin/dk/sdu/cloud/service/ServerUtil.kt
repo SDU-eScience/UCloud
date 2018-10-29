@@ -52,3 +52,13 @@ fun CommonServer.startServices() {
         log.info("Kafka Streams started!")
     }
 }
+
+fun EventConsumer<*>.installShutdownHandler(server: CommonServer) {
+    with(server) {
+        onExceptionCaught { ex ->
+            log.warn("Caught fatal exception in event consumer!")
+            log.warn(ex.stackTraceToString())
+            server.stop()
+        }
+    }
+}

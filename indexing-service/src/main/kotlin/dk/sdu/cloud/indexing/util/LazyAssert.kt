@@ -1,6 +1,7 @@
 package dk.sdu.cloud.indexing.util
 
-object LazyAssert {
+@PublishedApi
+internal object LazyAssert {
     @PublishedApi
     internal val ENABLED: Boolean = javaClass.desiredAssertionStatus()
 }

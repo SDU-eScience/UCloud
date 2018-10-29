@@ -1,28 +1,14 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.AppState
 import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
-import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Type
 import java.io.Serializable
 import java.util.Date
-import java.util.UUID
-import javax.persistence.Column
-import javax.persistence.EmbeddedId
-import javax.persistence.Entity
-import javax.persistence.EnumType
-import javax.persistence.Enumerated
-import javax.persistence.GeneratedValue
-import javax.persistence.Id
-import javax.persistence.ManyToOne
-import javax.persistence.OneToMany
-import javax.persistence.Table
-import javax.persistence.Temporal
-import javax.persistence.TemporalType
+import javax.persistence.*
 import kotlin.collections.ArrayList
 
 /**
@@ -54,11 +40,11 @@ data class ToolEntity(
 /**
  * Added in:
  *
- * - V7__Tags.sql
+ * - V8__Tags.sql
  */
 @Entity
 @Table(name = "application_tags")
-class TagEntity(
+class ApplicationTagEntity(
     @ManyToOne
     var application: ApplicationEntity,
 
@@ -116,7 +102,7 @@ class ApplicationEntity(
     var id: EmbeddedNameAndVersion
 ) {
     @OneToMany
-    var tags: MutableList<TagEntity> = ArrayList()
+    var tags: MutableList<ApplicationTagEntity> = ArrayList()
 
     companion object : HibernateEntity<ApplicationEntity>, WithId<EmbeddedNameAndVersion>
 }
@@ -126,45 +112,3 @@ data class EmbeddedNameAndVersion(
     var version: String = ""
 ) : Serializable
 
-/**
- * Updated in:
- *
- * - V1__Initial.sql
- * - V5__JobReferences.sql
- * - V6__JWTs.sql
- */
-@Entity
-@Table(name = "jobs")
-data class JobEntity(
-    @Id
-    @NaturalId
-    var systemId: UUID,
-
-    var owner: String,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var createdAt: Date,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var modifiedAt: Date,
-
-    @Enumerated(EnumType.STRING)
-    var state: AppState,
-
-    var slurmId: Long?,
-
-    var status: String?,
-
-    var sshUser: String?,
-
-    var jobDirectory: String?,
-
-    var workingDirectory: String?,
-
-    @ManyToOne
-    var application: ApplicationEntity,
-
-    var jwt: String
-) {
-    companion object : HibernateEntity<JobEntity>, WithId<UUID>
-}

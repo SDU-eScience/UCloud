@@ -1,0 +1,16 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: app-abacus-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.sdu.dk
+    http:
+      paths:
+      - path: /api/app/compute/abacus
+        backend:
+          serviceName: app-abacus
+          servicePort: 8080

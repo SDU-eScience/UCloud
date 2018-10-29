@@ -1,3 +1,5 @@
+@file:Suppress("TooManyFunctions")
+
 package dk.sdu.cloud.indexing.util
 
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -28,6 +30,7 @@ inline fun <reified T : Any> SearchResponse.paginated(
     val items = hits.hits
         .filter { it.hasSource() }
         .mapNotNull {
+            @Suppress("TooGenericExceptionCaught")
             try {
                 mapper.readValue<T>(it.sourceAsString)
             } catch (ex: Exception) {
@@ -48,6 +51,7 @@ inline fun <reified T : Any> SearchResponse.paginated(
 
 inline fun <reified T : Any> SearchResponse.mapped(mapper: ObjectMapper): List<T> {
     return hits.hits.filter { it.hasSource() }.mapNotNull {
+        @Suppress("TooGenericExceptionCaught")
         try {
             mapper.readValue<T>(it.sourceAsString)
         } catch (ex: Exception) {
@@ -64,11 +68,12 @@ inline fun <reified T : Any> RestHighLevelClient.search(
     vararg indices: String,
     noinline builder: SearchSourceBuilder.() -> QueryBuilder
 ): Page<T> {
+    @Suppress("SpreadOperator")
     return search(*indices) { source(paging, builder) }.paginated(mapper, paging)
 }
 
 fun RestHighLevelClient.search(vararg indices: String, builder: SearchRequest.() -> Unit): SearchResponse {
-    return search(SearchRequest(*indices).also(builder))
+    return search(SearchRequest(indices, SearchSourceBuilder()).also(builder))
 }
 
 private const val SEARCH_REQUEST_SIZE = 1000
@@ -78,7 +83,7 @@ fun RestHighLevelClient.scrollThroughSearch(
     builder: SearchRequest.() -> Unit,
     handler: (SearchResponse) -> Unit
 ) {
-    val request = SearchRequest(*indices.toTypedArray())
+    val request = SearchRequest(indices.toTypedArray(), SearchSourceBuilder())
         .also {
             it.source().sort("_doc").size(SEARCH_REQUEST_SIZE)
             it.scroll(TimeValue.timeValueMinutes(1))
@@ -139,8 +144,13 @@ fun SearchSourceBuilder.paginated(paging: NormalizedPaginationRequest) {
     size(paging.itemsPerPage)
 }
 
-// Fixes an issue in the term DSL that didn't allow non-string values
+/**
+ * Fixes an issue in the term DSL that didn't allow non-string values
+ */
 class FixedTermBlock {
+    /**
+     * Data container for elasticsearch
+     */
     class TermData(
         var name: String? = null,
         var value: Any? = null

@@ -2,7 +2,7 @@ package dk.sdu.cloud.indexing
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.indexing.http.LookupController
-import dk.sdu.cloud.indexing.http.SearchController
+import dk.sdu.cloud.indexing.http.QueryController
 import dk.sdu.cloud.indexing.processor.StorageEventProcessor
 import dk.sdu.cloud.indexing.services.ElasticIndexingService
 import dk.sdu.cloud.indexing.services.ElasticQueryService
@@ -12,9 +12,9 @@ import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.ServiceInstance
-import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
@@ -24,6 +24,9 @@ import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import kotlin.system.exitProcess
 
+/**
+ * The primary server class for indexing-service
+ */
 class Server(
     private val elasticHostAndPort: ElasticHostAndPort,
     override val kafka: KafkaServices,
@@ -33,11 +36,16 @@ class Server(
     private val instance: ServiceInstance
 ) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
-    override lateinit var kStreams: KafkaStreams
+    override val kStreams: KafkaStreams? = null
     private val eventConsumers = ArrayList<EventConsumer<*>>()
     private lateinit var elastic: RestHighLevelClient
 
     override val log = logger()
+
+    private fun addConsumers(consumers: List<EventConsumer<*>>) {
+        consumers.forEach { it.installShutdownHandler(this) }
+        eventConsumers.addAll(consumers)
+    }
 
     override fun start() {
         elastic = RestHighLevelClient(
@@ -53,6 +61,7 @@ class Server(
         val queryService = ElasticQueryService(elastic)
 
         if (args.contains("--scan")) {
+            @Suppress("TooGenericExceptionCaught")
             try {
                 val scanner = FileIndexScanner(cloud, elastic)
                 scanner.scan()
@@ -64,18 +73,15 @@ class Server(
             }
         }
 
-        StorageEventProcessor(kafka, indexingService).init().forEach { processor ->
-            processor.onExceptionCaught { stop() }
-        }
+        addConsumers(StorageEventProcessor(kafka, indexingService).init())
 
-        kStreams = buildStreams { }
         httpServer = ktor {
             installDefaultFeatures(cloud, kafka, instance, requireJobId = true)
 
             routing {
                 configureControllers(
-                    SearchController(queryService),
-                    LookupController(queryService)
+                    LookupController(queryService),
+                    QueryController(queryService)
                 )
             }
         }

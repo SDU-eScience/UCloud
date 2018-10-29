@@ -17,10 +17,17 @@ import java.io.Serializable
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Types
-import java.util.Properties
+import java.util.*
 
 const val JSONB_TYPE = "dk.sdu.cloud.service.db.JsonbType"
+
+// TODO Use these
 const val JSONB_LIST_TYPE = "dk.sdu.cloud.service.db.JsonbCollectionType"
+const val JSONB_LIST_PARAM_TYPE = "listParam"
+
+const val JSONB_MAP_TYPE = "dk.sdu.cloud.service.db.JsonbMapType"
+const val JSONB_MAP_PARAM_KEY_TYPE = "keyParam"
+const val JSONB_MAP_PARAM_VALUE_TYPE = "valueParam"
 
 open class JsonbType : UserType, DynamicParameterizedType {
     private lateinit var klass: Class<*>
@@ -108,6 +115,8 @@ open class JsonbType : UserType, DynamicParameterizedType {
 }
 
 class JsonbCollectionType : JsonbType(), UserCollectionType {
+    private lateinit var paramType: Class<*>
+
     override fun instantiate(
         session: SharedSessionContractImplementor?,
         persister: CollectionPersister?
@@ -143,7 +152,34 @@ class JsonbCollectionType : JsonbType(), UserCollectionType {
 
     override fun instantiate(anticipatedSize: Int): Any = PersistentList()
 
+    override fun setParameterValues(parameters: Properties) {
+        super.setParameterValues(parameters)
+        val paramType = parameters[JSONB_LIST_PARAM_TYPE] as? String
+            ?: throw IllegalArgumentException("Missing 'JSONB_LIST_PARAM_TYPE' in @Type. Should be class name.")
+        this.paramType = javaClass.classLoader.loadClass(paramType)
+    }
+
     override fun createType(): JavaType {
-        return mapper.typeFactory.constructCollectionType(List::class.java, returnedClass())
+        return mapper.typeFactory.constructCollectionType(List::class.java, paramType)
+    }
+}
+
+class JsonbMapType : JsonbType() {
+    private lateinit var keyType: Class<*>
+    private lateinit var valueType: Class<*>
+
+    override fun setParameterValues(parameters: Properties) {
+        super.setParameterValues(parameters)
+        val keyType = parameters[JSONB_MAP_PARAM_KEY_TYPE] as? String
+            ?: throw IllegalArgumentException("Missing 'JSONB_MAP_PARAM_KEY_TYPE' in @Type. Should be class name.")
+        val valueType = parameters[JSONB_MAP_PARAM_VALUE_TYPE] as? String
+            ?: throw IllegalArgumentException("Missing 'JSONB_MAP_PARAM_KEY_TYPE' in @Type. Should be class name.")
+
+        this.keyType = javaClass.classLoader.loadClass(keyType)
+        this.valueType = javaClass.classLoader.loadClass(valueType)
+    }
+
+    override fun createType(): JavaType {
+        return mapper.typeFactory.constructMapType(HashMap::class.java, keyType, valueType)
     }
 }

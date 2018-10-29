@@ -1,0 +1,89 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: app-abacus-service-deployment
+  labels:
+    app: app-abacus-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app-abacus-service
+  template:
+    metadata:
+      labels:
+        app: app-abacus-service
+    spec:
+      containers:
+      - name: app-abacus-service
+        image: registry.cloud.sdu.dk/sdu-cloud/app-abacus-service:0.1.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/ssh-password
+        volumeMounts:
+        - mountPath: /etc/psql
+          name: psql-secrets
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /root/.ssh/id_rsa_abc
+          name: abc-ssh-key
+          subPath: id_rsa_abc
+        - mountPath: /root/.ssh/id_rsa_abc.pub
+          name: abc-ssh-pub
+          subPath: id_rsa_abc.pub
+        - mountPath: /etc/ssh-password
+          name: ssh-password
+
+      volumes:
+      - name: psql-secrets
+        secret:
+          optional: false
+          secretName: app-abacus-psql
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: app-abacus-refresh-token
+      - name: abc-ssh-key
+        secret:
+          optional: false
+          secretName: app-abacus-ssh
+          items:
+          - key: id_rsa_abc
+            path: id_rsa_abc
+      - name: abc-ssh-pub
+        secret:
+          optional: false
+          secretName: app-abacus-ssh
+          items:
+          - key: id_rsa_abc.pub
+            path: id_rsa_abc.pub
+
+      - name: ssh-password
+        secret:
+          optional: false
+          secretName: app-abacus-ssh-password
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app-abacus
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: app-abacus-service

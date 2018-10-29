@@ -24,6 +24,9 @@ private const val CHUNK_SIZE = 1000
 private const val NOT_FOUND_STATUSCODE = 404
 private const val TIMEOUT_IN_MINUTES = 5L
 
+/**
+ * An implementation of [IndexingService] using an Elasticsearch backend.
+ */
 class ElasticIndexingService(
     private val elasticClient: RestHighLevelClient
 ) : IndexingService {

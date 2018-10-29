@@ -36,6 +36,11 @@ class Server(
 
     private val allProcessors = ArrayList<EventConsumer<*>>()
 
+    private fun addProcessors(processors: List<EventConsumer<*>>) {
+        processors.forEach { it.installShutdownHandler(this) }
+        allProcessors.addAll(processors)
+    }
+
     override fun start() {
         log.info("Creating core services")
         val activityEventDao = HibernateActivityEventDao()
@@ -45,8 +50,8 @@ class Server(
         log.info("Core services constructed")
 
         log.info("Creating stream processors")
-        allProcessors.addAll(StorageAuditProcessor(kafka, db, activityService).init())
-        allProcessors.addAll(StorageEventProcessor(kafka, db, activityService).init())
+        addProcessors(StorageAuditProcessor(kafka, db, activityService).init())
+        addProcessors(StorageEventProcessor(kafka, db, activityService).init())
         log.info("Stream processors constructed")
 
         httpServer = ktor {

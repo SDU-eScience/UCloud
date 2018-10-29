@@ -1,7 +1,9 @@
 package dk.sdu.cloud.storage.processor
 
 import dk.sdu.cloud.file.api.FileChecksum
+import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
@@ -9,7 +11,6 @@ import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.storage.services.withContext
 import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.unwrap
 import org.slf4j.LoggerFactory
 import java.math.BigInteger
 import java.security.MessageDigest
@@ -23,6 +24,8 @@ class ChecksumProcessor<Ctx : FSUserContext>(
     private val coreFs: CoreFileSystemService<Ctx>
 ) {
     fun handleEvents(chunk: List<StorageEvent>) {
+        log.debug("Handling another batch of events: $chunk")
+
         // How will this implementation handle very frequent updates to a file?
         commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
             chunk
@@ -30,7 +33,16 @@ class ChecksumProcessor<Ctx : FSUserContext>(
                 .filterIsInstance<StorageEvent.CreatedOrRefreshed>()
                 .distinctBy { it.path }
                 .forEach {
-                    computeAndAttachChecksum(ctx, it.path)
+                    try {
+                        log.debug("Computing check for for ${it.path}")
+                        computeAndAttachChecksum(ctx, it.path)
+                    } catch (ex: FSException) {
+                        log.info("Caught exception while attempting to attach checksum")
+                        log.info(ex.stackTraceToString())
+
+                        if (ex is FSException.CriticalException) throw ex
+                        else log.info("Exception was ignored.")
+                    }
                 }
         }
     }
@@ -58,7 +70,10 @@ class ChecksumProcessor<Ctx : FSUserContext>(
         ctx: Ctx,
         path: String,
         algorithm: String = DEFAULT_CHECKSUM_ALGORITHM
-    ): FileChecksum {
+    ): FileChecksum? {
+        val stat = coreFs.stat(ctx, path, setOf(FileAttribute.FILE_TYPE))
+        if (stat.fileType != FileType.FILE) return null
+
         val checksum = computeChecksum(ctx, path, algorithm)
         attachChecksumToObject(ctx, path, checksum, algorithm)
         return FileChecksum(algorithm, checksum.toHexString())
@@ -78,23 +93,6 @@ class ChecksumProcessor<Ctx : FSUserContext>(
             ctx, path,
             CHECKSUM_TYPE_KEY, algorithm
         )
-    }
-
-    fun getChecksum(ctx: Ctx, path: String): FileChecksum {
-        return try {
-            val checksum = fs.getExtendedAttribute(
-                ctx, path,
-                CHECKSUM_KEY
-            ).unwrap()
-            val type = fs.getExtendedAttribute(
-                ctx, path,
-                CHECKSUM_TYPE_KEY
-            ).unwrap()
-            FileChecksum(type, checksum)
-        } catch (ex: FSException.NotFound) {
-            log.info("Checksum did not already exist for $ctx.user}, $path. Attempting to recompute")
-            return computeAndAttachChecksum(ctx, path)
-        }
     }
 
     private fun getMessageDigest(algorithm: String): MessageDigest {

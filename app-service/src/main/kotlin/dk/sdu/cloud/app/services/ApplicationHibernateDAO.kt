@@ -108,15 +108,15 @@ class ApplicationHibernateDAO(
         query: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationForUser> {
-        val itemsInTotal = session.createCriteriaBuilder<Long, TagEntity>().run {
-            criteria.where(entity[TagEntity::tag] equal query)
+        val itemsInTotal = session.createCriteriaBuilder<Long, ApplicationTagEntity>().run {
+            criteria.where(entity[ApplicationTagEntity::tag] equal query)
             criteria.select(count(entity))
         }.createQuery(session).uniqueResult()
 
         val items = session.typedQuery<ApplicationEntity>(
             """
                 select application
-                from TagEntity
+                from ApplicationTagEntity
                 where tag=:query
                 order by application
             """.trimIndent()
@@ -143,7 +143,6 @@ class ApplicationHibernateDAO(
         paging: NormalizedPaginationRequest
     ): Page<ApplicationForUser> {
         val count = session.typedQuery<Long>(
-            //language=HQL
             """
                 select count (A.id.name)
                 from ApplicationEntity as A where (A.createdAt) in (
@@ -158,7 +157,6 @@ class ApplicationHibernateDAO(
             .toInt()
 
         val items = session.typedQuery<ApplicationEntity>(
-            //language=HQL
             """
                     from ApplicationEntity as A where (A.createdAt) in (
                         select max(createdAt)
@@ -211,7 +209,6 @@ class ApplicationHibernateDAO(
         user: String?,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationForUser> {
-        //language=HQL
         val count = session.typedQuery<Long>(
             """
             select count (A.id.name)
@@ -225,7 +222,6 @@ class ApplicationHibernateDAO(
         ).uniqueResult()
             .toInt()
 
-        //language=HQL
         val items = session.typedQuery<ApplicationEntity>(
             """
             from ApplicationEntity as A where (A.createdAt) in (
@@ -280,7 +276,7 @@ class ApplicationHibernateDAO(
         session.save(entity)
 
         description.tags.forEach { tag ->
-            session.save(TagEntity(entity, tag))
+            session.save(ApplicationTagEntity(entity, tag))
         }
     }
 

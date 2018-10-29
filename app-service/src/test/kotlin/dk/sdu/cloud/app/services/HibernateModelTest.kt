@@ -11,10 +11,7 @@ import java.util.*
 import kotlin.test.assertEquals
 
 class HibernateModelTest {
-
     //Job entity is covered in another test
-
-
     @Test
     fun `simple create Tag, Tool and Application Entity test`() {
         val normToolDesc = NormalizedToolDescription(
@@ -83,7 +80,7 @@ class HibernateModelTest {
         assertEquals("original doc", app.tool.originalDocument)
         assertEquals("original doc", app.originalDocument)
 
-        val tag = TagEntity(
+        val tag = ApplicationTagEntity(
             app,
             "tag1"
         )

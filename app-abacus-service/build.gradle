@@ -1,0 +1,17 @@
+group 'dk.sdu.cloud'
+version '0.1.6'
+
+apply plugin: 'application'
+mainClassName = 'dk.sdu.cloud.app.abacus.MainKt'
+
+apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
+
+dependencies {
+    compile 'com.jcraft:jsch:0.1.54'
+    compile 'com.google.guava:guava:23.4-jre'
+
+    compile 'dk.sdu.cloud:service-common:0.20.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT'
+    compile 'dk.sdu.cloud:app-api:0.9.0-SNAPSHOT'
+}
+

@@ -22,11 +22,11 @@
 | [dk.sdu.cloud.app.api.FindByNameAndVersion](../dk.sdu.cloud.app.api/-find-by-name-and-version/index.md) |  |
 | [dk.sdu.cloud.app.api.FollowStdStreamsRequest](../dk.sdu.cloud.app.api/-follow-std-streams-request/index.md) |  |
 | [dk.sdu.cloud.app.api.FollowStdStreamsResponse](../dk.sdu.cloud.app.api/-follow-std-streams-response/index.md) |  |
-| [dk.sdu.cloud.app.api.HPCApplicationDescriptions](../dk.sdu.cloud.app.api/-h-p-c-application-descriptions/index.md) |  |
+| [dk.sdu.cloud.app.api.ApplicationDescriptions](../dk.sdu.cloud.app.api/-h-p-c-application-descriptions/index.md) |  |
 | [dk.sdu.cloud.app.HPCConfig](../dk.sdu.cloud.app/-h-p-c-config/index.md) |  |
-| [dk.sdu.cloud.app.api.HPCJobDescriptions](../dk.sdu.cloud.app.api/-h-p-c-job-descriptions/index.md) | Call descriptions for the endpoint `/api/hpc/jobs` |
+| [dk.sdu.cloud.app.api.JobDescriptions](../dk.sdu.cloud.app.api/-h-p-c-job-descriptions/index.md) | Call descriptions for the endpoint `/api/hpc/jobs` |
 | [dk.sdu.cloud.app.api.HPCStreams](../dk.sdu.cloud.app.api/-h-p-c-streams/index.md) |  |
-| [dk.sdu.cloud.app.api.HPCToolDescriptions](../dk.sdu.cloud.app.api/-h-p-c-tool-descriptions/index.md) |  |
+| [dk.sdu.cloud.app.api.ToolDescriptions](../dk.sdu.cloud.app.api/-h-p-c-tool-descriptions/index.md) |  |
 | [dk.sdu.cloud.app.services.InvocationParameter](../dk.sdu.cloud.app.services/-invocation-parameter/index.md) |  |
 | [kotlin.collections.Iterable](../dk.sdu.cloud.app.services/kotlin.collections.-iterable/index.md) (extensions in package dk.sdu.cloud.app.services) |  |
 | [dk.sdu.cloud.app.http.JobController](../dk.sdu.cloud.app.http/-job-controller/index.md) |  |

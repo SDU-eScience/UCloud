@@ -2,11 +2,8 @@ package dk.sdu.cloud.storage.processor
 
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.EventConsumerFactory
-import dk.sdu.cloud.service.batched
-import dk.sdu.cloud.service.consumeBatchAndCommit
-import java.util.Collections
+import dk.sdu.cloud.service.*
+import java.util.*
 
 typealias StorageEventHandler = (List<StorageEvent>) -> Unit
 
@@ -32,8 +29,14 @@ class StorageEventProcessor(
                     maxBatchSize = 1000
                 )
                 .consumeBatchAndCommit { batch ->
+                    log.debug("Consuming events! ${batch.size}")
+
                     handlers.forEach { handler -> handler(batch.map { it.second }) }
                 }
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

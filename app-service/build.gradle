@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.7.0-SNAPSHOT'
+version '0.9.15-SNAPSHOT'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
@@ -17,19 +17,21 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     compile group: 'com.jcraft', name: 'jsch', version: '0.1.54'
     compile 'com.google.guava:guava:23.4-jre'
+    compile "com.squareup.okhttp3:okhttp:3.11.0"
 
-    compile 'dk.sdu.cloud:service-common:0.18.0-SNAPSHOT'
-    compile "dk.sdu.cloud:file-api:0.9.1-SNAPSHOT"
-    compile "dk.sdu.cloud:upload-api:0.9.1-SNAPSHOT"
+    compile 'dk.sdu.cloud:service-common:0.20.0-SNAPSHOT'
+    compile "dk.sdu.cloud:file-api:0.11.0-SNAPSHOT"
+    compile "dk.sdu.cloud:upload-api:0.11.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"
 
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
 }
 
 sduCloud.createTasksForApiJar(
-    "app",
-    [
-        "com.google.guava:guava:23.4-jre",
-        "dk.sdu.cloud:file-api:0.9.1-SNAPSHOT"
-    ]
+        "app",
+        [
+                "com.google.guava:guava:23.4-jre",
+                "dk.sdu.cloud:file-api:0.9.1-SNAPSHOT",
+                "com.squareup.okhttp3:okhttp:3.11.0"
+        ]
 )

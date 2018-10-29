@@ -23,7 +23,7 @@ private const val TYPE_FLOATING_POINT = "floating_point"
     JsonSubTypes.Type(value = ApplicationParameter.Bool::class, name = TYPE_BOOLEAN),
     JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = TYPE_FLOATING_POINT)
 )
-sealed class ApplicationParameter<V : Any>(val type: String) {
+sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: String) {
     abstract var name: String
     abstract val optional: Boolean
     abstract val title: String
@@ -89,63 +89,99 @@ sealed class ApplicationParameter<V : Any>(val type: String) {
     data class Text(
         override var name: String = "",
         override val optional: Boolean = false,
-        override val defaultValue: String? = null,
+        override val defaultValue: StringApplicationParameter? = null,
         override val title: String = name,
         override val description: String = ""
-    ) : ApplicationParameter<String>(TYPE_TEXT) {
-        override fun internalMap(inputParameter: Any): String = inputParameter.toString()
+    ) : ApplicationParameter<StringApplicationParameter>(TYPE_TEXT) {
+        override fun internalMap(inputParameter: Any): StringApplicationParameter =
+            StringApplicationParameter(inputParameter.toString())
 
-        override fun toInvocationArgument(entry: String): String = entry
+        override fun toInvocationArgument(entry: StringApplicationParameter): String = entry.value
     }
 
     data class Integer(
         override var name: String = "",
         override val optional: Boolean = false,
-        override val defaultValue: Int? = null,
+        override val defaultValue: IntApplicationParameter? = null,
         override val title: String = name,
         override val description: String = "",
         val min: Int? = null,
         val max: Int? = null,
         val step: Int? = null,
         val unitName: String? = null
-    ) : ApplicationParameter<Int>(TYPE_INTEGER) {
-        override fun internalMap(inputParameter: Any): Int =
-            (inputParameter as? Int) ?: inputParameter.toString().toInt()
+    ) : ApplicationParameter<IntApplicationParameter>(TYPE_INTEGER) {
+        override fun internalMap(inputParameter: Any): IntApplicationParameter =
+            IntApplicationParameter((inputParameter as? Int) ?: inputParameter.toString().toInt())
 
-        override fun toInvocationArgument(entry: Int): String = entry.toString()
+        override fun toInvocationArgument(entry: IntApplicationParameter): String = entry.value.toString()
     }
 
     data class FloatingPoint(
         override var name: String = "",
         override val optional: Boolean = false,
-        override val defaultValue: Double? = null,
+        override val defaultValue: DoubleApplicationParameter? = null,
         override val title: String = name,
         override val description: String = "",
         val min: Double? = null,
         val max: Double? = null,
         val step: Double? = null,
         val unitName: String? = null
-    ) : ApplicationParameter<Double>(TYPE_FLOATING_POINT) {
-        override fun internalMap(inputParameter: Any): Double =
-            (inputParameter as? Double) ?: inputParameter.toString().toDouble()
+    ) : ApplicationParameter<DoubleApplicationParameter>(TYPE_FLOATING_POINT) {
+        override fun internalMap(inputParameter: Any): DoubleApplicationParameter =
+            DoubleApplicationParameter((inputParameter as? Double) ?: inputParameter.toString().toDouble())
 
-        override fun toInvocationArgument(entry: Double): String = entry.toString()
+        override fun toInvocationArgument(entry: DoubleApplicationParameter): String = entry.value.toString()
     }
 
     data class Bool(
         override var name: String = "",
         override val optional: Boolean = false,
-        override val defaultValue: Boolean? = null,
+        override val defaultValue: BooleanApplicationParameter? = null,
         override val title: String = name,
         override val description: String = "",
         val trueValue: String = "true",
         val falseValue: String = "false"
-    ) : ApplicationParameter<Boolean>(TYPE_BOOLEAN) {
-        override fun internalMap(inputParameter: Any): Boolean =
-            (inputParameter as? Boolean) ?: inputParameter.toString().toBoolean()
+    ) : ApplicationParameter<BooleanApplicationParameter>(TYPE_BOOLEAN) {
+        override fun internalMap(inputParameter: Any): BooleanApplicationParameter =
+            BooleanApplicationParameter((inputParameter as? Boolean) ?: inputParameter.toString().toBoolean())
 
-        override fun toInvocationArgument(entry: Boolean): String = if (entry) trueValue else falseValue
+        override fun toInvocationArgument(entry: BooleanApplicationParameter): String =
+            if (entry.value) trueValue else falseValue
     }
 }
 
-data class FileTransferDescription(val source: String, val destination: String)
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "type"
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = FileTransferDescription::class, name = "file"),
+    JsonSubTypes.Type(value = BooleanApplicationParameter::class, name = "bool"),
+    JsonSubTypes.Type(value = IntApplicationParameter::class, name = "int"),
+    JsonSubTypes.Type(value = DoubleApplicationParameter::class, name = "double"),
+    JsonSubTypes.Type(value = StringApplicationParameter::class, name = "string")
+)
+sealed class ParsedApplicationParameter {
+    abstract val type: String // This is not ideal, but it fixes the serialization issue
+}
+
+data class FileTransferDescription(val source: String, val destination: String) : ParsedApplicationParameter() {
+    override val type = "file"
+}
+
+data class BooleanApplicationParameter(val value: Boolean) : ParsedApplicationParameter() {
+    override val type = "bool"
+}
+
+data class IntApplicationParameter(val value: Int) : ParsedApplicationParameter() {
+    override val type = "int"
+}
+
+data class DoubleApplicationParameter(val value: Double) : ParsedApplicationParameter() {
+    override val type = "double"
+}
+
+data class StringApplicationParameter(val value: String) : ParsedApplicationParameter() {
+    override val type = "string"
+}

@@ -43,7 +43,6 @@ private fun Application.configureLookupServer(reverseLookupService: ReverseLooku
 }
 
 class LookupTest {
-
     private val mapper = jacksonObjectMapper()
 
     @Test
