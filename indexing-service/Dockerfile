@@ -32,7 +32,6 @@ ENV SERVICE_NAME=indexing-service
 
 # Copy application code into /usr/src/app
 COPY . /usr/src/app/
-COPY shared-gradle /usr/src/shared-gradle/
 WORKDIR /usr/src/app/
 
 # Copy gradle.properties

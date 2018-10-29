@@ -1,9 +1,16 @@
 def initialize() {
 
-  stage('build metadata-service') {
-    sh '''cd metadata-service
-    ./gradlew clean
-    ./gradlew build -x test'''
+  try {
+    stage('build metadata-service') {
+      sh '''cd metadata-service
+      ./gradlew clean
+      ./gradlew build -x test'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'metadata-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'metadata-service-detekt-Report', reportTitles: ''])
   }
 
   try {
@@ -12,12 +19,10 @@ def initialize() {
       ./gradlew test'''
     } 
   } catch (e) {
-      echo "Test FAILED"
-  } finally {
-    junit '**/metadata-service/build/test-results/**/*.xml'      
-    def currentResult = currentBuild.result ?: 'SUCCESS'
-    return currentResult
+    echo "Test FAILED"
+    return currentBuild.result ?: 'UNSTABLE'
   }
+  return currentBuild.result ?: 'SUCCESS'
 }
 
 return this
