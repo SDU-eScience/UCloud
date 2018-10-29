@@ -34,7 +34,7 @@ volumes: [
             def serviceList = [
                 "abc2-sync",
                 "client-core",
-                "frontend-web"
+                "frontend-web",
                 "service-common"
             ]
 
