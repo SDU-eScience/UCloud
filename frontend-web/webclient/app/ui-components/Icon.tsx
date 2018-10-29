@@ -1,6 +1,6 @@
 import * as React from 'react'
 import styled from 'styled-components'
-import { space, color } from "styled-system"
+import { space, color, SpaceProps } from "styled-system"
 import { icons } from './icons.json'
 import theme from './theme'
 
@@ -33,7 +33,7 @@ const IconBase = ({ name, size, ...props }): JSX.Element => {
   )
 }
 
-export interface IconProps {
+export interface IconProps extends SpaceProps {
   name: IconName
   size?: string | number
   color?: string
@@ -61,40 +61,41 @@ Icon.defaultProps = {
 export const EveryIcon = () => (
   <>
     {Object.keys(icons).map((it: IconName, i: number) =>
-      (<span><span>{it}</span>: <Icon name={it} key={i} />, </span>)
+      (<span key={i}><span>{it}</span>: <Icon name={it} key={i} />, </span>)
     )}
   </>
 );
 
 export type IconName =
-  "activity"     |
-  "admin"        |
-  "apps"         |
-  "boxChecked"   |
-  "boxEmpty"     |
-  "chevronDown"  |
-  "copy"         |
-  "dashboard"    |
-  "delete"       |
-  "download"     |
-  "files"        |
-  "move"         |
+  "activity" |
+  "admin" |
+  "apps" |
+  "boxChecked" |
+  "boxEmpty" |
+  "chevronDown" |
+  "copy" |
+  "close" |
+  "dashboard" |
+  "delete" |
+  "download" |
+  "files" |
+  "move" |
   "notification" |
-  "open"         |
-  "play"         |
-  "publish"      |
+  "open" |
+  "play" |
+  "publish" |
   "radioChecked" |
-  "radioEmpty"   |
-  "rename"       |
-  "search"       |
-  "shares"       |
-  "starFilled"   |
-  "starRibbon"   |
-  "starEmpty"    |
-  "trash"        |
-  "upload"       |
+  "radioEmpty" |
+  "rename" |
+  "search" |
+  "shares" |
+  "starFilled" |
+  "starRibbon" |
+  "starEmpty" |
+  "trash" |
+  "upload" |
   "uploadFolder" |
-  "properties"   |
+  "properties" |
   "projects";
 
 export default Icon

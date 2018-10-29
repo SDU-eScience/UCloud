@@ -16,7 +16,6 @@ import { Notification } from "Notifications";
 import { Analysis } from "Applications";
 import { File, FileType } from "Files";
 import { Dispatch } from "redux";
-import Icon, { EveryIcon } from "ui-components/Icon";
 
 class Dashboard extends React.Component<DashboardProps> {
     constructor(props) {

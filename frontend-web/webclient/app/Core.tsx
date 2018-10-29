@@ -16,7 +16,6 @@ import ZenodoHome from "Zenodo/Zenodo";
 import ZenodoInfo from "Zenodo/Info";
 import UserCreation from "Admin/UserCreation";
 import UserSettings from "UserSettings/UserSettings";
-import DetailedFileSearch from "Files/DetailedFileSearch";
 import SimpleSearch from "SimpleSearch/SimpleSearch";
 import Projects from "Projects/Projects";
 import FilePreview from "Files/FilePreview";
@@ -41,8 +40,7 @@ const Core = () => (
                 <Route exact path="/fileInfo/*" component={FileInfo} />
                 <Route exact path="/filepreview/*" component={FilePreview} />
                 <Route exact path="/activity/*" component={Activity} />
-                <Route exact path="/status" component={Status} />
-                <Route exact path="/fileSearch" component={DetailedFileSearch} />
+                <Route exact path="/status" component={Status} />s
                 <Route exact path="/applications" component={Applications} />
                 <Route exact path="/applications/:appName/:appVersion" component={RunApp} />
                 <Route exact path="/appDetails/:appName/:appVersion" component={DetailedApplication} />

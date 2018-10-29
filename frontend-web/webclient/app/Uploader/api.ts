@@ -4,6 +4,7 @@ export const multipartUpload = (location: string, file: File, onProgress?: (e: P
     return Cloud.receiveAccessTokenOrRefreshIt().then(token => {
         let formData = new FormData();
         formData.append("location", location);
+        /* formData.append("sensitivity", "sensitive"); */
         formData.append("upload", file);
 
         let request = new XMLHttpRequest();
@@ -26,6 +27,7 @@ export const bulkUpload = (location: string, file: File, policy: BulkUploadPolic
         formData.append("path", location);
         formData.append("format", format);
         formData.append("policy", policy);
+        /* formData.append("sensitivity", "sensitive"); */
         formData.append("upload", file);
 
         let request = new XMLHttpRequest();

@@ -11,7 +11,7 @@ import { KeyCode, ReduxObject } from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
-import { FileIcon, RefreshButton } from "UtilityComponents";
+import { FileIcon, RefreshButton, Chevron } from "UtilityComponents";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
     FileOptionsProps, FilesTableProps, SortByDropdownProps, FileOperation, ContextButtonsProps, Operation, ContextBarProps,
@@ -28,6 +28,7 @@ import { Dispatch } from "redux";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
+import DetailedFileSearch from "./DetailedFileSearch";
 
 class Files extends React.Component<FilesProps> {
 
@@ -82,7 +83,6 @@ class Files extends React.Component<FilesProps> {
                 <Checkbox
                     onClick={e => this.props.checkAllFiles(!!e.target.checked)}
                     checked={page.items.length === selectedFiles.length && page.items.length > 0}
-                    indeterminate={selectedFiles.length < page.items.length && selectedFiles.length > 0}
                     onChange={e => e.stopPropagation()}
                 />
             </Label>
@@ -156,6 +156,7 @@ class Files extends React.Component<FilesProps> {
                         files={selectedFiles}
                         createFolder={() => props.createFolder()}
                     />
+                    <DetailedFileSearch />
                 </Hide>
                 <FileSelectorModal
                     show={props.fileSelectorShown}
@@ -236,7 +237,7 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
                         Filename
                     </Box>
                     <Box ml="auto" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)} />
-                    <Chevron className="float-right" name={toSortingIcon(SortBy.PATH)} />
+                    <Chevron name={toSortingIcon(SortBy.PATH)} />
                 </Flex>
             </TableHeaderCell>
             {sortingColumns.map((sC, i) => (
@@ -282,7 +283,6 @@ const ContextButtons = ({ createFolder, showUploader }: ContextButtonsProps) => 
     <Box pl="5px" pr="5px">
         <Button mt="3px" color="blue" fullWidth onClick={showUploader}>Upload Files</Button>
         <OutlineButton mt="3px" color="black" fullWidth onClick={createFolder}>New folder</OutlineButton>
-        <Link to="/filesearch"><OutlineButton color="green" mt="3px" fullWidth>Advanced Search</OutlineButton></Link>
     </Box>
 );
 
@@ -397,12 +397,6 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
         leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount
     }
 };
-
-function Chevron(props) {
-    if (props.name === "chevron down") return (<Icon className="float-right" rotation={0} name="chevronDown" />);
-    else if (props.name === "chevron up") return (<Icon className="float-right" rotation={180} name="chevronDown" />);
-    return null;
-}
 
 const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),

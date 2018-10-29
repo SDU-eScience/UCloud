@@ -34,7 +34,9 @@ const size = ({ size, theme }) => {
 
 const fullWidth = (props) => (props.fullWidth ? { width: "100%" } : null)
 
-const Button = styled.button<ButtonStyleProps & { fullWidth?: boolean } & SpaceProps & SizeProps>` 
+export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean } & SpaceProps & SizeProps & { title?: string }
+
+const Button = styled.button<ButtonProps>` 
   -webkit-font-smoothing: antialiased;
   display: inline-block;
   vertical-align: middle;

@@ -1,11 +1,15 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { Grid, Dropdown, Label, Header, Form, Button, Input, Message } from "semantic-ui-react";
 import { addEntryIfNotPresent } from "Utilities/CollectionUtilities"
 import { infoNotification } from "UtilityFunctions";
 import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation, PossibleTime } from ".";
-import DatePicker from "react-datepicker";
+import { DatePicker } from "ui-components/DatePicker";
 import { Moment } from "moment";
+import Box from "ui-components/Box";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import { Flex, Input, Label, Button, InputGroup, Stamp, Checkbox, Card, Text } from "ui-components";
+import * as Heading from "ui-components/Heading"
+import CloseButton from "ui-components/CloseButton";
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {
     constructor(props) {
@@ -152,151 +156,169 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
         const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename, annotations, tags, tagValue } = this.state;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));
         const sensitivityDropdown = remainingSensitivities.length ? (
-            <div>
-                <Dropdown
-                    text="Add sensitivity level"
-                    onChange={(_, { value }) => this.onAddSensitivity(value as SensitivityLevel)}
+            <Box>
+                <ClickableDropdown
+                    chevron
+                    trigger={"Add sensitivity level"}
+                    onChange={key => this.onAddSensitivity(key as SensitivityLevel)}
                     options={remainingSensitivities}
                 />
-            </div>
+            </Box>
         ) : null;
-        const remainingAnnotations = annotationOptions.filter(a => !annotations.has(a.text as Annotation));
-        const annotationsDropdown = remainingAnnotations.length ? (
-            <div>
-                <Dropdown
-                    text="Add annotation"
-                    onChange={(_, { value }) => this.onAddAnnotation(value as Annotation)}
-                    options={remainingAnnotations}
-                />
-            </div>
-        ) : null;
-        const error = !!this.state.error ? <Message error content={this.state.error} onDismiss={() => this.setState(() => ({ error: undefined }))} /> : null;
+        const error = !!this.state.error ? (
+            <Card borderRadius="0.5em" height="4em" color="black" bg="lightRed">
+                <Flex ml="3em" mt="1em">{this.state.error}
+                    <Box ml="auto"><CloseButton pr="15px" onClick={() => this.setState(() => ({ error: undefined }))} /></Box>
+                </Flex>
+            </Card>) : null;
         return (
-            <Grid container columns={16} >
-                <Grid.Column width={16}>
+            <Flex flexDirection="column" pl="0.5em" pr="0.5em">
+                <Box mt="0.5em">
+                    <Heading.h3>Advanced File Search</Heading.h3>
                     {error}
-                    <Header as="h3" content="Filename" />
-                    {filename ? <div className="padding-bottom"><Label className="label-padding" content={`Filename contains: ${filename}`} active={false} basic /></div> : null}
-                    <Input fluid placeholder="Filename must include..." onChange={(_, { value }) => this.setState(() => ({ filename: value }))} />
-                    <Header as="h3" content="Created at" />
-                    <Form onSubmit={(e) => e.preventDefault()}>
-                        <Form.Group>
-                            <Form.Field>
-                                <label>Created after</label>
-                                <DatePicker
-                                    selected={this.state.createdAfter}
-                                    onChange={(d) => this.validateAndSetDate(d, "createdAfter")}
-                                    showTimeSelect
-                                    timeIntervals={15}
-                                    isClearable
-                                    timeFormat="HH:mm"
-                                    dateFormat="DD/MM/YY HH:mm"
-                                    timeCaption="time"
-                                />
-                            </Form.Field>
-                            <Form.Field>
-                                <label>Created before</label>
-                                <DatePicker
-                                    selected={this.state.createdBefore}
-                                    onChange={(d) => this.validateAndSetDate(d, "createdBefore")}
-                                    showTimeSelect
-                                    timeIntervals={15}
-                                    isClearable
-                                    timeFormat="HH:mm"
-                                    dateFormat="DD/MM/YY HH:mm"
-                                    timeCaption="time"
-                                />
-                            </Form.Field>
-                        </Form.Group>
-                    </Form>
-                    <Header as="h3" content="Modified at" />
-                    <Form onSubmit={(e) => e.preventDefault()}>
-                        <Form.Group>
-                            <Form.Field>
-                                <label>Modified after</label>
-                                <DatePicker
-                                    selected={this.state.modifiedAfter}
-                                    onChange={(d) => this.validateAndSetDate(d, "modifiedAfter")}
-                                    showTimeSelect
-                                    timeIntervals={15}
-                                    isClearable
-                                    timeFormat="HH:mm"
-                                    dateFormat="DD/MM/YY HH:mm"
-                                    timeCaption="time"
-                                />
-                            </Form.Field>
-                            <Form.Field>
-                                <label>Modified before</label>
-                                <DatePicker
-                                    selected={this.state.modifiedBefore}
-                                    onChange={(d) => this.validateAndSetDate(d, "modifiedBefore")}
-                                    showTimeSelect
-                                    timeIntervals={15}
-                                    isClearable
-                                    timeFormat="HH:mm"
-                                    dateFormat="DD/MM/YY HH:mm"
-                                    timeCaption="time"
-                                />
-                            </Form.Field>
-                        </Form.Group>
-                    </Form>
-                    <Header as="h3" content="File Types" />
-                    <Form.Group inline>
-                        <Form.Checkbox label="Folders" checked={allowFolders} onClick={() => this.setState(() => ({ allowFolders: !allowFolders }))} />
-                        <Form.Checkbox label="Files" checked={allowFiles} onClick={() => this.setState(() => ({ allowFiles: !allowFiles }))} />
-                    </Form.Group>
-                    <Header as="h3" content="File extensions" />
-                    <SearchLabels labels={extensions} onLabelRemove={(l) => this.onRemoveExtension(l)} clearAll={() => this.setState(() => ({ extensions: new Set() }))} />
-                    <Form onSubmit={(e) => { e.preventDefault(); this.onAddExtension(); }}>
-                        <Form.Input placeholder="Add extensions..." value={extensionValue} onChange={(_, { value }) => this.setState(() => ({ extensionValue: value }))} />
-                        <Dropdown
-                            text="Add extension preset"
-                            onChange={(_, { value }) => this.onAddPresets(value as string)}
+                    <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
+                    {filename ? <Box mb="1em"><Stamp bg="white">{`Filename contains: ${filename}`}</Stamp></Box> : null}
+                    <Input
+                        pb="6px"
+                        pt="8px"
+                        mt="-2px"
+                        width="100%"
+                        placeholder="Filename must include..."
+                        onChange={({ target: { value } }) => this.setState(() => ({ filename: value }))}
+                    />
+                    <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
+
+                    <InputGroup>
+                        <DatePicker
+                            popperPlacement="left"
+                            pb="6px"
+                            pt="8px"
+                            mt="-2px"
+                            placeholderText="Created after..."
+                            selected={this.state.createdAfter}
+                            onChange={d => this.validateAndSetDate(d, "createdAfter")}
+                            showTimeSelect
+                            timeIntervals={15}
+                            isClearable
+                            timeFormat="HH:mm"
+                            dateFormat="DD/MM/YY HH:mm"
+                            timeCaption="time"
+                        />
+                        <DatePicker
+                            popperPlacement="left"
+                            pb="6px"
+                            pt="8px"
+                            mt="-2px"
+                            placeholderText="Created before..."
+                            selected={this.state.createdBefore}
+                            onChange={(d) => this.validateAndSetDate(d, "createdBefore")}
+                            showTimeSelect
+                            timeIntervals={15}
+                            isClearable
+                            timeFormat="HH:mm"
+                            dateFormat="DD/MM/YY HH:mm"
+                            timeCaption="time"
+                        />
+                    </InputGroup>
+
+                    <Heading.h5 pb="0.3em" pt="0.5em">Modified at</Heading.h5>
+                    <InputGroup>
+                        <DatePicker
+                            popperPlacement="left"
+                            pb="6px"
+                            pt="8px"
+                            mt="-2px"
+                            placeholderText="Modified after..."
+                            selected={this.state.modifiedAfter}
+                            onChange={d => this.validateAndSetDate(d, "modifiedAfter")}
+                            showTimeSelect
+                            timeIntervals={15}
+                            isClearable
+                            timeFormat="HH:mm"
+                            dateFormat="DD/MM/YY HH:mm"
+                            timeCaption="time"
+                        />
+                        <DatePicker
+                            popperPlacement="left"
+                            pb="6px"
+                            pt="8px"
+                            mt="-2px"
+                            placeholderText="Modified before..."
+                            selected={this.state.modifiedBefore}
+                            onChange={d => this.validateAndSetDate(d, "modifiedBefore")}
+                            showTimeSelect
+                            timeIntervals={15}
+                            isClearable
+                            timeFormat="HH:mm"
+                            dateFormat="DD/MM/YY HH:mm"
+                            timeCaption="time"
+                        />
+                    </InputGroup>
+                    <Heading.h5 pb="0.3em" pt="0.5em">File Types</Heading.h5>
+                    <Flex>
+                        <Label fontSize={1} color="black">
+                            <Checkbox
+                                checked={allowFolders}
+                                onChange={e => e.stopPropagation()}
+                                onClick={({ target: { checked: allowFolders } }) => this.setState(() => ({ allowFolders }))}
+                            />
+                            Folders
+                        </Label>
+                        <Label fontSize={1} color="black">
+                            <Checkbox
+                                checked={allowFiles}
+                                onChange={e => e.stopPropagation()}
+                                onClick={({ target: { checked: allowFiles } }) => this.setState(() => ({ allowFiles }))}
+                            />
+                            Files
+                        </Label>
+                    </Flex>
+
+                    <Heading.h5 pb="0.3em" pt="0.5em">File extensions</Heading.h5>
+                    <SearchStamps stamps={extensions} onStampRemove={(l) => this.onRemoveExtension(l)} clearAll={() => this.setState(() => ({ extensions: new Set() }))} />
+                    <form onSubmit={(e) => { e.preventDefault(); this.onAddExtension(); }}>
+                        <Input pb="6px" pt="8px" mt="-2px" placeholder={"Add extensions..."} value={extensionValue} onChange={({ target: { value: extensionValue } }) => this.setState(() => ({ extensionValue }))} />
+                        <ClickableDropdown
+                            chevron
+                            trigger={"Add extension preset"}
+                            onChange={value => this.onAddPresets(value)}
                             options={extensionPresets}
                         />
-                    </Form>
-                    <Header as="h3" content="Sensitivity" />
-                    <SearchLabels labels={sensitivities} onLabelRemove={(l) => this.onRemoveSensitivity(l)} clearAll={() => this.setState(() => ({ sensitivities: new Set() }))} />
+                    </form>
+                    <Heading.h5 pb="0.3em" pt="0.5em">Sensitivity</Heading.h5>
+                    <SearchStamps stamps={sensitivities} onStampRemove={l => this.onRemoveSensitivity(l)} clearAll={() => this.setState(() => ({ sensitivities: new Set() }))} />
                     {sensitivityDropdown}
 
-                    <Header as="h3" content="Annotations" />
-                    <SearchLabels labels={annotations} onLabelRemove={(l) => this.onRemoveAnnotation(l)} clearAll={() => this.setState(() => ({ annotations: new Set() }))} />
-                    {annotationsDropdown}
-
-                    <Header as="h3" content="Tags" />
-                    <SearchLabels labels={tags} onLabelRemove={(l) => this.onRemoveTag(l)} clearAll={() => this.setState(() => ({ tags: new Set() }))} />
-                    <Form onSubmit={(e) => { e.preventDefault(); this.onAddTags(); }}>
-                        <Form.Input value={tagValue} onChange={(_, { value }) => this.setState(() => ({ tagValue: value }))} />
-                    </Form>
-                    <Button style={{ marginTop: "15px" }} content="Search" color="blue" onClick={() => this.onSearch()} />
-                </Grid.Column>
-            </Grid>
+                    <Heading.h5>Tags</Heading.h5>
+                    <SearchStamps stamps={tags} onStampRemove={(l) => this.onRemoveTag(l)} clearAll={() => this.setState(() => ({ tags: new Set() }))} />
+                    <form onSubmit={e => { e.preventDefault(); this.onAddTags(); }}>
+                        <Input pb="6px" pt="8px" mt="-2px" value={tagValue} onChange={({ target: { value } }) => this.setState(() => ({ tagValue: value }))} />
+                    </form>
+                    <Button mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()}>Search</Button>
+                </Box >
+            </Flex >
         );
     }
 }
 
-const SearchLabels = (props) => (
-    <div className="padding-bottom">
-        {[...props.labels].map((l, i) => (<Label className="label-padding" basic key={i} content={l} onRemove={() => props.onLabelRemove(l)} />))}
-        {props.labels.size > 1 ? (<Label className="label-padding" color="blue" content="Clear all" onRemove={props.clearAll} />) : null}
-    </div>
+const SearchStamps = ({ stamps, onStampRemove, clearAll }) => (
+    <Box pb="5px">
+        {[...stamps].map((l, i) => (<Stamp ml="2px" mt="2px" bg="white" key={i}>{l}<CloseButton onClick={() => onStampRemove(l)} size={12} /></Stamp>))}
+        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" bg="blue" color="white" onClick={clearAll}>Clear all<CloseButton size={12} /></Stamp>) : null}
+    </Box>
 );
 
 const extensionPresets = [
-    { key: "text", content: "Text", value: ".txt .docx .rtf .csv .pdf" },
-    { key: "image", content: "Image", value: ".png .jpeg .jpg .ppm .gif" },
-    { key: "sound", content: "Sound", value: ".mp3 .ogg .wav .flac .aac" },
-    { key: "compressed", content: "Compressed files", value: ".zip .tar.gz" }
-]
+    { text: "Text", value: ".txt .docx .rtf .csv .pdf" },
+    { text: "Image", value: ".png .jpeg .jpg .ppm .gif" },
+    { text: "Sound", value: ".mp3 .ogg .wav .flac .aac" },
+    { text: "Compressed files", value: ".zip .tar.gz" }
+];
 
 const sensitivityOptions = [
-    { key: "open_access", text: "Open Access", value: "Open Access" },
-    { key: "confidential", text: "Confidential", value: "Confidential" },
-    { key: "sensitive", text: "Sensitive", value: "Sensitive" }
-]
-
-const annotationOptions = [
-    { key: "project", text: "Project", value: "Project" }
-]
+    { text: "Open Access", value: "Open Access" },
+    { text: "Confidential", value: "Confidential" },
+    { text: "Sensitive", value: "Sensitive" }
+];
 
 export default connect()(DetailedFileSearch);

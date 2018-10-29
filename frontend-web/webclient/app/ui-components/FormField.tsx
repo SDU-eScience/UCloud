@@ -49,18 +49,19 @@ const isFormElement = element => formElements.includes(element)
 
 class FormField extends React.Component<{
   onChange: (e) => void
-  label: string
-  icon: IconName
-  id: string
-  placeholder: string
-  size: number
-  alwaysShowLabel: boolean
+  label?: string
+  icon?: IconName
+  id?: string
+  placeholder?: string
+  size?: number
+  alwaysShowLabel?: boolean
 }> {
 
   private fieldRef: any;
 
   static defaultProps = {
     // for backwards-compatibility
+    id: "d",
     onChange: noop,
     theme: theme
   }
@@ -111,7 +112,7 @@ class FormField extends React.Component<{
         case Icon:
           if (position < 0) {
             BeforeIcon = child
-            iconAdjustment = props.size - 24
+            iconAdjustment = (props.size ? props.size : 0) - 24
           } else {
             AfterIcon = child
           }

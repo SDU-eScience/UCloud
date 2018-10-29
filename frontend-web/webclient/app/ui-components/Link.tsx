@@ -5,6 +5,7 @@ import { Link as ReactRouterLink } from "react-router-dom";
 
 const Link = styled(ReactRouterLink) <{ color?: string }>`
   cursor: pointer;
+  text-decoration: none;
   color: ${props => props.color ? props.theme.colors[props.color] : "red"};
 
   &:hover {
