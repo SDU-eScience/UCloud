@@ -43,7 +43,11 @@ class JobVerificationService<DBSession>(
         val application = findApplication(unverifiedJob)
         val verifiedParameters = verifyParameters(application, unverifiedJob)
         val workDir = URI("/$jobId")
-        val files = collectFiles(application, verifiedParameters, workDir, cloud)
+        val files = collectFiles(application, verifiedParameters, workDir, cloud).map {
+            it.copy(
+                destinationPath = "./" + it.destinationPath.removePrefix(workDir.path)
+            )
+        }
 
         val numberOfJobs = unverifiedJob.request.numberOfNodes ?: application.tool.description.defaultNumberOfNodes
         val tasksPerNode = unverifiedJob.request.tasksPerNode ?: application.tool.description.defaultTasksPerNode
@@ -138,7 +142,7 @@ class JobVerificationService<DBSession>(
 
         // Resolve relative path against working directory. Ensure that file is still inside of
         // the working directory.
-        val destinationPath = File(workDir.toURL().path, transferDescription.destination).normalize().path
+        val destinationPath = File(workDir.path, transferDescription.destination).normalize().path
         if (!destinationPath.startsWith(workDir.path)) {
             throw JobException.VerificationError(
                 "Not allowed to leave working directory via relative paths. Please avoid using '..' in paths."

@@ -1,6 +1,8 @@
 package dk.sdu.cloud.app
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.api.AccountingEvents
+import dk.sdu.cloud.app.api.ApplicationDescription
 import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.JobStreams
 import dk.sdu.cloud.app.api.NameAndVersion
@@ -20,6 +22,7 @@ import dk.sdu.cloud.app.services.JobHibernateDao
 import dk.sdu.cloud.app.services.JobOrchestrator
 import dk.sdu.cloud.app.services.JobVerificationService
 import dk.sdu.cloud.app.services.ToolHibernateDAO
+import dk.sdu.cloud.app.util.yamlMapper
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
@@ -32,12 +35,14 @@ import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.service.stream
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
+import java.io.File
 
 class Server(
     override val kafka: KafkaServices,
@@ -76,52 +81,6 @@ class Server(
             jobDao
         )
 
-        if (developmentModeEnabled) {
-            val listOfApps = db.withTransaction {
-                applicationDao.listLatestVersion(it, null, NormalizedPaginationRequest(null, null))
-            }
-
-            if (listOfApps.itemsInTotal == 0) {
-                db.withTransaction {
-                    toolDao.create(
-                        it,
-                        "admin@dev",
-                        ToolDescription.V1(
-                            name = "figlet",
-                            version = "1.0.0",
-                            title = "figlet",
-                            container = "figlet.simg",
-                            backend = ToolBackend.SINGULARITY,
-                            authors = listOf("Dan Thrane")
-                        ).normalize()
-                    )
-
-                    applicationDao.create(
-                        it,
-                        "admin@dev",
-                        NormalizedApplicationDescription(
-                            info = NameAndVersion("figlet", "1.0.0"),
-                            tool = NameAndVersion("figlet", "1.0.0"),
-                            authors = listOf("Dan Thrane"),
-                            title = "figlet",
-                            description = "figlet",
-                            invocation = listOf(
-                                WordInvocationParameter("figlet"),
-                                VariableInvocationParameter(listOf("text"))
-                            ),
-                            parameters = listOf(
-                                ApplicationParameter.Text(
-                                    name = "text"
-                                )
-                            ),
-                            outputFileGlobs = listOf("stdout.txt", "stderr.txt")
-                        )
-                    )
-
-                    log.info("Created development 'tool@1.0.0' and 'app@1.0.0'")
-                }
-            }
-        }
 
         kStreams = buildStreams { kBuilder ->
             kBuilder.stream(JobStreams.jobStateEvents).foreach { _, event ->
@@ -152,8 +111,40 @@ class Server(
             }
             log.info("HTTP server successfully configured!")
         }
-        log.info("Starting Application Services")
 
+        if (developmentModeEnabled) {
+            val listOfApps = db.withTransaction {
+                applicationDao.listLatestVersion(it, null, NormalizedPaginationRequest(null, null))
+            }
+
+            if (listOfApps.itemsInTotal == 0) {
+                db.withTransaction { session ->
+                    val tools = File("yaml", "tools")
+                    tools.listFiles().forEach {
+                        try {
+                            val description = yamlMapper.readValue<ToolDescription>(it)
+                            toolDao.create(session, "admin@dev", description.normalize())
+                        } catch (ex: Exception) {
+                            log.info("Could not create tool: $it")
+                            log.info(ex.stackTraceToString())
+                        }
+                    }
+
+                    val apps = File("yaml", "apps")
+                    apps.listFiles().forEach {
+                        try {
+                            val description = yamlMapper.readValue<ApplicationDescription>(it)
+                            applicationDao.create(session, "admin@dev", description.normalize())
+                        } catch (ex: Exception) {
+                            log.info("Could not create app: $it")
+                            log.info(ex.stackTraceToString())
+                        }
+                    }
+                }
+            }
+        }
+
+        log.info("Starting Application Services")
         startServices()
 
         initialized = true

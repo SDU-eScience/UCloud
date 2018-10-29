@@ -35,10 +35,12 @@ class ComputeController(
                     "Bad request. File with id '${block.parameterName}' does not exist!",
                     HttpStatusCode.BadRequest
                 )
+                val relativePath =
+                    if (file.destinationPath.startsWith("/")) ".${file.destinationPath}" else file.destinationPath
 
                 jobFileService.uploadFile(
                     block.job.id,
-                    file.destinationPath,
+                    relativePath,
                     file.stat.size,
                     file.needsExtractionOfType,
                     block.fileData.payload

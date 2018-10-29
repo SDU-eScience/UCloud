@@ -9,6 +9,7 @@ interface DBSessionFactory<Session> : Closeable {
     fun openTransaction(session: Session)
 
     fun commit(session: Session)
+    fun flush(session: Session) {}
 }
 
 inline fun <R, Session> DBSessionFactory<Session>.withSession(closure: (Session) -> R): R {
@@ -23,11 +24,13 @@ inline fun <R, Session> DBSessionFactory<Session>.withSession(closure: (Session)
 inline fun <R, Session> DBSessionFactory<Session>.withTransaction(
     session: Session,
     autoCommit: Boolean = true,
+    autoFlush: Boolean = false,
     closure: (Session) -> R
 ): R {
     openTransaction(session)
     try {
         val result = closure(session)
+        if (autoFlush) flush(session)
         if (autoCommit) commit(session)
         return result
     } finally {
@@ -36,10 +39,11 @@ inline fun <R, Session> DBSessionFactory<Session>.withTransaction(
 
 inline fun <R, Session> DBSessionFactory<Session>.withTransaction(
     autoCommit: Boolean = true,
+    autoFlush: Boolean = false,
     closure: (Session) -> R
 ): R {
-    return withSession {
-        withTransaction(it, autoCommit) {
+    return withSession { session ->
+        withTransaction(session, autoCommit, autoFlush) {
             closure(it)
         }
     }

@@ -11,6 +11,11 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.JSONB_LIST_PARAM_TYPE
+import dk.sdu.cloud.service.db.JSONB_LIST_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_KEY_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
+import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
 import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.WithTimestamps
@@ -18,8 +23,12 @@ import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
 import org.hibernate.annotations.NaturalId
+import org.hibernate.annotations.Parameter
 import org.hibernate.annotations.Type
+import org.hibernate.usertype.DynamicParameterizedType
 import java.util.*
+import javax.persistence.AttributeOverride
+import javax.persistence.AttributeOverrides
 import javax.persistence.Column
 import javax.persistence.Embedded
 import javax.persistence.Entity
@@ -38,6 +47,10 @@ data class JobInformationEntity(
     var owner: String,
 
     @Embedded
+    @AttributeOverrides(
+        AttributeOverride(name = "name", column = Column(name = "application_name")),
+        AttributeOverride(name = "version", column = Column(name = "application_version"))
+    )
     var application: EmbeddedNameAndVersion,
 
     var status: String,
@@ -49,10 +62,30 @@ data class JobInformationEntity(
 
     var tasksPerNode: Int,
 
-    @Type(type = JSONB_TYPE)
+    @Type(
+        type = JSONB_MAP_TYPE,
+        parameters = [
+            Parameter(
+                name = JSONB_MAP_PARAM_KEY_TYPE,
+                value = "java.lang.String"
+            ),
+            Parameter(
+                name = JSONB_MAP_PARAM_VALUE_TYPE,
+                value = "dk.sdu.cloud.app.api.ParsedApplicationParameter"
+            )
+        ]
+    )
     var parameters: Map<String, ParsedApplicationParameter?>,
 
-    @Type(type = JSONB_TYPE)
+    @Type(
+        type = JSONB_LIST_TYPE,
+        parameters = [
+            Parameter(
+                name = JSONB_LIST_PARAM_TYPE,
+                value = "dk.sdu.cloud.app.api.ValidatedFileForUpload"
+            )
+        ]
+    )
     var files: List<ValidatedFileForUpload>,
 
     var maxTimeHours: Int,

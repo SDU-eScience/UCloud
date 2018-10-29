@@ -29,6 +29,7 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
 import java.io.File
 import java.io.InputStream
+import java.net.URI
 
 /**
  * Manages file associated to a job
@@ -59,7 +60,12 @@ class JobFileService(
         needsExtractionOfType: FileForUploadArchiveType?,
         stream: InputStream
     ) {
-        val location = filesDirectoryForJob(jobId).resolve(relativeLocation)
+        val filesDirectoryForJob = filesDirectoryForJob(jobId)
+        val location = filesDirectoryForJob.resolve(relativeLocation).normalize()
+        if (!location.absolutePath.startsWith(filesDirectoryForJob.absolutePath)) {
+            throw JobFileException.ErrorDuringTransfer("Bad destination path: $filesDirectoryForJob <=> $location")
+        }
+
         val cappedStream = CappedInputStream(stream, length)
         sshConnectionPool.use {
             mkdir(location.parent, createParents = true)

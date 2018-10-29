@@ -23,6 +23,8 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.jobId
 import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.optionallyCausedBy
+import dk.sdu.cloud.service.safeJobId
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.service.withCausedBy
 import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
@@ -67,7 +69,8 @@ class JobController<DBSession>(
                     listOf(
                         MultiPartUploadDescriptions.upload.requiredAuthScope.toString(),
                         FileDescriptions.download.requiredAuthScope.toString(),
-                        FileDescriptions.createDirectory.requiredAuthScope.toString()
+                        FileDescriptions.createDirectory.requiredAuthScope.toString(),
+                        FileDescriptions.stat.requiredAuthScope.toString()
                     ),
                     ONE_DAY_IN_MILLS
                 ),
@@ -84,7 +87,7 @@ class JobController<DBSession>(
             val userCloud = JWTAuthenticatedCloud(
                 call.cloudClient.parent,
                 extendedToken.token
-            ).withCausedBy(call.request.jobId)
+            ).optionallyCausedBy(call.request.safeJobId)
 
             val jobId = jobOrchestrator.startJob(req, extendedToken, userCloud)
             ok(JobStartedResponse(jobId))

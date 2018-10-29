@@ -26,14 +26,12 @@ sealed class RESTResponse<out T, out E> {
     val statusText: String get() = response.status.description
     val rawResponseBody: String get() = runBlocking { response.readText() }
 
-    protected fun HttpResponse.toPrettyString(): String = "[$status]: ${rawResponseBody.take(500)}"
-
     data class Ok<out T, out E>(override val response: HttpResponse, val result: T) : RESTResponse<T, E>() {
-        override fun toString(): String = "OK(${response.toPrettyString()}, $result)"
+        override fun toString(): String = "OK(${response.status}, $result)"
     }
 
     data class Err<out T, out E>(override val response: HttpResponse, val error: E? = null) : RESTResponse<T, E>() {
-        override fun toString(): String = "Err(${response.toPrettyString()}, $error)"
+        override fun toString(): String = "Err(${response.status}, $error)"
     }
 }
 

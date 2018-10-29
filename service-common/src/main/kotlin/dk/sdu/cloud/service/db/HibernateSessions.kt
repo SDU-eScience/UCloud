@@ -42,6 +42,10 @@ class HibernateSessionFactory(
         factory.close()
     }
 
+    override fun flush(session: HibernateSession) {
+        session.flush()
+    }
+
     companion object {
         private val log = LoggerFactory.getLogger(HibernateSessionFactory::class.java)
 

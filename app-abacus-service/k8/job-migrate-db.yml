@@ -3,12 +3,12 @@ apiVersion: batch/v1
 kind: Job
 
 metadata:
-  name: app-migration
+  name: app-abacus-migration
 
 spec:
   template:
     metadata:
-      name: app-migration
+      name: app-abacus-migration
 
     spec:
       containers:
@@ -20,8 +20,8 @@ spec:
         - /etc/refresh-token
         - --run-script
         - migrate-db
-        image: registry.cloud.sdu.dk/sdu-cloud/app-service:0.9.5
-        name: app-migration
+        image: registry.cloud.sdu.dk/sdu-cloud/app-abacus-service:0.1.3
+        name: app-abacus-migration
 
         volumeMounts:
         - mountPath: /etc/service
@@ -38,10 +38,10 @@ spec:
       - name: vol1
         secret:
           optional: false
-          secretName: app-psql
+          secretName: app-abacus-psql
       - name: refresh-token
         secret:
           optional: false
-          secretName: app-refresh-token
+          secretName: app-abacus-refresh-token
 
 

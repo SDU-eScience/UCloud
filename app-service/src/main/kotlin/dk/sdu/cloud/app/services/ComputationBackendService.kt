@@ -27,7 +27,7 @@ class ComputationBackendService(
         })
     }
 
-    fun backendPrincipalName(backend: String) = "_$backend"
+    fun backendPrincipalName(backend: String) = "_app-$backend"
 }
 
 sealed class ComputationBackendException(

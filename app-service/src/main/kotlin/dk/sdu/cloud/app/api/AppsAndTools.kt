@@ -282,6 +282,8 @@ data class NormalizedToolDescription(
     val backend: ToolBackend
 )
 
+private const val MAX_LENGTH = 255
+
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.EXISTING_PROPERTY,
@@ -290,8 +292,6 @@ data class NormalizedToolDescription(
 @JsonSubTypes(
     JsonSubTypes.Type(value = ToolDescription.V1::class, name = "v1")
 )
-
-private const val MAX_LENGTH = 255
 sealed class ToolDescription(val tool: String) {
     abstract fun normalize(): NormalizedToolDescription
 

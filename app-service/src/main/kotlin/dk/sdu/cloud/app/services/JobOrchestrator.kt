@@ -33,6 +33,7 @@ import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.runBlocking
+import java.io.ByteArrayInputStream
 import java.io.InputStream
 
 class JobOrchestrator<DBSession>(
@@ -69,11 +70,16 @@ class JobOrchestrator<DBSession>(
             }
 
             try {
-                db.withTransaction { session ->
+                val existingJob = db.withTransaction { session ->
                     jobDao.updateStatus(session, jobId, message ?: "Internal error")
+                    jobDao.findOrNull(session, jobId)
                 }
 
-                stateChangeProducer.emit(JobStateChange(jobId, JobState.FAILURE))
+                // If we don't check for an existing failure state we can loop forever in a crash
+                if (existingJob != null && existingJob.job.currentState != JobState.FAILURE) {
+                    stateChangeProducer.emit(JobStateChange(jobId, JobState.FAILURE))
+                }
+
             } catch (cleanupException: Exception) {
                 log.info("Exception while cleaning up (most likely to job not existing)")
                 log.info(cleanupException.stackTraceToString())
@@ -124,6 +130,7 @@ class JobOrchestrator<DBSession>(
             val (job, _) = jobWithToken
             computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
 
+            log.info("Moving from ${job.currentState} to $proposedState")
             val validStates = validStateTransitions[job.currentState] ?: emptySet()
             if (proposedState in validStates) {
                 if (proposedState != job.currentState) {
@@ -131,6 +138,7 @@ class JobOrchestrator<DBSession>(
                     handleStateChangeImmediately(jobWithToken, event, newStatus)
                 }
             } else {
+                log.info("NOPE!")
                 throw JobException.BadStateTransition(job.currentState, event.newState)
             }
         }
@@ -227,7 +235,8 @@ class JobOrchestrator<DBSession>(
         event: JobStateChange,
         newStatus: String?
     ) {
-        db.withTransaction {
+        log.info("Received $event")
+        db.withTransaction(autoFlush = true) {
             jobDao.updateStateAndStatus(it, event.systemId, event.newState, newStatus)
         }
 
@@ -257,10 +266,12 @@ class JobOrchestrator<DBSession>(
                     JobState.VALIDATED -> {
                         // Ask backend to prepare the job
                         transferFilesToCompute(jobWithToken)
-                        db.withTransaction {
+                        db.withTransaction(autoFlush = true) {
                             jobDao.updateStateAndStatus(it, job.id, JobState.PREPARED)
                         }
-                        backend.jobPrepared.call(job, serviceCloud).orThrow()
+
+                        val jobWithNewState = job.copy(currentState = JobState.PREPARED)
+                        backend.jobPrepared.call(jobWithNewState, serviceCloud).orThrow()
                     }
 
                     JobState.PREPARED, JobState.SCHEDULED, JobState.RUNNING, JobState.TRANSFER_SUCCESS -> {
@@ -326,7 +337,7 @@ class JobOrchestrator<DBSession>(
         private val finalStates = JobState.values().asSequence().filter { it.isFinal() }.toSet()
         private val validStateTransitions: Map<JobState, Set<JobState>> = mapOf(
             JobState.VALIDATED to (setOf(JobState.PREPARED) + finalStates),
-            JobState.PREPARED to (setOf(JobState.SCHEDULED, JobState.RUNNING) + finalStates),
+            JobState.PREPARED to (setOf(JobState.SCHEDULED, JobState.RUNNING, JobState.TRANSFER_SUCCESS) + finalStates),
             // We allow scheduled to skip running in case of quick jobs
             JobState.SCHEDULED to (setOf(JobState.RUNNING, JobState.TRANSFER_SUCCESS) + finalStates),
             JobState.RUNNING to (setOf(JobState.TRANSFER_SUCCESS, JobState.FAILURE)),

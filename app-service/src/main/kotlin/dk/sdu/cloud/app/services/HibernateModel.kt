@@ -40,7 +40,7 @@ data class ToolEntity(
 /**
  * Added in:
  *
- * - V7__Tags.sql
+ * - V8__Tags.sql
  */
 @Entity
 @Table(name = "application_tags")
