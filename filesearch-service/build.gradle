@@ -4,7 +4,8 @@ version '0.1.3-SNAPSHOT'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.filesearch.MainKt"
 
-apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.1.0/sdu-cloud.gradle"
+
 
 repositories {
 }

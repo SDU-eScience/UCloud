@@ -4,7 +4,7 @@ version '0.1.6'
 apply plugin: 'application'
 mainClassName = 'dk.sdu.cloud.app.abacus.MainKt'
 
-apply from: "${project.projectDir}/../shared-gradle/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.1.0/sdu-cloud.gradle"
 
 dependencies {
     compile 'com.jcraft:jsch:0.1.54'
