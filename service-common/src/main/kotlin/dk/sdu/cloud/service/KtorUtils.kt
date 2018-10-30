@@ -13,6 +13,7 @@ import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
+import io.ktor.features.XForwardedHeaderSupport
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.pipeline.PipelineContext
@@ -52,6 +53,7 @@ fun Application.installDefaultFeatures(
 
     install(CallLogging)
     install(DefaultHeaders)
+    install(XForwardedHeaderSupport)
     install(KafkaHttpLogger) {
         kafka = kafkaServices
         serverDescription = serviceInstance

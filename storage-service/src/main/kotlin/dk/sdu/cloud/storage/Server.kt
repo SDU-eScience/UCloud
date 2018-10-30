@@ -22,7 +22,6 @@ import dk.sdu.cloud.storage.http.MultiPartUploadController
 import dk.sdu.cloud.storage.http.ShareController
 import dk.sdu.cloud.storage.http.SimpleDownloadController
 import dk.sdu.cloud.storage.http.TusController
-import dk.sdu.cloud.storage.processor.ChecksumProcessor
 import dk.sdu.cloud.storage.processor.StorageEventProcessor
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.ACLService
