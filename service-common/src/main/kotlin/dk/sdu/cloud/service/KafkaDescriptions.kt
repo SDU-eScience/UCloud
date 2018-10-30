@@ -20,6 +20,9 @@ interface StreamDescription<K, V> {
     val keySerde: Serde<K>
     val valueSerde: Serde<V>
 
+    val desiredPartitions: Int? get() = null
+    val desiredReplicas: Short? get() = null
+
     fun stream(builder: StreamsBuilder): KStream<K, V> =
         builder.stream(name, Consumed.with(keySerde, valueSerde))
 }
@@ -27,7 +30,9 @@ interface StreamDescription<K, V> {
 class SimpleStreamDescription<Key, Value>(
     override val name: String,
     override val keySerde: Serde<Key>,
-    override val valueSerde: Serde<Value>
+    override val valueSerde: Serde<Value>,
+    override val desiredPartitions: Int? = null,
+    override val desiredReplicas: Short? = null
 ) : StreamDescription<Key, Value> {
     @Deprecated(message = "No longer in use")
     fun groupByKey(builder: StreamsBuilder): KGroupedStream<Key, Value> =
@@ -38,6 +43,8 @@ class MappedStreamDescription<K, V>(
     override val name: String,
     override val keySerde: Serde<K>,
     override val valueSerde: Serde<V>,
+    override val desiredPartitions: Int? = null,
+    override val desiredReplicas: Short? = null,
     val mapper: (V) -> K
 ) : StreamDescription<K, V>
 
@@ -74,18 +81,35 @@ abstract class KafkaDescriptions {
     inline fun <reified K : Any, reified V : Any> stream(
         topicName: String,
         keySerde: Serde<K> = defaultSerdeOrJson(),
-        valueSerde: Serde<V> = defaultSerdeOrJson()
+        valueSerde: Serde<V> = defaultSerdeOrJson(),
+        desiredPartitions: Int? = null,
+        desiredReplicas: Short? = null
     ): StreamDescription<K, V> {
-        return SimpleStreamDescription(topicName, keySerde, valueSerde).also { streams.add(it) }
+        return SimpleStreamDescription(
+            topicName,
+            keySerde,
+            valueSerde,
+            desiredPartitions,
+            desiredReplicas
+        ).also { streams.add(it) }
     }
 
     inline fun <reified K : Any, reified V : Any> stream(
         topicName: String,
         keySerde: Serde<K> = defaultSerdeOrJson(),
         valueSerde: Serde<V> = defaultSerdeOrJson(),
+        desiredPartitions: Int? = null,
+        desiredReplicas: Short? = null,
         noinline keyMapper: (V) -> K
     ): MappedStreamDescription<K, V> {
-        return MappedStreamDescription(topicName, keySerde, valueSerde, keyMapper).also { streams.add(it) }
+        return MappedStreamDescription(
+            topicName,
+            keySerde,
+            valueSerde,
+            desiredPartitions,
+            desiredReplicas,
+            keyMapper
+        ).also { streams.add(it) }
     }
 
     @Deprecated(message = "No longer in use")
