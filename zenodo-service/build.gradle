@@ -9,7 +9,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.1
 dependencies {
     compile 'dk.sdu.cloud:service-common:0.18.0-SNAPSHOT'
     compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"
-    compile "dk.sdu.cloud:file-api:0.9.1-SNAPSHOT"
+    compile "dk.sdu.cloud:file-api:0.11.0-SNAPSHOT"
 }
 
 sduCloud.createTasksForApiJar("zenodo", [])
