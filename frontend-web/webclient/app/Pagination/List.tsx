@@ -79,7 +79,7 @@ export class List extends React.PureComponent<ListProps> {
         if (props.loading) {
             return <Grid centered verticalAlign="middle" columns={1}>
                 <div className="pagination-loader">
-                    <DefaultLoading loading size={undefined} className="pagination-list-loading" />
+                    <DefaultLoading loading className="pagination-list-loading" />
                 </div>
             </Grid>
         } else {

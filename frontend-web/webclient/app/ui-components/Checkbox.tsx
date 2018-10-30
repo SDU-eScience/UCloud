@@ -47,7 +47,6 @@ const StyledInput = styled.input`
   appearance: none;
   opacity: 0;
   position: absolute;
-  z-index: 0;
 `
 
 Checkbox.displayName = "Checkbox";

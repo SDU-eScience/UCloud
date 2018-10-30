@@ -50,7 +50,7 @@ export const CardGroup = styled.div`
   flex-wrap: wrap;
   margin-top: 25px;
   & > div {
-    margin: 5px 5px 5px 5px;
+    margin: 2px 5px 5px 5px;
     height: 212px;
     width: 252px;
     flex-shrink: 0;

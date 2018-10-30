@@ -6,12 +6,14 @@ import { connect } from "react-redux";
 import {
     fetchApplications,
     setLoading,
-    receiveApplications
+    receiveApplications,
+    fetchFavoriteApplications,
+    setFavoritesLoading
 } from "./Redux/ApplicationsActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
 import { Application, ApplicationDescription } from ".";
-import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
+import { ApplicationsProps, ApplicationsOperations } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
 import { MaterialColors } from "Assets/materialcolors.json";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
@@ -19,9 +21,9 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { CardGroup, Card, PlayIcon } from "ui-components/Card";
-import { Relative, BackgroundImage, Box, Absolute, Text, Icon } from "ui-components";
+import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Heading, Divider } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
-import { ReduxObject } from "DefaultObjects";
+import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
@@ -37,20 +39,36 @@ class Applications extends React.Component<ApplicationsProps> {
         if (this.props.page.items.length === 0) {
             props.setLoading(true);
             props.fetchApplications(props.page.pageNumber, props.page.itemsPerPage);
+            props.fetchFavorites(props.page.pageNumber, props.page.itemsPerPage);
         }
     }
 
     render() {
-        const { page, loading, fetchApplications, onErrorDismiss, receiveApplications, error } = this.props;
+        const { page, loading, fetchApplications, favorites, onErrorDismiss, receiveApplications, error } = this.props;
         const favoriteApp = (name: string, version: string) => receiveApplications(favoriteApplicationFromPage(name, version, page, Cloud));
         return (
-            <React.StrictMode>
-                <Pagination.List
-                    loading={loading}
-                    onErrorDismiss={onErrorDismiss}
-                    errorMessage={error}
-                    onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
-                    pageRenderer={({ items }: Page<Application>) =>
+
+            <Pagination.List
+                loading={loading}
+                onErrorDismiss={onErrorDismiss}
+                errorMessage={error}
+                onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
+                pageRenderer={({ items }: Page<Application>) =>
+                    <React.Fragment>
+                        {favorites.items.length ?
+                            <React.Fragment>
+                                <Heading>Favorites</Heading>
+                                <CardGroup>
+                                    {favorites.items.map(app =>
+                                        <ApplicationCard
+                                            key={`${app.description.info.name}${app.description.info.version}`}
+                                            favoriteApp={favoriteApp}
+                                            appDescription={app.description}
+                                            isFavorite={app.favorite}
+                                        />)}
+                                </CardGroup>
+                                <Divider />
+                            </React.Fragment> : null}
                         <CardGroup>
                             {items.map((app, index) =>
                                 <ApplicationCard
@@ -61,12 +79,13 @@ class Applications extends React.Component<ApplicationsProps> {
                                 />
                             )}
                         </CardGroup>
-                    }
-                    page={page}
-                    onItemsPerPageChanged={(size) => fetchApplications(0, size)}
-                    onPageChanged={(pageNumber) => fetchApplications(pageNumber, page.itemsPerPage)}
-                />
-            </React.StrictMode >);
+                    </React.Fragment>
+                }
+                page={page}
+                onItemsPerPageChanged={size => fetchApplications(0, size)}
+                onPageChanged={pageNumber => fetchApplications(pageNumber, page.itemsPerPage)}
+            />
+        );
     }
 }
 
@@ -187,11 +206,13 @@ const mapDispatchToProps = (dispatch: Dispatch): ApplicationsOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage()),
     updatePageTitle: () => dispatch(updatePageTitle("Applications")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
+    setFavoritesLoading: (loading: boolean) => dispatch(setFavoritesLoading(loading)),
     fetchApplications: async (pageNumber: number, itemsPerPage: number) => dispatch(await fetchApplications(pageNumber, itemsPerPage)),
-    receiveApplications: (applications: Page<Application>) => dispatch(receiveApplications(applications))
+    receiveApplications: (applications: Page<Application>) => dispatch(receiveApplications(applications)),
+    fetchFavorites: async (pageNumber: number, itemsPerPage: number) => dispatch(await fetchFavoriteApplications(pageNumber, itemsPerPage))
 });
 
-const mapStateToProps = ({ applications }: ReduxObject): ApplicationsStateProps & { favCount: number } => ({
+const mapStateToProps = ({ applications }: ReduxObject): ApplicationReduxObject & { favCount: number } => ({
     ...applications,
     favCount: applications.page.items.filter(it => it.favorite).length
 });

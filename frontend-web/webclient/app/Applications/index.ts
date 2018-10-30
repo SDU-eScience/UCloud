@@ -1,12 +1,11 @@
-import { SortBy, SortOrder, File } from "Files";
+import { File } from "Files";
 import { Page } from "Types";
-import { Dispatch } from "redux";
 import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
-import { DetailedResultReduxObject } from "DefaultObjects";
+import { DetailedResultReduxObject, ApplicationReduxObject } from "DefaultObjects";
 
-export interface ApplicationsProps extends ApplicationsStateProps, ApplicationsOperations { }
+export type ApplicationsProps = ApplicationReduxObject & ApplicationsOperations;
 
 export interface Analysis {
     status: string
@@ -24,14 +23,10 @@ export interface ApplicationsOperations {
     onErrorDismiss: () => void
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
+    setFavoritesLoading: (loading: boolean) => void
     fetchApplications: (a: number, b: number) => void
+    fetchFavorites: (a: number, b: number) => void
     receiveApplications: (applications: Page<Application>) => void
-}
-
-export interface ApplicationsStateProps {
-    page: Page<Application>
-    loading: boolean
-    error?: string
 }
 
 export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { }

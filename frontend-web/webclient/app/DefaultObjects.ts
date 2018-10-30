@@ -119,7 +119,11 @@ export interface HeaderSearchReduxObject {
     prioritizedSearch: HeaderSearchType
 }
 
-export type ApplicationReduxObject = ComponentWithPage<Application>;
+export interface ApplicationReduxObject extends ComponentWithPage<Application> {
+    favorites: Page<Application>
+    favoritesLoading: boolean
+};
+
 export type ActivityReduxObject = ComponentWithPage<Activity>
 
 export type HeaderSearchType = "files" | "applications" | "projects";
@@ -148,6 +152,7 @@ export interface Reducers {
 }
 
 export type DetailedResultReduxObject = ComponentWithPage<File>
+
 export const initDetailedResult = (): DetailedResultReduxObject => ({
     page: emptyPage,
     loading: false,
@@ -189,6 +194,8 @@ export const initHeader = (): HeaderSearchReduxObject => ({
 
 export const initApplications = (): ApplicationReduxObject => ({
     page: emptyPage,
+    favorites: emptyPage,
+    favoritesLoading: false,
     loading: false,
     error: undefined
 });
