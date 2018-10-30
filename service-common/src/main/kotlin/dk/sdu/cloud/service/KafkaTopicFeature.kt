@@ -125,10 +125,10 @@ class KafkaTopicFeature(
                     }
 
                     desiredPartitions < numPartitions -> {
-                        log.warn(
-                            "The desired number of partitions for topic '${stream.name}' is lower than actual number of " +
-                                    "partitions ($numPartitions > $desiredPartitions). It is not possible to migrate this " +
-                                    "automatically. Manual migration is needed."
+                        log.info(
+                            "The desired number of partitions for topic '${stream.name}' is lower than actual " +
+                                    "number of partitions ($numPartitions > $desiredPartitions). " +
+                                    "It is not possible to migrate this automatically. Manual migration is needed."
                         )
                         null
                     }
