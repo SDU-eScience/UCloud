@@ -8,6 +8,7 @@ import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.services.FileAttribute
 import dk.sdu.cloud.storage.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.storage.services.withContext
 import dk.sdu.cloud.storage.util.FSException

@@ -13,6 +13,7 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.service.stream
 import dk.sdu.cloud.storage.http.FilesController

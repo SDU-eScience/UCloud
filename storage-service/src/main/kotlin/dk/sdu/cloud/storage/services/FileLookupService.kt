@@ -61,7 +61,7 @@ class FileLookupService<Ctx : FSUserContext>(
                 FileSortBy.MODIFIED_AT -> Comparator.comparingLong { it.modifiedAt }
 
                 FileSortBy.TYPE -> Comparator.comparing<StorageFile, String> {
-                    it.type.name
+                    it.fileType.name
                 }.thenComparing(Comparator.comparing<StorageFile, String> {
                     it.path.fileName().toLowerCase()
                 })

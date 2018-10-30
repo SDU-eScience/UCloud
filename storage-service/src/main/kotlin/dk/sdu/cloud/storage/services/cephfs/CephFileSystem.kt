@@ -10,6 +10,7 @@ import dk.sdu.cloud.storage.services.FileRow
 import dk.sdu.cloud.storage.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.storage.services.StorageUserDao
 import dk.sdu.cloud.storage.services.asBitSet
+import dk.sdu.cloud.storage.util.BashEscaper
 import dk.sdu.cloud.storage.util.joinPath
 import dk.sdu.cloud.storage.util.normalize
 import java.io.File
@@ -335,10 +336,10 @@ class CephFileSystem(
                 read + write + execute
             }
 
-            add("${unixEntity.value.serializedEntity}:$permissions")
+            add(BashEscaper.safeBashArgument("${unixEntity.value.serializedEntity}:$permissions"))
 
-            add(absolutePath)
-        }.toList().joinToString(" ")
+            add(BashEscaper.safeBashArgument(absolutePath))
+        }.joinToString(" ")
 
         return ctx.runCommand(
             InterpreterCommand.SETFACL,
@@ -363,9 +364,9 @@ class CephFileSystem(
             if (defaultList) add("-d")
             if (recursive) add("-R")
             add("-x")
-            add(unixEntity.value.serializedEntity)
-            add(absolutePath)
-        }.toList().joinToString(" ")
+            add(BashEscaper.safeBashArgument(unixEntity.value.serializedEntity))
+            add(BashEscaper.safeBashArgument(absolutePath))
+        }.joinToString(" ")
 
         return ctx.runCommand(
             InterpreterCommand.SETFACL,
