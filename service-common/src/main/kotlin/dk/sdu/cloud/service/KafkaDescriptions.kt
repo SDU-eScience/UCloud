@@ -29,6 +29,7 @@ class SimpleStreamDescription<Key, Value>(
     override val keySerde: Serde<Key>,
     override val valueSerde: Serde<Value>
 ) : StreamDescription<Key, Value> {
+    @Deprecated(message = "No longer in use")
     fun groupByKey(builder: StreamsBuilder): KGroupedStream<Key, Value> =
         stream(builder).groupByKey(Serialized.with(keySerde, valueSerde))
 }
@@ -40,6 +41,7 @@ class MappedStreamDescription<K, V>(
     val mapper: (V) -> K
 ) : StreamDescription<K, V>
 
+@Deprecated(message = "No longer in use")
 class TableDescription<Key, Value>(val name: String, val keySerde: Serde<Key>, val valueSerde: Serde<Value>) {
     fun findStreamMetadata(streams: KafkaStreams, key: Key): StreamsMetadata {
         return streams.metadataForKey(name, key, keySerde.serializer())
@@ -49,12 +51,15 @@ class TableDescription<Key, Value>(val name: String, val keySerde: Serde<Key>, v
         streams.store(name, QueryableStoreTypes.keyValueStore<Key, Value>())
 }
 
+@Deprecated(message = "No longer in use")
 data class KafkaRequest<out EventType>(val header: RequestHeader, val event: EventType) {
     companion object {
+        // TODO This guy needs to be moved out
         const val TYPE_PROPERTY = "type"
     }
 }
 
+@Deprecated(message = "No longer in use")
 data class RequestHeader(
     val uuid: String,
     val performedFor: RawAuthToken
@@ -80,6 +85,7 @@ abstract class KafkaDescriptions {
         return MappedStreamDescription(topicName, keySerde, valueSerde, keyMapper)
     }
 
+    @Deprecated(message = "No longer in use")
     inline fun <reified K : Any, reified V : Any> table(
         topicName: String,
         keySerde: Serde<K> = defaultSerdeOrJson(),

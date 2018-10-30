@@ -6,6 +6,8 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import java.util.UUID
 
+// TODO Why is this file called KafkaCloudHelper?
+
 fun AuthenticatedCloud.withCausedBy(causedBy: String): AuthenticatedCloud {
     val delegate = this
     return object : AuthenticatedCloud {

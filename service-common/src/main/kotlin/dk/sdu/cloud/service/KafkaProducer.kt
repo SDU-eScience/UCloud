@@ -19,15 +19,15 @@ class EventProducer<in K, in V>(
         val stringKey = String(description.keySerde.serializer().serialize(description.name, key))
         val stringValue = String(description.valueSerde.serializer().serialize(description.name, value))
 
-        log.debug("Emitting event: $stringKey : ${stringValue.substring(0, min(MAX_INDEX, stringValue.length))}")
+        log.debug("Emitting event: [$topicName] $stringKey : ${stringValue.take(MAX_INDEX)}")
         producer.send(ProducerRecord(description.name, stringKey, stringValue)) { result, ex ->
             if (ex == null) cont.resume(result)
             else cont.resumeWithException(ex)
         }
     }
 
-    companion object {
-        private val log = LoggerFactory.getLogger(EventProducer::class.java)
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 

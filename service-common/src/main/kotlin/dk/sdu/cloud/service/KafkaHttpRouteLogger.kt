@@ -243,7 +243,6 @@ data class AuditEvent<A>(
 /**
  * Audit stream with correct serdes for a single [RESTCallDescription]
  *
- *
  * __Strictly__ for producers. The topic is shared with all other [RESTCallDescription]s in that namespace, as a result
  * slightly more care must be taken when de-serializing the stream.
  */

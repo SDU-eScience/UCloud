@@ -94,8 +94,10 @@ class HibernateSessionFactory(
             return (try {
                 MetadataSources(registry).apply {
                     metadataBuilder.applyBasicType(JsonbType(), "jsonb")
-                    entities.forEach { addAnnotatedClass(it) }
+                    metadataBuilder.applyBasicType(JsonbCollectionType(), "jsonb")
+                    metadataBuilder.applyBasicType(JsonbMapType(), "jsonb")
 
+                    entities.forEach { addAnnotatedClass(it) }
                 }.buildMetadata()
             } catch (ex: Exception) {
                 StandardServiceRegistryBuilder.destroy(registry)
