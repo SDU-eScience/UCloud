@@ -336,6 +336,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                     pb="6px"
                     pt="8px"
                     mt="-2px"
+                    pl="0"
                     noBorder
                     width="100%"
                     autoFocus

@@ -1,5 +1,5 @@
 import { infoNotification, failureNotification } from "UtilityFunctions";
-import { Application, ParameterTypes } from "Applications";
+import { Application, ParameterTypes, ApplicationInformation } from "Applications";
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
 
@@ -10,7 +10,7 @@ export const hpcJobQuery = (id: string, stdoutLine: number, stderrLine: number, 
 export const hpcJobsQuery = (itemsPerPage: number, page: number): string =>
     `/hpc/jobs/?itemsPerPage=${itemsPerPage}&page=${page}`;
 
-export const hpcFavoriteApp = (name: string, version: string) => `hpc/apps/favorites?name=${name}&version=${version}`;
+export const hpcFavoriteApp = (name: string, version: string) => `hpc/apps/favorites/${name}/${version}`;
 
 export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
     `/hpc/apps/favorites?pageNumber=${itemsPerPage}&pageNumber=${pageNumber}`;
@@ -24,16 +24,14 @@ export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
 * @param {Application} Application the application to be favorited
 * @param {Cloud} cloud The cloud instance for requests
 */
-export const favoriteApplicationFromPage = (application: Application, page: Page<Application>, cloud: Cloud): Page<Application> => {
-    const a = page.items.find(it => it.description.info.name === application.description.info.name);
+export const favoriteApplicationFromPage = (name: string, version: string, page: Page<Application>, cloud: Cloud): Page<Application> => {
+    const a = page.items.find(it => it.description.info.name === name && it.description.info.version === version);
     if (a) {
+        // FIXME better error handling. Pass as callback, call on success?
+        cloud.post(hpcFavoriteApp(name, version)).catch(() => failureNotification(`An error ocurred favoriting ${name}`));
         a.favorite = !a.favorite;
-        infoNotification("Backend functionality for favoriting applications missing");
-        cloud.post(hpcFavoriteApp(a.description.info.name, a.description.info.version)).catch(() =>
-            failureNotification("An error occurred favoriting application.")
-        );
     } else {
-        failureNotification("An error occurred favoriting application.");
+        failureNotification("Application to favorite was not found.");
     }
     return page;
 }

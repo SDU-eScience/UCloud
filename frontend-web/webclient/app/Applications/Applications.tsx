@@ -13,7 +13,6 @@ import { Page } from "Types";
 import { Application, ApplicationDescription } from ".";
 import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
-// Requires at least TS 3.0.0
 import { MaterialColors } from "Assets/materialcolors.json";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
@@ -22,6 +21,7 @@ import { Dispatch } from "redux";
 import { CardGroup, Card, PlayIcon } from "ui-components/Card";
 import { Relative, BackgroundImage, Box, Absolute, Text, Icon } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
+import { ReduxObject } from "DefaultObjects";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
@@ -42,7 +42,7 @@ class Applications extends React.Component<ApplicationsProps> {
 
     render() {
         const { page, loading, fetchApplications, onErrorDismiss, receiveApplications, error } = this.props;
-        const favoriteApp = (app: Application) => receiveApplications(favoriteApplicationFromPage(app, page, Cloud));
+        const favoriteApp = (name: string, version: string) => receiveApplications(favoriteApplicationFromPage(name, version, page, Cloud));
         return (
             <React.StrictMode>
                 <Pagination.List
@@ -53,7 +53,12 @@ class Applications extends React.Component<ApplicationsProps> {
                     pageRenderer={({ items }: Page<Application>) =>
                         <CardGroup>
                             {items.map((app, index) =>
-                                <ApplicationCard key={index} appDescription={app.description} />
+                                <ApplicationCard
+                                    key={index}
+                                    favoriteApp={favoriteApp}
+                                    appDescription={app.description}
+                                    isFavorite={app.favorite}
+                                />
                             )}
                         </CardGroup>
                     }
@@ -65,7 +70,7 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 }
 
-export const ApplicationCard = ({ appDescription }: { appDescription: ApplicationDescription }) => (
+export const ApplicationCard = ({ appDescription, favoriteApp, isFavorite }: { favoriteApp: (name: string, version) => void, appDescription: ApplicationDescription, isFavorite?: boolean }) => (
     <Card height={212} width={252}>
         <Relative>
             <BackgroundImage
@@ -84,7 +89,11 @@ export const ApplicationCard = ({ appDescription }: { appDescription: Applicatio
                         </Text>
                     </Absolute>
                     <Absolute top="10px" left="215px">
-                        <Icon cursor="pointer" name="starEmpty" />
+                        <Icon
+                            onClick={() => favoriteApp(appDescription.info.name, appDescription.info.version)}
+                            cursor="pointer"
+                            name={isFavorite ? "starFilled" : "starEmpty"}
+                        />
                     </Absolute>
                     <Absolute top="112px" left="10px">
                         <EllipsedText width={180} title={`by ${appDescription.authors.join(", ")}`} color="grey">
@@ -182,9 +191,9 @@ const mapDispatchToProps = (dispatch: Dispatch): ApplicationsOperations => ({
     receiveApplications: (applications: Page<Application>) => dispatch(receiveApplications(applications))
 });
 
-const mapStateToProps = ({ applications }): ApplicationsStateProps => ({
-    favCount: applications.page.items.filter(it => it.favorite).length,
-    ...applications
+const mapStateToProps = ({ applications }: ReduxObject): ApplicationsStateProps & { favCount: number } => ({
+    ...applications,
+    favCount: applications.page.items.filter(it => it.favorite).length
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

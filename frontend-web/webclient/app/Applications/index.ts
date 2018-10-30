@@ -32,8 +32,6 @@ export interface ApplicationsStateProps {
     page: Page<Application>
     loading: boolean
     error?: string
-    sortBy: SortBy
-    sortOrder: SortOrder
 }
 
 export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { }
