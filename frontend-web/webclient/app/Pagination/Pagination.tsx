@@ -1,8 +1,7 @@
 import * as React from "react";
-import { Pagination, Dropdown } from "semantic-ui-react";
+import { Pagination } from "semantic-ui-react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Icon, Box, Text, Flex } from "ui-components";
-import { DropdownContent } from "ui-components/Dropdown";
 
 interface PaginationButtons {
     totalPages: number,

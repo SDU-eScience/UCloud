@@ -1,10 +1,11 @@
 import * as React from "react";
-import { Grid, Message, Header } from "semantic-ui-react";
+import { Grid, Message } from "semantic-ui-react";
 import { Page } from "Types";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import * as Self from ".";
 import { ifPresent } from "UtilityFunctions";
 import { RefreshButton } from "UtilityComponents";
+import * as Heading from "ui-components/Heading";
 
 interface ListProps {
     pageRenderer: (page: Page<any>) => React.ReactNode
@@ -86,7 +87,7 @@ export class List extends React.PureComponent<ListProps> {
             if (props.page == null || props.page.items.length == 0) {
                 if (!props.customEmptyPage) {
                     return <div>
-                        <Header as="h2">
+                        <Heading.h2>
                             No results.
                             <a
                                 href="#"
@@ -94,7 +95,7 @@ export class List extends React.PureComponent<ListProps> {
                             >
                                 {" Try again?"}
                             </a>
-                        </Header>
+                        </Heading.h2>
                     </div>;
                 } else {
                     return props.customEmptyPage
