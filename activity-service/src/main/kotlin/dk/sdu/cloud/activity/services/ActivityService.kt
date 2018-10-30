@@ -11,8 +11,8 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.jwtAuth
-import dk.sdu.cloud.filesearch.api.LookupDescriptions
-import dk.sdu.cloud.filesearch.api.ReverseLookupRequest
+import dk.sdu.cloud.indexing.api.LookupDescriptions
+import dk.sdu.cloud.indexing.api.ReverseLookupRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RPCException
@@ -22,8 +22,7 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.awaitAll
 
-private const val CHUNCK_SIZE = 100
-
+private const val CHUNK_SIZE = 100
 
 class ActivityService<DBSession>(
     private val activityDao: ActivityEventDao<DBSession>,
@@ -175,7 +174,7 @@ class ActivityService<DBSession>(
                     entry.files.map { it.id }
                 }
             }
-        }.asSequence().toSet().asSequence().chunked(CHUNCK_SIZE).toList()
+        }.asSequence().toSet().asSequence().chunked(CHUNK_SIZE).toList()
 
         val fileIdToCanonicalPath = fileIdsInChunks
             .map { chunkOfIds ->
