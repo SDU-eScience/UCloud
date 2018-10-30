@@ -17,8 +17,6 @@ mkdir -m700 "/mnt/cephfs/home/${PRETTY}/"
 mkdir -m700 "/mnt/cephfs/home/${PRETTY}/Favorites"
 mkdir -m700 "/mnt/cephfs/home/${PRETTY}/Jobs"
 mkdir -m700 "/mnt/cephfs/home/${PRETTY}/Uploads"
-echo "README STUFF!" > "/mnt/cephfs/home/${PRETTY}/README.txt"
-chmod 600 "/mnt/cephfs/home/${PRETTY}/README.txt"
 
 # For some reason busybox is having problems chowning directly on the username
 # TODO That will likely become a problem later
