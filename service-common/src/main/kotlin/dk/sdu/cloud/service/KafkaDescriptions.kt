@@ -4,9 +4,9 @@ import dk.sdu.cloud.service.JsonSerde.jsonSerde
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.apache.kafka.common.utils.Bytes
-import org.apache.kafka.streams.Consumed
 import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
+import org.apache.kafka.streams.kstream.Consumed
 import org.apache.kafka.streams.kstream.KGroupedStream
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.Serialized
@@ -68,12 +68,15 @@ data class RequestHeader(
 typealias RawAuthToken = String
 
 abstract class KafkaDescriptions {
+    @PublishedApi
+    internal val streams = ArrayList<StreamDescription<*, *>>()
+
     inline fun <reified K : Any, reified V : Any> stream(
         topicName: String,
         keySerde: Serde<K> = defaultSerdeOrJson(),
         valueSerde: Serde<V> = defaultSerdeOrJson()
     ): StreamDescription<K, V> {
-        return SimpleStreamDescription(topicName, keySerde, valueSerde)
+        return SimpleStreamDescription(topicName, keySerde, valueSerde).also { streams.add(it) }
     }
 
     inline fun <reified K : Any, reified V : Any> stream(
@@ -82,7 +85,7 @@ abstract class KafkaDescriptions {
         valueSerde: Serde<V> = defaultSerdeOrJson(),
         noinline keyMapper: (V) -> K
     ): MappedStreamDescription<K, V> {
-        return MappedStreamDescription(topicName, keySerde, valueSerde, keyMapper)
+        return MappedStreamDescription(topicName, keySerde, valueSerde, keyMapper).also { streams.add(it) }
     }
 
     @Deprecated(message = "No longer in use")

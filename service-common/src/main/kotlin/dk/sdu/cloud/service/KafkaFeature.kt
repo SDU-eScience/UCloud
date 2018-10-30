@@ -13,7 +13,7 @@ import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.Topology
 import java.io.File
-import java.util.Properties
+import java.util.*
 
 data class KafkaHostConfig(
     val hostname: String,
@@ -28,7 +28,9 @@ class KafkaServices(
     private val streamsConfig: Properties,
     private val consumerConfig: Properties,
     val producer: KafkaProducer<String, String>,
-    val adminClient: AdminClient
+    val adminClient: AdminClient,
+    val defaultPartitions: Int = 32,
+    val defaultReplicas: Short = 1
 ) : EventConsumerFactory {
     fun build(block: Topology): KafkaStreams {
         return KafkaStreams(block, streamsConfig)
@@ -54,7 +56,6 @@ class KafkaFeatureConfiguration(
 class KafkaFeature(
     private val config: KafkaFeatureConfiguration
 ) : MicroFeature {
-
     private fun retrieveKafkaStreamsConfiguration(
         servers: List<KafkaHostConfig>,
         serviceDescription: ServiceDescription
@@ -91,12 +92,13 @@ class KafkaFeature(
 
         log.info("Connecting to Kafka")
 
-        val hosts = ctx.configuration.requestChunkAtOrNull("kafka", "brokers") ?: run {
+        val userConfig = ctx.configuration.requestChunkAtOrNull("kafka") ?: KafkaUserConfig()
+        val hosts = userConfig.brokers?.takeIf { it.isNotEmpty() } ?: run {
             log.info("No available configuration found at 'kafka/brokers'.")
             log.info("Attempting to look for defaults.")
 
             val hostname = findValidHostname(DEFAULT_HOST_NAMES)
-                    ?: throw IllegalStateException("Could not find a valid kafka host")
+                ?: throw IllegalStateException("Could not find a valid kafka host")
 
             log.info("$hostname is a valid host, assuming Kafka is running on this machine.")
 
@@ -115,7 +117,14 @@ class KafkaFeature(
 
         log.info("Connected to Kafka")
 
-        ctx.kafka = KafkaServices(streamsConfig, consumerConfig, producer, adminClient)
+        ctx.kafka = KafkaServices(
+            streamsConfig,
+            consumerConfig,
+            producer,
+            adminClient,
+            userConfig.defaultPartitions,
+            userConfig.defaultReplicas
+        )
     }
 
     companion object Feature : MicroFeatureFactory<KafkaFeature, KafkaFeatureConfiguration>, Loggable {
@@ -132,6 +141,12 @@ class KafkaFeature(
         )
     }
 }
+
+data class KafkaUserConfig(
+    val brokers: List<KafkaHostConfig>? = null,
+    val defaultPartitions: Int = 32,
+    val defaultReplicas: Short = 1
+)
 
 var Micro.kafka: KafkaServices
     get() {

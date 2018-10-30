@@ -8,10 +8,10 @@ import java.io.FileInputStream
 import java.util.jar.JarInputStream
 import kotlin.reflect.KClass
 
-class ClassFileLoader(
+internal class ClassDiscovery(
     val packagesToLoadFrom: List<String>,
     private val classLoader: ClassLoader,
-    private val filters: List<ClassFileLoaderFilter> = listOf(jreFilter, gradleFilter),
+    private val filters: List<ClassDiscoveryFilter> = listOf(JRE_FILTER, GRADLE_FILTER),
     private val handler: (KClass<*>) -> Unit
 ) {
     suspend fun detect() {
@@ -92,14 +92,14 @@ class ClassFileLoader(
     companion object : Loggable {
         override val log = logger()
 
-        val jreFilter: ClassFileLoaderFilter = { file ->
+        val JRE_FILTER: ClassDiscoveryFilter = { file ->
             !((file.absolutePath.contains("java") || file.absolutePath.contains("jre")) && file.extension == "jar")
         }
 
-        val gradleFilter: ClassFileLoaderFilter = { file ->
+        val GRADLE_FILTER: ClassDiscoveryFilter = { file ->
             !((file.absolutePath.contains(".gradle")) && file.extension == "jar")
         }
     }
 }
 
-typealias ClassFileLoaderFilter = (File) -> Boolean
+typealias ClassDiscoveryFilter = (File) -> Boolean

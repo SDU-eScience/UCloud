@@ -79,8 +79,8 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
     // Kafka
-    compile group: "org.apache.kafka", name: "kafka-clients", version: "1.0.0"
-    compile group: "org.apache.kafka", name: "kafka-streams", version: "1.0.0"
+    compile group: "org.apache.kafka", name: "kafka-clients", version: "2.0.0"
+    compile group: "org.apache.kafka", name: "kafka-streams", version: "2.0.0"
 
     // Serialization
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.4.1"
