@@ -398,8 +398,12 @@ int main(int argc, char **argv) {
 
     // Initialize streams
     auto client_boundary = argv[1];
-    initialize_stdin_stream(client_boundary);
     auto server_boundary = argv[2];
+
+    // Start by sending the boundary immediately (Allowing client to detect if we have started)
+    fprintf(stderr, "%s", server_boundary);
+
+    initialize_stdin_stream(client_boundary);
 
     // Line buffers
     auto line = (char *) malloc(MAX_LINE_LENGTH);

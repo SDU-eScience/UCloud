@@ -104,13 +104,14 @@ fun throwExceptionBasedOnStatus(status: Int): Nothing {
     }
 }
 
-sealed class FSException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {
-    data class BadRequest(val why: String = "") : FSException("Bad request $why")
-    data class NotFound(val file: String? = null) : FSException("Not found ${file ?: ""}")
-    data class AlreadyExists(val file: String? = null) : FSException("Already exists ${file ?: ""}")
-    class PermissionException : FSException("Permission denied")
-    class CriticalException(why: String) : FSException("Critical exception: $why", true)
-    class IOException : FSException("Internal server error (IO)", true)
+sealed class FSException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
+    class NotReady : FSException("File system is not ready yet", HttpStatusCode.ExpectationFailed)
+    class BadRequest(why: String = "") : FSException("Bad request $why", HttpStatusCode.BadRequest)
+    class NotFound(val file: String? = null) : FSException("Not found ${file ?: ""}", HttpStatusCode.NotFound)
+    class AlreadyExists(val file: String? = null) : FSException("Already exists ${file ?: ""}", HttpStatusCode.Conflict)
+    class PermissionException : FSException("Permission denied", HttpStatusCode.Forbidden)
+    class CriticalException(why: String) : FSException("Critical exception: $why", HttpStatusCode.InternalServerError)
+    class IOException : FSException("Internal server error (IO)", HttpStatusCode.InternalServerError)
 }
 
 suspend inline fun RESTHandler<*, *, CommonErrorMessage, *>.tryWithFS(
@@ -178,24 +179,6 @@ suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, Comm
 
 fun handleFSException(ex: Exception): Pair<CommonErrorMessage, HttpStatusCode> {
     return when (ex) {
-        is FSException -> {
-            // Enforce that we must handle all cases. Will cause a compiler error if we don't cover all
-            when (ex) {
-                is FSException.NotFound -> Pair(CommonErrorMessage(ex.message), HttpStatusCode.NotFound)
-                is FSException.BadRequest -> Pair(CommonErrorMessage(ex.message), HttpStatusCode.BadRequest)
-                is FSException.AlreadyExists -> Pair(CommonErrorMessage(ex.message), HttpStatusCode.Conflict)
-                is FSException.PermissionException -> Pair(
-                    CommonErrorMessage(ex.message),
-                    HttpStatusCode.Forbidden
-                )
-                is FSException.CriticalException, is FSException.IOException -> {
-                    fsLog.warn("Caught critical FS exception!")
-                    fsLog.warn(ex.stackTraceToString())
-                    Pair(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
-                }
-            }
-        }
-
         is IllegalArgumentException -> {
             Pair(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
         }

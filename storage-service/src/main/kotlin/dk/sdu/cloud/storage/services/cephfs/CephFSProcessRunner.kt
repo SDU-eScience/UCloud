@@ -6,6 +6,7 @@ import dk.sdu.cloud.storage.services.CommandRunner
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.StorageUserDao
 import dk.sdu.cloud.storage.util.BoundaryContainedStream
+import dk.sdu.cloud.storage.util.FSException
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.io.OutputStream
@@ -46,13 +47,32 @@ class CephFSCommandRunner(
                 listOf("sudo", "-u", unixUser)
             }
         }
+
         val command = listOf(
             "ceph-interpreter",
             String(clientBoundary, Charsets.UTF_8),
             String(serverBoundary, Charsets.UTF_8)
         )
 
-        ProcessBuilder().apply { command(prefix + command) }.start()
+        ProcessBuilder().apply { command(prefix + command) }.start().also { process ->
+            val bytes = ByteArray(serverBoundary.size)
+            var ptr = 0
+
+            var read = process.errorStream.read(bytes, ptr, bytes.size)
+            ptr += read
+            while (read > 0 && (ptr - bytes.size) > 0) {
+                read = process.errorStream.read(bytes, ptr, ptr - bytes.size)
+                ptr += read
+            }
+
+            if (!process.isAlive) {
+                throw FSException.NotReady()
+            }
+
+            if (!bytes.contentEquals(serverBoundary)) {
+                throw FSException.NotReady()
+            }
+        }
     }
 
     private val wrappedStdout =
