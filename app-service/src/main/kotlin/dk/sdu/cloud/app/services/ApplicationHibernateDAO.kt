@@ -29,8 +29,7 @@ class ApplicationHibernateDAO(
         name: String,
         version: String
     ) {
-        val foundApp = internalByNameAndVersion(session, name, version) ?: throw
-        ApplicationException.BadApplication()
+        val foundApp = internalByNameAndVersion(session, name, version) ?: throw ApplicationException.BadApplication()
 
         val isFavorite = session.typedQuery<Long>(
             """
@@ -82,7 +81,7 @@ class ApplicationHibernateDAO(
             """
                 select application
                 from FavoriteApplicationEntity as A
-                where user = :user
+                where A.user = :user
                 order by A.application.id.name
             """.trimIndent()
         ).setParameter("user", user)
@@ -303,7 +302,7 @@ class ApplicationHibernateDAO(
         session.update(existing)
     }
 
-    internal fun internalByNameAndVersion(
+    private fun internalByNameAndVersion(
         session: HibernateSession,
         name: String,
         version: String

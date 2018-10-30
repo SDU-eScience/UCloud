@@ -61,6 +61,7 @@ class FavoriteApplicationEntity(
     @ManyToOne
     var application: ApplicationEntity,
 
+    @Column(name = "the_user")
     var user: String,
 
     @Id
