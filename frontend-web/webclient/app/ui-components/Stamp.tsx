@@ -1,7 +1,6 @@
 import styled from "styled-components"
 import { themeGet, space, fontSize, color, SpaceProps } from 'styled-system'
-import theme from "./theme"
-import { NumberOrStringOrArray } from "./Types";
+import theme, { ThemeColor } from "./theme"
 
 const Stamp = styled("div") <StampProps>`
   display: inline-flex;
@@ -10,10 +9,10 @@ const Stamp = styled("div") <StampProps>`
   min-height: 24px;
   font-weight: 600;
   letter-spacing: ${themeGet('letterSpacings.caps')};
-  border-radius: 2px;
+  border-radius: 4px;
   border-width: 1px;
   border-style: solid;
-  border-color: ${() => theme.colors.borderGray};
+  border-color: ${props => props.borderColor ? theme.colors[props.borderColor] : theme.colors.black};
   ${space} ${fontSize} ${color};
 `
 
@@ -23,6 +22,7 @@ interface StampProps extends SpaceProps {
   bg?: string
   theme?: any
   fontSize?: number | string
+  borderColor?: ThemeColor
 }
 
 Stamp.defaultProps = {
@@ -31,6 +31,7 @@ Stamp.defaultProps = {
   theme: theme,
   color: "black",
   bg: "lightGray",
+  borderColor: "black",
   fontSize: 0
 }
 

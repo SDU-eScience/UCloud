@@ -168,6 +168,8 @@ const colors = {
   darkPurple
 }
 
+export type ThemeColor = keyof typeof colors;
+
 
 export { colors }
 

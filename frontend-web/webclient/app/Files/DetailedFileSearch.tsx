@@ -2,22 +2,24 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { addEntryIfNotPresent } from "Utilities/CollectionUtilities"
 import { infoNotification } from "UtilityFunctions";
-import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation, PossibleTime } from ".";
+import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation, PossibleTime, FileType, AdvancedSearchRequest } from ".";
 import { DatePicker } from "ui-components/DatePicker";
 import { Moment } from "moment";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Flex, Input, Label, Button, InputGroup, Stamp, Checkbox, Card, Text } from "ui-components";
+import { Flex, Input, Label, Button, InputGroup, Stamp, Checkbox, Card, Text, OutlineButton } from "ui-components";
 import * as Heading from "ui-components/Heading"
 import CloseButton from "ui-components/CloseButton";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {
     constructor(props) {
         super(props);
         this.state = {
+            hidden: true,
             allowFolders: true,
             allowFiles: true,
-            filename: "",
+            fileName: "",
             extensionValue: "",
             extensions: new Set(),
             tagValue: "",
@@ -28,7 +30,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             createdAfter: undefined,
             modifiedBefore: undefined,
             modifiedAfter: undefined,
-            error: undefined
+            error: undefined,
+            loading: false
         }
     }
 
@@ -148,12 +151,36 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
     }
 
     onSearch = () => {
-        console.log(this.state);
-        console.warn("Todo");
+        let fileTypes: [FileType?, FileType?] = [];
+        if (this.state.allowFiles) fileTypes.push("FILE");
+        if (this.state.allowFolders) fileTypes.push("DIRECTORY");
+        const createdAt = {
+            after: !!this.state.createdAfter ? this.state.createdAfter.valueOf() : undefined,
+            before: !!this.state.createdBefore ? this.state.createdBefore.valueOf() : undefined,
+        };
+        console.log(new Date((createdAt.after as number)))
+        const modifiedAt = {
+            after: !!this.state.modifiedAfter ? this.state.modifiedAfter.valueOf() : undefined,
+            before: !!this.state.modifiedBefore ? this.state.modifiedBefore.valueOf() : undefined,
+        };
+        console.log(createdAt, modifiedAt);
+        const request: AdvancedSearchRequest = {
+            fileName: this.state.fileName,
+            extensions: Array.from(this.state.extensions),
+            fileTypes,
+            createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
+            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? modifiedAt : undefined,
+            itemsPerPage: 25,
+            page: 0
+        }
+        Cloud.post("/file-search/advanced", request).then(
+            it => console.log(it.response)
+        );
     }
 
     render() {
-        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, filename, annotations, tags, tagValue } = this.state;
+        if (this.state.hidden) { return (<OutlineButton fullWidth color="green" onClick={() => this.setState(() => ({ hidden: false }))}>Advanced Search</OutlineButton>) }
+        const { sensitivities, extensions, extensionValue, allowFiles, allowFolders, fileName, annotations, tags, tagValue } = this.state;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));
         const sensitivityDropdown = remainingSensitivities.length ? (
             <Box>
@@ -177,14 +204,14 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <Heading.h3>Advanced File Search</Heading.h3>
                     {error}
                     <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
-                    {filename ? <Box mb="1em"><Stamp bg="white">{`Filename contains: ${filename}`}</Stamp></Box> : null}
+                    {fileName ? <Box mb="1em"><Stamp bg="white">{`Filename contains: ${fileName}`}</Stamp></Box> : null}
                     <Input
                         pb="6px"
                         pt="8px"
                         mt="-2px"
                         width="100%"
                         placeholder="Filename must include..."
-                        onChange={({ target: { value } }) => this.setState(() => ({ filename: value }))}
+                        onChange={({ target: { value } }) => this.setState(() => ({ fileName: value }))}
                     />
                     <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
 
@@ -304,7 +331,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
 const SearchStamps = ({ stamps, onStampRemove, clearAll }) => (
     <Box pb="5px">
         {[...stamps].map((l, i) => (<Stamp ml="2px" mt="2px" bg="white" key={i}>{l}<CloseButton onClick={() => onStampRemove(l)} size={12} /></Stamp>))}
-        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" bg="blue" color="white" onClick={clearAll}>Clear all<CloseButton size={12} /></Stamp>) : null}
+        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" bg="blue" borderColor="white" color="white" onClick={clearAll}>Clear all<CloseButton size={12} /></Stamp>) : null}
     </Box>
 );
 

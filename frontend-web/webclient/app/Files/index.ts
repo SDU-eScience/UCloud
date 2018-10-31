@@ -241,15 +241,15 @@ export interface DetailedFileSearchProps { }
 
 export enum AnnotationsMap { P = "Project" }
 
-// keyof typeof is how Typescript lets you get the keys of an enum
 export type Annotation = keyof typeof AnnotationsMap;
 
 export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 
 export interface DetailedFileSearchState {
+    hidden: boolean
     allowFolders: boolean
     allowFiles: boolean
-    filename: string
+    fileName: string
     extensions: Set<string>
     extensionValue: string
     tags: Set<string>
@@ -261,6 +261,7 @@ export interface DetailedFileSearchState {
     modifiedBefore?: Moment
     modifiedAfter?: Moment
     error?: string
+    loading: boolean
 }
 
 export type ContextBarProps = ContextButtonsProps & FileOptionsProps
@@ -279,3 +280,15 @@ export interface FileInfoProps {
 export interface FileInfoState {
     activity: Page<Activity>
 }
+
+export type AdvancedSearchRequest = {
+    fileName?: string
+    extensions?: Array<String>
+    fileTypes: [FileType?, FileType?]
+    createdAt?: { after?: number, before?: number }
+    modifiedAt?: { after?: number, before?: number }
+    sensitivity?: Array<SensitivityLevel>
+    annotations?: Array<String>
+    itemsPerPage?: number
+    page?: number
+};

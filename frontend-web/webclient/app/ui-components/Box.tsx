@@ -1,15 +1,15 @@
 import styled from "styled-components";
-import { space, width, color, textAlign, SpaceProps, WidthProps, ColorProps, AlignItemsProps } from "styled-system";
+import { space, width, color, textAlign, SpaceProps, WidthProps, ColorProps, AlignItemsProps, TopProps, top } from "styled-system";
 import theme from "./theme";
 
 
 export interface BoxProps extends SpaceProps,
   WidthProps,
   ColorProps,
-  AlignItemsProps { }
+  AlignItemsProps, TopProps { }
 
 const Box = styled("div") <BoxProps>`
-  ${space} ${width} ${color} ${textAlign};
+  ${space} ${width} ${color} ${textAlign} ${top};
 `
 
 Box.displayName = "Box";

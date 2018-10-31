@@ -125,7 +125,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
     }
 };
 
-const SimpleFileList = ({ files }) => (
+export const SimpleFileList = ({ files }) => (
     <List size="large" relaxed>
         {files.map((f, i) => (
             <List.Item key={i}>

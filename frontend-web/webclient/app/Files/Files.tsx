@@ -78,7 +78,8 @@ class Files extends React.Component<FilesProps> {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
-        const checkbox = (
+
+        const masterCheckbox = (
             <Label>
                 <Checkbox
                     onClick={e => this.props.checkAllFiles(!!e.target.checked)}
@@ -87,13 +88,17 @@ class Files extends React.Component<FilesProps> {
                 />
             </Label>
         );
+
+
         const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
-        const navigate = (path: string) => history.push(`/files/${path}`);
+        const navigate = (path: string) => history.push(`/files/${path}`); // FIXME Is this necessary?
+
         const fetchPageFromPath = (path: string) => {
             this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
-            this.props.updatePath(getParentPath(path));
-            navigate(getParentPath(path));
+            this.props.updatePath(getParentPath(path)); // FIXME Could these be handled by shouldComponentUpdate?
+            navigate(getParentPath(path)); // FIXME Could these be handled by shouldComponentUpdate?
         };
+
         const fileSelectorOperations = { setDisallowedPaths, setFileSelectorCallback, showFileSelector, fetchPageFromPath };
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const fileOperations: FileOperation[] = [
@@ -135,7 +140,7 @@ class Files extends React.Component<FilesProps> {
                                 sortingColumns={[leftSortingColumn, rightSortingColumn]}
                                 refetchFiles={() => refetch()}
                                 onDropdownSelect={(sortOrder: SortOrder, sortBy: SortBy, index: number) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
-                                masterCheckbox={checkbox}
+                                masterCheckbox={masterCheckbox}
                                 onRenameFile={this.onRenameFile}
                                 files={page.items}
                                 sortBy={sortBy}
@@ -156,7 +161,9 @@ class Files extends React.Component<FilesProps> {
                         files={selectedFiles}
                         createFolder={() => props.createFolder()}
                     />
-                    <DetailedFileSearch />
+                    <Box pl="5px" pr="5px" pt="3px">
+                        <DetailedFileSearch />
+                    </Box>
                 </Hide>
                 <FileSelectorModal
                     show={props.fileSelectorShown}
