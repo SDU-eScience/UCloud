@@ -12,6 +12,7 @@ export interface Upload {
 }
 
 export interface UploaderProps {
+    error?: string
     visible: boolean
     uploads: Upload[]
     allowMultiple?: boolean

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Checkbox, Progress, Grid, Card, Button, Icon, Modal } from "semantic-ui-react";
+import { Checkbox, Progress, Grid, Card, Button, Icon, Modal, Message } from "semantic-ui-react";
 import * as Dropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications } from "UtilityFunctions";
@@ -8,8 +8,9 @@ import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
 import { ReduxObject } from "DefaultObjects";
 import { Upload, UploaderProps } from ".";
-import { setUploaderVisible, setUploads } from "Uploader/Redux/UploaderActions";
+import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
+import { Box } from "ui-components";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -65,12 +66,12 @@ class Uploader extends React.Component<UploaderProps> {
             multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
                 this.props.dispatch(setUploads(this.props.uploads));
-            }).then(xhr => onThen(xhr)); // FIXME Add error handling
+            }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)).catch(it => console.log(`error ${it}`)); // FIXME Add error handling
         } else {
             bulkUpload(this.props.location, upload.file, BulkUploadPolicy.OVERWRITE, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
                 this.props.dispatch(setUploads(this.props.uploads));
-            }).then(xhr => onThen(xhr)); // FIXME Add error handling
+            }).then(xhr => onThen(xhr)).catch(it => console.log(`error ${it}`)); // FIXME Add error handling
         }
     }
 
@@ -108,6 +109,10 @@ class Uploader extends React.Component<UploaderProps> {
         return (
             <Modal open={this.props.visible} onClose={() => this.props.dispatch(setUploaderVisible(false))}>
                 <Modal.Header content="Upload Files" />
+                {this.props.error ?
+                    <Box pt="0.5em" pr="0.5em" pl="0.5em">
+                        <Message error content={this.props.error} onDismiss={() => this.props.dispatch(setUploaderError())} />
+                    </Box> : null}
                 <Modal.Content scrolling>
                     <Modal.Description>
                         <div>
@@ -254,7 +259,8 @@ const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
     visible: uploader.visible,
     allowMultiple: true,
     uploads: uploader.uploads,
-    onFilesUploaded: uploader.onFilesUploaded
+    onFilesUploaded: uploader.onFilesUploaded,
+    error: uploader.error
 });
 
 export default connect(mapStateToProps)(Uploader);

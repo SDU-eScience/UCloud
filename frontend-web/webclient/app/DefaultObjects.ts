@@ -134,6 +134,7 @@ export interface UploaderReduxObject {
     path: string
     allowMultiple: boolean
     onFilesUploaded: (p: string) => void
+    error?: string
 }
 
 export interface Reducers {
@@ -270,6 +271,7 @@ export const initUploads = (): UploaderReduxObject => ({
     uploads: [],
     visible: false,
     allowMultiple: false,
+    error: undefined,
     onFilesUploaded: () => null
 })
 
