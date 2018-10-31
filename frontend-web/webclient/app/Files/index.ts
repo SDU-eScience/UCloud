@@ -261,6 +261,7 @@ export interface DetailedFileSearchState {
     modifiedAfter?: Moment
     error?: string
     loading: boolean
+    result: Page<File>
 }
 
 export type ContextBarProps = ContextButtonsProps & FileOptionsProps

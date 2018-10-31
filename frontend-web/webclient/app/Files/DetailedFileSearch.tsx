@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { addEntryIfNotPresent } from "Utilities/CollectionUtilities"
 import { infoNotification } from "UtilityFunctions";
-import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation, PossibleTime, FileType, AdvancedSearchRequest } from ".";
+import { DetailedFileSearchProps, DetailedFileSearchState, SensitivityLevel, Annotation, PossibleTime, FileType, AdvancedSearchRequest, File } from ".";
 import { DatePicker } from "ui-components/DatePicker";
 import { Moment } from "moment";
 import Box from "ui-components/Box";
@@ -11,6 +11,9 @@ import { Flex, Input, Label, Button, InputGroup, Stamp, Checkbox, Card, Text, Ou
 import * as Heading from "ui-components/Heading"
 import CloseButton from "ui-components/CloseButton";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { emptyPage } from "DefaultObjects";
+import { SimpleFileList } from "SimpleSearch/SimpleSearch";
+import { Page } from "Types";
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps, DetailedFileSearchState> {
     constructor(props) {
@@ -31,6 +34,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             modifiedBefore: undefined,
             modifiedAfter: undefined,
             error: undefined,
+            result: emptyPage,
             loading: false
         }
     }
@@ -158,12 +162,10 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             after: !!this.state.createdAfter ? this.state.createdAfter.valueOf() : undefined,
             before: !!this.state.createdBefore ? this.state.createdBefore.valueOf() : undefined,
         };
-        console.log(new Date((createdAt.after as number)))
         const modifiedAt = {
             after: !!this.state.modifiedAfter ? this.state.modifiedAfter.valueOf() : undefined,
             before: !!this.state.modifiedBefore ? this.state.modifiedBefore.valueOf() : undefined,
         };
-        console.log(createdAt, modifiedAt);
         const request: AdvancedSearchRequest = {
             fileName: this.state.fileName,
             extensions: Array.from(this.state.extensions),
@@ -173,9 +175,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
             itemsPerPage: 25,
             page: 0
         }
-        Cloud.post("/file-search/advanced", request).then(
-            it => console.log(it.response)
-        );
+        Cloud.post<Page<File>>("/file-search/advanced", request).then(({ response }) => this.setState(() => ({ result: response })));
     }
 
     render() {
@@ -322,8 +322,9 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                         <Input pb="6px" pt="8px" mt="-2px" value={tagValue} onChange={({ target: { value } }) => this.setState(() => ({ tagValue: value }))} />
                     </form>
                     <Button mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()}>Search</Button>
-                </Box >
-            </Flex >
+                </Box>
+                <SimpleFileList files={this.state.result.items} />
+            </Flex>
         );
     }
 }

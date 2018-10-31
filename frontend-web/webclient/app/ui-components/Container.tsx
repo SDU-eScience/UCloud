@@ -6,20 +6,12 @@ const maxWidth = props =>
     ? { maxWidth: `${props.maxWidth}px` }
     : { maxWidth: props.theme.maxContainerWidth }
 
-type ContainerProps = any;
-
 const Container = styled("div") <{ maxWidth?: number }> `
   margin-left: auto;
   margin-right: auto;
 
   ${maxWidth};
 `;
-
-/*
-Container.propTypes = {
-  maxWidth: PropTypes.number
-};
-*/
 
 Container.defaultProps = {
   theme: theme
