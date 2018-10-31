@@ -24,7 +24,7 @@ export const multipartUpload = async (location: string, file: File, onProgress?:
     return request;
 }
 
-export const bulkUpload = async (location: string, file: File, policy: BulkUploadPolicy, onProgress?: (e: ProgressEvent) => void): Promise<XMLHttpRequest> => {
+export const bulkUpload = async (location: string, file: File, policy: BulkUploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     const format = "tgz";
     let formData = new FormData();
@@ -35,6 +35,10 @@ export const bulkUpload = async (location: string, file: File, policy: BulkUploa
     formData.append("upload", file);
     let request = new XMLHttpRequest();
     request.open("POST", "/api/upload/bulk");
+    request.onreadystatechange = () => {
+        if (!inSuccessRange(request.status))
+            !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) : failureNotification(statusToError(request.status))
+    }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
     request.upload.onprogress = (e) => {
         if (!!onProgress)
@@ -47,7 +51,6 @@ export const bulkUpload = async (location: string, file: File, policy: BulkUploa
 }
 
 function statusToError(status: number) {
-    console.log("STATUS TO ERROR")
     switch (STATUS_CODES[status]) {
         case "Expectation Failed": {
             return "Expectation Failed";
