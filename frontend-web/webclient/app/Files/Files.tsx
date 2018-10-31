@@ -139,7 +139,7 @@ class Files extends React.Component<FilesProps> {
                                 sortOrder={sortOrder}
                                 sortingColumns={[leftSortingColumn, rightSortingColumn]}
                                 refetchFiles={() => refetch()}
-                                onDropdownSelect={(sortOrder: SortOrder, sortBy: SortBy, index: number) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
+                                onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
                                 masterCheckbox={masterCheckbox}
                                 onRenameFile={this.onRenameFile}
                                 files={page.items}
@@ -309,7 +309,7 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
     ) : null;
 
 // FIXME Use own icons when available
-const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<i style={{ paddingLeft: "10px" }} className="fas fa-users" />) : null;
+const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<i style={{ paddingLeft: "10px", verticalAlign: "middle" }} className="fas fa-users" />) : null;
 
 const FileLink = ({ file, children }) => {
     if (isDirectory(file)) {
@@ -340,6 +340,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                     {icon}
                 </Box>
                 <Input
+                    placeholder={getFilenameFromPath(file.path)}
                     pb="6px"
                     pt="8px"
                     mt="-2px"
@@ -362,7 +363,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                 </Box>
                 <Box>
                     <GroupIcon isProject={isProject(file)} />
-                    <InlinedRelative top="3px" pl="7px">
+                    <InlinedRelative pl="7px">
                         <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={() => onFavoriteFile([file])} />
                     </InlinedRelative>
                 </Box>
@@ -387,7 +388,7 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) => files
         console.log(operation.icon)
         return !operation.disabled(files, Cloud) ? (
             <As key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
-                <Icon size={16} color={operation.color} name={operation.icon} />
+                <Icon size={16} mr="1em" color={operation.color} name={operation.icon} />
                 <span>{operation.text}</span>
             </As>
         ) : null;

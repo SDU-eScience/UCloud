@@ -145,8 +145,6 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
             return file.favorited ? "Favorited" : "";
         case SortBy.SENSITIVITY:
             return SensitivityLevel[file.sensitivityLevel];
-        case SortBy.ANNOTATION:
-            return file.annotations.toString();
     }
 }
 

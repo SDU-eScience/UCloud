@@ -2,8 +2,6 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Dropdown, DropdownContent } from "./Dropdown";
 import Box from "./Box";
-import { Chevron } from "UtilityComponents";
-import Flex from "./Flex";
 import { Icon } from "ui-components";
 
 type ClickableDropdownState = { open: boolean }

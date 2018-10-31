@@ -8,6 +8,7 @@ const getPath = ({ name }) => icons[name];
 
 const Svg = styled.svg`
   flex: none;
+  vertical-align: middle;
   ${space} ${color};
 `
 

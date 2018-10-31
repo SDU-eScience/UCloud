@@ -47,8 +47,7 @@ export enum SortBy {
     SIZE = "SIZE",
     ACL = "ACL",
     FAVORITED = "FAVORITED",
-    SENSITIVITY = "SENSITIVITY",
-    ANNOTATION = "ANNOTATION"
+    SENSITIVITY = "SENSITIVITY"
 }
 
 export interface FilesProps extends FilesStateProps, FilesOperations {

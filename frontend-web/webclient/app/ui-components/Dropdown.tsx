@@ -1,7 +1,5 @@
-import * as React from "react";
 import styled from "styled-components";
-import { left, width, minWidth } from "styled-system";
-import { CursorProperty } from "csstype";
+import { left } from "styled-system";
 
 
 export const Dropdown = styled.div<{ hover?: boolean }>`
