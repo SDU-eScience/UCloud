@@ -346,6 +346,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                     mt="-2px"
                     pl="0"
                     noBorder
+                    type="text"
                     width="100%"
                     autoFocus
                     onKeyDown={(e) => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
