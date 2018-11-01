@@ -25,7 +25,7 @@ import dk.sdu.cloud.storage.util.tryWithFSAndTimeout
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
-import kotlinx.coroutines.experimental.io.writeStringUtf8
+import kotlinx.coroutines.io.writeStringUtf8
 import org.slf4j.LoggerFactory
 
 // TODO Split this into multiple controllers

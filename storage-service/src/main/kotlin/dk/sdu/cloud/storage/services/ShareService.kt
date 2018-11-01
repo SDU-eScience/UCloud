@@ -24,7 +24,8 @@ import dk.sdu.cloud.share.api.SharesByPath
 import dk.sdu.cloud.storage.util.homeDirectory
 import dk.sdu.cloud.storage.util.joinPath
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
 sealed class ShareException(override val message: String, statusCode: HttpStatusCode) : RPCException(message, statusCode) {
@@ -100,23 +101,25 @@ class ShareService<DBSession, Ctx : FSUserContext>(
 
         val result = db.withTransaction { shareDAO.create(it, ctx.user, rewritten) }
 
-        launch {
-            NotificationDescriptions.create.call(
-                CreateNotification(
-                    user = share.sharedWith,
-                    notification = Notification(
-                        type = "SHARE_REQUEST",
-                        message = "${ctx.user} has shared a file with you",
+        coroutineScope {
+            launch {
+                NotificationDescriptions.create.call(
+                    CreateNotification(
+                        user = share.sharedWith,
+                        notification = Notification(
+                            type = "SHARE_REQUEST",
+                            message = "${ctx.user} has shared a file with you",
 
-                        meta = mapOf(
-                            "shareId" to result,
-                            "path" to share.path,
-                            "rights" to share.rights
+                            meta = mapOf(
+                                "shareId" to result,
+                                "path" to share.path,
+                                "rights" to share.rights
+                            )
                         )
-                    )
-                ),
-                cloud
-            )
+                    ),
+                    cloud
+                )
+            }
         }
 
         return result

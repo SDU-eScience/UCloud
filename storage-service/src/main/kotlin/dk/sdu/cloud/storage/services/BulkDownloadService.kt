@@ -10,7 +10,7 @@ import org.slf4j.LoggerFactory
 import java.io.OutputStream
 import java.util.zip.GZIPOutputStream
 
-private const val TAR_PERMISSION = 511
+private const val DEFAULT_FILE_PERMISSION = 511
 
 class BulkDownloadService<Ctx : FSUserContext>(
     private val fs: CoreFileSystemService<Ctx>
@@ -36,7 +36,7 @@ class BulkDownloadService<Ctx : FSUserContext>(
                                 stat.size,
                                 stat.timestamps.modified,
                                 stat.fileType == FileType.DIRECTORY,
-                                TAR_PERMISSION // TODO! (0777)
+                                DEFAULT_FILE_PERMISSION // TODO! (0777)
                             )
                         )
                     )

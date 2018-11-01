@@ -6,7 +6,7 @@ import dk.sdu.cloud.storage.services.CommandRunner
 import dk.sdu.cloud.storage.services.ExternalFileService
 import dk.sdu.cloud.storage.services.StorageUserDao
 import dk.sdu.cloud.storage.util.homeDirectory
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.runBlocking
 import org.apache.kafka.streams.kstream.KStream
 
 class UserProcessor<FSCtx : CommandRunner>(

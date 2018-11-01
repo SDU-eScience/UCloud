@@ -11,7 +11,8 @@ import dk.sdu.cloud.storage.util.normalize
 import dk.sdu.cloud.storage.util.relativize
 import dk.sdu.cloud.storage.util.retryWithCatch
 import dk.sdu.cloud.storage.util.throwExceptionBasedOnStatus
-import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -230,7 +231,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
     private fun <T : StorageEvent> FSResult<List<T>>.emitAll() {
         unwrap().forEach { event ->
-            launch { eventProducer.emit(event) }
+            GlobalScope.launch { eventProducer.emit(event) } // TODO BAD IDEA
         }
     }
 

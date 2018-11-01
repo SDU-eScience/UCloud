@@ -26,7 +26,8 @@ import io.ktor.http.content.forEachPart
 import io.ktor.http.content.streamProvider
 import io.ktor.request.receiveMultipart
 import io.ktor.routing.Route
-import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
 
@@ -176,19 +177,21 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
                                 val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
                                 part.streamProvider().copyTo(outputFile.outputStream())
-                                launch {
-                                    commandRunnerFactory.withContext(user) {
-                                        bulkUploadService.bulkUpload(
-                                            it,
-                                            path,
-                                            format,
-                                            policy,
-                                            outputFile.inputStream()
-                                        )
-                                    }
-                                    try {
-                                        outputFile.delete()
-                                    } catch (_: Exception) {
+                                coroutineScope {
+                                    launch {
+                                        commandRunnerFactory.withContext(user) {
+                                            bulkUploadService.bulkUpload(
+                                                it,
+                                                path,
+                                                format,
+                                                policy,
+                                                outputFile.inputStream()
+                                            )
+                                        }
+                                        try {
+                                            outputFile.delete()
+                                        } catch (_: Exception) {
+                                        }
                                     }
                                 }
 

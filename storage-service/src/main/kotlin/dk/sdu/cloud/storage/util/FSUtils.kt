@@ -10,14 +10,15 @@ import dk.sdu.cloud.storage.services.FSResult
 import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.withContext
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.selects.select
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.selects.select
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.io.IOError
-import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
 
 fun homeDirectory(user: String): String = "/home/$user/"
@@ -145,14 +146,14 @@ sealed class CallResult<S, E>(val status: HttpStatusCode) {
     class Error<S, E>(val item: E, status: HttpStatusCode) : CallResult<S, E>(status)
 }
 
-private const val DELAY_IN_SECONDS = 10L
+private const val DELAY_IN_MILLIS = 10_000L
 
 suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, CommonErrorMessage, *>.tryWithFSAndTimeout(
     factory: FSCommandRunnerFactory<Ctx>,
     user: String,
     job: suspend (Ctx) -> CallResult<S, CommonErrorMessage>
 ) {
-    val result: Deferred<CallResult<S, CommonErrorMessage>> = async {
+    val result: Deferred<CallResult<S, CommonErrorMessage>> = GlobalScope.async {
         try {
             factory.withContext(user) { job(it) }
         } catch (ex: Exception) {
@@ -161,7 +162,7 @@ suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, Comm
         }
     }
 
-    val timeout = async { delay(DELAY_IN_SECONDS, TimeUnit.SECONDS) }
+    val timeout = coroutineScope { async { delay(DELAY_IN_MILLIS) } }
 
     select<Unit> {
         result.onAwait {

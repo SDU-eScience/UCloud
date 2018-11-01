@@ -21,7 +21,6 @@ import dk.sdu.cloud.storage.http.IndexingController
 import dk.sdu.cloud.storage.http.MultiPartUploadController
 import dk.sdu.cloud.storage.http.ShareController
 import dk.sdu.cloud.storage.http.SimpleDownloadController
-import dk.sdu.cloud.storage.http.TusController
 import dk.sdu.cloud.storage.processor.StorageEventProcessor
 import dk.sdu.cloud.storage.processor.UserProcessor
 import dk.sdu.cloud.storage.services.ACLService
@@ -35,16 +34,9 @@ import dk.sdu.cloud.storage.services.FileLookupService
 import dk.sdu.cloud.storage.services.IndexingService
 import dk.sdu.cloud.storage.services.ShareHibernateDAO
 import dk.sdu.cloud.storage.services.ShareService
-import dk.sdu.cloud.storage.services.TusHibernateDAO
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.CephFSUserDao
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
-import dk.sdu.cloud.tus.api.TusHeaders
-import io.ktor.application.install
-import io.ktor.features.CORS
-import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpMethod
-import io.ktor.routing.route
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -90,7 +82,6 @@ class Server(
         val favoriteService = FavoriteService(coreFileSystem)
         val uploadService = BulkUploadService(coreFileSystem)
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
-        val transferState = TusHibernateDAO()
         val fileLookupService = FileLookupService(coreFileSystem, favoriteService)
 
         val indexingService = IndexingService(processRunner, coreFileSystem, storageEventProducer)
@@ -127,36 +118,8 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
-            install(CORS) {
-                anyHost()
-                header(HttpHeaders.Authorization)
-                header("Job-Id")
-                header(TusHeaders.Extension)
-                header(TusHeaders.MaxSize)
-                header(TusHeaders.Resumable)
-                header(TusHeaders.UploadLength)
-                header(TusHeaders.UploadOffset)
-                header(TusHeaders.Version)
-                header("upload-metadata")
-
-                exposeHeader(HttpHeaders.Location)
-                exposeHeader(TusHeaders.Extension)
-                exposeHeader(TusHeaders.MaxSize)
-                exposeHeader(TusHeaders.Resumable)
-                exposeHeader(TusHeaders.UploadLength)
-                exposeHeader(TusHeaders.UploadOffset)
-                exposeHeader(TusHeaders.Version)
-
-                HttpMethod.DefaultMethods.forEach { method(it) }
-                allowCredentials = false
-            }
 
             routing {
-                route("api/tus") {
-                    val tus = TusController(db, transferState, processRunner, coreFileSystem)
-                    tus.registerTusEndpoint(this, "/api/tus")
-                }
-
                 configureControllers(
                     FilesController(
                         processRunner,

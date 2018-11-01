@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.services.cephfs
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.service.BashEscaper
 import dk.sdu.cloud.storage.services.FSACLEntity
 import dk.sdu.cloud.storage.services.FSResult
 import dk.sdu.cloud.storage.services.FileAttribute
@@ -10,7 +11,6 @@ import dk.sdu.cloud.storage.services.FileRow
 import dk.sdu.cloud.storage.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.storage.services.StorageUserDao
 import dk.sdu.cloud.storage.services.asBitSet
-import dk.sdu.cloud.storage.util.BashEscaper
 import dk.sdu.cloud.storage.util.joinPath
 import dk.sdu.cloud.storage.util.normalize
 import java.io.File

@@ -34,8 +34,8 @@ import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
 import io.mockk.every
 import io.mockk.mockk
-import kotlinx.coroutines.experimental.io.ByteReadChannel
-import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import kotlinx.io.streams.asInput
 import org.junit.Test
 import java.io.File
