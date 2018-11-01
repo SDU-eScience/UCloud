@@ -164,7 +164,7 @@ export const applicationsPage: Page<Application> = {
                 title: "Figlet Counter",
                 description: "Count with Figlet!\n",
                 invocation: [{ "type": "word", "word": "figlet-count" }, { "type": "var", "variableNames": ["n"], "prefixGlobal": "", "suffixGlobal": "", "prefixVariable": "", "suffixVariable": "", "variableSeparator": " " }],
-                parameters: [{ name: "n", optional: false, defaultValue: 100, title: "Count", description: "How much should we count to?", min: null, "max": null, "step": null, "unitName": null, "type": "integer" }], "outputFileGlobs": ["stdout.txt", "stderr.txt"]
+                parameters: [{ name: "n", optional: false, defaultValue: { value: 100, type: "int" }, title: "Count", description: "How much should we count to?", min: null, "max": null, "step": null, "unitName": null, "type": "integer" }], "outputFileGlobs": ["stdout.txt", "stderr.txt"]
             },
             tool: {
                 owner: "jonas@hinchely.dk",

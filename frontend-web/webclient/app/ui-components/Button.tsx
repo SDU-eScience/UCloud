@@ -32,7 +32,7 @@ const size = ({ size, theme }) => {
   }
 };
 
-const fullWidth = (props) => (props.fullWidth ? { width: "100%" } : null)
+export const fullWidth = (props) => (props.fullWidth ? { width: "100%" } : null)
 
 export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean } & SpaceProps & SizeProps & { title?: string }
 

@@ -62,4 +62,8 @@ Input.defaultProps = {
   noBorder: false
 };
 
+export const HiddenInputField = styled(Input)`
+  display: none;
+`;
+
 export default Input;

@@ -1,8 +1,8 @@
 import * as React from "react";
-import { Grid, Header, Form, Input, Button, Rating, Message } from "semantic-ui-react";
+import { Form as SForm, Input as SInput, Button as SButton, Rating as SRating, Message as SMessage } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Link } from "react-router-dom";
+import Link from "ui-components/Link";
 import swal from "sweetalert2";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
@@ -16,6 +16,9 @@ import { Application, ParameterTypes } from ".";
 import { extractParameters } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
+import * as Heading from "ui-components/Heading";
+import { Box, Flex, Button, OutlineButton, Label, FormField, Text } from "ui-components";
+import { HiddenInputField } from "ui-components/Input";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -172,12 +175,10 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         });
     }
 
-    onCommentChange = (comment) => this.setState(() => ({ comment: comment }));
+    onCommentChange = comment => this.setState(() => ({ comment }));
 
     retrieveApplication() {
-        this.setState(() => ({
-            loading: true
-        }));
+        this.setState(() => ({ loading: true }));
 
         this.state.promises.makeCancelable(
             Cloud.get(`/hpc/apps/${this.state.appName}/${this.state.appVersion}`)
@@ -202,11 +203,11 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     }
 
     render() {
-        const error = this.state.error ? <Message color="red" onDismiss={() => this.setState(() => ({ error: undefined }))} content={this.state.error} /> : null;
+        const error = this.state.error ? <SMessage color="red" onDismiss={() => this.setState(() => ({ error: undefined }))} content={this.state.error} /> : null;
         return (
-            <Grid container columns={16}>
-                <Grid.Column width={16}>
-                    <DefaultLoading size={undefined} loading={this.state.loading} />
+            <Flex alignItems="center" flexDirection="column">
+                <Box width={0.7}>
+                    <DefaultLoading loading={this.state.loading} />
                     {error}
                     <ApplicationHeader
                         importParameters={this.importParameters}
@@ -231,33 +232,43 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                         tool={this.state.tool}
                         jobSubmitted={this.state.jobSubmitted}
                     />
-                </Grid.Column>
-            </Grid>
+                </Box>
+            </Flex>
         );
     }
 }
 
-const ApplicationHeader = ({ authors, displayName, appName, favorite, version, favoriteApp, exportParameters, importParameters }) => {
+interface ApplicationHeaderProps {
+    authors: string[]
+    displayName: string
+    appName: string
+    favorite: boolean
+    version: string
+    favoriteApp: () => void
+    exportParameters: () => void
+    importParameters: (f: File) => void
+}
+const ApplicationHeader = ({ authors, displayName, appName, favorite, version, favoriteApp, exportParameters, importParameters }: ApplicationHeaderProps) => {
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!authors) ? authors.join(", ") : "";
 
     return (
-        <Header as="h1">
-            <Header.Content className="float-right">
-                <Button.Group>
-                    <Button basic color="green" onClick={() => exportParameters()} content="Export parameters" />
-                    <Button basic color="green" as="label">
+        <Heading.h1 mb={"1em"}>
+            <Box className="float-right">
+                <OutlineButton color="green" onClick={() => exportParameters()}>Export parameters</OutlineButton>
+                <SButton basic color="green" as={"label"}>
+                    <label>
                         Import parameters
-                        <input className="import-parameters" type="file" onChange={(e) => { if (e.target.files) importParameters(e.target.files[0]) }} />
-                    </Button>
-                    <Button as={Link} basic color="blue" content="More information" to={`/appDetails/${appName}/${version}/`} />
-                </Button.Group>
-            </Header.Content>
-            <Header.Content>
+                        <HiddenInputField type="file" onChange={(e) => { if (e.target.files) importParameters(e.target.files[0]) }} />
+                    </label>
+                </SButton>
+                <Link to={`/appDetails/${appName}/${version}/`} ><OutlineButton color="blue">More information</OutlineButton></Link>
+            </Box>
+            <Box>
                 {displayName}
                 <span className="app-favorite-padding">
-                    <Rating
+                    <SRating
                         icon="star"
                         size="huge"
                         rating={favorite ? 1 : 0}
@@ -267,16 +278,13 @@ const ApplicationHeader = ({ authors, displayName, appName, favorite, version, f
                 </span>
                 <h4>{version}</h4>
                 <h4>{pluralize(authors, "Author")}: {authorString}</h4>
-
-            </Header.Content>
-        </Header >
+            </Box>
+        </Heading.h1>
     );
 };
 
 const Parameters = (props) => {
-    if (!props.parameters) {
-        return null
-    }
+    if (!props.parameters) return null
 
     let parametersList = props.parameters.map((parameter, index) => {
         let value = props.values[parameter.name];
@@ -291,7 +299,7 @@ const Parameters = (props) => {
     });
 
     return (
-        <Form onSubmit={props.onSubmit}>
+        <SForm onSubmit={props.onSubmit}>
             {parametersList}
             <JobSchedulingParams
                 onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
@@ -302,33 +310,29 @@ const Parameters = (props) => {
                 onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
             />
 
-            <Button
-                color="blue"
-                loading={props.jobSubmitted}
-                content={"Submit"}
-            />
-        </Form>
+            <Button color="blue" disabled={props.jobSubmitted}>Submit</Button>
+        </SForm>
     )
 };
 
 const JobMetaParams = (props) => {
     return (
         <>
-            <Form.Input
+            <SForm.Input
                 label="Jobname"
                 type="text"
                 placeholder="Jobname will be assigned if field left empty"
                 disabled
                 onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
             />
-            <Form.Input
+            <SForm.Input
                 label="Tags (Separated by space)"
                 type="text"
                 placeholder="Assign tags to jobs"
                 disabled
                 onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
             />
-            <Form.TextArea
+            <SForm.TextArea
                 label="Comment"
                 placeholder="Comment..."
                 disabled
@@ -346,25 +350,25 @@ const JobSchedulingParams = (props) => {
 
     return (
         <>
-            <Form.Group widths="equal">
-                <Form.Input
+            <SForm.Group widths="equal">
+                <SForm.Input
                     label="Number of nodes"
                     type="number" step="1" min="1"
                     value={numberOfNodes === null || isNaN(numberOfNodes) ? "" : numberOfNodes}
                     placeholder={`Default value: ${props.tool.defaultNumberOfNodes}`}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
                 />
-                <Form.Input
+                <SForm.Input
                     label="Tasks per node"
                     type="number" step="1" min="1"
                     value={tasksPerNode === null || isNaN(tasksPerNode) ? "" : tasksPerNode}
                     placeholder={`Default value: ${props.tool.defaultTasksPerNode}`}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}
                 />
-            </Form.Group>
+            </SForm.Group>
             <label>Maximum time allowed</label>
-            <Form.Group widths="equal">
-                <Form.Input
+            <SForm.Group widths="equal">
+                <SForm.Input
                     fluid
                     label="Hours"
                     placeholder={props.tool.defaultMaxTime.hours}
@@ -372,7 +376,7 @@ const JobSchedulingParams = (props) => {
                     value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "hours")}
                 />
-                <Form.Input
+                <SForm.Input
                     fluid
                     label="Minutes"
                     placeholder={props.tool.defaultMaxTime.minutes}
@@ -380,7 +384,7 @@ const JobSchedulingParams = (props) => {
                     value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "minutes")}
                 />
-                <Form.Input
+                <SForm.Input
                     fluid
                     label="Seconds"
                     placeholder={props.tool.defaultMaxTime.seconds}
@@ -388,7 +392,7 @@ const JobSchedulingParams = (props) => {
                     value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
                     onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
                 />
-            </Form.Group>
+            </SForm.Group>
         </>)
 };
 
@@ -431,7 +435,7 @@ const InputFileParameter = (props) => {
                 onFileSelect={file => internalOnChange(file)}
                 path={path}
                 isRequired={!props.parameter.optional}
-                /* allowUpload */
+            /* allowUpload */
             />
         </GenericParameter>
     );
@@ -464,10 +468,12 @@ const TextParameter = (props) => {
         props.onChange(props.parameter.name, event.target.value);
     };
 
+    let placeholder = !!props.parameter.defaultValue ? props.parameter.defaultValue.value : undefined;
+
     return (
         <GenericParameter parameter={props.parameter}>
             <input
-                placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
+                placeholder={placeholder}
                 required={!props.parameter.optional}
                 type="text" onChange={e => internalOnChange(e)}
             />
@@ -494,7 +500,7 @@ const BooleanParameter = (props) => {
 
     return (
         <GenericParameter parameter={props.parameter}>
-            <Form.Select id={props.parameter} onChange={(e, d) => internalOnChange(e, d)} value={selected}
+            <SForm.Select id={props.parameter} onChange={(e, d) => internalOnChange(e, d)} value={selected}
                 options={
                     options.map((it, idx) =>
                         ({ key: idx, text: it.display, value: idx }))
@@ -522,11 +528,13 @@ const GenericNumberParameter = (props) => {
 
     const hasLabel = !!props.parameter.unitName;
 
+    let placeholder = !!props.parameter.defaultValue ? props.parameter.defaultValue.value : undefined;
+
     let baseField = (
-        <Input
+        <SInput
             labelPosition="right"
             label={{ basic: true, content: hasLabel ? props.parameter.unitName : "Number" }}
-            placeholder={props.parameter.defaultValue ? "Default value: " + props.parameter.defaultValue : ""}
+            placeholder={typeof props.parameter.defaultValue.value === "number" ? "Default value: " + props.parameter.defaultValue.value : ""}
             required={!props.parameter.optional} name={props.parameter.name}
             type="number"
             step="any"
@@ -538,7 +546,7 @@ const GenericNumberParameter = (props) => {
     let slider: React.ReactNode = null;
     if (props.parameter.min !== null && props.parameter.max !== null) {
         slider = (
-            <Input
+            <SInput
                 min={props.parameter.min}
                 max={props.parameter.max}
                 step={props.parameter.step}
@@ -570,14 +578,16 @@ const FloatingParameter = (props) => {
 };
 
 const GenericParameter = ({ parameter, children }) => (
-    <Form.Field required={!parameter.optional}>
-        <label htmlFor={parameter.name}>
-            {parameter.title}
-        </label>
-        {children}
+    <>
+        <Label color="black" fontSize={2} htmlFor={parameter.name}>
+            <Flex>{parameter.title}{parameter.optional ? "" : <Text bold color="red"> *</Text>}</Flex>
+        </Label>
+        <FormField>
+            {children}
+        </FormField>
         <OptionalText optional={parameter.optional} />
         <ReactMarkdown className="help-block" source={parameter.description} />
-    </Form.Field >
+    </>
 );
 
 const OptionalText = ({ optional }) =>

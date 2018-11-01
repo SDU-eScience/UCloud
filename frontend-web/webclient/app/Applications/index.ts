@@ -161,7 +161,7 @@ export interface RunAppProps {
 }
 
 export interface NumberParameter extends BaseParameter {
-    defaultValue: number | null
+    defaultValue: { value: number, type: "double" | "int" } | null
     min: number | null
     max: number | null
     step: number | null
@@ -169,7 +169,7 @@ export interface NumberParameter extends BaseParameter {
 }
 
 export interface BooleanParameter extends BaseParameter {
-    defaultValue: boolean | null
+    defaultValue: { value: boolean, type: "bool" } | null
     trueValue?: string | null
     falseValue?: string | null
     type: "boolean"
@@ -186,7 +186,7 @@ export interface InputDirectoryParameter extends BaseParameter {
 }
 
 export interface TextParameter extends BaseParameter {
-    defaultValue: string | null
+    defaultValue: { value: string, type: "string" } | null
     type: "text"
 }
 
