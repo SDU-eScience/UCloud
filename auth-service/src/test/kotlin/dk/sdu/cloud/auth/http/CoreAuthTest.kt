@@ -184,7 +184,7 @@ class CoreAuthTest {
 
     @Test
     fun `Login Test - service given, isInvalid True, Wayf true, password false`() {
-        withBasicSetup(enablePassword = false, enableWayf = true) { ctx ->
+        withBasicSetup(enablePassword = false, enableWayf = true) {
             val serviceName = "_service"
             ServiceDAO.insert(Service(serviceName, "endpointOfService"))
             val response =
@@ -426,6 +426,7 @@ class CoreAuthTest {
             }
 
             if (addRefreshToken) {
+                @Suppress("EXPERIMENTAL_API_USAGE")
                 addHeader(
                     HttpHeaders.Cookie,
                     renderCookieHeader(
@@ -586,6 +587,7 @@ class CoreAuthTest {
     fun `Web refresh - test bad refresh token`() {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
+            @Suppress("EXPERIMENTAL_API_USAGE")
             val response = webRefresh(token, addRefreshToken = false, headersToUse = *arrayOf(HttpHeaders.Origin)) {
                 addHeader(
                     HttpHeaders.Cookie,

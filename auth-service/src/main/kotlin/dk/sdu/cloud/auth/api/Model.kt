@@ -2,7 +2,7 @@ package dk.sdu.cloud.auth.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.service.KafkaRequest
+import dk.sdu.cloud.service.TYPE_PROPERTY
 
 @Deprecated(message = "Built into client-core", replaceWith = ReplaceWith("Role", imports = ["dk.sdu.cloud.Role"]))
 typealias Role = dk.sdu.cloud.Role
@@ -14,7 +14,7 @@ typealias Role = dk.sdu.cloud.Role
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY
+    property = TYPE_PROPERTY
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = Person.ByWAYF::class, name = "wayf"),

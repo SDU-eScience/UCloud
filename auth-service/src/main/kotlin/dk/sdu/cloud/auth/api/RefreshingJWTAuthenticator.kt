@@ -8,7 +8,7 @@ import dk.sdu.cloud.service.TokenValidation
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.time.temporal.ChronoUnit

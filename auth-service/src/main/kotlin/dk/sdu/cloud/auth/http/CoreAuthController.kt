@@ -68,6 +68,7 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
+import java.time.ZonedDateTime
 
 class CoreAuthController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -120,11 +121,14 @@ class CoreAuthController<DBSession>(
         route("auth") {
             install(CachingHeaders) {
                 options {
-                    CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private))
+                    // For some reason there is no other way to specify which version we want.
+                    // Likely working around a bug.
+                    @Suppress("CAST_NEVER_SUCCEEDS")
+                    CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private), null as? ZonedDateTime)
                 }
             }
 
-            intercept(ApplicationCallPipeline.Infrastructure) {
+            intercept(ApplicationCallPipeline.Features) {
                 call.response.header(HttpHeaders.Pragma, "no-cache")
             }
 
