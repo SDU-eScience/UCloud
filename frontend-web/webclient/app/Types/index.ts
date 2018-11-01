@@ -28,7 +28,7 @@ export interface DropdownOption {
     value: string
 }
 
-export interface SetLoadingAction<T> extends PayloadAction<T, { loading: boolean }> { }
-export interface Error<T> extends PayloadAction<T, { error?: string }> { }
-export interface PayloadAction<T1, T2> extends Action<T1> { payload: T2 };
-export interface ReceivePage<T1, T2> extends PayloadAction<T1, { page: Page<T2> }> { }
+export type SetLoadingAction<T> = PayloadAction<T, { loading: boolean }>
+export type Error<T> = PayloadAction<T, { error?: string, statusCode?: number }>
+export type ReceivePage<T1, T2> = PayloadAction<T1, { page: Page<T2> }>
+export interface PayloadAction<T1, T2> extends Action<T1> { payload: T2 }

@@ -112,13 +112,13 @@ describe("FileSelector callback", () => {
 describe("File Selector Error message", () => {
     test("Set File Selector error", () => {
         const ErrorMessage = "Error_Message";
-        nonEmptyPageStore.dispatch(FileActions.setFileSelectorError(ErrorMessage));
+        nonEmptyPageStore.dispatch(FileActions.setFileSelectorError({error: ErrorMessage}));
         expect(nonEmptyPageStore.getState().files.fileSelectorError).toBe(ErrorMessage);
     });
 
     test("Clear File Selector error", () => {
         const ErrorMessage = undefined;
-        nonEmptyPageStore.dispatch(FileActions.setFileSelectorError(ErrorMessage));
+        nonEmptyPageStore.dispatch(FileActions.setFileSelectorError({error: ErrorMessage}));
         expect(nonEmptyPageStore.getState().files.fileSelectorError).toBe(ErrorMessage);
     });
 });

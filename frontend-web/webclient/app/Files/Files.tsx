@@ -409,7 +409,7 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
 
 const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     prioritizeFileSearch: () => dispatch(setPrioritizedSearch("files")),
-    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError()),
+    onFileSelectorErrorDismiss: () => dispatch(Actions.setFileSelectorError({})),
     dismissError: () => dispatch(Actions.setErrorMessage()),
     createFolder: () => dispatch(Actions.createFolder()),
     fetchFiles: async (path, itemsPerPage, pageNumber, sortOrder, sortBy, index?) => {

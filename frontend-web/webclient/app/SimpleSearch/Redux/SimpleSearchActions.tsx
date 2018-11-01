@@ -34,8 +34,6 @@ export const searchFiles = (search: string, pageNumber: number, itemsPerPage: nu
         .then(({ response }) => receiveFiles(response))
         .catch(_ => setErrorMessage("An error occurred searching for files\n"));
 
-
-
 export const searchApplications = (query: string, page: number, itemsPerPage: number): Promise<any> =>
     Cloud.get(hpcApplicationsSearchQuery(query, page, itemsPerPage))
         .then(({ response }) => receiveApplications(response))
