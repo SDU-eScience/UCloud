@@ -1,9 +1,10 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.ServiceDescription
-import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.junit.Ignore
 import org.junit.Test
 import java.nio.file.Files
@@ -83,7 +84,7 @@ class KafkaConsumerTest {
             }
         }
 
-        val producerJob = launch {
+        val producerJob = GlobalScope.launch {
             delay(2000)
 
             repeat(1000) {
@@ -123,7 +124,7 @@ class KafkaConsumerTest {
 
         consumer.onExceptionCaught { caughtException = it }
 
-        val producerJob = launch {
+        val producerJob = GlobalScope.launch {
             repeat(2000) { producer.emit(Advanced(it, "hello" to 42)) }
         }
         runBlocking { producerJob.join() }
@@ -150,7 +151,7 @@ class KafkaConsumerTest {
 
         consumer.onExceptionCaught { caughtException = it }
 
-        val producerJob = launch {
+        val producerJob = GlobalScope.launch {
             repeat(2000) { producer.emit(Advanced(it, "hello" to 42)) }
         }
         runBlocking { producerJob.join() }
@@ -186,13 +187,13 @@ class KafkaConsumerTest {
 
         consumer.onExceptionCaught { caughtException = it }
 
-        val producerJob = launch {
+        val producerJob = GlobalScope.launch {
             repeat(2000) { producer.emit(Advanced(it, "hello" to 42)) }
         }
 
         runBlocking { producerJob.join() }
 
-        for(it in 0 until 35) {
+        for (it in 0 until 35) {
             println(it)
             Thread.sleep(1000)
 

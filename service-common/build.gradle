@@ -2,9 +2,9 @@ import java.nio.channels.*
 import java.nio.file.Files
 
 buildscript {
-    ext.kotlin_version = "1.2.61"
-    ext.ktor_version = "0.9.4"
-    ext.dokka_version = "0.9.16"
+    ext.kotlin_version = "1.3.0"
+    ext.ktor_version = "1.0.0-beta-3"
+    ext.dokka_version = "0.9.17"
 
     repositories {
         mavenCentral()
@@ -106,11 +106,11 @@ dependencies {
     compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.9.2'
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
 
-    compile "io.ktor:ktor-client-core:0.9.4"
-    compile "io.ktor:ktor-client-apache:0.9.4"
-    compile "io.ktor:ktor-client-json:0.9.4"
-    compile "io.ktor:ktor-client-json-jvm:0.9.4"
-    compile 'io.ktor:ktor-client-jackson:0.9.4'
+    compile "io.ktor:ktor-client-core:$ktor_version"
+    compile "io.ktor:ktor-client-apache:$ktor_version"
+    compile "io.ktor:ktor-client-json:$ktor_version"
+    compile "io.ktor:ktor-client-json-jvm:$ktor_version"
+    compile "io.ktor:ktor-client-jackson:$ktor_version"
 
     // Service discovery
     compile group: "com.github.zafarkhaja", name: "java-semver", version: "0.9.0"
@@ -150,11 +150,12 @@ jacocoTestReport {
 }
 test.finalizedBy(project.tasks.jacocoTestReport)
 
-kotlin {
-    experimental {
-        coroutines "enable"
+kotlin.sourceSets.all {
+    it.languageSettings {
+        progressiveMode = true
     }
 }
+
 
 task sourceJar(type: Jar) {
     from sourceSets.main.allSource

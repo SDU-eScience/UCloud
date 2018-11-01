@@ -10,7 +10,7 @@ import io.ktor.client.response.HttpResponse
 import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
-import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import java.net.URLEncoder
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty

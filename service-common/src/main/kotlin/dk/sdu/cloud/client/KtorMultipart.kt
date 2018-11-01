@@ -8,9 +8,9 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.headersOf
 import io.ktor.http.withCharset
 import io.ktor.util.flattenEntries
-import kotlinx.coroutines.experimental.io.ByteWriteChannel
-import kotlinx.coroutines.experimental.io.writeFully
-import kotlinx.coroutines.experimental.io.writeStringUtf8
+import kotlinx.coroutines.io.ByteWriteChannel
+import kotlinx.coroutines.io.writeFully
+import kotlinx.coroutines.io.writeStringUtf8
 import java.util.*
 
 /**

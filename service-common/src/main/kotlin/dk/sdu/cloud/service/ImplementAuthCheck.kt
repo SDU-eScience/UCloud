@@ -90,7 +90,7 @@ class ImplementAuthCheck {
             feature.configure()
             feature.validateConfiguration()
 
-            pipeline.intercept(ApplicationCallPipeline.Infrastructure) { feature.interceptBefore(this) }
+            pipeline.intercept(ApplicationCallPipeline.Features) { feature.interceptBefore(this) }
             return feature
         }
     }

@@ -4,7 +4,9 @@ import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.slf4j.LoggerFactory
-import kotlin.coroutines.experimental.suspendCoroutine
+import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlin.math.min
 
 private const val MAX_INDEX = 100

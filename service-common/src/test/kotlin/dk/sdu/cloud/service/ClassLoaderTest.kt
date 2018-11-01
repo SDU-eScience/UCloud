@@ -1,7 +1,7 @@
 package dk.sdu.cloud.service
 
-import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 fun main(args: Array<String>) {
     val loader = ClassDiscovery(listOf("dk.sdu.cloud.service"), ClassLoader.getSystemClassLoader()) {

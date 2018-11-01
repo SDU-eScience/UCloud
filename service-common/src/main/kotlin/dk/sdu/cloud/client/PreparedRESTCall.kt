@@ -5,12 +5,11 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.get
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.isSuccess
-import io.ktor.http.takeFrom
-import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.delay
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 
-private const val DELAY_TIME = 250
+private const val DELAY_TIME = 250L
 private const val INTERNAL_ERROR_CODE_START = 500
 private const val INTERNAL_ERROR_CODE_STOP = 599
 private const val NUMBER_OF_ATTEMPTS = 5
@@ -31,8 +30,10 @@ abstract class PreparedRESTCall<out T, out E>(private val namespace: String) {
     abstract fun deserializeError(response: HttpResponse): E?
 
     protected open fun resolveEndpoint(): String {
-        return resolvedEndpoint ?: throw IllegalStateException("Missing resolved endpoint. " +
-                "Must implement resolveEndpoint()")
+        return resolvedEndpoint ?: throw IllegalStateException(
+            "Missing resolved endpoint. " +
+                    "Must implement resolveEndpoint()"
+        )
     }
 
     suspend fun call(context: AuthenticatedCloud): RESTResponse<T, E> {

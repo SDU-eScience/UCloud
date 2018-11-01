@@ -6,7 +6,7 @@ import io.ktor.http.BadContentTypeFormatException
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import java.io.InputStream
 
 data class RESTResponseContent(

@@ -8,7 +8,7 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.client.response.HttpResponse
 import io.ktor.client.response.readText
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.runBlocking
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.ConnectException

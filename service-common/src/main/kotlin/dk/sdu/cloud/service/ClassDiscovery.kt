@@ -1,8 +1,9 @@
 package dk.sdu.cloud.service
 
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import kotlinx.coroutines.experimental.joinAll
-import kotlinx.coroutines.experimental.launch
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileInputStream
 import java.util.jar.JarInputStream
@@ -15,6 +16,7 @@ internal class ClassDiscovery(
     private val handler: (KClass<*>) -> Unit
 ) {
     suspend fun detect() {
+        coroutineScope {  }
         val classPath = classPath()
         if (log.isDebugEnabled) {
             log.debug("Class path:")
@@ -23,27 +25,31 @@ internal class ClassDiscovery(
             }
         }
 
-        classPath.mapNotNull { file ->
-            // Not allowed by any filter and file name is not hinting at success
-            val normalized = file.absolutePath.replace(File.separatorChar, '.')
-            if (filters.any { !it(file) } && packagesToLoadFrom.none { normalized.contains(it) }) {
-                null
-            } else {
-                launch {
-                    detectFile(file, file)
+        coroutineScope {
+            classPath.mapNotNull { file ->
+                // Not allowed by any filter and file name is not hinting at success
+                val normalized = file.absolutePath.replace(File.separatorChar, '.')
+                if (filters.any { !it(file) } && packagesToLoadFrom.none { normalized.contains(it) }) {
+                    null
+                } else {
+                    launch {
+                        detectFile(file, file)
+                    }
                 }
-            }
-        }.joinAll()
+            }.joinAll()
+        }
     }
 
     private suspend fun detectFile(parent: File, file: File) {
         log.debug("detectFile($file)")
         if (file.isDirectory) {
-            file.listFiles().map {
-                launch {
-                    detectFile(parent, it)
-                }
-            }.joinAll()
+            coroutineScope {
+                file.listFiles().map {
+                    launch {
+                        detectFile(parent, it)
+                    }
+                }.joinAll()
+            }
         } else {
             if (file.extension == "class") {
                 val relativeFile = file.relativeTo(parent)

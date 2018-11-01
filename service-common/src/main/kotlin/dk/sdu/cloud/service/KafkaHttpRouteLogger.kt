@@ -19,7 +19,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
-import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.contentType
 import io.ktor.request.header
@@ -28,7 +27,8 @@ import io.ktor.request.uri
 import io.ktor.request.userAgent
 import io.ktor.response.ApplicationSendPipeline
 import io.ktor.util.AttributeKey
-import kotlinx.coroutines.experimental.async
+import io.ktor.util.pipeline.PipelineContext
+import kotlinx.coroutines.async
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
@@ -200,7 +200,7 @@ class KafkaHttpRouteLogger {
             val feature = KafkaHttpRouteLogger()
             feature.configure()
 
-            pipeline.intercept(ApplicationCallPipeline.Infrastructure) { feature.interceptBefore(this) }
+            pipeline.intercept(ApplicationCallPipeline.Monitoring) { feature.interceptBefore(this) }
             pipeline.sendPipeline.intercept(ApplicationSendPipeline.After) { feature.interceptAfter(this, it) }
             return feature
         }

@@ -18,10 +18,11 @@ import io.ktor.http.content.MultiPartData
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.http.defaultForFile
-import io.ktor.pipeline.PipelineContext
 import io.ktor.request.receiveOrNull
+import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.asStream
-import kotlinx.coroutines.experimental.io.jvm.javaio.copyTo
+import io.ktor.util.pipeline.PipelineContext
+import kotlinx.coroutines.io.jvm.javaio.copyTo
 import java.io.File
 import java.io.InputStream
 import java.lang.reflect.ParameterizedType
@@ -258,6 +259,7 @@ class MultipartRequest<Request : Any> private constructor() {
                     else -> throw IllegalStateException()
                 }
 
+                @Suppress("EXPERIMENTAL_API_USAGE")
                 return StreamingFile(
                     contentType,
                     part.headers[HttpHeaders.ContentLength]?.toLongOrNull(),

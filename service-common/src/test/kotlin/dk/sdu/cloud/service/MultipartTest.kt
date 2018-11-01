@@ -12,7 +12,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.routing.routing
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.nio.file.Files
 import java.util.concurrent.TimeUnit

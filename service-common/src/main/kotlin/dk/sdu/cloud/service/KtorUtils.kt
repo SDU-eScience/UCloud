@@ -16,7 +16,6 @@ import io.ktor.features.DefaultHeaders
 import io.ktor.features.XForwardedHeaderSupport
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
-import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.httpMethod
 import io.ktor.request.path
@@ -27,6 +26,7 @@ import io.ktor.routing.Routing
 import io.ktor.routing.route
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.util.AttributeKey
+import io.ktor.util.pipeline.PipelineContext
 import io.ktor.util.toMap
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -42,7 +42,7 @@ fun Application.installDefaultFeatures(
 ) {
     utilsLog.info("Installing default features. requireJobId=$requireJobId")
 
-    intercept(ApplicationCallPipeline.Infrastructure) {
+    intercept(ApplicationCallPipeline.Features) {
         if (call.request.path() == HEALTH_URI) {
             healthLog.debug("Received request for health!")
             call.respond(HttpStatusCode.NoContent)
@@ -79,7 +79,7 @@ fun Application.installDefaultFeatures(
 }
 
 fun Application.interceptJobId(requireJobId: Boolean) {
-    intercept(ApplicationCallPipeline.Infrastructure) {
+    intercept(ApplicationCallPipeline.Features) {
         val jobId = call.request.headers["Job-Id"]
         if (jobId == null) {
             if (requireJobId) {
