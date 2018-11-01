@@ -118,6 +118,8 @@ dependencies {
     // JWTs
     compile "com.auth0:java-jwt:3.3.0"
 
+    compile 'com.google.guava:guava:23.4-jre'
+
     // Testing
     testCompile group: 'com.h2database', name: 'h2', version: '1.4.197'
     testCompile group: "junit", name: "junit", version: "4.12"

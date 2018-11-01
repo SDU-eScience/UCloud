@@ -1,4 +1,4 @@
-package dk.sdu.cloud.storage.util
+package dk.sdu.cloud.service
 
 import com.google.common.escape.Escapers
 
