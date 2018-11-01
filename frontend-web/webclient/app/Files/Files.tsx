@@ -386,7 +386,6 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) => files
             operation = fileOp.predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
         }
         operation = operation as Operation;
-        console.log(operation.icon)
         return !operation.disabled(files, Cloud) ? (
             <As key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
                 <Icon size={16} mr="1em" color={operation.color} name={operation.icon} />

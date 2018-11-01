@@ -1,6 +1,7 @@
 import Uploader from "./Uploader";
 export { Uploader };
 import { Dispatch} from "redux";
+import { Sensitivity } from "DefaultObjects";
 
 
 export interface Upload {
@@ -8,6 +9,7 @@ export interface Upload {
     isUploading: boolean
     progressPercentage: number
     extractArchive: boolean
+    sensitivity?: Sensitivity
     uploadXHR?: XMLHttpRequest
 }
 

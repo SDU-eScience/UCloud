@@ -373,7 +373,7 @@ export default class SDUCloud {
                 "Content-Type": "application/json",
             },
             method: "POST",
-            "credentials": "same-origin"
+            credentials: "same-origin"
 
         }).then(response => {
             if (!is5xxStatusCode(response.status)) {

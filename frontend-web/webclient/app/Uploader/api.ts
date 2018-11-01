@@ -1,18 +1,20 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import { failureNotification, inSuccessRange } from "UtilityFunctions";
 import { STATUS_CODES } from "http";
+import { Sensitivity } from "DefaultObjects";
 
-export const multipartUpload = async (location: string, file: File, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
+export const multipartUpload = async (location: string, file: File, sensitivity?: Sensitivity, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     let formData = new FormData();
     formData.append("location", location);
-    /* formData.append("sensitivity", "sensitive"); */
+    if (sensitivity) formData.append("sensitivity", sensitivity);
     formData.append("upload", file);
     let request = new XMLHttpRequest();
     request.open("POST", "/api/upload");
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
-            !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) : failureNotification(statusToError(request.status))
+            !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
+                failureNotification(statusToError(request.status))
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
     request.upload.onprogress = (e) => {
@@ -22,6 +24,13 @@ export const multipartUpload = async (location: string, file: File, onProgress?:
     request.responseType = "text";
     request.send(formData);
     return request;
+
+    /* return fetch("/api/upload/bulk", {
+        headers: { "Authorization", `Bearer ${token}`},
+        method: "POST",
+        credentials: "same-origin",
+        body: formData
+    }); */
 }
 
 export const bulkUpload = async (location: string, file: File, policy: BulkUploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
@@ -34,10 +43,14 @@ export const bulkUpload = async (location: string, file: File, policy: BulkUploa
     /* formData.append("sensitivity", "sensitive"); */
     formData.append("upload", file);
     let request = new XMLHttpRequest();
+
+
+
     request.open("POST", "/api/upload/bulk");
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
-            !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) : failureNotification(statusToError(request.status))
+            !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
+                failureNotification(statusToError(request.status))
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
     request.upload.onprogress = (e) => {

@@ -5,7 +5,7 @@ import { Page, PayloadAction } from "Types";
 import { File } from "Files";
 import { Application } from "Applications";
 import { ProjectMetadata, simpleSearch } from "Metadata/api";
-import { hpcApplicationsQuery } from "Utilities/ApplicationUtilities";
+import { hpcApplicationsQuery, hpcApplicationsSearchQuery } from "Utilities/ApplicationUtilities";
 
 export type SimpleSearchActions = SetFilesLoading | SetApplicationsLoading | SetProjectsLoading | ReceiveFiles |
     ReceiveApplications | ReceiveProjects | SetErrorMessage | SetSearchType
@@ -37,8 +37,7 @@ export const searchFiles = (search: string, pageNumber: number, itemsPerPage: nu
 
 
 export const searchApplications = (query: string, page: number, itemsPerPage: number): Promise<any> =>
-    // FIXME, should use endpoint for searching
-    Cloud.get(hpcApplicationsQuery(page, itemsPerPage))
+    Cloud.get(hpcApplicationsSearchQuery(query, page, itemsPerPage))
         .then(({ response }) => receiveApplications(response))
         .catch(_ => setErrorMessage("An error occurred searching for applications\n"));
 

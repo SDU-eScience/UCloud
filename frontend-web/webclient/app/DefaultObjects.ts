@@ -51,6 +51,8 @@ export enum SensitivityLevel {
     "SENSITIVE" = "Sensitive"
 };
 
+export type Sensitivity = keyof typeof SensitivityLevel;
+
 export enum SensitivityLevelMap {
     "OPEN_ACCESS",
     "CONFIDENTIAL",
