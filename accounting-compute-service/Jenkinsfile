@@ -13,6 +13,18 @@ def initialize() {
     publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'accounting-compute-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'accounting-compute-service-detekt-Report', reportTitles: ''])
   }
 
+   try {
+       stage('test Accounting-service') {
+         sh '''cd accounting-compute-service
+         ./gradlew test'''
+       }
+     } catch (e) {
+       echo "Test FAILED"
+       return currentBuild.result ?: 'UNSTABLE'
+     }
+
+  return currentBuild.result ?: 'SUCCESS'
+
 }
 
 return this

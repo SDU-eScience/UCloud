@@ -57,7 +57,7 @@ class LookupTest {
 
                 test = {
                     val response =
-                        handleRequest(HttpMethod.Get, "/api/file-search/lookup/reverse?fileId=1") {
+                        handleRequest(HttpMethod.Get, "/api/indexing/lookup/reverse?fileId=1") {
                             addHeader("Job-Id", UUID.randomUUID().toString())
                             setUser(role = Role.ADMIN)
                         }.response
@@ -85,7 +85,7 @@ class LookupTest {
 
                 test = {
                     val response =
-                        handleRequest(HttpMethod.Get, "/api/file-search/lookup/reverse?fileId=1") {
+                        handleRequest(HttpMethod.Get, "/api/indexing/lookup/reverse?fileId=1") {
                             addHeader("Job-Id", UUID.randomUUID().toString())
                             setUser(role = Role.ADMIN)
                         }.response
