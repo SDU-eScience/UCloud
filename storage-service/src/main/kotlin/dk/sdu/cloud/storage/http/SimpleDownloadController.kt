@@ -10,6 +10,7 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.bearer
 import dk.sdu.cloud.service.implement
@@ -34,7 +35,6 @@ import io.ktor.routing.Route
 import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.coroutines.io.jvm.javaio.toOutputStream
 import kotlinx.coroutines.runBlocking
-import org.slf4j.LoggerFactory
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -200,8 +200,8 @@ class SimpleDownloadController<Ctx : FSUserContext>(
     }
 
 
-    companion object {
-        private val log = LoggerFactory.getLogger(SimpleDownloadController::class.java)
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
