@@ -36,8 +36,8 @@ const Input = styled("input") <InputProps>`
   border-style: solid;
   border-color: ${themeGet("colors.borderGray")};
 
-  padding-top: 14px;
-  padding-bottom: 14px;
+  padding-top: 7px;
+  padding-bottom: 7px;
   padding-left: 12px;
   padding-right: 12px;
 

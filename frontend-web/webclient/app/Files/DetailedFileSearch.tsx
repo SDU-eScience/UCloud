@@ -7,7 +7,7 @@ import { DatePicker } from "ui-components/DatePicker";
 import { Moment } from "moment";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Flex, Input, Label, Button, InputGroup, Stamp, Checkbox, Card, Text, OutlineButton } from "ui-components";
+import { Flex, Input, Label, Button, InputGroup, Stamp, Checkbox, Error, OutlineButton } from "ui-components";
 import * as Heading from "ui-components/Heading"
 import CloseButton from "ui-components/CloseButton";
 import { Cloud } from "Authentication/SDUCloudObject";
@@ -192,17 +192,11 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                 />
             </Box>
         ) : null;
-        const error = !!this.state.error ? (
-            <Card borderRadius="0.5em" height="4em" color="black" bg="lightRed">
-                <Flex ml="3em" mt="1em">{this.state.error}
-                    <Box ml="auto"><CloseButton pr="15px" onClick={() => this.setState(() => ({ error: undefined }))} /></Box>
-                </Flex>
-            </Card>) : null;
         return (
             <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                 <Box mt="0.5em">
                     <Heading.h3>Advanced File Search</Heading.h3>
-                    {error}
+                    <Error error={this.state.error} clearError={() => this.setState(() => ({ error: undefined }))} />
                     <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
                     {fileName ? <Box mb="1em"><Stamp bg="white">{`Filename contains: ${fileName}`}</Stamp></Box> : null}
                     <Input

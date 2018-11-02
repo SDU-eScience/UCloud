@@ -10,16 +10,7 @@ const ClickableIcon = styled(Icon)`
   pointer-events: none;
 `;
 
-interface SelectProps { 
-  theme?: any
-  fontSize?: number | string
-  m?: number | string
-  pl?: number | string
-  pr?: number | string
-  py?: number | string
-}
-
-const SelectBase = styled("select")<SelectProps>`
+const SelectBase = styled("select") <any>`
   appearance: none;
   display: block;
   width: 100%;
@@ -46,7 +37,7 @@ SelectBase.defaultProps = {
   py: 14
 };
 
-const Select = styled(props => (
+const Select = styled((props: any) => (
   <Flex width={1} alignItems="center">
     <SelectBase {...props} />
     <ClickableIcon ml={-32} name="chevronDown" color="gray" />

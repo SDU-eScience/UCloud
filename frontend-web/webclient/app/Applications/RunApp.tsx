@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Form as SForm, Input as SInput, Button as SButton, Rating as SRating, Message as SMessage } from "semantic-ui-react";
+import { Button as SButton, Rating as SRating } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import Link from "ui-components/Link";
@@ -13,12 +13,12 @@ import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { RunAppProps, RunAppState, JobInfo, MaxTime } from "."
 import { Application, ParameterTypes } from ".";
-import { extractParameters } from "Utilities/ApplicationUtilities";
+import { extractParameters, hpcFavoriteApp } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
 import * as Heading from "ui-components/Heading";
-import { Box, Flex, Button, OutlineButton, Label, FormField, Text } from "ui-components";
-import { HiddenInputField } from "ui-components/Input";
+import { Box, Flex, Button, OutlineButton, Label, FormField, Text, Error, Select } from "ui-components";
+import Input, { HiddenInputField } from "ui-components/Input";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -60,9 +60,6 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     componentWillUnmount() {
         this.state.promises.cancelPromises();
     }
-
-    // FIXME Doesn't actually do anything backend-wise
-    favoriteApp = () => this.setState(() => ({ favorite: !this.state.favorite }));
 
     onJobSchedulingParamsChange = (field, value, timeField) => {
         let { jobInfo } = this.state;
@@ -137,7 +134,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         document.body.removeChild(element);
     }
 
-    onSubmit = (event) => {
+    onSubmit = event => {
         event.preventDefault();
         let maxTime: MaxTime = this.extractJobInfo(this.state.jobInfo).maxTime;
         if (maxTime)
@@ -202,13 +199,19 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         })));
     }
 
+    favoriteApplication = () => {
+        this.state.promises.makeCancelable(Cloud.post(hpcFavoriteApp(this.state.appName, this.state.appVersion)))
+            .promise.then(it => this.setState(() => ({ favorite: !this.state.favorite })))
+            .catch(it => { !it.isCanceled ? failureNotification("An error occurred favoriting the app") : undefined })
+
+    }
+
     render() {
-        const error = this.state.error ? <SMessage color="red" onDismiss={() => this.setState(() => ({ error: undefined }))} content={this.state.error} /> : null;
         return (
             <Flex alignItems="center" flexDirection="column">
                 <Box width={0.7}>
                     <DefaultLoading loading={this.state.loading} />
-                    {error}
+                    <Error clearError={() => this.setState(() => ({ error: undefined }))} error={this.state.error} />
                     <ApplicationHeader
                         importParameters={this.importParameters}
                         exportParameters={() => this.exportParameters()}
@@ -216,7 +219,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                         displayName={this.state.displayAppName}
                         version={this.state.appVersion}
                         favorite={this.state.favorite}
-                        favoriteApp={this.favoriteApp}
+                        favoriteApp={this.favoriteApplication}
                         authors={this.state.appAuthor}
                     />
 
@@ -256,14 +259,16 @@ const ApplicationHeader = ({ authors, displayName, appName, favorite, version, f
     return (
         <Heading.h1 mb={"1em"}>
             <Box className="float-right">
-                <OutlineButton color="green" onClick={() => exportParameters()}>Export parameters</OutlineButton>
-                <SButton basic color="green" as={"label"}>
-                    <label>
-                        Import parameters
+                <SButton.Group>
+                    <SButton basic color="green" onClick={() => exportParameters()}>Export parameters</SButton>
+                    <SButton basic color="green" as={"label"}>
+                        <label>
+                            Import parameters
                         <HiddenInputField type="file" onChange={(e) => { if (e.target.files) importParameters(e.target.files[0]) }} />
-                    </label>
-                </SButton>
-                <Link to={`/appDetails/${appName}/${version}/`} ><OutlineButton color="blue">More information</OutlineButton></Link>
+                        </label>
+                    </SButton>
+                    <SButton as={Link} to={`/appDetails/${appName}/${version}/`} color="blue">More information</SButton>
+                </SButton.Group>
             </Box>
             <Box>
                 {displayName}
@@ -299,45 +304,54 @@ const Parameters = (props) => {
     });
 
     return (
-        <SForm onSubmit={props.onSubmit}>
+        <form onSubmit={props.onSubmit}>
             {parametersList}
             <JobSchedulingParams
                 onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
                 jobInfo={props.jobInfo}
                 tool={props.tool.description}
             />
-            <JobMetaParams
-                onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
-            />
+            <Box mb="1em">
+                <JobMetaParams
+                    onJobSchedulingParamsChange={props.onJobSchedulingParamsChange}
+                />
+            </Box>
 
             <Button color="blue" disabled={props.jobSubmitted}>Submit</Button>
-        </SForm>
+        </form>
     )
 };
 
 const JobMetaParams = (props) => {
     return (
         <>
-            <SForm.Input
-                label="Jobname"
-                type="text"
-                placeholder="Jobname will be assigned if field left empty"
-                disabled
-                onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
-            />
-            <SForm.Input
-                label="Tags (Separated by space)"
-                type="text"
-                placeholder="Assign tags to jobs"
-                disabled
-                onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
-            />
-            <SForm.TextArea
-                label="Comment"
-                placeholder="Comment..."
-                disabled
-                onChange={(_, { value }) => console.log(value)} // onJobSchedulingParamsChange
-            />
+            <Label color="black" fontSize={2}>
+                Jobname
+                <Input
+                    type="text"
+                    placeholder="Jobname will be assigned if field left empty"
+                    disabled
+                    onChange={({ target: { value } }) => console.log(value)} // onJobSchedulingParamsChange
+
+                />
+            </Label>
+            <Label color="black" fontSize={2}>
+                Tags (Separated by space)
+            <Input
+                    type="text"
+                    placeholder="Assign tags to jobs"
+                    disabled
+                    onChange={({ target: { value } }) => console.log(value)} // onJobSchedulingParamsChange
+                />
+            </Label>
+            {/* <Label color="black" fontSize={2}>
+                Comment
+                <textarea
+                    placeholder="Comment..."
+                    disabled
+                    onChange={({ target: { value } }) => console.log(value)} // onJobSchedulingParamsChange
+                />
+            </Label> */}
         </>
     );
 }
@@ -350,49 +364,57 @@ const JobSchedulingParams = (props) => {
 
     return (
         <>
-            <SForm.Group widths="equal">
-                <SForm.Input
-                    label="Number of nodes"
-                    type="number" step="1" min="1"
-                    value={numberOfNodes === null || isNaN(numberOfNodes) ? "" : numberOfNodes}
-                    placeholder={`Default value: ${props.tool.defaultNumberOfNodes}`}
-                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
-                />
-                <SForm.Input
-                    label="Tasks per node"
-                    type="number" step="1" min="1"
-                    value={tasksPerNode === null || isNaN(tasksPerNode) ? "" : tasksPerNode}
-                    placeholder={`Default value: ${props.tool.defaultTasksPerNode}`}
-                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}
-                />
-            </SForm.Group>
-            <label>Maximum time allowed</label>
-            <SForm.Group widths="equal">
-                <SForm.Input
-                    fluid
-                    label="Hours"
-                    placeholder={props.tool.defaultMaxTime.hours}
-                    type="number" step="1" min="0"
-                    value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
-                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "hours")}
-                />
-                <SForm.Input
-                    fluid
-                    label="Minutes"
-                    placeholder={props.tool.defaultMaxTime.minutes}
-                    type="number" step="1" min="0" max="59"
-                    value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
-                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "minutes")}
-                />
-                <SForm.Input
-                    fluid
-                    label="Seconds"
-                    placeholder={props.tool.defaultMaxTime.seconds}
-                    type="number" step="1" min="0" max="59"
-                    value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
-                    onChange={(_, { value }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
-                />
-            </SForm.Group>
+            <Flex mb="1em">
+                <Label>Number of nodes
+                <Input
+                        type="number" step="1" min="1"
+                        value={numberOfNodes === null || isNaN(numberOfNodes) ? "" : numberOfNodes}
+                        placeholder={`Default value: ${props.tool.defaultNumberOfNodes}`}
+                        onChange={({ target: { value } }) => props.onJobSchedulingParamsChange("numberOfNodes", parseInt(value), null)}
+                    />
+                </Label>
+                <Box ml="5px" />
+                <Label>Tasks per node
+                <Input
+                        type="number" step="1" min="1"
+                        value={tasksPerNode === null || isNaN(tasksPerNode) ? "" : tasksPerNode}
+                        placeholder={`Default value: ${props.tool.defaultTasksPerNode}`}
+                        onChange={({ target: { value } }) => props.onJobSchedulingParamsChange("tasksPerNode", parseInt(value), null)}
+                    />
+                </Label>
+            </Flex>
+            <Label>Maximum time allowed</Label>
+            <Flex mb="1em">
+                <Label>
+                    Hours
+                    <Input
+                        placeholder={props.tool.defaultMaxTime.hours}
+                        type="number" step="1" min="0"
+                        value={maxTime.hours === null || isNaN(maxTime.hours) ? "" : maxTime.hours}
+                        onChange={({ target: { value } }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "hours")}
+                    />
+                </Label>
+                <Box ml="4px" />
+                <Label>
+                    Minutes
+                    <Input
+                        placeholder={props.tool.defaultMaxTime.minutes}
+                        type="number" step="1" min="0" max="59"
+                        value={maxTime.minutes === null || isNaN(maxTime.minutes) ? "" : maxTime.minutes}
+                        onChange={({ target: { value } }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "minutes")}
+                    />
+                </Label>
+                <Box ml="4px" />
+                <Label>
+                    Seconds
+                    <Input
+                        placeholder={props.tool.defaultMaxTime.seconds}
+                        type="number" step="1" min="0" max="59"
+                        value={maxTime.seconds === null || isNaN(maxTime.seconds) ? "" : maxTime.seconds}
+                        onChange={({ target: { value } }) => props.onJobSchedulingParamsChange("maxTime", parseInt(value), "seconds")}
+                    />
+                </Label>
+            </Flex>
         </>)
 };
 
@@ -418,7 +440,7 @@ const parameterTypeToComponent = (type) => {
 
 const Parameter = (props) => {
     let Component = parameterTypeToComponent(props.parameter.type);
-    return (<Component {...props} />);
+    return (<><Component {...props} /><Box pb="1em" /></>);
 };
 
 const InputFileParameter = (props) => {
@@ -472,7 +494,7 @@ const TextParameter = (props) => {
 
     return (
         <GenericParameter parameter={props.parameter}>
-            <input
+            <Input
                 placeholder={placeholder}
                 required={!props.parameter.optional}
                 type="text" onChange={e => internalOnChange(e)}
@@ -489,23 +511,24 @@ const BooleanParameter = (props) => {
         options.unshift({ value: undefined, display: "" });
     }
 
-    const internalOnChange = (event, data) => {
-        let index = parseInt(data.value);
-        let actualValue = options[index];
-        props.onChange(props.parameter.name, actualValue.value);
+    const internalOnChange = (event) => {
+        let value;
+        switch (event.target.value) {
+            case "Yes": value = true; break;
+            case "No": value = false; break;
+            case "": value = undefined; break;
+        }
+        props.onChange(props.parameter.name, value);
         event.preventDefault();
     };
 
-    let selected = options.findIndex(it => it.value === props.value);
-
     return (
         <GenericParameter parameter={props.parameter}>
-            <SForm.Select id={props.parameter} onChange={(e, d) => internalOnChange(e, d)} value={selected}
-                options={
-                    options.map((it, idx) =>
-                        ({ key: idx, text: it.display, value: idx }))
-                }
-            />
+            <Select pb="9.5px" pt="9.5px" id="select" onChange={e => internalOnChange(e)} defaultValue="">
+                <option></option>
+                <option>Yes</option>
+                <option>No</option>
+            </Select>
         </GenericParameter>
     );
 };
@@ -528,25 +551,26 @@ const GenericNumberParameter = (props) => {
 
     const hasLabel = !!props.parameter.unitName;
 
-    let placeholder = !!props.parameter.defaultValue ? props.parameter.defaultValue.value : undefined;
+    let placeholder = typeof props.parameter.defaultValue === "number" ? props.parameter.defaultValue.value : undefined;
 
     let baseField = (
-        <SInput
-            labelPosition="right"
-            label={{ basic: true, content: hasLabel ? props.parameter.unitName : "Number" }}
-            placeholder={typeof props.parameter.defaultValue.value === "number" ? "Default value: " + props.parameter.defaultValue.value : ""}
+        <Input
+            placeholder={placeholder}
             required={!props.parameter.optional} name={props.parameter.name}
             type="number"
             step="any"
             value={value}
             id={props.parameter.name}
+            /* label={hasLabel ? props.parameter.unitName : "Number"} */
             onChange={e => internalOnChange(e)} />
     );
 
     let slider: React.ReactNode = null;
     if (props.parameter.min !== null && props.parameter.max !== null) {
         slider = (
-            <SInput
+            <Input
+                mt="2px"
+                noBorder
                 min={props.parameter.min}
                 max={props.parameter.max}
                 step={props.parameter.step}
@@ -567,7 +591,7 @@ const GenericNumberParameter = (props) => {
 
 const IntegerParameter = (props) => {
     let childProps = { ...props };
-    childProps.parseValue = (it) => parseInt(it);
+    childProps.parseValue = it => parseInt(it);
     return <GenericNumberParameter {...childProps} />;
 };
 
@@ -579,12 +603,10 @@ const FloatingParameter = (props) => {
 
 const GenericParameter = ({ parameter, children }) => (
     <>
-        <Label color="black" fontSize={2} htmlFor={parameter.name}>
+        <Label fontSize={2} htmlFor={parameter.name}>
             <Flex>{parameter.title}{parameter.optional ? "" : <Text bold color="red"> *</Text>}</Flex>
         </Label>
-        <FormField>
-            {children}
-        </FormField>
+        {children}
         <OptionalText optional={parameter.optional} />
         <ReactMarkdown className="help-block" source={parameter.description} />
     </>

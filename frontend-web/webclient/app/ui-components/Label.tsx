@@ -36,9 +36,9 @@ const Label = styled("label") <LabelProps>`
 `;
 
 Label.defaultProps = {
-  fontSize: '10px',
+  fontSize: 1,
   fontWeight: 'bold',
-  color: 'gray',
+  color: 'black',
   theme: theme
 };
 

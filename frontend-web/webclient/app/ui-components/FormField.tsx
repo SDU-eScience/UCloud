@@ -24,7 +24,7 @@ const fadeIn = keyframes`
   }
 `
 const labelStyles = {
-  animation: fadeIn + " 0.3s"
+  animation: `${fadeIn} 0.3s`
 }
 
 const getFieldStyles = showLabel => {
