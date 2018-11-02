@@ -27,7 +27,9 @@ import io.ktor.features.conversionService
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
+import io.ktor.request.httpMethod
 import io.ktor.request.receiveOrNull
+import io.ktor.request.uri
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.Route
@@ -36,6 +38,7 @@ import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.util.DataConversionException
 import io.ktor.util.pipeline.PipelineContext
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
@@ -105,6 +108,22 @@ private fun resolveCompanionInstanceFromType(type: Type): Any? {
     }
 }
 
+private fun <R : Any> RESTHandler<R, *, *, *>.doLogEntry(
+    log: Logger,
+    payload: R,
+    requestToString: (R) -> String = { it.toString() }
+) {
+    val requestName = restCall.fullName
+    val method = call.request.httpMethod.value
+    val uri = call.request.uri
+    val jobId = call.request.safeJobId
+    val causedBy = call.request.causedBy
+
+    val name = "$method $uri ($requestName)"
+
+    log.info("$name jobId=$jobId causedBy=$causedBy payload=${requestToString(payload)}")
+}
+
 fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
     restCall: RESTCallDescription<P, S, E, A>,
     logResponse: Boolean = false,
@@ -129,7 +148,11 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                 }
             }
 
+            val log = LoggerFactory.getLogger(restCall.fullName)
+
             handle {
+                log.debug("Handling call for ${restCall.fullName}")
+
                 try {
                     @Suppress("UNCHECKED_CAST")
                     val companion =
@@ -259,6 +282,7 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                     }
 
                     val restHandler = RESTHandler(payload, this, logResponse, restCall)
+                    restHandler.doLogEntry(log, payload)
                     try {
                         // Call the handler with the payload
                         restHandler.handler(payload)

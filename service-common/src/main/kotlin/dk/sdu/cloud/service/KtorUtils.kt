@@ -164,20 +164,13 @@ fun PipelineContext<*, ApplicationCall>.logEntry(
     log.info("$method $uri jobId=$jobId causedBy=$causedBy payload={$parameterString $headerString}")
 }
 
+@Deprecated(message = "Included by default. Override toString if needed on request type")
 fun <R : Any> RESTHandler<R, *, *, *>.logEntry(
     log: Logger,
     payload: R,
     requestToString: (R) -> String = { it.toString() }
 ) {
-    val requestName = restCall.fullName
-    val method = call.request.httpMethod.value
-    val uri = call.request.uri
-    val jobId = call.request.safeJobId
-    val causedBy = call.request.causedBy
-
-    val name = "$method $uri ($requestName)"
-
-    log.info("$name jobId=$jobId causedBy=$causedBy payload=${requestToString(payload)}")
+    // Do nothing
 }
 
 typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine
