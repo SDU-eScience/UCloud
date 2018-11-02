@@ -105,6 +105,8 @@ fun Micro.installDefaultFeatures(
     install(KafkaFeature, kafkaConfig)
     install(KafkaTopicFeature, kafkaTopicConfig)
     install(CloudContextFeature)
+    install(CloudFeature)
+    install(TokenValidationFeature)
     install(ServiceInstanceFeature)
 }
 

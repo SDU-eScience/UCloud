@@ -129,7 +129,7 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                 }
             }
 
-            handle { _ ->
+            handle {
                 try {
                     @Suppress("UNCHECKED_CAST")
                     val companion =

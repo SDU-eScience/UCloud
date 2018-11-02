@@ -20,6 +20,8 @@ import io.ktor.util.AttributeKey
 import io.ktor.util.pipeline.PipelineContext
 
 class ImplementAuthCheck {
+    private lateinit var tokenValidator: TokenValidation<Any>
+
     private lateinit var description: RESTCallDescription<*, *, *, *>
     fun <A : Any, B : Any, C : Any, D : Any> call(call: RESTCallDescription<A, B, C, D>) {
         this.description = call
@@ -45,7 +47,7 @@ class ImplementAuthCheck {
         }
 
         if (bearer != null) {
-            val validatedToken = TokenValidation.validateOrNull(bearer)
+            val validatedToken = tokenValidator.validateOrNull(bearer)
 
             if (validatedToken == null && tokenMustValidate) {
                 log.debug("Invalid bearer token (required)")
@@ -54,7 +56,7 @@ class ImplementAuthCheck {
                 return
             } else if (validatedToken != null) {
                 try {
-                    val token = validatedToken.toSecurityToken()
+                    val token = tokenValidator.decodeToken(validatedToken)
                     call.securityToken = token
 
                     if (call.securityPrincipal.role !in description.auth.roles) {

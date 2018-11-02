@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import dk.sdu.cloud.client.AuthenticatedCloud
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
@@ -34,31 +33,11 @@ import org.slf4j.LoggerFactory
 private val utilsLog = LoggerFactory.getLogger("dk.sdu.cloud.service.KtorUtilsKt")
 internal val healthLog = LoggerFactory.getLogger("dk.sdu.cloud.service.HealthCheck")
 
-fun Application.installDefaultFeatures(
-    cloud: AuthenticatedCloud,
-    kafkaServices: KafkaServices,
-    serviceInstance: ServiceInstance,
-    requireJobId: Boolean = true
-) {
-    utilsLog.info("Installing default features. requireJobId=$requireJobId")
-
-    intercept(ApplicationCallPipeline.Features) {
-        if (call.request.path() == HEALTH_URI) {
-            healthLog.debug("Received request for health!")
-            call.respond(HttpStatusCode.NoContent)
-            finish()
-            return@intercept
-        }
-    }
-
+fun Application.installDefaultFeatures(micro: Micro) {
+    // Default ktor features
     install(CallLogging)
     install(DefaultHeaders)
     install(XForwardedHeaderSupport)
-    install(KafkaHttpLogger) {
-        kafka = kafkaServices
-        serverDescription = serviceInstance
-    }
-
     install(ContentNegotiation) {
         jackson {
             registerKotlinModule()
@@ -71,11 +50,34 @@ fun Application.installDefaultFeatures(
         }
     }
 
-    install(CloudClient) {
-        baseCloud = cloud
+    // Custom features
+    install(KtorMicroServiceFeature) {
+        this.micro = micro
     }
 
-    interceptJobId(requireJobId)
+    install(KafkaHttpLogger) {
+        kafka = micro.kafka
+        serverDescription = micro.serviceInstance
+    }
+
+    install(CloudClient) {
+        baseCloud = micro.authenticatedCloud
+    }
+
+    // Basic interceptors
+    interceptJobId(requireJobId = !micro.developmentModeEnabled)
+    interceptHealthCheck()
+}
+
+private fun Application.interceptHealthCheck() {
+    intercept(ApplicationCallPipeline.Features) {
+        if (call.request.path() == HEALTH_URI) {
+            healthLog.debug("Received request for health!")
+            call.respond(HttpStatusCode.NoContent)
+            finish()
+            return@intercept
+        }
+    }
 }
 
 fun Application.interceptJobId(requireJobId: Boolean) {

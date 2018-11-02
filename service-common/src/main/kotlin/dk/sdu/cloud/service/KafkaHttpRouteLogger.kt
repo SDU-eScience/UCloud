@@ -33,6 +33,9 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
 import java.util.Collections
+import kotlin.collections.HashMap
+import kotlin.collections.MutableMap
+import kotlin.collections.set
 
 @Deprecated(
     "Replaced with SecurityPrincipalToken",
@@ -71,6 +74,7 @@ class KafkaHttpRouteLogger {
     private lateinit var kafka: KafkaServices
     private lateinit var httpProducer: EventProducer<String, HttpCallLogEntry>
     private lateinit var auditProducer: MappedEventProducer<String, AuditEvent<*>>
+    private lateinit var tokenValidation: TokenValidation<Any>
 
     private val ApplicationRequest.bearer: String?
         get() {
@@ -84,7 +88,7 @@ class KafkaHttpRouteLogger {
     private fun PipelineContext<*, ApplicationCall>.loadFromParentFeature() {
         if (!::serviceDescription.isInitialized) {
             val feature = application.featureOrNull(KafkaHttpLogger)
-                    ?: throw IllegalStateException("Could not find the KafkaHttpLogger feature on the application")
+                ?: throw IllegalStateException("Could not find the KafkaHttpLogger feature on the application")
             serviceDescription = feature.serverDescription
             kafka = feature.kafka
             httpProducer = kafka.producer.forStream(KafkaHttpLogger.httpLogsStream)
@@ -99,6 +103,11 @@ class KafkaHttpRouteLogger {
             auditProducer =
                     kafka.producer.forStream(description.auditStreamProducersOnly)
                             as MappedEventProducer<String, AuditEvent<*>>
+
+            val micro = application.featureOrNull(KtorMicroServiceFeature)?.micro
+                ?: throw IllegalStateException("Could not find KtorMicroServiceFeature")
+
+            tokenValidation = micro.tokenValidation
         }
     }
 
@@ -158,7 +167,9 @@ class KafkaHttpRouteLogger {
         val responsePayload = call.attributes.getOrNull(responsePayloadToLogKey)
 
         async {
-            val principal = bearerToken?.let { TokenValidation.validateOrNull(it)?.toSecurityToken() }
+            val principal = bearerToken
+                ?.let { tokenValidation.validateOrNull(it) }
+                ?.let { tokenValidation.decodeToken(it) }
 
             val entry = HttpCallLogEntry(
                 jobId,
