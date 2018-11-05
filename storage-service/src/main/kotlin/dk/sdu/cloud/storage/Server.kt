@@ -142,6 +142,13 @@ class Server(
                         uploadService
                     ),
 
+                    MultiPartUploadController(
+                        processRunner,
+                        coreFileSystem,
+                        uploadService,
+                        baseContextOverride = "/api/upload" // backwards-comparability
+                    ),
+
                     ShareController(
                         shareService,
                         processRunner

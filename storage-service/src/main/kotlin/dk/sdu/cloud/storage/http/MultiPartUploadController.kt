@@ -1,10 +1,15 @@
 package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Role
+import dk.sdu.cloud.file.api.BulkUploadAudit
+import dk.sdu.cloud.file.api.BulkUploadErrorMessage
+import dk.sdu.cloud.file.api.MultiPartUploadAudit
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.UploadRequestAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.storage.services.BulkUploadService
@@ -14,204 +19,96 @@ import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.withContext
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.tryWithFS
-import dk.sdu.cloud.upload.api.BulkUploadAudit
-import dk.sdu.cloud.upload.api.BulkUploadErrorMessage
-import dk.sdu.cloud.upload.api.MultiPartUploadAudit
-import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.upload.api.UploadRequestAudit
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.PartData
-import io.ktor.http.content.forEachPart
-import io.ktor.http.content.streamProvider
-import io.ktor.request.receiveMultipart
 import io.ktor.routing.Route
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import org.slf4j.LoggerFactory
+import org.slf4j.Logger
 import java.nio.file.Files
 
 class MultiPartUploadController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
-    private val bulkUploadService: BulkUploadService<Ctx>
+    private val bulkUploadService: BulkUploadService<Ctx>,
+    baseContextOverride: String? = null
 ) : Controller {
-    override val baseContext = MultiPartUploadDescriptions.baseContext
+    override val baseContext = baseContextOverride ?: MultiPartUploadDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
-        implement(MultiPartUploadDescriptions.upload) { it ->
+        implement(MultiPartUploadDescriptions.upload) { multipart ->
             audit(MultiPartUploadAudit(null))
 
-            // TODO Support in RESTDescriptions for multi-parts would be nice
-            val multipart = call.receiveMultipart()
-            var location: String? = null
-            var sensitivity: SensitivityLevel = SensitivityLevel.CONFIDENTIAL
-            var owner: String = call.securityPrincipal.username
-            var didComplete = false
+            multipart.receiveBlocks { req ->
+                val sensitivity = req.sensitivity ?: SensitivityLevel.CONFIDENTIAL
+                val owner = call.securityPrincipal.username
 
-            multipart.forEachPart { part ->
-                log.debug("Received part ${part.name}")
-                when (part) {
-                    is PartData.FormItem -> {
-                        when (part.name) {
-                            "location" -> location = part.value
+                audit(
+                    MultiPartUploadAudit(
+                        UploadRequestAudit(
+                            req.location,
+                            sensitivity,
+                            owner
+                        )
+                    )
+                )
 
-                            "sensitivity" -> {
-                                // If we can parse it, set it
-                                SensitivityLevel.values().find { it.name == part.value }
-                                    ?.let { sensitivity = it }
-                            }
-
-                            "owner" -> {
-                                if (call.securityPrincipal.role.isPrivileged()) {
-                                    owner = part.value
-                                }
-                            }
+                try {
+                    commandRunnerFactory.withContext(owner) { ctx ->
+                        fs.write(ctx, req.location, WriteConflictPolicy.OVERWRITE) {
+                            val out = this
+                            req.upload.payload.use { it.copyTo(out) }
                         }
+
+                        ok(Unit)
                     }
-
-                    is PartData.FileItem -> {
-                        if (part.name == "upload") {
-                            if (location == null) {
-                                error(
-                                    CommonErrorMessage("Bad request. Missing location or upload"),
-                                    HttpStatusCode.BadRequest
-                                )
-                                return@forEachPart
-                            }
-
-                            audit(MultiPartUploadAudit(UploadRequestAudit(location!!, sensitivity, owner)))
-                            didComplete = true
-
-                            assert(
-                                owner == call.securityPrincipal.username ||
-                                        call.securityPrincipal.role.isPrivileged()
-                            )
-
-                            try {
-                                commandRunnerFactory.withContext(owner) { ctx ->
-                                    fs.write(ctx, location!!, WriteConflictPolicy.OVERWRITE) {
-                                        val out = this
-                                        part.streamProvider().use { it.copyTo(out) }
-                                    }
-
-                                    ok(Unit)
-                                }
-                            } catch (ex: FSException.PermissionException) {
-                                error(CommonErrorMessage("Forbidden"), HttpStatusCode.Forbidden)
-                            }
-                        }
-                    }
-
-                    else -> {
-                        // Do nothing
-                    }
+                } catch (ex: FSException.PermissionException) {
+                    error(CommonErrorMessage("Forbidden"), HttpStatusCode.Forbidden)
                 }
-                part.dispose()
-            }
-
-            if (!didComplete) {
-                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
             }
         }
 
-        implement(MultiPartUploadDescriptions.bulkUpload) { req ->
-
-            var policy: WriteConflictPolicy? = null
-            var path: String? = null
-            var format: String? = null
-            var error = false
-
+        implement(MultiPartUploadDescriptions.bulkUpload) { multipart ->
             val user = call.securityPrincipal.username
 
             tryWithFS {
-                val multipart = call.receiveMultipart()
-                multipart.forEachPart { part ->
-                    log.debug("Received part ${part.name}")
+                multipart.receiveBlocks { req ->
+                    if (req.format != "tgz") {
+                        return@receiveBlocks error(
+                            CommonErrorMessage("Unsupported format '${req.format}'"),
+                            HttpStatusCode.BadRequest
+                        )
+                    }
 
-                    when (part) {
-                        is PartData.FormItem -> {
-                            when (part.name) {
-                                "policy" -> {
-                                    try {
-                                        policy = WriteConflictPolicy.valueOf(part.value)
-                                    } catch (ex: Exception) {
-                                        error(
-                                            CommonErrorMessage("Bad request"),
-                                            HttpStatusCode.BadRequest
-                                        )
+                    audit(BulkUploadAudit(req.location, req.policy, req.format))
+                    okContentDeliveredExternally()
 
-                                        error = true
-                                    }
-                                }
-
-                                "path" -> path = part.value
-
-                                "format" -> {
-                                    format = part.value
-
-                                    if (format != "tgz") {
-                                        error(
-                                            CommonErrorMessage("Unsupported format '$format'"),
-                                            HttpStatusCode.BadRequest
-                                        )
-
-                                        error = true
-                                    }
-                                }
+                    val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
+                    req.upload.payload.copyTo(outputFile.outputStream())
+                    coroutineScope {
+                        launch {
+                            commandRunnerFactory.withContext(user) {
+                                bulkUploadService.bulkUpload(
+                                    it,
+                                    req.location,
+                                    req.format,
+                                    req.policy,
+                                    outputFile.inputStream()
+                                )
                             }
-                        }
-
-                        is PartData.FileItem -> {
-                            if (part.name == "upload") {
-                                if (error || path == null || policy == null || format == null) return@forEachPart
-
-                                @Suppress("NAME_SHADOWING") val path = path!!
-                                @Suppress("NAME_SHADOWING") val policy = policy!!
-                                @Suppress("NAME_SHADOWING") val format = format!!
-
-                                audit(BulkUploadAudit(path, policy, format))
-                                okContentDeliveredExternally()
-
-                                val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
-                                part.streamProvider().copyTo(outputFile.outputStream())
-                                coroutineScope {
-                                    launch {
-                                        commandRunnerFactory.withContext(user) {
-                                            bulkUploadService.bulkUpload(
-                                                it,
-                                                path,
-                                                format,
-                                                policy,
-                                                outputFile.inputStream()
-                                            )
-                                        }
-                                        try {
-                                            outputFile.delete()
-                                        } catch (_: Exception) {
-                                        }
-                                    }
-                                }
-
-                                ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)
+                            try {
+                                outputFile.delete()
+                            } catch (_: Exception) {
                             }
-                        }
-
-                        else -> {
-                            // Do nothing
                         }
                     }
+
+                    ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)
                 }
             }
         }
     }
 
-
-    private fun Role.isPrivileged(): Boolean = when (this) {
-        Role.SERVICE, Role.ADMIN -> true
-        else -> false
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(MultiPartUploadController::class.java)
+    companion object : Loggable {
+        override val log: Logger = logger()
     }
 }

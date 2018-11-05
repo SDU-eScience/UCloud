@@ -1,10 +1,10 @@
 group 'dk.sdu.cloud'
-version '0.9.17-SNAPSHOT'
+version '0.10.0-SNAPSHOT'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.1.0/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.1/sdu-cloud.gradle"
 
 dokka {
     outputFormat = "gfm"
@@ -16,13 +16,10 @@ dokka {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     compile group: 'com.jcraft', name: 'jsch', version: '0.1.54'
-    compile 'com.google.guava:guava:23.4-jre'
-    compile "com.squareup.okhttp3:okhttp:3.11.0"
 
-    compile 'dk.sdu.cloud:service-common:0.20.0-SNAPSHOT'
-    compile "dk.sdu.cloud:file-api:0.11.0-SNAPSHOT"
-    compile "dk.sdu.cloud:upload-api:0.11.0-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"
+    compile 'dk.sdu.cloud:service-common:0.21.0-SNAPSHOT'
+    compile "dk.sdu.cloud:file-api:0.12.2-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.8.0-SNAPSHOT"
 
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
 }
@@ -30,8 +27,6 @@ dependencies {
 sduCloud.createTasksForApiJar(
         "app",
         [
-                "com.google.guava:guava:23.4-jre",
-                "dk.sdu.cloud:file-api:0.11.0-SNAPSHOT",
-                "com.squareup.okhttp3:okhttp:3.11.0"
+                "dk.sdu.cloud:file-api:0.12.2-SNAPSHOT"
         ]
 )

@@ -12,7 +12,6 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.ContentTransformationException
@@ -29,7 +28,6 @@ class ToolController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ToolDescriptions.findByName) { req ->
-            logEntry(log, req)
             val result = db.withTransaction {
                 source.findAllByName(
                     it,
@@ -43,7 +41,6 @@ class ToolController<DBSession>(
         }
 
         implement(ToolDescriptions.findByNameAndVersion) { req ->
-            logEntry(log, req)
             val result = db.withTransaction {
                 source.findByNameAndVersion(
                     it,
@@ -57,7 +54,6 @@ class ToolController<DBSession>(
         }
 
         implement(ToolDescriptions.listAll) { req ->
-            logEntry(log, req)
             ok(
                 db.withTransaction {
                     source.listLatestVersion(it, call.securityPrincipal.username, req.normalize())
@@ -66,8 +62,6 @@ class ToolController<DBSession>(
         }
 
         implement(ToolDescriptions.create) { req ->
-            logEntry(log, req)
-
             val content = try {
                 call.receiveText()
             } catch (ex: ContentTransformationException) {

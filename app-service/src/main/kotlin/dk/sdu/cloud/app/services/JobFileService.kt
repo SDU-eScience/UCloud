@@ -1,13 +1,18 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.copyFrom
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.client.MultipartRequest
+import dk.sdu.cloud.client.StreamingFile
 import dk.sdu.cloud.client.jwtAuth
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.UploadRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.orThrow
-import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
+import io.ktor.http.ContentType
+import io.ktor.http.defaultForFilePath
 import java.io.File
 import java.io.InputStream
 
@@ -51,9 +56,21 @@ class JobFileService(
         log.debug("The destination path is ${destPath.path}")
 
         val (_, accessToken) = jobWithToken
-        MultiPartUploadDescriptions.callUpload(cloudContext, accessToken, destPath.path) {
-            it.copyFrom(fileData)
-        }
+        MultiPartUploadDescriptions.upload.call(
+            MultipartRequest.create(
+                UploadRequest(
+                    location = destPath.path,
+                    sensitivity = SensitivityLevel.CONFIDENTIAL,
+                    upload = StreamingFile(
+                        contentType = ContentType.defaultForFilePath(filePath),
+                        length = null,
+                        fileName = destPath.name,
+                        payload = fileData
+                    )
+                )
+            ),
+            cloudContext.jwtAuth(accessToken)
+        )
     }
 
     private fun jobFolder(jobId: String, user: String): String = "/home/$user/Jobs/$jobId"

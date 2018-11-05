@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.storage.util.CappedInputStream
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.joinPath
@@ -114,7 +115,7 @@ class BulkUploadService<Ctx : FSUserContext>(
         return rejectedFiles
     }
 
-    companion object {
-        private val log = LoggerFactory.getLogger(BulkUploadService::class.java)
+    companion object : Loggable {
+        override val log = logger()
     }
 }

@@ -6,7 +6,6 @@ import dk.sdu.cloud.app.services.JobOrchestrator
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
 
@@ -17,8 +16,6 @@ class CallbackController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputationCallbackDescriptions.submitFile) { multipart ->
-            logEntry(log, multipart)
-
             multipart.receiveBlocks { req ->
                 jobOrchestrator.handleIncomingFile(
                     req.jobId,
@@ -32,8 +29,6 @@ class CallbackController<DBSession>(
         }
 
         implement(ComputationCallbackDescriptions.requestStateChange) { req ->
-            logEntry(log, req)
-
             jobOrchestrator.handleProposedStateChange(
                 JobStateChange(req.id, req.newState),
                 req.newStatus,
@@ -43,21 +38,16 @@ class CallbackController<DBSession>(
         }
 
         implement(ComputationCallbackDescriptions.addStatus) { req ->
-            logEntry(log, req)
             jobOrchestrator.handleAddStatus(req.id, req.status, call.securityPrincipal)
             ok(Unit)
         }
 
         implement(ComputationCallbackDescriptions.completed) { req ->
-            logEntry(log, req)
-
             jobOrchestrator.handleJobComplete(req.id, req.wallDuration, req.success, call.securityPrincipal)
             ok(Unit)
         }
 
         implement(ComputationCallbackDescriptions.lookup) { req ->
-            logEntry(log, req)
-
             ok(jobOrchestrator.lookupOwnJob(req.id, call.securityPrincipal))
         }
     }
