@@ -1,12 +1,11 @@
 package dk.sdu.cloud.notification
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.notification.http.NotificationController
 import dk.sdu.cloud.notification.services.NotificationHibernateDAO
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
@@ -20,8 +19,7 @@ class Server(
     private val db: HibernateSessionFactory,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    private val instance: ServiceInstance,
-    private val cloud: RefreshingJWTAuthenticatedCloud
+    private val micro: Micro
 ) : CommonServer {
     override val log: Logger = logger()
 
@@ -35,7 +33,7 @@ class Server(
 
         httpServer = ktor {
             log.info("Configuring HTTP server")
-            installDefaultFeatures(cloud, kafka, instance, requireJobId = true)
+            installDefaultFeatures(micro)
 
             routing {
                 configureControllers(

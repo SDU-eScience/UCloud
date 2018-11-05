@@ -7,15 +7,18 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.service.stream
+import dk.sdu.cloud.service.tokenValidation
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.http.IndexingController
 import dk.sdu.cloud.storage.http.MultiPartUploadController
@@ -48,8 +51,7 @@ class Server(
     private val ktor: HttpServerProvider,
     private val db: HibernateSessionFactory,
     private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val instance: ServiceInstance,
-    private val args: Array<String>
+    private val micro: Micro
 ) : CommonServer {
     override val log: Logger = logger()
 
@@ -65,11 +67,9 @@ class Server(
 
     override fun start() {
         log.info("Creating core services")
-        val isDevelopment = args.contains("--dev")
-
-        val cloudToCephFsDao = CephFSUserDao(isDevelopment)
-        val processRunner = CephFSCommandRunnerFactory(cloudToCephFsDao, isDevelopment)
-        val fsRoot = File(if (isDevelopment) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
+        val cloudToCephFsDao = CephFSUserDao(micro.developmentModeEnabled)
+        val processRunner = CephFSCommandRunnerFactory(cloudToCephFsDao, micro.developmentModeEnabled)
+        val fsRoot = File(if (micro.developmentModeEnabled) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
 
         val fs = CephFileSystem(cloudToCephFsDao, fsRoot)
         val storageEventProducer = kafka.producer.forStream(StorageEvents.events)
@@ -96,7 +96,7 @@ class Server(
         kStreams = buildStreams { kBuilder ->
             UserProcessor(
                 kBuilder.stream(AuthStreams.UserUpdateStream),
-                isDevelopment,
+                micro.developmentModeEnabled,
                 cloudToCephFsDao,
                 externalFileService
             ).init()
@@ -105,19 +105,13 @@ class Server(
         val storageEventProcessor = StorageEventProcessor(kafka)
         addProcessors(storageEventProcessor.init())
 
-        // We have temporarily disabled the ChecksumProcessor.
-        // TODO We will have to determine later if this should be re-enabled or just removed.
-        /*
-        ChecksumProcessor(processRunner, fs, coreFileSystem).also {
-            // TODO Doesn't emit events for checksums
-            storageEventProcessor.registerHandler(it::handleEvents)
-        }
-        */
+        val tokenValidation =
+            micro.tokenValidation as? TokenValidationJWT ?: throw IllegalStateException("JWT token validation required")
 
         // HTTP
         httpServer = ktor {
             log.info("Configuring HTTP server")
-            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
+            installDefaultFeatures(micro)
 
             routing {
                 configureControllers(
@@ -138,7 +132,8 @@ class Server(
                         cloud,
                         processRunner,
                         coreFileSystem,
-                        bulkDownloadService
+                        bulkDownloadService,
+                        tokenValidation
                     ),
 
                     MultiPartUploadController(

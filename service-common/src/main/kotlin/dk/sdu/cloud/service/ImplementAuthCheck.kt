@@ -8,9 +8,12 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.client.RESTCallDescription
+import io.ktor.application.Application
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.ApplicationFeature
+import io.ktor.application.application
+import io.ktor.application.feature
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.ApplicationRequest
@@ -33,7 +36,16 @@ class ImplementAuthCheck {
         }
     }
 
+    private fun ensureLoaded(application: Application) {
+        if (!this::tokenValidator.isInitialized) {
+            val micro = application.feature(KtorMicroServiceFeature).micro
+            tokenValidator = micro.tokenValidation
+        }
+    }
+
     private suspend fun interceptBefore(ctx: PipelineContext<*, ApplicationCall>) {
+        ensureLoaded(ctx.application)
+
         val call = ctx.context
         val tokenMustValidate = Role.GUEST !in description.auth.roles
 

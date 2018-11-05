@@ -27,7 +27,7 @@ fun main(args: Array<String>) {
                     "dk.sdu.cloud.file.api",
                     "dk.sdu.cloud.share.api",
                     "dk.sdu.cloud.storage.api",
-                    "dk.sdu.cloud.util.api"
+                    "dk.sdu.cloud.upload.api"
                 )
             )
         )
@@ -42,7 +42,6 @@ fun main(args: Array<String>) {
         micro.serverProvider,
         micro.hibernateDatabase,
         micro.refreshingJwtCloud,
-        micro.serviceInstance,
-        args
+        micro
     ).start()
 }

@@ -6,7 +6,6 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.storage.services.BulkUploadService
 import dk.sdu.cloud.storage.services.CoreFileSystemService
@@ -40,7 +39,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(MultiPartUploadDescriptions.upload) { it ->
-            logEntry(log, it)
             audit(MultiPartUploadAudit(null))
 
             // TODO Support in RESTDescriptions for multi-parts would be nice
@@ -117,7 +115,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
         }
 
         implement(MultiPartUploadDescriptions.bulkUpload) { req ->
-            logEntry(log, req)
 
             var policy: WriteConflictPolicy? = null
             var path: String? = null

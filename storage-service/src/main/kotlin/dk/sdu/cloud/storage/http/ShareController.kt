@@ -3,7 +3,6 @@ package dk.sdu.cloud.storage.http
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.share.api.FindByShareId
 import dk.sdu.cloud.share.api.ShareDescriptions
@@ -23,14 +22,12 @@ class ShareController<Ctx : FSUserContext>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ShareDescriptions.list) {
-            logEntry(log, it)
             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
                 ok(shareService.list(ctx, it.normalize()))
             }
         }
 
         implement(ShareDescriptions.accept) {
-             logEntry(log, it)
              tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
                  ok(
                      shareService.updateState(
@@ -43,42 +40,32 @@ class ShareController<Ctx : FSUserContext>(
         }
 
         implement(ShareDescriptions.revoke) {
-            logEntry(log, it)
             ok(shareService.deleteShare(call.securityPrincipal.username, it.id))
         }
 
         implement(ShareDescriptions.reject) {
-            logEntry(log, it)
             ok(shareService.deleteShare(call.securityPrincipal.username, it.id))
         }
 
         implement(ShareDescriptions.update) {
-            logEntry(log, it)
-
             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
                 ok(shareService.updateRights(ctx, it.id, it.rights))
             }
         }
 
         implement(ShareDescriptions.create) {
-            logEntry(log, it)
-
             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
                 ok(FindByShareId(shareService.create(ctx, it, call.cloudClient)))
             }
         }
 
         implement(ShareDescriptions.findByPath) {
-            logEntry(log, it)
-
             ok(shareService.findSharesForPath(call.securityPrincipal.username, it.path))
 
 
         }
 
         implement(ShareDescriptions.listByStatus) {
-            logEntry(log, it)
-
             ok(shareService.listSharesByStatus(call.securityPrincipal.username, it.status, it.normalize()))
 
         }

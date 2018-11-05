@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.http
 
+import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.client.AuthenticatedCloud
@@ -45,13 +46,13 @@ class SimpleDownloadController<Ctx : FSUserContext>(
     private val cloud: AuthenticatedCloud,
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
-    private val bulkDownloadService: BulkDownloadService<Ctx>
+    private val bulkDownloadService: BulkDownloadService<Ctx>,
+    private val tokenValidation: TokenValidation<DecodedJWT>
 ) : Controller {
     override val baseContext = FileDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(FileDescriptions.download) { request ->
-            logEntry(log, request)
             audit(SingleFileAudit(null, FindByPath(request.path)))
 
             val hasTokenFromUrl = request.token != null
@@ -61,9 +62,9 @@ class SimpleDownloadController<Ctx : FSUserContext>(
             )
 
             val principal = (if (hasTokenFromUrl) {
-                TokenValidation.validateAndClaim(bearer, listOf(DOWNLOAD_FILE_SCOPE), cloud)
+                tokenValidation.validateAndClaim(bearer, listOf(DOWNLOAD_FILE_SCOPE), cloud)
             } else {
-                TokenValidation.validateOrNull(bearer)
+                tokenValidation.validateOrNull(bearer)
             }) ?: return@implement error(
                 CommonErrorMessage("Unauthorized"),
                 HttpStatusCode.Unauthorized
@@ -178,8 +179,6 @@ class SimpleDownloadController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.bulkDownload) { request ->
-            logEntry(log, request)
-
             audit(BulkFileAudit(request.files.map { null }, request))
 
             commandRunnerFactory.withContext(call.securityPrincipal.username) { ctx ->

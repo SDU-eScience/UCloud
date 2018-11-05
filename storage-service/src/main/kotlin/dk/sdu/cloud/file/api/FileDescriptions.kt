@@ -110,7 +110,7 @@ fun validateAnnotation(annotation: String) {
     }
 }
 
-const val DOWNLOAD_FILE_SCOPE = "downloadFile"
+val DOWNLOAD_FILE_SCOPE = FileDescriptions.download.requiredAuthScope
 
 data class DownloadByURI(val path: String, val token: String?)
 

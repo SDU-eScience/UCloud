@@ -8,6 +8,7 @@ import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.call
 import io.ktor.request.receiveParameters
 import io.ktor.response.respondRedirect
@@ -28,6 +29,7 @@ class PasswordController<DBSession>(
                 val params = try {
                     call.receiveParameters().toMap()
                 } catch (ex: Exception) {
+                    log.debug(ex.stackTraceToString())
                     logEntry(log, additionalParameters = mapOf("message" to "Missing parameters"))
                     return@post call.respondRedirect("/auth/login?invalid")
                 }
@@ -56,7 +58,7 @@ class PasswordController<DBSession>(
                         userDao.findById(it, username) as? Person.ByPassword ?: throw UserException.NotFound()
                     } catch (ex: UserException.NotFound) {
                         log.info("User not found or is not a password authenticated person")
-                        call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
+                        loginResponder.handleUnsuccessfulLogin(call, service)
                         return@post
                     }
                 }
