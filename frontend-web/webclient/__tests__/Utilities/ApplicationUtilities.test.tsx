@@ -29,13 +29,6 @@ describe("Application Utilities", () => {
         expect(hpcApplicationsQuery(0, 10)).toBe(`/hpc/apps?page=0&itemsPerPage=10`)
     });
 
-    test("Favorite application and unfavorite application", () => {
-        let resultingPage = favoriteApplicationFromPage(applicationsPage.items[0], applicationsPage, new Cloud());
-        expect(resultingPage.items[0].favorite).toBe(true);
-        resultingPage = favoriteApplicationFromPage(resultingPage.items[0], resultingPage, new Cloud());
-        expect(resultingPage.items[0].favorite).toBe(false);
-    });
-
     test("Extract Parameters for version 1", () => {
         const validParameterTypes = [
             { name: "A", type: ParameterTypes.Boolean },
@@ -119,39 +112,6 @@ describe("Application Utilities", () => {
         };
         const extractedParameters = extractParameters(parameters, validParameterTypes, 1);
         expect(extractedParameters).toEqual({});
-    });
-
-    test("Trying to favorite application not in page", () => {
-        expect(applicationsPage.items.every(it => it.favorite === false)).toBe(true);
-        const newPage = favoriteApplicationFromPage({
-            favorite: false,
-            owner: "jonas@hinchely.dk", createdAt: 1531305600165, modifiedAt: 1531305600165, description: {
-                info: { name: "No App", version: "1.0.0" },
-                tool: { name: "figlet", version: "1.0.0" },
-                authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
-                title: "Figlet Counter",
-                description: "Count with Figlet!\n",
-                invocation: [{ "type": "word", "word": "figlet-count" }, { "type": "var", "variableNames": ["n"], "prefixGlobal": "", "suffixGlobal": "", "prefixVariable": "", "suffixVariable": "", "variableSeparator": " " }],
-                parameters: [{ name: "n", optional: false, defaultValue: 100, title: "Count", description: "How much should we count to?", min: null, "max": null, "step": null, "unitName": null, "type": "integer" }], "outputFileGlobs": ["stdout.txt", "stderr.txt"]
-            },
-            tool: {
-                owner: "jonas@hinchely.dk",
-                createdAt: 1531303905548,
-                modifiedAt: 1531303905548,
-                description: {
-                    info: { name: "No App", version: "1.0.0" },
-                    container: "figlet.simg",
-                    defaultNumberOfNodes: 1,
-                    defaultTasksPerNode: 1,
-                    defaultMaxTime: { hours: 0, minutes: 1, seconds: 0 },
-                    requiredModules: [],
-                    authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
-                    title: "Figlet",
-                    description: "Tool for rendering text.", "backend": "SINGULARITY"
-                }
-            }
-        }, applicationsPage, new Cloud());
-        expect(applicationsPage.items.every(it => it.favorite === false)).toBe(true);
     });
 });
 

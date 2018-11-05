@@ -9,8 +9,8 @@ import FileInfo from "Files/FileInfo";
 import { updatePath, updateFiles } from "Files/Redux/FilesActions";
 import { mockFiles_SensitivityConfidential } from "../mock/Files";
 
-const emptyPageStore = configureStore({ files: initFiles({ homeFolder: "/home/user@test.abc/" }) }, { files });
-const pageStore = configureStore({ files: initFiles({ homeFolder: "/home/user@user.telecity/" }) }, { files });
+const emptyPageStore = configureStore({ files: initFiles("/home/user@test.abc/") }, { files });
+const pageStore = configureStore({ files: initFiles("/home/user@user.telecity/") }, { files });
 emptyPageStore.dispatch(updatePath("/Some/Folder"));
 pageStore.dispatch(updatePath("/home/user@user.telecity/"));
 pageStore.dispatch(updateFiles(mockFiles_SensitivityConfidential));

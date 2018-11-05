@@ -1,12 +1,11 @@
-import { SortBy, SortOrder, File } from "Files";
+import { File } from "Files";
 import { Page } from "Types";
-import { Dispatch } from "redux";
 import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
-import { DetailedResultReduxObject } from "DefaultObjects";
+import { DetailedResultReduxObject, ApplicationReduxObject } from "DefaultObjects";
 
-export interface ApplicationsProps extends ApplicationsStateProps, ApplicationsOperations { }
+export type ApplicationsProps = ApplicationReduxObject & ApplicationsOperations;
 
 export interface Analysis {
     status: string
@@ -24,16 +23,10 @@ export interface ApplicationsOperations {
     onErrorDismiss: () => void
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
+    setFavoritesLoading: (loading: boolean) => void
     fetchApplications: (a: number, b: number) => void
+    fetchFavorites: (a: number, b: number) => void
     receiveApplications: (applications: Page<Application>) => void
-}
-
-export interface ApplicationsStateProps {
-    page: Page<Application>
-    loading: boolean
-    error?: string
-    sortBy: SortBy
-    sortOrder: SortOrder
 }
 
 export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { }
@@ -59,7 +52,7 @@ export interface DetailedResultOperations {
     receivePage: (page: Page<File>) => void,
     setPageTitle: (jobId: string) => void
     setLoading: (loading: boolean) => void
-    detailedResultError: (error:string) => void
+    detailedResultError: (error: string) => void
     fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
 }
 
@@ -100,7 +93,7 @@ interface ApplicationInfo {
     version: string
 }
 
-interface ApplicationDescription {
+export interface ApplicationDescription {
     info: ApplicationInfo
     tool: ApplicationInfo
     authors: string[]
@@ -168,7 +161,7 @@ export interface RunAppProps {
 }
 
 export interface NumberParameter extends BaseParameter {
-    defaultValue: number | null
+    defaultValue: { value: number, type: "double" | "int" } | null
     min: number | null
     max: number | null
     step: number | null
@@ -176,7 +169,7 @@ export interface NumberParameter extends BaseParameter {
 }
 
 export interface BooleanParameter extends BaseParameter {
-    defaultValue: boolean | null
+    defaultValue: { value: boolean, type: "bool" } | null
     trueValue?: string | null
     falseValue?: string | null
     type: "boolean"
@@ -193,7 +186,7 @@ export interface InputDirectoryParameter extends BaseParameter {
 }
 
 export interface TextParameter extends BaseParameter {
-    defaultValue: string | null
+    defaultValue: { value: string, type: "string" } | null
     type: "text"
 }
 
@@ -224,51 +217,48 @@ interface VarInvocation {
     variableSeparator: string
 }
 
+type Info = { name: string, version: string }
+export interface Description {
+    info: Info
+    tool: Info
+    authors: string[]
+    title: string
+    description: string
+    invocation: Invocation[]
+    parameters: ApplicationParameter[]
+    outputFileGlobs: [string, string]
+}
+interface Tool {
+    owner: string
+    createdAt: number
+    modifiedAt: number
+    description: ToolDescription
+}
+
+interface ToolDescription {
+    info: Info
+    container: string
+    defaultNumberOfNodes: number,
+    defaultTasksPerNode: number,
+    defaultMaxTime: {
+        hours: number
+        minutes: number
+        seconds: number
+    }
+    requiredModules: any[],
+    authors: string[]
+    title: string,
+    description: string
+    backend: string
+}
+
 
 export interface ApplicationInformation {
     owner: string
     favorite?: boolean
     createdAt, modifiedAt: number
-    description: {
-        info: {
-            name: string
-            version: string
-        }
-        tool: {
-            name: string
-            version: string
-        }
-        authors: string[]
-        title: string
-        description: string
-        invocation: Invocation[]
-        parameters: ApplicationParameter[]
-        outputFileGlobs: [string, string]
-    }
-    tool: {
-        owner: string
-        createdAt: number
-        modifiedAt: number
-        description: {
-            info: {
-                name: string
-                version: string
-            }
-            container: string
-            defaultNumberOfNodes: number,
-            defaultTasksPerNode: number,
-            defaultMaxTime: {
-                hours: number
-                minutes: number
-                seconds: number
-            }
-            requiredModules: any[],
-            authors: string[]
-            title: string,
-            description: string
-            backend: string
-        }
-    }
+    description: Description
+    tool: Tool
 }
 
 export enum ParameterTypes {

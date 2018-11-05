@@ -9,7 +9,7 @@ import files from "Files/Redux/FilesReducer";
 
 describe("File Preview", () => {
     test("Mount preview", () => {
-        const store = configureStore({ files: initFiles({ homeFolder: "/does/not/matter/" }) }, { files });
+        const store = configureStore({ files: initFiles("/does/not/matter/") }, { files });
         expect(create(
             <Provider store={store}>
                 <MemoryRouter>

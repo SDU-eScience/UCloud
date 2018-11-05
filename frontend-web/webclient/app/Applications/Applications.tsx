@@ -1,29 +1,34 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "Pagination";
-import { Card, Icon, Rating, List } from "semantic-ui-react";
+import { Card as SCard, Icon as SIcon, Rating as SRating, List as SList } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
     fetchApplications,
     setLoading,
-    receiveApplications
+    receiveApplications,
+    fetchFavoriteApplications,
+    setFavoritesLoading
 } from "./Redux/ApplicationsActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
-import { Application } from ".";
-import { ApplicationsProps, ApplicationsOperations, ApplicationsStateProps } from ".";
+import { Application, ApplicationDescription } from ".";
+import { ApplicationsProps, ApplicationsOperations } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
-// Requires at least TS 3.0.0
 import { MaterialColors } from "Assets/materialcolors.json";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
+import { CardGroup, Card, PlayIcon } from "ui-components/Card";
+import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Heading, Divider } from "ui-components";
+import { EllipsedText } from "ui-components/Text";
+import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
 // We need dynamic import due to nature of the import
-const blurOverlay = require("Assets/Images/BlurOverlayByDan.png");
+const blurOverlay = require("Assets/Images/circuitboard-bg.png");
 
 class Applications extends React.Component<ApplicationsProps> {
 
@@ -34,38 +39,109 @@ class Applications extends React.Component<ApplicationsProps> {
         if (this.props.page.items.length === 0) {
             props.setLoading(true);
             props.fetchApplications(props.page.pageNumber, props.page.itemsPerPage);
+            props.fetchFavorites(props.page.pageNumber, props.page.itemsPerPage);
         }
     }
 
     render() {
-        const { page, loading, fetchApplications, onErrorDismiss, receiveApplications, error } = this.props;
-        const favoriteApp = (app: Application) => receiveApplications(favoriteApplicationFromPage(app, page, Cloud));
+        const { page, loading, fetchApplications, favorites, onErrorDismiss, receiveApplications, error } = this.props;
+        const favoriteApp = (name: string, version: string) => receiveApplications(favoriteApplicationFromPage(name, version, page, Cloud));
         return (
-            <React.StrictMode>
-                <Pagination.List
-                    loading={loading}
-                    onErrorDismiss={onErrorDismiss}
-                    errorMessage={error}
-                    onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
-                    pageRenderer={({ items }: Page<Application>) =>
-                        <Card.Group className="card-margin">
-                            {items.map((app, index) => <SingleApplication key={index} app={app} favoriteApp={favoriteApp} />)}
-                        </Card.Group>
-                    }
-                    page={page}
-                    onItemsPerPageChanged={(size) => fetchApplications(0, size)}
-                    onPageChanged={(pageNumber) => fetchApplications(pageNumber, page.itemsPerPage)}
-                />
-            </React.StrictMode >);
+
+            <Pagination.List
+                loading={loading}
+                onErrorDismiss={onErrorDismiss}
+                errorMessage={error}
+                onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
+                pageRenderer={({ items }: Page<Application>) =>
+                    <React.Fragment>
+                        {favorites.items.length ?
+                            <React.Fragment>
+                                <Heading>Favorites</Heading>
+                                <CardGroup>
+                                    {favorites.items.map(app =>
+                                        <ApplicationCard
+                                            key={`${app.description.info.name}${app.description.info.version}`}
+                                            favoriteApp={favoriteApp}
+                                            appDescription={app.description}
+                                            isFavorite={app.favorite}
+                                        />)}
+                                </CardGroup>
+                                <Divider />
+                            </React.Fragment> : null}
+                        <CardGroup>
+                            {items.map((app, index) =>
+                                <ApplicationCard
+                                    key={index}
+                                    favoriteApp={favoriteApp}
+                                    appDescription={app.description}
+                                    isFavorite={app.favorite}
+                                />
+                            )}
+                        </CardGroup>
+                    </React.Fragment>
+                }
+                page={page}
+                onItemsPerPageChanged={size => fetchApplications(0, size)}
+                onPageChanged={pageNumber => fetchApplications(pageNumber, page.itemsPerPage)}
+            />
+        );
     }
 }
 
+export const ApplicationCard = ({ appDescription, favoriteApp, isFavorite }: { favoriteApp: (name: string, version) => void, appDescription: ApplicationDescription, isFavorite?: boolean }) => (
+    <Card height={212} width={252}>
+        <Relative>
+            <BackgroundImage
+                height="138px"
+                color={hexFromAppName(appDescription.info.name)}
+                image={blurOverlay}>
+                <Box p={4}>
+                    <Absolute top="6px" left="10px">
+                        <Text fontSize={2} align="left" color="grey">
+                            {appDescription.info.name}
+                        </Text>
+                    </Absolute>
+                    <Absolute top={"26px"} left={"14px"}>
+                        <Text fontSize={"xxs-small"} align="left" color="grey">
+                            v {appDescription.info.version}
+                        </Text>
+                    </Absolute>
+                    <Absolute top="10px" left="215px">
+                        <Icon
+                            onClick={() => favoriteApp(appDescription.info.name, appDescription.info.version)}
+                            cursor="pointer"
+                            name={isFavorite ? "starFilled" : "starEmpty"}
+                        />
+                    </Absolute>
+                    <Absolute top="112px" left="10px">
+                        <EllipsedText width={180} title={`by ${appDescription.authors.join(", ")}`} color="grey">
+                            by {appDescription.authors.join(", ")}
+                        </EllipsedText>
+                    </Absolute>
+                    <Absolute top="86px" left="200px">
+                        <Link to={`/applications/${appDescription.info.name}/${appDescription.info.version}/`}>
+                            <PlayIcon />
+                        </Link>
+                    </Absolute>
+                </Box>
+            </BackgroundImage>
+        </Relative>
+        <Relative>
+            <Absolute left="14px" top="6px">
+                <Text>
+                    {appDescription.description.slice(0, 100)}
+                </Text>
+            </Absolute>
+        </Relative>
+    </Card >
+);
+
+
+
 interface SingleApplicationProps { app: Application, favoriteApp?: (app: Application) => void }
 export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
-    const hashCode = toHashCode(app.description.info.name);
-    const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
-    const mClength = MaterialColors[color].length;
-    const hex = { background: MaterialColors[color][(hashCode % mClength)] };
+    const hex = hexFromAppName(app.description.info.name);
     const even = app.modifiedAt % 2 === 0;
     const { description } = app.description;
     const image = even ? blurOverlay : `https://placekitten.com/200/200`;
@@ -74,35 +150,42 @@ export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) 
         backgroundImage: `url('${image}')`
     };
     return (
-        <Card>
-            <div style={hex}>
+        <SCard>
+            <div style={{ background: hex }}>
                 <Link to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}>
                     <div className="app-image" style={imageStyle} />
                 </Link>
             </div>
-            <Card.Content>
-                <List horizontal floated="right">
-                    {!!favoriteApp ? <List.Item>
-                        <Rating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => !!favoriteApp ? favoriteApp(app) : null} />
-                    </List.Item> : null}
-                    <List.Item>
+            <SCard.Content>
+                <SList horizontal floated="right">
+                    {!!favoriteApp ? <SList.Item>
+                        <SRating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => !!favoriteApp ? favoriteApp(app) : null} />
+                    </SList.Item> : null}
+                    <SList.Item>
                         <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
-                            <Icon color="green" name="play" />
+                            <SIcon color="green" name="play" />
                         </Link>
-                    </List.Item>
-                </List>
-                <Card.Header
+                    </SList.Item>
+                </SList>
+                <SCard.Header
                     as={Link}
                     to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}
                     content={app.description.title}
                 />
-                <Card.Meta content={app.description.info.version} />
-            </Card.Content>
-            <Card.Content extra>
+                <SCard.Meta content={app.description.info.version} />
+            </SCard.Content>
+            <SCard.Content extra>
                 {description.length > 72 ? `${description.slice(0, 72)}...` : description}
-            </Card.Content>
-        </Card>
+            </SCard.Content>
+        </SCard>
     );
+}
+
+function hexFromAppName(name: string): string {
+    const hashCode = toHashCode(name);
+    const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
+    const mClength = MaterialColors[color].length;
+    return MaterialColors[color][(hashCode % mClength)];
 }
 
 function toHashCode(name: string): number {
@@ -123,13 +206,15 @@ const mapDispatchToProps = (dispatch: Dispatch): ApplicationsOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage()),
     updatePageTitle: () => dispatch(updatePageTitle("Applications")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
+    setFavoritesLoading: (loading: boolean) => dispatch(setFavoritesLoading(loading)),
     fetchApplications: async (pageNumber: number, itemsPerPage: number) => dispatch(await fetchApplications(pageNumber, itemsPerPage)),
-    receiveApplications: (applications: Page<Application>) => dispatch(receiveApplications(applications))
+    receiveApplications: (applications: Page<Application>) => dispatch(receiveApplications(applications)),
+    fetchFavorites: async (pageNumber: number, itemsPerPage: number) => dispatch(await fetchFavoriteApplications(pageNumber, itemsPerPage))
 });
 
-const mapStateToProps = ({ applications }): ApplicationsStateProps => ({
-    favCount: applications.page.items.filter(it => it.favorite).length,
-    ...applications
+const mapStateToProps = ({ applications }: ReduxObject): ApplicationReduxObject & { favCount: number } => ({
+    ...applications,
+    favCount: applications.page.items.filter(it => it.favorite).length
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

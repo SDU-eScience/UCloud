@@ -8,7 +8,7 @@ import * as UF from "UtilityFunctions";
 import { SingleApplication } from "Applications/Applications";
 import { ProjectMetadata } from "Metadata/api";
 import { SearchItem } from "Metadata/Search";
-import { AllFileOperations, getParentPath, getFilenameFromPath } from "Utilities/FileUtilities";
+import { AllFileOperations, getParentPath, getFilenameFromPath, replaceHomeFolder } from "Utilities/FileUtilities";
 import { SimpleSearchProps, SimpleSearchOperations } from ".";
 import { HeaderSearchType, ReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
@@ -125,14 +125,14 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
     }
 };
 
-const SimpleFileList = ({ files }) => (
+export const SimpleFileList = ({ files }) => (
     <List size="large" relaxed>
         {files.map((f, i) => (
             <List.Item key={i}>
                 <List.Content>
                     <Icon name={UF.iconFromFilePath(f.path, f.fileType, Cloud.homeFolder)} size={undefined} color={"blue"} />
                     <Link to={`/files/${f.fileType === "FILE" ? getParentPath(f.path) : f.path}`}>
-                        {getFilenameFromPath(f.path)}
+                        {replaceHomeFolder(f.path, Cloud.homeFolder)}
                     </Link>
                 </List.Content>
                 {/* <FileOperations fileOperations={fileOperations} files={[f]} /> */}

@@ -1,22 +1,29 @@
 import * as React from "react";
-import { Icon, IconProps, Header, Popup } from "semantic-ui-react";
+import { Icon as SIcon, IconProps, Popup } from "semantic-ui-react";
+import { Icon, Heading } from "ui-components";
 
 interface FileIconProps  extends IconProps { link?: boolean, shared?: boolean, className?:string }
-export const FileIcon = ({ name, size, shared = false, link = false, className = "", color }:FileIconProps) =>
+export const FileIcon = ({ name, size, shared = false, link = false, className = "", color }: FileIconProps) =>
     link || shared ?
         // FIXME Inline style
-        <Icon.Group style={{ paddingLeft: "3px", paddingRight: "5px" }} className={className} size={size}>
-            <Icon name={name} color={color} />
+        <SIcon.Group style={{ paddingLeft: "3px", paddingRight: "5px" }} className={className} size={size}>
+            <SIcon name={name} color={color} />
             <Popup
                 content={shared ? "This file is shared" : "This is a link to a file"}
                 position="right center"
-                trigger={<Icon corner color="grey" name={shared ? "users" : "share"}/>}
+                trigger={<SIcon corner color="grey" name={shared ? "users" : "share"}/>}
             />
-        </Icon.Group> :
-        <Icon name={name} size={size} color={color} />
+        </SIcon.Group> :
+        <SIcon name={name} size={size} color={color} />
+
+export function Chevron({ name }) {
+    if (name === "chevron down") return (<Icon rotation={0} name="chevronDown" />);
+    else if (name === "chevron up") return (<Icon rotation={180} name="chevronDown" />);
+    return null;
+}
 
 export const RefreshButton = ({ loading, onClick, className }: { loading?: boolean, onClick: () => void, className?: string }) => (
-    <Icon
+    <SIcon
         size="small"
         link
         circular
@@ -28,9 +35,9 @@ export const RefreshButton = ({ loading, onClick, className }: { loading?: boole
 
 export const WebSocketSupport = () =>
     !("WebSocket" in window) ?
-        (<Header as="h3">
+        (<Heading>
             <small>WebSockets are not supported in this browser. Notifications won't be updated automatically.</small>
-        </Header>) : null;
+        </Heading>) : null;
 
 export class PP extends React.Component<{ visible: boolean}, {duration: number}> {
 
@@ -98,10 +105,9 @@ export class PP extends React.Component<{ visible: boolean}, {duration: number}>
                     <animate attributeName="cy" dur={`${this.state.duration}ms`} repeatCount="indefinite" keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1" values="62;56;59;65;67;73;76;81;74;70;62"/>
                 </ellipse>
             </svg>
-            <input type="range" min="200" max="2000" value={this.state.duration} step="1" id="animationDuration" onChange={({target}) => this.updateDuration(parseInt(target.value))}/>
+            <input style={{ direction: "rtl" }} type="range" min="200" max="2000" value={this.state.duration} step="1" id="animationDuration" onChange={({target}) => this.updateDuration(parseInt(target.value))}/>
             </div>
             )
     }
 }
 
- 

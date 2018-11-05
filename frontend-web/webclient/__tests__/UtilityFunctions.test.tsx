@@ -369,10 +369,6 @@ test("shareSwal", () => {
 });
 
 describe("Get sorting icon", () => {
-    test("Non matching sortBy", () =>
-        expect(UF.getSortingIcon(SortBy.ANNOTATION, SortOrder.ASCENDING, SortBy.ACL)).toBeUndefined()
-    )
-
     test("Matching sortBy, up", () =>
         expect(UF.getSortingIcon(SortBy.ACL, SortOrder.ASCENDING, SortBy.ACL)).toBe("chevron up")
     )
@@ -412,9 +408,6 @@ describe("sortingColumnToValue", () => {
     })
     test("SENSITIVITY", () => {
         expect(UF.sortingColumnToValue(SortBy.SENSITIVITY, file)).toBe(SensitivityLevel[file.sensitivityLevel])
-    })
-    test("ANNOTATION", () => {
-        expect(UF.sortingColumnToValue(SortBy.ANNOTATION, file)).toBe(file.annotations.toString());
     })
 });
 

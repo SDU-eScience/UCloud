@@ -1,11 +1,11 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { toLowerCaseAndCapitalize, removeTrailingSlash } from "UtilityFunctions";
-import { favoriteFileFromPage, fileSizeToString, getParentPath, replaceHomeFolder } from "Utilities/FileUtilities";
+import { toLowerCaseAndCapitalize, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
+import { favoriteFileFromPage, fileSizeToString, getParentPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
 import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "./Redux/FilesActions";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel, emptyPage } from "DefaultObjects";
-import { Container, Header, List, Card, Icon, Segment } from "semantic-ui-react";
+import { Container, Header, List, Card, Icon, Segment, GridColumn } from "semantic-ui-react";
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -51,12 +51,13 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations, FileI
         const { page, loading } = this.props;
         const file = page.items.find(file => file.path === removeTrailingSlash(this.path));
         if (!file) { return (<DefaultLoading loading={true} />) }
+        const fileName = replaceHomeFolder(isDirectory(file) ? addTrailingSlash(file.path) : file.path, Cloud.homeFolder);
         return (
             <Container className="container-margin" >
                 <Header as="h2" icon textAlign="center">
-                    <Header.Content content={replaceHomeFolder(file.path, Cloud.homeFolder)} />
+                    <Header.Content content={fileName} />
                     <Header.Subheader content={toLowerCaseAndCapitalize(file.fileType)} />
-                </Header>                               {/* MapDispatchToProps */}
+                </Header>
                 <FileView file={file} favorite={() => this.props.updateFiles(favoriteFileFromPage(page, [file], Cloud))} />
                 {this.state.activity.items.length ? (<Segment><ActivityFeed activity={this.state.activity.items} /></Segment>) : null}
                 {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
@@ -69,8 +70,8 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations, FileI
 
 const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
     !file ? null : (
-        <Card.Group>
-            <Card>
+        <Card.Group itemsPerRow={3}>
+            <Card fluid>
                 <Card.Content>
                     <List divided>
                         <List.Item className="itemPadding">
@@ -98,7 +99,7 @@ const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
                     </List>
                 </Card.Content>
             </Card>
-            <Card>
+            <Card fluid>
                 <Card.Content>
                     <List divided>
                         <List.Item className="itemPadding">
@@ -116,7 +117,7 @@ const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
                     </List>
                 </Card.Content>
             </Card>
-            <Card>
+            <Card fluid>
                 <Card.Content>
                     <Card.Header content="Annotations" />
                     <List divided>
@@ -146,7 +147,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
     updatePath: (path: string) => dispatch(updatePath(path)),
     fetchPageFromPath: async (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) =>
         dispatch(await fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy)),
-        updateFiles: (page: Page<File>) => dispatch(updateFiles(page))
+    updateFiles: (page: Page<File>) => dispatch(updateFiles(page))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(FileInfo);

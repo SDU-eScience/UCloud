@@ -13,7 +13,7 @@ import { Dropdown, Form, Label } from "semantic-ui-react";
 
 configure({ adapter: new Adapter() });
 
-const store = configureStore({ files: initFiles({ homeFolder: "/home/person@place.tv" }) }, { files });
+const store = configureStore({ files: initFiles("/home/person@place.tv") }, { files });
 
 describe("DetailedFileSearch", () => {
     test("Detailed File Search component", () => {
