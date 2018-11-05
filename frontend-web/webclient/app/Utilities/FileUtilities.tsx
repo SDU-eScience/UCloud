@@ -235,7 +235,7 @@ export const getFilenameFromPath = (path: string): string => {
 
 export const downloadFiles = (files: File[], cloud: Cloud) =>
     files.map(f => f.path).forEach(p =>
-        cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) => {
+        cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
             const element = document.createElement("a");
             element.setAttribute("href", `/api/files/download?path=${encodeURI(p)}&token=${encodeURI(token)}`);
             element.style.display = "none";
