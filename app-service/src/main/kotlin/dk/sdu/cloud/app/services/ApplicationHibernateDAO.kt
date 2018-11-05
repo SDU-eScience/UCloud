@@ -141,6 +141,7 @@ class ApplicationHibernateDAO(
         query: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationForUser> {
+        val normalizedQuery = normalizeQuery(query)
         val count = session.typedQuery<Long>(
             """
                 select count (A.id.name)
@@ -149,9 +150,9 @@ class ApplicationHibernateDAO(
                     from ApplicationEntity as B
                     where A.id.name = B.id.name
                     group by id.name
-                ) and A.id.name like '%' || :query || '%'
+                ) and lower(A.id.name) like '%' || :query || '%'
                 """.trimIndent()
-        ).setParameter("query", query)
+        ).setParameter("query", normalizedQuery)
             .uniqueResult()
             .toInt()
 
@@ -162,10 +163,10 @@ class ApplicationHibernateDAO(
                         from ApplicationEntity as B
                         where A.id.name = B.id.name
                         group by id.name
-                    ) and A.id.name like '%' || :query || '%'
+                    ) and lower(A.id.name) like '%' || :query || '%'
                     order by A.id.name
                 """.trimIndent()
-        ).setParameter("query", query)
+        ).setParameter("query", normalizedQuery)
             .paginatedList(paging)
             .map { it.toModel() }
 
@@ -347,6 +348,10 @@ class ApplicationHibernateDAO(
             val preparedPageItems = page.items.map { ApplicationForUser(it, false) }
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         }
+    }
+
+    private fun normalizeQuery(query: String): String {
+        return query.toLowerCase()
     }
 }
 
