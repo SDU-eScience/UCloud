@@ -8,7 +8,6 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 
@@ -21,15 +20,11 @@ class ComputeController(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(AbacusComputationDescriptions.jobVerified) { req ->
-            logEntry(log, req)
-
             jobFileService.initializeJob(req.id)
             ok(Unit)
         }
 
         implement(AbacusComputationDescriptions.submitFile) { multipart ->
-            logEntry(log, multipart)
-
             multipart.receiveBlocks { block ->
                 val file = block.job.files.find { it.id == block.parameterName } ?: throw RPCException(
                     "Bad request. File with id '${block.parameterName}' does not exist!",
@@ -51,22 +46,16 @@ class ComputeController(
         }
 
         implement(AbacusComputationDescriptions.jobPrepared) { req ->
-            logEntry(log, req)
-
             slurmService.schedule(req)
             ok(Unit)
         }
 
         implement(AbacusComputationDescriptions.cleanup) { req ->
-            logEntry(log, req)
-
             jobFileService.cleanup(req.id)
             ok(Unit)
         }
 
         implement(AbacusComputationDescriptions.follow) { req ->
-            logEntry(log, req)
-
             ok(jobTail.followStdStreams(req))
         }
     }
