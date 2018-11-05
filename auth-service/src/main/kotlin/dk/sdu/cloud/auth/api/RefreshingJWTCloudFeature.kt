@@ -6,8 +6,10 @@ import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.MicroAttributeKey
 import dk.sdu.cloud.service.MicroFeature
 import dk.sdu.cloud.service.MicroFeatureFactory
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.cloudContext
 import dk.sdu.cloud.service.configuration
+import dk.sdu.cloud.service.tokenValidation
 
 class RefreshingJWTCloudFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -15,7 +17,10 @@ class RefreshingJWTCloudFeature : MicroFeature {
         val cloudContext = ctx.cloudContext
         val refreshToken = ctx.configuration.requestChunkAt<String>("refreshToken")
 
-        val authenticatedCloud = RefreshingJWTAuthenticatedCloud(cloudContext, refreshToken)
+        val tokenValidation = ctx.tokenValidation as? TokenValidationJWT ?:
+            throw IllegalStateException("Token validation needs to use JWTs!")
+
+        val authenticatedCloud = RefreshingJWTAuthenticatedCloud(cloudContext, refreshToken, tokenValidation)
         cloudFeature.addAuthenticatedCloud(100, authenticatedCloud)
         ctx.refreshingJwtCloud = authenticatedCloud
     }

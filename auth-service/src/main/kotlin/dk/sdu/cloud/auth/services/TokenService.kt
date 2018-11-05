@@ -2,6 +2,7 @@ package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
+import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
@@ -112,7 +113,8 @@ class TokenService<DBSession>(
     private val refreshTokenDao: RefreshTokenDAO<DBSession>,
     private val jwtFactory: JWTFactory,
     private val userCreationService: UserCreationService<*>,
-    private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap()
+    private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap(),
+    private val tokenValidation: TokenValidation<DecodedJWT>
 ) {
     private val log = LoggerFactory.getLogger(TokenService::class.java)
 
@@ -283,7 +285,7 @@ class TokenService<DBSession>(
     fun requestOneTimeToken(jwt: String, audience: List<SecurityScope>): OneTimeAccessToken {
         log.debug("Requesting one-time token: audience=$audience jwt=$jwt")
 
-        val validated = TokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
+        val validated = tokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
         val user = db.withTransaction {
             userDao.findByIdOrNull(it, validated.subject) ?: throw RefreshTokenException.InternalError()
         }
@@ -323,8 +325,6 @@ class TokenService<DBSession>(
                 throw RefreshTokenException.InternalError()
             }
 
-//            val newCsrf = generateCsrfToken()
-//            refreshTokenDao.updateCsrf(session, rawToken, newCsrf)
             val accessToken = createAccessTokenForExistingSession(user, token.publicSessionReference)
             AccessTokenAndCsrf(accessToken.accessToken, token.csrf)
         }

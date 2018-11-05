@@ -38,6 +38,7 @@ class MappedStreamDescription<K, V>(
     val mapper: (V) -> K
 ) : StreamDescription<K, V>
 
+@Deprecated(message = "Not used", replaceWith = ReplaceWith("String"))
 typealias RawAuthToken = String
 
 abstract class KafkaDescriptions {

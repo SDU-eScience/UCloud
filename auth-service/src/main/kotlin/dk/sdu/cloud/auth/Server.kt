@@ -22,17 +22,19 @@ import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.services.WSTOTPService
 import dk.sdu.cloud.auth.services.ZXingQRService
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.service.tokenValidation
 import io.ktor.application.install
 import io.ktor.features.CORS
 import io.ktor.http.HttpMethod
@@ -48,14 +50,13 @@ private const val PASSWORD_BYTES = 64
 
 class Server(
     private val db: HibernateSessionFactory,
-    private val cloud: AuthenticatedCloud,
     private val jwtAlg: Algorithm,
     private val config: AuthConfiguration,
     private val authSettings: Saml2Settings,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    private val instance: ServiceInstance,
-    private val developmentMode: Boolean
+    private val tokenValidation: TokenValidationJWT,
+    private val micro: Micro
 ) : CommonServer {
     override val log: Logger = logger()
 
@@ -98,14 +99,15 @@ class Server(
             refreshTokenDao,
             JWTFactory(jwtAlg),
             userCreationService,
-            mergedExtensions
+            mergedExtensions,
+            tokenValidation
         )
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
 
         log.info("Core services constructed!")
 
-        if (developmentMode) {
+        if (micro.developmentModeEnabled) {
             log.info("In development mode. Checking if we need to create a dummy account.")
             db.withTransaction {
                 val existingDevAdmin = userDao.findByIdOrNull(it, "admin@dev")
@@ -139,9 +141,9 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
 
-            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
+            installDefaultFeatures(micro)
 
-            if (developmentMode) {
+            if (micro.developmentModeEnabled) {
                 install(CORS) {
                     anyHost()
                     allowCredentials = true
@@ -162,6 +164,7 @@ class Server(
                 tokenService,
                 config.enablePasswords,
                 config.enableWayf,
+                tokenValidation,
                 config.trustedOrigins.toSet()
             )
 

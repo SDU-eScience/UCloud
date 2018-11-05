@@ -1,5 +1,6 @@
 package dk.sdu.cloud.auth.http
 
+import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.SecurityScope
@@ -76,6 +77,7 @@ class CoreAuthController<DBSession>(
     private val tokenService: TokenService<DBSession>,
     private val enablePasswords: Boolean,
     private val enableWayf: Boolean,
+    private val tokenValidation: TokenValidation<DecodedJWT>,
     private val trustedOrigins: Set<String> = setOf("localhost", "cloud.sdu.dk")
 ) {
     private val log = LoggerFactory.getLogger(CoreAuthController::class.java)
@@ -145,7 +147,7 @@ class CoreAuthController<DBSession>(
                 resource("redirect.js", resourcePackage = "assets")
             }
 
-            get("2fa") { _ ->
+            get("2fa") {
                 val challengeId = call.parameters["challengeId"]
                 val isInvalid = call.parameters["invalid"] != null
                 val message = call.parameters["message"] // TODO Is this a good idea?
@@ -306,7 +308,7 @@ class CoreAuthController<DBSession>(
 
                 val csrfToken = call.parameters["csrfToken"]
 
-                if (TokenValidation.validateOrNull(token) == null) {
+                if (tokenValidation.validateOrNull(token) == null) {
                     log.info("Invalid access token")
                     call.respondRedirect("/auth/login?invalid&service=${service.name.urlEncoded}")
                     return@get
@@ -359,9 +361,7 @@ class CoreAuthController<DBSession>(
             }
 
 
-            implement(AuthDescriptions.refresh) { _ ->
-                logEntry(log, Unit) { "refreshToken=${call.request.headers[HttpHeaders.Authorization]}" }
-
+            implement(AuthDescriptions.refresh) {
                 val refreshToken = call.request.bearer ?: return@implement run {
                     error(HttpStatusCode.Unauthorized)
                 }
@@ -370,9 +370,7 @@ class CoreAuthController<DBSession>(
                 ok(AccessToken(token.accessToken))
             }
 
-            implement(AuthDescriptions.webRefresh) { _ ->
-                logEntry(log, Unit)
-
+            implement(AuthDescriptions.webRefresh) {
                 // Note: This is currently the only endpoint in the entire system that needs CSRF protection.
                 // That is why this endpoint contains all of the protection stuff directly. If we _ever_ need more
                 // endpoints with CSRF protection, this code should be moved out.
@@ -396,8 +394,6 @@ class CoreAuthController<DBSession>(
             }
 
             implement(AuthDescriptions.tokenExtension) { req ->
-                logEntry(log, req)
-
                 val auditMessage = TokenExtensionAudit(
                     call.securityPrincipal.username, null, null, req.requestedScopes,
                     req.expiresIn
@@ -405,7 +401,7 @@ class CoreAuthController<DBSession>(
 
                 audit(auditMessage)
 
-                val token = TokenValidation.validateOrNull(req.validJWT)?.toSecurityToken() ?: return@implement error(
+                val token = tokenValidation.validateOrNull(req.validJWT)?.toSecurityToken() ?: return@implement error(
                     CommonErrorMessage("Unauthorized"),
                     HttpStatusCode.Unauthorized
                 )
@@ -416,8 +412,6 @@ class CoreAuthController<DBSession>(
             }
 
             implement(AuthDescriptions.requestOneTimeTokenWithAudience) { req ->
-                logEntry(log, req)
-
                 val bearerToken = call.request.bearer ?: return@implement run {
                     error(HttpStatusCode.Unauthorized)
                 }
@@ -444,7 +438,6 @@ class CoreAuthController<DBSession>(
             }
 
             implement(AuthDescriptions.claim) { req ->
-                logEntry(log, req)
                 val tokenWasClaimed = db.withTransaction {
                     ottDao.claim(it, req.jti, call.securityPrincipal.username)
                 }
@@ -457,8 +450,7 @@ class CoreAuthController<DBSession>(
             }
 
             // TODO This stuff won't work with cookie based auth
-            implement(AuthDescriptions.logout) { _ ->
-                logEntry(log, Unit) { "refresh = ${call.request.bearer}" }
+            implement(AuthDescriptions.logout) {
                 okContentDeliveredExternally()
 
                 val refreshToken = call.request.bearer ?: return@implement run {
@@ -469,9 +461,7 @@ class CoreAuthController<DBSession>(
                 call.respond(HttpStatusCode.NoContent)
             }
 
-            implement(AuthDescriptions.webLogout) { _ ->
-                logEntry(log, Unit)
-
+            implement(AuthDescriptions.webLogout) {
                 if (!requestOriginIsTrusted()) return@implement
 
                 // Then validate CSRF and refresh token
