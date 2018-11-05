@@ -249,7 +249,7 @@ export const fetchFileContent = (path: string, cloud: Cloud) =>
     cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) =>
         fetch(`/api/files/download?path=${encodeURI(path)}&token=${encodeURI(token)}`)
     );
-
+    
 export const fileSizeToString = (bytes: number): string => {
     if (bytes < 0) return "Invalid size";
     if (bytes < 1000) {
