@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
 import * as Pagination from "Pagination";
-import { Card as SCard, Icon as SIcon, Rating as SRating, List as SList } from "semantic-ui-react";
+import { Card as SCard, Rating as SRating, List as SList } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
     fetchApplications,
@@ -12,7 +12,7 @@ import {
 } from "./Redux/ApplicationsActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
-import { Application, ApplicationDescription } from ".";
+import { Application } from ".";
 import { ApplicationsProps, ApplicationsOperations } from ".";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
 import { MaterialColors } from "Assets/materialcolors.json";
@@ -21,9 +21,11 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { CardGroup, Card, PlayIcon } from "ui-components/Card";
-import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Heading, Divider } from "ui-components";
+import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Divider, Flex } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
+import { MainContainer } from "MainContainer/MainContainer";
+import * as Heading from "ui-components/Heading"
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
@@ -47,80 +49,92 @@ class Applications extends React.Component<ApplicationsProps> {
         const { page, loading, fetchApplications, favorites, onErrorDismiss, receiveApplications, error } = this.props;
         const favoriteApp = (name: string, version: string) => receiveApplications(favoriteApplicationFromPage(name, version, page, Cloud));
         return (
-
-            <Pagination.List
-                loading={loading}
-                onErrorDismiss={onErrorDismiss}
-                errorMessage={error}
-                onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
-                pageRenderer={({ items }: Page<Application>) =>
-                    <React.Fragment>
-                        {favorites.items.length ?
+            <MainContainer
+                main={
+                    <Pagination.List
+                        loading={loading}
+                        onErrorDismiss={onErrorDismiss}
+                        errorMessage={error}
+                        onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
+                        pageRenderer={({ items }: Page<Application>) =>
                             <React.Fragment>
-                                <Heading>Favorites</Heading>
+                                {favorites.items.length ?
+                                    <React.Fragment>
+                                        <Heading.h2>Favorites</Heading.h2>
+                                        <CardGroup>
+                                            {favorites.items.map(app =>
+                                                <ApplicationCard
+                                                    key={`${app.description.info.name}${app.description.info.version}`}
+                                                    favoriteApp={favoriteApp}
+                                                    app={app}
+                                                    isFavorite={app.favorite}
+                                                />)}
+                                        </CardGroup>
+                                        <Divider />
+                                    </React.Fragment> : null}
+                                <Heading.h2>Applications</Heading.h2>
                                 <CardGroup>
-                                    {favorites.items.map(app =>
+                                    {items.map((app, index) =>
                                         <ApplicationCard
-                                            key={`${app.description.info.name}${app.description.info.version}`}
+                                            key={index}
                                             favoriteApp={favoriteApp}
-                                            appDescription={app.description}
+                                            app={app}
                                             isFavorite={app.favorite}
-                                        />)}
+                                        />
+                                    )}
                                 </CardGroup>
-                                <Divider />
-                            </React.Fragment> : null}
-                        <CardGroup>
-                            {items.map((app, index) =>
-                                <ApplicationCard
-                                    key={index}
-                                    favoriteApp={favoriteApp}
-                                    appDescription={app.description}
-                                    isFavorite={app.favorite}
-                                />
-                            )}
-                        </CardGroup>
-                    </React.Fragment>
-                }
-                page={page}
-                onItemsPerPageChanged={size => fetchApplications(0, size)}
-                onPageChanged={pageNumber => fetchApplications(pageNumber, page.itemsPerPage)}
+                            </React.Fragment>
+                        }
+                        page={page}
+                        onItemsPerPageChanged={size => fetchApplications(0, size)}
+                        onPageChanged={pageNumber => fetchApplications(pageNumber, page.itemsPerPage)}
+                    />}
+
+                sidebar={
+                    <Flex flexDirection="column" pl="0.5em" pr="0.5em">
+                        <Heading.h3>Advanced File Search</Heading.h3>
+                    </Flex>}
+
+                additional={null}
+
+                header={null}
             />
         );
     }
 }
 
-export const ApplicationCard = ({ appDescription, favoriteApp, isFavorite }: { favoriteApp: (name: string, version) => void, appDescription: ApplicationDescription, isFavorite?: boolean }) => (
+export const ApplicationCard = ({ app, favoriteApp, isFavorite }: { favoriteApp?: (name: string, version) => void, app: Application, isFavorite?: boolean }) => (
     <Card height={212} width={252}>
         <Relative>
             <BackgroundImage
                 height="138px"
-                color={hexFromAppName(appDescription.info.name)}
+                color={hexFromAppName(app.description.title)}
                 image={blurOverlay}>
                 <Box p={4}>
                     <Absolute top="6px" left="10px">
                         <Text fontSize={2} align="left" color="grey">
-                            {appDescription.info.name}
+                            {app.description.title}
                         </Text>
                     </Absolute>
                     <Absolute top={"26px"} left={"14px"}>
                         <Text fontSize={"xxs-small"} align="left" color="grey">
-                            v {appDescription.info.version}
+                            v {app.description.info.version}
                         </Text>
                     </Absolute>
                     <Absolute top="10px" left="215px">
                         <Icon
-                            onClick={() => favoriteApp(appDescription.info.name, appDescription.info.version)}
+                            onClick={() => !!favoriteApp ? favoriteApp(app.description.info.name, app.description.info.version) : undefined}
                             cursor="pointer"
                             name={isFavorite ? "starFilled" : "starEmpty"}
                         />
                     </Absolute>
                     <Absolute top="112px" left="10px">
-                        <EllipsedText width={180} title={`by ${appDescription.authors.join(", ")}`} color="grey">
-                            by {appDescription.authors.join(", ")}
+                        <EllipsedText width={180} title={`by ${app.description.authors.join(", ")}`} color="grey">
+                            by {app.description.authors.join(", ")}
                         </EllipsedText>
                     </Absolute>
                     <Absolute top="86px" left="200px">
-                        <Link to={`/applications/${appDescription.info.name}/${appDescription.info.version}/`}>
+                        <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
                             <PlayIcon />
                         </Link>
                     </Absolute>
@@ -130,7 +144,7 @@ export const ApplicationCard = ({ appDescription, favoriteApp, isFavorite }: { f
         <Relative>
             <Absolute left="14px" top="6px">
                 <Text>
-                    {appDescription.description.slice(0, 100)}
+                    {app.description.description.slice(0, 100)}
                 </Text>
             </Absolute>
         </Relative>
@@ -139,7 +153,7 @@ export const ApplicationCard = ({ appDescription, favoriteApp, isFavorite }: { f
 
 
 
-interface SingleApplicationProps { app: Application, favoriteApp?: (app: Application) => void }
+/* interface SingleApplicationProps { app: Application, favoriteApp?: (app: Application) => void }
 export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
     const hex = hexFromAppName(app.description.info.name);
     const even = app.modifiedAt % 2 === 0;
@@ -163,7 +177,7 @@ export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) 
                     </SList.Item> : null}
                     <SList.Item>
                         <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
-                            <SIcon color="green" name="play" />
+                            <Icon color="green" name="play" />
                         </Link>
                     </SList.Item>
                 </SList>
@@ -179,7 +193,7 @@ export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) 
             </SCard.Content>
         </SCard>
     );
-}
+} */
 
 function hexFromAppName(name: string): string {
     const hashCode = toHashCode(name);

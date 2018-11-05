@@ -198,7 +198,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, Detail
                     <Heading.h3>Advanced File Search</Heading.h3>
                     <Error error={this.state.error} clearError={() => this.setState(() => ({ error: undefined }))} />
                     <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
-                    {fileName ? <Box mb="1em"><Stamp bg="white">{`Filename contains: ${fileName}`}</Stamp></Box> : null}
                     <Input
                         pb="6px"
                         pt="8px"

@@ -1,14 +1,14 @@
 import * as React from "react";
-import { Tab, List, Icon, Card, Message, Responsive, Form, Menu, Segment, Container } from "semantic-ui-react";
+import { List as SList, Icon as SIcon, Card as SCard, Message as SMessage, Responsive as SResponsive, Form as SForm, Menu as SMenu, Segment as SSegment } from "semantic-ui-react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as UF from "UtilityFunctions";
-import { SingleApplication } from "Applications/Applications";
+import { ApplicationCard } from "Applications/Applications";
 import { ProjectMetadata } from "Metadata/api";
 import { SearchItem } from "Metadata/Search";
-import { AllFileOperations, getParentPath, getFilenameFromPath, replaceHomeFolder } from "Utilities/FileUtilities";
+import { AllFileOperations, getParentPath, replaceHomeFolder } from "Utilities/FileUtilities";
 import { SimpleSearchProps, SimpleSearchOperations } from ".";
 import { HeaderSearchType, ReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
@@ -17,6 +17,8 @@ import { Page } from "Types";
 import { Dispatch } from "redux";
 import { File } from "Files";
 import * as SSActions from "./Redux/SimpleSearchActions";
+import { Error } from "ui-components";
+import { CardGroup } from "ui-components/Card";
 
 
 class SimpleSearch extends React.Component<SimpleSearchProps> {
@@ -26,10 +28,10 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
 
     componentDidMount() {
         if (!this.props.match.params[0]) { this.props.setError("No search text provided."); return };
-        this.fetchAll(this.props.search);
+        this.fetchAll(this.props.match.params[0]);
     }
 
-    shouldComponentUpdate(nextProps, _nextState): boolean {
+    shouldComponentUpdate(nextProps: SimpleSearchProps, _nextState): boolean {
         if (nextProps.match.params[0] !== this.props.match.params[0]) {
             this.props.setSearch(nextProps.match.params[0]);
             this.fetchAll(nextProps.match.params[0]);
@@ -40,12 +42,13 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
         return true;
     }
 
-    setPath = (text) => {
+    setPath = (text: string) => {
         this.props.setPrioritizedSearch(text as HeaderSearchType);
         this.props.history.push(`/simplesearch/${text.toLocaleLowerCase()}/${this.props.search}`);
     }
 
     fetchAll(search: string) {
+        console.log(`Fetching all ${search}`);
         this.props.searchFiles(search, this.props.files.pageNumber, this.props.files.itemsPerPage);
         this.props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage);
         this.props.searchProjects(search, this.props.projects.pageNumber, this.props.projects.itemsPerPage);
@@ -58,13 +61,11 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
 
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
-        const errorMessage = !!errors.length ? (<Message color="red" header="Invalid parameters" list={errors} onDismiss={() => this.props.setError(undefined)} />) : null;
-        // Currently missing ACLS to allow for fileOperations
-        const fileOperations = AllFileOperations(true, false, () => this.props.searchFiles(search, files.pageNumber, files.itemsPerPage), this.props.history);
+        const errorMessage = !!errors.length ? (<Error error={errors.join("\n")} clearError={() => this.props.setError(undefined)} />) : null;
         const panes = [
             {
                 menuItem: "Files", render: () => (
-                    <Segment basic loading={filesLoading}>
+                    <SSegment basic loading={filesLoading}>
                         <Pagination.List
                             loading={filesLoading}
                             pageRenderer={page => (<SimpleFileList files={page.items} />)}
@@ -72,11 +73,11 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                             onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchFiles(search, 0, itemsPerPage)}
                             onPageChanged={pageNumber => this.props.searchFiles(search, pageNumber, files.itemsPerPage)}
                         />
-                    </Segment>)
+                    </SSegment>)
             },
             {
                 menuItem: "Projects", render: () => (
-                    <Segment basic loading={projectsLoading}>
+                    <SSegment basic loading={projectsLoading}>
                         <Pagination.List
                             loading={projectsLoading}
                             pageRenderer={(page) => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
@@ -84,24 +85,30 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                             onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchProjects(search, 0, itemsPerPage)}
                             onPageChanged={(pageNumber: number) => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
                         />
-                    </Segment>
+                    </SSegment>
                 )
             },
             {
                 menuItem: "Applications", render: () => (
-                    <Segment basic loading={applicationsLoading}>
+                    <SSegment basic loading={applicationsLoading}>
                         <Pagination.List
                             loading={applicationsLoading}
                             pageRenderer={({ items }) =>
-                                <Card.Group className="card-margin">
-                                    {items.map((app, i) => <SingleApplication key={i} app={app} />)}
-                                </Card.Group>
+                                <CardGroup>
+                                    {items.map(app =>
+                                        <ApplicationCard
+                                            key={`${app.description.info.name}${app.description.info.version}`}
+                                            /* favoriteApp={favoriteApp} */
+                                            app={app}
+                                            isFavorite={app.favorite}
+                                        />)}
+                                </CardGroup>
                             }
                             page={applications}
                             onItemsPerPageChanged={(itemsPerPage) => this.props.searchApplications(search, 0, itemsPerPage)}
                             onPageChanged={(pageNumber) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
                         />
-                    </Segment>
+                    </SSegment>
                 )
             }
         ];
@@ -109,15 +116,15 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
         return (
             <React.StrictMode>
                 {errorMessage}
-                <Responsive maxWidth={999} as={Form} className="form-input-margin" onSubmit={() => this.search()}>
-                    <Form.Input style={{ marginBottom: "15px" }} onChange={(_, { value }) => this.props.setSearch(value)} fluid />
-                </Responsive>
+                <SResponsive maxWidth={999} as={SForm} className="form-input-margin" onSubmit={() => this.search()}>
+                    <SForm.Input style={{ marginBottom: "15px" }} onChange={(_, { value }) => this.props.setSearch(value)} fluid />
+                </SResponsive>
 
-                <Menu pointing>
-                    <Menu.Item name={panes[0].menuItem} active={0 === activeIndex} onClick={() => this.setPath("files")} />
-                    <Menu.Item name={panes[1].menuItem} active={1 === activeIndex} onClick={() => this.setPath("projects")} />
-                    <Menu.Item name={panes[2].menuItem} active={2 === activeIndex} onClick={() => this.setPath("applications")} />
-                </Menu>
+                <SMenu pointing>
+                    <SMenu.Item name={panes[0].menuItem} active={0 === activeIndex} onClick={() => this.setPath("files")} />
+                    <SMenu.Item name={panes[1].menuItem} active={1 === activeIndex} onClick={() => this.setPath("projects")} />
+                    <SMenu.Item name={panes[2].menuItem} active={2 === activeIndex} onClick={() => this.setPath("applications")} />
+                </SMenu>
 
                 {panes[activeIndex].render()}
             </React.StrictMode>
@@ -126,20 +133,20 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
 };
 
 export const SimpleFileList = ({ files }) => (
-    <List size="large" relaxed>
+    <SList size="large" relaxed>
         {files.map((f, i) => (
-            <List.Item key={i}>
-                <List.Content>
-                    <Icon name={UF.iconFromFilePath(f.path, f.fileType, Cloud.homeFolder)} size={undefined} color={"blue"} />
+            <SList.Item key={i}>
+                <SList.Content>
+                    <SIcon name={UF.iconFromFilePath(f.path, f.fileType, Cloud.homeFolder)} size={undefined} color={"blue"} />
                     <Link to={`/files/${f.fileType === "FILE" ? getParentPath(f.path) : f.path}`}>
                         {replaceHomeFolder(f.path, Cloud.homeFolder)}
                     </Link>
-                </List.Content>
+                </SList.Content>
                 {/* <FileOperations fileOperations={fileOperations} files={[f]} /> */}
-                <List.Content />
-            </List.Item>
+                <SList.Content />
+            </SList.Item>
         ))}
-    </List>
+    </SList>
 );
 
 const SearchPriorityToNumber = (search: string): number => {
