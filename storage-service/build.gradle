@@ -6,10 +6,6 @@ mainClassName = "dk.sdu.cloud.storage.MainKt"
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.1/sdu-cloud.gradle"
 
-repositories {
-    maven { url "https://dl.bintray.com/tus/maven" }
-}
-
 dependencies {
     compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
 
@@ -23,21 +19,6 @@ dependencies {
 sduCloud.createTasksForApiJar(
         "file",
         []
-)
-
-sduCloud.createTasksForApiJar(
-        "upload",
-        [
-                "dk.sdu.cloud:file-api:${project.version}",
-                "com.squareup.okhttp3:okhttp:3.11.0"
-        ]
-)
-
-sduCloud.createTasksForApiJar(
-        "tus",
-        [
-                "io.tus.java.client:tus-java-client:0.3.1",
-        ]
 )
 
 sduCloud.createTasksForApiJar(
