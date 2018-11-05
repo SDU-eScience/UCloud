@@ -67,36 +67,6 @@ export const EveryIcon = () => (
   </>
 );
 
-export type IconName =
-  "activity" |
-  "admin" |
-  "apps" |
-  "boxChecked" |
-  "boxEmpty" |
-  "chevronDown" |
-  "copy" |
-  "close" |
-  "dashboard" |
-  "delete" |
-  "download" |
-  "files" |
-  "move" |
-  "notification" |
-  "open" |
-  "play" |
-  "publish" |
-  "radioChecked" |
-  "radioEmpty" |
-  "rename" |
-  "search" |
-  "shares" |
-  "starFilled" |
-  "starRibbon" |
-  "starEmpty" |
-  "trash" |
-  "upload" |
-  "uploadFolder" |
-  "properties" |
-  "projects";
+export type IconName = keyof typeof icons;
 
 export default Icon

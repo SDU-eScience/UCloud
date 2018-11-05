@@ -35,6 +35,8 @@ export { default as Error } from "./Error";
 
 export { default as Sidebar } from './Sidebar'
 
+export { default as LoadingButton } from "./LoadingButton";
+
 export { default as theme } from './theme'
 export { default as ThemeProvider } from './ThemeProvider'
 

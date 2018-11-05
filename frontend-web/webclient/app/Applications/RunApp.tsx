@@ -325,25 +325,30 @@ const Parameters = (props) => {
 const JobMetaParams = (props) => {
     return (
         <>
-            <Label color="black" fontSize={2}>
-                Jobname
+            <Box mb="1em">
+                <Label color="black" fontSize={1}>
+                    Jobname
                 <Input
-                    type="text"
-                    placeholder="Jobname will be assigned if field left empty"
-                    disabled
-                    onChange={({ target: { value } }) => console.log(value)} // onJobSchedulingParamsChange
+                        type="text"
+                        placeholder="Jobname will be assigned if field left empty"
+                        disabled
+                        onChange={({ target: { value } }) => console.log(value)} // onJobSchedulingParamsChange
 
-                />
-            </Label>
-            <Label color="black" fontSize={2}>
-                Tags (Separated by space)
-            <Input
-                    type="text"
-                    placeholder="Assign tags to jobs"
-                    disabled
-                    onChange={({ target: { value } }) => console.log(value)} // onJobSchedulingParamsChange
-                />
-            </Label>
+                    />
+                </Label>
+            </Box>
+            <Box mb="1em">
+                <Label color="black" fontSize={1}>
+                    Tags (Separated by space)
+                <Input
+                        type="text"
+                        placeholder="Assign tags to jobs"
+                        disabled
+                        onChange={({ target: { value } }) => console.log(value)} // onJobSchedulingParamsChange
+                    />
+                </Label>
+            </Box>
+
             {/* <Label color="black" fontSize={2}>
                 Comment
                 <textarea
@@ -366,7 +371,7 @@ const JobSchedulingParams = (props) => {
         <>
             <Flex mb="1em">
                 <Label>Number of nodes
-                <Input
+                    <Input
                         type="number" step="1" min="1"
                         value={numberOfNodes === null || isNaN(numberOfNodes) ? "" : numberOfNodes}
                         placeholder={`Default value: ${props.tool.defaultNumberOfNodes}`}
@@ -603,7 +608,7 @@ const FloatingParameter = (props) => {
 
 const GenericParameter = ({ parameter, children }) => (
     <>
-        <Label fontSize={2} htmlFor={parameter.name}>
+        <Label fontSize={1} htmlFor={parameter.name}>
             <Flex>{parameter.title}{parameter.optional ? "" : <Text bold color="red"> *</Text>}</Flex>
         </Label>
         {children}
