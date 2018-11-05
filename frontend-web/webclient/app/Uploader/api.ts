@@ -10,7 +10,7 @@ export const multipartUpload = async (location: string, file: File, sensitivity?
     if (sensitivity) formData.append("sensitivity", sensitivity);
     formData.append("upload", file);
     let request = new XMLHttpRequest();
-    request.open("POST", "/api/upload");
+    request.open("POST", "/api/files/upload");
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
@@ -37,7 +37,7 @@ export const bulkUpload = async (location: string, file: File, policy: BulkUploa
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     const format = "tgz";
     let formData = new FormData();
-    formData.append("path", location);
+    formData.append("location", location);
     formData.append("format", format);
     formData.append("policy", policy);
     /* formData.append("sensitivity", "sensitive"); */
@@ -46,7 +46,7 @@ export const bulkUpload = async (location: string, file: File, policy: BulkUploa
 
 
 
-    request.open("POST", "/api/upload/bulk");
+    request.open("POST", "/api/files/upload/bulk");
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
