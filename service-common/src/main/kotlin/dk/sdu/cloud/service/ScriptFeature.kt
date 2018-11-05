@@ -79,7 +79,7 @@ fun Micro.optionallyAddScriptHandler(scriptName: String, handler: ScriptHandler)
 }
 
 fun Micro.runScriptHandler(): Boolean {
-    val feature = featureOrNull(ScriptFeature) ?:
-        throw IllegalStateException("Missing ScriptFeature. You should install() it")
+    val feature =
+        featureOrNull(ScriptFeature) ?: throw IllegalStateException("Missing ScriptFeature. You should install() it")
     return feature.runScripts()
 }

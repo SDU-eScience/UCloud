@@ -7,12 +7,26 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.storage.http.MultiPartUploadController
 import dk.sdu.cloud.storage.http.files.setUser
-import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.BulkUploadService
+import dk.sdu.cloud.storage.services.CommandRunner
+import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
-import dk.sdu.cloud.storage.util.*
+import dk.sdu.cloud.storage.util.FSException
+import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
+import dk.sdu.cloud.storage.util.createDummyFSInRoot
+import dk.sdu.cloud.storage.util.createFS
+import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.application.Application
-import io.ktor.http.*
+import io.ktor.http.ContentDisposition
+import io.ktor.http.ContentType
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.append
 import io.ktor.http.content.PartData
 import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
@@ -72,7 +86,7 @@ class MultipartUploadTest {
 
                     val fs = mockk<CephFileSystem>()
                     every { fs.openForWriting(any(), any(), any()) } throws FSException.PermissionException()
-                    every { fs.write<Any>(any(), any()) } throws FSException.PermissionException()
+                    every { fs.write(any(), any()) } throws FSException.PermissionException()
 
                     createService(runner, fs)
                 },

@@ -10,7 +10,7 @@ import org.asynchttpclient.AsyncCompletionHandler
 import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.DefaultAsyncHttpClient
 import org.asynchttpclient.Response
-import java.util.*
+import java.util.Base64
 import kotlin.coroutines.experimental.suspendCoroutine
 
 object HttpClient {
@@ -94,8 +94,7 @@ suspend fun BoundRequestBuilder.async(): Response = suspendCoroutine { continuat
 }
 
 inline fun <reified T : Any> Response.asJson(mapper: ObjectMapper = HttpClient.defaultMapper): T =
-        mapper.readValue(responseBody)
+    mapper.readValue(responseBody)
 
 fun Response.asDynamicJson(mapper: ObjectMapper = HttpClient.defaultMapper): JsonNode =
-        mapper.readTree(responseBody)
-
+    mapper.readTree(responseBody)

@@ -5,13 +5,19 @@ import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.ApplicationDescription
-import dk.sdu.cloud.app.api.HPCApplicationDescriptions
+import dk.sdu.cloud.app.api.ApplicationDescriptions
 import dk.sdu.cloud.app.services.ApplicationDAO
 import dk.sdu.cloud.app.util.yamlMapper
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.ok
+import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import io.ktor.request.ContentTransformationException
 import io.ktor.request.receiveText
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
@@ -21,10 +27,72 @@ class AppController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val source: ApplicationDAO<DBSession>
 ) : Controller {
-    override val baseContext = HPCApplicationDescriptions.baseContext
+    override val baseContext = ApplicationDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
-        implement(HPCApplicationDescriptions.findByNameAndVersion) { req ->
+
+        implement(ApplicationDescriptions.toggleFavorite) { req ->
+            logEntry(log, req)
+
+            db.withTransaction {
+                source.toggleFavorite(
+                    it,
+                    call.securityPrincipal.username,
+                    req.name,
+                    req.version
+                )
+            }
+
+            ok(HttpStatusCode.OK)
+
+        }
+
+        implement(ApplicationDescriptions.retrieveFavorites) { req ->
+            logEntry(log, req)
+
+            val favorites = db.withTransaction {
+                source.retrieveFavorites(
+                    it,
+                    call.securityPrincipal.username,
+                    req.normalize()
+                )
+            }
+
+            ok(favorites)
+        }
+
+        implement(ApplicationDescriptions.searchTags) { req ->
+            logEntry(log, req)
+
+            val app = db.withTransaction {
+                source.searchTags(
+                    it,
+                    call.securityPrincipal.username,
+                    req.query,
+                    req.normalize()
+                )
+            }
+
+            ok(app)
+        }
+
+
+        implement(ApplicationDescriptions.searchApps) { req ->
+            logEntry(log, req)
+
+            val app = db.withTransaction {
+                source.search(
+                    it,
+                    call.securityPrincipal.username,
+                    req.query,
+                    req.normalize()
+                )
+            }
+
+            ok(app)
+        }
+
+        implement(ApplicationDescriptions.findByNameAndVersion) { req ->
             logEntry(log, req)
 
             val app = db.withTransaction {
@@ -39,7 +107,7 @@ class AppController<DBSession>(
             ok(app)
         }
 
-        implement(HPCApplicationDescriptions.findByName) { req ->
+        implement(ApplicationDescriptions.findByName) { req ->
             logEntry(log, req)
 
             val result = db.withTransaction {
@@ -49,7 +117,7 @@ class AppController<DBSession>(
             ok(result)
         }
 
-        implement(HPCApplicationDescriptions.listAll) { req ->
+        implement(ApplicationDescriptions.listAll) { req ->
             logEntry(log, req)
 
             ok(
@@ -59,12 +127,12 @@ class AppController<DBSession>(
             )
         }
 
-        implement(HPCApplicationDescriptions.create) { req ->
+        implement(ApplicationDescriptions.create) { req ->
             logEntry(log, req)
 
             val content = try {
                 call.receiveText()
-            } catch (ex: Exception) {
+            } catch (ex: ContentTransformationException) {
                 error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
                 return@implement
             }

@@ -2,16 +2,24 @@ package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.logEntry
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.securityPrincipal
-import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.BulkUploadService
+import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.services.withContext
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.tryWithFS
-import dk.sdu.cloud.upload.api.*
+import dk.sdu.cloud.upload.api.BulkUploadAudit
+import dk.sdu.cloud.upload.api.BulkUploadErrorMessage
+import dk.sdu.cloud.upload.api.MultiPartUploadAudit
+import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.upload.api.UploadRequestAudit
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
@@ -26,10 +34,10 @@ class MultiPartUploadController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val bulkUploadService: BulkUploadService<Ctx>
-): Controller {
+) : Controller {
     override val baseContext = MultiPartUploadDescriptions.baseContext
 
-    override fun configure(routing: Route):Unit = with(routing) {
+    override fun configure(routing: Route): Unit = with(routing) {
         implement(MultiPartUploadDescriptions.upload) { it ->
             logEntry(log, it)
             audit(MultiPartUploadAudit(null))

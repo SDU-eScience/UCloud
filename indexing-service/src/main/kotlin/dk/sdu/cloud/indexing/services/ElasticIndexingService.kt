@@ -1,9 +1,13 @@
 package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.indexing.util.*
-import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.indexing.util.depth
+import dk.sdu.cloud.indexing.util.fileName
+import dk.sdu.cloud.indexing.util.scrollThroughSearch
+import dk.sdu.cloud.indexing.util.source
+import dk.sdu.cloud.indexing.util.term
+import dk.sdu.cloud.service.Loggable
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.DocWriteRequest
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
@@ -16,6 +20,13 @@ import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentType
 import org.slf4j.Logger
 
+private const val CHUNK_SIZE = 1000
+private const val NOT_FOUND_STATUSCODE = 404
+private const val TIMEOUT_IN_MINUTES = 5L
+
+/**
+ * An implementation of [IndexingService] using an Elasticsearch backend.
+ */
 class ElasticIndexingService(
     private val elasticClient: RestHighLevelClient
 ) : IndexingService {
@@ -41,7 +52,7 @@ class ElasticIndexingService(
         try {
             elasticClient.indices().delete(Requests.deleteIndexRequest(FILES_INDEX))
         } catch (ex: ElasticsearchStatusException) {
-            if (ex.status().status != 404) throw ex
+            if (ex.status().status != NOT_FOUND_STATUSCODE) throw ex
         }
 
         createIndexFromJsonResource(FILES_INDEX)
@@ -79,10 +90,10 @@ class ElasticIndexingService(
         }
 
         val failures = ArrayList<String>()
-        requests.chunked(1000).forEach { chunk ->
+        requests.chunked(CHUNK_SIZE).forEach { chunk ->
             val request = BulkRequest()
             request.add(chunk)
-            request.timeout(TimeValue.timeValueMinutes(5))
+            request.timeout(TimeValue.timeValueMinutes(TIMEOUT_IN_MINUTES))
 
             if (request.requests().isNotEmpty()) {
                 val resp = elasticClient.bulk(request)

@@ -3,13 +3,22 @@ package dk.sdu.cloud.activity
 import dk.sdu.cloud.activity.http.ActivityController
 import dk.sdu.cloud.activity.http.StreamController
 import dk.sdu.cloud.activity.processor.StorageAuditProcessor
+import dk.sdu.cloud.activity.processor.StorageEventProcessor
 import dk.sdu.cloud.activity.services.ActivityService
 import dk.sdu.cloud.activity.services.FileLookupService
 import dk.sdu.cloud.activity.services.HibernateActivityEventDao
 import dk.sdu.cloud.activity.services.HibernateActivityStreamDao
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.EventConsumer
+import dk.sdu.cloud.service.HttpServerProvider
+import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.installShutdownHandler
+import dk.sdu.cloud.service.startServices
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -28,6 +37,11 @@ class Server(
 
     private val allProcessors = ArrayList<EventConsumer<*>>()
 
+    private fun addProcessors(processors: List<EventConsumer<*>>) {
+        processors.forEach { it.installShutdownHandler(this) }
+        allProcessors.addAll(processors)
+    }
+
     override fun start() {
         log.info("Creating core services")
         val activityEventDao = HibernateActivityEventDao()
@@ -37,7 +51,8 @@ class Server(
         log.info("Core services constructed")
 
         log.info("Creating stream processors")
-        allProcessors.addAll(StorageAuditProcessor(kafka, db, activityService).init())
+        addProcessors(StorageAuditProcessor(kafka, db, activityService).init())
+        addProcessors(StorageEventProcessor(kafka, db, activityService).init())
         log.info("Stream processors constructed")
 
         httpServer = ktor {

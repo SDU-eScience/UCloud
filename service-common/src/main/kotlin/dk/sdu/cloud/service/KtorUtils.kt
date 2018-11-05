@@ -5,10 +5,15 @@ import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.client.AuthenticatedCloud
-import io.ktor.application.*
+import io.ktor.application.Application
+import io.ktor.application.ApplicationCall
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.call
+import io.ktor.application.install
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
+import io.ktor.features.XForwardedHeaderSupport
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.pipeline.PipelineContext
@@ -48,6 +53,7 @@ fun Application.installDefaultFeatures(
 
     install(CallLogging)
     install(DefaultHeaders)
+    install(XForwardedHeaderSupport)
     install(KafkaHttpLogger) {
         kafka = kafkaServices
         serverDescription = serviceInstance

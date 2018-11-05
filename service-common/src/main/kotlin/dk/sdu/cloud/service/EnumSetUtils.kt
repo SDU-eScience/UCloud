@@ -1,7 +1,5 @@
 package dk.sdu.cloud.service
 
-import java.util.HashSet
-
 fun <E : Enum<E>> Set<E>.asInt(): Int {
     var value = 0
     for (item in this) {

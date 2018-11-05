@@ -29,11 +29,13 @@ fun createServiceJWTWithTestAlgorithm(
     service: String = "_service"
 ): DecodedJWT {
     val principal = ServicePrincipal(service, Role.SERVICE)
-    return testJwtVerifier.verify(testJwtFactory.create(
-        user = principal,
-        expiresIn = 1000 * 60 * 60,
-        audience = listOf(SecurityScope.ALL_WRITE)
-    ).accessToken)
+    return testJwtVerifier.verify(
+        testJwtFactory.create(
+            user = principal,
+            expiresIn = 1000 * 60 * 60,
+            audience = listOf(SecurityScope.ALL_WRITE)
+        ).accessToken
+    )
 }
 
 fun createJWTWithTestAlgorithm(
@@ -42,11 +44,13 @@ fun createJWTWithTestAlgorithm(
     audience: List<SecurityScope> = listOf(SecurityScope.ALL_WRITE)
 ): DecodedJWT {
     val principal = PersonUtils.createUserByPassword(user, user, user, role, "apassw0rd!")
-    return testJwtVerifier.verify(testJwtFactory.create(
-        user = principal,
-        expiresIn = 1000 * 60 * 60,
-        audience = audience
-    ).accessToken)
+    return testJwtVerifier.verify(
+        testJwtFactory.create(
+            user = principal,
+            expiresIn = 1000 * 60 * 60,
+            audience = audience
+        ).accessToken
+    )
 }
 
 fun <T> withAuthMock(block: () -> T): T {

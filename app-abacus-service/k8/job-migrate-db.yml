@@ -1,0 +1,47 @@
+---
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: app-abacus-migration
+
+spec:
+  template:
+    metadata:
+      name: app-abacus-migration
+
+    spec:
+      containers:
+      - args:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/service
+        - --config-dir
+        - /etc/refresh-token
+        - --run-script
+        - migrate-db
+        image: registry.cloud.sdu.dk/sdu-cloud/app-abacus-service:0.1.3
+        name: app-abacus-migration
+
+        volumeMounts:
+        - mountPath: /etc/service
+          name: vol1
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+
+      imagePullSecrets:
+        - name: esci-docker
+
+      restartPolicy: Never
+
+      volumes:
+      - name: vol1
+        secret:
+          optional: false
+          secretName: app-abacus-psql
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: app-abacus-refresh-token
+
+

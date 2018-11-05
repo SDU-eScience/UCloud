@@ -8,11 +8,25 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.*
-import io.ktor.application.*
+import dk.sdu.cloud.client.RESTBody
+import dk.sdu.cloud.client.RESTCallDescription
+import dk.sdu.cloud.client.RESTPathSegment
+import dk.sdu.cloud.client.RESTQueryParameter
+import dk.sdu.cloud.client.RequestBodyParamMarshall
+import dk.sdu.cloud.client.RequestPathSegmentMarshall
+import dk.sdu.cloud.client.RequestQueryParamMarshall
+import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.client.toKtorTemplate
+import io.ktor.application.Application
+import io.ktor.application.ApplicationCall
+import io.ktor.application.application
+import io.ktor.application.call
+import io.ktor.application.featureOrNull
+import io.ktor.application.install
 import io.ktor.features.conversionService
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.isSuccess
 import io.ktor.pipeline.PipelineContext
 import io.ktor.request.receiveOrNull
 import io.ktor.response.respond
@@ -23,17 +37,14 @@ import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.util.DataConversionException
 import org.slf4j.LoggerFactory
-import java.io.PrintWriter
-import java.io.StringWriter
+import java.lang.reflect.ParameterizedType
+import java.lang.reflect.Type
 import kotlin.reflect.KClass
+import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.full.primaryConstructor
 import kotlin.reflect.jvm.javaType
 
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.service.ServerSupport")
-
-internal fun Exception.stackTraceToString(): String = StringWriter().apply {
-    printStackTrace(PrintWriter(this))
-}.toString()
 
 object RESTServerSupport {
     var defaultMapper: ObjectMapper = jacksonObjectMapper().apply {
@@ -76,6 +87,24 @@ private fun warnMissingFinalize(restCall: RESTCallDescription<*, *, *, *>) {
     log.warn("If the request was handled externally, you must call okContentDeliveredExternally()")
 }
 
+private fun resolveCompanionInstanceFromType(type: Type): Any? {
+    return when (type) {
+        is Class<*> -> {
+            if (type.isKotlinClass()) {
+                type.kotlin.companionObjectInstance
+            } else {
+                null
+            }
+        }
+
+        is ParameterizedType -> {
+            resolveCompanionInstanceFromType(type.rawType)
+        }
+
+        else -> null
+    }
+}
+
 fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
     restCall: RESTCallDescription<P, S, E, A>,
     logResponse: Boolean = false,
@@ -102,38 +131,39 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
 
             handle { _ ->
                 try {
+                    @Suppress("UNCHECKED_CAST")
+                    val companion =
+                        resolveCompanionInstanceFromType(restCall.requestType.type) as? RequestBodyParamMarshall<Any>
+
                     val payload: P = if (restCall.requestType.type == Unit::class.java) {
                         @Suppress("UNCHECKED_CAST")
                         Unit as P
                     } else {
-                        // Parse body as JSON (if any)
-                        val valueFromBody =
+                        val bodyParseResponse = if (companion != null) {
                             try {
-                                parseRequestBody(call.receiveOrNull(), restCall.body).let {
-                                    when (it) {
-                                        is ParsedRequestBody.Parsed -> it.result
-
-                                        ParsedRequestBody.MissingAndNotRequired -> null
-
-                                        ParsedRequestBody.MissingAndRequired -> {
-                                            log.debug("Could not parse payload from body, which was required")
-                                            return@handle call.respond(HttpStatusCode.BadRequest)
-                                        }
-                                    }
-                                }
+                                companion.deserializeBody(restCall, this)
                             } catch (ex: Exception) {
-                                when (ex) {
-                                    is JsonParseException -> {
-                                        log.debug("Bad JSON")
-                                        log.debug(ex.stackTraceToString())
-                                        return@handle call.respond(HttpStatusCode.BadRequest)
-                                    }
+                                InputParsingResponse.InternalError(ex)
+                            }
+                        } else {
+                            parseRequestBody(call.receiveOrNull(), restCall.body)
+                        }
 
-                                    else -> {
-                                        log.warn("Caught exception while trying to deserialize body!")
-                                        log.warn(ex.stackTraceToString())
-                                        return@handle call.respond(HttpStatusCode.InternalServerError)
-                                    }
+                        val valueFromBody =
+                            when (bodyParseResponse) {
+                                is InputParsingResponse.Parsed -> bodyParseResponse.result
+
+                                InputParsingResponse.MissingAndNotRequired -> null
+
+                                InputParsingResponse.MissingAndRequired -> {
+                                    log.debug("Could not parse payload from body, which was required")
+                                    return@handle call.respond(HttpStatusCode.BadRequest)
+                                }
+
+                                is InputParsingResponse.InternalError -> {
+                                    log.warn("Internal error when deserializing body")
+                                    log.warn(bodyParseResponse.cause?.stackTraceToString() ?: "No cause")
+                                    return@handle call.respond(HttpStatusCode.InternalServerError)
                                 }
                             }
 
@@ -240,7 +270,8 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
 
                         if (CommonErrorMessage::class.java == restCall.responseTypeFailure.type) {
                             val message =
-                                if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why else "Internal Server Error"
+                                if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why
+                                else "Internal Server Error"
 
                             @Suppress("UNCHECKED_CAST")
                             restHandler.error(CommonErrorMessage(message) as E, ex.httpStatusCode)
@@ -261,8 +292,10 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                         warnMissingFinalize(restCall)
                     }
                 } catch (ex: Exception) {
-                    log.warn("Caught exception while handling implement. Exception was not caught in the normal " +
-                            "handler.")
+                    log.warn(
+                        "Caught exception while handling implement. Exception was not caught in the normal " +
+                                "handler."
+                    )
                     log.warn(ex.stackTraceToString())
                     call.respond(HttpStatusCode.InternalServerError)
                 }
@@ -271,40 +304,41 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
     }
 }
 
-private sealed class ParsedRequestBody {
-    data class Parsed(val result: Any) : ParsedRequestBody()
-    object MissingAndRequired : ParsedRequestBody()
-    object MissingAndNotRequired : ParsedRequestBody()
+sealed class InputParsingResponse {
+    data class Parsed(val result: Any) : InputParsingResponse()
+    object MissingAndRequired : InputParsingResponse()
+    object MissingAndNotRequired : InputParsingResponse()
+    class InternalError(val cause: Throwable?) : InputParsingResponse()
 }
 
-private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): ParsedRequestBody {
+private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): InputParsingResponse {
     // We silently ignore a body which is not required
-    if (restBody == null) return ParsedRequestBody.MissingAndNotRequired
+    if (restBody == null) return InputParsingResponse.MissingAndNotRequired
 
     val hasText = !requestBody.isNullOrEmpty()
     if (!hasText) {
         if (restBody is RESTBody.BoundToSubProperty) {
             return if (restBody.property.returnType.isMarkedNullable) {
-                ParsedRequestBody.MissingAndNotRequired
+                InputParsingResponse.MissingAndNotRequired
             } else {
-                ParsedRequestBody.MissingAndRequired
+                InputParsingResponse.MissingAndRequired
             }
         }
-        return ParsedRequestBody.MissingAndRequired
+        return InputParsingResponse.MissingAndRequired
     }
 
     return try {
-        ParsedRequestBody.Parsed(RESTServerSupport.defaultMapper.readValue<Any>(requestBody, restBody.ref))
+        InputParsingResponse.Parsed(RESTServerSupport.defaultMapper.readValue<Any>(requestBody, restBody.ref))
     } catch (ex: Exception) {
         when (ex) {
-            is IllegalArgumentException, is JsonMappingException -> {
+            is IllegalArgumentException, is JsonMappingException, is JsonParseException -> {
                 log.debug("Caught exception while trying to deserialize request body")
                 log.debug(ex.stackTraceToString())
 
-                ParsedRequestBody.MissingAndRequired
+                InputParsingResponse.MissingAndRequired
             }
 
-            else -> throw ex
+            else -> InputParsingResponse.InternalError(ex)
         }
     }
 }
@@ -327,19 +361,19 @@ class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
     }
 
     suspend fun ok(result: S, status: HttpStatusCode = HttpStatusCode.OK) {
-        assert(status.value in 200..299)
+        assert(status.isSuccess())
         finalize(result)
 
         if (result == Unit) call.respond(status)
         else {
             call.respondText(contentType = ContentType.Application.Json, status = status) {
-               defaultMapper.writerFor(restCall.responseTypeSuccess).writeValueAsString(result)
+                defaultMapper.writerFor(restCall.responseTypeSuccess).writeValueAsString(result)
             }
         }
     }
 
     suspend fun error(error: E, status: HttpStatusCode) {
-        assert(status.value !in 200..299)
+        assert(!status.isSuccess())
         finalize(error)
 
         if (error == Unit) call.respond(status)
@@ -391,24 +425,32 @@ fun <R : Any> RESTPathSegment<R>.bindValuesFromCall(call: ApplicationCall): Pair
     return when (this) {
         is RESTPathSegment.Property<R, *> -> {
             val parameter = call.parameters[property.name]
-            if (!property.returnType.isMarkedNullable && parameter == null) {
-                throw IllegalArgumentException("Invalid message. Missing parameter '${property.name}'")
-            }
+            @Suppress("UNCHECKED_CAST")
+            val companion =
+                resolveCompanionInstanceFromType(property.returnType.javaType) as? RequestPathSegmentMarshall<Any>
 
-            val converted = if (parameter != null) {
-                try {
-                    call.application.conversionService.fromValues(listOf(parameter), property.returnType.javaType)
-                } catch (ex: DataConversionException) {
-                    throw IllegalArgumentException(ex)
-                } catch (ex: NoSuchElementException) {
-                    // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
-                    throw IllegalArgumentException(ex)
-                }
+            if (companion != null) {
+                companion.deserializeSegment(this, call)
             } else {
-                null
-            }
+                if (!property.returnType.isMarkedNullable && parameter == null) {
+                    throw IllegalArgumentException("Invalid message. Missing parameter '${property.name}'")
+                }
 
-            Pair(property.name, converted)
+                val converted = if (parameter != null) {
+                    try {
+                        call.application.conversionService.fromValues(listOf(parameter), property.returnType.javaType)
+                    } catch (ex: DataConversionException) {
+                        throw IllegalArgumentException(ex)
+                    } catch (ex: NoSuchElementException) {
+                        // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
+                        throw IllegalArgumentException(ex)
+                    }
+                } else {
+                    null
+                }
+
+                Pair(property.name, converted)
+            }
         }
 
         else -> null
@@ -418,39 +460,50 @@ fun <R : Any> RESTPathSegment<R>.bindValuesFromCall(call: ApplicationCall): Pair
 fun <R : Any> RESTQueryParameter<R>.bindValuesFromCall(call: ApplicationCall): Pair<String, Any?>? {
     return when (this) {
         is RESTQueryParameter.Property<R, *> -> {
-            val parameter = call.request.queryParameters[property.name]
-            if (!property.returnType.isMarkedNullable && parameter == null) {
-                throw IllegalArgumentException("Invalid message. Missing parameter '${property.name}'")
-            }
+            @Suppress("UNCHECKED_CAST")
+            val companion =
+                resolveCompanionInstanceFromType(property.returnType.javaType) as? RequestQueryParamMarshall<Any>
 
-            val converted = if (parameter != null) {
-                try {
-                    when (property.returnType.classifier) {
-                        Boolean::class -> {
-                            if (parameter.isEmpty()) true
-                            else parameter.toBoolean()
-                        }
-
-                        else -> {
-                            call.application.conversionService.fromValues(
-                                listOf(parameter),
-                                property.returnType.javaType
-                            )
-                        }
-                    }
-                } catch (ex: DataConversionException) {
-                    throw IllegalArgumentException(ex)
-                } catch (ex: NoSuchElementException) {
-                    // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
-                    throw IllegalArgumentException(ex)
-                }
+            if (companion != null) {
+                companion.deserializeQueryParam(this, call)
             } else {
-                null
-            }
+                val parameter = call.request.queryParameters[property.name]
+                if (!property.returnType.isMarkedNullable && parameter == null) {
+                    throw IllegalArgumentException("Invalid message. Missing parameter '${property.name}'")
+                }
 
-            Pair(property.name, converted)
+                val converted = if (parameter != null) {
+                    try {
+                        when (property.returnType.classifier) {
+                            Boolean::class -> {
+                                if (parameter.isEmpty()) true
+                                else parameter.toBoolean()
+                            }
+
+                            else -> {
+                                call.application.conversionService.fromValues(
+                                    listOf(parameter),
+                                    property.returnType.javaType
+                                )
+                            }
+                        }
+                    } catch (ex: DataConversionException) {
+                        throw IllegalArgumentException(ex)
+                    } catch (ex: NoSuchElementException) {
+                        // For some reason this exception is (incorrectly?) thrown if conversion fails for enums
+                        throw IllegalArgumentException(ex)
+                    }
+                } else {
+                    null
+                }
+                Pair(property.name, converted)
+            }
         }
     }
 }
 
-open class RPCException(val why: String, val httpStatusCode: HttpStatusCode) : RuntimeException(why)
+open class RPCException(val why: String, val httpStatusCode: HttpStatusCode) : RuntimeException(why) {
+    companion object {
+        fun fromStatusCode(httpStatusCode: HttpStatusCode) = RPCException(httpStatusCode.description, httpStatusCode)
+    }
+}

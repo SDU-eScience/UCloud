@@ -3,18 +3,28 @@ package dk.sdu.cloud.indexing.services
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.indexing.util.*
-import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemRequest
 import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
-import kotlinx.coroutines.experimental.*
+import dk.sdu.cloud.indexing.util.depth
+import dk.sdu.cloud.indexing.util.lazyAssert
+import dk.sdu.cloud.indexing.util.parent
+import dk.sdu.cloud.indexing.util.scrollThroughSearch
+import dk.sdu.cloud.indexing.util.source
+import dk.sdu.cloud.indexing.util.term
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.RPCException
+import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.experimental.awaitAll
+import kotlinx.coroutines.experimental.runBlocking
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.client.RestHighLevelClient
-import java.util.*
+
+private const val CHUNK_SIZE = 100
 
 /**
  * Scans through the file indexes and together with the storage-service fixes inconsistencies
@@ -47,7 +57,7 @@ class FileIndexScanner(
             val queue = arrayListOf(HARDCODED_ROOT)
             while (queue.isNotEmpty()) {
                 // Send up to 100 roots per request
-                val queueInChunks = queue.chunked(100).also { queue.clear() }
+                val queueInChunks = queue.chunked(CHUNK_SIZE).also { queue.clear() }
 
                 val localJobs = queueInChunks.map { roots ->
                     async<Unit> {
@@ -75,9 +85,8 @@ class FileIndexScanner(
                             )
 
                         if (deliveryResponse !is RESTResponse.Ok) {
-                            throw RuntimeException(
-                                "Could not deliver reference FS: " +
-                                        "${deliveryResponse.status} - ${deliveryResponse.rawResponseBody}"
+                            throw FileIndexScanException.CouldNotDeliver(
+                                "${deliveryResponse.status} - ${deliveryResponse.rawResponseBody}"
                             )
                         }
 
@@ -85,8 +94,10 @@ class FileIndexScanner(
                         val rootsToContinueOn = deliveryResponse.result.shouldContinue.filterValues { it }.keys
                         val newRoots = rootsToContinueOn.flatMap { root ->
                             rootToMaterialized[root]!!
+                                .asSequence()
                                 .filter { it.fileType == FileType.DIRECTORY && !it.isLink }
                                 .map { it.path }
+                                .toList()
                         }
 
                         synchronized(queueLock) {
@@ -140,4 +151,15 @@ class FileIndexScanner(
 
         private const val HARDCODED_ROOT = "/home"
     }
+}
+
+/**
+ * Exceptions that might occur during [FileIndexScanner.scan]
+ */
+sealed class FileIndexScanException(why: String, statusCode: HttpStatusCode) : RPCException(why, statusCode) {
+    /**
+     * Thrown if it is not possible to deliver the reference file system (from the file index) to the storage system
+     */
+    class CouldNotDeliver(why: String) :
+        FileIndexScanException("Could not deliver reference system: $why", HttpStatusCode.BadGateway)
 }

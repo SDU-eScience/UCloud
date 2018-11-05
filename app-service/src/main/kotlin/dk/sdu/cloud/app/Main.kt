@@ -1,13 +1,22 @@
 package dk.sdu.cloud.app
 
 import dk.sdu.cloud.app.api.AppServiceDescription
-import dk.sdu.cloud.app.services.ssh.SimpleSSHConfig
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.auth.api.refreshingJwtCloud
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.configuration
+import dk.sdu.cloud.service.developmentModeEnabled
+import dk.sdu.cloud.service.hibernateDatabase
+import dk.sdu.cloud.service.initWithDefaultFeatures
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.kafka
+import dk.sdu.cloud.service.runScriptHandler
+import dk.sdu.cloud.service.serverProvider
+import dk.sdu.cloud.service.serviceInstance
 
-data class HPCConfig(
-    val ssh: SimpleSSHConfig
+data class Configuration(
+    val backends: List<String> = emptyList()
 )
 
 fun main(args: Array<String>) {
@@ -19,14 +28,15 @@ fun main(args: Array<String>) {
 
     if (micro.runScriptHandler()) return
 
-    val configuration = micro.configuration.requestChunkAt<HPCConfig>("hpc")
+    val config = micro.configuration.requestChunkOrNull("app") ?: Configuration()
 
     Server(
         micro.kafka,
         micro.refreshingJwtCloud,
-        configuration,
         micro.serverProvider,
         micro.hibernateDatabase,
-        micro.serviceInstance
+        micro.serviceInstance,
+        config,
+        micro.developmentModeEnabled
     ).start()
 }

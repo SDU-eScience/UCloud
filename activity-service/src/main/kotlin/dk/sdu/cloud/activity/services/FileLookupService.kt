@@ -8,6 +8,8 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.StorageFile
 
+private const val ONE_MINUTE = 1000L * 60 * 1
+
 class FileLookupService(
     private val cloud: AuthenticatedCloud
 ) {
@@ -24,7 +26,7 @@ class FileLookupService(
             TokenExtensionRequest(
                 userAccessToken,
                 listOf(FileDescriptions.stat.requiredAuthScope.toString()),
-                expiresIn = 1000L * 60 * 1
+                expiresIn = ONE_MINUTE
             ),
             serviceCloud
         ).orThrow().asCloud(cloudContext, causedBy)

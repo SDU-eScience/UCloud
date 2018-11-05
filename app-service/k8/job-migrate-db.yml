@@ -20,7 +20,7 @@ spec:
         - /etc/refresh-token
         - --run-script
         - migrate-db
-        image: registry.dev-sdu-cloud.dk/sdu-cloud/app-service:0.6.0
+        image: registry.cloud.sdu.dk/sdu-cloud/app-service:0.9.16
         name: app-migration
 
         volumeMounts:

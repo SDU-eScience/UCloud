@@ -8,7 +8,6 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
-import org.slf4j.LoggerFactory
 
 data class Project(
     val id: Long?,

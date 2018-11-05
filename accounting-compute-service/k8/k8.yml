@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: accounting-compute-service-deployment
+  labels:
+    app: accounting-compute-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: accounting-compute-service
+  template:
+    metadata:
+      labels:
+        app: accounting-compute-service
+    spec:
+      containers:
+      - name: accounting-compute-service
+        image: registry.cloud.sdu.dk/sdu-cloud/accounting-compute-service:0.1.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: accounting-compute-refresh-token
+
+      imagePullSecrets:
+      - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: accounting-compute
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: accounting-compute-service

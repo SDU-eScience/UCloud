@@ -1,11 +1,54 @@
 def initialize() {
 
-  stage('build storage-service') {
-    sh '''cd storage-service
-    ./gradlew clean
-    ./gradlew build -x test'''
+	try {
+	  stage('build storage-service') {
+	    sh '''cd storage-service
+	    ./gradlew clean
+	    ./gradlew build -x test'''
+	  }
+	} catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'storage-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'storage-service-detekt-Report', reportTitles: ''])
   }
 
-}
+  try {
+    stage('test storage-service') {
+    	container('docker'){
+	    	sh '''
+	    	apk add --no-cache openjdk8
+ 				apk add --no-cache gradle=4.8.1-r0		 		
+ 				apk add --no-cache cmake
+	    	apk add --no-cache make
+				apk add --no-cache gcc
+				apk add --no-cache g++
+				apk add --no-cache musl-dev
+				apk add --no-cache linux-headers
+				apk add --no-cache fts-dev
+				apk add --no-cache fts
+				apk add --no-cache acl-dev
+				apk add --no-cache libacl
+				apk add --no-cache sudo
+				apk add --no-cache bash
+				apk add --no-cache acl
+
+	    	cd storage-service/native
+	    	./cmakeclean.sh
+	    	cmake .
+	    	make clean
+	    	make
+	    	cp ceph-interpreter /bin/ceph-interpreter
+	    	cd ..
+	    	./gradlew test'''
+	    } 
+	  }
+  } catch (e) {
+    echo "Test FAILED"
+    return currentBuild.result ?: 'UNSTABLE'
+  }
+
+  return currentBuild.result ?: 'SUCCESS'
+}	
 
 return this

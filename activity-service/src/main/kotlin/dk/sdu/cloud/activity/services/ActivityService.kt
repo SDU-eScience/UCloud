@@ -1,17 +1,28 @@
 package dk.sdu.cloud.activity.services
 
-import dk.sdu.cloud.activity.api.*
+import dk.sdu.cloud.activity.api.ActivityEvent
+import dk.sdu.cloud.activity.api.ActivityStreamEntry
+import dk.sdu.cloud.activity.api.CountedFileActivityOperation
+import dk.sdu.cloud.activity.api.StreamFileReference
+import dk.sdu.cloud.activity.api.TrackedFileActivityOperation
+import dk.sdu.cloud.activity.api.UserReference
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.jwtAuth
-import dk.sdu.cloud.filesearch.api.LookupDescriptions
-import dk.sdu.cloud.filesearch.api.ReverseLookupRequest
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.indexing.api.LookupDescriptions
+import dk.sdu.cloud.indexing.api.ReverseLookupRequest
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.withCausedBy
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.awaitAll
+
+private const val CHUNK_SIZE = 100
 
 class ActivityService<DBSession>(
     private val activityDao: ActivityEventDao<DBSession>,
@@ -57,43 +68,40 @@ class ActivityService<DBSession>(
             // All events have the same operation, so we use the first event to determine operation.
             val firstEvent = allEventsOfType.first()
 
+            val users = allEventsOfType
+                .asSequence()
+                .map { it.username }
+                .map { UserReference(it) }
+                .toSet()
+
             CountedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
                 val eventsByFileId = allEventsOfType.groupBy { it.fileId }
 
-                val counts = eventsByFileId.mapNotNull { (fileId, eventsForFile) ->
-                    val count = eventsForFile.sumBy {
-                        if (operation == CountedFileActivityOperation.FAVORITE) {
-                            if ((it as ActivityEvent.Favorite).isFavorite) 1
-                            else -1
-                        } else {
-                            1
-                        }
-                    }
-
-                    if (count <= 0) {
-                        null
-                    } else {
-                        fileId to count
-                    }
+                val counts = eventsByFileId.map { (fileId, eventsForFile) ->
+                    fileId to eventsForFile.size
                 }
 
-                return@flatMap if (counts.all { it.second == 0 }) {
-                    emptyList()
-                } else {
-                    listOf(
-                        ActivityStreamEntry.Counted(
-                            operation,
-                            counts.map { ActivityStreamEntry.CountedFile(it.first, it.second) },
-                            timestamp
-                        )
+                return@flatMap listOf(
+                    ActivityStreamEntry.Counted(
+                        operation,
+                        timestamp,
+                        counts.asSequence().map {
+                            StreamFileReference.WithOpCount(
+                                it.first,
+                                null,
+                                it.second
+                            )
+                        }.toSet(),
+                        users
                     )
-                }
+                )
             }
 
             TrackedFileActivityOperation.fromEventOrNull(firstEvent)?.let { operation ->
-                val fileReferences = allEventsOfType.map { ActivityStreamFileReference(it.fileId) }.toSet()
+                val fileReferences =
+                    allEventsOfType.asSequence().map { StreamFileReference.Basic(it.fileId, null) }.toSet()
 
-                return@flatMap listOf(ActivityStreamEntry.Tracked(operation, fileReferences, timestamp))
+                return@flatMap listOf(ActivityStreamEntry.Tracked(operation, timestamp, fileReferences, users))
             }
 
             return@flatMap emptyList<ActivityStreamEntry<*>>()
@@ -159,14 +167,14 @@ class ActivityService<DBSession>(
         val fileIdsInChunks = resultFromDao.items.flatMap { entry ->
             when (entry) {
                 is ActivityStreamEntry.Counted -> {
-                    entry.entries.map { it.id }
+                    entry.files.map { it.id }
                 }
 
                 is ActivityStreamEntry.Tracked -> {
                     entry.files.map { it.id }
                 }
             }
-        }.toSet().chunked(100)
+        }.asSequence().toSet().asSequence().chunked(CHUNK_SIZE).toList()
 
         val fileIdToCanonicalPath = fileIdsInChunks
             .map { chunkOfIds ->
@@ -190,17 +198,17 @@ class ActivityService<DBSession>(
             when (entry) {
                 is ActivityStreamEntry.Counted -> {
                     entry.copy(
-                        entries = entry.entries.map {
-                            it.copy(path = fileIdToCanonicalPath[it.id])
-                        }
+                        files = entry.files
+                            .asSequence()
+                            .map { it.withPath(path = fileIdToCanonicalPath[it.id]) }
+                            .toSet()
                     )
-
                 }
 
                 is ActivityStreamEntry.Tracked -> {
                     entry.copy(
-                        files = entry.files.map {
-                            ActivityStreamFileReference(it.id, fileIdToCanonicalPath[it.id])
+                        files = entry.files.asSequence().map {
+                            StreamFileReference.Basic(it.id, fileIdToCanonicalPath[it.id])
                         }.toSet()
                     )
                 }

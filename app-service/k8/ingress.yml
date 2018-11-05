@@ -14,3 +14,10 @@ spec:
         backend:
           serviceName: app
           servicePort: 8080
+  - host: cloud.sdu.dk
+    http:
+      paths:
+      - path: /api/app/compute
+        backend:
+          serviceName: app
+          servicePort: 8080

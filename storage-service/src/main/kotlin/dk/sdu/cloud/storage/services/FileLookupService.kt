@@ -1,11 +1,11 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.paginate
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.paginate
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.fileName
 import dk.sdu.cloud.storage.util.normalize
@@ -61,7 +61,7 @@ class FileLookupService<Ctx : FSUserContext>(
                 FileSortBy.MODIFIED_AT -> Comparator.comparingLong { it.modifiedAt }
 
                 FileSortBy.TYPE -> Comparator.comparing<StorageFile, String> {
-                    it.type.name
+                    it.fileType.name
                 }.thenComparing(Comparator.comparing<StorageFile, String> {
                     it.path.fileName().toLowerCase()
                 })
@@ -129,6 +129,7 @@ class FileLookupService<Ctx : FSUserContext>(
     companion object {
         private val log = LoggerFactory.getLogger(FileLookupService::class.java)
 
+        @Suppress("ObjectPropertyNaming")
         private val STORAGE_FILE_ATTRIBUTES = setOf(
             FileAttribute.FILE_TYPE,
             FileAttribute.RAW_PATH,

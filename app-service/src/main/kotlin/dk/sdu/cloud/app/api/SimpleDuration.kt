@@ -1,9 +1,11 @@
 package dk.sdu.cloud.app.api
 
+private const val MAX_SECONDS = 59
+
 data class SimpleDuration(val hours: Int, val minutes: Int, val seconds: Int) {
     init {
-        if (seconds !in 0..59) throw IllegalArgumentException("seconds must be in 0..59")
-        if (minutes !in 0..59) throw IllegalArgumentException("minutes must be in 0..59")
+        if (seconds !in 0..MAX_SECONDS) throw IllegalArgumentException("seconds must be in 0..59")
+        if (minutes !in 0..MAX_SECONDS) throw IllegalArgumentException("minutes must be in 0..59")
     }
 
     override fun toString() = StringBuilder().apply {

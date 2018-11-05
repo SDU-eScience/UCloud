@@ -14,7 +14,7 @@ data class ListNotificationRequest(
     val since: Long? = null,
     override val itemsPerPage: Int?,
     override val page: Int?
-): WithPaginationRequest {
+) : WithPaginationRequest {
     val pagination = normalize()
 }
 

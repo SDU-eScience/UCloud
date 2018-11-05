@@ -3,35 +3,31 @@ package dk.sdu.cloud.metadata.services
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.metadata.api.ProjectMetadata
 import dk.sdu.cloud.metadata.api.UserEditableProjectMetadata
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindByPath
-import kotlinx.coroutines.experimental.runBlocking
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match
 import mbuhot.eskotlin.query.term.match_all
-import org.elasticsearch.action.DocWriteRequest
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
-import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchScrollRequest
-import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.slf4j.LoggerFactory
+
+private const val MIN_GRAM_FOR_TOKENIZER = 2
+private const val MAX_GRAM_FOR_TOKENIZER = 10
+private const val MAX_ALIVE_TIME_IN_MINUTES = 5L
 
 class ElasticMetadataService(
     private val elasticClient: RestHighLevelClient,
@@ -84,7 +80,8 @@ class ElasticMetadataService(
                 references = if (metadata.references != null) metadata.references!! else existing.references,
                 grants = if (metadata.grants != null) metadata.grants!! else existing.grants,
                 subjects = if (metadata.subjects != null) metadata.subjects!! else existing.subjects,
-                relatedIdentifiers = if (metadata.relatedIdentifiers != null) metadata.relatedIdentifiers!! else existing.relatedIdentifiers
+                relatedIdentifiers = if (metadata.relatedIdentifiers != null) metadata.relatedIdentifiers!!
+                                        else existing.relatedIdentifiers
             )
 
             internalUpdate(newMetadata)
@@ -111,9 +108,7 @@ class ElasticMetadataService(
     override fun simpleQuery(user: String, query: String, paging: NormalizedPaginationRequest): Page<ProjectMetadata> {
         val request = SearchRequest(index).apply {
             source(SearchSourceBuilder().apply {
-                val q = bool {
-                    match { "full_search" to query }
-                }
+                val q = match { "full_search" to query }
 
                 from(paging.itemsPerPage * paging.page)
                 query(q)
@@ -161,8 +156,8 @@ class ElasticMetadataService(
                     .put("analysis.analyzer.autocomplete.filter", "lowercase")
                     .put("analysis.analyzer.autocomplete_search.tokenizer", "lowercase")
                     .put("analysis.tokenizer.autocomplete.type", "edge_ngram")
-                    .put("analysis.tokenizer.autocomplete.min_gram", 2)
-                    .put("analysis.tokenizer.autocomplete.max_gram", 10)
+                    .put("analysis.tokenizer.autocomplete.min_gram", MIN_GRAM_FOR_TOKENIZER)
+                    .put("analysis.tokenizer.autocomplete.max_gram", MAX_GRAM_FOR_TOKENIZER)
                     .put("analysis.tokenizer.autocomplete.token_chars", "letter")
             )
 
@@ -206,7 +201,7 @@ class ElasticMetadataService(
     private fun listAllProjectsRaw(): List<Map<String, *>> {
         val collectedResults = ArrayList<Map<String, *>>()
         var results = elasticClient.search(SearchRequest(index).apply {
-            scroll(TimeValue.timeValueMinutes(5))
+            scroll(TimeValue.timeValueMinutes(MAX_ALIVE_TIME_IN_MINUTES))
 
             source(
                 SearchSourceBuilder().apply {
@@ -223,7 +218,7 @@ class ElasticMetadataService(
 
             results = elasticClient.searchScroll(SearchScrollRequest(results.scrollId).apply {
                 scroll(
-                    TimeValue.timeValueMinutes(5)
+                    TimeValue.timeValueMinutes(MAX_ALIVE_TIME_IN_MINUTES)
                 )
             })
         }

@@ -7,7 +7,6 @@ ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
     PATH=$PATH:$JAVA_HOME/jre/bin:$JAVA_HOME/bin
 
 RUN apk add --no-cache openjdk8
-RUN apk add --no-cache gradle=4.8.1-r0
 RUN apk add --no-cache cmake
 RUN apk add --no-cache make
 RUN apk add --no-cache gcc
@@ -22,6 +21,11 @@ RUN apk add --no-cache sudo
 RUN apk add --no-cache bash
 RUN apk add --no-cache acl
 RUN addgroup sftponly
+
+RUN apk add --no-cache curl zip bash
+RUN curl -s "https://get.sdkman.io" | bash
+SHELL ["/bin/bash", "-c"]
+RUN source $HOME/.bashrc ; sdk install gradle 4.10.2
 
 #
 # Development container
@@ -43,7 +47,6 @@ ENV SERVICE_NAME="${SERVICE_NAME}"
 
 # Copy application code into /usr/src/app
 COPY . /usr/src/app/
-COPY shared-gradle /usr/src/shared-gradle/
 WORKDIR /usr/src/app/
 
 # Copy gradle.properties
@@ -51,7 +54,8 @@ ARG GRADLE_PROPS
 RUN mkdir /root/.gradle/ && \
     echo "${GRADLE_PROPS}" > /root/.gradle/gradle.properties
 
-RUN set -x && \
+RUN source $HOME/.bashrc && \
+    set -x && \
     rm -rf build/ && \
     gradle distTar && \
     (mkdir -p /opt/service || true) && \

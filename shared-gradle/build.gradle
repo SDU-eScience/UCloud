@@ -1,9 +1,0 @@
-group 'dk.sdu.cloud'
-version '1.0.0'
-
-// Note this is a dummy project.
-// This project has been created just to make IntelliJ provide auto-completion for "sdu-cloud.gradle"
-//
-// The sdu-cloud.gradle file contains shared build logic for all micro-services.
-
-apply from: "sdu-cloud.gradle"

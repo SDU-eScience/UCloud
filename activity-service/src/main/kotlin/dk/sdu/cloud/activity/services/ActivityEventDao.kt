@@ -1,10 +1,25 @@
 package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityEvent
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.*
-import java.util.*
-import javax.persistence.*
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.mapItems
+import java.util.Date
+import javax.persistence.Column
+import javax.persistence.Entity
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Index
+import javax.persistence.Inheritance
+import javax.persistence.InheritanceType
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
 
 interface ActivityEventDao<Session> {
     fun findByFileId(
@@ -101,6 +116,16 @@ sealed class ActivityEventEntity {
         override fun toModel(): ActivityEvent = ActivityEvent.Moved(username, newName, timestamp.time, fileId)
     }
 
+    @Entity
+    class Deleted(
+        var username: String,
+        override var fileId: String,
+        override var timestamp: Date,
+        override var id: Long? = null
+    ) : ActivityEventEntity() {
+        override fun toModel(): ActivityEvent = ActivityEvent.Deleted(timestamp.time, fileId, username)
+    }
+
     companion object : HibernateEntity<ActivityEventEntity>, WithId<Long> {
         fun fromEvent(event: ActivityEvent): ActivityEventEntity {
             return when (event) {
@@ -111,19 +136,30 @@ sealed class ActivityEventEntity {
                     ActivityEventEntity.Updated(event.username, event.fileId, timestamp = Date(event.timestamp))
 
                 is ActivityEvent.Favorite ->
-                    ActivityEventEntity.Favorite(event.username, event.isFavorite, event.fileId,
-                        timestamp = Date(event.timestamp))
+                    ActivityEventEntity.Favorite(
+                        event.username, event.isFavorite, event.fileId,
+                        timestamp = Date(event.timestamp)
+                    )
 
                 is ActivityEvent.Inspected ->
                     ActivityEventEntity.Inspected(event.username, event.fileId, timestamp = Date(event.timestamp))
 
                 is ActivityEvent.Moved ->
-                    ActivityEventEntity.Moved(event.username, event.newName, event.fileId,
-                        timestamp = Date(event.timestamp))
+                    ActivityEventEntity.Moved(
+                        event.username, event.newName, event.fileId,
+                        timestamp = Date(event.timestamp)
+                    )
+
+                is ActivityEvent.Deleted ->
+                    ActivityEventEntity.Deleted(
+                        event.username, event.fileId, timestamp = Date(event.timestamp)
+                    )
             }
         }
     }
 }
+
+private const val LIMIT_OF_QUEUE_SAVES = 50
 
 class HibernateActivityEventDao : ActivityEventDao<HibernateSession> {
     override fun findByFileId(
@@ -139,7 +175,7 @@ class HibernateActivityEventDao : ActivityEventDao<HibernateSession> {
     override fun insertBatch(session: HibernateSession, events: List<ActivityEvent>) {
         events.forEachIndexed { index, activityEvent ->
             session.save(ActivityEventEntity.fromEvent(activityEvent))
-            if (index % 50 == 0) {
+            if (index % LIMIT_OF_QUEUE_SAVES == 0) {
                 session.flush()
                 session.clear()
             }

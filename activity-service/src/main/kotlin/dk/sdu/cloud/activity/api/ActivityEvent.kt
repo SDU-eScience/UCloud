@@ -62,6 +62,12 @@ sealed class ActivityEvent {
         override val timestamp: Long,
         override val fileId: String
     ) : ActivityEvent()
+
+    data class Deleted(
+        override val timestamp: Long,
+        override val fileId: String,
+        override val username: String
+    ) : ActivityEvent()
 }
 
 data class ListActivityByIdRequest(

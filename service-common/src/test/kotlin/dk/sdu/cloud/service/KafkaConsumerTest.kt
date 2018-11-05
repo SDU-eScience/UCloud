@@ -53,7 +53,7 @@ class KafkaConsumerTest {
 
     @Ignore
     @Test
-    fun testSimpleConsumption() {
+    fun `test simple consumption`() {
         /*
         try {
             adminClient.deleteTopics(listOf(Descriptions.testStream.name)).all().get()
@@ -136,7 +136,7 @@ class KafkaConsumerTest {
 
     @Ignore
     @Test
-    fun testOverflow() {
+    fun `test overflow`() {
         var caughtException: Throwable? = null
 
         val processedIds = hashSetOf<Int>()
@@ -164,5 +164,53 @@ class KafkaConsumerTest {
         assertEquals(2000, processedIds.size)
 
         if (caughtException != null) throw caughtException!!
+    }
+
+    @Ignore
+    @Test
+    fun `test exception in consumer`() {
+        var caughtException: Throwable? = null
+        val producer = kafkaService.producer.forStream(Descriptions.testStream)
+        val processedIds = hashSetOf<Int>()
+        val expectedMessage = "Bad"
+
+        val consumer = kafkaService.createConsumer(Descriptions.testStream).let { consumer ->
+            consumer.configure { root ->
+                root.consumeAndCommit {
+                    processedIds.add(it.second.id)
+                    if (processedIds.size == 1000) {
+                        throw RuntimeException(expectedMessage)
+                    }
+                }
+            }
+        }
+
+        consumer.onExceptionCaught { caughtException = it }
+
+        val producerJob = launch {
+            repeat(2000) { producer.emit(Advanced(it, "hello" to 42)) }
+        }
+
+        runBlocking { producerJob.join() }
+
+        for(it in 0 until 35) {
+            println(it)
+            Thread.sleep(1000)
+
+            if (!consumer.isRunning) break
+        }
+
+        if (consumer.isRunning) consumer.close()
+
+        repeat(1000) { assertTrue(it in processedIds, "Expected $it in processedIds") }
+        assertEquals(1000, processedIds.size)
+
+        val capturedException = caughtException
+        if (capturedException == null) {
+            assert(false)
+        } else {
+            assertEquals(RuntimeException::class.java, capturedException::class.java)
+            assertEquals(expectedMessage, capturedException.message)
+        }
     }
 }

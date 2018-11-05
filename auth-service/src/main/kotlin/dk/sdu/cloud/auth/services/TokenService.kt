@@ -4,7 +4,13 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.auth.api.AccessToken
+import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
+import dk.sdu.cloud.auth.api.AuthenticationTokens
+import dk.sdu.cloud.auth.api.OneTimeAccessToken
+import dk.sdu.cloud.auth.api.Person
+import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
@@ -17,7 +23,9 @@ import dk.sdu.cloud.service.toSecurityToken
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.security.SecureRandom
-import java.util.*
+import java.util.Date
+import java.util.Base64
+import java.util.UUID
 
 internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
 
@@ -94,6 +102,10 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) {
     }
 }
 
+private const val TEN_MIN_IN_MILLS = 1000 * 60 * 10L
+private const val THIRTY_SECONDS_IN_MILLS = 1000 * 60L
+private const val BYTE_ARRAY_SIZE = 64
+
 class TokenService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val userDao: UserDAO<DBSession>,
@@ -106,7 +118,7 @@ class TokenService<DBSession>(
 
     private val secureRandom = SecureRandom()
     private fun generateCsrfToken(): String {
-        val array = ByteArray(64)
+        val array = ByteArray(BYTE_ARRAY_SIZE)
         secureRandom.nextBytes(array)
         return Base64.getEncoder().encodeToString(array)
     }
@@ -114,7 +126,7 @@ class TokenService<DBSession>(
     private fun createAccessTokenForExistingSession(
         user: Principal,
         sessionReference: String?,
-        expiresIn: Long = 1000 * 60 * 10
+        expiresIn: Long = TEN_MIN_IN_MILLS
     ): AccessToken {
         return jwtFactory.create(user, expiresIn, listOf(SecurityScope.ALL_WRITE), sessionReference = sessionReference)
     }
@@ -128,7 +140,7 @@ class TokenService<DBSession>(
             jwtFactory.create(
                 user = user,
                 audience = audience,
-                expiresIn = 30 * 1000,
+                expiresIn = THIRTY_SECONDS_IN_MILLS,
                 jwtId = jti
             ).accessToken,
             jti
@@ -146,7 +158,7 @@ class TokenService<DBSession>(
 
     fun createAndRegisterTokenFor(
         user: Principal,
-        expiresIn: Long = 1000 * 60 * 10
+        expiresIn: Long = TEN_MIN_IN_MILLS
     ): AuthenticationTokens {
         log.debug("Creating and registering token for $user")
         val refreshToken = UUID.randomUUID().toString()

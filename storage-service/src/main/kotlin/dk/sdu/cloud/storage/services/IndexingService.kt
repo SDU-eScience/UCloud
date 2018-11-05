@@ -1,19 +1,19 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.storage.util.parent
 import dk.sdu.cloud.storage.util.toCreatedEvent
 import kotlinx.coroutines.experimental.Job
 import kotlinx.coroutines.experimental.launch
-import java.util.*
+import java.util.UUID
 
 /**
  * Service responsible for handling operations related to indexing
@@ -150,7 +150,10 @@ class IndexingService<Ctx : FSUserContext>(
         // them. We need to traverse those
         eventCollector.addAll(
             newFiles.filter { it.value.fileType == FileType.DIRECTORY }.flatMap { (_, directory) ->
-                fs.tree(ctx, directory.path, STORAGE_EVENT_MODE).map { it.toCreatedEvent() }
+                log.debug("Looking at $directory")
+                val result = fs.tree(ctx, directory.path, STORAGE_EVENT_MODE).map { it.toCreatedEvent() }
+                log.debug("Done with $directory")
+                result
             }
         )
 
@@ -198,7 +201,8 @@ class IndexingService<Ctx : FSUserContext>(
                     referenceFile.sensitivityLevel != realFile.sensitivityLevel
                 ) {
                     // Note: The file type can only be wrong if the client has made an incorrect assumption
-                    // (due to missing information). We do not need to perform traversals on the directory (if applicable)
+                    // (due to missing information). We do not need to perform traversals on the
+                    // directory (if applicable)
                     events.add(realFile.toCreatedEvent())
                 }
 

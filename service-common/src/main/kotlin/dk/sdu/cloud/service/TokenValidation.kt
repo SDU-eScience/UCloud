@@ -13,6 +13,7 @@ import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.security.interfaces.RSAPublicKey
 
+private const val CERT_CHUNK_SIZE = 64
 object TokenValidation {
     private val certificate by lazy {
         loadCert(
@@ -66,7 +67,8 @@ object TokenValidation {
             x509cert = x509cert.replace("-----BEGINCERTIFICATE-----", "").replace("-----ENDCERTIFICATE-----", "")
 
             if (heads) {
-                x509cert = "-----BEGIN CERTIFICATE-----\n" + chunkString(x509cert, 64) + "-----END CERTIFICATE-----"
+                x509cert = "-----BEGIN CERTIFICATE-----\n" +
+                        chunkString(x509cert, CERT_CHUNK_SIZE) + "-----END CERTIFICATE-----"
             }
         }
         return x509cert

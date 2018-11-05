@@ -10,7 +10,7 @@ import org.asynchttpclient.AsyncCompletionHandler
 import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.DefaultAsyncHttpClient
 import org.asynchttpclient.Response
-import java.util.*
+import java.util.Base64
 import kotlin.coroutines.experimental.suspendCoroutine
 
 object HttpClient {

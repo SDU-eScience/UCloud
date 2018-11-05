@@ -14,7 +14,7 @@ import io.tus.java.client.TusUploader
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.net.URL
-import java.util.*
+import java.util.Base64
 
 data class UploadSummary(
     val id: String,
@@ -43,6 +43,8 @@ data class UploadCreationCommand(
     val location: String?,
     val length: Long
 )
+
+private const val CHUNK_SIZE = 1024 * 8
 
 /**
  * Describes the endpoints exposed by TUS. For most use-cases the recommended way to interact with this service is
@@ -177,7 +179,7 @@ object TusDescriptions : RESTDescriptions("tus") {
         store[upload.fingerprint] = URL(endpoint + location)
 
         val uploader = client.resumeUpload(upload)
-        uploader.chunkSize = 1024 * 8
+        uploader.chunkSize = CHUNK_SIZE
         uploader.requestPayloadSize = payloadSizeMax32Bits // The tus java client really has problems. Limit is stupid
         return uploader
     }

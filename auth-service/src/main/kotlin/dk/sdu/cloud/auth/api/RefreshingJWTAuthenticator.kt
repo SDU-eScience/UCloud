@@ -12,7 +12,9 @@ import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.time.temporal.ChronoUnit
-import java.util.*
+import java.util.Date
+
+private const val MINUTES_TO_ADD = 5L
 
 class RefreshingJWTAuthenticator(
     cloud: CloudContext,
@@ -43,7 +45,8 @@ class RefreshingJWTAuthenticator(
             val validatedToken = TokenValidation.validateOrNull(currentAccessToken)
             if (
                 validatedToken == null ||
-                validatedToken.expiresAt.toInstant().isAfter((Date().toInstant().plus(5, ChronoUnit.MINUTES)))
+                validatedToken.expiresAt.toInstant().isAfter((Date().toInstant()
+                    .plus(MINUTES_TO_ADD, ChronoUnit.MINUTES)))
             ) {
                 log.info("Need to refresh token")
                 val prepared = AuthDescriptions.refresh.prepare()

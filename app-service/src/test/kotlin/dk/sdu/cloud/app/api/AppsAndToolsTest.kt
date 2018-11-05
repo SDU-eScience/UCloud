@@ -4,7 +4,7 @@ import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class AppsAndToolsTest{
+class AppsAndToolsTest {
 
     @Test
     fun `create simple V1 Application description with string invocation`() {
@@ -70,14 +70,14 @@ class AppsAndToolsTest{
             "title",
             "description",
             listOf(mapOf(Pair("type", "var"), Pair("vars", "hello"))),
-            mapOf(Pair("hello", ApplicationParameter.Bool("hello") )),
+            mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
     }
 
-    @Test (expected = ApplicationVerificationException.BadValue::class)
+    @Test(expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description with var invocation - missing var`() {
-       ApplicationDescription.V1(
+        ApplicationDescription.V1(
             "name",
             "2.2",
             NameAndVersion("name", "2.2"),
@@ -85,7 +85,7 @@ class AppsAndToolsTest{
             "title",
             "description",
             listOf(mapOf(Pair("type", "var"))),
-            mapOf(Pair("hello", ApplicationParameter.Bool("hello") )),
+            mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
     }
@@ -100,13 +100,13 @@ class AppsAndToolsTest{
             "title",
             "description",
             listOf(mapOf(Pair("type", "flag"), Pair("var", "hello"), Pair("flag", "true"))),
-            mapOf(Pair("hello", ApplicationParameter.Bool("hello") )),
+            mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
     }
 
 
-    @Test (expected = ApplicationVerificationException.BadValue::class)
+    @Test(expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description - not correct type`() {
         ApplicationDescription.V1(
             "name",
@@ -116,12 +116,12 @@ class AppsAndToolsTest{
             "title",
             "description",
             listOf(mapOf(Pair("type", "NO"))),
-            mapOf(Pair("hello", ApplicationParameter.Bool("hello") )),
+            mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
     }
 
-    @Test (expected = ApplicationVerificationException.BadValue::class)
+    @Test(expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description with flag invocation - missing var`() {
         ApplicationDescription.V1(
             "name",
@@ -131,12 +131,12 @@ class AppsAndToolsTest{
             "title",
             "description",
             listOf(mapOf(Pair("type", "flag"))),
-            mapOf(Pair("hello", ApplicationParameter.Bool("hello") )),
+            mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
     }
 
-    @Test (expected = ApplicationVerificationException.BadValue::class)
+    @Test(expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description with flag invocation - missing flag`() {
         ApplicationDescription.V1(
             "name",
@@ -146,12 +146,12 @@ class AppsAndToolsTest{
             "title",
             "description",
             listOf(mapOf(Pair("type", "flag"), Pair("var", "hello"))),
-            mapOf(Pair("hello", ApplicationParameter.Bool("hello") )),
+            mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
     }
 
-    @Test (expected = ApplicationVerificationException.BadValue::class)
+    @Test(expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description with var invocation - missin type tag`() {
         ApplicationDescription.V1(
             "name",
@@ -166,7 +166,7 @@ class AppsAndToolsTest{
         )
     }
 
-    @Test (expected = ApplicationVerificationException::class)
+    @Test(expected = ApplicationVerificationException::class)
     fun `create simple V1 Application description with missing params`() {
         ApplicationDescription.V1(
             "name",
@@ -176,12 +176,12 @@ class AppsAndToolsTest{
             "title",
             "description",
             listOf(mapOf(Pair("type", "var"), Pair("vars", "hello"))),
-            mapOf(Pair("string", ApplicationParameter.Bool("hello") )),
+            mapOf(Pair("string", ApplicationParameter.Bool("hello"))),
             listOf("globs")
         )
     }
 
-    @Test (expected = ApplicationVerificationException.DuplicateDefinition::class)
+    @Test(expected = ApplicationVerificationException.DuplicateDefinition::class)
     fun `create simple V1 Application description with duplicate glob`() {
         ApplicationDescription.V1(
             "name",
@@ -196,7 +196,7 @@ class AppsAndToolsTest{
         )
     }
 
-    @Test (expected = ApplicationVerificationException.BadValue::class)
+    @Test(expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description with bad invocation`() {
         ApplicationDescription.V1(
             "name",
@@ -259,7 +259,7 @@ class AppsAndToolsTest{
 
     }
 
-    @Test (expected = ApplicationVerificationException.BadValue::class)
+    @Test(expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description - Too long name`() {
         ApplicationDescription.V1(
             "name".repeat(1000),
@@ -274,7 +274,7 @@ class AppsAndToolsTest{
         )
     }
 
-    @Test (expected = ApplicationVerificationException.BadValue::class)
+    @Test(expected = ApplicationVerificationException.BadValue::class)
     fun `create simple V1 Application description - bad author`() {
         ApplicationDescription.V1(
             "name",
@@ -289,7 +289,7 @@ class AppsAndToolsTest{
         )
     }
 
-    @Test (expected = ToolVerificationException.BadValue::class)
+    @Test(expected = ToolVerificationException.BadValue::class)
     fun `create simple V1 tool description - throws exception (to long name)`() {
         ToolDescription.V1(
             "name".repeat(1000),
@@ -307,7 +307,7 @@ class AppsAndToolsTest{
 
     }
 
-    @Test (expected = ToolVerificationException.BadValue::class)
+    @Test(expected = ToolVerificationException.BadValue::class)
     fun `create simple V1 tool description - newline in version`() {
         ToolDescription.V1(
             "name",
@@ -325,7 +325,7 @@ class AppsAndToolsTest{
 
     }
 
-    @Test (expected = ToolVerificationException.BadValue::class)
+    @Test(expected = ToolVerificationException.BadValue::class)
     fun `create simple V1 tool description - bad authors`() {
         ToolDescription.V1(
             "name",

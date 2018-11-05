@@ -5,7 +5,7 @@ import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.zenodo.services.OAuthTokens
 import org.hibernate.annotations.NaturalId
-import java.util.*
+import java.util.Date
 import javax.persistence.Entity
 import javax.persistence.Id
 import javax.persistence.Table

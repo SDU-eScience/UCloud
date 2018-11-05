@@ -4,11 +4,22 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationId
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.JSONB_TYPE
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.WithTimestamps
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
 import org.hibernate.annotations.Type
-import java.util.*
-import javax.persistence.*
+import java.util.Date
+import javax.persistence.Entity
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
 import javax.persistence.criteria.Expression
 
 val FIRST_PAGE = NormalizedPaginationRequest(null, null)
@@ -78,7 +89,7 @@ class NotificationEntity(
     @Id
     @GeneratedValue
     var id: Long = 0
-): WithTimestamps {
+) : WithTimestamps {
     companion object : HibernateEntity<NotificationEntity>, WithId<Long>
 }
 

@@ -245,6 +245,7 @@ ssize_t stdin_read_line(char *result, size_t size) {
 }
 
 static int file_opened_for_writing = -1;
+static char *file_opened_for_writing_path = (char *) malloc(MAXPATHLEN);
 
 int write_open_command(char *path, bool allow_overwrite) {
     struct stat s{};
@@ -256,13 +257,16 @@ int write_open_command(char *path, bool allow_overwrite) {
 
     file_opened_for_writing = open(path, write_flags, 0660);
     if (file_opened_for_writing < 0) return -errno;
+    strncpy(file_opened_for_writing_path, path, MAXPATHLEN);
 
     fstat(file_opened_for_writing, &s);
     print_file_information(std::cout, path, &s, CREATED_OR_MODIFIED);
     return 0;
 }
 
-void write_command() {
+int write_command() {
+    struct stat s{};
+
     size_t write_buffer_size = INTERNAL_BUFFER_CAPACITY;
     auto write_buffer = (char *) malloc(write_buffer_size);
     assert(write_buffer != nullptr);
@@ -293,10 +297,16 @@ void write_command() {
 
         read = stdin_read(write_buffer, write_buffer_size);
     }
+    fstat(file_opened_for_writing, &s);
+
     close(out_file);
     free(write_buffer);
 
+    print_file_information(std::cout, file_opened_for_writing_path, 
+        &s, CREATED_OR_MODIFIED);
     file_opened_for_writing = -1;
+    memset(file_opened_for_writing_path, 0, MAXPATHLEN);
+    return 0;
 }
 
 static int file_opened_for_reading = -1;
@@ -388,8 +398,12 @@ int main(int argc, char **argv) {
 
     // Initialize streams
     auto client_boundary = argv[1];
-    initialize_stdin_stream(client_boundary);
     auto server_boundary = argv[2];
+
+    // Start by sending the boundary immediately (Allowing client to detect if we have started)
+    fprintf(stderr, "%s", server_boundary);
+
+    initialize_stdin_stream(client_boundary);
 
     // Line buffers
     auto line = (char *) malloc(MAX_LINE_LENGTH);
@@ -440,7 +454,7 @@ int main(int argc, char **argv) {
 
             printf("EXIT:%d\n", delete_command(path));
         } else if (IS_COMMAND("write")) {
-            write_command();
+            printf("EXIT:%d\n", write_command());
         } else if (IS_COMMAND("write-open")) {
             auto path = NEXT_ARGUMENT(0);
             auto allow_overwrite = NEXT_ARGUMENT_INT(1) == 1;

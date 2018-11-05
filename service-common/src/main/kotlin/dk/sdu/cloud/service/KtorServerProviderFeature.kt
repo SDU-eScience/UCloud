@@ -3,7 +3,8 @@ package dk.sdu.cloud.service
 import dk.sdu.cloud.client.ServiceDescription
 import io.ktor.server.engine.ApplicationEngineFactory
 import io.ktor.server.engine.embeddedServer
-import kotlin.reflect.full.companionObjectInstance
+
+private const val DEFAULT_PORT = 8080
 
 class KtorServerProviderFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -23,7 +24,8 @@ class KtorServerProviderFeature : MicroFeature {
             ctx.serverProvider = { module ->
                 embeddedServer(
                     engineFactory,
-                    port = ctx.featureOrNull(ServiceDiscoveryOverrides)?.get(serviceDescription.name)?.port ?: 8080,
+                    port = ctx.featureOrNull(ServiceDiscoveryOverrides)?.
+                        get(serviceDescription.name)?.port ?: DEFAULT_PORT,
                     module = module
                 )
             }

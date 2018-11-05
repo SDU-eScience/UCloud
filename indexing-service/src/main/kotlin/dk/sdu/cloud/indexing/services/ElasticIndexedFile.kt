@@ -1,7 +1,17 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.FileChecksum
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.Timestamps
 
+/**
+ * An [EventMaterializedStorageFile] as it is represented in elasticsearch
+ *
+ * @see dk.sdu.cloud.indexing.services.IndexingService
+ * @see dk.sdu.cloud.indexing.services.IndexQueryService
+ */
 data class ElasticIndexedFile(
     val id: String,
     val path: String,

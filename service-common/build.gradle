@@ -1,5 +1,5 @@
-group "dk.sdu.cloud"
-version "0.19.0-SNAPSHOT"
+import java.nio.channels.*
+import java.nio.file.Files
 
 buildscript {
     ext.kotlin_version = "1.2.61"
@@ -15,6 +15,28 @@ buildscript {
         classpath "org.jetbrains.dokka:dokka-gradle-plugin:${dokka_version}"
     }
 }
+
+plugins {
+    id("io.gitlab.arturbosch.detekt").version("1.0.0.RC9.2")
+}
+
+detekt {
+    toolVersion = "1.0.0.RC9.2"
+    input = files("src/main/kotlin")
+    filters = ".*/resources/.*,.*/build/.*"
+
+    // https://stackoverflow.com/a/921400
+    def currentVersion = "v0.1.0"
+    URL website = new URL("https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/$currentVersion/detekt.yml")
+    ReadableByteChannel rbc = Channels.newChannel(website.openStream())
+    def outputFile = Files.createTempFile("detekt", ".yml").toFile()
+    FileOutputStream fos = new FileOutputStream(outputFile)
+    fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE)
+    config = files(outputFile.absolutePath)
+}
+
+group "dk.sdu.cloud"
+version "0.21.0-SNAPSHOT"
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"
@@ -53,19 +75,16 @@ repositories {
 }
 
 dependencies {
-    // Kotlin
+// Kotlin
     compile "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
 
     // Kafka
-    compile group: "org.apache.kafka", name: "kafka-clients", version: "1.0.0"
-    compile group: "org.apache.kafka", name: "kafka-streams", version: "1.0.0"
+    compile group: "org.apache.kafka", name: "kafka-clients", version: "2.0.0"
+    compile group: "org.apache.kafka", name: "kafka-streams", version: "2.0.0"
 
     // Serialization
     compile "com.fasterxml.jackson.module:jackson-module-kotlin:2.9.4.1"
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
-
-    // Client dependencies (needed to export definitions to clients)
-    compile "dk.sdu.cloud:client-core:0.7.0-SNAPSHOT"
 
     // ktor
     compile group: "io.ktor", name: "ktor-server-core", version: "$ktor_version"
@@ -79,12 +98,27 @@ dependencies {
     compile 'org.flywaydb:flyway-core:5.1.4'
 
     compile 'eu.infomas:annotation-detector:3.0.5'
+    
+    // Client
+    compile group: 'org.asynchttpclient', name: 'async-http-client', version: '2.4.8'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.2'
+    compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.9.2'
+    compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.9.2'
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
+
+    compile "io.ktor:ktor-client-core:0.9.4"
+    compile "io.ktor:ktor-client-apache:0.9.4"
+    compile "io.ktor:ktor-client-json:0.9.4"
+    compile "io.ktor:ktor-client-json-jvm:0.9.4"
+    compile 'io.ktor:ktor-client-jackson:0.9.4'
 
     // Service discovery
     compile group: "com.github.zafarkhaja", name: "java-semver", version: "0.9.0"
 
     // JWTs
     compile "com.auth0:java-jwt:3.3.0"
+
+    compile 'com.google.guava:guava:23.4-jre'
 
     // Testing
     testCompile group: 'com.h2database', name: 'h2', version: '1.4.197'

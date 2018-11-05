@@ -4,7 +4,7 @@ version '1.7.1-SNAPSHOT'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
 
-apply from: "../shared-gradle/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.1.0/sdu-cloud.gradle"
 
 repositories {
     jcenter()

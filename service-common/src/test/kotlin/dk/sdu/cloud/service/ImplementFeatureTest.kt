@@ -4,7 +4,11 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByIntId
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.client.*
+import dk.sdu.cloud.client.RESTCallDescription
+import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.client.ServiceDescription
+import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.client.defaultMapper
 import io.ktor.application.Application
 import io.ktor.application.install
 import io.ktor.features.ContentNegotiation
@@ -193,7 +197,7 @@ class ImplementFeatureTest {
                     setBody(""" { "id": 1337 } """)
                 }.response
 
-                Thread.sleep(500) // Audit streams are async to the request. We need to wait for them.
+                Thread.sleep(1000) // Audit streams are async to the request. We need to wait for them.
 
                 assertEquals(HttpStatusCode.OK, response.status())
                 assertEquals(2, records.size)

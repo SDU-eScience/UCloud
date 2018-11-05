@@ -94,7 +94,8 @@ interface MicroFeatureFactory<Feature : MicroFeature, Config> {
 }
 
 fun Micro.installDefaultFeatures(
-    kafkaConfig: KafkaFeatureConfiguration = KafkaFeatureConfiguration()
+    kafkaConfig: KafkaFeatureConfiguration = KafkaFeatureConfiguration(),
+    kafkaTopicConfig: KafkaTopicFeatureConfiguration = KafkaTopicFeatureConfiguration()
 ) {
     install(ScriptFeature)
     install(ConfigurationFeature)
@@ -102,6 +103,7 @@ fun Micro.installDefaultFeatures(
     install(DevelopmentOverrides)
     install(KtorServerProviderFeature)
     install(KafkaFeature, kafkaConfig)
+    install(KafkaTopicFeature, kafkaTopicConfig)
     install(CloudContextFeature)
     install(ServiceInstanceFeature)
 }

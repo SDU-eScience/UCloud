@@ -1,7 +1,7 @@
 package dk.sdu.cloud.service
 
-import kotlin.math.min
 import kotlin.math.ceil
+import kotlin.math.min
 
 data class Page<out T>(
     val itemsInTotal: Int,
@@ -23,7 +23,7 @@ interface WithPaginationRequest {
 data class PaginationRequest(
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
-): WithPaginationRequest
+) : WithPaginationRequest
 
 class NormalizedPaginationRequest(
     itemsPerPage: Int?,

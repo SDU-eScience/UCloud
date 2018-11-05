@@ -1,4 +1,3 @@
-
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -11,11 +10,7 @@ spec:
   - host: cloud.sdu.dk
     http:
       paths:
-      - path: /api/file-search
-        backend:
-          serviceName: indexing
-          servicePort: 8080
-      - path: /api/index
+      - path: /api/indexing
         backend:
           serviceName: indexing
           servicePort: 8080

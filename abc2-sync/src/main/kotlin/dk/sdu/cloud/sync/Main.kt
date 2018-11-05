@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.SerializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import io.netty.handler.codec.http.HttpHeaders.addHeader
 import kotlinx.coroutines.experimental.Deferred
 import kotlinx.coroutines.experimental.async
 import kotlinx.coroutines.experimental.runBlocking
@@ -21,7 +20,7 @@ import java.math.BigInteger
 import java.nio.file.Files
 import java.security.MessageDigest
 import java.text.DecimalFormat
-import java.util.*
+import java.util.Scanner
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 import kotlin.system.exitProcess
@@ -43,54 +42,11 @@ sealed class SyncResult {
     data class LocalIsInSync(override val localPath: String, override val remotePath: String) : SyncResult()
 }
 
-data class SyncItem(
-    val fileType: String,
-    val uniqueId: String,
-    val user: String,
-    val modifiedAt: Long,
-    val checksum: String?,
-    val checksumType: String?,
-    val path: String
-)
 
-fun parseSyncItem(syncLine: String): SyncItem {
-    var cursor = 0
-    val chars = syncLine.toCharArray()
-    fun readToken(): String {
-        val builder = StringBuilder()
-        while (cursor < chars.size) {
-            val c = chars[cursor++]
-            if (c == ',') break
-            builder.append(c)
-        }
-        return builder.toString()
-    }
-
-    val fileType = readToken()
-    val uniqueId = readToken()
-    val user = readToken()
-    val modifiedAt = readToken().toLong()
-    val hasChecksum = when (readToken()) {
-        "0" -> false
-        "1" -> true
-        else -> throw IllegalStateException("Bad server response")
-    }
-
-    val checksum = if (hasChecksum) readToken() else null
-    val checksumType = if (hasChecksum) readToken() else null
-
-    val path = syncLine.substring(cursor)
-
-    return SyncItem(
-        fileType,
-        uniqueId,
-        user,
-        modifiedAt,
-        checksum,
-        checksumType,
-        path
-    )
-}
+private const val BUFFER_SIZE = 1024 * 1024
+private const val OK_STATUS_CODE_START = 200
+private const val OK_STATUS_CODE_STOP = 299
+private const val REDIRECT_STATUS_CODE_STOP = 399
 
 fun compareWithLocal(workingDirectory: File, targetDirectory: String, item: SyncItem): SyncResult {
     debug("compareWithLocal($workingDirectory, $targetDirectory, $item)")
@@ -107,7 +63,7 @@ fun compareWithLocal(workingDirectory: File, targetDirectory: String, item: Sync
 
     val sha1Digest = MessageDigest.getInstance("SHA1")
             ?: throw IllegalStateException("Unable to compute checksums (Not supported)")
-    val localBuffer = ByteArray(1024 * 1024)
+    val localBuffer = ByteArray(BUFFER_SIZE)
 
     val isDirectory = localFile.isDirectory
 
@@ -150,7 +106,7 @@ suspend fun auth(token: String): AccessToken? {
         addHeader("Authorization", "Bearer $token")
     }
 
-    return if (resp.statusCode in 200..399) {
+    return if (resp.statusCode in OK_STATUS_CODE_START..REDIRECT_STATUS_CODE_STOP) {
         resp.asJson()
     } else {
         null
@@ -167,6 +123,7 @@ fun printHelp() {
     println("--help: This message")
 }
 
+@Suppress("TooGenericExceptionCaught")
 suspend fun runAbcSyncCli(args: Array<String>): Int {
     val shouldPull = args.contains("--pull")
     val shouldPush = args.contains("--push")
@@ -215,7 +172,7 @@ suspend fun runAbcSyncCli(args: Array<String>): Int {
             setJsonBody(SyncPayload(path = targetDirectory, modifiedSince = 0))
         }
 
-        if (response.statusCode !in 200..299) {
+        if (response.statusCode !in OK_STATUS_CODE_START..OK_STATUS_CODE_STOP) {
             throw IllegalStateException("Server error. ${response.statusCode} ${response.responseBody}")
         }
 
@@ -264,6 +221,8 @@ fun main(args: Array<String>) {
     runBlocking { exitProcess(runAbcSyncCli(args)) }
 }
 
+private const val TAR_PERMISSION = 511
+
 private suspend fun pushFilesToRemote(
     allResults: List<SyncResult>,
     workingDirectory: File,
@@ -294,7 +253,7 @@ private suspend fun pushFilesToRemote(
                     out.putNextEntry(
                         TarEntry(
                             TarHeader.createHeader(
-                                localPath, 0, 0, true, 511
+                                localPath, 0, 0, true, TAR_PERMISSION
                             )
                         )
                     )
@@ -305,7 +264,7 @@ private suspend fun pushFilesToRemote(
                     out.putNextEntry(
                         TarEntry(
                             TarHeader.createHeader(
-                                localPath, file.length(), 0, false, 511
+                                localPath, file.length(), 0, false, TAR_PERMISSION
                             )
                         )
                     )
@@ -325,13 +284,15 @@ private suspend fun pushFilesToRemote(
             addBodyPart(FilePart("upload", uploadFile))
         }
 
-        if (result.statusCode !in 200..399) {
+        if (result.statusCode !in OK_STATUS_CODE_START..REDIRECT_STATUS_CODE_STOP) {
             debug(result.statusCode)
             debug(result.responseBody)
             throw IllegalStateException("Bad server response")
         }
     }
 }
+
+private const val TAR_BUFFER_SIZE = 8 * 1024
 
 private suspend fun pullFilesFromRemote(
     allResults: List<SyncResult>,
@@ -349,10 +310,11 @@ private suspend fun pullFilesFromRemote(
         setJsonBody(BulkDownloadRequest(targetDirectory, filesToDownload))
     }
 
-    if (downloadResponse.statusCode !in 200..299) throw IllegalStateException("Bad server response")
+    if (downloadResponse.statusCode !in OK_STATUS_CODE_START..OK_STATUS_CODE_STOP)
+        throw IllegalStateException("Bad server response")
 
     TarInputStream(GZIPInputStream(downloadResponse.responseBodyAsStream)).use {
-        val buffer = ByteArray(8 * 1024)
+        val buffer = ByteArray(TAR_BUFFER_SIZE)
         var mutableEntry: TarEntry? = it.nextEntry
         while (mutableEntry != null) {
             val currentEntry = mutableEntry
@@ -403,10 +365,11 @@ fun debug(message: Any?) {
         errPrintln(message)
     }
 }
+private const val HEX_RADIX = 16
 
 fun ByteArray.toHexString(): String {
     val bi = BigInteger(1, this)
-    val hex = bi.toString(16)
+    val hex = bi.toString(HEX_RADIX)
     val paddingLength = this.size * 2 - hex.length
     return if (paddingLength > 0) {
         String.format("%0" + paddingLength + "d", 0) + hex
@@ -414,6 +377,10 @@ fun ByteArray.toHexString(): String {
         hex
     }
 }
+
+private const val TERMINAL_MINIMUM_SIZE = 80
+private const val PROGRESS_BAR_SIZE = 40
+private const val MAX_PERCENT = 100L
 
 class ProgressBar {
     var current: Long = 0
@@ -426,11 +393,11 @@ class ProgressBar {
     fun render() {
         val percentage = if (maximum == 0L) 1.0 else current / maximum.toDouble()
         val format = DecimalFormat("#0.00")
-        val percentageString = format.format(percentage * 100)
+        val percentageString = format.format(percentage * MAX_PERCENT)
         stream.print('\r')
         when {
-            terminalSize >= 80 -> {
-                val spaces = 40
+            terminalSize >= TERMINAL_MINIMUM_SIZE -> {
+                val spaces = PROGRESS_BAR_SIZE
                 val filledSpaces = (percentage * spaces).toInt()
                 val bar = String(CharArray(spaces) {
                     when {

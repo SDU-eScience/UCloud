@@ -1,0 +1,33 @@
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: indexing-scan
+spec:
+  schedule: "0 */3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+
+          containers:
+          - name: indexing-service
+            image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.4.1
+            command:
+            - /opt/service/bin/service
+            - --config-dir
+            - /etc/refresh-token
+            - --scan
+            volumeMounts:
+            - mountPath: /etc/refresh-token
+              name: refresh-token
+
+          volumes:
+          - name: refresh-token
+            secret:
+              optional: false
+              secretName: indexing-refresh-token
+
+          imagePullSecrets:
+            - name: esci-docker

@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.util
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.service.RESTHandler
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSResult
@@ -15,6 +16,7 @@ import kotlinx.coroutines.experimental.delay
 import kotlinx.coroutines.experimental.selects.select
 import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.IOError
 import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
 
@@ -64,26 +66,52 @@ fun <T> FSResult<T>.unwrap(): T {
     }
 }
 
+private const val OPERATION_NOT_PERMITED = 1
+private const val NO_SUCH_FILE_OR_DIR = 2
+private const val IO_ERROR = 5
+private const val NO_SUCH_DEVICE_OR_ADDRESS = 6
+private const val PERMISSION_DENIED = 13
+private const val DEVICE_OR_RESOURCE_BUSY = 16
+private const val FILE_EXISTS = 17
+private const val NO_SUCH_DEVICE = 19
+private const val NOT_A_DIRECTORY = 20
+private const val IS_A_DIRECTORY = 21
+private const val INVALID_ARGUMENT = 22
+private const val FILE_TABLE_OVERFLOW = 23
+private const val TOO_MANY_OPEN_FILES = 24
+private const val FILE_TOO_LARGE = 27
+private const val NO_SPACE_LEFT_ON_DEVICE = 28
+private const val READ_ONLY_FILE_SYSTEM = 30
+private const val TOO_MANY_LINKS = 31
+private const val PROTOCOL_NOT_SUPPORTED = 93
+
+
 fun throwExceptionBasedOnStatus(status: Int): Nothing {
     when (status.absoluteValue) {
-        // TODO Constants for errnos
-        1, 20, 21, 22 -> throw FSException.BadRequest()
-        2, 93 -> throw FSException.NotFound()
-        5, 6, 16, 19, 23, 24, 27, 28, 30, 31 -> throw FSException.IOException()
-        13 -> throw FSException.PermissionException()
-        17 -> throw FSException.AlreadyExists()
+        OPERATION_NOT_PERMITED, NOT_A_DIRECTORY, IS_A_DIRECTORY, INVALID_ARGUMENT -> throw FSException.BadRequest()
+
+        NO_SUCH_FILE_OR_DIR, PROTOCOL_NOT_SUPPORTED -> throw FSException.NotFound()
+
+        IO_ERROR, NO_SUCH_DEVICE_OR_ADDRESS, DEVICE_OR_RESOURCE_BUSY,
+        NO_SUCH_DEVICE, FILE_TABLE_OVERFLOW, TOO_MANY_OPEN_FILES, FILE_TOO_LARGE,
+        NO_SPACE_LEFT_ON_DEVICE, READ_ONLY_FILE_SYSTEM, TOO_MANY_LINKS -> throw FSException.IOException()
+
+        PERMISSION_DENIED -> throw FSException.PermissionException()
+
+        FILE_EXISTS -> throw FSException.AlreadyExists()
 
         else -> throw FSException.CriticalException("Unknown status code $status")
     }
 }
 
-sealed class FSException(override val message: String, val isCritical: Boolean = false) : RuntimeException() {
-    data class BadRequest(val why: String = "") : FSException("Bad request $why")
-    data class NotFound(val file: String? = null) : FSException("Not found ${file ?: ""}")
-    data class AlreadyExists(val file: String? = null) : FSException("Already exists ${file ?: ""}")
-    class PermissionException : FSException("Permission denied")
-    class CriticalException(why: String) : FSException("Critical exception: $why", true)
-    class IOException : FSException("Internal server error (IO)", true)
+sealed class FSException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
+    class NotReady : FSException("File system is not ready yet", HttpStatusCode.ExpectationFailed)
+    class BadRequest(why: String = "") : FSException("Bad request $why", HttpStatusCode.BadRequest)
+    class NotFound(val file: String? = null) : FSException("Not found ${file ?: ""}", HttpStatusCode.NotFound)
+    class AlreadyExists(val file: String? = null) : FSException("Already exists ${file ?: ""}", HttpStatusCode.Conflict)
+    class PermissionException : FSException("Permission denied", HttpStatusCode.Forbidden)
+    class CriticalException(why: String) : FSException("Critical exception: $why", HttpStatusCode.InternalServerError)
+    class IOException : FSException("Internal server error (IO)", HttpStatusCode.InternalServerError)
 }
 
 suspend inline fun RESTHandler<*, *, CommonErrorMessage, *>.tryWithFS(
@@ -117,6 +145,8 @@ sealed class CallResult<S, E>(val status: HttpStatusCode) {
     class Error<S, E>(val item: E, status: HttpStatusCode) : CallResult<S, E>(status)
 }
 
+private const val DELAY_IN_SECONDS = 10L
+
 suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, CommonErrorMessage, *>.tryWithFSAndTimeout(
     factory: FSCommandRunnerFactory<Ctx>,
     user: String,
@@ -131,7 +161,7 @@ suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, Comm
         }
     }
 
-    val timeout = async { delay(10, TimeUnit.SECONDS) }
+    val timeout = async { delay(DELAY_IN_SECONDS, TimeUnit.SECONDS) }
 
     select<Unit> {
         result.onAwait {
@@ -149,24 +179,6 @@ suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, Comm
 
 fun handleFSException(ex: Exception): Pair<CommonErrorMessage, HttpStatusCode> {
     return when (ex) {
-        is FSException -> {
-            // Enforce that we must handle all cases. Will cause a compiler error if we don't cover all
-            when (ex) {
-                is FSException.NotFound -> Pair(CommonErrorMessage(ex.message), HttpStatusCode.NotFound)
-                is FSException.BadRequest -> Pair(CommonErrorMessage(ex.message), HttpStatusCode.BadRequest)
-                is FSException.AlreadyExists -> Pair(CommonErrorMessage(ex.message), HttpStatusCode.Conflict)
-                is FSException.PermissionException -> Pair(
-                    CommonErrorMessage(ex.message),
-                    HttpStatusCode.Forbidden
-                )
-                is FSException.CriticalException, is FSException.IOException -> {
-                    fsLog.warn("Caught critical FS exception!")
-                    fsLog.warn(ex.stackTraceToString())
-                    Pair(CommonErrorMessage("Internal server error"), HttpStatusCode.InternalServerError)
-                }
-            }
-        }
-
         is IllegalArgumentException -> {
             Pair(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
         }
@@ -174,6 +186,8 @@ fun handleFSException(ex: Exception): Pair<CommonErrorMessage, HttpStatusCode> {
         is TooManyRetries -> {
             handleFSException(ex.causes.first())
         }
+
+        is RPCException -> throw ex
 
         else -> {
             fsLog.warn("Unknown FS exception!")

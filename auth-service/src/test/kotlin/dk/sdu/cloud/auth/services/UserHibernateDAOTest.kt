@@ -15,7 +15,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class UserHibernateDAOTest{
+class UserHibernateDAOTest {
 
     val email = "test@testmail.com"
     val person = PersonUtils.createUserByPassword(
@@ -65,7 +65,7 @@ class UserHibernateDAOTest{
         }
     }
 
-    @Test (expected = NonUniqueObjectException::class)
+    @Test(expected = NonUniqueObjectException::class)
     fun `insert 2 with same email`() {
         withDatabase { db ->
             db.withTransaction { session ->
@@ -77,7 +77,7 @@ class UserHibernateDAOTest{
         }
     }
 
-    @Test (expected = UserException.NotFound::class)
+    @Test(expected = UserException.NotFound::class)
     fun `delete non existing user`() {
         withDatabase { db ->
             val session = db.openSession()

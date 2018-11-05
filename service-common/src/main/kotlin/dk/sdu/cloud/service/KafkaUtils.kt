@@ -1,25 +1,26 @@
 package dk.sdu.cloud.service
 
-import org.apache.kafka.clients.admin.AdminClient
-import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.utils.Bytes
-import org.apache.kafka.streams.Consumed
-import org.apache.kafka.streams.KafkaStreams
 import org.apache.kafka.streams.StreamsBuilder
-import org.apache.kafka.streams.Topology
-import org.apache.kafka.streams.kstream.*
+import org.apache.kafka.streams.kstream.Consumed
+import org.apache.kafka.streams.kstream.KGroupedStream
+import org.apache.kafka.streams.kstream.KStream
+import org.apache.kafka.streams.kstream.KTable
+import org.apache.kafka.streams.kstream.Materialized
+import org.apache.kafka.streams.kstream.Produced
+import org.apache.kafka.streams.kstream.Serialized
 import org.apache.kafka.streams.state.KeyValueStore
-import java.util.*
 import kotlin.reflect.KClass
 
 fun <K, V> StreamsBuilder.stream(description: StreamDescription<K, V>): KStream<K, V> =
     stream(description.name, Consumed.with(description.keySerde, description.valueSerde))
 
+@Deprecated(message = "No longer in use")
 fun <K, V> StreamsBuilder.table(description: StreamDescription<K, V>): KTable<K, V> =
     table(description.name, Consumed.with(description.keySerde, description.valueSerde))
 
+@Deprecated(message = "No longer in use")
 fun <K, V, A> StreamsBuilder.aggregate(
     description: StreamDescription<K, V>,
     tableDescription: TableDescription<K, A>,
@@ -37,6 +38,7 @@ fun <K, V, A> StreamsBuilder.aggregate(
     )
 }
 
+@Deprecated(message = "No longer in use")
 fun <K, V, A> KGroupedStream<K, V>.aggregate(
     target: TableDescription<K, A>,
     initializer: () -> A? = { null },
@@ -49,15 +51,19 @@ fun <K, V, A> KGroupedStream<K, V>.aggregate(
 }
 
 fun <K, V : Any, R : V> KStream<K, V>.filterIsInstance(klass: KClass<R>) =
-    filter { _, value -> klass.isInstance(value) }.mapValues {
+    filter { _, value -> klass.isInstance(value) }.mapValues { _, value ->
         @Suppress("UNCHECKED_CAST")
-        it as R
+        value as R
     }
 
+@Deprecated(message = "No longer in use")
 fun <K, V> KStream<K, V>.toTable(): KTable<K, V> = groupByKey().reduce { _, newValue -> newValue }
+
+@Deprecated(message = "No longer in use")
 fun <K, V> KStream<K, V>.toTable(keySerde: Serde<K>, valSerde: Serde<V>): KTable<K, V> =
     groupByKey(Serialized.with(keySerde, valSerde)).reduce { _, newValue -> newValue }
 
+@Deprecated(message = "No longer in use")
 fun <K, V> KStream<K, V>.through(description: StreamDescription<K, V>): KStream<K, V> =
     through(description.name, Produced.with(description.keySerde, description.valueSerde))
 

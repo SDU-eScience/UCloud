@@ -3,13 +3,39 @@ package dk.sdu.cloud.storage
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.EventConsumer
+import dk.sdu.cloud.service.HttpServerProvider
+import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.buildStreams
+import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.storage.http.*
-import dk.sdu.cloud.storage.processor.ChecksumProcessor
+import dk.sdu.cloud.service.forStream
+import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.installShutdownHandler
+import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.service.stream
+import dk.sdu.cloud.storage.http.FilesController
+import dk.sdu.cloud.storage.http.IndexingController
+import dk.sdu.cloud.storage.http.MultiPartUploadController
+import dk.sdu.cloud.storage.http.ShareController
+import dk.sdu.cloud.storage.http.SimpleDownloadController
+import dk.sdu.cloud.storage.http.TusController
 import dk.sdu.cloud.storage.processor.StorageEventProcessor
 import dk.sdu.cloud.storage.processor.UserProcessor
-import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.storage.services.ACLService
+import dk.sdu.cloud.storage.services.BulkDownloadService
+import dk.sdu.cloud.storage.services.BulkUploadService
+import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.ExternalFileService
+import dk.sdu.cloud.storage.services.FavoriteService
+import dk.sdu.cloud.storage.services.FileAnnotationService
+import dk.sdu.cloud.storage.services.FileLookupService
+import dk.sdu.cloud.storage.services.IndexingService
+import dk.sdu.cloud.storage.services.ShareHibernateDAO
+import dk.sdu.cloud.storage.services.ShareService
+import dk.sdu.cloud.storage.services.TusHibernateDAO
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.CephFSUserDao
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
@@ -39,6 +65,11 @@ class Server(
     override lateinit var kStreams: KafkaStreams
 
     private val allProcessors = ArrayList<EventConsumer<*>>()
+
+    private fun addProcessors(processors: List<EventConsumer<*>>) {
+        processors.forEach { it.installShutdownHandler(this) }
+        allProcessors.addAll(processors)
+    }
 
     override fun start() {
         log.info("Creating core services")
@@ -70,6 +101,7 @@ class Server(
         val externalFileService = ExternalFileService(processRunner, coreFileSystem, storageEventProducer)
         log.info("Core services constructed!")
 
+        // Kafka
         kStreams = buildStreams { kBuilder ->
             UserProcessor(
                 kBuilder.stream(AuthStreams.UserUpdateStream),
@@ -80,12 +112,18 @@ class Server(
         }
 
         val storageEventProcessor = StorageEventProcessor(kafka)
-        allProcessors.addAll(storageEventProcessor.init())
+        addProcessors(storageEventProcessor.init())
+
+        // We have temporarily disabled the ChecksumProcessor.
+        // TODO We will have to determine later if this should be re-enabled or just removed.
+        /*
         ChecksumProcessor(processRunner, fs, coreFileSystem).also {
             // TODO Doesn't emit events for checksums
             storageEventProcessor.registerHandler(it::handleEvents)
         }
+        */
 
+        // HTTP
         httpServer = ktor {
             log.info("Configuring HTTP server")
             installDefaultFeatures(cloud, kafka, instance, requireJobId = false)

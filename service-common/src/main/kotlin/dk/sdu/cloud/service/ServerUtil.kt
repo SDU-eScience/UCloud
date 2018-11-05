@@ -10,14 +10,16 @@ interface BaseServer {
     fun stop()
 }
 
+private const val TIMEOUT_DEFAULT = 30L
+
 interface CommonServer : BaseServer, Loggable {
     val httpServer: ApplicationEngine?
     val kafka: KafkaServices
     val kStreams: KafkaStreams?
 
     override fun stop() {
-        httpServer?.stop(gracePeriod = 0, timeout = 30, timeUnit = TimeUnit.SECONDS)
-        kStreams?.close(30, TimeUnit.SECONDS)
+        httpServer?.stop(gracePeriod = 0, timeout = TIMEOUT_DEFAULT, timeUnit = TimeUnit.SECONDS)
+        kStreams?.close(TIMEOUT_DEFAULT, TimeUnit.SECONDS)
     }
 }
 
@@ -48,5 +50,15 @@ fun CommonServer.startServices() {
         log.info("Starting Kafka Streams...")
         kStreams.start()
         log.info("Kafka Streams started!")
+    }
+}
+
+fun EventConsumer<*>.installShutdownHandler(server: CommonServer) {
+    with(server) {
+        onExceptionCaught { ex ->
+            log.warn("Caught fatal exception in event consumer!")
+            log.warn(ex.stackTraceToString())
+            server.stop()
+        }
     }
 }

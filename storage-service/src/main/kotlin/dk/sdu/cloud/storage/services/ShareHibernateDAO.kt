@@ -5,13 +5,31 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.asEnumSet
 import dk.sdu.cloud.service.asInt
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.CriteriaBuilderContext
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.countWithPredicate
+import dk.sdu.cloud.service.db.createCriteriaBuilder
+import dk.sdu.cloud.service.db.createQuery
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedList
 import dk.sdu.cloud.share.api.Share
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.SharesByPath
 import dk.sdu.cloud.share.api.minimalize
-import java.util.*
-import javax.persistence.*
+import java.util.Date
+import javax.persistence.Column
+import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
+import javax.persistence.UniqueConstraint
 import javax.persistence.criteria.Predicate
 
 private const val COL_SHARED_WITH = "shared_with"
@@ -68,50 +86,117 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         paging: NormalizedPaginationRequest
     ): Page<SharesByPath> {
         // Query number of paths and retrieve for current page
-        val itemsInTotal = session.countWithPredicate<ShareEntity>(
+        val itemsInTotal = getNumberOfSharesStatusFilterPossible(session, user, false)
+
+        val items = getSharesStatusFilterPossible(session, user, false, paging)
+
+        return Page(
+            itemsInTotal.toInt(),
+            paging.itemsPerPage,
+            paging.page,
+            items
+        )
+    }
+
+    override fun listByStatus(
+        session: HibernateSession,
+        user: String,
+        status: ShareState,
+        paging: NormalizedPaginationRequest
+    ): Page<SharesByPath> {
+        val count = getNumberOfSharesStatusFilterPossible(session, user, true, status)
+
+        val items = getSharesStatusFilterPossible(session, user, true, paging, status)
+
+        return Page(
+            count.toInt(),
+            paging.itemsPerPage,
+            paging.page,
+            items
+        )
+    }
+
+    private fun getNumberOfSharesStatusFilterPossible(
+        session: HibernateSession,
+        user: String,
+        statusSearch: Boolean,
+        status: ShareState? = ShareState.ACCEPTED
+    ): Long {
+        return session.countWithPredicate<ShareEntity>(
             distinct = true,
             selection = { entity[ShareEntity::path] },
-            predicate = { isAuthorized(user, requireOwnership = false) }
+            predicate = {
+                if (statusSearch) {
+                    allOf(
+                        isAuthorized(user, requireOwnership = false),
+                        entity[ShareEntity::state] equal status
+                    )
+                } else {
+                    allOf(isAuthorized(user, requireOwnership = false))
+                }
+            }
         )
+    }
 
-        val distinctPaths = session.createCriteriaBuilder<String, ShareEntity>().run {
-            with(criteria){
+    private fun getSharesStatusFilterPossible(
+        session: HibernateSession,
+        user: String,
+        statusSearch: Boolean,
+        paging: NormalizedPaginationRequest,
+        status: ShareState? = ShareState.ACCEPTED
+    ): List<SharesByPath> {
+        val distinctPaths =  session.createCriteriaBuilder<String, ShareEntity>().run {
+            with(criteria) {
                 select(entity[ShareEntity::path])
                 distinct(true)
 
-                where(isAuthorized(user, requireOwnership = false))
+                where(
+                    if (statusSearch) {
+                        allOf(
+                            isAuthorized(user, requireOwnership = false),
+                            entity[ShareEntity::state] equal status
+                        )
+                    } else {
+                        allOf(
+                            isAuthorized(user, requireOwnership = false)
+                        )
+                    }
+                )
 
                 orderBy(ascending(entity[ShareEntity::path]))
             }
         }.createQuery(session).paginatedList(paging)
 
         // Retrieve all shares for these paths and group
-        val groupedByPath = session
+        val items = session
             .criteria<ShareEntity>(
                 orderBy = {
                     listOf(ascending(entity[ShareEntity::filename]))
                 },
 
                 predicate = {
-                    allOf(
-                        entity[ShareEntity::path] isInCollection distinctPaths,
-                        isAuthorized(user, requireOwnership = false)
-                    )
+                    if (statusSearch) {
+                        allOf(
+                            entity[ShareEntity::path] isInCollection distinctPaths,
+                            isAuthorized(user, requireOwnership = false),
+                            entity[ShareEntity::state] equal status
+                        )
+                    } else {
+                        allOf(
+                            entity[ShareEntity::path] isInCollection distinctPaths,
+                            isAuthorized(user, requireOwnership = false)
+                        )
+                    }
                 }
             )
             .list()
             .map { it.toModel() }
             .let { groupByPath(user, it) }
 
-        return Page(
-            itemsInTotal.toInt(),
-            paging.itemsPerPage,
-            paging.page,
-            groupedByPath
-        )
+        return items
     }
 
-    override fun findSharesForPath(
+    override fun findShareForPath(
         session: HibernateSession,
         user: String,
         path: String
@@ -125,7 +210,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             .map { it.toModel() }
             .takeIf { it.isNotEmpty() }
             ?.let { groupByPath(user, it).single() }
-            ?: throw ShareException.NotFound()
+                ?: throw ShareException.NotFound()
     }
 
     private fun groupByPath(user: String, shares: List<Share>): List<SharesByPath> {
@@ -142,6 +227,8 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         user: String,
         share: Share
     ): Long {
+        if (user == share.sharedWith) throw ShareException.BadRequest("Cannot share file with yourself")
+
         val exists = session.criteria<ShareEntity> {
             allOf(
                 entity[ShareEntity::path] equal literal(share.path),
@@ -149,8 +236,9 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             )
         }.uniqueResult() != null
 
-        if (exists) throw ShareException.DuplicateException()
-
+        if (exists) {
+            throw ShareException.DuplicateException()
+        }
         return session.save(share.toEntity(copyId = false)) as Long
     }
 

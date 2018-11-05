@@ -6,7 +6,11 @@ import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
-import io.mockk.*
+import io.mockk.Runs
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.just
+import io.mockk.mockk
 import org.junit.Assert
 import org.junit.Test
 import java.io.File

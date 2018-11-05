@@ -4,7 +4,13 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.storage.util.*
+import dk.sdu.cloud.storage.util.FSException
+import dk.sdu.cloud.storage.util.fileName
+import dk.sdu.cloud.storage.util.joinPath
+import dk.sdu.cloud.storage.util.normalize
+import dk.sdu.cloud.storage.util.relativize
+import dk.sdu.cloud.storage.util.retryWithCatch
+import dk.sdu.cloud.storage.util.throwExceptionBasedOnStatus
 import kotlinx.coroutines.experimental.launch
 import java.io.InputStream
 import java.io.OutputStream
@@ -13,19 +19,18 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer
 ) {
-    fun <R> write(
+    fun write(
         ctx: Ctx,
         path: String,
         conflictPolicy: WriteConflictPolicy,
-        writer: OutputStream.() -> R
-    ): R {
+        writer: OutputStream.() -> Unit
+    ) {
         val normalizedPath = path.normalize()
         val targetPath =
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
         fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
-
-        return fs.write(ctx, writer)
+        fs.write(ctx, writer).emitAll()
     }
 
     fun <R> read(

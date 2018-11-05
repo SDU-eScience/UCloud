@@ -1,6 +1,13 @@
 package dk.sdu.cloud.service
 
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.H2_TEST_CONFIG
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSessionFactory
+import dk.sdu.cloud.service.db.JSONB_TYPE
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.generateDDL
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.withTransaction
 import org.hibernate.annotations.Type
 import javax.persistence.Entity
 import javax.persistence.GeneratedValue

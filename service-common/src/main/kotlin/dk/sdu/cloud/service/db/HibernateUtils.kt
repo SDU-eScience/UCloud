@@ -8,9 +8,17 @@ import org.hibernate.tool.hbm2ddl.SchemaExport
 import org.hibernate.tool.schema.TargetType
 import java.io.Serializable
 import java.nio.file.Files
-import java.util.*
+import java.util.EnumSet
+import java.util.Date
 import javax.persistence.PreUpdate
-import javax.persistence.criteria.*
+import javax.persistence.criteria.CriteriaBuilder
+import javax.persistence.criteria.CriteriaQuery
+import javax.persistence.criteria.Expression
+import javax.persistence.criteria.Order
+import javax.persistence.criteria.ParameterExpression
+import javax.persistence.criteria.Path
+import javax.persistence.criteria.Predicate
+import javax.persistence.criteria.Root
 import kotlin.reflect.KProperty1
 
 @Suppress("unused")

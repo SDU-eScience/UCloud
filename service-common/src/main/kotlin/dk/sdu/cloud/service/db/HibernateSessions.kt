@@ -42,6 +42,10 @@ class HibernateSessionFactory(
         factory.close()
     }
 
+    override fun flush(session: HibernateSession) {
+        session.flush()
+    }
+
     companion object {
         private val log = LoggerFactory.getLogger(HibernateSessionFactory::class.java)
 
@@ -90,8 +94,10 @@ class HibernateSessionFactory(
             return (try {
                 MetadataSources(registry).apply {
                     metadataBuilder.applyBasicType(JsonbType(), "jsonb")
-                    entities.forEach { addAnnotatedClass(it) }
+                    metadataBuilder.applyBasicType(JsonbCollectionType(), "jsonb")
+                    metadataBuilder.applyBasicType(JsonbMapType(), "jsonb")
 
+                    entities.forEach { addAnnotatedClass(it) }
                 }.buildMetadata()
             } catch (ex: Exception) {
                 StandardServiceRegistryBuilder.destroy(registry)

@@ -1,16 +1,15 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.AppState
 import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
-import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Type
 import java.io.Serializable
-import java.util.*
+import java.util.Date
 import javax.persistence.*
+import kotlin.collections.ArrayList
 
 /**
  * Updated in:
@@ -36,6 +35,38 @@ data class ToolEntity(
 
     @EmbeddedId
     var id: EmbeddedNameAndVersion
+)
+
+/**
+ * Added in:
+ *
+ * - V8__Tags.sql
+ */
+@Entity
+@Table(name = "application_tags")
+class ApplicationTagEntity(
+    @ManyToOne
+    var application: ApplicationEntity,
+
+    var tag: String,
+
+    @Id
+    @GeneratedValue
+    var id: Long? = null
+)
+
+@Entity
+@Table(name = "favorited_by")
+class FavoriteApplicationEntity(
+    @ManyToOne
+    var application: ApplicationEntity,
+
+    @Column(name = "the_user")
+    var user: String,
+
+    @Id
+    @GeneratedValue
+    var id: Long? = null
 )
 
 /**
@@ -71,6 +102,9 @@ class ApplicationEntity(
     @EmbeddedId
     var id: EmbeddedNameAndVersion
 ) {
+    @OneToMany
+    var tags: MutableList<ApplicationTagEntity> = ArrayList()
+
     companion object : HibernateEntity<ApplicationEntity>, WithId<EmbeddedNameAndVersion>
 }
 
@@ -79,45 +113,3 @@ data class EmbeddedNameAndVersion(
     var version: String = ""
 ) : Serializable
 
-/**
- * Updated in:
- *
- * - V1__Initial.sql
- * - V5__JobReferences.sql
- * - V6__JWTs.sql
- */
-@Entity
-@Table(name = "jobs")
-data class JobEntity(
-    @Id
-    @NaturalId
-    var systemId: UUID,
-
-    var owner: String,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var createdAt: Date,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var modifiedAt: Date,
-
-    @Enumerated(EnumType.STRING)
-    var state: AppState,
-
-    var slurmId: Long?,
-
-    var status: String?,
-
-    var sshUser: String?,
-
-    var jobDirectory: String?,
-
-    var workingDirectory: String?,
-
-    @ManyToOne
-    var application: ApplicationEntity,
-
-    var jwt: String
-) {
-    companion object : HibernateEntity<JobEntity>, WithId<UUID>
-}

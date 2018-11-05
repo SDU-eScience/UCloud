@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: registry.dev-sdu-cloud.dk/sdu-cloud/auth-service:1.2.1
+        image: registry.cloud.sdu.dk/sdu-cloud/auth-service:1.2.1
         command:
         - /opt/service/bin/service
         - --config-dir

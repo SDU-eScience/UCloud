@@ -2,7 +2,11 @@ package dk.sdu.cloud.zenodo.services
 
 import dk.sdu.cloud.service.db.FakeDBSessionFactory
 import dk.sdu.cloud.zenodo.util.HttpClient
-import io.mockk.*
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.objectMockk
+import io.mockk.use
 import kotlinx.coroutines.experimental.runBlocking
 import org.asynchttpclient.Response
 import org.junit.Test
@@ -12,20 +16,21 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
-val URI.queryParams: Map<String, List<String>> get() {
-    return query.split("&").map {
-        val splitTokensIndex = it.indexOf("=")
-        val key = it.substringBefore('=')
+val URI.queryParams: Map<String, List<String>>
+    get() {
+        return query.split("&").map {
+            val splitTokensIndex = it.indexOf("=")
+            val key = it.substringBefore('=')
 
-        if (splitTokensIndex == -1) Pair(key, "")
-        else {
-            Pair(key, it.substring(splitTokensIndex + 1))
-        }
-    }.groupBy({ it.first }, { it.second })
-}
+            if (splitTokensIndex == -1) Pair(key, "")
+            else {
+                Pair(key, it.substring(splitTokensIndex + 1))
+            }
+        }.groupBy({ it.first }, { it.second })
+    }
 
 
-class ZenodoOAuthTest{
+class ZenodoOAuthTest {
     private val clientId = "ClientID"
     private val callback = "callBack"
     private val statesStore = InMemoryZenodoOAuthStateStore()
@@ -41,9 +46,8 @@ class ZenodoOAuthTest{
     private val user = "user1"
     private val token = "tokenToUser1"
     private val returnTo = "ReturnToString"
-    private val oauthToken =  OAuthTokens(token,System.currentTimeMillis()+100000,"refresh")
-    private val oauthTokenExpired =  OAuthTokens(token,2,"refresh")
-
+    private val oauthToken = OAuthTokens(token, System.currentTimeMillis() + 100000, "refresh")
+    private val oauthTokenExpired = OAuthTokens(token, 2, "refresh")
 
 
     @Test

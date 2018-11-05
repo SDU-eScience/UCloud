@@ -3,9 +3,24 @@ package dk.sdu.cloud.storage.http
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.storage.services.*
+import dk.sdu.cloud.file.api.BulkFileAudit
+import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.SingleFileAudit
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.bearer
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.logEntry
+import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.storage.services.BulkDownloadService
+import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.services.FileAttribute
+import dk.sdu.cloud.storage.services.withContext
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.application.ApplicationCall
 import io.ktor.http.ContentType
@@ -22,6 +37,9 @@ import kotlinx.coroutines.experimental.runBlocking
 import org.slf4j.LoggerFactory
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+
+private const val BUFFER_SIZE = 1024 * 1024
+private const val LOG_INTERVAL = 100
 
 class SimpleDownloadController<Ctx : FSUserContext>(
     private val cloud: AuthenticatedCloud,
@@ -115,7 +133,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                     var iterations = 0
                                     var bytes = 0
 
-                                    val buffer = ByteArray(1024 * 1024)
+                                    val buffer = ByteArray(BUFFER_SIZE)
                                     var hasMoreData = true
                                     while (hasMoreData) {
                                         var ptr = 0
@@ -135,7 +153,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                         writeSum += System.nanoTime() - startWrite
 
                                         iterations++
-                                        if (iterations % 100 == 0) {
+                                        if (iterations % LOG_INTERVAL == 0) {
                                             var rStr = (readSum / iterations).toString()
                                             var wStr = (writeSum / iterations).toString()
 
