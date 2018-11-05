@@ -73,20 +73,25 @@ export const sideBarMenuElements: { general: SidebarMenuElements, auditing: Side
     admin: { items: [{ icon: "admin", label: "Admin", to: "/admin/userCreation/" }], predicate: () => Cloud.userIsAdmin }
 };
 
-const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { sideBarEntries?: any, showLabel?: boolean }) => (
-    <SideBarContainer color="darkGray" bg="lightGray" width={["auto", "190px"]}>
-        {Object.keys(sideBarMenuElements).map((it, iteration) =>
-            <React.Fragment key={iteration}>
-                {sideBarMenuElements[it].items.map(({ icon, label, to }) => (
-                    <React.Fragment key={label}>
-                        {iteration === 0 ? <SideBarSpacer /> : null}
-                        <SideBarElement icon={icon} label={label} showLabel={showLabel} to={to} />
-                    </React.Fragment>))}
-                {iteration !== Object.keys(sideBarMenuElements).length - 1 ? (<Divider mt="10px" mb="10px" />) : null}
-            </React.Fragment>
-        )}
-        <PP visible={false} />
-    </SideBarContainer>
-);
+const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { sideBarEntries?: any, showLabel?: boolean }) => {
+    let sidebar = Object.keys(sideBarEntries)
+        .map(key => sideBarEntries[key])
+        .filter(it => it.predicate());
+    return (
+        <SideBarContainer color="darkGray" bg="lightGray" width={["auto", "190px"]}>
+            {sidebar.map((it, iteration) =>
+                <React.Fragment key={iteration}>
+                    {it.items.map(({ icon, label, to }) => (
+                        <React.Fragment key={label}>
+                            {iteration === 0 ? <SideBarSpacer /> : null}
+                            <SideBarElement icon={icon} label={label} showLabel={showLabel} to={to} />
+                        </React.Fragment>))}
+                    {iteration !== sidebar.length - 1 ? (<Divider mt="10px" mb="10px" />) : null}
+                </React.Fragment>
+            )}
+            <PP visible={false} />
+        </SideBarContainer>
+    );
+};
 
 export default Sidebar;

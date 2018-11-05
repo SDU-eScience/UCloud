@@ -3,10 +3,7 @@ import { space, width, color, textAlign, SpaceProps, WidthProps, ColorProps, Ali
 import theme from "./theme";
 
 
-export interface BoxProps extends SpaceProps,
-  WidthProps,
-  ColorProps,
-  AlignItemsProps, TopProps { }
+export type BoxProps = SpaceProps & WidthProps & ColorProps & AlignItemsProps & TopProps;
 
 const Box = styled("div") <BoxProps>`
   ${space} ${width} ${color} ${textAlign} ${top};

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Dropdown as SDropdown, Icon as SIcon, Popup, Feed, Divider as SDivider } from "semantic-ui-react";
+import { Icon as SIcon } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import Link from "ui-components/Link";
@@ -22,10 +22,8 @@ import {
     Label,
     Divider
 } from "ui-components";
-import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import Notification from "Notifications";
 import styled from "styled-components";
-import { ArrowUp, HiddenArrowUp } from "ui-components/Arrow";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 
 interface HeaderProps {
@@ -71,7 +69,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                         <SIcon name="settings" />
                         Settings
                     </Link>
-                    <Box onClick={Cloud.logout}>
+                    <Box onClick={() => Cloud.logout()}>
                         <SIcon name="sign out" />
                         Logout
                     </Box>

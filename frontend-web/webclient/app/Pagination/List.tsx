@@ -6,6 +6,7 @@ import * as Self from ".";
 import { ifPresent } from "UtilityFunctions";
 import { RefreshButton } from "UtilityComponents";
 import * as Heading from "ui-components/Heading";
+import { Box, Flex, Relative } from "ui-components";
 
 interface ListProps {
     pageRenderer: (page: Page<any>) => React.ReactNode
@@ -46,7 +47,6 @@ export class List extends React.PureComponent<ListProps> {
 
         const refreshButton = !!this.props.onRefresh ? (
             <RefreshButton
-                className="pagination-float-right"
                 loading={this.props.loading}
                 onClick={this.props.onRefresh}
             />
@@ -55,12 +55,17 @@ export class List extends React.PureComponent<ListProps> {
         return (
             <>
                 {errorComponent}
-                {refreshButton}
-                {!props.customEntriesPerPage ? <Self.EntriesPerPageSelector
-                    content="Items per page"
-                    entriesPerPage={props.page.itemsPerPage}
-                    onChange={perPage => ifPresent(props.onItemsPerPageChanged, c => c(perPage))}
-                /> : null}
+                <Flex alignItems="right">
+                    <Box ml="auto" />
+                    <Relative>
+                        {!props.customEntriesPerPage ? <Self.EntriesPerPageSelector
+                            content="Items per page"
+                            entriesPerPage={props.page.itemsPerPage}
+                            onChange={perPage => ifPresent(props.onItemsPerPageChanged, c => c(perPage))}
+                        /> : null}
+                        {refreshButton}
+                    </Relative>
+                </Flex>
                 {body}
                 <div>
                     <Self.Buttons

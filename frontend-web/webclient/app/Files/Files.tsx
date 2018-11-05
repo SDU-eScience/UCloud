@@ -110,6 +110,7 @@ class Files extends React.Component<FilesProps> {
         ];
         const customEntriesPerPage = (
             <>
+                <Box ml="auto" />
                 <RefreshButton loading={loading} onClick={refetch} className="float-right" />
                 <Pagination.EntriesPerPageSelector
                     entriesPerPage={page.itemsPerPage}
@@ -323,7 +324,7 @@ const FileLink = ({ file, children }) => {
 
 function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile = () => null }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
-    const checkbox = <Box ml="9px" mt="4px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(e) => onCheckFile(e.target.checked)} /></Box>
+    const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(e) => onCheckFile(e.target.checked)} /></Box>
     const icon = (
         <FileIcon
             color={isDirectory(file) ? "blue" : "grey"}
@@ -349,7 +350,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                     type="text"
                     width="100%"
                     autoFocus
-                    onKeyDown={(e) => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
+                    onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
                 />
                 <Box>
                     <OutlineButton size="tiny" color="red" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton>
