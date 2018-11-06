@@ -166,7 +166,7 @@ jar {
     exclude("**/dk/sdu/cloud/service/test/**")
 }
 
-tasks.create("testJarTask", Jar) { task ->
+def testJarTask = tasks.create("testJarTask", Jar) { task ->
     task.baseName = "service-common-test"
     task.from(sourceSets.main.output)
     task.from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
@@ -185,6 +185,15 @@ task testSourceJar(type: Jar) {
 }
 
 publishing {
+    def pub = it as PublishingExtension
+
+    def testJavaPublication = pub.publications.create("testJava", MavenPublication) as MavenPublication
+    testJavaPublication.groupId = "dk.sdu.cloud"
+    testJavaPublication.artifactId = "service-common-test"
+    testJavaPublication.version = project.version
+    testJavaPublication.artifact(testJarTask)
+    testJavaPublication.artifact(testSourceJar).classifier = "sources"
+
     publications {
         mavenJava(MavenPublication) {
             from components.java
