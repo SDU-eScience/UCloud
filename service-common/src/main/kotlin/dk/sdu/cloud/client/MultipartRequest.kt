@@ -163,7 +163,11 @@ class MultipartRequest<Request : Any> private constructor() {
                 constructor.callBy(params) as Request
             } catch (ex: Exception) {
                 log.debug(ex.stackTraceToString())
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                when (ex) {
+                    is RPCException -> throw ex
+                    else -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                }
             }
 
             consumer(block)

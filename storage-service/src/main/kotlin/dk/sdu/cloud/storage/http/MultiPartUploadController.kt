@@ -17,7 +17,6 @@ import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.withContext
-import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
@@ -52,19 +51,18 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                     )
                 )
 
-                try {
+                val upload = req.upload
+                if (upload != null) {
                     commandRunnerFactory.withContext(owner) { ctx ->
                         fs.write(ctx, req.location, WriteConflictPolicy.OVERWRITE) {
                             val out = this
                             req.upload.payload.use { it.copyTo(out) }
                         }
 
-                        ok(Unit)
                     }
-                } catch (ex: FSException.PermissionException) {
-                    error(CommonErrorMessage("Forbidden"), HttpStatusCode.Forbidden)
                 }
             }
+            ok(Unit)
         }
 
         implement(MultiPartUploadDescriptions.bulkUpload) { multipart ->
@@ -80,7 +78,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                     }
 
                     audit(BulkUploadAudit(req.location, req.policy, req.format))
-                    okContentDeliveredExternally()
 
                     val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
                     req.upload.payload.copyTo(outputFile.outputStream())
@@ -101,10 +98,10 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                             }
                         }
                     }
-
-                    ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)
                 }
             }
+
+            ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)
         }
     }
 
