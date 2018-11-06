@@ -39,7 +39,7 @@ interface TokenValidation<TokenType> {
 
 private const val CERT_CHUNK_SIZE = 64
 
-class TokenValidationJWT(private val algorithm: Algorithm) : TokenValidation<DecodedJWT> {
+class TokenValidationJWT(val algorithm: Algorithm) : TokenValidation<DecodedJWT> {
     private fun createVerifier(audience: List<String>? = null): JWTVerifier {
         return JWT.require(algorithm).run {
             withIssuer("cloud.sdu.dk")

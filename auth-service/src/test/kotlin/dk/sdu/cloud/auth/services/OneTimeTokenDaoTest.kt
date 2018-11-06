@@ -1,7 +1,7 @@
 package dk.sdu.cloud.auth.services
 
-import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.withDatabase
 import io.mockk.every
 import io.mockk.spyk
 import org.junit.Test

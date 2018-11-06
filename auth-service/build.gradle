@@ -36,6 +36,7 @@ dependencies {
 
     // Internal services
     compile 'dk.sdu.cloud:service-common:0.21.0-SNAPSHOT'
+    testCompile 'dk.sdu.cloud:service-common-test:0.21.0-SNAPSHOT'
 }
 
 sduCloud.createTasksForApiJar("auth", [])

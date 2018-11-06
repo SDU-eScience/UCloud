@@ -11,6 +11,7 @@ import dk.sdu.cloud.auth.services.OneTimeTokenDAO
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.bearer
@@ -38,9 +39,8 @@ import io.ktor.request.header
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
-import io.ktor.routing.Routing
+import io.ktor.routing.Route
 import io.ktor.routing.get
-import io.ktor.routing.route
 import io.ktor.util.escapeHTML
 import kotlinx.html.ButtonType
 import kotlinx.html.FORM
@@ -79,7 +79,8 @@ class CoreAuthController<DBSession>(
     private val enableWayf: Boolean,
     private val tokenValidation: TokenValidation<DecodedJWT>,
     private val trustedOrigins: Set<String> = setOf("localhost", "cloud.sdu.dk")
-) {
+) : Controller {
+    override val baseContext = "/auth"
     private val log = LoggerFactory.getLogger(CoreAuthController::class.java)
 
     private suspend fun RESTHandler<*, *, CommonErrorMessage, *>.requestOriginIsTrusted(): Boolean {
@@ -119,369 +120,367 @@ class CoreAuthController<DBSession>(
         return true
     }
 
-    fun configure(routing: Routing): Unit = with(routing) {
-        route("auth") {
-            install(CachingHeaders) {
-                options {
-                    // For some reason there is no other way to specify which version we want.
-                    // Likely working around a bug.
-                    @Suppress("CAST_NEVER_SUCCEEDS")
-                    CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private), null as? ZonedDateTime)
-                }
+    override fun configure(routing: Route): Unit = with(routing) {
+        install(CachingHeaders) {
+            options {
+                // For some reason there is no other way to specify which version we want.
+                // Likely working around a bug.
+                @Suppress("CAST_NEVER_SUCCEEDS")
+                CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private), null as? ZonedDateTime)
+            }
+        }
+
+        intercept(ApplicationCallPipeline.Features) {
+            call.response.header(HttpHeaders.Pragma, "no-cache")
+        }
+
+        static {
+            val staticFolder = listOf("./static", "/var/auth-static")
+                .asSequence()
+                .map { File(it) }
+                .find { it.exists() && it.isDirectory }
+
+            if (staticFolder != null) {
+                files(staticFolder)
             }
 
-            intercept(ApplicationCallPipeline.Features) {
-                call.response.header(HttpHeaders.Pragma, "no-cache")
+            resource("redirect.js", resourcePackage = "assets")
+        }
+
+        get("2fa") {
+            val challengeId = call.parameters["challengeId"]
+            val isInvalid = call.parameters["invalid"] != null
+            val message = call.parameters["message"] // TODO Is this a good idea?
+
+            logEntry(log, mapOf("challengeId" to challengeId))
+
+            if (challengeId == null) {
+                call.respondRedirect("/auth/login?invalid")
+                return@get
             }
 
-            static {
-                val staticFolder = listOf("./static", "/var/auth-static")
-                    .asSequence()
-                    .map { File(it) }
-                    .find { it.exists() && it.isDirectory }
+            call.respondHtml {
+                formPage(
+                    title = "Two Factor Authentication Required",
 
-                if (staticFolder != null) {
-                    files(staticFolder)
-                }
+                    beforeForm = {
+                        h3 { +"2FA is Enabled for this Account" }
 
-                resource("redirect.js", resourcePackage = "assets")
-            }
-
-            get("2fa") {
-                val challengeId = call.parameters["challengeId"]
-                val isInvalid = call.parameters["invalid"] != null
-                val message = call.parameters["message"] // TODO Is this a good idea?
-
-                logEntry(log, mapOf("challengeId" to challengeId))
-
-                if (challengeId == null) {
-                    call.respondRedirect("/auth/login?invalid")
-                    return@get
-                }
-
-                call.respondHtml {
-                    formPage(
-                        title = "Two Factor Authentication Required",
-
-                        beforeForm = {
-                            h3 { +"2FA is Enabled for this Account" }
-
-                            if (isInvalid) {
-                                div(classes = "ui message warning") {
-                                    +"The verification code you entered was incorrect"
-                                }
+                        if (isInvalid) {
+                            div(classes = "ui message warning") {
+                                +"The verification code you entered was incorrect"
                             }
+                        }
 
-                            if (message != null) {
-                                div(classes = "ui message warning") {
-                                    +message
-                                }
+                        if (message != null) {
+                            div(classes = "ui message warning") {
+                                +message
                             }
-                        },
+                        }
+                    },
 
-                        action = "/auth/2fa/challenge/form",
-                        method = FormMethod.post,
+                    action = "/auth/2fa/challenge/form",
+                    method = FormMethod.post,
 
-                        form = {
+                    form = {
+                        input {
+                            type = InputType.hidden
+                            value = challengeId
+                            name = "challengeId"
+                        }
+
+                        formControlField(
+                            name = "verificationCode",
+                            text = "6-digit code",
+                            iconType = "lock",
+                            type = "password"
+                        )
+
+                        button(type = ButtonType.submit, classes = "ui fluid large blue submit button") {
+                            +"Submit"
+                        }
+                    }
+                )
+            }
+        }
+
+        get("login") { _ ->
+            val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) }
+            val isInvalid = call.parameters["invalid"] != null
+
+            logEntry(log, mapOf("service" to service, "isInvalid" to isInvalid))
+
+
+            call.respondHtml {
+                formPage(
+                    title = "Login",
+
+                    beforeForm = {
+                        if (service == null) {
+                            div(classes = "ui message error") {
+                                +"An error has occurred. Try again later."
+                            }
+                        }
+
+                        if (isInvalid) {
+                            div(classes = "ui message warning") {
+                                +"Invalid username or password"
+                            }
+                        }
+                    },
+
+                    form = {
+                        if (service == null) return@formPage
+
+                        if (enablePasswords) {
                             input {
                                 type = InputType.hidden
-                                value = challengeId
-                                name = "challengeId"
+                                value = service.name
+                                name = "service"
                             }
 
                             formControlField(
-                                name = "verificationCode",
-                                text = "6-digit code",
+                                name = "username",
+                                iconType = "user",
+                                text = "Username"
+                            )
+
+                            formControlField(
+                                name = "password",
+                                text = "Password",
                                 iconType = "lock",
                                 type = "password"
                             )
 
                             button(type = ButtonType.submit, classes = "ui fluid large blue submit button") {
-                                +"Submit"
+                                +"Login"
                             }
                         }
-                    )
-                }
-            }
 
-            get("login") { _ ->
-                val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) }
-                val isInvalid = call.parameters["invalid"] != null
-
-                logEntry(log, mapOf("service" to service, "isInvalid" to isInvalid))
-
-
-                call.respondHtml {
-                    formPage(
-                        title = "Login",
-
-                        beforeForm = {
-                            if (service == null) {
-                                div(classes = "ui message error") {
-                                    +"An error has occurred. Try again later."
-                                }
+                        if (enablePasswords && enableWayf) {
+                            div(classes = "ui horizontal divider") {
+                                +"Or Using SSO"
                             }
-
-                            if (isInvalid) {
-                                div(classes = "ui message warning") {
-                                    +"Invalid username or password"
-                                }
-                            }
-                        },
-
-                        form = {
-                            if (service == null) return@formPage
-
-                            if (enablePasswords) {
-                                input {
-                                    type = InputType.hidden
-                                    value = service.name
-                                    name = "service"
-                                }
-
-                                formControlField(
-                                    name = "username",
-                                    iconType = "user",
-                                    text = "Username"
-                                )
-
-                                formControlField(
-                                    name = "password",
-                                    text = "Password",
-                                    iconType = "lock",
-                                    type = "password"
-                                )
-
-                                button(type = ButtonType.submit, classes = "ui fluid large blue submit button") {
-                                    +"Login"
-                                }
-                            }
-
-                            if (enablePasswords && enableWayf) {
-                                div(classes = "ui horizontal divider") {
-                                    +"Or Using SSO"
-                                }
-                            }
+                        }
 
 
-                            if (enableWayf) {
-                                div {
-                                    a(
-                                        href = "/auth/saml/login?service=${service.name.urlEncoded}",
-                                        classes = "ui fluid button icon labeled"
-                                    ) {
-                                        +"Login using WAYF"
-                                        img(
-                                            alt = "WAYF Logo",
-                                            src = "wayf_logo.png",
-                                            classes = "wayf icon"
-                                        )
-                                    }
+                        if (enableWayf) {
+                            div {
+                                a(
+                                    href = "/auth/saml/login?service=${service.name.urlEncoded}",
+                                    classes = "ui fluid button icon labeled"
+                                ) {
+                                    +"Login using WAYF"
+                                    img(
+                                        alt = "WAYF Logo",
+                                        src = "wayf_logo.png",
+                                        classes = "wayf icon"
+                                    )
                                 }
                             }
                         }
-                    )
-                }
+                    }
+                )
+            }
+        }
+
+        get("login-redirect") { _ ->
+            logEntry(log, parameterIncludeFilter = {
+                it == "service" || it == "accessToken" || it == "refreshToken"
+            })
+
+            val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) } ?: return@get run {
+                log.info("Missing service")
+                call.respondRedirect("/auth/login")
             }
 
-            get("login-redirect") { _ ->
-                logEntry(log, parameterIncludeFilter = {
-                    it == "service" || it == "accessToken" || it == "refreshToken"
-                })
+            val token = call.parameters["accessToken"] ?: return@get run {
+                log.info("Missing access token")
+                call.respondRedirect("/auth/login?invalid&service=${service.name.urlEncoded}")
+            }
 
-                val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) } ?: return@get run {
-                    log.info("Missing service")
-                    call.respondRedirect("/auth/login")
+            val refreshToken = call.parameters["refreshToken"]
+            // We don't validate the refresh token for performance. It might also not yet have been serialized into
+            // the database. This is not really a problem since it most likely does reach the database before it
+            // will be invoked (when the access token expires). Purposefully passing a bad token here might cause
+            // the user to be logged out though, and it will require a valid access token. This makes the attack
+            // a bit useless.
+
+            val csrfToken = call.parameters["csrfToken"]
+
+            if (tokenValidation.validateOrNull(token) == null) {
+                log.info("Invalid access token")
+                call.respondRedirect("/auth/login?invalid&service=${service.name.urlEncoded}")
+                return@get
+            }
+
+            call.respondHtml {
+                head {
+                    meta("charset", "UTF-8")
+                    title("SDU Login Redirection")
                 }
 
-                val token = call.parameters["accessToken"] ?: return@get run {
-                    log.info("Missing access token")
-                    call.respondRedirect("/auth/login?invalid&service=${service.name.urlEncoded}")
-                }
-
-                val refreshToken = call.parameters["refreshToken"]
-                // We don't validate the refresh token for performance. It might also not yet have been serialized into
-                // the database. This is not really a problem since it most likely does reach the database before it
-                // will be invoked (when the access token expires). Purposefully passing a bad token here might cause
-                // the user to be logged out though, and it will require a valid access token. This makes the attack
-                // a bit useless.
-
-                val csrfToken = call.parameters["csrfToken"]
-
-                if (tokenValidation.validateOrNull(token) == null) {
-                    log.info("Invalid access token")
-                    call.respondRedirect("/auth/login?invalid&service=${service.name.urlEncoded}")
-                    return@get
-                }
-
-                call.respondHtml {
-                    head {
-                        meta("charset", "UTF-8")
-                        title("SDU Login Redirection")
+                body {
+                    p {
+                        +("If your browser does not automatically redirect you, then please " +
+                                "click submit.")
                     }
 
-                    body {
-                        p {
-                            +("If your browser does not automatically redirect you, then please " +
-                                    "click submit.")
+                    form {
+                        method = FormMethod.post
+                        action = service.endpoint
+                        id = "form"
+
+                        input(InputType.hidden) {
+                            name = "accessToken"
+                            value = token.escapeHTML()
                         }
 
-                        form {
-                            method = FormMethod.post
-                            action = service.endpoint
-                            id = "form"
-
+                        if (refreshToken != null) {
                             input(InputType.hidden) {
-                                name = "accessToken"
-                                value = token.escapeHTML()
-                            }
-
-                            if (refreshToken != null) {
-                                input(InputType.hidden) {
-                                    name = "refreshToken"
-                                    value = refreshToken.escapeHTML()
-                                }
-                            }
-
-                            if (csrfToken != null) {
-                                input(InputType.hidden) {
-                                    name = "csrfToken"
-                                    value = csrfToken.escapeHTML()
-                                }
-                            }
-
-                            input(InputType.submit) {
-                                value = "Submit"
+                                name = "refreshToken"
+                                value = refreshToken.escapeHTML()
                             }
                         }
 
-                        script(src = "/auth/redirect.js") {}
-                    }
-                }
-            }
+                        if (csrfToken != null) {
+                            input(InputType.hidden) {
+                                name = "csrfToken"
+                                value = csrfToken.escapeHTML()
+                            }
+                        }
 
-
-            implement(AuthDescriptions.refresh) {
-                val refreshToken = call.request.bearer ?: return@implement run {
-                    error(HttpStatusCode.Unauthorized)
-                }
-
-                val token = tokenService.refresh(refreshToken)
-                ok(AccessToken(token.accessToken))
-            }
-
-            implement(AuthDescriptions.webRefresh) {
-                // Note: This is currently the only endpoint in the entire system that needs CSRF protection.
-                // That is why this endpoint contains all of the protection stuff directly. If we _ever_ need more
-                // endpoints with CSRF protection, this code should be moved out.
-
-                if (!requestOriginIsTrusted()) return@implement
-
-                // Then validate CSRF and refresh token
-                val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
-                    log.info("No CSRF token included")
-                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                    return@implement
-                }
-
-                val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
-                    log.info("Missing refresh token")
-                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                    return@implement
-                }
-
-                ok(tokenService.refresh(refreshToken, csrfToken))
-            }
-
-            implement(AuthDescriptions.tokenExtension) { req ->
-                val auditMessage = TokenExtensionAudit(
-                    call.securityPrincipal.username, null, null, req.requestedScopes,
-                    req.expiresIn
-                )
-
-                audit(auditMessage)
-
-                val token = tokenValidation.validateOrNull(req.validJWT)?.toSecurityToken() ?: return@implement error(
-                    CommonErrorMessage("Unauthorized"),
-                    HttpStatusCode.Unauthorized
-                )
-
-                audit(auditMessage.copy(username = token.principal.username, role = token.principal.role))
-
-                ok(tokenService.extendToken(token, req.expiresIn, req.requestedScopes, call.securityPrincipal.username))
-            }
-
-            implement(AuthDescriptions.requestOneTimeTokenWithAudience) { req ->
-                val bearerToken = call.request.bearer ?: return@implement run {
-                    error(HttpStatusCode.Unauthorized)
-                }
-
-                val audiences = req.audience.split(",")
-                    .asSequence()
-                    .mapNotNull {
-                        // Backwards compatible transformation of audiences
-                        // Can be deleted when clients no longer use it. Progress tracked in #286
-                        when (it) {
-                            "downloadFile" -> SecurityScope.construct(
-                                listOf("files", "download"),
-                                AccessRight.READ_WRITE
-                            ).toString()
-                            "irods" -> null
-                            else -> it
+                        input(InputType.submit) {
+                            value = "Submit"
                         }
                     }
-                    .map { SecurityScope.parseFromString(it) }
-                    .toList()
 
-                val token = tokenService.requestOneTimeToken(bearerToken, audiences)
-                ok(token)
-            }
-
-            implement(AuthDescriptions.claim) { req ->
-                val tokenWasClaimed = db.withTransaction {
-                    ottDao.claim(it, req.jti, call.securityPrincipal.username)
-                }
-
-                if (tokenWasClaimed) {
-                    ok(HttpStatusCode.NoContent)
-                } else {
-                    error(HttpStatusCode.Conflict)
+                    script(src = "/auth/redirect.js") {}
                 }
             }
+        }
 
-            // TODO This stuff won't work with cookie based auth
-            implement(AuthDescriptions.logout) {
-                okContentDeliveredExternally()
 
-                val refreshToken = call.request.bearer ?: return@implement run {
-                    call.respond(HttpStatusCode.Unauthorized)
-                }
-
-                tokenService.logout(refreshToken)
-                call.respond(HttpStatusCode.NoContent)
+        implement(AuthDescriptions.refresh) {
+            val refreshToken = call.request.bearer ?: return@implement run {
+                error(HttpStatusCode.Unauthorized)
             }
 
-            implement(AuthDescriptions.webLogout) {
-                if (!requestOriginIsTrusted()) return@implement
+            val token = tokenService.refresh(refreshToken)
+            ok(AccessToken(token.accessToken))
+        }
 
-                // Then validate CSRF and refresh token
-                val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
-                    log.info("No CSRF token included")
-                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                    return@implement
-                }
+        implement(AuthDescriptions.webRefresh) {
+            // Note: This is currently the only endpoint in the entire system that needs CSRF protection.
+            // That is why this endpoint contains all of the protection stuff directly. If we _ever_ need more
+            // endpoints with CSRF protection, this code should be moved out.
 
-                val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
-                    log.info("Missing refresh token")
-                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                    return@implement
-                }
+            if (!requestOriginIsTrusted()) return@implement
 
-                okContentDeliveredExternally()
-                tokenService.logout(refreshToken, csrfToken)
-                call.response.cookies.appendExpired(REFRESH_WEB_REFRESH_TOKEN_COOKIE, path = "/")
-                call.respond(HttpStatusCode.NoContent)
+            // Then validate CSRF and refresh token
+            val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
+                log.info("No CSRF token included")
+                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                return@implement
             }
+
+            val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
+                log.info("Missing refresh token")
+                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                return@implement
+            }
+
+            ok(tokenService.refresh(refreshToken, csrfToken))
+        }
+
+        implement(AuthDescriptions.tokenExtension) { req ->
+            val auditMessage = TokenExtensionAudit(
+                call.securityPrincipal.username, null, null, req.requestedScopes,
+                req.expiresIn
+            )
+
+            audit(auditMessage)
+
+            val token = tokenValidation.validateOrNull(req.validJWT)?.toSecurityToken() ?: return@implement error(
+                CommonErrorMessage("Unauthorized"),
+                HttpStatusCode.Unauthorized
+            )
+
+            audit(auditMessage.copy(username = token.principal.username, role = token.principal.role))
+
+            ok(tokenService.extendToken(token, req.expiresIn, req.requestedScopes, call.securityPrincipal.username))
+        }
+
+        implement(AuthDescriptions.requestOneTimeTokenWithAudience) { req ->
+            val bearerToken = call.request.bearer ?: return@implement run {
+                error(HttpStatusCode.Unauthorized)
+            }
+
+            val audiences = req.audience.split(",")
+                .asSequence()
+                .mapNotNull {
+                    // Backwards compatible transformation of audiences
+                    // Can be deleted when clients no longer use it. Progress tracked in #286
+                    when (it) {
+                        "downloadFile" -> SecurityScope.construct(
+                            listOf("files", "download"),
+                            AccessRight.READ_WRITE
+                        ).toString()
+                        "irods" -> null
+                        else -> it
+                    }
+                }
+                .map { SecurityScope.parseFromString(it) }
+                .toList()
+
+            val token = tokenService.requestOneTimeToken(bearerToken, audiences)
+            ok(token)
+        }
+
+        implement(AuthDescriptions.claim) { req ->
+            val tokenWasClaimed = db.withTransaction {
+                ottDao.claim(it, req.jti, call.securityPrincipal.username)
+            }
+
+            if (tokenWasClaimed) {
+                ok(HttpStatusCode.NoContent)
+            } else {
+                error(HttpStatusCode.Conflict)
+            }
+        }
+
+        // TODO This stuff won't work with cookie based auth
+        implement(AuthDescriptions.logout) {
+            okContentDeliveredExternally()
+
+            val refreshToken = call.request.bearer ?: return@implement run {
+                call.respond(HttpStatusCode.Unauthorized)
+            }
+
+            tokenService.logout(refreshToken)
+            call.respond(HttpStatusCode.NoContent)
+        }
+
+        implement(AuthDescriptions.webLogout) {
+            if (!requestOriginIsTrusted()) return@implement
+
+            // Then validate CSRF and refresh token
+            val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
+                log.info("No CSRF token included")
+                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                return@implement
+            }
+
+            val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
+                log.info("Missing refresh token")
+                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                return@implement
+            }
+
+            okContentDeliveredExternally()
+            tokenService.logout(refreshToken, csrfToken)
+            call.response.cookies.appendExpired(REFRESH_WEB_REFRESH_TOKEN_COOKIE, path = "/")
+            call.respond(HttpStatusCode.NoContent)
         }
     }
 

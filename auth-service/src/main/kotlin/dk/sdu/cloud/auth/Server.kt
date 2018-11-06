@@ -34,7 +34,6 @@ import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
-import dk.sdu.cloud.service.tokenValidation
 import io.ktor.application.install
 import io.ktor.features.CORS
 import io.ktor.http.HttpMethod
@@ -43,7 +42,7 @@ import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 import java.security.SecureRandom
-import java.util.Base64
+import java.util.*
 
 private const val ONE_YEAR_IN_MILLS = 1000 * 60 * 60 * 24 * 365L
 private const val PASSWORD_BYTES = 64
@@ -158,16 +157,6 @@ class Server(
 
             log.info("Creating HTTP controllers")
 
-            val coreController = CoreAuthController(
-                db,
-                ottDao,
-                tokenService,
-                config.enablePasswords,
-                config.enableWayf,
-                tokenValidation,
-                config.trustedOrigins.toSet()
-            )
-
             val samlController = SAMLController(
                 authSettings,
                 { settings, call, params -> SamlRequestProcessor(settings, call, params) },
@@ -179,11 +168,19 @@ class Server(
             log.info("HTTP controllers configured!")
 
             routing {
-                coreController.configure(this)
-                if (config.enableWayf) samlController.configure(this)
-                if (config.enablePasswords) passwordController.configure(this)
+                if (config.enableWayf) configureControllers(samlController)
+                if (config.enablePasswords) configureControllers(passwordController)
 
                 configureControllers(
+                    CoreAuthController(
+                        db,
+                        ottDao,
+                        tokenService,
+                        config.enablePasswords,
+                        config.enableWayf,
+                        tokenValidation,
+                        config.trustedOrigins.toSet()
+                    ),
                     UserController(
                         db,
                         userDao,

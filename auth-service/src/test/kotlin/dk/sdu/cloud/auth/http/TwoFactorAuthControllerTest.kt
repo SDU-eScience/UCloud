@@ -18,26 +18,22 @@ import dk.sdu.cloud.auth.services.UserDAO
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.services.WSTOTPService
 import dk.sdu.cloud.auth.services.ZXingQRService
-import dk.sdu.cloud.auth.utils.withAuthMock
-import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.ServiceDefinition
-import dk.sdu.cloud.service.ServiceInstance
-import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.hibernateDatabase
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
-import io.ktor.server.testing.withTestApplication
 import io.mockk.mockk
 import org.junit.Test
 import java.util.*
@@ -101,46 +97,29 @@ class TwoFactorAuthControllerTest {
 
         consumer: TestApplicationEngine.(TestContext) -> Unit
     ) {
-        withDatabase { db ->
-            val twoFactorService = twoFactorChallengeService(db)
+        lateinit var twoFactorService: TwoFactorChallengeService<HibernateSession>
 
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        installDefaultFeatures(
-                            cloud,
-                            kafka,
-                            ServiceInstance(ServiceDefinition("test", "1.0.0"), "localhost", 8080),
-                            false
-                        )
-
-                        routing {
-                            configureControllers(
-                                TwoFactorAuthController(
-                                    twoFactorService,
-                                    loginResponder
-                                )
-                            )
-                        }
-                    },
-
-                    test = {
-                        val ctx = TestContext(
-                            cloud,
-                            kafka,
-                            loginResponder,
-                            twoFactorService,
-                            twoFactorDAO,
-                            userDAO,
-                            totpService,
-                            qrService,
-                            db
-                        )
-                        consumer(ctx)
-                    }
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                twoFactorService = twoFactorChallengeService(micro.hibernateDatabase)
+                listOf(TwoFactorAuthController(twoFactorService, loginResponder))
+            },
+            test = {
+                val ctx = TestContext(
+                    cloud,
+                    kafka,
+                    loginResponder,
+                    twoFactorService,
+                    twoFactorDAO,
+                    userDAO,
+                    totpService,
+                    qrService,
+                    micro.hibernateDatabase
                 )
+                engine.consumer(ctx)
             }
-        }
+        )
     }
 
     @Test
