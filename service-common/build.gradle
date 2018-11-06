@@ -26,7 +26,7 @@ detekt {
     filters = ".*/resources/.*,.*/build/.*"
 
     // https://stackoverflow.com/a/921400
-    def currentVersion = "v0.1.0"
+    def currentVersion = "v0.2.1"
     URL website = new URL("https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/$currentVersion/detekt.yml")
     ReadableByteChannel rbc = Channels.newChannel(website.openStream())
     def outputFile = Files.createTempFile("detekt", ".yml").toFile()
@@ -159,6 +159,29 @@ kotlin.sourceSets.all {
 
 task sourceJar(type: Jar) {
     from sourceSets.main.allSource
+    exclude("**/dk/sdu/cloud/service/test/**")
+}
+
+jar {
+    exclude("**/dk/sdu/cloud/service/test/**")
+}
+
+tasks.create("testJarTask", Jar) { task ->
+    task.baseName = "service-common-test"
+    task.from(sourceSets.main.output)
+    task.from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    task.include("**/dk/sdu/cloud/service/test/**")
+    task.include("META-INF/**/${project.name}.kotlin_module")
+    task.includeEmptyDirs = false
+    task.with(jar)
+}
+
+task testSourceJar(type: Jar) {
+    archiveName = "service-common-test-${project.version}-sources.jar"
+    from(sourceSets.main.allSource) {
+        include("**/dk/sdu/cloud/service/test/**")
+        includeEmptyDirs = false
+    }
 }
 
 publishing {
