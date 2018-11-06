@@ -8,6 +8,7 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.SDUCloud
 import dk.sdu.cloud.client.ServiceDescription
 import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.service.test.initializeMicro
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
@@ -44,33 +45,6 @@ fun main(args: Array<String>) {
         header(HttpHeaders.XForwardedFor, "123.123.123.123")
     }
 
-    val producer = mockk<KafkaProducer<String, String>>(relaxed = true)
-    val kafka = KafkaServices(
-        mockk(relaxed = true),
-        mockk(relaxed = true),
-        producer,
-        mockk(relaxed = true)
-    )
-
-    val future = FutureTask<RecordMetadata> {
-        mockk(relaxed = true)
-    }
-
-    val producerRecord: MutableList<ProducerRecord<String, String>> = ArrayList()
-    every { producer.send(capture(producerRecord), any()) } answers {
-        val callback = call.invocation.args[1] as Callback
-        val metadata = mockk<RecordMetadata>(relaxed = true)
-        callback.onCompletion(metadata, null)
-        future
-    }
-
-    val description = object : ServiceDescription {
-        override val name: String = "test"
-        override val version: String = "1.0.0"
-    }.definition()
-
-    val instance = ServiceInstance(description, "localhost", 8080)
-
     val rest = object : RESTDescriptions("foo") {
         val call = callDescription<Echo, Echo, Unit> {
             name = "call"
@@ -90,8 +64,9 @@ fun main(args: Array<String>) {
         }
     }
 
+    val micro = initializeMicro()
     val server = embeddedServer(Netty, port = 8080) {
-        installDefaultFeatures(cloud, kafka, instance, false)
+        installDefaultFeatures(micro)
 
         routing {
             implement(rest.call) {
@@ -107,7 +82,6 @@ fun main(args: Array<String>) {
     }
 
     println(result)
-    println(producerRecord)
     server.stop(0, 0, TimeUnit.SECONDS)
 }
 

@@ -6,6 +6,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -68,36 +69,27 @@ class ImplementGenericTest {
 
     @Test
     fun `test that generic type erasure does not occur`() {
-        withTestApplication(
-            moduleFunction = {
-                routing {
-                    installDefaultFeatures(
-                        mockk(relaxed = true),
-                        mockk(relaxed = true),
-                        mockk(relaxed = true),
-                        requireJobId = false
-                    )
-
-                    configureControllers(GenericController())
-                }
-            },
-
+        withKtorTest(
+            setup = { listOf(GenericController()) },
             test = {
-                val response = handleRequest(HttpMethod.Get, "/")
-                assertTrue(response.requestHandled)
-                assertTrue(
-                    ContentType.parse(response.response.headers[HttpHeaders.ContentType]!!).match(
-                        ContentType.Application.Json
+                with(engine) {
+                    val response = handleRequest(HttpMethod.Get, "/")
+                    assertTrue(response.requestHandled)
+                    assertTrue(
+                        ContentType.parse(response.response.headers[HttpHeaders.ContentType]!!).match(
+                            ContentType.Application.Json
+                        )
                     )
-                )
 
-                val tree = defaultMapper.readTree(response.response.content)?.takeIf { !it.isNull && !it.isMissingNode }
-                tree!!
+                    val tree =
+                        defaultMapper.readTree(response.response.content)?.takeIf { !it.isNull && !it.isMissingNode }
+                    tree!!
 
-                val items = tree["items"]?.takeIf { !it.isNull && !it.isMissingNode }!!
-                assertEquals(2, items.size())
-                assertEquals("a", items[0][PROP_TYPE].asText())
-                assertEquals("b", items[1][PROP_TYPE].asText())
+                    val items = tree["items"]?.takeIf { !it.isNull && !it.isMissingNode }!!
+                    assertEquals(2, items.size())
+                    assertEquals("a", items[0][PROP_TYPE].asText())
+                    assertEquals("b", items[1][PROP_TYPE].asText())
+                }
             }
         )
     }
