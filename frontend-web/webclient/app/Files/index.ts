@@ -8,6 +8,8 @@ import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
 import { IconName } from "ui-components/Icon";
+import { ComponentWithPage, Sensitivity } from "DefaultObjects";
+import { Times } from "./Redux/DetailedFileSearchActions";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -236,7 +238,24 @@ export interface ContextButtonsProps {
 }
 
 
-export interface DetailedFileSearchProps { }
+export interface DetailedFileSearchOperations {
+    toggleHidden: () => void
+    addExtensions: (ext: string[]) => void
+    removeExtensions: (ext: string[]) => void
+    toggleFolderAllowed: () => void
+    toggleFilesAllowed: () => void
+    addSensitivity: (sensitivity: SensitivityLevel) => void
+    removeSensitivity: (sensitivity: SensitivityLevel[]) => void
+    addTags: (tags: string[]) => void
+    removeTags: (tags: string[]) => void
+    setFilename: (filename: string) => void
+    fetchPage: (request: AdvancedSearchRequest) => void
+    setLoading: (loading: boolean) => void
+    setTimes: (times: Times) => void
+    setError: (error?: string) => void
+}
+
+export type DetailedFileSearchProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
 
 export enum AnnotationsMap { P = "Project" }
 
@@ -244,24 +263,19 @@ export type Annotation = keyof typeof AnnotationsMap;
 
 export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 
-export interface DetailedFileSearchState {
+export interface DetailedFileSearchReduxState extends ComponentWithPage<File> {
     hidden: boolean
     allowFolders: boolean
     allowFiles: boolean
     fileName: string
     extensions: Set<string>
-    extensionValue: string
     tags: Set<string>
-    tagValue: string,
-    sensitivities: Set<SensitivityLevel>,
+    sensitivities: Set<SensitivityLevel>
     annotations: Set<Annotation>
     createdBefore?: Moment
     createdAfter?: Moment
     modifiedBefore?: Moment
     modifiedAfter?: Moment
-    error?: string
-    loading: boolean
-    result: Page<File>
 }
 
 export type ContextBarProps = ContextButtonsProps & FileOptionsProps

@@ -21,7 +21,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { CardGroup, Card, PlayIcon } from "ui-components/Card";
-import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Divider, Flex } from "ui-components";
+import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Divider, Flex, Input } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
@@ -93,6 +93,13 @@ class Applications extends React.Component<ApplicationsProps> {
                 sidebar={
                     <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                         <Heading.h3>Advanced File Search</Heading.h3>
+                        <form>
+                            <Input
+                                placeholder="Search by name..."
+                                value={"h"}
+                                onChange={({ target: { value } }) => window.console.log(value)}
+                            />
+                        </form>
                     </Flex>}
 
                 additional={null}

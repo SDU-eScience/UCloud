@@ -48,10 +48,11 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
     }
 
     fetchAll(search: string) {
-        console.log(`Fetching all ${search}`);
-        this.props.searchFiles(search, this.props.files.pageNumber, this.props.files.itemsPerPage);
-        this.props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage);
-        this.props.searchProjects(search, this.props.projects.pageNumber, this.props.projects.itemsPerPage);
+        const { ...props } = this.props;
+        props.setError();
+        props.searchFiles(search, this.props.files.pageNumber, this.props.files.itemsPerPage);
+        props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage);
+        props.searchProjects(search, this.props.projects.pageNumber, this.props.projects.itemsPerPage);
     }
 
     search() {
