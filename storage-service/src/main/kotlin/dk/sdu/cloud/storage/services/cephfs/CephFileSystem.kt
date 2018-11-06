@@ -429,12 +429,13 @@ class CephFileSystem(
     //
 
     private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
+        val userRoot = File(fsRoot, "home").absolutePath.removeSuffix("/") + "/"
         val path = File(fsRoot, internalPath)
             .normalize()
             .absolutePath
             .let { it + (if (isDirectory) "/" else "") }
 
-        if (!path.startsWith(fsRoot)) throw IllegalArgumentException("path is not in root")
+        if (!path.startsWith(userRoot)) throw IllegalArgumentException("path is not in user-root")
         if (path.contains("\n")) throw IllegalArgumentException("Path cannot contain new-lines")
         if (path.length >= PATH_MAX) throw IllegalArgumentException("Path is too long")
 
