@@ -150,9 +150,9 @@ export default class SDUCloud {
         for (let i = 0; i < this.overrides.length; i++) {
             let override = this.overrides[i];
             if (absolutePath.indexOf(override.path) === 0) {
-                let scheme = override.destination.scheme ? 
+                let scheme = override.destination.scheme ?
                     override.destination.scheme : "http";
-                let host = override.destination.host ? 
+                let host = override.destination.host ?
                     override.destination.host : "localhost";
                 let port = override.destination.port;
 
@@ -166,14 +166,14 @@ export default class SDUCloud {
     /**
      * Calls with the GET HTTP method. See call(method, path, body)
      */
-    async get(path, context = this.apiContext): Promise<any> {
+    async get<T = any>(path, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call("GET", path, undefined, context);
     }
 
     /**
      * Calls with the POST HTTP method. See call(method, path, body)
      */
-    async post(path, body?: object, context = this.apiContext): Promise<any> {
+    async post<T = any>(path, body?: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call("POST", path, body, context);
     }
 
@@ -373,7 +373,7 @@ export default class SDUCloud {
                 "Content-Type": "application/json",
             },
             method: "POST",
-            "credentials": "same-origin"
+            credentials: "same-origin"
 
         }).then(response => {
             if (!is5xxStatusCode(response.status)) {

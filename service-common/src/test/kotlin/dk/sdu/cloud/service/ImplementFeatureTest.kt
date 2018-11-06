@@ -197,7 +197,7 @@ class ImplementFeatureTest {
                     setBody(""" { "id": 1337 } """)
                 }.response
 
-                Thread.sleep(500) // Audit streams are async to the request. We need to wait for them.
+                Thread.sleep(1000) // Audit streams are async to the request. We need to wait for them.
 
                 assertEquals(HttpStatusCode.OK, response.status())
                 assertEquals(2, records.size)

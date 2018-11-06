@@ -2,6 +2,8 @@ package dk.sdu.cloud.metadata.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.metadata.api.Creator
+import dk.sdu.cloud.metadata.api.ProjectMetadata
 import dk.sdu.cloud.metadata.services.ElasticMetadataService
 import dk.sdu.cloud.metadata.services.MetadataAdvancedQueryService
 import dk.sdu.cloud.metadata.services.MetadataQueryService
@@ -20,11 +22,15 @@ import io.mockk.mockk
 import io.mockk.objectMockk
 import io.mockk.use
 import io.mockk.verify
+import org.apache.http.HttpHost
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
+import org.elasticsearch.client.RestClient
+import org.elasticsearch.client.RestClientBuilder
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
+import org.junit.Ignore
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -400,5 +406,82 @@ class MetadataTest {
         }
     }
 
+    //Used for live test - works only on machines that have elastic installed and running on localhost:9200
+    private val metaProject = ProjectMetadata(
+        "CloudRoot",
+        "CloudRootId",
+        "title",
+        listOf(Creator("nameOfCreator")),
+        "This is a descrption",
+        null,
+        "1",
+        1234567,
+        "open",
+        listOf("Mutiple", "keywords"),
+        "These are simple notes for the proejct"
+    )
 
+    private val metaProject2 = ProjectMetadata(
+        "CloudRoot2",
+        "CloudRootId2",
+        "anthtermetaProject",
+        listOf(Creator("nameOfCreator")),
+        "This is a alternative description",
+        null,
+        "2",
+        1234567,
+        "open",
+        listOf("Mutiple", "keywords", "Unique"),
+        "These are simple notes for the proejct that the other project does not have"
+    )
+
+    @Ignore
+    @Test
+    fun `query test live`() {
+        objectMockk(FileDescriptions).use {
+            withAuthMock {
+                val elasticClient = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
+                val projectService: ProjectService<*> = mockk(relaxed = true)
+                val elasticService = ElasticMetadataService(
+                    elasticClient = elasticClient,
+                    projectService = projectService
+                )
+
+                withTestApplication(
+                    moduleFunction = {
+                        configureMetadataServer(elasticService, projectService)
+                        elasticService.initializeElasticSearch()
+
+                        elasticService.create(metaProject)
+                        elasticService.create(metaProject2)
+
+                        Thread.sleep(2000)
+                    },
+                    test = {
+                        val response =
+                            handleRequest(
+                                HttpMethod.Get,
+                                "/api/metadata/search?query=Uniq&itemsPerPage=10&page=0"
+                            ) {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser()
+                            }.response
+
+                        assertEquals(HttpStatusCode.OK, response.status())
+
+                        val mapper = jacksonObjectMapper()
+                        val obj = mapper.readTree(response.content)
+
+                        println(response.content)
+                       /* assertEquals("22", obj["itemsInTotal"].toString())
+
+                        assertEquals("10", obj["itemsPerPage"].toString())
+                        assertEquals("2", obj["pagesInTotal"].toString())
+                        assertEquals("0", obj["pageNumber"].toString())
+*/
+                    }
+                )
+            }
+        }
+    }
 }

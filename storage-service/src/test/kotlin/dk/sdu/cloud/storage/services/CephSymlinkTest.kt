@@ -5,6 +5,7 @@ import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.cephfs.CephFSUserDao
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
+import org.junit.Ignore
 import org.junit.Test
 import java.nio.file.Files
 import kotlin.test.assertEquals
@@ -12,6 +13,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class CephSymlinkTest {
+    @Ignore
     @Test
     fun `test creating a symlink`() {
         val userDao = CephFSUserDao(true)

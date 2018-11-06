@@ -1,5 +1,5 @@
 import Cloud from "Authentication/lib";
-import { File, MoveCopyOperations, Operation, SortOrder, SortBy, Annotation, AnnotationsMap, PredicatedOperation } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, Annotation, AnnotationsMap, PredicatedOperation, FileType } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal from "sweetalert2";
@@ -70,7 +70,7 @@ const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => file
  * @returns Share and Download operations for files
  */
 export const StateLessOperations = (): Operation[] => [
-    { text: "Share", onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => false, icon: "share alternate", color: undefined },
+    { text: "Share", onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => false, icon: "shares", color: undefined },
     { text: "Download", onClick: (files: File[], cloud: Cloud) => downloadFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => !UF.downloadAllowed(files), icon: "download", color: undefined }
 ];
 
@@ -78,7 +78,7 @@ export const StateLessOperations = (): Operation[] => [
  * @returns Move and Copy operations for files
  */
 export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): Operation[] => [
-    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files), icon: "copy outline", color: undefined },
+    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files), icon: "copy", color: undefined },
     { text: "Move", onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "move", color: undefined }
 ];
 
@@ -88,18 +88,18 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
  * @returns the Delete operation in an array
  */
 export const DeleteFileOperation = (onDeleted: () => void): Operation[] => [
-    { text: "Delete", onClick: (files: File[], cloud: Cloud) => batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "trash alternate outline", color: "red" }
+    { text: "Delete", onClick: (files: File[], cloud: Cloud) => batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "trash", color: "red" }
 ];
 
 /**
  * @returns Properties and Project Operations for files.
  */
 export const HistoryFilesOperations = (history: History): [Operation, PredicatedOperation] => [
-    { text: "Properties", onClick: (files: File[], cloud: Cloud) => history.push(`/fileInfo/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1, icon: "settings", color: "blue" },
+    { text: "Properties", onClick: (files: File[], cloud: Cloud) => history.push(`/fileInfo/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1, icon: "properties", color: "blue" },
     {
         predicate: (files: File[], cloud: Cloud) => isProject(files[0]),
-        onTrue: { text: "Edit Project", onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
-        onFalse: { text: "Create Project", onClick: (files: File[], cloud: Cloud) => UF.createProject(files[0].path, cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[], cloud: Cloud) => files.length !== 1 || !canBeProject(files, cloud.homeFolder), icon: "group", color: "blue" },
+        onTrue: { text: "Edit Project", onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => !canBeProject(files, cloud.homeFolder), icon: "projects", color: "blue" },
+        onFalse: { text: "Create Project", onClick: (files: File[], cloud: Cloud) => UF.createProject(files[0].path, cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[], cloud: Cloud) => files.length !== 1 || !canBeProject(files, cloud.homeFolder), icon: "projects", color: "blue" },
     }
 ];
 
@@ -114,7 +114,7 @@ export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyO
 export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`;
 
-// FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes 
+// FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes backend issues
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files/lookup?path=${UF.removeTrailingSlash(path)}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
 
@@ -162,7 +162,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
     return [ // homeFolder contains trailing slash
         `${homeFolder}Favorites`,
         `${homeFolder}Jobs`,
-        `${homeFolder}Trash bin`
+        `${homeFolder}Trash`
     ].some((it) => UF.removeTrailingSlash(it) === filePath)
 };
 
@@ -205,8 +205,8 @@ export const toFileText = (selectedFiles: File[]): string =>
     `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected.`
 
 export const isLink = (file: File) => file.link;
-export const isDirectory = (file: File) => file.fileType === "DIRECTORY";
-export const replaceHomeFolder = (path: string, homeFolder: string) => UF.addTrailingSlash(path).replace(UF.addTrailingSlash(homeFolder), "Home/");
+export const isDirectory = (file: { fileType: FileType}) => file.fileType === "DIRECTORY";
+export const replaceHomeFolder = (path: string, homeFolder: string) => path.replace(UF.addTrailingSlash(homeFolder), "Home/");
 
 export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>
     deletionSwal([filePath]).then((result: any) => {
@@ -218,9 +218,7 @@ export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback:
     });
 
 export const getParentPath = (path: string): string => {
-    if (!path) {
-        return "";
-    }
+    if (path.length === 0) return path;
     let splitPath = path.split("/");
     splitPath = splitPath.filter(path => path);
     let parentPath = "/";
@@ -237,7 +235,7 @@ export const getFilenameFromPath = (path: string): string => {
 
 export const downloadFiles = (files: File[], cloud: Cloud) =>
     files.map(f => f.path).forEach(p =>
-        cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) => {
+        cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
             const element = document.createElement("a");
             element.setAttribute("href", `/api/files/download?path=${encodeURI(p)}&token=${encodeURI(token)}`);
             element.style.display = "none";
@@ -248,10 +246,10 @@ export const downloadFiles = (files: File[], cloud: Cloud) =>
 
 
 export const fetchFileContent = (path: string, cloud: Cloud) =>
-    cloud.createOneTimeTokenWithPermission("downloadFile,irods").then((token: string) =>
+    cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) =>
         fetch(`/api/files/download?path=${encodeURI(path)}&token=${encodeURI(token)}`)
     );
-
+    
 export const fileSizeToString = (bytes: number): string => {
     if (bytes < 0) return "Invalid size";
     if (bytes < 1000) {

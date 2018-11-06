@@ -1,12 +1,10 @@
 import * as React from "react";
-import { Form, Button, Input, Grid, Header } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
-import {
-    successNotification,
-    defaultErrorHandler
-} from "UtilityFunctions";
+import { successNotification, defaultErrorHandler } from "UtilityFunctions";
 import { UserCreationState, UserCreationField } from ".";
+import { Flex, Box, Input, Label, LoadingButton } from "ui-components";
+import * as Heading from "ui-components/Heading";
 
 class UserCreation extends React.Component<{}, UserCreationState> {
     constructor(props) {
@@ -45,6 +43,7 @@ class UserCreation extends React.Component<{}, UserCreationState> {
         if (!username) usernameError = true;
         if (!password || password !== repeatedPassword) passwordError = true;
         this.setState(() => ({ usernameError, passwordError }));
+        console.log(usernameError, passwordError);
         if (!usernameError && !passwordError) {
             this.state.promiseKeeper.makeCancelable(
                 Cloud.post("/auth/users/register", { username, password }, "")
@@ -74,55 +73,50 @@ class UserCreation extends React.Component<{}, UserCreationState> {
 
         return (
             <React.StrictMode>
-                <Grid container columns={16}>
-                    <Grid.Row>
-                        <Grid.Column width={16}>
-                            <Header><h1>User Creation</h1></Header>
-                            <p>Admins can create new users on this page.</p>
-                        </Grid.Column>
-                    </Grid.Row>
-
-                    <Grid.Row>
-                        <Grid.Column width={16}>
-                            <Form onSubmit={(e) => this.submit(e)}>
-                                <Form.Field
-                                    error={usernameError}
-                                    label="Username"
-                                    control={Input}
+                <Flex alignItems="center" flexDirection="column">
+                    <Box width={0.7}>
+                        <Heading.h1>User Creation</Heading.h1>
+                        <p>Admins can create new users on this page.</p>
+                        <form onSubmit={e => this.submit(e)}>
+                            <Label mb="1em">
+                                Username
+                                <Input
                                     value={username}
-                                    onChange={(_, { value }) => this.updateFields("username", value)}
+                                    color={usernameError ? "red" : "gray"}
+                                    onChange={({ target: { value } }) => this.updateFields("username", value)}
                                     placeholder="Username..."
                                 />
-                                <Form.Field
-                                    error={passwordError}
-                                    control={Input}
-                                    label="Password"
+                            </Label>
+                            <Label mb="1em">
+                                Password
+                                <Input
                                     value={password}
                                     type="password"
-                                    onChange={(_, { value }) => this.updateFields("password", value)}
+                                    color={passwordError ? "red" : "gray"}
+                                    onChange={({ target: { value } }) => this.updateFields("password", value)}
                                     placeholder="Password..."
                                 />
-                                <Form.Field
-                                    error={passwordError}
-                                    control={Input}
-                                    label="Repeat password"
+                            </Label>
+                            <Label mb="1em">
+                                Repeat password
+                                <Input
                                     value={repeatedPassword}
                                     type="password"
-                                    onChange={(_, { value }) => this.updateFields("repeatedPassword", value)}
+                                    color={passwordError ? "red" : "gray"}
+                                    onChange={({ target: { value } }) => this.updateFields("repeatedPassword", value)}
                                     placeholder="Repeat password..."
                                 />
-                                <Button
-                                    type="submit"
-                                    content="Create user"
-                                    icon="user plus"
-                                    positive
-                                    loading={submitted}
-                                />
-                            </Form>
-                        </Grid.Column>
-                    </Grid.Row>
-                </Grid>
-            </React.StrictMode>
+                            </Label>
+                            <LoadingButton
+                                type="submit"
+                                content="Create user"
+                                color="green"
+                                loading={submitted}
+                            />
+                        </form>
+                    </Box>
+                </Flex>
+            </React.StrictMode >
         );
     }
 }

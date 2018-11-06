@@ -1,5 +1,7 @@
 import * as React from "react";
-import { Pagination, Dropdown } from "semantic-ui-react";
+import { Pagination } from "semantic-ui-react";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import { Icon, Box, Text, Flex } from "ui-components";
 
 interface PaginationButtons {
     totalPages: number,
@@ -30,27 +32,19 @@ interface EntriesPerPageSelector {
     entriesPerPage: number,
     onChange: (size: number) => void,
     content?: string
-
-    as?: string
-    className?: string
 }
 
 export const EntriesPerPageSelector = ({
-    as,
-    className,
     entriesPerPage,
     onChange,
     content
 }: EntriesPerPageSelector) => (
-        <span className={className}>
-            <span>{`${content} `}</span>
-            <Dropdown
-                compact
-                inline
-                as={as}
-                onChange={(_, { value }) => onChange(value as number)}
-                options={EntriesPerPageSelectorOptions}
-                value={entriesPerPage}
-            />
-        </span>
+        <ClickableDropdown left={"85px"} minWidth={"80px"} width={"80px"}
+            trigger={<Flex><Box> {`${content} ${entriesPerPage}`}</Box><Box><Icon name="chevronDown" /></Box></Flex>}>
+            {EntriesPerPageSelectorOptions.map((opt, i) =>
+                <Box ml="-17px" mr="-17px" key={i} onClick={() => entriesPerPage === opt.value ? undefined : onChange(opt.value)}>
+                    <Text textAlign="center">{opt.text}</Text>
+                </Box>
+            )}
+        </ClickableDropdown>
     );

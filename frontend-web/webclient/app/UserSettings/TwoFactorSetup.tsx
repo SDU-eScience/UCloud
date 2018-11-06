@@ -31,13 +31,11 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
             .then(() => this.setLoading(false));
     }
 
-    initialState(): TwoFactorSetupState {
-        return {
-            verificationCode: "",
-            isConnectedToAccount: false,
-            isLoading: false
-        };
-    }
+    initialState = (): TwoFactorSetupState => ({
+        verificationCode: "",
+        isConnectedToAccount: false,
+        isLoading: false
+    });
 
     render() {
         return (
@@ -53,7 +51,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
     private displayConnectedStatus() {
         if (this.state.isConnectedToAccount === undefined) {
             return "Unknown. Could not fetch 2FA status";
-        } else if (this.state.isConnectedToAccount === true) { 
+        } else if (this.state.isConnectedToAccount === true) {
             return "You have a 2FA device connected to your account";
         } else {
             return "You do NOT have a 2FA device connected to your account";
@@ -65,9 +63,9 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
             <div>
                 <Header><h3>2FA Setup</h3></Header>
                 <p>
-                    In order to activate 2FA on your account you must have a 
-                    device capable of issuing time-based one time passwords 
-                    (TOTP). For this we recommend the "Google Authenticator" 
+                    In order to activate 2FA on your account you must have a
+                    device capable of issuing time-based one time passwords
+                    (TOTP). For this we recommend the "Google Authenticator"
                     app, available for both Android and iOS.
                 </p>
 

@@ -108,9 +108,7 @@ class ElasticMetadataService(
     override fun simpleQuery(user: String, query: String, paging: NormalizedPaginationRequest): Page<ProjectMetadata> {
         val request = SearchRequest(index).apply {
             source(SearchSourceBuilder().apply {
-                val q = bool {
-                    match { "full_search" to query }
-                }
+                val q = match { "full_search" to query }
 
                 from(paging.itemsPerPage * paging.page)
                 query(q)

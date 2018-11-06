@@ -167,6 +167,7 @@ class KafkaConsumerTest {
         if (caughtException != null) throw caughtException!!
     }
 
+    @Ignore
     @Test
     fun `test exception in consumer`() {
         var caughtException: Throwable? = null

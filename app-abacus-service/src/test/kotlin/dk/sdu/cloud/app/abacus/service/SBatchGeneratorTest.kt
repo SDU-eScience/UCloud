@@ -103,7 +103,8 @@ class SBatchGeneratorTest {
             SimpleDuration(1, 0, 0),
             VerifiedJobInput(emptyMap()),
             "",
-            JobState.PREPARED
+            JobState.PREPARED,
+            ""
         )
     }
 

@@ -7,7 +7,8 @@ import { dateToString } from "Utilities/DateUtilities";
 import {
     getFilenameFromPath,
     fileSizeToString,
-    replaceHomeFolder
+    replaceHomeFolder,
+    isDirectory
 } from "Utilities/FileUtilities";
 
 /**
@@ -144,8 +145,6 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
             return file.favorited ? "Favorited" : "";
         case SortBy.SENSITIVITY:
             return SensitivityLevel[file.sensitivityLevel];
-        case SortBy.ANNOTATION:
-            return file.annotations.toString();
     }
 }
 
@@ -228,9 +227,10 @@ export const extensionType = (ext: string): ExtensionType => {
 
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): SemanticICONS => {
     const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
-    if (homeFolderReplaced === "Home/Jobs/") return "tasks";
-    if (homeFolderReplaced === "Home/Favorites/") return "star";
-    if (type === "DIRECTORY") return "folder";
+    if (homeFolderReplaced === "Home/Jobs") return "tasks";
+    if (homeFolderReplaced === "Home/Favorites") return "star";
+    if (homeFolderReplaced === "Home/Trash") return "trash alternate outline";
+    if (isDirectory({fileType: type})) return "folder";
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {
         return "file outline";

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.ServiceDescription
+import org.junit.Ignore
 import org.junit.Test
 
 object Streams : KafkaDescriptions() {
@@ -9,6 +10,7 @@ object Streams : KafkaDescriptions() {
 }
 
 class KafkaTopicDiscovery {
+    @Ignore
     @Test
     fun simpleTest() {
         val description = object : ServiceDescription {

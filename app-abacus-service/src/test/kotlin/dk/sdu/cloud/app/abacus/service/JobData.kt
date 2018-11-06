@@ -59,6 +59,7 @@ object JobData {
         SimpleDuration(1, 0, 0),
         VerifiedJobInput(emptyMap()),
         "abacus",
-        JobState.TRANSFER_SUCCESS
+        JobState.TRANSFER_SUCCESS,
+        ""
     )
 }

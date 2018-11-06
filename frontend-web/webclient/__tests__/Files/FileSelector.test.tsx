@@ -9,7 +9,7 @@ import { configureStore } from "Utilities/ReduxUtilities";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
 
-const emptyPageStore = configureStore({ files: initFiles({ homeFolder: "/home/user@test.abc/" }) }, { files });
+const emptyPageStore = configureStore({ files: initFiles("/home/user@test.abc/") }, { files });
 
 /* describe("File Selector", () => {
     test("Minimal FileSelector", () =>

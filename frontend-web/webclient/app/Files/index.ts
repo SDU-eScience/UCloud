@@ -7,6 +7,7 @@ import { Moment } from "moment";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
+import { IconName } from "ui-components/Icon";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -46,8 +47,7 @@ export enum SortBy {
     SIZE = "SIZE",
     ACL = "ACL",
     FAVORITED = "FAVORITED",
-    SENSITIVITY = "SENSITIVITY",
-    ANNOTATION = "ANNOTATION"
+    SENSITIVITY = "SENSITIVITY"
 }
 
 export interface FilesProps extends FilesStateProps, FilesOperations {
@@ -227,7 +227,7 @@ export interface MobileButtonsProps {
 }
 
 export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
-export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: SemanticICONS, color?: SemanticCOLORS }
+export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: SemanticICONS | IconName, color?: SemanticCOLORS }
 export type FileOperation = Operation | PredicatedOperation
 
 export interface ContextButtonsProps {
@@ -240,15 +240,15 @@ export interface DetailedFileSearchProps { }
 
 export enum AnnotationsMap { P = "Project" }
 
-// keyof typeof is how Typescript lets you get the keys of an enum
 export type Annotation = keyof typeof AnnotationsMap;
 
 export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 
 export interface DetailedFileSearchState {
+    hidden: boolean
     allowFolders: boolean
     allowFiles: boolean
-    filename: string
+    fileName: string
     extensions: Set<string>
     extensionValue: string
     tags: Set<string>
@@ -260,9 +260,11 @@ export interface DetailedFileSearchState {
     modifiedBefore?: Moment
     modifiedAfter?: Moment
     error?: string
+    loading: boolean
+    result: Page<File>
 }
 
-export interface ContextBarProps extends ContextButtonsProps, FileOptionsProps { }
+export type ContextBarProps = ContextButtonsProps & FileOptionsProps
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 
@@ -278,3 +280,15 @@ export interface FileInfoProps {
 export interface FileInfoState {
     activity: Page<Activity>
 }
+
+export type AdvancedSearchRequest = {
+    fileName?: string
+    extensions?: Array<String>
+    fileTypes: [FileType?, FileType?]
+    createdAt?: { after?: number, before?: number }
+    modifiedAt?: { after?: number, before?: number }
+    sensitivity?: Array<SensitivityLevel>
+    annotations?: Array<String>
+    itemsPerPage?: number
+    page?: number
+};

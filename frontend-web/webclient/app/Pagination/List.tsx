@@ -1,10 +1,12 @@
 import * as React from "react";
-import { Grid, Message, Header } from "semantic-ui-react";
+import { Grid, Message } from "semantic-ui-react";
 import { Page } from "Types";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import * as Self from ".";
 import { ifPresent } from "UtilityFunctions";
 import { RefreshButton } from "UtilityComponents";
+import * as Heading from "ui-components/Heading";
+import { Box, Flex, Relative } from "ui-components";
 
 interface ListProps {
     pageRenderer: (page: Page<any>) => React.ReactNode
@@ -45,7 +47,6 @@ export class List extends React.PureComponent<ListProps> {
 
         const refreshButton = !!this.props.onRefresh ? (
             <RefreshButton
-                className="pagination-float-right"
                 loading={this.props.loading}
                 onClick={this.props.onRefresh}
             />
@@ -54,19 +55,23 @@ export class List extends React.PureComponent<ListProps> {
         return (
             <>
                 {errorComponent}
-                {refreshButton}
-                {!props.customEntriesPerPage ? <Self.EntriesPerPageSelector
-                    content="Items per page"
-                    className="items-per-page-padding pagination-float-right"
-                    entriesPerPage={props.page.itemsPerPage}
-                    onChange={(perPage) => ifPresent(props.onItemsPerPageChanged, (c) => c(perPage))}
-                /> : null}
+                <Flex alignItems="right">
+                    <Box ml="auto" />
+                    <Relative>
+                        {!props.customEntriesPerPage ? <Self.EntriesPerPageSelector
+                            content="Items per page"
+                            entriesPerPage={props.page.itemsPerPage}
+                            onChange={perPage => ifPresent(props.onItemsPerPageChanged, c => c(perPage))}
+                        /> : null}
+                        {refreshButton}
+                    </Relative>
+                </Flex>
                 {body}
                 <div>
                     <Self.Buttons
                         as="span"
                         currentPage={props.page.pageNumber}
-                        toPage={(page) => ifPresent(props.onPageChanged, (c) => c(page))}
+                        toPage={(page) => ifPresent(props.onPageChanged, c => c(page))}
                         totalPages={props.page.pagesInTotal}
                     />
                 </div>
@@ -80,22 +85,22 @@ export class List extends React.PureComponent<ListProps> {
         if (props.loading) {
             return <Grid centered verticalAlign="middle" columns={1}>
                 <div className="pagination-loader">
-                    <DefaultLoading loading size={undefined} className="pagination-list-loading" />
+                    <DefaultLoading loading className="pagination-list-loading" />
                 </div>
             </Grid>
         } else {
             if (props.page == null || props.page.items.length == 0) {
                 if (!props.customEmptyPage) {
                     return <div>
-                        <Header as="h2">
+                        <Heading.h2>
                             No results.
                             <a
                                 href="#"
-                                onClick={(e) => { e.preventDefault(); ifPresent(props.onRefresh, (c) => c()) }}
+                                onClick={(e) => { e.preventDefault(); ifPresent(props.onRefresh, c => c()) }}
                             >
                                 {" Try again?"}
                             </a>
-                        </Header>
+                        </Heading.h2>
                     </div>;
                 } else {
                     return props.customEmptyPage
