@@ -182,7 +182,10 @@ class SimpleDownloadController<Ctx : FSUserContext>(
             audit(BulkFileAudit(request.files.map { null }, request))
 
             commandRunnerFactory.withContext(call.securityPrincipal.username) { ctx ->
-                val files = request.files.map { fs.statOrNull(ctx, it, setOf(FileAttribute.INODE))?.inode }
+                val files = request.files.map { path ->
+                    val absPath = "${request.prefix.removeSuffix("/")}/${path.removePrefix("/")}"
+                    fs.statOrNull(ctx, absPath, setOf(FileAttribute.INODE))?.inode
+                }
                 audit(BulkFileAudit(files, request))
                 okContentDeliveredExternally()
 

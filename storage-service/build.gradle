@@ -14,6 +14,7 @@ dependencies {
     compile "dk.sdu.cloud:notification-api:0.7.0-SNAPSHOT"
 
     compile group: 'com.h2database', name: 'h2', version: '1.4.196'
+    testCompile "dk.sdu.cloud:service-common-test:0.21.0-SNAPSHOT"
 }
 
 sduCloud.createTasksForApiJar(

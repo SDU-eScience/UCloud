@@ -7,10 +7,18 @@ import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.definition
+import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.test.TokenValidationMock
+import dk.sdu.cloud.service.test.createTokenForUser
+import dk.sdu.cloud.service.test.initializeMicro
+import dk.sdu.cloud.service.tokenValidation
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.http.FilesController
 import dk.sdu.cloud.storage.services.CoreFileSystemService
@@ -35,7 +43,9 @@ import io.ktor.server.testing.TestApplicationResponse
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.mockk.mockk
+import kotlinx.coroutines.test.withTestContext
 import java.io.File
+import java.util.*
 
 data class FileControllerContext(
     val cloud: AuthenticatedCloud,
@@ -49,19 +59,24 @@ data class FileControllerContext(
     val lookupService: FileLookupService<CephFSCommandRunner>
 )
 
+object TestContext {
+    lateinit var micro: Micro
+
+    val tokenValidation: TokenValidationJWT
+        get() = micro.tokenValidation as TokenValidationJWT
+}
+
 fun Application.configureServerWithFileController(
     fsRootInitializer: () -> File = { createDummyFS() },
     userDao: StorageUserDao = simpleCloudToCephFSDao(),
     additional: Routing.(FileControllerContext) -> Unit = {}
 ) {
-    val instance = ServiceInstance(
-        StorageServiceDescription.definition(),
-        "localhost",
-        42000
-    )
+    val micro = initializeMicro()
+    micro.install(HibernateFeature)
+    TestContext.micro = micro
 
     val cloud = mockk<AuthenticatedCloud>(relaxed = true)
-    installDefaultFeatures(cloud, mockk(relaxed = true), instance, requireJobId = false)
+    installDefaultFeatures(micro)
 
     val fsRoot = fsRootInitializer()
     val (runner, fs) = cephFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
@@ -104,6 +119,7 @@ fun TestApplicationEngine.call(
         "$url?" + params.entries.joinToString("&") { entry -> "${entry.key}=${entry.value}" }
 
     return handleRequest(method, fullUrl) {
+        addHeader("Job-Id", UUID.randomUUID().toString())
         setUser(user, role)
 
         if (rawBody != null) {
@@ -282,6 +298,7 @@ fun TestApplicationEngine.annotate(
 }
 
 fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
-    addHeader(HttpHeaders.Authorization, "Bearer $username/$role")
+    val token = TokenValidationMock.createTokenForUser(username, role)
+    addHeader(HttpHeaders.Authorization, "Bearer $token")
 }
 

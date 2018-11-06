@@ -17,11 +17,9 @@ import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.share.api.FindByShareId
 import dk.sdu.cloud.share.api.SharesByPath
 import dk.sdu.cloud.storage.http.ShareController
-import dk.sdu.cloud.storage.http.files.call
 import dk.sdu.cloud.storage.http.files.configureServerWithFileController
 import dk.sdu.cloud.storage.http.files.setUser
 import dk.sdu.cloud.storage.services.ACLService
-import dk.sdu.cloud.storage.services.ShareException
 import dk.sdu.cloud.storage.services.ShareHibernateDAO
 import dk.sdu.cloud.storage.services.ShareService
 import dk.sdu.cloud.storage.util.cloudToCephFsDAOWithFixedAnswer
@@ -109,8 +107,10 @@ class ShareTests {
                     test = {
 
                         run {
-                            val getByPathResponse = handleRequest(HttpMethod.Get,
-                                "api/shares/byPath?path=/home/$userToShareWith/folder/a") {
+                            val getByPathResponse = handleRequest(
+                                HttpMethod.Get,
+                                "api/shares/byPath?path=/home/$userToShareWith/folder/a"
+                            ) {
                                 setUser(userToRunAs, Role.USER)
                             }.response
 
@@ -125,8 +125,10 @@ class ShareTests {
                         val id = createResponse.content!!.let { mapper.readValue<FindByShareId>(it).id }
 
                         run {
-                            val getByPathResponse = handleRequest(HttpMethod.Get,
-                                "api/shares/byPath?path=/home/$userToShareWith/folder/a") {
+                            val getByPathResponse = handleRequest(
+                                HttpMethod.Get,
+                                "api/shares/byPath?path=/home/$userToShareWith/folder/a"
+                            ) {
                                 setUser(userToRunAs, Role.USER)
                             }.response
 

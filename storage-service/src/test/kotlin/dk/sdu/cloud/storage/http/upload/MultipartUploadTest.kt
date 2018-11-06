@@ -2,10 +2,14 @@ package dk.sdu.cloud.storage.http.upload
 
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.storage.http.MultiPartUploadController
+import dk.sdu.cloud.storage.http.files.TestContext
 import dk.sdu.cloud.storage.http.files.setUser
 import dk.sdu.cloud.storage.services.BulkUploadService
 import dk.sdu.cloud.storage.services.CommandRunner
@@ -43,13 +47,11 @@ import java.util.*
 import kotlin.test.assertEquals
 
 class MultipartUploadTest {
-    class TestContext<Ctx : CommandRunner>
-
-    fun Application.createService(builder: File.() -> Unit = File::createDummyFSInRoot): TestContext<CephFSCommandRunner> {
+    fun Application.createService(builder: File.() -> Unit = File::createDummyFSInRoot) {
         return createService(createFS(builder))
     }
 
-    fun Application.createService(root: String): TestContext<CephFSCommandRunner> {
+    fun Application.createService(root: String) {
         val (runner, fs) = cephFSWithRelaxedMocks(root)
         return createService(runner, fs)
     }
@@ -57,22 +59,20 @@ class MultipartUploadTest {
     fun Application.createService(
         runner: FSCommandRunnerFactory<CephFSCommandRunner>,
         fs: LowLevelFileSystemInterface<CephFSCommandRunner>
-    ): TestContext<CephFSCommandRunner> {
+    ) {
+        val micro = initializeMicro()
+        micro.install(HibernateFeature)
+        TestContext.micro = micro
         val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
 
         val bulkUpload = BulkUploadService(coreFs)
         val controller = MultiPartUploadController(runner, coreFs, bulkUpload)
 
-        val cloud = mockk<AuthenticatedCloud>(relaxed = true)
-        val kafka = KafkaServices(Properties(), Properties(), mockk(relaxed = true), mockk(relaxed = true))
-
-        installDefaultFeatures(cloud, kafka, mockk(relaxed = true), false)
+        installDefaultFeatures(micro)
 
         routing {
             configureControllers(controller)
         }
-
-        return TestContext()
     }
 
     @Test

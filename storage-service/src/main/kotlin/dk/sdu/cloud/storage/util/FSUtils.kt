@@ -162,7 +162,7 @@ suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, Comm
         }
     }
 
-    val timeout = coroutineScope { async { delay(DELAY_IN_MILLIS) } }
+    val timeout = GlobalScope.async { delay(DELAY_IN_MILLIS) }
 
     select<Unit> {
         result.onAwait {
