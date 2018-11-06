@@ -1,241 +1,148 @@
 package dk.sdu.cloud.notification.http
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.notification.api.CreateNotification
+import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationServiceDescription
 import dk.sdu.cloud.notification.services.NotificationHibernateDAO
-import dk.sdu.cloud.notification.utils.withAuthMock
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.installDefaultFeatures
-import io.ktor.application.Application
+import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.hibernateDatabase
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.KtorApplicationTestContext
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.assertStatus
+import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.parseSuccessful
+import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.routing
-import io.ktor.server.testing.TestApplicationRequest
-import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.setBody
-import io.ktor.server.testing.withTestApplication
-import io.mockk.mockk
+import io.ktor.server.testing.TestApplicationCall
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
-    addHeader(io.ktor.http.HttpHeaders.Authorization, "Bearer $username/$role")
-}
-
-private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-    HibernateSessionFactory.create(H2_TEST_CONFIG.copy(showSQLInStdout = true)).use(closure)
-}
-
-fun Application.configureBaseServer(vararg controllers: Controller) {
-    installDefaultFeatures(
-        mockk(relaxed = true),
-        mockk(relaxed = true),
-        mockk(relaxed = true),
-        requireJobId = true
-    )
-
-    routing {
-        configureControllers(*controllers)
-    }
-}
-
-private fun Application.configureNotificationServer(
-    db: HibernateSessionFactory = mockk(relaxed = true),
-    notificationDao: NotificationHibernateDAO
-) {
-    configureBaseServer(NotificationController(db, notificationDao))
-}
-
 class NotificationTest {
-    private val mapper = jacksonObjectMapper()
+    private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
+        micro.install(HibernateFeature)
+        listOf(NotificationController(micro.hibernateDatabase, NotificationHibernateDAO()))
+    }
 
-    private fun getID(response: String): String {
-        val splittetList = response.split('"')
-        val idIndex = splittetList.indexOf("id")
-        val id = splittetList[idIndex + 1]
-        return id.substring(1, id.length - 2)
+    private fun KtorApplicationTestContext.listPage(user: SecurityPrincipal): Page<Notification> {
+        return sendRequest(
+            method = HttpMethod.Get,
+            path = "/api/notifications",
+            user = user
+        ).parseSuccessful()
+    }
+
+    private fun KtorApplicationTestContext.createNotification(
+        createdNotification: Notification,
+        createdBy: SecurityPrincipal,
+        createdFor: String = "user"
+    ): TestApplicationCall {
+        return sendJson(
+            method = HttpMethod.Put,
+            path = "/api/notifications",
+            user = createdBy,
+            request = CreateNotification(createdFor, createdNotification)
+        )
     }
 
     @Test
-    fun `Create, mark, list and delete test`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val notificationDao = NotificationHibernateDAO()
-                        configureNotificationServer(db, notificationDao)
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Put, "/api/notifications") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                                setBody(
-                                    """
-                                {
-                                    "user":"user",
-                                    "notification":{
-                                        "type":"type",
-                                        "message":"You Got MAIL!!!",
-                                        "meta": { "foo": 42 }
-                                    },
-                                }
-                            """.trimIndent()
-                                )
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response.status())
-
-                        val response2 =
-                            handleRequest(HttpMethod.Get, "/api/notifications") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response2.status())
-
-                        val obj = mapper.readTree(response2.content)
-                        assertEquals(1, obj["itemsInTotal"].asInt())
-                        assertTrue(obj["items"].toString().contains("You Got MAIL!!"))
-                        assertTrue(obj["items"].toString().contains("false"))
-
-                        val id = getID(response.content.toString())
-
-                        val response3 =
-                            handleRequest(HttpMethod.Post, "/api/notifications/read/1") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response3.status())
-
-                        val response4 =
-                            handleRequest(HttpMethod.Get, "/api/notifications") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response4.status())
-
-                        val obj2 = mapper.readTree(response4.content)
-                        assertEquals(1, obj2["itemsInTotal"].asInt())
-                        assertTrue(obj2["items"].toString().contains("You Got MAIL!!"))
-                        assertTrue(obj2["items"].toString().contains("true"))
-
-                        val response5 =
-                            handleRequest(HttpMethod.Delete, "/api/notifications/1") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response5.status())
-
-                        val response6 =
-                            handleRequest(HttpMethod.Get, "/api/notifications") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.OK, response6.status())
-                        val obj3 = mapper.readTree(response6.content)
-                        assertEquals(0, obj3["itemsInTotal"].asInt())
-                    }
+    fun `test create, mark, and list`() {
+        withKtorTest(
+            setup,
+            test = {
+                val createdNotification = Notification(
+                    type = "type",
+                    message = "You Got MAIL!!!",
+                    meta = mapOf("foo" to 42)
                 )
+
+                val createdFor = TestUsers.user
+                createNotification(createdNotification, TestUsers.admin, createdFor.username).assertSuccess()
+
+                val id = run {
+                    val resp = listPage(createdFor)
+
+                    assertEquals(1, resp.itemsInTotal)
+                    assertEquals(1, resp.items.size)
+                    val firstNotification = resp.items.first()
+                    assert(createdNotification.contentEquals(firstNotification))
+                    assertFalse(firstNotification.read)
+
+                    firstNotification.id
+                }
+
+                sendRequest(
+                    method = HttpMethod.Post,
+                    path = "/api/notifications/read/$id",
+                    user = createdFor
+                ).assertSuccess()
+
+                run {
+                    val resp = listPage(createdFor)
+                    assertEquals(1, resp.itemsInTotal)
+                    assertEquals(1, resp.items.size)
+                    val firstNotification = resp.items.first()
+                    assert(createdNotification.contentEquals(firstNotification))
+                    assertTrue(firstNotification.read)
+                }
             }
-        }
+        )
+    }
+
+    private fun Notification.contentEquals(other: Notification): Boolean {
+        return this.type == other.type &&
+                this.message == other.message &&
+                this.meta == other.meta
     }
 
     @Test
     fun `create - not admin - test`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val notificationDao = NotificationHibernateDAO()
-                        configureNotificationServer(db, notificationDao)
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Put, "/api/notifications") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.USER)
-                                setBody(
-                                    """
-                                {
-                                    "user":"user",
-                                    "notification":{
-                                        "type":"type",
-                                        "message":"You Got MAIL!!!"
-                                    }
-                                }
-                            """.trimIndent()
-                                )
-                            }.response
-
-                        assertEquals(HttpStatusCode.Unauthorized, response.status())
-
-                    }
-                )
+        withKtorTest(
+            setup,
+            test = {
+                createNotification(
+                    Notification("type", "message"),
+                    TestUsers.user
+                ).assertStatus(HttpStatusCode.Unauthorized)
             }
-        }
+        )
     }
 
     @Test
     fun `Delete unknown id`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val notificationDao = NotificationHibernateDAO()
-                        configureNotificationServer(db, notificationDao)
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Delete, "/api/notifications/2") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.NotFound, response.status())
-
-                    }
-                )
+        withKtorTest(
+            setup,
+            test = {
+                sendRequest(
+                    method = HttpMethod.Delete,
+                    path = "/api/notifications/123124",
+                    user = TestUsers.admin
+                ).assertStatus(HttpStatusCode.NotFound)
             }
-        }
+        )
     }
 
     @Test
     fun `Mark unknown id`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val notificationDao = NotificationHibernateDAO()
-                        configureNotificationServer(db, notificationDao)
-                    },
-
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/api/notifications/read/2") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.NotFound, response.status())
-
-                    }
-                )
+        withKtorTest(
+            setup,
+            test = {
+                sendRequest(
+                    method = HttpMethod.Post,
+                    path = "/api/notifications/read/123123",
+                    user = TestUsers.user
+                ).assertStatus(HttpStatusCode.NotFound)
             }
-        }
+        )
     }
 
     @Test

@@ -39,10 +39,7 @@ interface TokenValidation<TokenType> {
 
 private const val CERT_CHUNK_SIZE = 64
 
-class TokenValidationJWT(publicCertificate: String) : TokenValidation<DecodedJWT> {
-    private val certificate by lazy { loadCert(publicCertificate) }
-    private val algorithm by lazy { Algorithm.RSA256(certificate!!.publicKey as RSAPublicKey, null) }
-
+class TokenValidationJWT(private val algorithm: Algorithm) : TokenValidation<DecodedJWT> {
     private fun createVerifier(audience: List<String>? = null): JWTVerifier {
         return JWT.require(algorithm).run {
             withIssuer("cloud.sdu.dk")
@@ -67,46 +64,58 @@ class TokenValidationJWT(publicCertificate: String) : TokenValidation<DecodedJWT
         return token.toSecurityToken()
     }
 
-    @Throws(CertificateException::class)
-    private fun loadCert(certString: String): X509Certificate? {
-        val formattedCert = formatCert(certString, true)
+    companion object {
+        @Throws(CertificateException::class)
+        private fun loadCert(certString: String): X509Certificate? {
+            val formattedCert = formatCert(certString, true)
 
-        return try {
-            CertificateFactory.getInstance("X.509").generateCertificate(
-                ByteArrayInputStream(formattedCert.toByteArray(StandardCharsets.UTF_8))
-            ) as X509Certificate
-        } catch (e: IllegalArgumentException) {
-            null
-        }
-    }
-
-    private fun formatCert(cert: String, heads: Boolean): String {
-        var x509cert: String = cert.replace("\\x0D", "").replace("\r", "").replace("\n", "").replace(" ", "")
-
-        if (!x509cert.isEmpty()) {
-            x509cert = x509cert.replace("-----BEGINCERTIFICATE-----", "").replace("-----ENDCERTIFICATE-----", "")
-
-            if (heads) {
-                x509cert = "-----BEGIN CERTIFICATE-----\n" +
-                        chunkString(x509cert, CERT_CHUNK_SIZE) + "-----END CERTIFICATE-----"
+            return try {
+                CertificateFactory.getInstance("X.509").generateCertificate(
+                    ByteArrayInputStream(formattedCert.toByteArray(StandardCharsets.UTF_8))
+                ) as X509Certificate
+            } catch (e: IllegalArgumentException) {
+                null
             }
         }
-        return x509cert
-    }
 
-    private fun chunkString(str: String, chunkSize: Int): String {
-        @Suppress("NAME_SHADOWING")
-        var chunkSize = chunkSize
-        var newStr = ""
-        val stringLength = str.length
-        var i = 0
-        while (i < stringLength) {
-            if (i + chunkSize > stringLength) {
-                chunkSize = stringLength - i
+        private fun formatCert(cert: String, heads: Boolean): String {
+            var x509cert: String = cert.replace("\\x0D", "").replace("\r", "").replace("\n", "").replace(" ", "")
+
+            if (!x509cert.isEmpty()) {
+                x509cert = x509cert.replace("-----BEGINCERTIFICATE-----", "").replace("-----ENDCERTIFICATE-----", "")
+
+                if (heads) {
+                    x509cert = "-----BEGIN CERTIFICATE-----\n" +
+                            chunkString(x509cert, CERT_CHUNK_SIZE) + "-----END CERTIFICATE-----"
+                }
             }
-            newStr += str.substring(i, chunkSize + i) + '\n'
-            i += chunkSize
+            return x509cert
         }
-        return newStr
+
+        private fun chunkString(str: String, chunkSize: Int): String {
+            @Suppress("NAME_SHADOWING")
+            var chunkSize = chunkSize
+            var newStr = ""
+            val stringLength = str.length
+            var i = 0
+            while (i < stringLength) {
+                if (i + chunkSize > stringLength) {
+                    chunkSize = stringLength - i
+                }
+                newStr += str.substring(i, chunkSize + i) + '\n'
+                i += chunkSize
+            }
+            return newStr
+        }
+
+        fun withPublicCertificate(publicCertificate: String): TokenValidationJWT {
+            return TokenValidationJWT(
+                Algorithm.RSA256(loadCert(publicCertificate)!!.publicKey as RSAPublicKey, null)
+            )
+        }
+
+        fun withSharedSecret(sharedSecret: String): TokenValidationJWT {
+            return TokenValidationJWT(Algorithm.HMAC512(sharedSecret))
+        }
     }
 }

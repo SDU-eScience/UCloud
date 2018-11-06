@@ -25,7 +25,11 @@ class TokenValidationFeature : MicroFeature {
     }
 
     private fun createJWTValidator(config: JWTTokenValidationConfig): TokenValidation<DecodedJWT> {
-        return TokenValidationJWT(config.publicCertificate)
+        return when {
+            config.publicCertificate != null -> TokenValidationJWT.withPublicCertificate(config.publicCertificate)
+            config.sharedSecret != null -> TokenValidationJWT.withSharedSecret(config.sharedSecret)
+            else -> throw IllegalArgumentException("No configuration for JWT found")
+        }
     }
 
     companion object Feature : MicroFeatureFactory<TokenValidationFeature, Unit> {
@@ -47,5 +51,6 @@ internal data class TokenValidationConfig(
 )
 
 internal data class JWTTokenValidationConfig(
-    val publicCertificate: String
+    val publicCertificate: String?,
+    val sharedSecret: String?
 )

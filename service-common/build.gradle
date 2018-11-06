@@ -1,4 +1,5 @@
-import java.nio.channels.*
+import java.nio.channels.Channels
+import java.nio.channels.ReadableByteChannel
 import java.nio.file.Files
 
 buildscript {
@@ -98,7 +99,7 @@ dependencies {
     compile 'org.flywaydb:flyway-core:5.1.4'
 
     compile 'eu.infomas:annotation-detector:3.0.5'
-    
+
     // Client
     compile group: 'org.asynchttpclient', name: 'async-http-client', version: '2.4.8'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.2'
@@ -126,8 +127,11 @@ dependencies {
     testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
     testCompile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
     testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
-    testCompile "io.ktor:ktor-server-test-host:$ktor_version"
-    testCompile "io.mockk:mockk:1.8"
+
+    // Exported via testing lib
+    // TODO How could we mark them in a unified location?
+    compile "io.ktor:ktor-server-test-host:$ktor_version"
+    compile "io.mockk:mockk:1.8.12.kotlin13"
 }
 
 compileKotlin {
@@ -158,6 +162,7 @@ kotlin.sourceSets.all {
 
 
 task sourceJar(type: Jar) {
+    classifier = "sources"
     from sourceSets.main.allSource
     exclude("**/dk/sdu/cloud/service/test/**")
 }
@@ -167,7 +172,7 @@ jar {
 }
 
 def testJarTask = tasks.create("testJarTask", Jar) { task ->
-    task.baseName = "service-common-test"
+    task.baseName = "${project.name}-test"
     task.from(sourceSets.main.output)
     task.from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
     task.include("**/dk/sdu/cloud/service/test/**")
@@ -187,31 +192,54 @@ task testSourceJar(type: Jar) {
 publishing {
     def pub = it as PublishingExtension
 
+    def testDependencies = [
+            "dk.sdu.cloud:service-common:${project.version}",
+            "io.ktor:ktor-server-test-host:$ktor_version",
+            "io.mockk:mockk:1.8.12.kotlin13"
+    ].collect { it.toString() }.toSet()
+
     def testJavaPublication = pub.publications.create("testJava", MavenPublication) as MavenPublication
-    testJavaPublication.groupId = "dk.sdu.cloud"
-    testJavaPublication.artifactId = "service-common-test"
+    testJavaPublication.groupId = project.group
+    testJavaPublication.artifactId = project.name + "-test"
     testJavaPublication.version = project.version
     testJavaPublication.artifact(testJarTask)
     testJavaPublication.artifact(testSourceJar).classifier = "sources"
+    testJavaPublication.pom.withXml {
+        def dependenciesNode = it.asNode().appendNode('dependencies')
 
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-
-            artifact sourceJar {
-                classifier "sources"
-            }
+        testDependencies.each { dep ->
+            def depSplit = dep.split(":")
+            assert (depSplit.length == 3)
+            def dependencyNode = dependenciesNode.appendNode('dependency')
+            dependencyNode.appendNode('groupId', depSplit[0])
+            dependencyNode.appendNode('artifactId', depSplit[1])
+            dependencyNode.appendNode('version', depSplit[2])
         }
     }
 
-    // For this to work you should create a file at ~/.gradle/gradle.properties
-    // This file should contain the configuration for the repository, user, and password.
-    //
-    // Example:
-    // eScienceCloudUser=admin
-    // eScienceCloudPassword=qwer
-    //
+    def mainPublication = pub.publications.create("mavenJava", MavenPublication) as MavenPublication
+    mainPublication.groupId = project.group
+    mainPublication.artifactId = project.name
+    mainPublication.version = project.version
+    mainPublication.artifact(jar)
+    mainPublication.artifact(sourceJar)
+    mainPublication.pom.withXml {
+        def rootNode = it.asNode()
+        (rootNode.get("dependencies") as List<Node>).each {
+            rootNode.remove(it)
+        }
 
+        def dependenciesNode = rootNode.appendNode('dependencies')
+        configurations.compile.allDependencies.each {
+            def altNotation = "${it.group}:${it.name}:${it.version}".toString()
+            if (!testDependencies.contains(altNotation)) {
+                def dependencyNode = dependenciesNode.appendNode('dependency')
+                dependencyNode.appendNode('groupId', it.group)
+                dependencyNode.appendNode('artifactId', it.name)
+                dependencyNode.appendNode('version', it.version)
+            }
+        }
+    }
 
     def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
     def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword
