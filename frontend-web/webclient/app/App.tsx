@@ -2,6 +2,7 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Provider } from "react-redux";
 import { BrowserRouter } from "react-router-dom";
+import { ThemeProvider } from "ui-components";
 import Core from "Core";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { initObject } from "DefaultObjects";
@@ -22,7 +23,7 @@ import { configureStore } from "Utilities/ReduxUtilities";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
 
-const store = configureStore(initObject(Cloud), {
+const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
     files,
     dashboard,
@@ -40,9 +41,11 @@ const store = configureStore(initObject(Cloud), {
 
 ReactDOM.render(
     <Provider store={store}>
-        <BrowserRouter basename="app">
-            <Core />
-        </BrowserRouter>
+        <ThemeProvider>
+            <BrowserRouter basename="app">
+                <Core />
+            </BrowserRouter>
+        </ThemeProvider>
     </Provider>,
     document.getElementById("app")
 );

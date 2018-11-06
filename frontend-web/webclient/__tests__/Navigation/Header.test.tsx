@@ -1,5 +1,4 @@
 import * as React from "react";
-import Header from "Navigation/Header";
 import { create } from "react-test-renderer";
 import { Provider } from "react-redux";
 import { configureStore } from "Utilities/ReduxUtilities";
@@ -14,12 +13,6 @@ import { MemoryRouter } from "react-router";
 describe("Header", () => {
     // FIXME Will try to contact backend and get wrong result, overwriting the page
     test.skip("Mount header", () => {
-        expect(create(
-            <Provider store={configureStore({ header: initHeader(), sidebar: initSidebar(), uploader: initUploads(), notifications: initNotifications(), zenodo: initZenodo() }, { header, sidebar, uploader, notifications, zenodo })}>
-                <MemoryRouter>
-                    <Header />
-                </MemoryRouter>
-            </Provider >).toJSON()
-        ).toMatchSnapshot();
+        return false;
     });
 });

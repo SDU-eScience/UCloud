@@ -29,7 +29,13 @@ const dashboard = (state: DashboardStateProps = initDashboard(), action: Dashboa
         case DASHBOARD_RECENT_ANALYSES_ERROR:
         case DASHBOARD_RECENT_FILES_ERROR: {
             if (action.payload.error) {
-                return { ...state, errors: state.errors.concat([action.payload.error]) }
+                return {
+                    ...state,
+                    errors: state.errors.concat([action.payload.error]),
+                    favoriteLoading: action.type === DASHBOARD_FAVORITE_ERROR ? false : state.favoriteLoading,
+                    analysesLoading: action.type === DASHBOARD_RECENT_ANALYSES_ERROR ? false : state.analysesLoading,
+                    recentLoading: action.type === DASHBOARD_RECENT_FILES_ERROR ? false : state.recentLoading
+                };
             } else {
                 return { ...state, errors: [] };
             }

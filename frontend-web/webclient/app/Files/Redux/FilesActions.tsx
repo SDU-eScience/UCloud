@@ -40,9 +40,9 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
 export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError> =>
     Cloud.get(filepathQuery(path, page, itemsPerPage, order, sortBy)).then(({ response }) =>
         receiveFiles(response, path, order, sortBy)
-    ).catch(() =>
-        setErrorMessage(`An error occurred fetching files for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
-    );
+    ).catch(err =>{
+        return setErrorMessage(`An error occurred fetching files for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
+    });
 
 type FilesError = Error<typeof FILES_ERROR>
 /**
@@ -167,10 +167,10 @@ export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage:
     Cloud.get(filepathQuery(path, page, itemsPerPage)).then(({ response }) => {
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, path);
-    }).catch(() => setFileSelectorError(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`));
+    }).catch(() => setFileSelectorError({ error:`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`}));
 
 /**
- * Sets the fileselector as loading. Intended for when retrieving files.
+ * Sets the fileselector as loading. Intended for use when retrieving files.
  */
 export const setFileSelectorLoading = (): Action<typeof SET_FILE_SELECTOR_LOADING> => ({
     type: SET_FILE_SELECTOR_LOADING
@@ -202,9 +202,9 @@ export const setFileSelectorCallback = (callback: Function): SetFileSelectorCall
  * Sets the error message for use in the null means nothing will be rendered.
  * @param {string} error The error message to be set.
  */
-export const setFileSelectorError = (error?: string): Error<typeof SET_FILE_SELECTOR_ERROR> => ({
+export const setFileSelectorError = (error:{error?: string, statusCode?: number}): Error<typeof SET_FILE_SELECTOR_ERROR> => ({
     type: SET_FILE_SELECTOR_ERROR,
-    payload: { error }
+    payload: { ...error }
 });
 
 type CheckAllFilesAction = PayloadAction<typeof CHECK_ALL_FILES, { checked: boolean }>

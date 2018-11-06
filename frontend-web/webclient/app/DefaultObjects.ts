@@ -51,6 +51,8 @@ export enum SensitivityLevel {
     "SENSITIVE" = "Sensitive"
 };
 
+export type Sensitivity = keyof typeof SensitivityLevel;
+
 export enum SensitivityLevelMap {
     "OPEN_ACCESS",
     "CONFIDENTIAL",
@@ -119,7 +121,11 @@ export interface HeaderSearchReduxObject {
     prioritizedSearch: HeaderSearchType
 }
 
-export type ApplicationReduxObject = ComponentWithPage<Application>;
+export interface ApplicationReduxObject extends ComponentWithPage<Application> {
+    favorites: Page<Application>
+    favoritesLoading: boolean
+};
+
 export type ActivityReduxObject = ComponentWithPage<Activity>
 
 export type HeaderSearchType = "files" | "applications" | "projects";
@@ -130,6 +136,7 @@ export interface UploaderReduxObject {
     path: string
     allowMultiple: boolean
     onFilesUploaded: (p: string) => void
+    error?: string
 }
 
 export interface Reducers {
@@ -148,6 +155,7 @@ export interface Reducers {
 }
 
 export type DetailedResultReduxObject = ComponentWithPage<File>
+
 export const initDetailedResult = (): DetailedResultReduxObject => ({
     page: emptyPage,
     loading: false,
@@ -189,6 +197,8 @@ export const initHeader = (): HeaderSearchReduxObject => ({
 
 export const initApplications = (): ApplicationReduxObject => ({
     page: emptyPage,
+    favorites: emptyPage,
+    favoritesLoading: false,
     loading: false,
     error: undefined
 });
@@ -209,9 +219,9 @@ export const initDashboard = (): DashboardStateProps => ({
     errors: []
 });
 
-export const initObject = ({ homeFolder }: { homeFolder: string }): ReduxObject => ({
+export const initObject = (homeFolder: string): ReduxObject => ({
     dashboard: initDashboard(),
-    files: initFiles({ homeFolder }),
+    files: initFiles(homeFolder),
     status: initStatus(),
     applications: initApplications(),
     header: initHeader(),
@@ -263,6 +273,7 @@ export const initUploads = (): UploaderReduxObject => ({
     uploads: [],
     visible: false,
     allowMultiple: false,
+    error: undefined,
     onFilesUploaded: () => null
 })
 
@@ -317,7 +328,7 @@ export const identifierTypes = [
     }
 ];
 
-export const initFiles = ({ homeFolder }: { homeFolder: string }): FilesReduxObject => ({
+export const initFiles = (homeFolder: string): FilesReduxObject => ({
     page: emptyPage,
     sortOrder: SortOrder.ASCENDING,
     sortBy: SortBy.PATH,

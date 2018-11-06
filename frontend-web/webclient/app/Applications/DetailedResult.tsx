@@ -282,7 +282,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                                         onClick={() => this.retrieveFilesPage(page.pageNumber, page.itemsPerPage)}
                                     />
                                     <EntriesPerPageSelector
-                                        className="items-per-page-padding float-right"
                                         entriesPerPage={page.itemsPerPage}
                                         content="Files per page"
                                         onChange={itemsPerPage => this.retrieveFilesPage(page.pageNumber, itemsPerPage)}

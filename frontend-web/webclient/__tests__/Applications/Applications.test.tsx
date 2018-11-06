@@ -16,27 +16,6 @@ const fullPageStore = {
 
 fullPageStore.getState().applications.page = applicationsPage;
 
-describe("Applications component", () => {
-    test("Render empty component", () => {
-        expect(Renderer.create(
-            <Provider store={emptyPageStore} >
-                <MemoryRouter>
-                    <Applications />
-                </MemoryRouter>
-            </Provider>
-        ).toJSON()).toMatchSnapshot();
-    });
-
-    test("Render full component", () => {
-        expect(Renderer.create(
-            <Provider store={fullPageStore} >
-                <MemoryRouter>
-                    <Applications />
-                </MemoryRouter>
-            </Provider>
-        ).toJSON()).toMatchSnapshot();
-    });
-});
 
 describe("Single Application Component", () => {
     test("Render Single Application", () => {

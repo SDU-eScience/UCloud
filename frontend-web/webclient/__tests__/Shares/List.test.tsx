@@ -15,7 +15,7 @@ configure({ adapter: new Adapter() });
 describe("Shares List", () => {
     test("Shares component", () => {
         expect(create(
-            <Provider store={configureStore({ files: initFiles({ homeFolder: "/home/user@test.abc/" }) }, { files })}>
+            <Provider store={configureStore({ files: initFiles("/home/user@test.abc/") }, { files })}>
                 <MemoryRouter>
                     <List />
                 </MemoryRouter>
@@ -24,7 +24,7 @@ describe("Shares List", () => {
 
     test.skip("Shares component with shares", () => {
         let sharesListWrapper = shallow(
-            <Provider store={configureStore({ files: initFiles({ homeFolder: "/home/user@test.abc/" }) }, { files })}>
+            <Provider store={configureStore({ files: initFiles("/home/user@test.abc/") }, { files })}>
                 <MemoryRouter>
                     <List keepTitle={true} />
                 </MemoryRouter>

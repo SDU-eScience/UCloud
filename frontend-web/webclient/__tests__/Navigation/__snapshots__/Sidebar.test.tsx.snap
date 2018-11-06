@@ -302,7 +302,7 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
                     >
                       <i
                         aria-hidden="true"
-                        className="newspaper icon"
+                        className="newspaper outline icon"
                       />
                     </div>
                     Publications

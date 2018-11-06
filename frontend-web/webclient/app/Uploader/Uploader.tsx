@@ -1,15 +1,17 @@
 import * as React from "react";
-import { Checkbox, Progress, Grid, Card, Button, Icon, Modal } from "semantic-ui-react";
+import { Checkbox as SCheckbox, Progress, Grid, Card, Button, Icon, Modal, Message } from "semantic-ui-react";
 import * as Dropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications } from "UtilityFunctions";
 import { fileSizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
-import { ReduxObject } from "DefaultObjects";
+import { ReduxObject, Sensitivity } from "DefaultObjects";
 import { Upload, UploaderProps } from ".";
-import { setUploaderVisible, setUploads } from "Uploader/Redux/UploaderActions";
+import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
+import { Box, Text } from "ui-components";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -17,6 +19,7 @@ const isFinishedUploading = (xhr?: XMLHttpRequest): boolean => !!xhr && xhr.read
 
 const newUpload = (file: File): Upload => ({
     file,
+    sensitivity: undefined,
     isUploading: false,
     progressPercentage: 0,
     extractArchive: false,
@@ -62,15 +65,15 @@ class Uploader extends React.Component<UploaderProps> {
 
         window.addEventListener("beforeunload", this.beforeUnload);
         if (!upload.extractArchive) {
-            multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, e => {
+            multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, upload.sensitivity, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
                 this.props.dispatch(setUploads(this.props.uploads));
-            }).then(xhr => onThen(xhr)); // FIXME Add error handling
+            }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)); // FIXME Add error handling
         } else {
             bulkUpload(this.props.location, upload.file, BulkUploadPolicy.OVERWRITE, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
                 this.props.dispatch(setUploads(this.props.uploads));
-            }).then(xhr => onThen(xhr)); // FIXME Add error handling
+            }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)); // FIXME Add error handling
         }
     }
 
@@ -108,6 +111,10 @@ class Uploader extends React.Component<UploaderProps> {
         return (
             <Modal open={this.props.visible} onClose={() => this.props.dispatch(setUploaderVisible(false))}>
                 <Modal.Header content="Upload Files" />
+                {this.props.error ?
+                    <Box pt="0.5em" pr="0.5em" pl="0.5em">
+                        <Message error content={this.props.error} onDismiss={() => this.props.dispatch(setUploaderError())} />
+                    </Box> : null}
                 <Modal.Content scrolling>
                     <Modal.Description>
                         <div>
@@ -136,7 +143,7 @@ class Uploader extends React.Component<UploaderProps> {
                             <Dropzone className="dropzone" onDrop={this.onFilesAdded}>
                                 <p>
                                     <Icon name="cloud upload" />
-                                    Drop files here or <a href="#" onClick={e => e.preventDefault()}>browse</a>
+                                    Drop files here or <a href="#">browse</a>
                                 </p>
                                 <p>
                                     <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
@@ -145,7 +152,7 @@ class Uploader extends React.Component<UploaderProps> {
                         </div>
                     </Modal.Description>
                 </Modal.Content>
-            </Modal>
+            </Modal >
 
         );
     }
@@ -154,6 +161,7 @@ class Uploader extends React.Component<UploaderProps> {
 const UploaderRow = (p: {
     file: File,
     extractArchive: boolean,
+    sensitivity?: Sensitivity
     isUploading: boolean,
     progressPercentage: number,
     uploadXHR?: XMLHttpRequest,
@@ -161,6 +169,7 @@ const UploaderRow = (p: {
     onUpload?: (e: React.MouseEvent<any>) => void,
     onDelete?: (e: React.MouseEvent<any>) => void,
     onAbort?: (e: React.MouseEvent<any>) => void
+    onCheck?: (checked) => void
 }) => {
     const fileTitle = <span><b>{p.file.name}</b> ({fileSizeToString(p.file.size)})</span>;
     let body;
@@ -172,7 +181,7 @@ const UploaderRow = (p: {
                 <br />
                 {
                     isArchiveExtension(p.file.name) ?
-                        <Checkbox
+                        <SCheckbox
                             toggle
                             label="Extract archive"
                             checked={p.extractArchive}
@@ -189,12 +198,14 @@ const UploaderRow = (p: {
                         content="Upload"
                         onClick={e => ifPresent(p.onUpload, c => c(e))}
                     />
-
                     <Button
                         icon="close"
                         onClick={e => ifPresent(p.onDelete, c => c(e))}
                     />
                 </Button.Group>
+                <ClickableDropdown chevron trigger={!!p.sensitivity ? p.sensitivity : "No sensitivity selected"}>
+                    <Box><Text>Sensitive</Text></Box>
+                </ClickableDropdown>
             </Grid.Column>
         </>;
     } else {
@@ -254,7 +265,8 @@ const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
     visible: uploader.visible,
     allowMultiple: true,
     uploads: uploader.uploads,
-    onFilesUploaded: uploader.onFilesUploaded
+    onFilesUploaded: uploader.onFilesUploaded,
+    error: uploader.error
 });
 
 export default connect(mapStateToProps)(Uploader);
