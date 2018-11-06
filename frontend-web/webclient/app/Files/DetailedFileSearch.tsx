@@ -1,32 +1,34 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { addEntryIfNotPresent } from "Utilities/CollectionUtilities"
-import { infoNotification } from "UtilityFunctions";
-import { DetailedFileSearchProps, DetailedFileSearchReduxState, SensitivityLevel, Annotation, PossibleTime, FileType, AdvancedSearchRequest, File, DetailedFileSearchOperations } from ".";
+import { DetailedFileSearchProps, DetailedFileSearchReduxState, SensitivityLevel, PossibleTime, FileType, AdvancedSearchRequest, DetailedFileSearchOperations } from ".";
 import { DatePicker } from "ui-components/DatePicker";
 import { Moment } from "moment";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Flex, Input, Label, Button, InputGroup, Stamp, Checkbox, Error, OutlineButton, LoadingButton } from "ui-components";
+import { Flex, Input, Label, InputGroup, Stamp, Checkbox, Error, OutlineButton, LoadingButton } from "ui-components";
 import * as Heading from "ui-components/Heading"
 import CloseButton from "ui-components/CloseButton";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { emptyPage, ReduxObject, Sensitivity } from "DefaultObjects";
+import { ReduxObject } from "DefaultObjects";
 import { SimpleFileList } from "SimpleSearch/SimpleSearch";
-import { Page } from "Types";
 import { Dispatch } from "redux";
+import { History } from "history";
+import * as PropTypes from "prop-types";
 
-class DetailedFileSearch extends React.Component<DetailedFileSearchProps, {}> {
+class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { history: History }> {
     constructor(props) {
-        super(props)
+        super(props);
         this.tagsInput = React.createRef();
         this.extensionsInput = React.createRef();
+    }
+
+    static contextTypes = {
+        router: PropTypes.object
     }
 
     private extensionsInput: any;
     private tagsInput: any;
 
-    componentDidUnmount() {
+    componentWillUnmount() {
         if (!this.props.hidden)
             this.props.toggleHidden();
     }
@@ -45,7 +47,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, {}> {
     }
 
     onAddTags = () => {
-        const { tags } = this.props;
         if (!this.tagsInput.value) return;
         const newTags = this.tagsInput.value.trim().split(" ").filter(it => it);
         this.props.addTags(newTags);
@@ -117,13 +118,13 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, {}> {
             itemsPerPage: 25,
             page: 0
         }
-        this.props.fetchPage(request);
+        this.props.fetchPage(request, () => this.context.router.history.push(`/simplesearch/files/${this.props.fileName}`));
+        this.props.setLoading(true);
     }
 
     render() {
         if (this.props.hidden) { return (<OutlineButton fullWidth color="green" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
         const { sensitivities, extensions, allowFiles, allowFolders, tags } = this.props;
-        console.log(extensions);
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));
         const sensitivityDropdown = remainingSensitivities.length ? (
             <Box>
@@ -239,7 +240,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, {}> {
                     <Heading.h5 pb="0.3em" pt="0.5em">File extensions</Heading.h5>
                     <SearchStamps stamps={extensions} onStampRemove={l => this.props.removeExtensions([l])} clearAll={() => this.props.removeExtensions([...extensions])} />
                     <form onSubmit={e => { e.preventDefault(); this.onAddExtension(); }}>
-                        <Input pb="6px" pt="8px" mt="-2px" innerRef={n => this.extensionsInput = n} placeholder={"Add extensions..."} />
+                        <Input pb="6px" pt="8px" mt="-2px" ref={this.extensionsInput} placeholder={"Add extensions..."} />
                         <ClickableDropdown
                             chevron
                             trigger={"Add extension preset"}
@@ -254,9 +255,9 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps, {}> {
                     <Heading.h5>Tags</Heading.h5>
                     <SearchStamps stamps={tags} onStampRemove={l => this.props.removeTags([l])} clearAll={() => this.props.removeTags([...tags])} />
                     <form onSubmit={e => { e.preventDefault(); this.onAddTags(); }}>
-                        <Input pb="6px" pt="8px" mt="-2px" innerRef={n => this.tagsInput = n} />
+                        <Input pb="6px" pt="8px" mt="-2px" ref={this.tagsInput} />
                     </form>
-                    <LoadingButton type="submit" loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search"/>
+                    <LoadingButton type="submit" loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
                 </Box>
                 <SimpleFileList files={this.props.page.items} />
             </Flex>
@@ -303,7 +304,11 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations =>
     addTags: (tags) => dispatch(DFSActions.tagAction(DETAILED_FILES_ADD_TAGS, tags)),
     removeTags: (tags) => dispatch(DFSActions.tagAction(DETAILED_FILES_REMOVE_TAGS, tags)),
     setFilename: (filename) => dispatch(DFSActions.setFilename(filename)),
-    fetchPage: async (req) => dispatch(await DFSActions.fetchFiles(req)),
+    fetchPage: async (req, callback) => {
+        dispatch(await DFSActions.fetchFiles(req));
+        dispatch(DFSActions.setFilesSearchLoading(false));
+        if (typeof callback === "function") callback();
+    },
     setLoading: (loading) => dispatch(DFSActions.setFilesSearchLoading(loading)),
     setTimes: (times) => dispatch(DFSActions.setTime(times)),
     setError: (error) => dispatch(DFSActions.setErrorMessage(error))

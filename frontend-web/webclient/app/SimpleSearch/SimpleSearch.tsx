@@ -1,5 +1,5 @@
 import * as React from "react";
-import { List as SList, Icon as SIcon, Card as SCard, Message as SMessage, Responsive as SResponsive, Form as SForm, Menu as SMenu, Segment as SSegment } from "semantic-ui-react";
+import { List as SList, Icon as SIcon, Responsive as SResponsive, Form as SForm, Menu as SMenu, Segment as SSegment } from "semantic-ui-react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
@@ -17,8 +17,11 @@ import { Page } from "Types";
 import { Dispatch } from "redux";
 import { File } from "Files";
 import * as SSActions from "./Redux/SimpleSearchActions";
-import { Error } from "ui-components";
+import { Error, Hide, Input } from "ui-components";
 import { CardGroup } from "ui-components/Card";
+import { MainContainer } from "MainContainer/MainContainer";
+import DetailedFileSearch from "Files/DetailedFileSearch";
+import { toggleFilesSearchHidden } from "Files/Redux/DetailedFileSearchActions";
 
 
 class SimpleSearch extends React.Component<SimpleSearchProps> {
@@ -27,6 +30,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
     }
 
     componentDidMount() {
+        this.props.toggleAdvancedSearch();
         if (!this.props.match.params[0]) { this.props.setError("No search text provided."); return };
         this.fetchAll(this.props.match.params[0]);
     }
@@ -44,7 +48,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
 
     setPath = (text: string) => {
         this.props.setPrioritizedSearch(text as HeaderSearchType);
-        this.props.history.push(`/simplesearch/${text.toLocaleLowerCase()}/${this.props.search}`);
+        this.props.history.push(`/simplesearch/${text.toLocaleLowerCase()}/${text}`);
     }
 
     fetchAll(search: string) {
@@ -115,23 +119,41 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
         ];
         const activeIndex = SearchPriorityToNumber(this.props.match.params.priority);
         return (
-            <React.StrictMode>
-                {errorMessage}
-                <SResponsive maxWidth={999} as={SForm} className="form-input-margin" onSubmit={() => this.search()}>
-                    <SForm.Input style={{ marginBottom: "15px" }} onChange={(_, { value }) => this.props.setSearch(value)} fluid />
-                </SResponsive>
-
-                <SMenu pointing>
-                    <SMenu.Item name={panes[0].menuItem} active={0 === activeIndex} onClick={() => this.setPath("files")} />
-                    <SMenu.Item name={panes[1].menuItem} active={1 === activeIndex} onClick={() => this.setPath("projects")} />
-                    <SMenu.Item name={panes[2].menuItem} active={2 === activeIndex} onClick={() => this.setPath("applications")} />
-                </SMenu>
-
-                {panes[activeIndex].render()}
-            </React.StrictMode>
+            <MainContainer
+                header={
+                    <React.Fragment>
+                        {errorMessage}
+                        <Hide xl md>
+                            <form className="form-input-margin" onSubmit={e => { e.preventDefault(); this.search(); }}>
+                                <Input onChange={({ target: { value } }) => this.props.setSearch(value)} />
+                            </form>
+                        </Hide>
+                        <SMenu pointing>
+                            <SMenu.Item name={panes[0].menuItem} active={0 === activeIndex} onClick={() => this.setPath("files")} />
+                            <SMenu.Item name={panes[1].menuItem} active={1 === activeIndex} onClick={() => this.setPath("projects")} />
+                            <SMenu.Item name={panes[2].menuItem} active={2 === activeIndex} onClick={() => this.setPath("applications")} />
+                        </SMenu>
+                    </React.Fragment>
+                }
+                main={panes[activeIndex].render()}
+                sidebar={<SearchBar active={panes[activeIndex].menuItem as MenuItemName} />}
+            />
         );
     }
 };
+
+type MenuItemName = "Files" | "Projects" | "Applications";
+type SearchBarProps = { active: MenuItemName }
+const SearchBar = (props: SearchBarProps) => {
+    switch (props.active) {
+        case "Files":
+            return <DetailedFileSearch />
+        case "Projects":
+            return null;
+        case "Applications":
+            return null;
+    }
+}
 
 export const SimpleFileList = ({ files }) => (
     <SList size="large" relaxed>
@@ -177,7 +199,8 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setApplicationsPage: (page: Page<Application>) => dispatch(SSActions.receiveApplications(page)),
     setProjectsPage: (page: Page<ProjectMetadata>) => dispatch(SSActions.receiveProjects(page)),
     setSearch: (search: string) => dispatch(SSActions.setSearch(search)),
-    setPrioritizedSearch: (sT: HeaderSearchType) => dispatch(setPrioritizedSearch(sT))
+    setPrioritizedSearch: (sT: HeaderSearchType) => dispatch(setPrioritizedSearch(sT)),
+    toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden())
 });
 
 const mapStateToProps = ({ simpleSearch }: ReduxObject) => simpleSearch;

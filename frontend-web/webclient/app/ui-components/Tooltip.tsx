@@ -1,9 +1,9 @@
 import * as React from "react";
-import Box, { BoxProps } from './Box'
+import Box, { BoxProps } from "./Box"
 
-import theme from './theme'
+import theme from "./theme"
 
-import styled from 'styled-components'
+import styled from "styled-components"
 
 const arrowShadow = props => {
   return props.top

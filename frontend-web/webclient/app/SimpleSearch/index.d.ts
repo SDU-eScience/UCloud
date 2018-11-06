@@ -37,4 +37,5 @@ export interface SimpleSearchOperations {
     setProjectsPage: (page: Page<ProjectMetadata>) => void
     setSearch: (search: string) => void
     setPrioritizedSearch: (st: HeaderSearchType) => void
+    toggleAdvancedSearch: () => void
 }

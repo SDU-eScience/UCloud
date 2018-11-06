@@ -22,11 +22,9 @@ const detailedFileSearch = (state: DetailedFileSearchReduxState = initFilesDetai
             return { ...state, hidden: !state.hidden };
         }
         case DETAILED_FILES_TOGGLE_FOLDERS: {
-            console.log(!state.allowFolders)
             return { ...state, allowFolders: !state.allowFolders };
         }
         case DETAILED_FILES_TOGGLE_FILES: {
-            console.log(!state.allowFiles)
             return { ...state, allowFiles: !state.allowFiles };
         }
         // FIXME Not DRY compliant
