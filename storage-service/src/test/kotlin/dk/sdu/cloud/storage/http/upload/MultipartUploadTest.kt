@@ -92,7 +92,7 @@ class MultipartUploadTest {
                 },
 
                 test = {
-                    val response = handleRequest(HttpMethod.Post, "/api/upload/") {
+                    val response = handleRequest(HttpMethod.Post, "/api/files/upload/") {
                         setUser("user")
                         val boundary = UUID.randomUUID().toString()
 

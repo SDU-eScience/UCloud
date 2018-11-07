@@ -19,7 +19,6 @@ import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.http.defaultForFile
 import io.ktor.request.receiveOrNull
-import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.asStream
 import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.io.jvm.javaio.copyTo
@@ -175,21 +174,39 @@ class MultipartRequest<Request : Any> private constructor() {
             isSendingFinal = partsSeen.size == knownProps.size
         }
 
+        var caughtException: Exception? = null
         ingoing.multipart.forEachPart { part ->
-            val name = part.name ?: run { part.dispose(); return@forEachPart }
-
-            val prop = knownProps[name] ?: run { part.dispose(); return@forEachPart }
-
-            partsSeen.add(prop.name)
-            val parsedPart = parsePart(prop, part)
-            builder[name] = parsedPart
-
-            if (parsedPart is StreamingFile) {
-                send()
-                builder.remove(name) // We need to remove StreamingFiles from the builder.
+            if (caughtException != null) {
+                part.dispose()
+                return@forEachPart
             }
 
-            part.dispose()
+            try {
+                val name = part.name ?: run { part.dispose(); return@forEachPart }
+
+                val prop = knownProps[name] ?: run { part.dispose(); return@forEachPart }
+
+                partsSeen.add(prop.name)
+                val parsedPart = parsePart(prop, part)
+                builder[name] = parsedPart
+
+                if (parsedPart is StreamingFile) {
+                    send()
+                    builder.remove(name) // We need to remove StreamingFiles from the builder.
+                }
+
+            } catch (ex: Exception) {
+                caughtException = ex
+            } finally {
+                part.dispose()
+            }
+        }
+
+        val capturedException = caughtException
+        if (capturedException != null) {
+            log.debug("Caught exception in MultipartRequest")
+            log.debug(capturedException.stackTraceToString())
+            throw capturedException
         }
 
         if (partsSeen.size != knownProps.size) {
@@ -234,21 +251,25 @@ class MultipartRequest<Request : Any> private constructor() {
                         }
                     }
                 } else {
-                    when (propType) {
-                        String::class -> part.value
-                        Byte::class -> part.value.toByteOrNull()
+                    when {
+                        propType == String::class -> part.value
+                        propType == Byte::class -> part.value.toByteOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Short::class -> part.value.toShortOrNull()
+                        propType == Short::class -> part.value.toShortOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Int::class -> part.value.toIntOrNull()
+                        propType == Int::class -> part.value.toIntOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Long::class -> part.value.toLongOrNull()
+                        propType == Long::class -> part.value.toLongOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Short::class -> part.value.toShortOrNull()
+                        propType == Short::class -> part.value.toShortOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Double::class -> part.value.toDoubleOrNull()
+                        propType == Double::class -> part.value.toDoubleOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Boolean::class -> part.value.toBoolean()
+                        propType == Boolean::class -> part.value.toBoolean()
+                        propType.java.isEnum -> {
+                            propType.java.enumConstants.find { (it as Enum<*>).name == part.value }
+                                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
                         else -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
                 }
@@ -331,8 +352,8 @@ class MultipartRequest<Request : Any> private constructor() {
                 val memberProperties = klass.memberProperties
 
                 constructor.parameters.forEach { param ->
-                    val prop = memberProperties.find { it.name == param.name } ?:
-                        throw IllegalStateException("Request types must be simple data classes!")
+                    val prop = memberProperties.find { it.name == param.name }
+                        ?: throw IllegalStateException("Request types must be simple data classes!")
 
                     val name = prop.name
                     val propValue = prop.get(outgoing)

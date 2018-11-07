@@ -53,14 +53,16 @@ class ExternalFileServiceTest {
     fun `happy path - normal file`() {
         val fileName = "a"
         val ctx = createService {
-            touch(fileName)
+            mkdir("/home") {
+                touch(fileName)
+            }
         }
 
         with(ctx) {
-            runBlocking { service.scanFilesCreatedExternally(fileName) }
+            runBlocking { service.scanFilesCreatedExternally("/home/$fileName") }
             assertEquals(1, collectedEvents.size)
             val fileCreatedEvent = collectedEvents.first() as StorageEvent.CreatedOrRefreshed
-            assertEquals("/$fileName", fileCreatedEvent.path)
+            assertEquals("/home/$fileName", fileCreatedEvent.path)
             assertEquals(FileType.FILE, fileCreatedEvent.fileType)
         }
     }
@@ -69,14 +71,16 @@ class ExternalFileServiceTest {
     fun `happy path - empty directory`() {
         val fileName = "a"
         val ctx = createService {
-            mkdir(fileName) {}
+            mkdir("home") {
+                mkdir(fileName) {}
+            }
         }
 
         with(ctx) {
-            runBlocking { service.scanFilesCreatedExternally(fileName) }
+            runBlocking { service.scanFilesCreatedExternally("/home/$fileName") }
             assertEquals(1, collectedEvents.size)
             val fileCreatedEvent = collectedEvents.first() as StorageEvent.CreatedOrRefreshed
-            assertEquals("/$fileName", fileCreatedEvent.path)
+            assertEquals("/home/$fileName", fileCreatedEvent.path)
             assertEquals(FileType.DIRECTORY, fileCreatedEvent.fileType)
         }
     }
@@ -87,23 +91,25 @@ class ExternalFileServiceTest {
         val files = listOf("a", "b", "c")
 
         val ctx = createService {
-            mkdir(dirName) {
-                files.forEach { touch(it) }
+            mkdir("home") {
+                mkdir(dirName) {
+                    files.forEach { touch(it) }
+                }
             }
         }
 
         with(ctx) {
-            runBlocking { service.scanFilesCreatedExternally(dirName) }
+            runBlocking { service.scanFilesCreatedExternally("/home/$dirName") }
             val createdEvents = collectedEvents.filterIsInstance<StorageEvent.CreatedOrRefreshed>()
             assertEquals(files.size + 1, collectedEvents.size)
             assertEquals(files.size + 1, createdEvents.size)
 
             val dirEvent = createdEvents.find { it.path.contains(dirName) }!!
-            assertEquals("/$dirName", dirEvent.path)
+            assertEquals("/home/$dirName", dirEvent.path)
             assertEquals(FileType.DIRECTORY, dirEvent.fileType)
 
             files.forEach { file ->
-                val fileEvent = createdEvents.find { it.path == "/$dirName/$file" }!!
+                val fileEvent = createdEvents.find { it.path == "/home/$dirName/$file" }!!
                 assertEquals(FileType.FILE, fileEvent.fileType)
             }
         }
@@ -112,26 +118,28 @@ class ExternalFileServiceTest {
     @Test
     fun `happy path - nested directory`() {
         val ctx = createService {
-            mkdir("a") {
-                mkdir("b") {
-                    touch("c")
+            mkdir("home") {
+                mkdir("a") {
+                    mkdir("b") {
+                        touch("c")
+                    }
                 }
             }
         }
 
         with(ctx) {
-            runBlocking { service.scanFilesCreatedExternally("a") }
+            runBlocking { service.scanFilesCreatedExternally("/home/a") }
             val createdEvents = collectedEvents.filterIsInstance<StorageEvent.CreatedOrRefreshed>()
             assertEquals(3, collectedEvents.size)
             assertEquals(3, createdEvents.size)
 
-            val dirA = createdEvents.find { it.path == "/a" }!!
+            val dirA = createdEvents.find { it.path == "/home/a" }!!
             assertEquals(FileType.DIRECTORY, dirA.fileType)
 
-            val dirB = createdEvents.find { it.path == "/a/b" }!!
+            val dirB = createdEvents.find { it.path == "/home/a/b" }!!
             assertEquals(FileType.DIRECTORY, dirB.fileType)
 
-            val fileC = createdEvents.find { it.path == "/a/b/c" }!!
+            val fileC = createdEvents.find { it.path == "/home/a/b/c" }!!
             assertEquals(FileType.FILE, fileC.fileType)
         }
     }
@@ -139,11 +147,13 @@ class ExternalFileServiceTest {
     @Test
     fun `missing file`() {
         val ctx = createService {
-            mkdir("someDir") {}
+            mkdir("home") {
+                mkdir("someDir") {}
+            }
         }
 
         with(ctx) {
-            runBlocking { service.scanFilesCreatedExternally("notSomeDir") }
+            runBlocking { service.scanFilesCreatedExternally("/home/notSomeDir") }
 
             assertEquals(0, collectedEvents.size)
         }
