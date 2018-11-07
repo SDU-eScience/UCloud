@@ -21,7 +21,9 @@ import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.TermQueryBuilder
 import org.elasticsearch.search.builder.SearchSourceBuilder
-import kotlin.coroutines.experimental.Continuation
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 inline fun <reified T : Any> SearchResponse.paginated(
     mapper: ObjectMapper,

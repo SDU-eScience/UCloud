@@ -1,13 +1,12 @@
 group 'dk.sdu.cloud'
-version '1.5.0-SNAPSHOT'
+version '1.6.0-SNAPSHOT'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.1.0/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.1/sdu-cloud.gradle"
 
 repositories {
-    maven { url "https://dl.bintray.com/tus/maven" }
     maven { url  "http://dl.bintray.com/mbuhot/maven" }
 }
 
@@ -15,11 +14,13 @@ dependencies {
     compile 'mbuhot:eskotlin:0.4.0'
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'
 
-    compile "dk.sdu.cloud:service-common:0.19.2-SNAPSHOT"
-    compile "dk.sdu.cloud:file-api:0.11.0-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.21.0-SNAPSHOT"
+    compile "dk.sdu.cloud:file-api:0.12.3-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.8.0-SNAPSHOT"
+
+    testCompile "dk.sdu.cloud:service-common-test:0.21.0-SNAPSHOT"
 }
 
 sduCloud.createTasksForApiJar("indexing", [
-        "dk.sdu.cloud:file-api:0.11.0-SNAPSHOT"
+        "dk.sdu.cloud:file-api:0.12.3-SNAPSHOT"
 ])

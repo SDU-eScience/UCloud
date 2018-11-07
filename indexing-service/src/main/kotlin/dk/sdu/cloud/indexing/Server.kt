@@ -11,7 +11,7 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
@@ -32,8 +32,7 @@ class Server(
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
     private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val args: Array<String>,
-    private val instance: ServiceInstance
+    private val micro: Micro
 ) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
     override val kStreams: KafkaStreams? = null
@@ -60,7 +59,7 @@ class Server(
         val indexingService = ElasticIndexingService(elastic)
         val queryService = ElasticQueryService(elastic)
 
-        if (args.contains("--scan")) {
+        if (micro.commandLineArguments.contains("--scan")) {
             @Suppress("TooGenericExceptionCaught")
             try {
                 val scanner = FileIndexScanner(cloud, elastic)
@@ -76,7 +75,7 @@ class Server(
         addConsumers(StorageEventProcessor(kafka, indexingService).init())
 
         httpServer = ktor {
-            installDefaultFeatures(cloud, kafka, instance, requireJobId = true)
+            installDefaultFeatures(micro)
 
             routing {
                 configureControllers(

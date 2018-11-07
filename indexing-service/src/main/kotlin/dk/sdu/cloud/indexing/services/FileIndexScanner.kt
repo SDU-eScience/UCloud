@@ -17,9 +17,9 @@ import dk.sdu.cloud.indexing.util.term
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.awaitAll
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.client.RestHighLevelClient
