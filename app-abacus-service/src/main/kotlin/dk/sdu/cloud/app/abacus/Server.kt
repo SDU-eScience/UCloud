@@ -15,7 +15,6 @@ import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
