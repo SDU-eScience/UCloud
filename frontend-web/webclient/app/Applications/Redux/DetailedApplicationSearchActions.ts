@@ -1,6 +1,6 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import { DETAILED_APPS_SET_NAME, DETAILED_APPS_SET_VERSION, DETAILED_APPLICATIONS_RECEIVE_PAGE } from "./DetailedApplicationSearchReducer";
-import { hpcApplicationsSearchQuery } from "Utilities/ApplicationUtilities";
+import { hpcApplicationsSearchQuery, hpcApplicationsTagSearchQuery } from "Utilities/ApplicationUtilities";
 import { setErrorMessage } from "SimpleSearch/Redux/SimpleSearchActions";
 import { PayloadAction } from "Types";
 
@@ -17,9 +17,14 @@ export const setAppName = (appName: string): SetAppNameAction => ({
 });
 
 
-export const fetchApplicationPage = (query: string, itemsPerPage: number, page: number) =>
+export const fetchApplicationPageFromName = (query: string, itemsPerPage: number, page: number) =>
     Cloud.get(hpcApplicationsSearchQuery(query, page, itemsPerPage))
         .then(({ response }) => receiveApplicationPage(response))
+        .catch(_ => setErrorMessage("An error occurred searching for applications\n", { applicationsLoading: false }));
+
+export const fetchApplicationPageFromTag = (query: string, itemsPerPage: number, page: number) =>
+    Cloud.get(hpcApplicationsTagSearchQuery(query, page, itemsPerPage))
+        .then(({ response }) => receiveApplicationPage(response))   
         .catch(_ => setErrorMessage("An error occurred searching for applications\n", { applicationsLoading: false }));
 
 export const receiveApplicationPage = (page) => ({

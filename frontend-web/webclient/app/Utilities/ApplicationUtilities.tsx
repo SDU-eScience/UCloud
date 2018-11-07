@@ -21,8 +21,8 @@ export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
 export const hpcApplicationsSearchQuery = (query: string, page: number, itemsPerPage: number) =>
     `/hpc/apps/search?query=${query}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
-export const hpcApplicationsTagSearchQuery = (tags: string, page: number, itemsPerPage: number) =>
-    `/hpc/apps/searchTags?query=${tags}&page=${page}&itemsPerPage=${itemsPerPage}`;
+export const hpcApplicationsTagSearchQuery = (tag: string, page: number, itemsPerPage: number) =>
+    `/hpc/apps/searchTags?query=${tag}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
 
 /**

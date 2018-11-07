@@ -49,53 +49,52 @@ class Applications extends React.Component<ApplicationsProps> {
     render() {
         const { page, loading, fetchApplications, favorites, onErrorDismiss, receiveApplications, error } = this.props;
         const favoriteApp = (name: string, version: string) => receiveApplications(favoriteApplicationFromPage(name, version, page, Cloud));
-        return (
-            <MainContainer
-                main={
-                    <Pagination.List
-                        loading={loading}
-                        onErrorDismiss={onErrorDismiss}
-                        errorMessage={error}
-                        onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
-                        pageRenderer={({ items }: Page<Application>) =>
+
+        const main = (
+            <Pagination.List
+                loading={loading}
+                onErrorDismiss={onErrorDismiss}
+                errorMessage={error}
+                onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
+                pageRenderer={({ items }: Page<Application>) =>
+                    <React.Fragment>
+                        {favorites.items.length ?
                             <React.Fragment>
-                                {favorites.items.length ?
-                                    <React.Fragment>
-                                        <Heading.h2>Favorites</Heading.h2>
-                                        <CardGroup>
-                                            {favorites.items.map(app =>
-                                                <ApplicationCard
-                                                    key={`${app.description.info.name}${app.description.info.version}`}
-                                                    favoriteApp={favoriteApp}
-                                                    app={app}
-                                                    isFavorite={app.favorite}
-                                                />)}
-                                        </CardGroup>
-                                        <Divider />
-                                    </React.Fragment> : null}
-                                <Heading.h2>Applications</Heading.h2>
+                                <Heading.h2>Favorites</Heading.h2>
                                 <CardGroup>
-                                    {items.map((app, index) =>
+                                    {favorites.items.map(app =>
                                         <ApplicationCard
-                                            key={index}
+                                            key={`${app.description.info.name}${app.description.info.version}`}
                                             favoriteApp={favoriteApp}
                                             app={app}
                                             isFavorite={app.favorite}
-                                        />
-                                    )}
+                                        />)}
                                 </CardGroup>
-                            </React.Fragment>
-                        }
-                        page={page}
-                        onItemsPerPageChanged={size => fetchApplications(0, size)}
-                        onPageChanged={pageNumber => fetchApplications(pageNumber, page.itemsPerPage)}
-                    />}
+                                <Divider />
+                            </React.Fragment> : null}
+                        <Heading.h2>Applications</Heading.h2>
+                        <CardGroup>
+                            {items.map((app, index) =>
+                                <ApplicationCard
+                                    key={index}
+                                    favoriteApp={favoriteApp}
+                                    app={app}
+                                    isFavorite={app.favorite}
+                                />
+                            )}
+                        </CardGroup>
+                    </React.Fragment>
+                }
+                page={page}
+                onItemsPerPageChanged={size => fetchApplications(0, size)}
+                onPageChanged={pageNumber => fetchApplications(pageNumber, page.itemsPerPage)}
+            />
+        )
 
+        return (
+            <MainContainer
+                main={main}
                 sidebar={<DetailedApplicationSearch />}
-
-                additional={null}
-
-                header={null}
             />
         );
     }

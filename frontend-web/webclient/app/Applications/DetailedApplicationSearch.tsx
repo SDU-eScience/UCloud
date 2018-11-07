@@ -5,7 +5,7 @@ import { ReduxObject } from "DefaultObjects";
 import { DetailedApplicationSearchReduxState, DetailedApplicationOperations } from "Applications";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
-import { setAppName, setVersion, fetchApplicationPage } from "./Redux/DetailedApplicationSearchActions";
+import { setAppName, setVersion, fetchApplicationPageFromName, fetchApplicationPageFromTag } from "./Redux/DetailedApplicationSearchActions";
 import { object } from "prop-types";
 
 type DetailedApplicationSearchProps = DetailedApplicationOperations & DetailedApplicationSearchReduxState;
@@ -23,7 +23,7 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
     onSearch(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         this.props.setAppName(this.inputField.current.value);
-        this.props.fetchApplications(this.inputField.current.value, 25, 0);
+        this.props.fetchApplicationsFromName(this.inputField.current.value, 25, 0);
         console.log(this.context.router.history)
     }
 
@@ -59,7 +59,8 @@ const mapStateToProps = ({ detailedApplicationSearch }: ReduxObject) => detailed
 const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations => ({
     setAppName: (appName) => dispatch(setAppName(appName)),
     setVersionName: (version) => dispatch(setVersion(version)),
-    fetchApplications: async (query, itemsPerPage, page) => dispatch(await fetchApplicationPage(query, itemsPerPage, page))
+    fetchApplicationsFromName: async (query, itemsPerPage, page) => dispatch(await fetchApplicationPageFromName(query, itemsPerPage, page)),
+    fetchApplicationsFromTag: async (tags, itemsPerPage, page) => dispatch(await fetchApplicationPageFromTag(tags, itemsPerPage, page))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(DetailedApplicationSearch);
