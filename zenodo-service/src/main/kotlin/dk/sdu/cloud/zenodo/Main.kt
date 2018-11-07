@@ -45,6 +45,6 @@ fun main(args: Array<String>) {
         micro.kafka,
         configuration,
         micro.serverProvider,
-        micro.serviceInstance
+        micro
     ).start()
 }

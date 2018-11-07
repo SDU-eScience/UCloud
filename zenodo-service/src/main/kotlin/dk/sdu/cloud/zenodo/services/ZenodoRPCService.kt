@@ -6,7 +6,7 @@ import dk.sdu.cloud.zenodo.util.HttpClient
 import dk.sdu.cloud.zenodo.util.asJson
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.delay
 import org.asynchttpclient.request.body.multipart.FilePart
 import org.asynchttpclient.request.body.multipart.StringPart
 import org.slf4j.LoggerFactory
@@ -27,7 +27,7 @@ data class ZenodoRPCFailure(
 ) : ZenodoRPCException("Error while communicating with Zenodo", HttpStatusCode.BadGateway)
 
 private const val NUMBER_OF_RETRIES = 5
-private const val DELAY_IN_MILLS = 500
+private const val DELAY_IN_MILLS = 500L
 private const val OK_STATUSCODE_START = 200
 private const val OK_STATUSCODE_END = 299
 private const val INTERNAL_STATUSCODE_START = 500

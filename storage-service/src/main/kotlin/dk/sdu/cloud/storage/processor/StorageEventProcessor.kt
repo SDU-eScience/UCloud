@@ -2,7 +2,11 @@ package dk.sdu.cloud.storage.processor
 
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.EventConsumer
+import dk.sdu.cloud.service.EventConsumerFactory
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.batched
+import dk.sdu.cloud.service.consumeBatchAndCommit
 import java.util.*
 
 typealias StorageEventHandler = (List<StorageEvent>) -> Unit

@@ -8,7 +8,6 @@ import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.joinPath
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
-import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.InputStream
 import java.util.zip.GZIPInputStream

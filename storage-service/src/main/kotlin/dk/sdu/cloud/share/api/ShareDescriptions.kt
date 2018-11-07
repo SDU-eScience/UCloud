@@ -108,7 +108,7 @@ object ShareDescriptions : RESTDescriptions("shares") {
 
         path {
             using(baseContext)
-            + "byPath"
+            +"byPath"
         }
 
         params {

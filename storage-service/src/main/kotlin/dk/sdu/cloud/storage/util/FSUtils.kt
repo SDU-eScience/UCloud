@@ -10,11 +10,9 @@ import dk.sdu.cloud.storage.services.FSResult
 import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.withContext
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.selects.select
 import org.slf4j.LoggerFactory

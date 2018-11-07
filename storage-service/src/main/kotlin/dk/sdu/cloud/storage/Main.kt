@@ -11,7 +11,6 @@ import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.kafka
 import dk.sdu.cloud.service.runScriptHandler
 import dk.sdu.cloud.service.serverProvider
-import dk.sdu.cloud.service.serviceInstance
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 
 val SERVICE_USER = "_${StorageServiceDescription.name}"

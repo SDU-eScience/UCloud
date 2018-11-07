@@ -28,15 +28,15 @@ class ShareController<Ctx : FSUserContext>(
         }
 
         implement(ShareDescriptions.accept) {
-             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                 ok(
-                     shareService.updateState(
-                         ctx,
-                         it.id,
-                         ShareState.ACCEPTED
-                     )
-                 )
-             }
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+                ok(
+                    shareService.updateState(
+                        ctx,
+                        it.id,
+                        ShareState.ACCEPTED
+                    )
+                )
+            }
         }
 
         implement(ShareDescriptions.revoke) {

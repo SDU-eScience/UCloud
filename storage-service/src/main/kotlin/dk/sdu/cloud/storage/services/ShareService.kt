@@ -1,6 +1,5 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.client.AuthenticatedCloud
@@ -11,11 +10,9 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.share.api.CreateShareRequest
 import dk.sdu.cloud.share.api.Share
 import dk.sdu.cloud.share.api.ShareId
@@ -28,7 +25,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
-sealed class ShareException(override val message: String, statusCode: HttpStatusCode) : RPCException(message, statusCode) {
+sealed class ShareException(override val message: String, statusCode: HttpStatusCode) :
+    RPCException(message, statusCode) {
     class NotFound : ShareException("Not found", HttpStatusCode.NotFound)
     class NotAllowed : ShareException("Not allowed", HttpStatusCode.Forbidden)
     class DuplicateException : ShareException("Already exists", HttpStatusCode.Conflict)
@@ -66,7 +64,7 @@ class ShareService<DBSession, Ctx : FSUserContext>(
         user: String,
         status: ShareState,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-    ) :Page<SharesByPath> {
+    ): Page<SharesByPath> {
         return db.withTransaction { shareDAO.listByStatus(it, user, status, paging) }
     }
 
@@ -87,7 +85,7 @@ class ShareService<DBSession, Ctx : FSUserContext>(
         ) as? RESTResponse.Ok ?: throw ShareException.InternalError("Could not look up user")
 
         lookup.result.results[share.sharedWith]
-                ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
+            ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
 
         val rewritten = Share(
             owner = ctx.user,

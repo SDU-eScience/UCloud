@@ -4,12 +4,12 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import java.io.IOException
 import java.io.InputStream
-import java.util.Arrays
+import java.util.*
 import kotlin.math.min
 
 private const val INTERNAL_BUFFER_SIZE = 32 * 1024
 private const val DISCARD_BUFFER_SIZE = 8 * 1024
-private const val BITWISE_255 = 0xFF
+private const val MASK_AS_BYTE = 0xFF
 
 class BoundaryContainedStream(
     private val boundaryBytes: ByteArray,
@@ -167,7 +167,7 @@ class BoundaryContainedStream(
         val buffer = ByteArray(1)
         val result = read(buffer)
         if (result != 1) return result
-        return buffer[0].toInt() and BITWISE_255
+        return buffer[0].toInt() and MASK_AS_BYTE
     }
 
     override fun read(b: ByteArray): Int {

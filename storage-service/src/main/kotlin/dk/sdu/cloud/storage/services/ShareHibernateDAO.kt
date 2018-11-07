@@ -19,7 +19,7 @@ import dk.sdu.cloud.share.api.Share
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.SharesByPath
 import dk.sdu.cloud.share.api.minimalize
-import java.util.Date
+import java.util.*
 import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.EnumType
@@ -145,7 +145,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         paging: NormalizedPaginationRequest,
         status: ShareState? = ShareState.ACCEPTED
     ): List<SharesByPath> {
-        val distinctPaths =  session.createCriteriaBuilder<String, ShareEntity>().run {
+        val distinctPaths = session.createCriteriaBuilder<String, ShareEntity>().run {
             with(criteria) {
                 select(entity[ShareEntity::path])
                 distinct(true)
@@ -210,7 +210,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             .map { it.toModel() }
             .takeIf { it.isNotEmpty() }
             ?.let { groupByPath(user, it).single() }
-                ?: throw ShareException.NotFound()
+            ?: throw ShareException.NotFound()
     }
 
     private fun groupByPath(user: String, shares: List<Share>): List<SharesByPath> {

@@ -11,7 +11,9 @@ import org.asynchttpclient.BoundRequestBuilder
 import org.asynchttpclient.DefaultAsyncHttpClient
 import org.asynchttpclient.Response
 import java.util.Base64
-import kotlin.coroutines.experimental.suspendCoroutine
+import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 object HttpClient {
     private val httpClient = DefaultAsyncHttpClient()
