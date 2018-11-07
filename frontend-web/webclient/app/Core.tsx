@@ -16,7 +16,7 @@ import ZenodoHome from "Zenodo/Zenodo";
 import ZenodoInfo from "Zenodo/Info";
 import UserCreation from "Admin/UserCreation";
 import UserSettings from "UserSettings/UserSettings";
-import SimpleSearch from "SimpleSearch/SimpleSearch";
+import Search from "SimpleSearch/Search";
 import Projects from "Projects/Projects";
 import FilePreview from "Files/FilePreview";
 import * as Share from "Shares";
@@ -55,7 +55,7 @@ const Core = () => (
                 <Route exact path="/metadata/*" component={Metadata.ManagedView} />
                 <Route exact path="/admin/usercreation" component={UserCreation} />
                 <Route exact path="/usersettings/settings" component={UserSettings} />
-                <Route exact path="/simpleSearch/:priority/*" component={SimpleSearch} />
+                <Route exact path="/simpleSearch/:priority/*" component={Search} />
                 <Route exact path="/projects" component={Projects} />
                 <Route component={NotFound} />
             </Switch>

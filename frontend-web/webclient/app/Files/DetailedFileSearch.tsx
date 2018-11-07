@@ -9,7 +9,7 @@ import { Flex, Input, Label, InputGroup, Stamp, Checkbox, Error, OutlineButton, 
 import * as Heading from "ui-components/Heading"
 import CloseButton from "ui-components/CloseButton";
 import { ReduxObject } from "DefaultObjects";
-import { SimpleFileList } from "SimpleSearch/SimpleSearch";
+import { SimpleFileList } from "SimpleSearch/Search";
 import { Dispatch } from "redux";
 import { History } from "history";
 import * as PropTypes from "prop-types";

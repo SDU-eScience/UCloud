@@ -25,7 +25,7 @@ import { toggleFilesSearchHidden } from "Files/Redux/DetailedFileSearchActions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 
 
-class SimpleSearch extends React.Component<SimpleSearchProps> {
+class Search extends React.Component<SimpleSearchProps> {
     constructor(props) {
         super(props);
     }
@@ -208,4 +208,4 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
 
 const mapStateToProps = ({ simpleSearch }: ReduxObject) => simpleSearch;
 
-export default connect(mapStateToProps, mapDispatchToProps)(SimpleSearch)
+export default connect(mapStateToProps, mapDispatchToProps)(Search)
