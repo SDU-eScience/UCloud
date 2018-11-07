@@ -1,7 +1,6 @@
 import * as React from "react";
-import { Link } from "react-router-dom";
+import { Link } from "ui-components";
 import * as Pagination from "Pagination";
-import { Card as SCard, Rating as SRating, List as SList } from "semantic-ui-react";
 import { connect } from "react-redux";
 import {
     fetchApplications,
@@ -21,7 +20,8 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { CardGroup, Card, PlayIcon } from "ui-components/Card";
-import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Divider, Flex, Input } from "ui-components";
+import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Divider, Flex,
+     Input, Button, OutlineButton } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
@@ -89,12 +89,19 @@ class Applications extends React.Component<ApplicationsProps> {
                 onItemsPerPageChanged={size => fetchApplications(0, size)}
                 onPageChanged={pageNumber => fetchApplications(pageNumber, page.itemsPerPage)}
             />
-        )
+        );
+
+        const sidebar = (
+            <React.Fragment>
+                <Link to={"/analyses"}><Button fullWidth>Jobs</Button></Link>
+                <DetailedApplicationSearch />
+            </React.Fragment>
+        );
 
         return (
             <MainContainer
                 main={main}
-                sidebar={<DetailedApplicationSearch />}
+                sidebar={sidebar}
             />
         );
     }

@@ -4,7 +4,7 @@ import { Page, PayloadAction } from "Types";
 import { File, AdvancedSearchRequest } from "Files";
 import { Application } from "Applications";
 import { ProjectMetadata, simpleSearch } from "Metadata/api";
-import { hpcApplicationsQuery, hpcApplicationsSearchQuery } from "Utilities/ApplicationUtilities";
+import { hpcApplicationsSearchQuery } from "Utilities/ApplicationUtilities";
 import { advancedFileSearch } from "Utilities/FileUtilities";
 
 export type SimpleSearchActions = SetFilesLoading | SetApplicationsLoading | SetProjectsLoading | ReceiveFiles |
