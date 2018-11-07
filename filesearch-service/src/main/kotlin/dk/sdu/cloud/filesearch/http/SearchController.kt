@@ -22,7 +22,6 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
@@ -47,8 +46,6 @@ class SearchController : Controller {
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(FileSearchDescriptions.simpleSearch) { req ->
-            logEntry(log, req)
-
             val roots = rootsForUser(call.securityPrincipal.username)
 
             val queryResponse = QueryDescriptions.query.call(
@@ -68,8 +65,6 @@ class SearchController : Controller {
         }
 
         implement(FileSearchDescriptions.advancedSearch) { req ->
-            logEntry(log, req)
-
             val roots = rootsForUser(call.securityPrincipal.username)
             val queryResponse = QueryDescriptions.query.call(
                 QueryRequest(

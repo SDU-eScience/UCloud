@@ -22,7 +22,6 @@ fun main(args: Array<String>) {
     Server(
         micro.kafka,
         micro.serverProvider,
-        micro.refreshingJwtCloud,
-        micro.serviceInstance
+        micro
     ).start()
 }
