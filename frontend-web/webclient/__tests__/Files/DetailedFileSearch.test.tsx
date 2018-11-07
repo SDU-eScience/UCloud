@@ -8,8 +8,9 @@ import files from "Files/Redux/FilesReducer";
 import { mount, configure } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import * as moment from "moment";
-import DatePicker from "react-datepicker";
-import { Dropdown, Form, Label } from "semantic-ui-react";
+import { DatePicker } from "ui-components/DatePicker"
+import { Dropdown } from "semantic-ui-react";
+import { Input, Button, Label } from "ui-components";
 
 configure({ adapter: new Adapter() });
 
@@ -31,8 +32,9 @@ describe("DetailedFileSearch", () => {
                 <DetailedFileSearch />
             </Provider>
         );
-        detailedFileSearchWrapper.find("input").findWhere(it => it.props().placeholder === "Filename must include...").simulate("change", { target: { value: filename } });
-        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).filename).toBe(filename);
+        detailedFileSearchWrapper.find(Button).simulate("click");
+        detailedFileSearchWrapper.findWhere(it => it.props().placeholder === "Filename must include...").find("input").simulate("change", { target: { value: filename } });
+        expect(detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).state("fileName")).toBe(filename);
     });
 
     test("Add dates to fields", () => {
@@ -42,12 +44,12 @@ describe("DetailedFileSearch", () => {
                 <DetailedFileSearch />
             </Provider>
         );
+        detailedFileSearchWrapper.find(Button).simulate("click");
         detailedFileSearchWrapper.find(DatePicker).forEach(it => it.find("input").simulate("change", { target: { value: m } }));
-        detailedFileSearchWrapper.find(DatePicker).forEach(it => it.find("input").simulate("change", { target: { value: m } }));
-        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).createdBefore).toEqual(m);
-        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).createdAfter).toEqual(m);
-        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).modifiedBefore).toEqual(m);
-        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).modifiedAfter).toEqual(m);
+        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).state("createdBefore"))).toEqual(m);
+        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).state("createdAfter"))).toEqual(m);
+        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).state("modifiedBefore"))).toEqual(m);
+        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).state("modifiedAfter"))).toEqual(m);
     });
 
     test("Add date, causing one field to disappear, and render an error message", () => {
@@ -58,6 +60,7 @@ describe("DetailedFileSearch", () => {
                 <DetailedFileSearch />
             </Provider>
         );
+        detailedFileSearchWrapper.find(Button).simulate("click");
         detailedFileSearchWrapper.find(DatePicker).first().find("input").simulate("change", { target: { value: m1 } });
         expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).createdAfter).toBeDefined();
         detailedFileSearchWrapper.find(DatePicker).slice(1, 2).find("input").simulate("change", { target: { value: m2 } });
@@ -70,21 +73,22 @@ describe("DetailedFileSearch", () => {
             <Provider store={store}>
                 <DetailedFileSearch />
             </Provider>
-        ).find(DetailedFileSearch).childAt(0);
-        const folderCheckbox = detailedFileSearch.find(Form.Checkbox).first();
-        const filesCheckbox = detailedFileSearch.find(Form.Checkbox).last();
-        expect((detailedFileSearch.instance().state as any).allowFolders).toBe(true);
-        expect((detailedFileSearch.instance().state as any).allowFiles).toBe(true);
+        );
+        detailedFileSearch.find(Button).simulate("click");
+        console.log(detailedFileSearch.find(Label).length);
+        const folderCheckbox = detailedFileSearch.find(Label).first();
+        const filesCheckbox = detailedFileSearch.find(Label).last();
+        expect((detailedFileSearch.find(DetailedFileSearch).childAt(0).state()).allowFolders).toBe(true);
+        expect((detailedFileSearch.find(DetailedFileSearch).childAt(0).state()).allowFiles).toBe(true);
+        filesCheckbox.simulate("click", { target: { checked: false } });
+        expect((detailedFileSearch.find(DetailedFileSearch).childAt(0).state()).allowFolders).toBe(true);
+        expect((detailedFileSearch.find(DetailedFileSearch).childAt(0).state()).allowFiles).toBe(false);
+        expect((detailedFileSearch.find(DetailedFileSearch).childAt(0).state()).allowFolders).toBe(false);
+        expect((detailedFileSearch.find(DetailedFileSearch).childAt(0).state()).allowFiles).toBe(false);
         filesCheckbox.find("input").simulate("click");
-        expect((detailedFileSearch.instance().state as any).allowFolders).toBe(true);
-        expect((detailedFileSearch.instance().state as any).allowFiles).toBe(false);
         folderCheckbox.find("input").simulate("click");
-        expect((detailedFileSearch.instance().state as any).allowFolders).toBe(false);
-        expect((detailedFileSearch.instance().state as any).allowFiles).toBe(false);
-        filesCheckbox.find("input").simulate("click");
-        folderCheckbox.find("input").simulate("click");
-        expect((detailedFileSearch.instance().state as any).allowFolders).toBe(true);
-        expect((detailedFileSearch.instance().state as any).allowFiles).toBe(true);
+        expect((detailedFileSearch.find(DetailedFileSearch).childAt(0).state()).allowFolders).toBe(true);
+        expect((detailedFileSearch.find(DetailedFileSearch).childAt(0).state()).allowFiles).toBe(true);
     });
 
     test("Add sensitivities, clear one, clear all", () => {
@@ -93,6 +97,7 @@ describe("DetailedFileSearch", () => {
                 <DetailedFileSearch />
             </Provider>
         );
+        detailedFileSearchWrapper.find(Button).simulate("click");
         const sensitivityDropdown = detailedFileSearchWrapper.find(Dropdown).findWhere(it => it.props().text === "Add sensitivity level");
         const detailedFileSearchComponent = detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0);
         expect((detailedFileSearchComponent.instance().state as any).sensitivities.has("Open Access")).toBe(false);
@@ -115,7 +120,8 @@ describe("DetailedFileSearch", () => {
                 <DetailedFileSearch />
             </Provider>
         );
-        detailedFileSearchWrapper.find(Form.Input).find("input").findWhere(it => it.props().placeholder === "Add extensions...").simulate("change", { target: { value: extensions } })
+        detailedFileSearchWrapper.find(Button).simulate("click");
+        detailedFileSearchWrapper.find(Input).findWhere(it => it.props().placeholder === "Add extensions...").find("input").simulate("change", { target: { value: extensions } })
         const extensionDropdown = detailedFileSearchWrapper.find(Dropdown).findWhere(it => it.props().text === "Add extension preset");
         // FIXME
 
