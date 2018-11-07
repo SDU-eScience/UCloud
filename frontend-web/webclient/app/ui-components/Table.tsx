@@ -2,7 +2,7 @@ import styled from "styled-components";
 import { textAlign, TextAlignProps } from "styled-system";
 import { HideProps, hidden } from "./Hide";
 
-const Table = styled.table`
+export const Table = styled.table`
     width: 100%;
     border: 0px;
     border-spacing: 0;

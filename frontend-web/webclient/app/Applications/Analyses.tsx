@@ -2,7 +2,6 @@ import * as React from "react";
 import { toLowerCaseAndCapitalize, shortUUID } from "UtilityFunctions"
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Table, Responsive } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { List } from "Pagination/List";
 import { connect } from "react-redux";
@@ -10,6 +9,8 @@ import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
 import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } from ".";
 import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
+import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
+import { Hide } from "ui-components";
 
 class Analyses extends React.Component<AnalysesProps, AnalysesState> {
     constructor(props) {
@@ -48,55 +49,55 @@ class Analyses extends React.Component<AnalysesProps, AnalysesState> {
                     errorMessage={error}
                     onRefresh={() => fetchAnalyses(page.itemsPerPage, page.pageNumber)}
                     pageRenderer={(page) =>
-                        <Table basic="very" unstackable className="mobile-padding">
-                            <TableHeader />
-                            <Table.Body>
+                        <Table>
+                            <Header />
+                            <TableBody>
                                 {page.items.map((a, i) => <Analysis analysis={a} key={i} />)}
-                            </Table.Body>
+                            </TableBody>
                         </Table>
                     }
                     page={page}
-                    onItemsPerPageChanged={(size) => this.props.fetchAnalyses(size, 0)}
-                    onPageChanged={(pageNumber) => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
+                    onItemsPerPageChanged={size => this.props.fetchAnalyses(size, 0)}
+                    onPageChanged={pageNumber => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
                 />
             </React.StrictMode>
         )
     }
 }
 
-const TableHeader = () => (
-    <Table.Header>
-        <Table.Row>
-            <Table.HeaderCell>App Name</Table.HeaderCell>
-            <Table.HeaderCell>Job Id</Table.HeaderCell>
-            <Table.HeaderCell>State</Table.HeaderCell>
-            <Responsive as={Table.HeaderCell} minWidth={768}>Status</Responsive>
-            <Responsive as={Table.HeaderCell} minWidth={768}>Started at</Responsive>
-            <Responsive as={Table.HeaderCell} minWidth={768}>Last updated at</Responsive>
-        </Table.Row>
-    </Table.Header>
+const Header = () => (
+    <TableHeader>
+        <TableRow>
+            <TableHeaderCell textAlign="left">App Name</TableHeaderCell>
+            <TableHeaderCell textAlign="left">Job Id</TableHeaderCell>
+            <TableHeaderCell textAlign="left">State</TableHeaderCell>
+            <TableHeaderCell textAlign="left" xs sm>Status</TableHeaderCell>
+            <TableHeaderCell textAlign="left" xs sm>Started at</TableHeaderCell>
+            <TableHeaderCell textAlign="left" xs sm>Last updated at</TableHeaderCell>
+        </TableRow>
+    </TableHeader>
 );
 
 const Analysis = ({ analysis }) => {
     const jobIdField = analysis.status === "COMPLETE" ?
         (<Link to={`/files/${Cloud.jobFolder}/${analysis.jobId}`}>{analysis.jobId}</Link>) : analysis.jobId;
     return (
-        <Table.Row>
-            <Table.Cell>
+        <TableRow>
+            <TableCell>
                 <Link to={`/applications/${analysis.appName}/${analysis.appVersion}`}>
                     {analysis.appName}@{analysis.appVersion}
                 </Link>
-            </Table.Cell>
-            <Table.Cell>
+            </TableCell>
+            <TableCell>
                 <Link to={`/analyses/${jobIdField}`}>
                     <span title={jobIdField}>{shortUUID(jobIdField)}</span>
                 </Link>
-            </Table.Cell>
-            <Table.Cell>{toLowerCaseAndCapitalize(analysis.state)}</Table.Cell>
-            <Responsive as={Table.Cell} minWidth={768}>{analysis.status}</Responsive>
-            <Responsive as={Table.Cell} minWidth={768}>{formatDate(analysis.createdAt)}</Responsive>
-            <Responsive as={Table.Cell} minWidth={768}>{formatDate(analysis.modifiedAt)}</Responsive>
-        </Table.Row>)
+            </TableCell>
+            <TableCell>{toLowerCaseAndCapitalize(analysis.state)}</TableCell>
+            <TableCell xs sm>{analysis.status}</TableCell>
+            <TableCell xs sm>{formatDate(analysis.createdAt)}</TableCell>
+            <TableCell xs sm>{formatDate(analysis.modifiedAt)}</TableCell>
+        </TableRow>)
 };
 
 const formatDate = (millis) => {
