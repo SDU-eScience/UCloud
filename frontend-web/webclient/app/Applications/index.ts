@@ -283,4 +283,5 @@ export interface DetailedApplicationSearchReduxState extends ComponentWithPage<A
     hidden: boolean
     appName: string
     appVersion: string
+    tags: string
 }

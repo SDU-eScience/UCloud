@@ -26,6 +26,7 @@ import { EllipsedText } from "ui-components/Text";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading"
+import DetailedApplicationSearch from "./DetailedApplicationSearch";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 
@@ -90,17 +91,7 @@ class Applications extends React.Component<ApplicationsProps> {
                         onPageChanged={pageNumber => fetchApplications(pageNumber, page.itemsPerPage)}
                     />}
 
-                sidebar={
-                    <Flex flexDirection="column" pl="0.5em" pr="0.5em">
-                        <Heading.h3>Advanced File Search</Heading.h3>
-                        <form>
-                            <Input
-                                placeholder="Search by name..."
-                                value={"h"}
-                                onChange={({ target: { value } }) => window.console.log(value)}
-                            />
-                        </form>
-                    </Flex>}
+                sidebar={<DetailedApplicationSearch />}
 
                 additional={null}
 

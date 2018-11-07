@@ -25,8 +25,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
         router: PropTypes.object
     }
 
-    private extensionsInput: any;
-    private tagsInput: any;
+    private extensionsInput;
+    private tagsInput;
 
     componentWillUnmount() {
         if (!this.props.hidden)
@@ -34,23 +34,23 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
     }
 
     onAddExtension() {
-        if (!this.extensionsInput.value) return;
-        const newExtensions = this.extensionsInput.value.trim().split(" ").filter(it => it);
+        if (!this.extensionsInput.current.value) return;
+        const newExtensions = this.extensionsInput.current.value.trim().split(" ").filter(it => it);
+        console.log(newExtensions);
         this.props.addExtensions(newExtensions);
-        this.extensionsInput.value = "";
+        this.extensionsInput.current.value = "";
     }
 
     onAddPresets(presetExtensions: string) {
         const ext = presetExtensions.trim().split(" ").filter(it => it);
         this.props.addExtensions(ext);
-        this.extensionsInput.value = "";
     }
 
     onAddTags = () => {
-        if (!this.tagsInput.value) return;
-        const newTags = this.tagsInput.value.trim().split(" ").filter(it => it);
+        if (!this.tagsInput.current.value) return;
+        const newTags = this.tagsInput.current.value.trim().split(" ").filter(it => it);
         this.props.addTags(newTags);
-        this.tagsInput.value = "";
+        this.tagsInput.current.value = "";
     }
 
     // FIXME, should show errors in fields instead, the upper corner error is not very noticeable;
@@ -148,6 +148,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                         mt="-2px"
                         width="100%"
                         placeholder="Filename must include..."
+                        defaultValue={this.props.fileName}
                         onChange={({ target: { value: fileName } }) => this.props.setFilename(fileName)}
                     />
                     <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
@@ -255,7 +256,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                     <Heading.h5>Tags</Heading.h5>
                     <SearchStamps stamps={tags} onStampRemove={l => this.props.removeTags([l])} clearAll={() => this.props.removeTags([...tags])} />
                     <form onSubmit={e => { e.preventDefault(); this.onAddTags(); }}>
-                        <Input pb="6px" pt="8px" mt="-2px" ref={this.tagsInput} />
+                        <Input pb="6px" pt="8px" mt="-2px" placeholder={"Add tags..."} ref={this.tagsInput} />
                     </form>
                     <LoadingButton type="submit" loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
                 </Box>

@@ -6,12 +6,7 @@
   "jest": {
     "globals": {
       "ts-jest": {
-        "tsConfig": "<rootDir>/tsconfig.json",
-        "diagnostics": {
-          "ignoreCodes": [
-            151001
-          ]
-        }
+        "tsConfig": "<rootDir>/tsconfig.json"
       }
     },
     "collectCoverage": true,
@@ -57,9 +52,9 @@
     "npm": "^6.4.1",
     "prop-types": "15.6.2",
     "rc-slider": "^8.6.3",
-    "react": "16.6.0",
+    "react": "16.6.1",
     "react-datepicker": "^1.8.0",
-    "react-dom": "16.6.0",
+    "react-dom": "16.6.1",
     "react-dropzone": "^7.0.1",
     "react-markdown": "^4.0.3",
     "react-redux": "^5.1.0",
@@ -71,10 +66,10 @@
     "styled-components": "^4.0.3",
     "styled-system": "^3.1.11",
     "svgi": "^1.1.0",
-    "sweetalert2": "7.28.11"
+    "sweetalert2": "7.28.12"
   },
   "devDependencies": {
-    "@babel/core": "^7.1.2",
+    "@babel/core": "^7.1.5",
     "@types/enzyme": "^3.1.15",
     "@types/enzyme-adapter-react-16": "^1.0.3",
     "@types/jest": "23.3.9",
@@ -111,7 +106,7 @@
     "node-sass": "^4.10.0",
     "phantomjs-prebuilt": "2.1.16",
     "raw-loader": "0.5.1",
-    "react-test-renderer": "16.6.0",
+    "react-test-renderer": "16.6.1",
     "sass-loader": "^7.1.0",
     "style-loader": "0.23.1",
     "ts-jest": "^23.10.4",

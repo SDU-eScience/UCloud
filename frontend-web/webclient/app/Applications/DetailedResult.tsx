@@ -352,8 +352,8 @@ const ProgressTrackerItem = (props: { complete: boolean, active: boolean, title:
     </Step>
 );
 
-export const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxObject => detailedResult;
-export const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
+const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxObject => detailedResult;
+const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     detailedResultError: (error: string) => dispatch(detailedResultError(error)),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
     setPageTitle: (jobId: string) => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),

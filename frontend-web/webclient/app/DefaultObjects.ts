@@ -178,7 +178,7 @@ export interface ReduxObject {
     detailedResult: DetailedResultReduxObject
     simpleSearch: SimpleSearchStateProps
     detailedFileSearch: DetailedFileSearchReduxState
-    /* detailedApplicationSearch: DetailedApplicationSearchReduxState */
+    detailedApplicationSearch: DetailedApplicationSearchReduxState
 }
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -236,7 +236,7 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     activity: initActivity(),
     detailedResult: initDetailedResult(),
     simpleSearch: initSimpleSearch(),
-    /* detailedApplicationSearch: initApplicationsAdvancedSearch(), */
+    detailedApplicationSearch: initApplicationsAdvancedSearch(),
     detailedFileSearch: initFilesDetailedSearch()
 });
 
@@ -375,5 +375,6 @@ export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchRedux
     loading: false,
     hidden: true,
     appName: "",
-    appVersion: "" // Makes sense as range instead
+    appVersion: "", // Makes sense as range instead
+    tags: ""
 });
