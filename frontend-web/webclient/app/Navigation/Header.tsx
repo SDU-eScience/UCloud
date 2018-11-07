@@ -25,6 +25,7 @@ import {
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import { searchFiles } from "SimpleSearch/Redux/SimpleSearchActions";
 
 interface HeaderProps {
     sidebarOpen?: boolean
@@ -52,7 +53,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
     public render() {
         const { history } = this.context.router;
         const { searchText } = this.state;
-        const { prioritizedSearch } = this.props;
+        const { prioritizedSearch, searchFiles } = this.props;
         return (
             <HeaderContainer color='lightGray' bg='blue'>
                 <Logo onClick={() => history.push("/dashboard/")} />
@@ -60,7 +61,9 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                 <Search
                     onChange={searchText => this.setState(() => ({ searchText }))}
                     navigate={() => history.push(`/simplesearch/${prioritizedSearch}/${searchText}`)}
-                    searchText={searchText} />
+                    searchText={searchText}
+                    searchFiles={searchFiles}
+                />
                 <Notification />
                 <ClickableDropdown left={"-100%"} trigger={<Flex><UserAvatar /></Flex>}>
                     <Box style={{ backgroundColor: "unset" }}>Welcome, {Cloud.userInfo.firstNames}</Box>
@@ -131,7 +134,7 @@ const SearchInput = styled(Flex)`
     }
 `;
 
-const Search = ({ searchText, onChange, navigate }) => (
+const Search = ({ searchText, onChange, navigate, searchFiles }) => (
     <Relative>
         <SearchInput>
             <Input pl="30px"
@@ -139,7 +142,7 @@ const Search = ({ searchText, onChange, navigate }) => (
                 value={searchText}
                 type="text"
                 onChange={e => onChange(e.target.value)}
-                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) navigate(); }}
+                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) { searchFiles(searchText); navigate(); } }}
                 placeholder="Do search..."
             />
             <Absolute left="6px" top="7px">
@@ -179,11 +182,13 @@ const UserAvatar = () => (
 interface HeaderOperations {
     setSidebarOpen: (open: boolean) => void
     fetchLoginStatus: () => void
+    searchFiles: (fileName: string) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     setSidebarOpen: (open) => dispatch(setSidebarState(open)),
-    fetchLoginStatus: async () => dispatch(await fetchLoginStatus())
+    fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
+    searchFiles: async (fileName) => { console.log(fileName); dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] })) }
 });
 
 const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps => ({

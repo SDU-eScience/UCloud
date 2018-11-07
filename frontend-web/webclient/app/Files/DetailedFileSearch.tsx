@@ -294,6 +294,7 @@ const mapStateToProps = ({ detailedFileSearch }: ReduxObject): DetailedFileSearc
 
 import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import { DETAILED_FILES_ADD_EXTENSIONS, DETAILED_FILES_REMOVE_EXTENSIONS, DETAILED_FILES_ADD_SENSITIVITIES, DETAILED_FILES_REMOVE_SENSITIVITIES, DETAILED_FILES_ADD_TAGS, DETAILED_FILES_REMOVE_TAGS } from "./Redux/DetailedFileSearchReducer";
+import { searchFiles } from "SimpleSearch/Redux/SimpleSearchActions";
 const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations => ({
     toggleHidden: () => dispatch(DFSActions.toggleFilesSearchHidden()),
     addExtensions: (ext) => dispatch(DFSActions.extensionAction(DETAILED_FILES_ADD_EXTENSIONS, ext)),
@@ -306,7 +307,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations =>
     removeTags: (tags) => dispatch(DFSActions.tagAction(DETAILED_FILES_REMOVE_TAGS, tags)),
     setFilename: (filename) => dispatch(DFSActions.setFilename(filename)),
     fetchPage: async (req, callback) => {
-        dispatch(await DFSActions.fetchFiles(req));
+        dispatch(await searchFiles(req));
         dispatch(DFSActions.setFilesSearchLoading(false));
         if (typeof callback === "function") callback();
     },

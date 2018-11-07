@@ -1,11 +1,11 @@
 import * as SSActionTypes from "./SimpleSearchReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { fileSearchQuery } from "Utilities/FileUtilities";
 import { Page, PayloadAction } from "Types";
-import { File } from "Files";
+import { File, AdvancedSearchRequest } from "Files";
 import { Application } from "Applications";
 import { ProjectMetadata, simpleSearch } from "Metadata/api";
 import { hpcApplicationsQuery, hpcApplicationsSearchQuery } from "Utilities/ApplicationUtilities";
+import { advancedFileSearch } from "Utilities/FileUtilities";
 
 export type SimpleSearchActions = SetFilesLoading | SetApplicationsLoading | SetProjectsLoading | ReceiveFiles |
     ReceiveApplications | ReceiveProjects | SetErrorMessage | SetSearchType
@@ -29,8 +29,8 @@ export const setProjectsLoading = (loading: boolean): SetProjectsLoading => ({
 });
 
 
-export const searchFiles = (search: string, pageNumber: number, itemsPerPage: number): Promise<any> =>
-    Cloud.get(fileSearchQuery(search, pageNumber, itemsPerPage))
+export const searchFiles = (request: AdvancedSearchRequest): Promise<any> =>
+    Cloud.post(advancedFileSearch, request)
         .then(({ response }) => receiveFiles(response))
         .catch(_ => setErrorMessage("An error occurred searching for files\n", { filesLoading: false }));
 

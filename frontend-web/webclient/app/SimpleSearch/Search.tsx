@@ -21,7 +21,7 @@ import { Error, Hide, Input } from "ui-components";
 import { CardGroup } from "ui-components/Card";
 import { MainContainer } from "MainContainer/MainContainer";
 import DetailedFileSearch from "Files/DetailedFileSearch";
-import { toggleFilesSearchHidden } from "Files/Redux/DetailedFileSearchActions";
+import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSearchActions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 
 
@@ -33,7 +33,6 @@ class Search extends React.Component<SimpleSearchProps> {
     componentDidMount() {
         this.props.toggleAdvancedSearch();
         if (!this.props.match.params[0]) { this.props.setError("No search text provided."); return };
-        this.fetchAll(this.props.match.params[0]);
     }
 
     componentWillUnmount = () => this.props.toggleAdvancedSearch();
@@ -88,7 +87,7 @@ class Search extends React.Component<SimpleSearchProps> {
                     <SSegment basic loading={projectsLoading}>
                         <Pagination.List
                             loading={projectsLoading}
-                            pageRenderer={(page) => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
+                            pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
                             page={projects}
                             onItemsPerPageChanged={itemsPerPage => this.props.searchProjects(search, 0, itemsPerPage)}
                             onPageChanged={pageNumber => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
@@ -186,9 +185,9 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setApplicationsLoading: (loading) => dispatch(SSActions.setApplicationsLoading(loading)),
     setProjectsLoading: (loading) => dispatch(SSActions.setProjectsLoading(loading)),
     setError: (error) => dispatch(SSActions.setErrorMessage(error)),
-    searchFiles: async (query, page, itemsPerPage) => {
+    searchFiles: async (fileName, page, itemsPerPage) => {
         dispatch(SSActions.setFilesLoading(true));
-        dispatch(await SSActions.searchFiles(query, page, itemsPerPage));
+        dispatch(await SSActions.searchFiles({ fileName, page, itemsPerPage, fileTypes: ["DIRECTORY", "FILE"] }));
     },
     searchApplications: async (query, page, itemsPerPage) => {
         dispatch(SSActions.setApplicationsLoading(true));

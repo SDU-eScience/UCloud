@@ -118,9 +118,7 @@ export const filepathQuery = (path: string, page: number, itemsPerPage: number, 
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files/lookup?path=${UF.removeTrailingSlash(path)}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
 
-export const fileSearchQuery = (search: string, pageNumber: number, itemsPerPage: number) =>
-    `/file-search?query=${search}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`
-
+export const advancedFileSearch = "/file-search/advanced"
 
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
     fileType: "DIRECTORY",

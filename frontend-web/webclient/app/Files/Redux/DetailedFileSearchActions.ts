@@ -5,6 +5,7 @@ import { Sensitivity } from "DefaultObjects";
 import { File, AdvancedSearchRequest, SensitivityLevel } from "Files";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Moment } from "moment";
+import { advancedFileSearch } from "Utilities/FileUtilities";
 
 export type DetailedFileSearchActions = ToggleFilesSearchHiddenAction | ToggleFoldersAllowedAction | SetTime |
     ToggleFilesAllowedAction | SetFilename | TagAction | SensitivityAction | SetError | SetFilesSearchLoading |
@@ -65,7 +66,7 @@ export const setFilesSearchLoading = (loading: boolean): SetFilesSearchLoading =
 });
 
 export const fetchFiles = (request: AdvancedSearchRequest): Promise<ReceiveFilesSearchFiles | SetError> =>
-    Cloud.post<Page<File>>("/file-search/advanced", request)
+    Cloud.post<Page<File>>(advancedFileSearch, request)
         .then(it => receivePage(it.response))
         .catch(err => setErrorMessage(`An error occurred during the search: ${err}`));
 
