@@ -1,32 +1,65 @@
 import * as React from "react";
-import { Flex, Input } from "ui-components";
+import { Flex, Input, Box, Error, LoadingButton } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { ReduxObject } from "DefaultObjects";
-import { DetailedApplicationSearchReduxState } from "Applications";
+import { DetailedApplicationSearchReduxState, DetailedApplicationOperations } from "Applications";
 import { connect } from "react-redux";
+import { Dispatch } from "redux";
+import { setAppName, setVersion, fetchApplicationPage } from "./Redux/DetailedApplicationSearchActions";
+import { object } from "prop-types";
 
-class DetailedApplicationSearch extends React.Component<DetailedApplicationSearchReduxState> {
+type DetailedApplicationSearchProps = DetailedApplicationOperations & DetailedApplicationSearchReduxState;
+class DetailedApplicationSearch extends React.Component<DetailedApplicationSearchProps> {
     constructor(props) {
         super(props);
     }
 
-    searchInput: any;
+    static contextTypes = {
+        router: object
+    }
+
+    private inputField: any = React.createRef();
+
+    onSearch(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        this.props.setAppName(this.inputField.current.value);
+        this.props.fetchApplications(this.inputField.current.value, 25, 0);
+        console.log(this.context.router.history)
+    }
 
     render() {
         return (
             <Flex flexDirection="column" pl="0.5em" pr="0.5em">
-                <Heading.h3>Advanced File Search</Heading.h3>
-                <form>
-                    <Input
-                        placeholder="Search by name..."
-                        ref={this.searchInput}
-                        onChange={({ target: { value } }) => window.console.log(value)}
-                    />
-                </form>
+                <Box mt="0.5em">
+                    <Heading.h3>Advanced Application Search</Heading.h3>
+                    <Error clearError={console.log} error={this.props.error} />
+                    <form onSubmit={e => this.onSearch(e)}>
+                        <Heading.h5 pb="0.3em" pt="0.5em">Application Name</Heading.h5>
+                        <Input
+                            pb="6px"
+                            pt="8px"
+                            mt="-2px"
+                            width="100%"
+                            defaultValue={this.props.appName}
+                            placeholder="Search by name..."
+                            ref={this.inputField}
+                        />
+                        <Flex mt="1em">
+                            <LoadingButton type="submit" loading={this.props.loading} content="By Name" color="blue" />
+                            <Box ml="auto" />
+                            <LoadingButton type="submit" loading={false} color="blue" content="By Tag" disabled />
+                        </Flex>
+                    </form>
+                </Box>
             </Flex>)
     }
 }
 
-const mapStateToProps = ({ }: ReduxObject) => ({});
+const mapStateToProps = ({ detailedApplicationSearch }: ReduxObject) => detailedApplicationSearch;
+const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations => ({
+    setAppName: (appName) => dispatch(setAppName(appName)),
+    setVersionName: (version) => dispatch(setVersion(version)),
+    fetchApplications: async (query, itemsPerPage, page) => dispatch(await fetchApplicationPage(query, itemsPerPage, page))
+});
 
-export default connect()(DetailedApplicationSearch);
+export default connect(mapStateToProps, mapDispatchToProps)(DetailedApplicationSearch);

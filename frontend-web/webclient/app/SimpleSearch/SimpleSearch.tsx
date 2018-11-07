@@ -1,5 +1,5 @@
 import * as React from "react";
-import { List as SList, Icon as SIcon, Responsive as SResponsive, Form as SForm, Menu as SMenu, Segment as SSegment } from "semantic-ui-react";
+import { List as SList, Icon as SIcon, Menu as SMenu, Segment as SSegment } from "semantic-ui-react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { Link } from "react-router-dom";
@@ -22,6 +22,7 @@ import { CardGroup } from "ui-components/Card";
 import { MainContainer } from "MainContainer/MainContainer";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import { toggleFilesSearchHidden } from "Files/Redux/DetailedFileSearchActions";
+import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 
 
 class SimpleSearch extends React.Component<SimpleSearchProps> {
@@ -34,6 +35,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
         if (!this.props.match.params[0]) { this.props.setError("No search text provided."); return };
         this.fetchAll(this.props.match.params[0]);
     }
+
+    componentWillUnmount = () => this.props.toggleAdvancedSearch();
 
     shouldComponentUpdate(nextProps: SimpleSearchProps, _nextState): boolean {
         if (nextProps.match.params[0] !== this.props.match.params[0]) {
@@ -48,7 +51,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
 
     setPath = (text: string) => {
         this.props.setPrioritizedSearch(text as HeaderSearchType);
-        this.props.history.push(`/simplesearch/${text.toLocaleLowerCase()}/${text}`);
+        this.props.history.push(`/simplesearch/${text.toLocaleLowerCase()}/${this.props.search}`);
     }
 
     fetchAll(search: string) {
@@ -75,7 +78,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                             loading={filesLoading}
                             pageRenderer={page => (<SimpleFileList files={page.items} />)}
                             page={files}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchFiles(search, 0, itemsPerPage)}
+                            onItemsPerPageChanged={itemsPerPage => this.props.searchFiles(search, 0, itemsPerPage)}
                             onPageChanged={pageNumber => this.props.searchFiles(search, pageNumber, files.itemsPerPage)}
                         />
                     </SSegment>)
@@ -87,8 +90,8 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                             loading={projectsLoading}
                             pageRenderer={(page) => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
                             page={projects}
-                            onItemsPerPageChanged={(itemsPerPage: number) => this.props.searchProjects(search, 0, itemsPerPage)}
-                            onPageChanged={(pageNumber: number) => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
+                            onItemsPerPageChanged={itemsPerPage => this.props.searchProjects(search, 0, itemsPerPage)}
+                            onPageChanged={pageNumber => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
                         />
                     </SSegment>
                 )
@@ -124,7 +127,7 @@ class SimpleSearch extends React.Component<SimpleSearchProps> {
                     <React.Fragment>
                         {errorMessage}
                         <Hide xl md>
-                            <form className="form-input-margin" onSubmit={e => { e.preventDefault(); this.search(); }}>
+                            <form onSubmit={e => { e.preventDefault(); this.search(); }}>
                                 <Input onChange={({ target: { value } }) => this.props.setSearch(value)} />
                             </form>
                         </Hide>
@@ -151,7 +154,7 @@ const SearchBar = (props: SearchBarProps) => {
         case "Projects":
             return null;
         case "Applications":
-            return null;
+            return <DetailedApplicationSearch />;
     }
 }
 
@@ -179,26 +182,26 @@ const SearchPriorityToNumber = (search: string): number => {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
-    setFilesLoading: (loading: boolean) => dispatch(SSActions.setFilesLoading(loading)),
-    setApplicationsLoading: (loading: boolean) => dispatch(SSActions.setApplicationsLoading(loading)),
-    setProjectsLoading: (loading: boolean) => dispatch(SSActions.setProjectsLoading(loading)),
-    setError: (error?: string) => dispatch(SSActions.setErrorMessage(error)),
-    searchFiles: async (query: string, page: number, itemsPerPage: number) => {
+    setFilesLoading: (loading) => dispatch(SSActions.setFilesLoading(loading)),
+    setApplicationsLoading: (loading) => dispatch(SSActions.setApplicationsLoading(loading)),
+    setProjectsLoading: (loading) => dispatch(SSActions.setProjectsLoading(loading)),
+    setError: (error) => dispatch(SSActions.setErrorMessage(error)),
+    searchFiles: async (query, page, itemsPerPage) => {
         dispatch(SSActions.setFilesLoading(true));
         dispatch(await SSActions.searchFiles(query, page, itemsPerPage));
     },
-    searchApplications: async (query: string, page: number, itemsPerPage: number) => {
+    searchApplications: async (query, page, itemsPerPage) => {
         dispatch(SSActions.setApplicationsLoading(true));
         dispatch(await SSActions.searchApplications(query, page, itemsPerPage));
     },
-    searchProjects: async (query: string, page: number, itemsPerPage: number) => {
+    searchProjects: async (query, page, itemsPerPage) => {
         dispatch(SSActions.setProjectsLoading(true));
         dispatch(await SSActions.searchProjects(query, page, itemsPerPage))
     },
     setFilesPage: (page: Page<File>) => dispatch(SSActions.receiveFiles(page)),
     setApplicationsPage: (page: Page<Application>) => dispatch(SSActions.receiveApplications(page)),
     setProjectsPage: (page: Page<ProjectMetadata>) => dispatch(SSActions.receiveProjects(page)),
-    setSearch: (search: string) => dispatch(SSActions.setSearch(search)),
+    setSearch: (search) => dispatch(SSActions.setSearch(search)),
     setPrioritizedSearch: (sT: HeaderSearchType) => dispatch(setPrioritizedSearch(sT)),
     toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden())
 });

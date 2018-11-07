@@ -285,3 +285,9 @@ export interface DetailedApplicationSearchReduxState extends ComponentWithPage<A
     appVersion: string
     tags: string
 }
+
+export interface DetailedApplicationOperations {
+    setAppName: (n: string) => void
+    setVersionName: (v: string) => void
+    fetchApplications: (q: string, i: number, p: number) => void
+}
