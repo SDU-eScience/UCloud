@@ -10,7 +10,7 @@ import { configure } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import { mount } from "enzyme";
 import * as ZenodoActions from "Zenodo/Redux/ZenodoActions";
-import { Form, Button } from "semantic-ui-react";
+import { Button } from "semantic-ui-react";
 
 configure({ adapter: new Adapter });
 

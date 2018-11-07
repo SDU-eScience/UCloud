@@ -47,7 +47,7 @@ const Button = styled.button<ButtonProps>`
   line-height: 1.5;
   cursor: pointer;
   border-radius: ${props => props.theme.radius};
-  background-color: ${props => props.theme.colors.blue};
+  background-color: ${props => props.color ? props.theme.colors[props.color] : props.theme.colors.blue};
   color: ${props => props.theme.colors.white};
   border-width: 0;
   border-style: solid;
@@ -66,7 +66,8 @@ const Button = styled.button<ButtonProps>`
 `;
 
 Button.defaultProps = {
-  theme
+  theme,
+  color: "blue"
 };
 
 Button.displayName = "Button";
