@@ -32,7 +32,7 @@ import kotlinx.coroutines.async
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
-import java.util.Collections
+import java.util.*
 import kotlin.collections.HashMap
 import kotlin.collections.MutableMap
 import kotlin.collections.set
@@ -137,12 +137,11 @@ class KafkaHttpRouteLogger {
         val remoteOrigin = call.request.origin.remoteHost
         val userAgent = call.request.userAgent()
 
-        val jobId = call.request.safeJobId ?: return@with run {
-            log.debug("Missing jobId")
-        }
+        val jobId = call.request.safeJobId ?: (MISSING_JOB_ID_PREFIX + UUID.randomUUID().toString())
 
-        val startTime = call.attributes.getOrNull(requestStartTime) ?: return@with run {
+        val startTime = call.attributes.getOrNull(requestStartTime) ?: run {
             log.warn("Missing start time. This should probably not happen.")
+            System.currentTimeMillis()
         }
         val responseTime = System.currentTimeMillis() - startTime
 
@@ -150,8 +149,9 @@ class KafkaHttpRouteLogger {
             is HttpStatusCode -> message.value
             is OutgoingContent -> message.status?.value
             else -> null
-        } ?: context.context.response.status()?.value ?: return@with run {
-            log.debug("Missing statusCode: $message")
+        } ?: context.context.response.status()?.value ?: run {
+            log.warn("Missing statusCode: $message")
+            HttpStatusCode.InternalServerError.value
         }
 
         val responseContentType = when (message) {
@@ -201,8 +201,9 @@ class KafkaHttpRouteLogger {
         private val requestStartTime = AttributeKey<Long>("request-start-time")
         internal val requestPayloadToLogKey = AttributeKey<Any>("request-payload")
         internal val responsePayloadToLogKey = AttributeKey<Any>("response-payload")
-
         override val key: AttributeKey<KafkaHttpRouteLogger> = AttributeKey("kafka-http-route-log")
+
+        const val MISSING_JOB_ID_PREFIX = "MISSING-"
 
         override fun install(
             pipeline: ApplicationCallPipeline,
