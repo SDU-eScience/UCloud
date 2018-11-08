@@ -16,15 +16,20 @@ import dk.sdu.cloud.app.api.InternalFollowStdStreamsRequest
 import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.client.StreamingFile
 import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
+import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
+import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.append
+import io.ktor.http.content.PartData
 import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest
@@ -35,6 +40,9 @@ import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
+import kotlinx.coroutines.experimental.io.ByteReadChannel
+import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
+import kotlinx.io.streams.asInput
 import org.junit.Test
 import java.io.File
 import java.util.*
@@ -78,11 +86,74 @@ class ComputeTest {
         service = JobTail(connectionPool, jobFileService)
     }
 
-    private val submitToComp = SubmitFileToComputation(
-        JobData.job,
-        "Parameter",
-        StreamingFile.fromFile(File.createTempFile("tmp", null, null))
-    )
+    @Test
+    fun `submit test`() {
+        withAuthMock {
+            withTestApplication(
+                moduleFunction = {
+                    val slurmScheduler = mockk<SlurmScheduler<HibernateSession>>()
+                    configureComputeServer(jobFileService, slurmScheduler, service)
+
+                   //every { jobFileService.uploadFile(any(), any(), any(), any(), any()) } just Runs
+                },
+                test = {
+                    run {
+
+                        val response =
+                            handleRequest(HttpMethod.Post, "/api/app/compute/abacus/submit")
+                            {
+                                val boundary = UUID.randomUUID().toString()
+                                addHeader(
+                                    HttpHeaders.ContentType,
+                                    ContentType.MultiPart.FormData.withParameter("boundary",boundary).toString()
+                                )
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+
+                                fun partName(name: String, type: ContentDisposition = ContentDisposition.Inline): Headers{
+                                    return Headers.build {
+                                        append(
+                                            HttpHeaders.ContentDisposition,
+                                            type.withParameter(ContentDisposition.Parameters.Name, name)
+                                        )
+                                    }
+                                }
+                                setBody(
+                                    boundary, listOf(
+                                        PartData.FormItem(
+                                            "/home/somewhere/foo",
+                                            {},
+                                            partName("location")
+                                        ),
+
+                                        PartData.FormItem(
+                                            SensitivityLevel.CONFIDENTIAL.name,
+                                            {},
+                                            partName("sensitivity")
+                                        ),
+
+                                        PartData.FileItem(
+                                            { ByteReadChannel("hello, world").toInputStream().asInput()},
+                                            {},
+                                            partName(
+                                                "upload",
+                                                ContentDisposition.File.withParameter(
+                                                    ContentDisposition.Parameters.FileName,
+                                                    "filename"
+                                                )
+                                            )
+                                        )
+                                    )
+                                )
+                            }.response
+
+                        assertEquals(HttpStatusCode.OK, response.status())
+
+                    }
+                }
+            )
+        }
+    }
 
     @Test
     fun `Verified test`() {
