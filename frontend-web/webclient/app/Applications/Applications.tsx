@@ -20,8 +20,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { CardGroup, Card, PlayIcon } from "ui-components/Card";
-import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Divider, Flex,
-     Input, Button, OutlineButton } from "ui-components";
+import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Divider, Button } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
@@ -91,12 +90,7 @@ class Applications extends React.Component<ApplicationsProps> {
             />
         );
 
-        const sidebar = (
-            <React.Fragment>
-                <Link to={"/analyses"}><Button fullWidth>Jobs</Button></Link>
-                <DetailedApplicationSearch />
-            </React.Fragment>
-        );
+        const sidebar = (<DetailedApplicationSearch />);
 
         return (
             <MainContainer
@@ -107,7 +101,12 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 }
 
-export const ApplicationCard = ({ app, favoriteApp, isFavorite }: { favoriteApp?: (name: string, version) => void, app: Application, isFavorite?: boolean }) => (
+interface ApplicationCardProps {
+    favoriteApp?: (name: string, version) => void,
+    app: Application,
+    isFavorite?: boolean
+}
+export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCardProps) => (
     <Card height={212} width={252}>
         <Relative>
             <BackgroundImage

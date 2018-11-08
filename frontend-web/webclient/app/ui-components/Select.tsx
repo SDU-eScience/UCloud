@@ -34,7 +34,7 @@ SelectBase.defaultProps = {
   m: 0,
   pl: 12,
   pr: 32,
-  py: 14
+  py: 6.5
 };
 
 const Select = styled((props: any) => (

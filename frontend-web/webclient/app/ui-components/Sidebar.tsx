@@ -66,6 +66,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, auditing: Side
             { icon: "files", label: "Files", to: `/files/${Cloud.homeFolder}` },
             { icon: "shares", label: "Shares", to: "/shares/" },
             { icon: "apps", label: "Apps", to: "/applications/" },
+            { icon: "information", label: "Job Results", to: "/analyses/" },
             { icon: "publish", label: "Publish", to: "/zenodo/publish/" },
         ], predicate: () => true
     },

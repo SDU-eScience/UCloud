@@ -30,13 +30,13 @@ const labelStyles = css`
 const getFieldStyles = showLabel => {
   return showLabel
     ? {
-      paddingTop: "20px",
+      paddingTop: "9.5px",
       paddingBottom: "8px",
       transition: "padding-top 0.1s, padding-bottom 0.1s"
     }
     : {
-      paddingTop: "14px",
-      paddingBottom: "14px",
+      paddingTop: "9.5px",
+      paddingBottom: "9.5px",
       transition: "padding-top 0.1s, padding-bottom 0.1s"
     }
 }

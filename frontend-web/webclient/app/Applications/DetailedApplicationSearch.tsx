@@ -22,9 +22,10 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
 
     onSearch(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        this.props.setAppName(this.inputField.current.value);
-        this.props.fetchApplicationsFromName(this.inputField.current.value, 25, 0);
-        console.log(this.context.router.history)
+        const inputFieldValue = this.inputField.current.value;
+        this.props.setAppName(inputFieldValue);
+        this.props.fetchApplicationsFromName(this.inputField.current.value, 25, 0,
+            () => this.context.router.history.push(`/simplesearch/applications/${inputFieldValue}`));
     }
 
     render() {
@@ -59,8 +60,14 @@ const mapStateToProps = ({ detailedApplicationSearch }: ReduxObject) => detailed
 const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations => ({
     setAppName: (appName) => dispatch(setAppName(appName)),
     setVersionName: (version) => dispatch(setVersion(version)),
-    fetchApplicationsFromName: async (query, itemsPerPage, page) => dispatch(await fetchApplicationPageFromName(query, itemsPerPage, page)),
-    fetchApplicationsFromTag: async (tags, itemsPerPage, page) => dispatch(await fetchApplicationPageFromTag(tags, itemsPerPage, page))
+    fetchApplicationsFromName: async (query, itemsPerPage, page, callback) => {
+        dispatch(await fetchApplicationPageFromName(query, itemsPerPage, page));
+        if (typeof callback === "function") callback();
+    },
+    fetchApplicationsFromTag: async (tags, itemsPerPage, page, callback) => {
+        dispatch(await fetchApplicationPageFromTag(tags, itemsPerPage, page));
+        if (typeof callback === "function") callback();
+    }
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(DetailedApplicationSearch);

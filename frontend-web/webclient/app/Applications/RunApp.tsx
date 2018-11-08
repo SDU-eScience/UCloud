@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Button as SButton, Rating as SRating } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import Link from "ui-components/Link";
@@ -17,8 +16,9 @@ import { extractParameters, hpcFavoriteApp } from "Utilities/ApplicationUtilitie
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
 import * as Heading from "ui-components/Heading";
-import { Box, Flex, Button, OutlineButton, Label, FormField, Text, Error, Select } from "ui-components";
+import { Box, Flex, Button, Label, Text, Error, Select, OutlineButton, Icon } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
+import { MainContainer } from "MainContainer/MainContainer";
 
 class RunApp extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
@@ -151,7 +151,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             type: "start",
             //comment: this.state.comment.slice(),
         };
-        Cloud.post("/hpc/jobs", job).then((req) => {
+        Cloud.post("/hpc/jobs", job).then(req => {
             if (req.request.status === 200) { // FIXME Guaranteed to be 200?
                 this.props.history.push(`/analyses/${req.response.jobId}`);
             } else {
@@ -207,37 +207,59 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
     }
 
     render() {
-        return (
-            <Flex alignItems="center" flexDirection="column">
-                <Box width={0.7}>
-                    <DefaultLoading loading={this.state.loading} />
-                    <Error clearError={() => this.setState(() => ({ error: undefined }))} error={this.state.error} />
-                    <ApplicationHeader
-                        importParameters={this.importParameters}
-                        exportParameters={() => this.exportParameters()}
-                        appName={this.state.appName}
-                        displayName={this.state.displayAppName}
-                        version={this.state.appVersion}
-                        favorite={this.state.favorite}
-                        favoriteApp={this.favoriteApplication}
-                        authors={this.state.appAuthor}
-                    />
-
-                    <Parameters
-                        values={this.state.parameterValues}
-                        parameters={this.state.parameters}
-                        onSubmit={this.onSubmit}
-                        onChange={this.onInputChange}
-                        comment={this.state.comment}
-                        onCommentChange={this.onCommentChange}
-                        jobInfo={this.state.jobInfo}
-                        onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
-                        tool={this.state.tool}
-                        jobSubmitted={this.state.jobSubmitted}
-                    />
-                </Box>
-            </Flex>
+        const header = (
+            <ApplicationHeader
+                importParameters={this.importParameters}
+                exportParameters={() => this.exportParameters()}
+                appName={this.state.appName}
+                displayName={this.state.displayAppName}
+                version={this.state.appVersion}
+                favorite={this.state.favorite}
+                favoriteApp={this.favoriteApplication}
+                authors={this.state.appAuthor}
+            />
+        )
+        const main = (
+            <>
+                <DefaultLoading loading={this.state.loading} />
+                <Error clearError={() => this.setState(() => ({ error: undefined }))} error={this.state.error} />
+                <Parameters
+                    values={this.state.parameterValues}
+                    parameters={this.state.parameters}
+                    onSubmit={this.onSubmit}
+                    onChange={this.onInputChange}
+                    comment={this.state.comment}
+                    onCommentChange={this.onCommentChange}
+                    jobInfo={this.state.jobInfo}
+                    onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
+                    tool={this.state.tool}
+                    jobSubmitted={this.state.jobSubmitted}
+                />
+            </>
         );
+
+        const sidebar = (
+            <>
+                <OutlineButton fullWidth color="green" onClick={() => this.exportParameters()}>Export parameters</OutlineButton>
+                <Box pt="0.2em" />
+                <OutlineButton fullWidth color="green" as={"label"}>
+                    Import parameters
+                    <HiddenInputField type="file" onChange={(e) => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
+                </OutlineButton>
+                <Box pt="0.2em" />
+                <Link to={`/appDetails/${this.state.displayAppName}/${this.state.appVersion}/`} ><OutlineButton fullWidth color="blue">More information</OutlineButton></Link>
+                <Box pt="0.2em" />
+                <Button color="blue" fullWidth onClick={e => this.onSubmit(e)}>Submit</Button>
+            </>
+        );
+
+        return (
+            <MainContainer
+                header={header}
+                main={main}
+                sidebar={sidebar}
+            />
+        )
     }
 }
 
@@ -255,32 +277,19 @@ const ApplicationHeader = ({ authors, displayName, appName, favorite, version, f
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!authors) ? authors.join(", ") : "";
-
     return (
         <Heading.h1 mb={"1em"}>
             <Box className="float-right">
-                <SButton.Group>
-                    <SButton basic color="green" onClick={() => exportParameters()}>Export parameters</SButton>
-                    <SButton basic color="green" as={"label"}>
-                        <label>
-                            Import parameters
-                        <HiddenInputField type="file" onChange={(e) => { if (e.target.files) importParameters(e.target.files[0]) }} />
-                        </label>
-                    </SButton>
-                    <SButton as={Link} to={`/appDetails/${appName}/${version}/`} color="blue">More information</SButton>
-                </SButton.Group>
+
             </Box>
             <Box>
                 {displayName}
-                <span className="app-favorite-padding">
-                    <SRating
-                        icon="star"
-                        size="huge"
-                        rating={favorite ? 1 : 0}
-                        maxRating={1}
-                        onClick={() => favoriteApp()}
-                    />
-                </span>
+                <Icon
+                    ml="0.5em"
+                    style={{ verticalAlign: "center" }}
+                    onClick={() => favoriteApp()}
+                    name={favorite ? "starFilled" : "starEmpty"}
+                />
                 <h4>{version}</h4>
                 <h4>{pluralize(authors, "Author")}: {authorString}</h4>
             </Box>
@@ -469,7 +478,7 @@ const InputFileParameter = (props) => {
 };
 
 const InputDirectoryParameter = (props) => {
-    const internalOnChange = (file) => {
+    const internalOnChange = file => {
         props.onChange(props.parameter.name, {
             source: file.path,
             destination: getFilenameFromPath(file.path) // TODO Should allow for custom name at destination
@@ -490,7 +499,7 @@ const InputDirectoryParameter = (props) => {
 }
 
 const TextParameter = (props) => {
-    const internalOnChange = (event) => {
+    const internalOnChange = event => {
         event.preventDefault();
         props.onChange(props.parameter.name, event.target.value);
     };
@@ -529,7 +538,7 @@ const BooleanParameter = (props) => {
 
     return (
         <GenericParameter parameter={props.parameter}>
-            <Select pb="9.5px" pt="9.5px" id="select" onChange={e => internalOnChange(e)} defaultValue="">
+            <Select id="select" onChange={e => internalOnChange(e)} defaultValue="">
                 <option></option>
                 <option>Yes</option>
                 <option>No</option>
