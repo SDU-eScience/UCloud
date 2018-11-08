@@ -13,6 +13,7 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
@@ -28,7 +29,7 @@ class Server(
     private val ktor: HttpServerProvider,
     private val db: HibernateSessionFactory,
     private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val instance: ServiceInstance
+    private val micro: Micro
 ) : CommonServer {
     override val log = logger()
 
@@ -56,7 +57,7 @@ class Server(
         log.info("Stream processors constructed")
 
         httpServer = ktor {
-            installDefaultFeatures(cloud, kafka, instance)
+            installDefaultFeatures(micro)
 
             routing {
                 configureControllers(

@@ -9,7 +9,6 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.jobId
-import dk.sdu.cloud.service.logEntry
 import io.ktor.routing.Route
 
 class ActivityController<DBSession>(
@@ -20,8 +19,6 @@ class ActivityController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ActivityDescriptions.listByFileId) { req ->
-            logEntry(log, req)
-
             val page = db.withTransaction {
                 activityService.findEventsForFileId(it, req.normalize(), req.id)
             }
@@ -30,7 +27,6 @@ class ActivityController<DBSession>(
         }
 
         implement(ActivityDescriptions.listByPath) { req ->
-            logEntry(log, req)
             val page = db.withTransaction {
                 activityService.findEventsForPath(
                     it,
