@@ -1,19 +1,25 @@
 package dk.sdu.cloud.web
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.HttpServerProvider
+import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.service.tokenValidation
 import freemarker.cache.ClassTemplateLoader
 import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
-import io.ktor.content.files
-import io.ktor.content.resources
-import io.ktor.content.static
 import io.ktor.features.ForwardedHeaderSupport
 import io.ktor.features.origin
 import io.ktor.freemarker.FreeMarker
 import io.ktor.freemarker.FreeMarkerContent
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.files
+import io.ktor.http.content.resources
+import io.ktor.http.content.static
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondFile
@@ -23,26 +29,26 @@ import io.ktor.routing.get
 import io.ktor.routing.post
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
+import io.ktor.util.date.GMTDate
 import io.ktor.util.escapeHTML
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 import java.io.File
-import java.time.LocalDateTime
-import java.time.temporal.Temporal
 
 class Server(
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val instance: ServiceInstance
+    private val micro: Micro
 ) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
     override val kStreams: KafkaStreams? = null
     override val log: Logger = logger()
 
     override fun start() {
+        val tokenValidation = micro.tokenValidation
+
         httpServer = ktor {
-            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
+            installDefaultFeatures(micro)
             install(ForwardedHeaderSupport)
             install(FreeMarker) {
                 setTemplateExceptionHandler { _, _, _ -> }
@@ -86,6 +92,11 @@ class Server(
                         val refresh = parameters["refreshToken"]!!
                         val csrf = parameters["csrfToken"]!!
 
+                        tokenValidation.validateOrNull(access) ?: return@post run {
+                            log.info("access token is invalid!")
+                            call.respond(HttpStatusCode.BadRequest)
+                        }
+
                         val isSecureOrigin = call.request.origin.scheme == "https"
 
                         call.response.cookies.append(
@@ -93,7 +104,7 @@ class Server(
                             value = refresh,
                             secure = isSecureOrigin,
                             httpOnly = true,
-                            expires = LocalDateTime.now().plusMonths(1),
+                            expires = GMTDate(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
                             path = "/",
                             extensions = mapOf(
                                 "SameSite" to "strict"
@@ -121,6 +132,12 @@ class Server(
                         val parameters = call.receiveParameters()
                         val access = parameters["accessToken"]!!
                         val refresh = parameters["refreshToken"]!!
+
+                        tokenValidation.validateOrNull(access) ?: return@post run {
+                            log.info("access token is invalid!")
+                            call.respond(HttpStatusCode.BadRequest)
+                        }
+
                         call.respond(
                             FreeMarkerContent(
                                 "auth.ftl",
@@ -141,6 +158,12 @@ class Server(
                         val parameters = call.receiveParameters()
                         val access = parameters["accessToken"]!!
                         val refresh = parameters["refreshToken"]!!
+
+                        tokenValidation.validateOrNull(access) ?: return@post run {
+                            log.info("access token is invalid!")
+                            call.respond(HttpStatusCode.BadRequest)
+                        }
+
                         call.respond(
                             FreeMarkerContent(
                                 "sync.ftl",
