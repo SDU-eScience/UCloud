@@ -1,6 +1,5 @@
 package dk.sdu.cloud.metadata
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.metadata.api.ProjectEvents
 import dk.sdu.cloud.metadata.http.MetadataController
@@ -12,7 +11,7 @@ import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
@@ -33,9 +32,7 @@ class Server(
     private val configuration: ElasticHostAndPort,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val args: Array<String>,
-    private val instance: ServiceInstance
+    private val micro: Micro
 ) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
@@ -53,7 +50,7 @@ class Server(
                 )
             }
 
-        if (args.contains("--init-elastic")) {
+        if (micro.commandLineArguments.contains("--init-elastic")) {
             log.info("Initializing elastic search")
             elasticMetadataService.initializeElasticSearch()
             exitProcess(0)
@@ -64,14 +61,13 @@ class Server(
                 kBuilder.stream(StorageEvents.events),
                 kBuilder.stream(ProjectEvents.events),
                 elasticMetadataService,
-                projectService,
-                cloud
+                projectService
             ).init()
         }
 
         httpServer = ktor {
             log.info("Configuring HTTP server")
-            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
+            installDefaultFeatures(micro)
 
             routing {
                 configureControllers(

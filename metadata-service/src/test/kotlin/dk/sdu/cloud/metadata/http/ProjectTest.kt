@@ -11,242 +11,205 @@ import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.metadata.api.ProjectEventProducer
 import dk.sdu.cloud.metadata.services.ProjectHibernateDAO
 import dk.sdu.cloud.metadata.services.ProjectService
-import dk.sdu.cloud.metadata.utils.withAuthMock
-import dk.sdu.cloud.metadata.utils.withDatabase
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installDefaultFeatures
-import io.ktor.application.Application
+import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.service.hibernateDatabase
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.TestCallResult
+import dk.sdu.cloud.service.test.TokenValidationMock
+import dk.sdu.cloud.service.test.createTokenForUser
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.client.response.HttpResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
-import io.ktor.server.testing.withTestApplication
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.objectMockk
-import io.mockk.use
+import io.mockk.mockkObject
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 
 fun TestApplicationRequest.setUser(username: String = "user1", role: Role = Role.USER) {
-    addHeader(HttpHeaders.Authorization, "Bearer $username/$role")
+    addHeader(HttpHeaders.Authorization, "Bearer ${TokenValidationMock.createTokenForUser(username, role)}")
 }
 
-fun Application.configureBaseServer(vararg controllers: Controller) {
-    installDefaultFeatures(
-        mockk(relaxed = true),
-        mockk(relaxed = true),
-        mockk(relaxed = true),
-        requireJobId = true
-    )
-
-    routing {
-        configureControllers(*controllers)
-    }
-}
-
-private fun Application.configureProjectServer(
+private fun configureProjectServer(
     producer: ProjectEventProducer = mockk(relaxed = true),
     projectService: ProjectService<*>
-) {
-    configureBaseServer(ProjectsController(producer, projectService))
+): List<Controller> {
+    return listOf(ProjectsController(producer, projectService))
 }
 
 class ProjectTest {
     @Test
     fun `Create and get project test`() {
-        withDatabase { db ->
-            objectMockk(FileDescriptions).use {
-                withAuthMock {
-                    withTestApplication(
-                        moduleFunction = {
-                            coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
-                                RESTResponse.Ok(mockk(relaxed = true), Unit)
-                            }
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                CloudMock.mockCallSuccess(FileDescriptions, { FileDescriptions.annotate }, Unit)
+                mockStat("user1")
 
-                            mockStat("user1")
-                            configureProjectServer(projectService = ProjectService(db, ProjectHibernateDAO()))
-                        },
+                configureProjectServer(projectService = ProjectService(micro.hibernateDatabase, ProjectHibernateDAO()))
+            },
 
-                        test = {
-                            val response =
-                                handleRequest(HttpMethod.Put, "/api/projects") {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser()
-                                    setBody("""{ "fsRoot" : "/home/user1/folder/test1" }""")
-                                }.response
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Put, "/api/projects") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                            setBody("""{ "fsRoot" : "/home/user1/folder/test1" }""")
+                        }.response
 
-                            assertEquals(HttpStatusCode.OK, response.status())
+                    assertEquals(HttpStatusCode.OK, response.status())
 
-                            val response2 =
-                                handleRequest(HttpMethod.Get, "/api/projects?path=/home/user1/folder/test1") {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser()
-                                }.response
+                    val response2 =
+                        handleRequest(HttpMethod.Get, "/api/projects?path=/home/user1/folder/test1") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                        }.response
 
-                            assertEquals(HttpStatusCode.OK, response2.status())
+                    assertEquals(HttpStatusCode.OK, response2.status())
 
-                            val mapper = jacksonObjectMapper()
-                            val obj = mapper.readTree(response2.content)
-                            assertEquals("\"/home/user1/folder/test1\"", obj["fsRoot"].toString())
-                            assertEquals("\"user1\"", obj["owner"].toString())
-
-                        }
-                    )
+                    val mapper = jacksonObjectMapper()
+                    val obj = mapper.readTree(response2.content)
+                    assertEquals("\"/home/user1/folder/test1\"", obj["fsRoot"].toString())
+                    assertEquals("\"user1\"", obj["owner"].toString())
                 }
             }
-        }
+        )
     }
 
     @Test
     fun `create project - wrong path - test`() {
-        withDatabase { db ->
-            objectMockk(FileDescriptions).use {
-                withAuthMock {
-                    withTestApplication(
-                        moduleFunction = {
-                            configureProjectServer(projectService = ProjectService(db, ProjectHibernateDAO()))
-                            mockStat("user1", found = false)
-                        },
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                mockStat("user1", found = false)
+                configureProjectServer(projectService = ProjectService(micro.hibernateDatabase, ProjectHibernateDAO()))
+            },
 
-                        test = {
-                            val response =
-                                handleRequest(HttpMethod.Put, "/api/projects") {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser()
-                                    setBody("""{ "fsRoot" : "/home/user1/folder/notThere" }""")
-                                }.response
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Put, "/api/projects") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                            setBody("""{ "fsRoot" : "/home/user1/folder/notThere" }""")
+                        }.response
 
-                            assertEquals(HttpStatusCode.NotFound, response.status())
-                        }
-                    )
+                    assertEquals(HttpStatusCode.NotFound, response.status())
                 }
             }
-        }
+        )
     }
 
     @Test
     fun `create project - not owner - test`() {
-        withDatabase { db ->
-            objectMockk(FileDescriptions).use {
-                withAuthMock {
-                    withTestApplication(
-                        moduleFunction = {
-                            configureProjectServer(projectService = ProjectService(db, ProjectHibernateDAO()))
-                            mockStat("some other user")
-                        },
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                mockStat("some other user")
+                configureProjectServer(projectService = ProjectService(micro.hibernateDatabase, ProjectHibernateDAO()))
+            },
 
-                        test = {
-                            val response =
-                                handleRequest(HttpMethod.Put, "/api/projects") {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser()
-                                    setBody("""{ "fsRoot" : "/home/user1/folder/test1" }""")
-                                }.response
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Put, "/api/projects") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                            setBody("""{ "fsRoot" : "/home/user1/folder/test1" }""")
+                        }.response
 
-                            assertEquals(HttpStatusCode.Forbidden, response.status())
-                        }
-                    )
+                    assertEquals(HttpStatusCode.Forbidden, response.status())
                 }
             }
-        }
+        )
     }
 
     private fun mockStat(realOwner: String, found: Boolean = true) {
-        coEvery { FileDescriptions.stat.call(any(), any()) } answers {
-            val path = args.first() as FindByPath
-            if (found) {
-                RESTResponse.Ok(
-                    mockk(relaxed = true),
-                    StorageFile(FileType.FILE, path.path, ownerName = realOwner)
-                )
-            } else {
-                val httpResponse = mockk<HttpResponse>()
-                every { httpResponse.status } returns HttpStatusCode.NotFound
-                RESTResponse.Err(httpResponse, CommonErrorMessage("Not found"))
-            }
+        if (found) {
+            CloudMock.mockCall(
+                FileDescriptions,
+                { FileDescriptions.stat },
+                { TestCallResult.Ok(StorageFile(FileType.FILE, it.path, ownerName = realOwner)) }
+            )
+        } else {
+            CloudMock.mockCallError(
+                FileDescriptions,
+                { FileDescriptions.stat },
+                CommonErrorMessage("Not Found"),
+                HttpStatusCode.NotFound
+            )
         }
-
     }
 
     @Test
     fun `create project - already exists - test`() {
         val user = "user1"
-        withDatabase { db ->
-            objectMockk(FileDescriptions).use {
-                withAuthMock {
-                    withTestApplication(
-                        moduleFunction = {
-                            coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
-                                RESTResponse.Ok(mockk(relaxed = true), Unit)
-                            }
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                CloudMock.mockCallSuccess(FileDescriptions, { FileDescriptions.annotate }, Unit)
+                mockStat(user)
 
-                            mockStat(user)
+                configureProjectServer(projectService = ProjectService(micro.hibernateDatabase, ProjectHibernateDAO()))
+            },
 
-                            configureProjectServer(projectService = ProjectService(db, ProjectHibernateDAO()))
-                        },
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Put, "/api/projects") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser(user)
+                            setBody("""{ "fsRoot" : "/home/user1/folder" }""")
+                        }.response
 
-                        test = {
-                            val response =
-                                handleRequest(HttpMethod.Put, "/api/projects") {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser(user)
-                                    setBody("""{ "fsRoot" : "/home/user1/folder" }""")
-                                }.response
+                    assertEquals(HttpStatusCode.OK, response.status())
 
-                            assertEquals(HttpStatusCode.OK, response.status())
+                    val response2 =
+                        handleRequest(HttpMethod.Put, "/api/projects") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser(user)
+                            setBody("""{ "fsRoot" : "/home/user1/folder" }""")
+                        }.response
 
-                            val response2 =
-                                handleRequest(HttpMethod.Put, "/api/projects") {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser(user)
-                                    setBody("""{ "fsRoot" : "/home/user1/folder" }""")
-                                }.response
-
-                            //TODO Should fail due to duplicate. Project creating does not check to se if fsRoot have been used.
-                            //TODO If not handled, project duplicates will exists and findByPath will fail due to singleOrNull
-                            assertEquals(HttpStatusCode.Conflict, response2.status())
-                        }
-                    )
+                    //TODO Should fail due to duplicate. Project creating does not check to se if fsRoot have been used.
+                    //TODO If not handled, project duplicates will exists and findByPath will fail due to singleOrNull
+                    assertEquals(HttpStatusCode.Conflict, response2.status())
                 }
             }
-        }
+        )
     }
 
     @Test
     fun `get project - not existing - test`() {
-        withDatabase { db ->
-            objectMockk(FileDescriptions).use {
-                withAuthMock {
-                    withTestApplication(
-                        moduleFunction = {
-                            coEvery { FileDescriptions.annotate.call(any(), any()) } answers {
-                                RESTResponse.Ok(mockk(relaxed = true), Unit)
-                            }
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                CloudMock.mockCallSuccess(FileDescriptions, { FileDescriptions.annotate }, Unit)
 
-                            configureProjectServer(projectService = ProjectService(db, ProjectHibernateDAO()))
-                        },
+                configureProjectServer(projectService = ProjectService(micro.hibernateDatabase, ProjectHibernateDAO()))
+            },
 
-                        test = {
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Get, "/api/projects?path=/home/user1/folder/notthere") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                        }.response
 
-                            val response =
-                                handleRequest(HttpMethod.Get, "/api/projects?path=/home/user1/folder/notthere") {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser()
-                                }.response
-
-                            assertEquals(HttpStatusCode.NotFound, response.status())
-                        }
-                    )
+                    assertEquals(HttpStatusCode.NotFound, response.status())
                 }
             }
-        }
+        )
     }
 }

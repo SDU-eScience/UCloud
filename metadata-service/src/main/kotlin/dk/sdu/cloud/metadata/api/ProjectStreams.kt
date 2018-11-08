@@ -4,14 +4,14 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.metadata.services.Project
 import dk.sdu.cloud.service.KafkaDescriptions
-import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.service.TYPE_PROPERTY
 import org.apache.kafka.streams.kstream.KStream
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY
+    property = TYPE_PROPERTY
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = ProjectEvent.Created::class, name = "created")

@@ -1,6 +1,5 @@
 package dk.sdu.cloud.metadata.processor
 
-import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.metadata.api.ProjectEvent
 import dk.sdu.cloud.metadata.api.ProjectEventConsumer
@@ -18,8 +17,7 @@ class StorageEventProcessor(
     private val projectEvents: ProjectEventConsumer,
 
     private val metadataCommandService: MetadataCommandService,
-    private val projectService: ProjectService<*>,
-    private val cloud: AuthenticatedCloud
+    private val projectService: ProjectService<*>
 ) {
     fun init() {
         log.info("Initializing storage event processor")

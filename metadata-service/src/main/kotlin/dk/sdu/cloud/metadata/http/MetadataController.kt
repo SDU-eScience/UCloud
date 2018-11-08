@@ -12,7 +12,6 @@ import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.metadata.services.tryWithProject
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
@@ -29,15 +28,11 @@ class MetadataController(
 
     override fun configure(routing: Route) = with(routing) {
         implement(MetadataDescriptions.updateProjectMetadata) {
-            logEntry(log, it)
-
             metadataCommandService.update(call.securityPrincipal.username, it.id, it)
             ok(Unit)
         }
 
         implement(MetadataDescriptions.findById) {
-            logEntry(log, it)
-
             val result = metadataQueryService.getById(call.securityPrincipal.username, it.id)
             if (result == null) {
                 error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
@@ -48,8 +43,6 @@ class MetadataController(
         }
 
         implement(MetadataDescriptions.findByPath) {
-            logEntry(log, it)
-
             try {
                 val project = projectService.findByFSRoot(it.path)
                 val projectId = project.id!!
@@ -68,8 +61,6 @@ class MetadataController(
         }
 
         implement(MetadataQueryDescriptions.simpleQuery) {
-            logEntry(log, it)
-
             tryWithProject {
                 ok(metadataAdvancedQueryService.simpleQuery(call.securityPrincipal.username, it.query, it.normalize()))
             }

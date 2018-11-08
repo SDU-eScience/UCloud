@@ -2,6 +2,7 @@ package dk.sdu.cloud.service.test
 
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
+import dk.sdu.cloud.client.PreparedRESTCall
 import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.RESTResponse
@@ -14,15 +15,24 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
+import java.net.ConnectException
+
+object CloudContextMock : CloudContext {
+    override fun resolveEndpoint(namespace: String): String {
+        throw IllegalStateException("You need to mock the call using CloudMock.mockCall()")
+    }
+
+    override fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean {
+        throw IllegalStateException("You need to mock the call using CloudMock.mockCall()")
+    }
+
+}
 
 object CloudMock : AuthenticatedCloud {
     @PublishedApi
     internal val activeScopes = ArrayList<Any>()
 
-    override val parent: CloudContext
-        get() {
-            throw IllegalStateException("You need to mock the call using CloudMock.mockCall()")
-        }
+    override val parent: CloudContext = CloudContextMock
 
     override fun HttpRequestBuilder.configureCall() {
         throw IllegalStateException("You need to mock the call using CloudMock.mockCall()")
@@ -37,7 +47,10 @@ object CloudMock : AuthenticatedCloud {
         crossinline call: MockKMatcherScope.() -> RESTCallDescription<R, S, E, *>,
         crossinline resultCompute: (R) -> TestCallResult<S, E>
     ) {
-        mockkObject(descriptions)
+        if (descriptions !in activeScopes) {
+            mockkObject(descriptions)
+        }
+
         activeScopes.add(descriptions)
 
         coEvery { call().call(any(), any()) } answers {
