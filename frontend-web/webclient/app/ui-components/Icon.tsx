@@ -4,7 +4,7 @@ import { space, color, SpaceProps } from "styled-system"
 import { icons } from './icons.json'
 import theme from './theme'
 
-const getPath = ({ name }) => icons[name];
+const getPath = (name) => icons[name];
 
 const Svg = styled.svg`
   flex: none;
@@ -13,7 +13,7 @@ const Svg = styled.svg`
 `
 
 const IconBase = ({ name, size, ...props }): JSX.Element => {
-  const icon = getPath({ name })
+  const icon = getPath(name)
   if (!icon) return (<></>);
 
   const listPath = icon.path.map((path: [string, string?], i: number) =>

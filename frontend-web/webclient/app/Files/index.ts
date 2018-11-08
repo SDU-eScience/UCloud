@@ -58,7 +58,7 @@ export interface FilesProps extends FilesStateProps, FilesOperations {
 }
 
 export interface MockedTableProps {
-    onCreateFolder: (a, c) => void
+    onCreateFolder: (a: number, c: number) => void
     creatingFolder: boolean
 }
 
@@ -99,7 +99,7 @@ export interface FilesOperations { // Redux operations
     checkAllFiles: (checked: boolean) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
     showUploader: () => void
-    setUploaderCallback: (callback) => void
+    setUploaderCallback: (callback: (s: string) => void) => void
     createFolder: () => void
 }
 
@@ -181,7 +181,7 @@ export interface FileSelectorModalProps {
     createFolder?: () => void
     errorMessage?: string
     onErrorDismiss?: () => void
-    navigate?: (path, pageNumber, itemsPerPage) => void
+    navigate?: (path: string, pageNumber: number, itemsPerPage: number) => void
 }
 
 export interface FileSelectorBodyProps {
@@ -282,7 +282,7 @@ export type ContextBarProps = ContextButtonsProps & FileOptionsProps
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 
-export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: SemanticICONS, minWidth?: number }
+export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: string, minWidth?: number }
 
 export interface FileInfoProps {
     page: Page<File>

@@ -1,9 +1,8 @@
-import * as React from 'react'
-import * as PropTypes from 'prop-types'
+import * as React from "react"
 import styled, {
   ThemeProvider as StyledThemeProvider
-} from 'styled-components'
-import nextTheme from './theme'
+} from "styled-components"
+import nextTheme from "./theme"
 
 export const Base = styled("div")<ThemeProviderProps>`
   font-family: ${props => props.theme.font};
@@ -32,4 +31,4 @@ interface ThemeProviderProps {
   customBreakpoints?: number[]
 }
 
-export default ThemeProvider
+export default ThemeProvider;

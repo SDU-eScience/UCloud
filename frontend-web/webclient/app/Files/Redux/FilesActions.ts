@@ -164,7 +164,7 @@ export const fetchPageFromPath = (path: string, itemsPerPage: number, order: Sor
  * @param itemsPerPage 
  */
 export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> =>
-    Cloud.get(filepathQuery(path, page, itemsPerPage)).then(({ response }) => {
+    Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage)).then(({ response }) => {
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, path);
     }).catch(() => setFileSelectorError({ error:`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`}));

@@ -2,7 +2,7 @@ import styled from "styled-components";
 import { space, ButtonStyleProps, SpaceProps, SizeProps } from "styled-system";
 import theme from "./theme";
 
-const size = ({ size, theme }) => {
+const size = ({ size, theme }: { size: string, theme: any }) => {
   switch (size) {
     case "tiny":
       return {
@@ -32,7 +32,7 @@ const size = ({ size, theme }) => {
   }
 };
 
-export const fullWidth = (props) => (props.fullWidth ? { width: "100%" } : null)
+export const fullWidth = (props: { fullWidth?: boolean }) => (props.fullWidth ? { width: "100%" } : null)
 
 export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean } & SpaceProps & SizeProps & { title?: string }
 

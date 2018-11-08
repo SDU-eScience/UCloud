@@ -19,11 +19,11 @@ interface FilePreviewStateProps {
 }
 
 interface FilePreviewOperations {
-    fetchPage: (p) => void
-    updatePage: (p) => void
+    fetchPage: (p: string) => void
+    updatePage: (p: Page<File>) => void
 }
 
-interface FilePreviewProps extends FilePreviewOperations, FilePreviewStateProps { }
+type FilePreviewProps = FilePreviewOperations & FilePreviewStateProps;
 
 class FilePreview extends React.Component<FilePreviewProps> {
     componentDidMount() {
@@ -71,7 +71,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
     }
 
 
-    shouldComponentUpdate(nextProps, _nextState) {
+    shouldComponentUpdate(nextProps: any) {
         if (this.props.page.items.length) {
             if (getParentPath(this.props.page.items[0].path) !== getParentPath(nextProps.match.params[0])) {
                 this.props.fetchPage(this.filepath);

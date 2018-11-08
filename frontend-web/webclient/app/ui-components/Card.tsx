@@ -24,9 +24,7 @@ const boxShadow = props => {
 }
 
 const boxBorder = props => ({
-  border: `${props.borderWidth}px solid ${
-    props.theme.colors[props.borderColor]
-    }`
+  border: `${props.borderWidth}px solid ${props.theme.colors[props.borderColor]}`
 });
 
 export interface CardProps extends HeightProps, BoxProps, BorderColorProps, BoxShadowProps, BorderProps, BorderRadiusProps {

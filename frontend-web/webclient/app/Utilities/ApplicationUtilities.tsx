@@ -57,7 +57,8 @@ export const extractParameters = (parameters, allowedParameterKeys: AllowedParam
     return extractedParameters;
 }
 
-const compareType = (type: ParameterTypes, parameter): boolean => {
+
+const compareType = (type: ParameterTypes, parameter: any): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
             return typeof parameter === "boolean";

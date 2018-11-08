@@ -1,7 +1,7 @@
 import styled from "styled-components"
 import theme from "./theme"
 
-const maxWidth = props =>
+const maxWidth = (props: { maxWidth?: number | string, theme: any }) =>
   props.maxWidth
     ? { maxWidth: `${props.maxWidth}px` }
     : { maxWidth: props.theme.maxContainerWidth }

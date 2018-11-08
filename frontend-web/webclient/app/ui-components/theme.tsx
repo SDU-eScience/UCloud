@@ -1,6 +1,6 @@
-const createMediaQuery = n => `@media screen and (min-width:${n})`
+const createMediaQuery = (n: string | number) => `@media screen and (min-width:${n})`
 
-const addAliases = (arr, aliases) =>
+const addAliases = (arr: any, aliases: any[]) =>
   aliases.forEach((key, i) =>
     Object.defineProperty(arr, key, {
       enumerable: false,

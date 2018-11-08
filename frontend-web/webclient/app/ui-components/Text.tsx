@@ -1,4 +1,4 @@
-import styled from "styled-components";
+import styled, { ThemeProps } from "styled-components";
 import {
   textStyle,
   fontSize,
@@ -10,22 +10,21 @@ import {
   SpaceProps, TextAlignProps, FontSizeProps, ColorProps, alignContent
 } from 'styled-system'
 import theme from "./theme";
-import { TextAlign } from "./Types";
 
-export const caps = props =>
+export const caps = (props: { caps?: boolean }) =>
   props.caps
     ? {
       textTransform: "uppercase"
     }
     : null
 
-export const regular = props =>
+export const regular = (props: { regular?: boolean, theme: any }) =>
   props.regular ? { fontWeight: props.theme.regular } : null
 
-export const bold = props =>
+export const bold = (props: { bold?: boolean, theme: any }) =>
   props.bold ? { fontWeight: props.theme.bold } : null
 
-export const italic = props => (props.italic ? { fontStyle: 'italic' } : null)
+export const italic = (props: { italic?: boolean }) => (props.italic ? { fontStyle: "italic" } : null)
 
 interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps {
   align?: "left" | "right"

@@ -548,7 +548,7 @@ const BooleanParameter = (props) => {
 };
 
 const GenericNumberParameter = (props) => {
-    const internalOnChange = (event) => {
+    const internalOnChange = event => {
         event.preventDefault();
 
         if (event.target.value === "") {
@@ -605,13 +605,13 @@ const GenericNumberParameter = (props) => {
 
 const IntegerParameter = (props) => {
     let childProps = { ...props };
-    childProps.parseValue = it => parseInt(it);
+    childProps.parseValue = (it: string) => parseInt(it);
     return <GenericNumberParameter {...childProps} />;
 };
 
 const FloatingParameter = (props) => {
     let childProps = { ...props };
-    childProps.parseValue = (it) => parseFloat(it);
+    childProps.parseValue = (it: string) => parseFloat(it);
     return <GenericNumberParameter {...childProps} />;
 };
 

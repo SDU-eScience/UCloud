@@ -102,7 +102,7 @@ class Applications extends React.Component<ApplicationsProps> {
 }
 
 interface ApplicationCardProps {
-    favoriteApp?: (name: string, version) => void,
+    favoriteApp?: (name: string, version: string) => void,
     app: Application,
     isFavorite?: boolean
 }
@@ -112,7 +112,8 @@ export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCar
             <BackgroundImage
                 height="138px"
                 color={hexFromAppName(app.description.title)}
-                image={blurOverlay}>
+                image={blurOverlay}
+            >
                 <Box p={4}>
                     <Absolute top="6px" left="10px">
                         <Text fontSize={2} align="left" color="grey">

@@ -2,14 +2,14 @@ import styled from 'styled-components';
 import { space, fontSize, fontWeight, color, FontStyleProps, SpaceProps, ColorProps, FontWeightProps, FontSizeProps } from 'styled-system';
 import theme from './theme';
 
-const nowrap = props =>
+const nowrap = (props: { nowrap?: boolean }) =>
   props.nowrap
     ? {
       whiteSpace: 'nowrap'
     }
     : null
 
-const accessiblyHide = props =>
+const accessiblyHide = (props: { hidden?: boolean }) =>
   props.hidden
     ? {
       position: 'absolute',
@@ -19,8 +19,8 @@ const accessiblyHide = props =>
     }
     : null
 
-export type LabelProps = 
-  SpaceProps & FontSizeProps & FontStyleProps & ColorProps & FontWeightProps 
+export type LabelProps =
+  SpaceProps & FontSizeProps & FontStyleProps & ColorProps & FontWeightProps
   & { nowrap?: boolean, hidden?: boolean };
 
 const Label = styled("label") <LabelProps>`

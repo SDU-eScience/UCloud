@@ -9,7 +9,7 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
     let i = 0;
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);
-    operations.setFileSelectorCallback((file) => {
+    operations.setFileSelectorCallback((file: File) => {
         const newPath = file.path;
         operations.showFileSelector(false);
         operations.setFileSelectorCallback(undefined);
@@ -33,7 +33,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud
     operations.showFileSelector(true);
     const parentPath = getParentPath(files[0].path);
     operations.setDisallowedPaths([parentPath].concat(files.map(f => f.path)));
-    operations.setFileSelectorCallback((file) => {
+    operations.setFileSelectorCallback((file: File) => {
         const newPath = file.path;
         files.forEach((f) => {
             const currentPath = f.path;

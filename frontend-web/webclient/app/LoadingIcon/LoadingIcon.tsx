@@ -1,7 +1,8 @@
 import * as React from "react";
 import { Icon } from "semantic-ui-react";
 
-export const Spinner = ({ loading, color }) => (loading) ?
+
+export const Spinner = ({ loading, color }: { loading: boolean, color: string }) => (loading) ?
     <i className={"loader-inner ball-pulse " + color}>
         <div />
         <div />

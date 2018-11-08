@@ -58,14 +58,13 @@ export interface BannerProps extends BoxProps {
   showIcon?: boolean
   text?: string
   textAlign?: TextAlign
-  bg: string
-
+  bg: keyof typeof bannerColors
   children?: any
 }
 
-const Banner = props => {
-  const bannerColor = bannerColors[props.bg] || {}
-  const icon = props.iconName || bannerColor.icon
+const Banner = (props) => {
+  const bannerColor = bannerColors[props.bg] || { color: "red" }
+  const icon: IconName = props.iconName || "starRibbon";
 
   return (
     <Box

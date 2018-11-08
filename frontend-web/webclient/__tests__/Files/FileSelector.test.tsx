@@ -103,8 +103,8 @@ describe("File Selector Modal", () => {
                     loading={false}
                     onHide={() => false}
                     page={emptyPageStore.getState().files.page}
-                    setSelectedFile={(f) => f}
-                    fetchFiles={(f) => f}
+                    setSelectedFile={(f: File) => f}
+                    fetchFiles={f => f}
                 />
             </MemoryRouter>
         ).toJSON()).toMatchSnapshot()

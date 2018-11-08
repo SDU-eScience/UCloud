@@ -5,6 +5,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
 import { dateToString } from "Utilities/DateUtilities";
 import { ZenodoInfoProps, ZenodoInfoState, ZenodoPublicationStatus } from ".";
+import { Error } from "ui-components";
 
 const isTerminal = (status: ZenodoPublicationStatus): boolean =>
     status === ZenodoPublicationStatus.COMPLETE || status === ZenodoPublicationStatus.FAILURE;
@@ -64,17 +65,13 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
         } else {
             return (
                 <Container className="container-margin">
-                    {this.state.error ? <ErrorMessage error={this.state.error} onDismiss={this.onErrorDismiss} /> : null}
+                    {this.state.error ? <Error error={this.state.error} clearError={this.onErrorDismiss} /> : null}
                     <ZenodoPublishingBody publication={this.state.publication} />
                 </Container>
             );
         }
     }
 }
-
-const ErrorMessage = ({ error, onDismiss }) => error !== null ? (
-    <Message content={error} negative onDismiss={onDismiss} />
-) : null;
 
 const ZenodoPublishingBody = ({ publication }) => {
     if (publication == null) return null;
