@@ -11,7 +11,6 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.paginate
 import io.ktor.routing.Route
 
@@ -21,7 +20,6 @@ class JobsStartedController : Controller {
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputeAccountingJobsDescriptions.listEvents) { req ->
-            logEntry(log, req)
             ok(
                 (0 until 10).map {
                     AccountingJobCompletedEvent(
@@ -37,8 +35,6 @@ class JobsStartedController : Controller {
         }
 
         implement(ComputeAccountingJobsDescriptions.chart) { req ->
-            logEntry(log, req)
-
             ok(
                 ChartResponse(
                     chart = Chart(
@@ -59,8 +55,6 @@ class JobsStartedController : Controller {
         }
 
         implement(ComputeAccountingJobsDescriptions.currentUsage) { req ->
-            logEntry(log, req)
-
             ok(CurrentUsageResponse(1000L * 60 * 60, null))
         }
     }

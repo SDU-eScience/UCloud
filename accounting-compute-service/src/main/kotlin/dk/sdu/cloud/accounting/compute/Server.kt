@@ -4,17 +4,14 @@ import dk.sdu.cloud.accounting.compute.http.ComputeAccountingController
 import dk.sdu.cloud.accounting.compute.http.ComputeTimeController
 import dk.sdu.cloud.accounting.compute.http.JobsStartedController
 import dk.sdu.cloud.accounting.compute.processor.JobCompletedProcessor
-import dk.sdu.cloud.accounting.compute.services.CompletedJobsDao
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsHibernateDao
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.stackTraceToString
@@ -25,10 +22,9 @@ import org.apache.kafka.streams.KafkaStreams
 
 class Server(
     override val kafka: KafkaServices,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
     private val ktor: HttpServerProvider,
     private val db: HibernateSessionFactory,
-    private val serviceInstance: ServiceInstance
+    private val micro: Micro
 ) : CommonServer {
     override val log = logger()
     override lateinit var httpServer: ApplicationEngine
@@ -49,7 +45,7 @@ class Server(
 
         // HTTP
         httpServer = ktor {
-            installDefaultFeatures(cloud, kafka, serviceInstance)
+            installDefaultFeatures(micro)
 
             routing {
                 configureControllers(

@@ -7,15 +7,18 @@ import dk.sdu.cloud.accounting.api.CurrentUsageResponse
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsHibernateDao
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
-import dk.sdu.cloud.accounting.compute.testUtils.withAuthMock
-import dk.sdu.cloud.accounting.compute.testUtils.withDatabase
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.hibernateDatabase
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.withTestApplication
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -30,128 +33,122 @@ private val dummyEvent = AccountingJobCompletedEvent(
     System.currentTimeMillis()
 )
 
-private fun io.ktor.application.Application.configureJobsStartedServer(
-) {
-    configureBaseServer(JobsStartedController())
+private fun KtorApplicationTestSetupContext.configureJobsStartedServer(): List<Controller> {
+    return listOf(JobsStartedController())
 }
+
 class JobsStartedTest {
 
     private val mapper = jacksonObjectMapper()
 
     @Test
     fun `Testing list Events - no params`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val completeJobsDao = CompletedJobsHibernateDao()
-                        val completeJobsService = CompletedJobsService(db, completeJobsDao)
-                        configureJobsStartedServer()
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                val completeJobsDao = CompletedJobsHibernateDao()
+                val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
 
-                        val events = (0 until 10).map { dummyEvent }
-                        completeJobsService.insertBatch(events)
-                    },
+                val events = (0 until 10).map { dummyEvent }
+                completeJobsService.insertBatch(events)
+                configureJobsStartedServer()
+            },
 
-                    test = {
-                        run {
-                            val response =
-                                handleRequest(
-                                    HttpMethod.Get,
-                                    "/api/accounting/compute/jobsStarted/events"
-                                )
-                                {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser(role = Role.ADMIN)
-                                }.response
+            test = {
+                with(engine) {
+                    run {
+                        val response =
+                            handleRequest(
+                                HttpMethod.Get,
+                                "/api/accounting/compute/jobsStarted/events"
+                            ) {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
 
-                            assertEquals(HttpStatusCode.OK, response.status())
-                            val items = mapper.readValue<Page<AccountingJobCompletedEvent>>(response.content!!)
-                            println(response.content)
-                            assertEquals(0, items.items.first().nodes)
-                            assertEquals(1, items.items.first().totalDuration.hours)
-                            assertEquals(0, items.items.first().totalDuration.minutes)
-                            assertEquals(0, items.items.first().totalDuration.seconds)
-                            assertEquals("user", items.items.first().startedBy)
+                        assertEquals(HttpStatusCode.OK, response.status())
+                        val items = mapper.readValue<Page<AccountingJobCompletedEvent>>(response.content!!)
+                        println(response.content)
+                        assertEquals(0, items.items.first().nodes)
+                        assertEquals(1, items.items.first().totalDuration.hours)
+                        assertEquals(0, items.items.first().totalDuration.minutes)
+                        assertEquals(0, items.items.first().totalDuration.seconds)
+                        assertEquals("user", items.items.first().startedBy)
 
-                        }
                     }
-                )
+                }
             }
-        }
+        )
     }
 
     @Test
     fun `Testing chart`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val completeJobsDao = CompletedJobsHibernateDao()
-                        val completeJobsService = CompletedJobsService(db, completeJobsDao)
-                        configureJobsStartedServer()
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                val completeJobsDao = CompletedJobsHibernateDao()
+                val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
+                val events = (0 until 10).map { dummyEvent }
+                completeJobsService.insertBatch(events)
+                configureJobsStartedServer()
+            },
 
-                        val events = (0 until 10).map { dummyEvent }
-                        completeJobsService.insertBatch(events)
-                    },
+            test = {
+                with(engine) {
+                    run {
+                        val response =
+                            handleRequest(
+                                HttpMethod.Get,
+                                "/api/accounting/compute/jobsStarted/chart"
+                            )
+                            {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
 
-                    test = {
-                        run {
-                            val response =
-                                handleRequest(
-                                    HttpMethod.Get,
-                                    "/api/accounting/compute/jobsStarted/chart"
-                                )
-                                {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser(role = Role.ADMIN)
-                                }.response
-
-                            assertEquals(HttpStatusCode.OK, response.status())
-                            //TODO Works but not pretty
-                            println(response.content)
-                            assertTrue(response.content?.contains("\"xaxisLabel\":\"Time\"")!!)
-                            assertTrue(response.content?.contains("\"yaxisLabel\":\"Total usage\"")!!)
-                        }
+                        assertEquals(HttpStatusCode.OK, response.status())
+                        //TODO Works but not pretty
+                        println(response.content)
+                        assertTrue(response.content?.contains("\"xaxisLabel\":\"Time\"")!!)
+                        assertTrue(response.content?.contains("\"yaxisLabel\":\"Total usage\"")!!)
                     }
-                )
+                }
             }
-        }
+        )
     }
 
     @Test
     fun `Testing currentUsage`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val completeJobsDao = CompletedJobsHibernateDao()
-                        val completeJobsService = CompletedJobsService(db, completeJobsDao)
-                        configureJobsStartedServer()
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                val completeJobsDao = CompletedJobsHibernateDao()
+                val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
 
-                        val events = (0 until 10).map { dummyEvent }
-                        completeJobsService.insertBatch(events)
-                    },
+                val events = (0 until 10).map { dummyEvent }
+                completeJobsService.insertBatch(events)
+                configureJobsStartedServer()
+            },
 
-                    test = {
-                        run {
-                            val response =
-                                handleRequest(
-                                    HttpMethod.Get,
-                                    "/api/accounting/compute/jobsStarted/usage"
-                                )
-                                {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser(role = Role.ADMIN)
-                                }.response
+            test = {
+                with(engine) {
+                    run {
+                        val response =
+                            handleRequest(
+                                HttpMethod.Get,
+                                "/api/accounting/compute/jobsStarted/usage"
+                            )
+                            {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
 
-                            assertEquals(HttpStatusCode.OK, response.status())
-                            val items = mapper.readValue<CurrentUsageResponse>(response.content!!)
-                            assertEquals(3600000, items.usage)
-                        }
+                        assertEquals(HttpStatusCode.OK, response.status())
+                        val items = mapper.readValue<CurrentUsageResponse>(response.content!!)
+                        assertEquals(3600000, items.usage)
                     }
-                )
+                }
             }
-        }
+        )
     }
-
 }

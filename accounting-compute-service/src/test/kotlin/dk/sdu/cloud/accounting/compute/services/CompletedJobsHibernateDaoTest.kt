@@ -2,12 +2,10 @@ package dk.sdu.cloud.accounting.compute.services
 
 import dk.sdu.cloud.accounting.api.ContextQueryImpl
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
-import dk.sdu.cloud.accounting.compute.testUtils.withDatabase
+import dk.sdu.cloud.accounting.compute.util.withDatabase
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
-import dk.sdu.cloud.service.db.HibernateSessionFactory
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals

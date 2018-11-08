@@ -3,27 +3,23 @@ package dk.sdu.cloud.accounting.compute.http
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.accounting.api.Chart
-import dk.sdu.cloud.accounting.api.ChartDataPoint2D
-import dk.sdu.cloud.accounting.api.ChartResponse
 import dk.sdu.cloud.accounting.api.CurrentUsageResponse
-import dk.sdu.cloud.accounting.api.InvoiceReport
-import dk.sdu.cloud.accounting.api.ListEventsResponse
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsHibernateDao
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
-import dk.sdu.cloud.accounting.compute.testUtils.withAuthMock
-import dk.sdu.cloud.accounting.compute.testUtils.withDatabase
-import dk.sdu.cloud.app.api.Application
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.hibernateDatabase
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.withTestApplication
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -38,127 +34,122 @@ private val dummyEvent = AccountingJobCompletedEvent(
     System.currentTimeMillis()
 )
 
-private fun io.ktor.application.Application.configureComputeTimeServer(
+private fun KtorApplicationTestSetupContext.configureComputeTimeServer(
     completeJobService: CompletedJobsService<HibernateSession>
-) {
-    configureBaseServer(ComputeTimeController(completeJobService))
+): List<Controller> {
+    return listOf(ComputeTimeController(completeJobService))
 }
-class ComputeTimeTest{
+
+class ComputeTimeTest {
 
     private val mapper = jacksonObjectMapper()
 
     @Test
     fun `Testing list Events - no params`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val completeJobsDao = CompletedJobsHibernateDao()
-                        val completeJobsService = CompletedJobsService(db, completeJobsDao)
-                        configureComputeTimeServer(completeJobsService)
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                val completeJobsDao = CompletedJobsHibernateDao()
+                val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
 
-                        val events = (0 until 10).map { dummyEvent }
-                        completeJobsService.insertBatch(events)
-                    },
+                val events = (0 until 10).map { dummyEvent }
+                completeJobsService.insertBatch(events)
+                configureComputeTimeServer(completeJobsService)
+            },
 
-                    test = {
-                        run {
-                            val response =
-                                handleRequest(
-                                    HttpMethod.Get,
-                                    "/api/accounting/compute/timeUsed/events"
-                                )
-                                {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser(role = Role.ADMIN)
-                                }.response
+            test = {
+                with(engine) {
+                    run {
+                        val response =
+                            handleRequest(
+                                HttpMethod.Get,
+                                "/api/accounting/compute/timeUsed/events"
+                            ) {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
 
-                            assertEquals(HttpStatusCode.OK, response.status())
-                            val items = mapper.readValue<Page<AccountingJobCompletedEvent>>(response.content!!)
-                            assertEquals(1, items.items.first().nodes)
-                            assertEquals(1, items.items.first().totalDuration.hours)
-                            assertEquals(0, items.items.first().totalDuration.minutes)
-                            assertEquals(0, items.items.first().totalDuration.seconds)
-                            assertEquals("user1", items.items.first().startedBy)
+                        assertEquals(HttpStatusCode.OK, response.status())
+                        val items = mapper.readValue<Page<AccountingJobCompletedEvent>>(response.content!!)
+                        assertEquals(1, items.items.first().nodes)
+                        assertEquals(1, items.items.first().totalDuration.hours)
+                        assertEquals(0, items.items.first().totalDuration.minutes)
+                        assertEquals(0, items.items.first().totalDuration.seconds)
+                        assertEquals("user1", items.items.first().startedBy)
 
-                        }
                     }
-                )
+                }
             }
-        }
+        )
     }
 
     @Test
     fun `Testing chart`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val completeJobsDao = CompletedJobsHibernateDao()
-                        val completeJobsService = CompletedJobsService(db, completeJobsDao)
-                        configureComputeTimeServer(completeJobsService)
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                val completeJobsDao = CompletedJobsHibernateDao()
+                val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
 
-                        val events = (0 until 10).map { dummyEvent }
-                        completeJobsService.insertBatch(events)
-                    },
+                val events = (0 until 10).map { dummyEvent }
+                completeJobsService.insertBatch(events)
+                configureComputeTimeServer(completeJobsService)
+            },
 
-                    test = {
-                        run {
-                            val response =
-                                handleRequest(
-                                    HttpMethod.Get,
-                                    "/api/accounting/compute/timeUsed/chart"
-                                )
-                                {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser(role = Role.ADMIN)
-                                }.response
+            test = {
+                with(engine) {
+                    run {
+                        val response =
+                            handleRequest(
+                                HttpMethod.Get,
+                                "/api/accounting/compute/timeUsed/chart"
+                            )
+                            {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
 
-                            assertEquals(HttpStatusCode.OK, response.status())
-                            //TODO Works but not pretty
-                            assertTrue(response.content?.contains("\"xaxisLabel\":\"Time\"")!!)
-                            assertTrue(response.content?.contains("\"yaxisLabel\":\"Compute time used\"")!!)
-                        }
+                        assertEquals(HttpStatusCode.OK, response.status())
+                        //TODO Works but not pretty
+                        assertTrue(response.content?.contains("\"xaxisLabel\":\"Time\"")!!)
+                        assertTrue(response.content?.contains("\"yaxisLabel\":\"Compute time used\"")!!)
                     }
-                )
+                }
             }
-        }
+        )
     }
 
     @Test
     fun `Testing currentUsage`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val completeJobsDao = CompletedJobsHibernateDao()
-                        val completeJobsService = CompletedJobsService(db, completeJobsDao)
-                        configureComputeTimeServer(completeJobsService)
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                val completeJobsDao = CompletedJobsHibernateDao()
+                val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
 
-                        val events = (0 until 10).map { dummyEvent }
-                        completeJobsService.insertBatch(events)
-                    },
+                val events = (0 until 10).map { dummyEvent }
+                completeJobsService.insertBatch(events)
+                configureComputeTimeServer(completeJobsService)
+            },
 
-                    test = {
-                        run {
-                            val response =
-                                handleRequest(
-                                    HttpMethod.Get,
-                                    "/api/accounting/compute/timeUsed/usage"
-                                )
-                                {
-                                    addHeader("Job-Id", UUID.randomUUID().toString())
-                                    setUser(role = Role.ADMIN)
-                                }.response
+            test = {
+                with(engine) {
+                    run {
+                        val response =
+                            handleRequest(
+                                HttpMethod.Get,
+                                "/api/accounting/compute/timeUsed/usage"
+                            ) {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setUser(role = Role.ADMIN)
+                            }.response
 
-                            assertEquals(HttpStatusCode.OK, response.status())
-                            val items = mapper.readValue<CurrentUsageResponse>(response.content!!)
-                            assertEquals(3600000, items.usage)
-                        }
+                        assertEquals(HttpStatusCode.OK, response.status())
+                        val items = mapper.readValue<CurrentUsageResponse>(response.content!!)
+                        assertEquals(3600000, items.usage)
                     }
-                )
+                }
             }
-        }
+        )
     }
-
 }

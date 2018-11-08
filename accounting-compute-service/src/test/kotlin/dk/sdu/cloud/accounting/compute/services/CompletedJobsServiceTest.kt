@@ -1,7 +1,7 @@
 package dk.sdu.cloud.accounting.compute.services
 
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
-import dk.sdu.cloud.accounting.compute.testUtils.withDatabase
+import dk.sdu.cloud.accounting.compute.util.withDatabase
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
 import org.junit.Test

@@ -11,7 +11,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
 
@@ -22,14 +21,10 @@ class ComputeTimeController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputeAccountingTimeDescriptions.listEvents) { req ->
-            logEntry(log, req)
-
             ok(completedJobsService.listEvents(req.normalize(), req, call.securityPrincipal.username))
         }
 
         implement(ComputeAccountingTimeDescriptions.chart) { req ->
-            logEntry(log, req)
-
             val events = completedJobsService.listAllEvents(req, call.securityPrincipal.username)
 
             ok(
@@ -43,8 +38,6 @@ class ComputeTimeController<DBSession>(
         }
 
         implement(ComputeAccountingTimeDescriptions.currentUsage) { req ->
-            logEntry(log, req)
-
             ok(
                 CurrentUsageResponse(
                     usage = completedJobsService.computeUsage(req, call.securityPrincipal.username),
