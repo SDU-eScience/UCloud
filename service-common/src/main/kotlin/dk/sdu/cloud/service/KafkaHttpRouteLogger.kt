@@ -34,7 +34,6 @@ import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
 import java.util.*
 import kotlin.collections.HashMap
-import kotlin.collections.MutableMap
 import kotlin.collections.set
 
 @Deprecated(
@@ -309,7 +308,16 @@ private val requestNamePointer = JsonPointer.compile(
             HttpCallLogEntry::requestName.name
 )
 
-fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(tree: JsonNode): AuditEvent<A>? {
+/**
+ * Parses an audit message from [tree].
+ *
+ * If [acceptRequestsWithServerFailure] is true then all audit messages matching the description is accepted. Otherwise
+ * only messages that do not have a status code of 5XX will be accepted.
+ */
+fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(
+    tree: JsonNode,
+    acceptRequestsWithServerFailure: Boolean = false
+): AuditEvent<A>? {
     val incomingRequestName =
         tree.at(requestNamePointer)?.takeIf { !it.isMissingNode && it.isTextual }?.textValue() ?: run {
             auditLog.warn("Could not find requestName field in message.")
@@ -321,6 +329,7 @@ fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(tree: Json
         val type = auditJavaType
         val reader = defaultMapper.readerFor(type)
         return reader.readValue<AuditEvent<A>>(tree)
+            ?.takeIf { acceptRequestsWithServerFailure || it.http.responseCode !in 500..599 }
     }
 
     return null

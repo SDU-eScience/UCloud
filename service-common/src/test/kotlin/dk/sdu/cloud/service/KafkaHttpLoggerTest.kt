@@ -17,11 +17,10 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import kotlin.test.Test
-import java.lang.RuntimeException
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
-class LoggingRequest(val foo: String)
+data class LoggingRequest(val foo: String)
 
 object LoggingDescriptions : RESTDescriptions("logging") {
     val baseContext = "/logging"
@@ -64,14 +63,17 @@ class KafkaHttpLoggerTest {
             test = {
                 val request = LoggingRequest("foo42")
 
-                val resp = sendJson(HttpMethod.Post, "/logging/internal-error", request, TestUsers.user)
-                resp.assertStatus(HttpStatusCode.InternalServerError)
+                sendJson(HttpMethod.Post, "/logging/internal-error", request, TestUsers.user)
+                    .assertStatus(HttpStatusCode.InternalServerError)
 
                 val messages = KafkaMock.messagesForTopic(LoggingDescriptions.auditStream)
                 assertThatPropertyEquals(messages, { it.size }, 1)
 
                 val messageAsJson = defaultMapper.readTree(messages.single().second)
-                val auditMessage = LoggingDescriptions.internalError.parseAuditMessageOrNull(messageAsJson)
+                val auditMessage = LoggingDescriptions.internalError.parseAuditMessageOrNull(
+                    messageAsJson,
+                    acceptRequestsWithServerFailure = true
+                )
                 assertNotNull(auditMessage)
 
                 assertEquals(request, auditMessage.request)
