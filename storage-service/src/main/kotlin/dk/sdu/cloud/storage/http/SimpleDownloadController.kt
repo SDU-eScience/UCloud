@@ -100,7 +100,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                 fs.tree(
                                     ctx,
                                     request.path,
-                                    setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH)
+                                    setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.INODE)
                                 ).forEach { item ->
                                     filesDownloaded.add(item.inode)
                                     val filePath = item.path.substringAfter(stat.path).removePrefix("/")
