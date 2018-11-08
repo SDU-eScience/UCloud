@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.client.RESTBody
 import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTPathSegment
@@ -383,6 +384,10 @@ class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
     private var auditRequest: A? = null
 
     internal var finalized = false
+
+    fun overridePrincipalToken(token: SecurityPrincipalToken) {
+        call.attributes.put(KafkaHttpRouteLogger.securityPrincipalTokenOverride, token)
+    }
 
     fun audit(transformedRequest: A) {
         auditRequest = transformedRequest

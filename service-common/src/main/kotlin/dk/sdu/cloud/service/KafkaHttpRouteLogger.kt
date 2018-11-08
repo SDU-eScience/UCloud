@@ -166,9 +166,14 @@ class KafkaHttpRouteLogger {
         val responsePayload = call.attributes.getOrNull(responsePayloadToLogKey)
 
         async {
-            val principal = bearerToken
-                ?.let { tokenValidation.validateOrNull(it) }
-                ?.let { tokenValidation.decodeToken(it) }
+            val principal = run {
+                val principalFromBearerToken = bearerToken
+                    ?.let { tokenValidation.validateOrNull(it) }
+                    ?.let { tokenValidation.decodeToken(it) }
+
+                val principalFromOverride = call.attributes.getOrNull(securityPrincipalTokenOverride)
+                principalFromOverride ?: principalFromBearerToken
+            }
 
             val entry = HttpCallLogEntry(
                 jobId,
@@ -200,6 +205,8 @@ class KafkaHttpRouteLogger {
         private val requestStartTime = AttributeKey<Long>("request-start-time")
         internal val requestPayloadToLogKey = AttributeKey<Any>("request-payload")
         internal val responsePayloadToLogKey = AttributeKey<Any>("response-payload")
+        internal val securityPrincipalTokenOverride =
+            AttributeKey<SecurityPrincipalToken>("security-principal-token-override")
         override val key: AttributeKey<KafkaHttpRouteLogger> = AttributeKey("kafka-http-route-log")
 
         const val MISSING_JOB_ID_PREFIX = "MISSING-"
