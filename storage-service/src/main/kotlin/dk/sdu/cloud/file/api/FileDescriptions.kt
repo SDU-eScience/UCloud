@@ -281,7 +281,7 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val download = callDescriptionWithAudit<DownloadByURI, Unit, CommonErrorMessage, SingleFileAudit<FindByPath>> {
+    val download = callDescriptionWithAudit<DownloadByURI, Unit, CommonErrorMessage, BulkFileAudit<FindByPath>> {
         name = "download"
 
         auth {
