@@ -1,4 +1,4 @@
-package dk.sdu.cloud.app.abacus.Utils
+package dk.sdu.cloud.app.abacus.util
 
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
 import dk.sdu.cloud.service.db.HibernateSessionFactory

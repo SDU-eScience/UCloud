@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.abacus.service
 
-import dk.sdu.cloud.app.abacus.Utils.withDatabase
+import dk.sdu.cloud.app.abacus.util.withDatabase
 import dk.sdu.cloud.app.abacus.services.JobException
 import dk.sdu.cloud.app.abacus.services.JobHibernateDao
 import dk.sdu.cloud.service.db.withTransaction
@@ -44,9 +44,9 @@ class JobHibernateDaoTest{
     fun `test Hibernate Dao - insert duplicate `() {
         withDatabase { db ->
             db.withTransaction { session ->
-            val jobHibernate = JobHibernateDao()
-            jobHibernate.insertMapping(session, "1", 1)
-            jobHibernate.insertMapping(session, "1", 1)
+                val jobHibernate = JobHibernateDao()
+                jobHibernate.insertMapping(session, "1", 1)
+                jobHibernate.insertMapping(session, "1", 1)
             }
         }
     }

@@ -1,7 +1,9 @@
 package dk.sdu.cloud.app.abacus.services
 
 import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import io.ktor.http.HttpStatusCode
@@ -9,8 +11,6 @@ import org.hibernate.NonUniqueObjectException
 import org.hibernate.annotations.NaturalId
 import javax.persistence.Entity
 import javax.persistence.Id
-import javax.persistence.Index
-import javax.persistence.NonUniqueResultException
 import javax.persistence.Table
 
 @Entity
@@ -21,14 +21,16 @@ class JobEntity(
     @Id
     @NaturalId
     var systemId: String
-)
+) {
+    companion object : HibernateEntity<JobEntity>, WithId<String>
+}
 
 class JobHibernateDao : JobDao<HibernateSession> {
     override fun insertMapping(session: HibernateSession, systemId: String, slurmId: Long) {
         val entity = JobEntity(slurmId, systemId)
         try {
             session.save(entity)
-        } catch (ex: NonUniqueObjectException){
+        } catch (ex: NonUniqueObjectException) {
             throw JobException.NotUniqueID()
         }
     }

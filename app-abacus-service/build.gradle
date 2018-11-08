@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.2.0'
+version '0.3.0'
 
 apply plugin: 'application'
 mainClassName = 'dk.sdu.cloud.app.abacus.MainKt'
@@ -12,5 +12,7 @@ dependencies {
     compile 'dk.sdu.cloud:service-common:0.21.0-SNAPSHOT'
     compile 'dk.sdu.cloud:auth-api:1.8.0-SNAPSHOT'
     compile 'dk.sdu.cloud:app-api:0.10.0-SNAPSHOT'
+
+    testCompile 'dk.sdu.cloud:service-common-test:0.21.0-SNAPSHOT'
 }
 
