@@ -35,7 +35,9 @@ data class ToolEntity(
 
     @EmbeddedId
     var id: EmbeddedNameAndVersion
-)
+) {
+    companion object : HibernateEntity<ToolEntity>, WithId<EmbeddedNameAndVersion>
+}
 
 /**
  * Added in:
@@ -53,7 +55,9 @@ class ApplicationTagEntity(
     @Id
     @GeneratedValue
     var id: Long? = null
-)
+) {
+    companion object : HibernateEntity<ApplicationTagEntity>, WithId<Long>
+}
 
 @Entity
 @Table(name = "favorited_by")
@@ -67,7 +71,9 @@ class FavoriteApplicationEntity(
     @Id
     @GeneratedValue
     var id: Long? = null
-)
+) {
+    companion object : HibernateEntity<FavoriteApplicationEntity>, WithId<Long>
+}
 
 /**
  * Updated in:

@@ -29,7 +29,6 @@ class AppController<DBSession>(
     override val baseContext = ApplicationDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
-
         implement(ApplicationDescriptions.toggleFavorite) { req ->
             db.withTransaction {
                 source.toggleFavorite(
@@ -41,7 +40,6 @@ class AppController<DBSession>(
             }
 
             ok(HttpStatusCode.OK)
-
         }
 
         implement(ApplicationDescriptions.retrieveFavorites) { req ->

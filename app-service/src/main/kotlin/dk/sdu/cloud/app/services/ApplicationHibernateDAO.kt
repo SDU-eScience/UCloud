@@ -370,5 +370,5 @@ sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) :
     class NotAllowed : ApplicationException("Not allowed", HttpStatusCode.Forbidden)
     class AlreadyExists : ApplicationException("Already exists", HttpStatusCode.Conflict)
     class BadToolReference : ApplicationException("Tool does not exist", HttpStatusCode.BadRequest)
-    class BadApplication : ApplicationException("Application does not exists", HttpStatusCode.BadRequest)
+    class BadApplication : ApplicationException("Application does not exists", HttpStatusCode.NotFound)
 }
