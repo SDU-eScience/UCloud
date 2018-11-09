@@ -44,7 +44,7 @@
     "icons": "node scripts/parse-icons.js"
   },
   "dependencies": {
-    "avataaars": "^1.2.0",
+    "avataaars": "^1.2.1",
     "jsonwebtoken": "8.3.0",
     "loaders.css": "0.1.2",
     "moment": "~2.22.2",
@@ -66,7 +66,7 @@
     "styled-components": "^4.0.3",
     "styled-system": "^3.1.11",
     "svgi": "^1.1.0",
-    "sweetalert2": "7.28.12"
+    "sweetalert2": "7.29.0"
   },
   "devDependencies": {
     "@babel/core": "^7.1.5",
@@ -76,11 +76,11 @@
     "@types/json-schema": "^7.0.1",
     "@types/jsonwebtoken": "^8.3.0",
     "@types/moment-timezone": "^0.5.9",
-    "@types/react": "^16.4.18",
+    "@types/react": "^16.7.1",
     "@types/react-datepicker": "^1.1.7",
     "@types/react-dom": "^16.0.9",
     "@types/react-redux": "^6.0.9",
-    "@types/react-router": "^4.4.0",
+    "@types/react-router": "^4.4.1",
     "@types/react-router-dom": "^4.3.1",
     "@types/react-test-renderer": "16.0.3",
     "@types/styled-components": "^4.0.3",
@@ -97,7 +97,7 @@
     "css-loader": "^1.0.1",
     "empty-module": "~0.0.2",
     "enzyme": "^3.7.0",
-    "enzyme-adapter-react-16": "^1.6.0",
+    "enzyme-adapter-react-16": "^1.7.0",
     "file-loader": "2.0.0",
     "html-loader": "0.5.5",
     "html-webpack-plugin": "3.2.0",
