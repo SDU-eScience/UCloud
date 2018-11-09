@@ -7,12 +7,15 @@ import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { setAppName, setVersion, fetchApplicationPageFromName, fetchApplicationPageFromTag } from "./Redux/DetailedApplicationSearchActions";
 import { object } from "prop-types";
+import { History } from "history";
 
 type DetailedApplicationSearchProps = DetailedApplicationOperations & DetailedApplicationSearchReduxState;
 class DetailedApplicationSearch extends React.Component<DetailedApplicationSearchProps> {
     constructor(props) {
         super(props);
     }
+
+    context: { router: { history: History } }
 
     static contextTypes = {
         router: object

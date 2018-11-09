@@ -14,12 +14,15 @@ import { Dispatch } from "redux";
 import { History } from "history";
 import * as PropTypes from "prop-types";
 
-class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { history: History }> {
+class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
+
     constructor(props) {
         super(props);
         this.tagsInput = React.createRef();
         this.extensionsInput = React.createRef();
     }
+
+    context: { router: { history: History } }
 
     static contextTypes = {
         router: PropTypes.object
@@ -36,7 +39,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
     onAddExtension() {
         if (!this.extensionsInput.current.value) return;
         const newExtensions = this.extensionsInput.current.value.trim().split(" ").filter(it => it);
-        console.log(newExtensions);
         this.props.addExtensions(newExtensions);
         this.extensionsInput.current.value = "";
     }
@@ -98,7 +100,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                 />
             </Box>
         ) : null;
-        
+
         return (
             <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                 <Box mt="0.5em">
@@ -157,143 +159,143 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                         />
                     </InputGroup>
                     <Heading.h5 pb="0.3em" pt="0.5em">Modified at</Heading.h5>
-                    <Error error={undefined}/>
-                        <InputGroup>
-                            <DatePicker
-                                popperPlacement="left"
-                                pb="6px"
-                                pt="8px"
-                                mt="-2px"
-                                placeholderText="Modified after..."
-                                selected={this.props.modifiedAfter}
-                                selectsStart
-                                startDate={this.props.modifiedAfter}
-                                endDate={this.props.modifiedBefore}
-                                onChange={d => this.validateAndSetDate(d, "modifiedAfter")}
-                                showTimeSelect
-                                timeIntervals={15}
-                                isClearable
-                                locale="da"
-                                timeFormat="HH:mm"
-                                dateFormat="DD/MM/YY HH:mm"
-                                timeCaption="time"
+                    <Error error={undefined} />
+                    <InputGroup>
+                        <DatePicker
+                            popperPlacement="left"
+                            pb="6px"
+                            pt="8px"
+                            mt="-2px"
+                            placeholderText="Modified after..."
+                            selected={this.props.modifiedAfter}
+                            selectsStart
+                            startDate={this.props.modifiedAfter}
+                            endDate={this.props.modifiedBefore}
+                            onChange={d => this.validateAndSetDate(d, "modifiedAfter")}
+                            showTimeSelect
+                            timeIntervals={15}
+                            isClearable
+                            locale="da"
+                            timeFormat="HH:mm"
+                            dateFormat="DD/MM/YY HH:mm"
+                            timeCaption="time"
+                        />
+                        <DatePicker
+                            popperPlacement="left"
+                            pb="6px"
+                            pt="8px"
+                            mt="-2px"
+                            placeholderText="Modified before..."
+                            selected={this.props.modifiedBefore}
+                            selectsEnd
+                            startDate={this.props.modifiedAfter}
+                            endDate={this.props.modifiedBefore}
+                            locale="da"
+                            onChange={d => this.validateAndSetDate(d, "modifiedBefore")}
+                            showTimeSelect
+                            timeIntervals={15}
+                            isClearable
+                            timeFormat="HH:mm"
+                            dateFormat="DD/MM/YY HH:mm"
+                            timeCaption="time"
+                        />
+                    </InputGroup>
+                    <Heading.h5 pb="0.3em" pt="0.5em">File Types</Heading.h5>
+                    <Flex>
+                        <Label fontSize={1} color="black">
+                            <Checkbox
+                                checked={allowFolders}
+                                onChange={e => e.stopPropagation()}
+                                onClick={_ => this.props.toggleFolderAllowed()}
                             />
-                            <DatePicker
-                                popperPlacement="left"
-                                pb="6px"
-                                pt="8px"
-                                mt="-2px"
-                                placeholderText="Modified before..."
-                                selected={this.props.modifiedBefore}
-                                selectsEnd
-                                startDate={this.props.modifiedAfter}
-                                endDate={this.props.modifiedBefore}
-                                locale="da"
-                                onChange={d => this.validateAndSetDate(d, "modifiedBefore")}
-                                showTimeSelect
-                                timeIntervals={15}
-                                isClearable
-                                timeFormat="HH:mm"
-                                dateFormat="DD/MM/YY HH:mm"
-                                timeCaption="time"
-                            />
-                        </InputGroup>
-                        <Heading.h5 pb="0.3em" pt="0.5em">File Types</Heading.h5>
-                        <Flex>
-                            <Label fontSize={1} color="black">
-                                <Checkbox
-                                    checked={allowFolders}
-                                    onChange={e => e.stopPropagation()}
-                                    onClick={_ => this.props.toggleFolderAllowed()}
-                                />
-                                Folders
+                            Folders
                         </Label>
-                            <Label fontSize={1} color="black">
-                                <Checkbox
-                                    checked={allowFiles}
-                                    onChange={e => e.stopPropagation()}
-                                    onClick={_ => this.props.toggleFilesAllowed()}
-                                />
-                                Files
-                        </Label>
-                        </Flex>
-
-                        <Heading.h5 pb="0.3em" pt="0.5em">File extensions</Heading.h5>
-                        <SearchStamps stamps={extensions} onStampRemove={l => this.props.removeExtensions([l])} clearAll={() => this.props.removeExtensions([...extensions])} />
-                        <form onSubmit={e => { e.preventDefault(); this.onAddExtension(); }}>
-                            <Input pb="6px" pt="8px" mt="-2px" ref={this.extensionsInput} placeholder={"Add extensions..."} />
-                            <ClickableDropdown
-                                chevron
-                                trigger={"Add extension preset"}
-                                onChange={value => this.onAddPresets(value)}
-                                options={extensionPresets}
+                        <Label fontSize={1} color="black">
+                            <Checkbox
+                                checked={allowFiles}
+                                onChange={e => e.stopPropagation()}
+                                onClick={_ => this.props.toggleFilesAllowed()}
                             />
-                        </form>
-                        <Heading.h5 pb="0.3em" pt="0.5em">Sensitivity</Heading.h5>
-                        <SearchStamps stamps={sensitivities} onStampRemove={l => this.props.removeSensitivity([l])} clearAll={() => this.props.removeSensitivity([...sensitivities])} />
-                        {sensitivityDropdown}
+                            Files
+                        </Label>
+                    </Flex>
 
-                        <Heading.h5>Tags</Heading.h5>
-                        <SearchStamps stamps={tags} onStampRemove={l => this.props.removeTags([l])} clearAll={() => this.props.removeTags([...tags])} />
-                        <form onSubmit={e => { e.preventDefault(); this.onAddTags(); }}>
-                            <Input pb="6px" pt="8px" mt="-2px" placeholder={"Add tags..."} ref={this.tagsInput} />
-                        </form>
-                        <LoadingButton type="submit" loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
+                    <Heading.h5 pb="0.3em" pt="0.5em">File extensions</Heading.h5>
+                    <SearchStamps stamps={extensions} onStampRemove={l => this.props.removeExtensions([l])} clearAll={() => this.props.removeExtensions([...extensions])} />
+                    <form onSubmit={e => { e.preventDefault(); this.onAddExtension(); }}>
+                        <Input pb="6px" pt="8px" mt="-2px" ref={this.extensionsInput} placeholder={"Add extensions..."} />
+                        <ClickableDropdown
+                            chevron
+                            trigger={"Add extension preset"}
+                            onChange={value => this.onAddPresets(value)}
+                            options={extensionPresets}
+                        />
+                    </form>
+                    <Heading.h5 pb="0.3em" pt="0.5em">Sensitivity</Heading.h5>
+                    <SearchStamps stamps={sensitivities} onStampRemove={l => this.props.removeSensitivity([l])} clearAll={() => this.props.removeSensitivity([...sensitivities])} />
+                    {sensitivityDropdown}
+
+                    <Heading.h5>Tags</Heading.h5>
+                    <SearchStamps stamps={tags} onStampRemove={l => this.props.removeTags([l])} clearAll={() => this.props.removeTags([...tags])} />
+                    <form onSubmit={e => { e.preventDefault(); this.onAddTags(); }}>
+                        <Input pb="6px" pt="8px" mt="-2px" placeholder={"Add tags..."} ref={this.tagsInput} />
+                    </form>
+                    <LoadingButton type="submit" loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
                 </Box>
-                    <SimpleFileList files={this.props.page.items} />
+                <SimpleFileList files={this.props.page.items} />
             </Flex>
-                );
-            }
-        }
-        
-const SearchStamps = ({stamps, onStampRemove, clearAll }) => (
+        );
+    }
+}
+
+const SearchStamps = ({ stamps, onStampRemove, clearAll }) => (
     <Box pb="5px">
-                    {[...stamps].map(l => (<Stamp ml="2px" mt="2px" bg="white" key={l}>{l}<CloseButton onClick={() => onStampRemove(l)} size={12} /></Stamp>))}
-                    {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" bg="blue" borderColor="white" color="white" onClick={clearAll}>Clear all<CloseButton size={12} /></Stamp>) : null}
-                </Box>
-                );
-                
-                const extensionPresets = [
-    {text: "Text", value: ".txt .docx .rtf .csv .pdf" },
-    {text: "Image", value: ".png .jpeg .jpg .ppm .gif" },
-    {text: "Sound", value: ".mp3 .ogg .wav .flac .aac" },
-    {text: "Compressed files", value: ".zip .tar.gz" }
-            ];
-            
-            const sensitivityOptions = [
-    {text: "Open Access", value: "Open Access" },
-    {text: "Confidential", value: "Confidential" },
-    {text: "Sensitive", value: "Sensitive" }
-            ];
-            
-const mapStateToProps = ({detailedFileSearch}: ReduxObject): DetailedFileSearchReduxState & {sizeCount: number } => ({
-                    ...detailedFileSearch,
-                sizeCount: detailedFileSearch.extensions.size + detailedFileSearch.tags.size + detailedFileSearch.sensitivities.size
-            });
-            
-            
-            import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
-import {DETAILED_FILES_ADD_EXTENSIONS, DETAILED_FILES_REMOVE_EXTENSIONS, DETAILED_FILES_ADD_SENSITIVITIES, DETAILED_FILES_REMOVE_SENSITIVITIES, DETAILED_FILES_ADD_TAGS, DETAILED_FILES_REMOVE_TAGS } from "./Redux/DetailedFileSearchReducer";
-import {searchFiles} from "SimpleSearch/Redux/SimpleSearchActions";
+        {[...stamps].map(l => (<Stamp ml="2px" mt="2px" bg="white" key={l}>{l}<CloseButton onClick={() => onStampRemove(l)} size={12} /></Stamp>))}
+        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" bg="blue" borderColor="white" color="white" onClick={clearAll}>Clear all<CloseButton size={12} /></Stamp>) : null}
+    </Box>
+);
+
+const extensionPresets = [
+    { text: "Text", value: ".txt .docx .rtf .csv .pdf" },
+    { text: "Image", value: ".png .jpeg .jpg .ppm .gif" },
+    { text: "Sound", value: ".mp3 .ogg .wav .flac .aac" },
+    { text: "Compressed files", value: ".zip .tar.gz" }
+];
+
+const sensitivityOptions = [
+    { text: "Open Access", value: "Open Access" },
+    { text: "Confidential", value: "Confidential" },
+    { text: "Sensitive", value: "Sensitive" }
+];
+
+const mapStateToProps = ({ detailedFileSearch }: ReduxObject): DetailedFileSearchReduxState & { sizeCount: number } => ({
+    ...detailedFileSearch,
+    sizeCount: detailedFileSearch.extensions.size + detailedFileSearch.tags.size + detailedFileSearch.sensitivities.size
+});
+
+
+import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
+import { DETAILED_FILES_ADD_EXTENSIONS, DETAILED_FILES_REMOVE_EXTENSIONS, DETAILED_FILES_ADD_SENSITIVITIES, DETAILED_FILES_REMOVE_SENSITIVITIES, DETAILED_FILES_ADD_TAGS, DETAILED_FILES_REMOVE_TAGS } from "./Redux/DetailedFileSearchReducer";
+import { searchFiles } from "SimpleSearch/Redux/SimpleSearchActions";
 const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations => ({
-                    toggleHidden: () => dispatch(DFSActions.toggleFilesSearchHidden()),
-                addExtensions: (ext) => dispatch(DFSActions.extensionAction(DETAILED_FILES_ADD_EXTENSIONS, ext)),
-                removeExtensions: (ext) => dispatch(DFSActions.extensionAction(DETAILED_FILES_REMOVE_EXTENSIONS, ext)),
-                toggleFolderAllowed: () => dispatch(DFSActions.toggleFoldersAllowed()),
-                toggleFilesAllowed: () => dispatch(DFSActions.toggleFilesAllowed()),
-                addSensitivity: (sens) => dispatch(DFSActions.sensitivityAction(DETAILED_FILES_ADD_SENSITIVITIES, [sens])),
-                removeSensitivity: (sens) => dispatch(DFSActions.sensitivityAction(DETAILED_FILES_REMOVE_SENSITIVITIES, sens)),
-                addTags: (tags) => dispatch(DFSActions.tagAction(DETAILED_FILES_ADD_TAGS, tags)),
-                removeTags: (tags) => dispatch(DFSActions.tagAction(DETAILED_FILES_REMOVE_TAGS, tags)),
-                setFilename: (filename) => dispatch(DFSActions.setFilename(filename)),
+    toggleHidden: () => dispatch(DFSActions.toggleFilesSearchHidden()),
+    addExtensions: (ext) => dispatch(DFSActions.extensionAction(DETAILED_FILES_ADD_EXTENSIONS, ext)),
+    removeExtensions: (ext) => dispatch(DFSActions.extensionAction(DETAILED_FILES_REMOVE_EXTENSIONS, ext)),
+    toggleFolderAllowed: () => dispatch(DFSActions.toggleFoldersAllowed()),
+    toggleFilesAllowed: () => dispatch(DFSActions.toggleFilesAllowed()),
+    addSensitivity: (sens) => dispatch(DFSActions.sensitivityAction(DETAILED_FILES_ADD_SENSITIVITIES, [sens])),
+    removeSensitivity: (sens) => dispatch(DFSActions.sensitivityAction(DETAILED_FILES_REMOVE_SENSITIVITIES, sens)),
+    addTags: (tags) => dispatch(DFSActions.tagAction(DETAILED_FILES_ADD_TAGS, tags)),
+    removeTags: (tags) => dispatch(DFSActions.tagAction(DETAILED_FILES_REMOVE_TAGS, tags)),
+    setFilename: (filename) => dispatch(DFSActions.setFilename(filename)),
     fetchPage: async (req, callback) => {
-                    dispatch(await searchFiles(req));
-                dispatch(DFSActions.setFilesSearchLoading(false));
-                if (typeof callback === "function") callback();
-            },
-            setLoading: (loading) => dispatch(DFSActions.setFilesSearchLoading(loading)),
-            setTimes: (times) => dispatch(DFSActions.setTime(times)),
-            setError: (error) => dispatch(DFSActions.setErrorMessage(error))
-        });
-        
+        dispatch(await searchFiles(req));
+        dispatch(DFSActions.setFilesSearchLoading(false));
+        if (typeof callback === "function") callback();
+    },
+    setLoading: (loading) => dispatch(DFSActions.setFilesSearchLoading(loading)),
+    setTimes: (times) => dispatch(DFSActions.setTime(times)),
+    setError: (error) => dispatch(DFSActions.setErrorMessage(error))
+});
+
 export default connect(mapStateToProps, mapDispatchToProps)(DetailedFileSearch);

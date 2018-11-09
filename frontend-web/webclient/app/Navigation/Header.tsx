@@ -46,6 +46,8 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
         props.fetchLoginStatus()
     }
 
+    context: { router: { history: History } }
+
     static contextTypes = {
         router: PropTypes.object
     }
@@ -188,7 +190,7 @@ interface HeaderOperations {
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     setSidebarOpen: (open) => dispatch(setSidebarState(open)),
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
-    searchFiles: async (fileName) => { console.log(fileName); dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] })) }
+    searchFiles: async (fileName) => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] }))
 });
 
 const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps => ({
