@@ -9,8 +9,7 @@ import { Notification } from "Notifications";
 import { Upload } from "Uploader";
 import { Activity } from "Activity";
 import { Reducer } from "redux";
-import { SimpleSearchStateProps } from "SimpleSearch";
-import DetailedFileSearch from "Files/DetailedFileSearch";
+import { SimpleSearchStateProps } from "Search";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -248,7 +247,9 @@ export const initSimpleSearch = (): SimpleSearchStateProps => ({
     projects: emptyPage,
     projectsLoading: false,
     errors: [],
-    search: ""
+    search: "",
+    applicationSearch: initApplicationsAdvancedSearch(),
+    fileSearch: initFilesDetailedSearch()
 })
 
 export const initAnalyses = (): ComponentWithPage<Analysis> => ({

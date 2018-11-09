@@ -9,7 +9,7 @@ import { Flex, Input, Label, InputGroup, Stamp, Checkbox, Error, OutlineButton, 
 import * as Heading from "ui-components/Heading"
 import CloseButton from "ui-components/CloseButton";
 import { ReduxObject } from "DefaultObjects";
-import { SimpleFileList } from "SimpleSearch/Search";
+import { SimpleFileList } from "Search/Search";
 import { Dispatch } from "redux";
 import { History } from "history";
 import * as PropTypes from "prop-types";
@@ -276,7 +276,7 @@ const mapStateToProps = ({ detailedFileSearch }: ReduxObject): DetailedFileSearc
 
 import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import { DETAILED_FILES_ADD_EXTENSIONS, DETAILED_FILES_REMOVE_EXTENSIONS, DETAILED_FILES_ADD_SENSITIVITIES, DETAILED_FILES_REMOVE_SENSITIVITIES, DETAILED_FILES_ADD_TAGS, DETAILED_FILES_REMOVE_TAGS } from "./Redux/DetailedFileSearchReducer";
-import { searchFiles } from "SimpleSearch/Redux/SimpleSearchActions";
+import { searchFiles } from "Search/Redux/SearchActions";
 const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations => ({
     toggleHidden: () => dispatch(DFSActions.toggleFilesSearchHidden()),
     addExtensions: (ext) => dispatch(DFSActions.extensionAction(DETAILED_FILES_ADD_EXTENSIONS, ext)),

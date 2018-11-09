@@ -108,12 +108,12 @@ const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
                         <List.Item className="itemPadding">
                             Size: <List.Content floated="right" content={fileSizeToString(file.size)} />
                         </List.Item>
-                        <List.Item className="itemPadding">
+                        {file.acl !== undefined ? <List.Item className="itemPadding">
                             Shared with:
                                 <List.Content floated="right">
                                 {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.
                                 </List.Content>
-                        </List.Item>
+                        </List.Item> : null}
                     </List>
                 </Card.Content>
             </Card>

@@ -1,4 +1,4 @@
-import * as SSActionTypes from "./SimpleSearchReducer";
+import * as SSActionTypes from "./SearchReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Page, PayloadAction } from "Types";
 import { File, AdvancedSearchRequest } from "Files";

@@ -24,8 +24,8 @@ export interface File {
     modifiedAt: number
     ownerName: string
     size: number
-    acl: Acl[]
-    favorited: boolean
+    acl?: Acl[]
+    favorited?: boolean
     sensitivityLevel: string
     isChecked?: boolean
     beingRenamed?: boolean

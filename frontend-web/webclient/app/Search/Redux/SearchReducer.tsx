@@ -7,9 +7,9 @@ export const RECEIVE_SIMPLE_APPLICATIONS_PAGE = "RECEIVE_SIMPLE_FILES_PAGE";
 export const RECEIVE_SIMPLE_PROJECTS_PAGE = "RECEIVE_SIMPLE_PROJECTS_PAGE";
 export const SET_SIMPLE_SEARCH_SEARCH = "SET_SIMPLE_SEARCH_SEARCH";
 
-import { SimpleSearchActions } from "./SimpleSearchActions";
+import { SimpleSearchActions } from "./SearchActions";
 import { initSimpleSearch } from "DefaultObjects";
-import { SimpleSearchStateProps } from "SimpleSearch";
+import { SimpleSearchStateProps } from "Search";
 
 const simpleSearch = (state: SimpleSearchStateProps = initSimpleSearch(), action: SimpleSearchActions): SimpleSearchStateProps => {
     switch (action.type) {

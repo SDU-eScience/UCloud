@@ -25,7 +25,7 @@ import {
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { searchFiles } from "SimpleSearch/Redux/SimpleSearchActions";
+import { searchFiles } from "Search/Redux/SearchActions";
 
 interface HeaderProps {
     sidebarOpen?: boolean

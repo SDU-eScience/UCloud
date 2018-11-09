@@ -9,14 +9,14 @@ import { ApplicationCard } from "Applications/Applications";
 import { ProjectMetadata } from "Metadata/api";
 import { SearchItem } from "Metadata/Search";
 import { AllFileOperations, getParentPath, replaceHomeFolder } from "Utilities/FileUtilities";
-import { SimpleSearchProps, SimpleSearchOperations } from ".";
+import { SearchProps, SimpleSearchOperations, SimpleSearchStateProps } from ".";
 import { HeaderSearchType, ReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Application } from "Applications";
 import { Page } from "Types";
 import { Dispatch } from "redux";
-import { File } from "Files";
-import * as SSActions from "./Redux/SimpleSearchActions";
+import { File, SortOrder, SortBy, AdvancedSearchRequest, FileType } from "Files";
+import * as SSActions from "./Redux/SearchActions";
 import { Error, Hide, Input } from "ui-components";
 import { CardGroup } from "ui-components/Card";
 import { MainContainer } from "MainContainer/MainContainer";
@@ -24,9 +24,10 @@ import DetailedFileSearch from "Files/DetailedFileSearch";
 import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSearchActions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import { setAppName } from "Applications/Redux/DetailedApplicationSearchActions";
+import { FilesTable } from "Files/Files";
 
 
-class Search extends React.Component<SimpleSearchProps> {
+class Search extends React.Component<SearchProps> {
     constructor(props) {
         super(props);
     }
@@ -36,9 +37,34 @@ class Search extends React.Component<SimpleSearchProps> {
         if (!this.props.match.params[0]) { this.props.setError("No search text provided."); return };
     }
 
+    get fileSearchBody(): AdvancedSearchRequest {
+        // FIXME Duplicate code
+        const { ...fileSearch } = this.props.fileSearch;
+        let fileTypes: [FileType?, FileType?] = [];
+        if (fileSearch.allowFiles) fileTypes.push("FILE");
+        if (fileSearch.allowFolders) fileTypes.push("DIRECTORY");
+        const createdAt = {
+            after: !!fileSearch.createdAfter ? fileSearch.createdAfter.valueOf() : undefined,
+            before: !!fileSearch.createdBefore ? fileSearch.createdBefore.valueOf() : undefined,
+        };
+        const modifiedAt = {
+            after: !!fileSearch.modifiedAfter ? fileSearch.modifiedAfter.valueOf() : undefined,
+            before: !!fileSearch.modifiedBefore ? fileSearch.modifiedBefore.valueOf() : undefined,
+        };
+        return {
+            fileName: fileSearch.fileName,
+            extensions: [...fileSearch.extensions],
+            fileTypes,
+            createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
+            modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? modifiedAt : undefined,
+            itemsPerPage: 25,
+            page: 0
+        }
+    }
+
     componentWillUnmount = () => this.props.toggleAdvancedSearch();
 
-    shouldComponentUpdate(nextProps: SimpleSearchProps, _nextState): boolean {
+    shouldComponentUpdate(nextProps: SearchProps): boolean {
         if (nextProps.match.params[0] !== this.props.match.params[0]) {
             this.props.setSearch(nextProps.match.params[0]);
             this.fetchAll(nextProps.match.params[0]);
@@ -55,10 +81,10 @@ class Search extends React.Component<SimpleSearchProps> {
     }
 
     fetchAll(search: string) {
-        console.log("fetchAll")
+        console.log("Fetch all")
         const { ...props } = this.props;
         props.setError();
-        props.searchFiles(search, this.props.files.pageNumber, this.props.files.itemsPerPage);
+        props.searchFiles(this.fileSearchBody);
         props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage);
         props.searchProjects(search, this.props.projects.pageNumber, this.props.projects.itemsPerPage);
     }
@@ -70,6 +96,7 @@ class Search extends React.Component<SimpleSearchProps> {
 
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
+        const fileOperations = AllFileOperations(true, false, false, this.props.history);
         const errorMessage = !!errors.length ? (<Error error={errors.join("\n")} clearError={() => this.props.setError(undefined)} />) : null;
         const panes = [
             {
@@ -77,10 +104,22 @@ class Search extends React.Component<SimpleSearchProps> {
                     <SSegment basic loading={filesLoading}>
                         <Pagination.List
                             loading={filesLoading}
-                            pageRenderer={page => (<SimpleFileList files={page.items} />)}
+                            pageRenderer={page => (
+                                <FilesTable
+                                    files={page.items}
+                                    sortOrder={SortOrder.ASCENDING}
+                                    sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY]}
+                                    sortFiles={() => undefined}
+                                    onCheckFile={() => undefined}
+                                    refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}
+                                    sortBy={SortBy.PATH}
+                                    onFavoriteFile={() => undefined}
+                                    fileOperations={fileOperations}
+                                />
+                            )}
                             page={files}
-                            onItemsPerPageChanged={itemsPerPage => this.props.searchFiles(search, 0, itemsPerPage)}
-                            onPageChanged={pageNumber => this.props.searchFiles(search, pageNumber, files.itemsPerPage)}
+                            onItemsPerPageChanged={itemsPerPage => this.props.searchFiles({ ...this.fileSearchBody, page: 0, itemsPerPage })}
+                            onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
                         />
                     </SSegment>)
             },
@@ -187,10 +226,10 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setApplicationsLoading: (loading) => dispatch(SSActions.setApplicationsLoading(loading)),
     setProjectsLoading: (loading) => dispatch(SSActions.setProjectsLoading(loading)),
     setError: (error) => dispatch(SSActions.setErrorMessage(error)),
-    searchFiles: async (fileName, page, itemsPerPage) => {
+    searchFiles: async (body) => {
         dispatch(SSActions.setFilesLoading(true));
-        dispatch(await SSActions.searchFiles({ fileName, page, itemsPerPage, fileTypes: ["DIRECTORY", "FILE"] }));
-        dispatch(setFilename(fileName));
+        dispatch(await SSActions.searchFiles(body));
+        dispatch(setFilename(body.fileName ? body.fileName : ""));
     },
     searchApplications: async (query, page, itemsPerPage) => {
         dispatch(SSActions.setApplicationsLoading(true));
@@ -209,6 +248,10 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden())
 });
 
-const mapStateToProps = ({ simpleSearch }: ReduxObject) => simpleSearch;
+const mapStateToProps = ({ simpleSearch, detailedFileSearch, detailedApplicationSearch }: ReduxObject): SimpleSearchStateProps => ({
+    ...simpleSearch,
+    fileSearch: detailedFileSearch,
+    applicationSearch: detailedApplicationSearch
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(Search)

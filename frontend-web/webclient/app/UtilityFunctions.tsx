@@ -23,7 +23,8 @@ export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).t
  * @param {Acl[]} acls - the list of access controls
  * @return {string}
  */
-export const getOwnerFromAcls = (acls: Acl[]): string => {
+export const getOwnerFromAcls = (acls?: Acl[]): string => {
+    if (acls === undefined) return "N/A";
     if (acls.length > 0) {
         return `${acls.length + 1} members`;
     } else {
@@ -140,7 +141,10 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
         case SortBy.SIZE:
             return fileSizeToString(file.size);
         case SortBy.ACL:
-            return getOwnerFromAcls(file.acl)
+            if (file.acl !== undefined)
+                return getOwnerFromAcls(file.acl)
+            else 
+                return "";
         case SortBy.FAVORITED:
             return file.favorited ? "Favorited" : "";
         case SortBy.SENSITIVITY:
@@ -230,7 +234,7 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
     if (homeFolderReplaced === "Home/Jobs") return "tasks";
     if (homeFolderReplaced === "Home/Favorites") return "star";
     if (homeFolderReplaced === "Home/Trash") return "trash alternate outline";
-    if (isDirectory({fileType: type})) return "folder";
+    if (isDirectory({ fileType: type })) return "folder";
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {
         return "file outline";

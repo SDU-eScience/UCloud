@@ -63,7 +63,7 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
 }
 
 type AccessRight = "READ" | "WRITE" | "EXECUTE";
-const hasAccess = (accessRight: AccessRight, file: File) => file.acl.every(acl => acl.rights.includes(accessRight));
+const hasAccess = (accessRight: AccessRight, file: File) => file.acl === undefined ? false : file.acl.every(acl => acl.rights.includes(accessRight));
 const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => files.every(f => hasAccess(accessRight, f));
 
 /**

@@ -16,7 +16,7 @@ import { Box } from "ui-components";
 
 // use `const COMPNAME = React.lazy(() => import("${path}"));` when react router is updated
 import Projects from "Projects/Projects";
-import Search from "SimpleSearch/Search";
+import Search from "Search/Search";
 import FileInfo from "Files/FileInfo";
 import FilePreview from "Files/FilePreview";
 import UserCreation from "Admin/UserCreation";
