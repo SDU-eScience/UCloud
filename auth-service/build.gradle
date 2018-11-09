@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.8.1-SNAPSHOT'
+version '1.8.2-SNAPSHOT'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
@@ -40,4 +40,3 @@ dependencies {
 }
 
 sduCloud.createTasksForApiJar("auth", [])
-

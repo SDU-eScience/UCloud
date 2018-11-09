@@ -9,13 +9,13 @@ import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.bearer
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.service.toSecurityToken
 import dk.sdu.cloud.storage.services.BulkDownloadService
 import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
@@ -52,7 +52,8 @@ class SimpleDownloadController<Ctx : FSUserContext>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(FileDescriptions.download) { request ->
-            audit(SingleFileAudit(null, FindByPath(request.path)))
+            val filesDownloaded = ArrayList<String?>()
+            audit(BulkFileAudit(filesDownloaded, FindByPath(request.path)))
 
             val hasTokenFromUrl = request.token != null
             val bearer = request.token ?: call.request.bearer ?: return@implement error(
@@ -69,6 +70,10 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                 HttpStatusCode.Unauthorized
             )
 
+            if (hasTokenFromUrl) {
+                overridePrincipalToken(principal.toSecurityToken())
+            }
+
             tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
                 val stat =
                     fs.stat(
@@ -77,7 +82,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                         setOf(FileAttribute.PATH, FileAttribute.INODE, FileAttribute.SIZE, FileAttribute.FILE_TYPE)
                     )
 
-                audit(SingleFileAudit(stat.inode, FindByPath(request.path)))
+                filesDownloaded.add(stat.inode)
 
                 when {
                     stat.fileType == FileType.DIRECTORY -> {
@@ -95,8 +100,9 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                 fs.tree(
                                     ctx,
                                     request.path,
-                                    setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH)
+                                    setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.INODE)
                                 ).forEach { item ->
+                                    filesDownloaded.add(item.inode)
                                     val filePath = item.path.substringAfter(stat.path).removePrefix("/")
 
                                     if (item.fileType == FileType.FILE) {
@@ -181,11 +187,8 @@ class SimpleDownloadController<Ctx : FSUserContext>(
             audit(BulkFileAudit(request.files.map { null }, request))
 
             commandRunnerFactory.withContext(call.securityPrincipal.username) { ctx ->
-                val files = request.files.map { path ->
-                    val absPath = "${request.prefix.removeSuffix("/")}/${path.removePrefix("/")}"
-                    fs.statOrNull(ctx, absPath, setOf(FileAttribute.INODE))?.inode
-                }
-                audit(BulkFileAudit(files, request))
+                val filesDownloaded = ArrayList<String>()
+                audit(BulkFileAudit(filesDownloaded, request))
                 okContentDeliveredExternally()
 
                 call.respondDirectWrite(contentType = ContentType.Application.GZip) {
@@ -193,7 +196,8 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                         ctx,
                         request.prefix,
                         request.files,
-                        toOutputStream()
+                        toOutputStream(),
+                        filesDownloaded
                     )
                 }
             }

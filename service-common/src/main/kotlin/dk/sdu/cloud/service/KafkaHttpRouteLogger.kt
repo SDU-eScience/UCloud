@@ -32,9 +32,8 @@ import kotlinx.coroutines.async
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
-import java.util.Collections
+import java.util.*
 import kotlin.collections.HashMap
-import kotlin.collections.MutableMap
 import kotlin.collections.set
 
 @Deprecated(
@@ -113,10 +112,7 @@ class KafkaHttpRouteLogger {
 
     private suspend fun interceptBefore(context: PipelineContext<Unit, ApplicationCall>) = with(context) {
         loadFromParentFeature()
-        val jobId = call.request.safeJobId
-        if (jobId != null) {
-            call.attributes.put(requestStartTime, System.currentTimeMillis())
-        }
+        call.attributes.put(requestStartTime, System.currentTimeMillis())
     }
 
     private suspend fun interceptAfter(
@@ -137,12 +133,11 @@ class KafkaHttpRouteLogger {
         val remoteOrigin = call.request.origin.remoteHost
         val userAgent = call.request.userAgent()
 
-        val jobId = call.request.safeJobId ?: return@with run {
-            log.debug("Missing jobId")
-        }
+        val jobId = call.request.safeJobId ?: (MISSING_JOB_ID_PREFIX + UUID.randomUUID().toString())
 
-        val startTime = call.attributes.getOrNull(requestStartTime) ?: return@with run {
+        val startTime = call.attributes.getOrNull(requestStartTime) ?: run {
             log.warn("Missing start time. This should probably not happen.")
+            System.currentTimeMillis()
         }
         val responseTime = System.currentTimeMillis() - startTime
 
@@ -150,8 +145,9 @@ class KafkaHttpRouteLogger {
             is HttpStatusCode -> message.value
             is OutgoingContent -> message.status?.value
             else -> null
-        } ?: context.context.response.status()?.value ?: return@with run {
-            log.debug("Missing statusCode: $message")
+        } ?: context.context.response.status()?.value ?: run {
+            log.warn("Missing statusCode: $message")
+            HttpStatusCode.InternalServerError.value
         }
 
         val responseContentType = when (message) {
@@ -167,9 +163,14 @@ class KafkaHttpRouteLogger {
         val responsePayload = call.attributes.getOrNull(responsePayloadToLogKey)
 
         async {
-            val principal = bearerToken
-                ?.let { tokenValidation.validateOrNull(it) }
-                ?.let { tokenValidation.decodeToken(it) }
+            val principal = run {
+                val principalFromBearerToken = bearerToken
+                    ?.let { tokenValidation.validateOrNull(it) }
+                    ?.let { tokenValidation.decodeToken(it) }
+
+                val principalFromOverride = call.attributes.getOrNull(securityPrincipalTokenOverride)
+                principalFromOverride ?: principalFromBearerToken
+            }
 
             val entry = HttpCallLogEntry(
                 jobId,
@@ -201,8 +202,11 @@ class KafkaHttpRouteLogger {
         private val requestStartTime = AttributeKey<Long>("request-start-time")
         internal val requestPayloadToLogKey = AttributeKey<Any>("request-payload")
         internal val responsePayloadToLogKey = AttributeKey<Any>("response-payload")
-
+        internal val securityPrincipalTokenOverride =
+            AttributeKey<SecurityPrincipalToken>("security-principal-token-override")
         override val key: AttributeKey<KafkaHttpRouteLogger> = AttributeKey("kafka-http-route-log")
+
+        const val MISSING_JOB_ID_PREFIX = "MISSING-"
 
         override fun install(
             pipeline: ApplicationCallPipeline,
@@ -308,7 +312,16 @@ private val requestNamePointer = JsonPointer.compile(
             HttpCallLogEntry::requestName.name
 )
 
-fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(tree: JsonNode): AuditEvent<A>? {
+/**
+ * Parses an audit message from [tree].
+ *
+ * If [acceptRequestsWithServerFailure] is true then all audit messages matching the description is accepted. Otherwise
+ * only messages that do not have a status code of 5XX will be accepted.
+ */
+fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(
+    tree: JsonNode,
+    acceptRequestsWithServerFailure: Boolean = false
+): AuditEvent<A>? {
     val incomingRequestName =
         tree.at(requestNamePointer)?.takeIf { !it.isMissingNode && it.isTextual }?.textValue() ?: run {
             auditLog.warn("Could not find requestName field in message.")
@@ -320,6 +333,7 @@ fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(tree: Json
         val type = auditJavaType
         val reader = defaultMapper.readerFor(type)
         return reader.readValue<AuditEvent<A>>(tree)
+            ?.takeIf { acceptRequestsWithServerFailure || it.http.responseCode !in 500..599 }
     }
 
     return null

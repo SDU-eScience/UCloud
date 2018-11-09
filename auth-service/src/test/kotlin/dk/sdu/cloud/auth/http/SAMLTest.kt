@@ -6,6 +6,8 @@ import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
+import dk.sdu.cloud.auth.services.Service
+import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.auth.services.UserCreationService
@@ -228,6 +230,7 @@ class SAMLTest {
         withKtorTest(
             setup = {
                 with(createSamlController()) {
+                    ServiceDAO.insert(Service(name = "_service", endpoint = "http://service"))
                     every { samlRequestProcessorFactory.invoke(any(), any(), any()) } answers {
                         val response = mockk<SamlRequestProcessor>()
                         coEvery { response.processResponse(any()) } just Runs
@@ -260,14 +263,7 @@ class SAMLTest {
                             )
                         }.response
 
-                    assertEquals(HttpStatusCode.Found, response.status())
-                    assertTrue(
-                        response.headers.values("Location").toString().contains(
-                            "/auth/login-redirect?service=_service"
-                        )
-                    )
-                    assertTrue(response.headers.values("Location").toString().contains("accessToken"))
-                    assertTrue(response.headers.values("Location").toString().contains("refreshToken"))
+                    assertEquals(HttpStatusCode.OK, response.status())
                 }
             }
         )

@@ -15,7 +15,16 @@ private const val DEFAULT_FILE_PERMISSION = 511
 class BulkDownloadService<Ctx : FSUserContext>(
     private val fs: CoreFileSystemService<Ctx>
 ) {
-    fun downloadFiles(ctx: Ctx, prefixPath: String, listOfFiles: List<String>, target: OutputStream) {
+    /**
+     * @param filesDownloadedOutput Will write which files ids are downloaded to this list. Useful for auditing.
+     */
+    fun downloadFiles(
+        ctx: Ctx,
+        prefixPath: String,
+        listOfFiles: List<String>,
+        target: OutputStream,
+        filesDownloadedOutput: ArrayList<String>? = null
+    ) {
         TarOutputStream(GZIPOutputStream(target)).use { tarStream ->
             for (path in listOfFiles) {
                 try {
@@ -40,6 +49,8 @@ class BulkDownloadService<Ctx : FSUserContext>(
                             )
                         )
                     )
+
+                    filesDownloadedOutput?.add(stat.inode)
 
                     // Write file contents
                     fs.read(ctx, absPath) { copyTo(tarStream) }

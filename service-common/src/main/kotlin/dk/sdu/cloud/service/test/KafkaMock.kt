@@ -48,23 +48,33 @@ object KafkaMock {
         )
     }
 
-    fun <Key, Value> assertKVMessage(topic: StreamDescription<Key, Value>, key: Key, value: Value) {
-        assert(recordedProducerRecords.any {
-            it.topic() == topic.name &&
-                    it.key() == topic.keySerde.serializer().serialize(topic.name, key).toString(Charsets.UTF_8) &&
-                    it.value() == topic.valueSerde.serializer().serialize(topic.name, value).toString(Charsets.UTF_8)
-        })
-    }
-
-    fun <Value> assertMessage(topic: StreamDescription<*, Value>, value: Value) {
-        assert(recordedProducerRecords.any {
-            it.topic() == topic.name &&
-                    it.value() == topic.valueSerde.serializer().serialize(topic.name, value).toString(Charsets.UTF_8)
-        })
-    }
 
     fun reset() {
         recordedProducerRecords.clear()
     }
 }
 
+
+fun <Key, Value> KafkaMock.assertKVMessage(topic: StreamDescription<Key, Value>, key: Key, value: Value) {
+    assert(recordedProducerRecords.any {
+        it.topic() == topic.name &&
+                it.key() == topic.keySerde.serializer().serialize(topic.name, key).toString(Charsets.UTF_8) &&
+                it.value() == topic.valueSerde.serializer().serialize(topic.name, value).toString(Charsets.UTF_8)
+    })
+}
+
+fun <Value> KafkaMock.assertMessage(topic: StreamDescription<*, Value>, value: Value) {
+    assert(recordedProducerRecords.any {
+        it.topic() == topic.name &&
+                it.value() == topic.valueSerde.serializer().serialize(topic.name, value).toString(Charsets.UTF_8)
+    })
+}
+
+fun <Key, Value> KafkaMock.messagesForTopic(topic: StreamDescription<Key, Value>): List<Pair<Key, Value>> {
+    return recordedProducerRecords.filter { it.topic() == topic.name }.map {
+        Pair(
+            topic.keySerde.deserializer().deserialize(topic.name, it.key().toByteArray(Charsets.UTF_8)),
+            topic.valueSerde.deserializer().deserialize(topic.name, it.value().toByteArray(Charsets.UTF_8))
+        )
+    }
+}

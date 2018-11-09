@@ -37,6 +37,10 @@ interface TokenValidation<TokenType> {
     }
 }
 
+fun <T> TokenValidation<T>.validateAndDecodeOrNull(token: String): SecurityPrincipalToken? {
+    return validateOrNull(token)?.let { decodeToken(it) }
+}
+
 private const val CERT_CHUNK_SIZE = 64
 
 class TokenValidationJWT(val algorithm: Algorithm) : TokenValidation<DecodedJWT> {
