@@ -38,7 +38,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
             audit(MultiPartUploadAudit(null))
 
             multipart.receiveBlocks { req ->
-                val sensitivity = req.sensitivity ?: SensitivityLevel.CONFIDENTIAL
+                val sensitivity = req.sensitivity
                 val owner = call.securityPrincipal.username
 
                 audit(
