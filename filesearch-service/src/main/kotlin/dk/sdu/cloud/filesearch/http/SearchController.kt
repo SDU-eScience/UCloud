@@ -130,7 +130,17 @@ class SearchController : Controller {
         )
     }
 
-    private fun EventMaterializedStorageFile.toExternalResult(): SearchResult = SearchResult(path, fileType)
+    private fun EventMaterializedStorageFile.toExternalResult(): SearchResult = SearchResult(
+        path,
+        fileType,
+        annotations,
+        fileTimestamps.created,
+        id,
+        isLink,
+        fileTimestamps.modified,
+        owner,
+        sensitivityLevel
+    )
 
     // TODO Get these from the storage-service
     private fun rootsForUser(user: String): List<String> = listOf("/home/$user")
