@@ -4,6 +4,8 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
+import dk.sdu.cloud.auth.services.Service
+import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
@@ -16,6 +18,9 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.assertStatus
+import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.service.tokenValidation
 import io.ktor.http.ContentType
@@ -24,14 +29,12 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
-import io.ktor.server.testing.withTestApplication
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class PasswordTest {
     private data class TestContext(
@@ -93,6 +96,7 @@ class PasswordTest {
                 with(createPasswordController()) {
                     db.withTransaction {
                         UserHibernateDAO().insert(it, person)
+                        ServiceDAO.insert(Service(name = "_service", endpoint = "http://service"))
                     }
 
                     controllers
@@ -100,31 +104,11 @@ class PasswordTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/login?")
-                        {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                            setUser(role = Role.ADMIN)
-                            setBody("username=user1&password=pass1234&service=_service")
-                        }.response
-
-                    assertEquals(HttpStatusCode.Found, response.status())
-                    println(response.headers.allValues())
-                    assertTrue(
-                        response.headers.values("Location").toString()
-                            .contains("/auth/login-redirect?service=_service")
-                    )
-                    assertTrue(
-                        response.headers.values("Location").toString()
-                            .contains("accessToken=")
-                    )
-                    assertTrue(
-                        response.headers.values("Location").toString()
-                            .contains("refreshToken=")
-                    )
+                val sendRequest = sendRequest(HttpMethod.Post, "/auth/login", user = null) {
+                    addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+                    setBody("username=user1&password=pass1234&service=_service")
                 }
+                sendRequest.assertSuccess()
             }
         )
     }
@@ -142,20 +126,13 @@ class PasswordTest {
                 }
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/login?")
-                        {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                            setUser(role = Role.ADMIN)
-                            setBody("username=user1&password=pass123456&service=_service")
-                        }.response
-
-                    assertEquals(HttpStatusCode.Found, response.status())
-                    val result = response.headers.values("Location").toString().trim('[', ']')
-                    assertEquals("/auth/login?service=_service&invalid", result)
+                val resp = sendRequest(HttpMethod.Post, "/auth/login", user = null) {
+                    addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+                    setBody("username=user1&password=wrongpassword&service=_service")
                 }
+
+                resp.assertStatus(HttpStatusCode.Found)
+                assertEquals("/auth/login?service=_service&invalid", resp.response.headers[HttpHeaders.Location])
             }
         )
     }
@@ -180,7 +157,7 @@ class PasswordTest {
                         }.response
 
                     assertEquals(HttpStatusCode.Found, response.status())
-                    val result = response.headers.values("Location").toString().trim('[', ']')
+                    val result = response.headers[HttpHeaders.Location]
                     assertEquals("/auth/login?service=_service&invalid", result)
                 }
             }

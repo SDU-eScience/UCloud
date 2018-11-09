@@ -6,7 +6,9 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.LoginPageRequest
 import dk.sdu.cloud.auth.api.TokenExtensionAudit
+import dk.sdu.cloud.auth.api.TwoFactorPageRequest
 import dk.sdu.cloud.auth.services.OneTimeTokenDAO
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
@@ -147,16 +149,17 @@ class CoreAuthController<DBSession>(
             resource("redirect.js", resourcePackage = "assets")
         }
 
-        get("2fa") {
+        implement(AuthDescriptions.twoFactorPage) { _ ->
             val challengeId = call.parameters["challengeId"]
             val isInvalid = call.parameters["invalid"] != null
             val message = call.parameters["message"] // TODO Is this a good idea?
 
-            logEntry(log, mapOf("challengeId" to challengeId))
+            audit(TwoFactorPageRequest(challengeId, isInvalid, message))
+            okContentDeliveredExternally()
 
             if (challengeId == null) {
                 call.respondRedirect("/auth/login?invalid")
-                return@get
+                return@implement
             }
 
             call.respondHtml {
@@ -204,12 +207,12 @@ class CoreAuthController<DBSession>(
             }
         }
 
-        get("login") { _ ->
+        implement(AuthDescriptions.loginPage) { _ ->
             val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) }
             val isInvalid = call.parameters["invalid"] != null
 
-            logEntry(log, mapOf("service" to service, "isInvalid" to isInvalid))
-
+            audit(LoginPageRequest(service?.name, isInvalid))
+            okContentDeliveredExternally()
 
             call.respondHtml {
                 formPage(
@@ -283,83 +286,6 @@ class CoreAuthController<DBSession>(
                 )
             }
         }
-
-        get("login-redirect") { _ ->
-            logEntry(log, parameterIncludeFilter = {
-                it == "service" || it == "accessToken" || it == "refreshToken"
-            })
-
-            val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) } ?: return@get run {
-                log.info("Missing service")
-                call.respondRedirect("/auth/login")
-            }
-
-            val token = call.parameters["accessToken"] ?: return@get run {
-                log.info("Missing access token")
-                call.respondRedirect("/auth/login?invalid&service=${service.name.urlEncoded}")
-            }
-
-            val refreshToken = call.parameters["refreshToken"]
-            // We don't validate the refresh token for performance. It might also not yet have been serialized into
-            // the database. This is not really a problem since it most likely does reach the database before it
-            // will be invoked (when the access token expires). Purposefully passing a bad token here might cause
-            // the user to be logged out though, and it will require a valid access token. This makes the attack
-            // a bit useless.
-
-            val csrfToken = call.parameters["csrfToken"]
-
-            if (tokenValidation.validateOrNull(token) == null) {
-                log.info("Invalid access token")
-                call.respondRedirect("/auth/login?invalid&service=${service.name.urlEncoded}")
-                return@get
-            }
-
-            call.respondHtml {
-                head {
-                    meta("charset", "UTF-8")
-                    title("SDU Login Redirection")
-                }
-
-                body {
-                    p {
-                        +("If your browser does not automatically redirect you, then please " +
-                                "click submit.")
-                    }
-
-                    form {
-                        method = FormMethod.post
-                        action = service.endpoint
-                        id = "form"
-
-                        input(InputType.hidden) {
-                            name = "accessToken"
-                            value = token.escapeHTML()
-                        }
-
-                        if (refreshToken != null) {
-                            input(InputType.hidden) {
-                                name = "refreshToken"
-                                value = refreshToken.escapeHTML()
-                            }
-                        }
-
-                        if (csrfToken != null) {
-                            input(InputType.hidden) {
-                                name = "csrfToken"
-                                value = csrfToken.escapeHTML()
-                            }
-                        }
-
-                        input(InputType.submit) {
-                            value = "Submit"
-                        }
-                    }
-
-                    script(src = "/auth/redirect.js") {}
-                }
-            }
-        }
-
 
         implement(AuthDescriptions.refresh) {
             val refreshToken = call.request.bearer ?: return@implement run {

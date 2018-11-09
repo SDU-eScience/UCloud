@@ -210,44 +210,6 @@ class CoreAuthTest {
     }
 
     @Test
-    fun `Redirect login test - no service given`() {
-        withBasicSetup {
-            val response = sendRequest(HttpMethod.Get, "/auth/login-redirect").response
-            assertEquals(HttpStatusCode.Found, response.status())
-            val result = response.headers.values("Location").toString().trim('[', ']')
-            assertEquals("/auth/login", result)
-        }
-    }
-
-    @Test
-    fun `Redirect login test - service given, no accessToken given`() {
-        withBasicSetup {
-            val serviceName = "_service"
-            ServiceDAO.insert(Service(serviceName, "endpointOfService"))
-            val response = sendRequest(HttpMethod.Get, "/auth/login-redirect?service=$serviceName").response
-            assertEquals(HttpStatusCode.Found, response.status())
-            val result = response.headers.values("Location").toString().trim('[', ']')
-            assertEquals("/auth/login?invalid&service=$serviceName", result)
-        }
-    }
-
-    @Test
-    fun `Redirect login test - service given, accessToken given`() {
-        withBasicSetup {
-            val serviceName = "_service"
-            ServiceDAO.insert(Service(serviceName, "endpointOfService"))
-            val jwt = TokenValidationMock.createTokenForService(serviceName)
-
-            val response = sendRequest(
-                HttpMethod.Get,
-                "/auth/login-redirect?service=$serviceName&accessToken=$jwt&refreshToken=rtoken"
-            ).response
-
-            assertEquals(HttpStatusCode.OK, response.status())
-        }
-    }
-
-    @Test
     fun `Refresh test`() {
         withBasicSetup { ctx ->
             val (username, role) = "user" to Role.ADMIN
