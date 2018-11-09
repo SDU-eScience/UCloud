@@ -23,6 +23,7 @@ import { MainContainer } from "MainContainer/MainContainer";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSearchActions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
+import { setAppName } from "Applications/Redux/DetailedApplicationSearchActions";
 
 
 class Search extends React.Component<SimpleSearchProps> {
@@ -54,6 +55,7 @@ class Search extends React.Component<SimpleSearchProps> {
     }
 
     fetchAll(search: string) {
+        console.log("fetchAll")
         const { ...props } = this.props;
         props.setError();
         props.searchFiles(search, this.props.files.pageNumber, this.props.files.itemsPerPage);
@@ -188,14 +190,16 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     searchFiles: async (fileName, page, itemsPerPage) => {
         dispatch(SSActions.setFilesLoading(true));
         dispatch(await SSActions.searchFiles({ fileName, page, itemsPerPage, fileTypes: ["DIRECTORY", "FILE"] }));
+        dispatch(setFilename(fileName));
     },
     searchApplications: async (query, page, itemsPerPage) => {
         dispatch(SSActions.setApplicationsLoading(true));
         dispatch(await SSActions.searchApplications(query, page, itemsPerPage));
+        dispatch(setAppName(query));
     },
     searchProjects: async (query, page, itemsPerPage) => {
         dispatch(SSActions.setProjectsLoading(true));
-        dispatch(await SSActions.searchProjects(query, page, itemsPerPage))
+        dispatch(await SSActions.searchProjects(query, page, itemsPerPage));
     },
     setFilesPage: (page: Page<File>) => dispatch(SSActions.receiveFiles(page)),
     setApplicationsPage: (page: Page<Application>) => dispatch(SSActions.receiveApplications(page)),

@@ -1,8 +1,10 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import { DETAILED_APPS_SET_NAME, DETAILED_APPS_SET_VERSION, DETAILED_APPLICATIONS_RECEIVE_PAGE } from "./DetailedApplicationSearchReducer";
+import { DETAILED_APPS_SET_NAME, DETAILED_APPS_SET_VERSION } from "./DetailedApplicationSearchReducer";
 import { hpcApplicationsSearchQuery, hpcApplicationsTagSearchQuery } from "Utilities/ApplicationUtilities";
 import { setErrorMessage, receiveApplications } from "SimpleSearch/Redux/SimpleSearchActions";
 import { PayloadAction } from "Types";
+
+export type DetailedAppActions = SetAppVersionAction | SetAppNameAction;
 
 type SetAppVersionAction = PayloadAction<typeof DETAILED_APPS_SET_VERSION, { appVersion: string }>
 export const setVersion = (appVersion: string): SetAppVersionAction => ({

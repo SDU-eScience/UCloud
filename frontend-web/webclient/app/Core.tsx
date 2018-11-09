@@ -1,29 +1,31 @@
 import * as React from "react";
 import { Switch, Route } from "react-router-dom";
 import Files from "Files/Files";
-import FileInfo from "Files/FileInfo";
 import Dashboard from "Dashboard/Dashboard";
-import Status from "Navigation/StatusPage";
 import Applications from "Applications/Applications";
-import DetailedApplication from "Applications/DetailedApplication";
 import RunApp from "Applications/RunApp";
 import Analyses from "Applications/Analyses";
-import DetailedResult from "Applications/DetailedResult";
 import Header from "Navigation/Header";
 import Sidebar from "ui-components/Sidebar";
 import ZenodoPublish from "Zenodo/Publish";
-import ZenodoHome from "Zenodo/Zenodo";
-import ZenodoInfo from "Zenodo/Info";
-import UserCreation from "Admin/UserCreation";
-import UserSettings from "UserSettings/UserSettings";
-import Search from "SimpleSearch/Search";
-import Projects from "Projects/Projects";
-import FilePreview from "Files/FilePreview";
 import * as Share from "Shares";
 import * as Metadata from "Metadata";
-import Uploader from "Uploader/Uploader";
 import Activity from "Activity/Activity";
+import Uploader from "Uploader/Uploader";
 import { Box } from "ui-components";
+
+// use `const COMPNAME = React.lazy(() => import("${path}"));` when react router is updated
+import Projects from "Projects/Projects";
+import Search from "SimpleSearch/Search";
+import FileInfo from "Files/FileInfo";
+import FilePreview from "Files/FilePreview";
+import UserCreation from "Admin/UserCreation";
+import UserSettings from "UserSettings/UserSettings";
+import ZenodoHome from "Zenodo/Zenodo";
+import ZenodoInfo from "Zenodo/Info";
+import DetailedResult from "Applications/DetailedResult";
+import DetailedApplication from "Applications/DetailedApplication";
+import Status from "Navigation/StatusPage";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
