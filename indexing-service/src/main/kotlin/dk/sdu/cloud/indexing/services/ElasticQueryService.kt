@@ -86,12 +86,14 @@ class ElasticQueryService(
             bool {
                 should = ArrayList<QueryBuilder>().apply {
                     fileNameQuery?.forEach { q ->
-                        add(match_phrase_prefix {
-                            ElasticIndexedFile.FILE_NAME_FIELD to {
-                                this.query = q
-                                max_expansions = FILE_NAME_QUERY_MAX_EXPANSIONS
-                            }
-                        })
+                        if (!q.isBlank()) {
+                            add(match_phrase_prefix {
+                                ElasticIndexedFile.FILE_NAME_FIELD to {
+                                    this.query = q
+                                    max_expansions = FILE_NAME_QUERY_MAX_EXPANSIONS
+                                }
+                            })
+                        }
                     }
                 }
 
