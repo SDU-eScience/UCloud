@@ -123,7 +123,7 @@ class Files extends React.Component<FilesProps> {
             <Flex flexDirection="row">
                 <Box width={[1, 13 / 16]}>
                     <Hide lg xl>
-                        <ContextButtons createFolder={props.createFolder} showUploader={props.showUploader} />
+                        {!props.invalidPath ? <ContextButtons createFolder={props.createFolder} showUploader={props.showUploader} /> : null}
                     </Hide>
                     <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
                     <Pagination.List
@@ -156,15 +156,20 @@ class Files extends React.Component<FilesProps> {
                     />
                 </Box>
                 <Hide xs sm md width={3 / 16}>
-                    <ContextBar
-                        showUploader={props.showUploader}
-                        fileOperations={fileOperations}
-                        files={selectedFiles}
-                        createFolder={() => props.createFolder()}
-                    />
-                    <Box pl="5px" pr="5px" pt="3px">
-                        <DetailedFileSearch />
-                    </Box>
+                    {!props.invalidPath ?
+                        <>
+                            <ContextBar
+                                invalidPath={props.invalidPath}
+                                showUploader={props.showUploader}
+                                fileOperations={fileOperations}
+                                files={selectedFiles}
+                                createFolder={() => props.createFolder()}
+                            />
+                            <Box pl="5px" pr="5px" pt="3px">
+                                <DetailedFileSearch />
+                            </Box>
+                        </> : null
+                    }
                 </Hide>
                 <FileSelectorModal
                     show={props.fileSelectorShown}
@@ -188,40 +193,40 @@ export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
     fileOperations, sortOrder, onFavoriteFile, sortBy, customEntriesPerPage
 }: FilesTableProps) => (
-    <Table>
-        <FilesTableHeader
-            onDropdownSelect={onDropdownSelect}
-            sortOrder={sortOrder}
-            sortingColumns={sortingColumns}
-            masterCheckbox={masterCheckbox}
-            toSortingIcon={sortingIcon}
-            sortFiles={sortFiles}
-            sortBy={sortBy}
-            customEntriesPerPage={customEntriesPerPage}
-        />
-        <TableBody>
-            {files.map((file, i) => (
-                // FIXME Use :has() or parent selector when available
-                <TableRow style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
-                    <FilenameAndIcons
-                        file={file}
-                        onFavoriteFile={onFavoriteFile}
-                        hasCheckbox={masterCheckbox != null}
-                        onRenameFile={onRenameFile}
-                        onCheckFile={checked => onCheckFile(checked, file)}
-                    />
-                    <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</TableCell>
-                    <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</TableCell>
-                    <TableCell textAlign="center">
-                        <ClickableDropdown width="175px" trigger={<i className="fas fa-ellipsis-h" />}>
-                            <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
-                        </ClickableDropdown>
-                    </TableCell>
-                </TableRow>)
-            )}
-        </TableBody>
-    </Table>
-);
+        <Table>
+            <FilesTableHeader
+                onDropdownSelect={onDropdownSelect}
+                sortOrder={sortOrder}
+                sortingColumns={sortingColumns}
+                masterCheckbox={masterCheckbox}
+                toSortingIcon={sortingIcon}
+                sortFiles={sortFiles}
+                sortBy={sortBy}
+                customEntriesPerPage={customEntriesPerPage}
+            />
+            <TableBody>
+                {files.map((file, i) => (
+                    // FIXME Use :has() or parent selector when available
+                    <TableRow style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
+                        <FilenameAndIcons
+                            file={file}
+                            onFavoriteFile={onFavoriteFile}
+                            hasCheckbox={masterCheckbox != null}
+                            onRenameFile={onRenameFile}
+                            onCheckFile={checked => onCheckFile(checked, file)}
+                        />
+                        <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</TableCell>
+                        <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</TableCell>
+                        <TableCell textAlign="center">
+                            <ClickableDropdown width="175px" trigger={<i className="fas fa-ellipsis-h" />}>
+                                <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
+                            </ClickableDropdown>
+                        </TableCell>
+                    </TableRow>)
+                )}
+            </TableBody>
+        </Table>
+    );
 
 const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder }: ResponsiveTableColumnProps) => (
     <TableHeaderCell width="17.5%" xs sm md textAlign="left">
@@ -396,7 +401,7 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) => files
     }) : null;
 
 const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
-    const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown,
+    const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown, invalidPath,
         fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError, sortingColumns } = files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const renamingCount = page.items.filter(file => file.beingRenamed).length;
@@ -404,7 +409,7 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     return {
         error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
-        leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount
+        leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount, invalidPath
     }
 };
 

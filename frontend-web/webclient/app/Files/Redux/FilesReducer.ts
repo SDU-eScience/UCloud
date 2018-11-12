@@ -18,6 +18,7 @@ export const SET_FILE_SELECTOR_ERROR = "SET_FILE_SELECTOR_ERROR";
 export const CHECK_ALL_FILES = "CHECK_ALL_FILES";
 export const CHECK_FILE = "CHECK_FILE";
 export const CREATE_FOLDER = "CREATE_FOLDER";
+export const FILES_INVALID_PATH = "FILES_INVALID_PATH";
 
 const files = (state: FilesReduxObject = initFiles(""), action: FileActions): FilesReduxObject => {
     switch (action.type) {
@@ -33,9 +34,11 @@ const files = (state: FilesReduxObject = initFiles(""), action: FileActions): Fi
                 sortBy: action.payload.sortBy,
                 error: undefined,
                 fileSelectorError: undefined,
+                invalidPath: false
             };
         }
         case SET_FILES_LOADING:
+        case FILES_INVALID_PATH:
         case UPDATE_FILES: {
             return { ...state, ...action.payload };
         }

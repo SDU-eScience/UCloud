@@ -94,6 +94,7 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     fileSelectorPath: string
     fileSelectorCallback: Function
     disallowedPaths: string[]
+    invalidPath: boolean
 }
 
 export type AnalysisReduxObject = ComponentWithPage<Analysis>;
@@ -351,7 +352,8 @@ export const initFiles = (homeFolder: string): FilesReduxObject => ({
     fileSelectorPath: homeFolder,
     fileSelectorCallback: () => undefined,
     fileSelectorError: undefined,
-    disallowedPaths: []
+    disallowedPaths: [],
+    invalidPath: false
 });
 
 export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({

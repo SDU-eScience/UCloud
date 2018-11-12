@@ -42,7 +42,7 @@ export const bulkUpload = async (location: string, file: File, policy: BulkUploa
     formData.append("location", location);
     formData.append("format", format);
     formData.append("policy", policy);
-    /* formData.append("sensitivity", "sensitive"); */
+    /* formData.append("sensitivity", sensitive); */
     formData.append("upload", newFile);
     let request = new XMLHttpRequest();
 

@@ -81,6 +81,7 @@ export interface FilesStateProps { // Redux Props
     fileCount: number
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
+    invalidPath: boolean
 }
 
 export interface FilesOperations { // Redux operations
@@ -278,7 +279,7 @@ export interface DetailedFileSearchReduxState extends ComponentWithPage<File> {
     modifiedAfter?: Moment
 }
 
-export type ContextBarProps = ContextButtonsProps & FileOptionsProps
+export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalidPath: boolean }
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 

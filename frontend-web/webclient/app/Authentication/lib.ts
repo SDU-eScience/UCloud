@@ -374,7 +374,6 @@ export default class SDUCloud {
             },
             method: "POST",
             credentials: "same-origin"
-
         }).then(response => {
             if (!is5xxStatusCode(response.status)) {
                 window.localStorage.removeItem("accessToken");
