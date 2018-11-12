@@ -1,6 +1,5 @@
 // Vendor styles
 // -----------------------
-import "Files/Files.scss";
 import "loaders.css/loaders.css";
 import "LoadingIcon/colors.scss";
 import "semantic-ui-css/semantic.min.css";
