@@ -10,6 +10,7 @@ import { UserSettingsFields, UserSettingsState } from ".";
 import { TwoFactorSetup } from "./TwoFactorSetup";
 import * as Heading from "ui-components/Heading";
 import { MainContainer } from "MainContainer/MainContainer";
+import { Flex, Box } from "ui-components";
 
 class UserSettings extends React.Component<{}, UserSettingsState> {
     constructor(props) {
@@ -86,52 +87,55 @@ class UserSettings extends React.Component<{}, UserSettingsState> {
         } = this.state;
 
         return (
-            <MainContainer
+            <Flex alignItems="center" flexDirection="column">
+                <Box width={0.7}>
+                    <MainContainer
+                        header={<Heading.h1>Change Password</Heading.h1>}
+                        main={
+                            <>
+                                <SForm onSubmit={(e) => this.validateAndSubmit(e)}>
+                                    <SForm.Field
+                                        error={error && !currentPassword}
+                                        label="Current password"
+                                        control={SInput}
+                                        value={currentPassword}
+                                        type="password"
+                                        onChange={(e, { value }) => this.updateField("currentPassword", value)}
+                                        placeholder="Old password"
+                                    />
+                                    <SForm.Field
+                                        error={repeatPasswordError}
+                                        label="New password"
+                                        control={SInput}
+                                        value={newPassword}
+                                        type="password"
+                                        onChange={(e, { value }) => this.updateField("newPassword", value)}
+                                        placeholder="New password"
+                                    />
 
-                header={<Heading.h1>Change Password</Heading.h1>}
-                main={
-                    <>
-                        <SForm onSubmit={(e) => this.validateAndSubmit(e)}>
-                            <SForm.Field
-                                error={error && !currentPassword}
-                                label="Current password"
-                                control={SInput}
-                                value={currentPassword}
-                                type="password"
-                                onChange={(e, { value }) => this.updateField("currentPassword", value)}
-                                placeholder="Old password"
-                            />
-                            <SForm.Field
-                                error={repeatPasswordError}
-                                label="New password"
-                                control={SInput}
-                                value={newPassword}
-                                type="password"
-                                onChange={(e, { value }) => this.updateField("newPassword", value)}
-                                placeholder="New password"
-                            />
+                                    <SForm.Field
+                                        error={repeatPasswordError}
+                                        label="Repeat password"
+                                        control={SInput}
+                                        value={repeatedPassword}
+                                        type="password"
+                                        onChange={(e, { value }) => this.updateField("repeatedPassword", value)}
+                                        placeholder="Repeat password"
+                                    />
 
-                            <SForm.Field
-                                error={repeatPasswordError}
-                                label="Repeat password"
-                                control={SInput}
-                                value={repeatedPassword}
-                                type="password"
-                                onChange={(e, { value }) => this.updateField("repeatedPassword", value)}
-                                placeholder="Repeat password"
-                            />
-
-                            <SButton
-                                type="submit"
-                                positive
-                                icon="lock"
-                                content="Change password"
-                            />
-                        </SForm>
-                        <TwoFactorSetup />
-                    </>}
-
-            />
+                                    <SButton
+                                        type="submit"
+                                        positive
+                                        icon="lock"
+                                        content="Change password"
+                                    />
+                                </SForm>
+                                <TwoFactorSetup />
+                            </>
+                        }
+                    />
+                </Box>
+            </Flex>
         );
     }
 }

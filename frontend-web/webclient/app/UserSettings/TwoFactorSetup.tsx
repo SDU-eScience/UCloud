@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Icon, Image, Header, Grid, Form, Input, Button, Divider } from "semantic-ui-react";
-import PromiseKeeper from "PromiseKeeper";
+import { Image, Header, Form, Input, Button, Divider } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { TwoFactorSetupState } from ".";
 import * as UF from "UtilityFunctions";
@@ -12,7 +11,9 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
     constructor(props) {
         super(props);
         this.state = this.initialState();
+    }
 
+    componentDidMount() {
         this.loadStatus();
     }
 
