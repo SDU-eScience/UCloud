@@ -46,8 +46,8 @@ module.exports = {
                 use: [MiniCSSExtractPlugin.loader, "css-loader"]
             },
             {
-                test: /\.(woff|woff2|svg|eot|ttf)/,
-                use: "url-loader?prefix=font/&limit=10000"
+                test: /\.(woff|woff2|svg|ttf|eot)/,
+                use: "file-loader?limit=10000"
             }, {
                 test: /\.(png|jpg|gif)$/,
                 use: "url-loader?limit=10000"

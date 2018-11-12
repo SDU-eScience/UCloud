@@ -1,14 +1,10 @@
 import * as React from "react";
-import { List as SList, Icon as SIcon, Menu as SMenu, Segment as SSegment } from "semantic-ui-react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
-import { Link } from "react-router-dom";
-import { Cloud } from "Authentication/SDUCloudObject";
-import * as UF from "UtilityFunctions";
 import { ApplicationCard } from "Applications/Applications";
 import { ProjectMetadata } from "Metadata/api";
 import { SearchItem } from "Metadata/Search";
-import { AllFileOperations, getParentPath, replaceHomeFolder } from "Utilities/FileUtilities";
+import { AllFileOperations } from "Utilities/FileUtilities";
 import { SearchProps, SimpleSearchOperations, SimpleSearchStateProps } from ".";
 import { HeaderSearchType, ReduxObject } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
@@ -17,15 +13,14 @@ import { Page } from "Types";
 import { Dispatch } from "redux";
 import { File, SortOrder, SortBy, AdvancedSearchRequest, FileType } from "Files";
 import * as SSActions from "./Redux/SearchActions";
-import { Error, Hide, Input } from "ui-components";
-import { CardGroup } from "ui-components/Card";
+import { Error, Hide, Input, OutlineButton, Text, Flex, ToggleBadge } from "ui-components";
+import Card, { CardGroup } from "ui-components/Card";
 import { MainContainer } from "MainContainer/MainContainer";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSearchActions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import { setAppName } from "Applications/Redux/DetailedApplicationSearchActions";
 import { FilesTable } from "Files/Files";
-
 
 class Search extends React.Component<SearchProps> {
     constructor(props) {
@@ -51,7 +46,7 @@ class Search extends React.Component<SearchProps> {
             after: !!fileSearch.modifiedAfter ? fileSearch.modifiedAfter.valueOf() : undefined,
             before: !!fileSearch.modifiedBefore ? fileSearch.modifiedBefore.valueOf() : undefined,
         };
-        
+
         return {
             fileName: fileSearch.fileName,
             extensions: [...fileSearch.extensions],
@@ -99,64 +94,59 @@ class Search extends React.Component<SearchProps> {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
         const fileOperations = AllFileOperations(true, false, false, this.props.history);
         const errorMessage = !!errors.length ? (<Error error={errors.join("\n")} clearError={() => this.props.setError(undefined)} />) : null;
+        // FIXME Following is format from Semantic we no longer use.
         const panes = [
             {
                 menuItem: "Files", render: () => (
-                    <SSegment basic loading={filesLoading}>
-                        <Pagination.List
-                            loading={filesLoading}
-                            pageRenderer={page => (
-                                <FilesTable
-                                    files={page.items}
-                                    sortOrder={SortOrder.ASCENDING}
-                                    sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY]}
-                                    sortFiles={() => undefined}
-                                    onCheckFile={() => undefined}
-                                    refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}
-                                    sortBy={SortBy.PATH}
-                                    fileOperations={fileOperations}
-                                />
-                            )}
-                            page={files}
-                            onItemsPerPageChanged={itemsPerPage => this.props.searchFiles({ ...this.fileSearchBody, page: 0, itemsPerPage })}
-                            onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
-                        />
-                    </SSegment>)
+                    <Pagination.List
+                        loading={filesLoading}
+                        pageRenderer={page => (
+                            <FilesTable
+                                files={page.items}
+                                sortOrder={SortOrder.ASCENDING}
+                                sortingColumns={[SortBy.MODIFIED_AT, SortBy.SENSITIVITY]}
+                                sortFiles={() => undefined}
+                                onCheckFile={() => undefined}
+                                refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}
+                                sortBy={SortBy.PATH}
+                                fileOperations={fileOperations}
+                            />
+                        )}
+                        page={files}
+                        onItemsPerPageChanged={itemsPerPage => this.props.searchFiles({ ...this.fileSearchBody, page: 0, itemsPerPage })}
+                        onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
+                    />)
             },
             {
                 menuItem: "Projects", render: () => (
-                    <SSegment basic loading={projectsLoading}>
-                        <Pagination.List
-                            loading={projectsLoading}
-                            pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
-                            page={projects}
-                            onItemsPerPageChanged={itemsPerPage => this.props.searchProjects(search, 0, itemsPerPage)}
-                            onPageChanged={pageNumber => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
-                        />
-                    </SSegment>
+                    <Pagination.List
+                        loading={projectsLoading}
+                        pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
+                        page={projects}
+                        onItemsPerPageChanged={itemsPerPage => this.props.searchProjects(search, 0, itemsPerPage)}
+                        onPageChanged={pageNumber => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
+                    />
                 )
             },
             {
                 menuItem: "Applications", render: () => (
-                    <SSegment basic loading={applicationsLoading}>
-                        <Pagination.List
-                            loading={applicationsLoading}
-                            pageRenderer={({ items }) =>
-                                <CardGroup>
-                                    {items.map(app =>
-                                        <ApplicationCard
-                                            key={`${app.description.info.name}${app.description.info.version}`}
-                                            /* favoriteApp={favoriteApp} */
-                                            app={app}
-                                            isFavorite={app.favorite}
-                                        />)}
-                                </CardGroup>
-                            }
-                            page={applications}
-                            onItemsPerPageChanged={(itemsPerPage) => this.props.searchApplications(search, 0, itemsPerPage)}
-                            onPageChanged={(pageNumber) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
-                        />
-                    </SSegment>
+                    <Pagination.List
+                        loading={applicationsLoading}
+                        pageRenderer={({ items }) =>
+                            <CardGroup>
+                                {items.map(app =>
+                                    <ApplicationCard
+                                        key={`${app.description.info.name}${app.description.info.version}`}
+                                        /* favoriteApp={favoriteApp} */
+                                        app={app}
+                                        isFavorite={app.favorite}
+                                    />)}
+                            </CardGroup>
+                        }
+                        page={applications}
+                        onItemsPerPageChanged={(itemsPerPage) => this.props.searchApplications(search, 0, itemsPerPage)}
+                        onPageChanged={(pageNumber) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
+                    />
                 )
             }
         ];
@@ -171,11 +161,13 @@ class Search extends React.Component<SearchProps> {
                                 <Input onChange={({ target: { value } }) => this.props.setSearch(value)} />
                             </form>
                         </Hide>
-                        <SMenu pointing>
-                            <SMenu.Item name={panes[0].menuItem} active={0 === activeIndex} onClick={() => this.setPath("files")} />
-                            <SMenu.Item name={panes[1].menuItem} active={1 === activeIndex} onClick={() => this.setPath("projects")} />
-                            <SMenu.Item name={panes[2].menuItem} active={2 === activeIndex} onClick={() => this.setPath("applications")} />
-                        </SMenu>
+                        <Card mt="0.5em" height="3em" width="100%">
+                            <Flex>
+                                <ToggleBadge bg="lightGray" pb="12px" pt="10px" fontSize={2} onClick={() => this.setPath("files")} color={"black"} selected={activeIndex === 0}>{panes[0].menuItem}</ToggleBadge>
+                                <ToggleBadge bg="lightGray" pb="12px" pt="10px" fontSize={2} onClick={() => this.setPath("projects")} color={"black"} selected={activeIndex === 1}>{panes[1].menuItem}</ToggleBadge>
+                                <ToggleBadge bg="lightGray" pb="12px" pt="10px" fontSize={2} onClick={() => this.setPath("applications")} color={"black"} selected={activeIndex === 2}>{panes[2].menuItem}</ToggleBadge>
+                            </Flex>
+                        </Card>
                     </React.Fragment>
                 }
                 main={panes[activeIndex].render()}
@@ -197,23 +189,6 @@ const SearchBar = (props: SearchBarProps) => {
             return <DetailedApplicationSearch />;
     }
 }
-
-export const SimpleFileList = ({ files }) => (
-    <SList size="large" relaxed>
-        {files.map((f, i) => (
-            <SList.Item key={i}>
-                <SList.Content>
-                    <SIcon name={UF.iconFromFilePath(f.path, f.fileType, Cloud.homeFolder)} size={undefined} color={"blue"} />
-                    <Link to={`/files/${f.fileType === "FILE" ? getParentPath(f.path) : f.path}`}>
-                        {replaceHomeFolder(f.path, Cloud.homeFolder)}
-                    </Link>
-                </SList.Content>
-                {/* <FileOperations fileOperations={fileOperations} files={[f]} /> */}
-                <SList.Content />
-            </SList.Item>
-        ))}
-    </SList>
-);
 
 const SearchPriorityToNumber = (search: string): number => {
     if (search.toLocaleLowerCase() === "projects") return 1;

@@ -9,7 +9,6 @@ import { Flex, Input, Label, InputGroup, Stamp, Checkbox, Error, OutlineButton, 
 import * as Heading from "ui-components/Heading"
 import CloseButton from "ui-components/CloseButton";
 import { ReduxObject } from "DefaultObjects";
-import { SimpleFileList } from "Search/Search";
 import { Dispatch } from "redux";
 import { History } from "history";
 import * as PropTypes from "prop-types";
@@ -242,7 +241,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                     </form>
                     <LoadingButton type="submit" loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
                 </Box>
-                <SimpleFileList files={this.props.page.items} />
             </Flex>
         );
     }
