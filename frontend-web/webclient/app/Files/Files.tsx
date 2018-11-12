@@ -224,7 +224,7 @@ export const FilesTable = ({
 );
 
 const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder }: ResponsiveTableColumnProps) => (
-    <TableHeaderCell xs sm md textAlign="left">
+    <TableHeaderCell width="17.5%" xs sm md textAlign="left">
         <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
         <Chevron name={iconName} />
     </TableHeaderCell>
@@ -236,7 +236,7 @@ const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
 const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => null, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy, customEntriesPerPage }: FilesTableHeaderProps) => (
     <TableHeader>
         <TableRow>
-            <TableHeaderCell textAlign="left">
+            <TableHeaderCell width="50%" textAlign="left">
                 <Flex>
                     <Box ml="9px">
                         {masterCheckbox}
@@ -260,7 +260,7 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
                     iconName={toSortingIcon(sC)}
                 />
             ))}
-            <TableHeaderCell colSpan={3} textAlign="right">
+            <TableHeaderCell width="15%" colSpan={3} textAlign="right">
                 {customEntriesPerPage}
             </TableHeaderCell>
         </TableRow>
@@ -334,7 +334,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     );
     const nameLink = <FileLink file={file}>{icon}{fileName}</FileLink>;
     return file.beingRenamed ?
-        <TableCell>
+        <TableCell width="50%">
             <Flex>
                 {checkbox}
                 <Box ml="9px">

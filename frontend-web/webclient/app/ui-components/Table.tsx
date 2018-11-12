@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { textAlign, TextAlignProps } from "styled-system";
+import { textAlign, TextAlignProps, WidthProps, width } from "styled-system";
 import { HideProps, hidden } from "./Hide";
 
 export const Table = styled.table`
@@ -20,9 +20,10 @@ export const TableRow = styled.tr`
     }
 `;
 
-export const TableCell = styled.td<TextAlignProps & HideProps>`
+export const TableCell = styled.td<TextAlignProps & HideProps & WidthProps>`
     border: 0px;
     border-spacing: 0;
+    ${width};
     ${textAlign};
     ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;

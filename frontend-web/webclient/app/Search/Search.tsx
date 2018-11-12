@@ -51,6 +51,7 @@ class Search extends React.Component<SearchProps> {
             after: !!fileSearch.modifiedAfter ? fileSearch.modifiedAfter.valueOf() : undefined,
             before: !!fileSearch.modifiedBefore ? fileSearch.modifiedBefore.valueOf() : undefined,
         };
+        
         return {
             fileName: fileSearch.fileName,
             extensions: [...fileSearch.extensions],
