@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Button, Icon } from ".";
-import { ButtonProps } from "./Button";
 
 const LoadingButton = ({ loading, color, content, ...props }) => loading ?
     <Button color={color} disabled {...props}>

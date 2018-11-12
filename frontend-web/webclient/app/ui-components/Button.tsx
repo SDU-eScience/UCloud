@@ -1,6 +1,6 @@
 import styled from "styled-components";
 import { space, ButtonStyleProps, SpaceProps, SizeProps } from "styled-system";
-import theme from "./theme";
+import theme, { ThemeColor } from "./theme";
 
 const size = ({ size, theme }: { size: string, theme: any }) => {
   switch (size) {
@@ -34,7 +34,7 @@ const size = ({ size, theme }: { size: string, theme: any }) => {
 
 export const fullWidth = (props: { fullWidth?: boolean }) => (props.fullWidth ? { width: "100%" } : null)
 
-export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean } & SpaceProps & SizeProps & { title?: string }
+export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean, hoverColor?: ThemeColor } & SpaceProps & SizeProps & { title?: string }
 
 const Button = styled.button<ButtonProps>` 
   -webkit-font-smoothing: antialiased;
@@ -58,8 +58,7 @@ const Button = styled.button<ButtonProps>`
 
   &:hover {
     transition: ease 0.3s;
-    background-color: ${props =>
-    props.disabled ? null : props.theme.colors.darkBlue};
+    background-color: ${props => props.disabled ? null : props.theme.colors[props.hoverColor as ThemeColor]};
   }
 
   ${fullWidth} ${size} ${space};
@@ -67,6 +66,7 @@ const Button = styled.button<ButtonProps>`
 
 Button.defaultProps = {
   theme,
+  hoverColor: "darkBlue",
   color: "blue"
 };
 

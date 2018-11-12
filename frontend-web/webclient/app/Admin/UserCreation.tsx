@@ -43,7 +43,6 @@ class UserCreation extends React.Component<{}, UserCreationState> {
         if (!username) usernameError = true;
         if (!password || password !== repeatedPassword) passwordError = true;
         this.setState(() => ({ usernameError, passwordError }));
-        console.log(usernameError, passwordError);
         if (!usernameError && !passwordError) {
             this.state.promiseKeeper.makeCancelable(
                 Cloud.post("/auth/users/register", { username, password }, "")
@@ -110,6 +109,7 @@ class UserCreation extends React.Component<{}, UserCreationState> {
                             <LoadingButton
                                 type="submit"
                                 content="Create user"
+                                hoverColor="darkGreen"
                                 color="green"
                                 loading={submitted}
                             />
