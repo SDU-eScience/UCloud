@@ -47,6 +47,7 @@ export enum RightsNameMap {
 
 export enum SensitivityLevel {
     "OPEN_ACCESS" = "Open Access",
+    "PRIVATE" = "Private",
     "CONFIDENTIAL" = "Confidential",
     "SENSITIVE" = "Sensitive"
 };
@@ -55,6 +56,7 @@ export type Sensitivity = keyof typeof SensitivityLevel;
 
 export enum SensitivityLevelMap {
     "OPEN_ACCESS",
+    "PRIVATE",
     "CONFIDENTIAL",
     "SENSITIVE"
 };

@@ -58,7 +58,7 @@ const Button = styled.button<ButtonProps>`
 
   &:hover {
     transition: ease 0.3s;
-    background-color: ${props => props.disabled ? null : props.theme.colors[props.hoverColor as ThemeColor]};
+    background-color: ${props => props.disabled ? null : props.theme.colors[props.hoverColor!]};
   }
 
   ${fullWidth} ${size} ${space};

@@ -24,7 +24,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
         let neither = true;
         if (!!props.children) neither = false;
         if (!!props.onChange && !!props.options) neither = false;
-        if (neither) console.error("Clickable dropdown must have either children prop or options and onChange");
+        if (neither) throw Error("Clickable dropdown must have either children prop or options and onChange");
     }
 
     componentWillUnmount = () => document.removeEventListener("click", this.handleClickOutside, true);

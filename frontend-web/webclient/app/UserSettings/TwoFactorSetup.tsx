@@ -26,7 +26,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
                 }));
             })
             .catch((res) => {
-                let why: string = res.response.why ? res.response.why : "";
+                const why: string = res.response.why ? res.response.why : "";
                 UF.failureNotification("Could not fetch 2FA status. " + why);
             })
             .then(() => this.setLoading(false));

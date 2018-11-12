@@ -3,12 +3,12 @@ import { failureNotification, inSuccessRange } from "UtilityFunctions";
 import { STATUS_CODES } from "http";
 import { Sensitivity } from "DefaultObjects";
 
-export const multipartUpload = async (location: string, file: File, sensitivity?: Sensitivity, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
+export const multipartUpload = async (location: string, file: File, sensitivity: Sensitivity, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
     const newFile = new File([file], "ignored");
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     let formData = new FormData();
     formData.append("location", location);
-    if (sensitivity) formData.append("sensitivity", sensitivity);
+    //formData.append("sensitivity", sensitivity);
     formData.append("upload", newFile);
     let request = new XMLHttpRequest();
     request.open("POST", "/api/files/upload");
