@@ -50,7 +50,7 @@ class UserCreation extends React.Component<{}, UserCreationState> {
                 successNotification(`User '${username}' successfully created`);
                 this.setState(() => this.initialState());
             }).catch(error => {
-                let status = defaultErrorHandler(error);
+                const status = defaultErrorHandler(error);
                 if (status == 400) {
                     this.setState(() => ({ usernameError: true }));
                 }
