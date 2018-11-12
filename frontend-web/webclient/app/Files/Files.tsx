@@ -188,40 +188,40 @@ export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
     fileOperations, sortOrder, onFavoriteFile, sortBy, customEntriesPerPage
 }: FilesTableProps) => (
-        <Table>
-            <FilesTableHeader
-                onDropdownSelect={onDropdownSelect}
-                sortOrder={sortOrder}
-                sortingColumns={sortingColumns}
-                masterCheckbox={masterCheckbox}
-                toSortingIcon={sortingIcon}
-                sortFiles={sortFiles}
-                sortBy={sortBy}
-                customEntriesPerPage={customEntriesPerPage}
-            />
-            <TableBody>
-                {files.map((file, i) => (
-                    // FIXME Use :has() or parent selector when available
-                    <TableRow style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
-                        <FilenameAndIcons
-                            file={file}
-                            onFavoriteFile={onFavoriteFile}
-                            hasCheckbox={masterCheckbox != null}
-                            onRenameFile={onRenameFile}
-                            onCheckFile={checked => onCheckFile(checked, file)}
-                        />
-                        <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</TableCell>
-                        <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</TableCell>
-                        <TableCell textAlign="center">
-                            <ClickableDropdown width="175px" trigger={<i className="fas fa-ellipsis-h" />}>
-                                <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
-                            </ClickableDropdown>
-                        </TableCell>
-                    </TableRow>)
-                )}
-            </TableBody>
-        </Table>
-    );
+    <Table>
+        <FilesTableHeader
+            onDropdownSelect={onDropdownSelect}
+            sortOrder={sortOrder}
+            sortingColumns={sortingColumns}
+            masterCheckbox={masterCheckbox}
+            toSortingIcon={sortingIcon}
+            sortFiles={sortFiles}
+            sortBy={sortBy}
+            customEntriesPerPage={customEntriesPerPage}
+        />
+        <TableBody>
+            {files.map((file, i) => (
+                // FIXME Use :has() or parent selector when available
+                <TableRow style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
+                    <FilenameAndIcons
+                        file={file}
+                        onFavoriteFile={onFavoriteFile}
+                        hasCheckbox={masterCheckbox != null}
+                        onRenameFile={onRenameFile}
+                        onCheckFile={checked => onCheckFile(checked, file)}
+                    />
+                    <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</TableCell>
+                    <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</TableCell>
+                    <TableCell textAlign="center">
+                        <ClickableDropdown width="175px" trigger={<i className="fas fa-ellipsis-h" />}>
+                            <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
+                        </ClickableDropdown>
+                    </TableCell>
+                </TableRow>)
+            )}
+        </TableBody>
+    </Table>
+);
 
 const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder }: ResponsiveTableColumnProps) => (
     <TableHeaderCell xs sm md textAlign="left">
@@ -305,7 +305,7 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
             color="blue"
             name={item.favorited ? "starFilled" : "starEmpty"}
             className={`${item.favorited ? "" : "file-data"}`}
-            onClick={onClick}
+            onClick={() => onClick([item])}
         />
     ) : null;
 
@@ -322,7 +322,7 @@ const FileLink = ({ file, children }) => {
     }
 }
 
-function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile = () => null }: FilenameAndIconsProps) {
+function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(e) => onCheckFile(e.target.checked)} /></Box>
     const icon = (
@@ -366,7 +366,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                 <Box>
                     <GroupIcon isProject={isProject(file)} />
                     <InlinedRelative pl="7px">
-                        <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={() => onFavoriteFile([file])} />
+                        <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={onFavoriteFile} />
                     </InlinedRelative>
                 </Box>
             </Flex>

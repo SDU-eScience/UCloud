@@ -113,7 +113,6 @@ class Search extends React.Component<SearchProps> {
                                     onCheckFile={() => undefined}
                                     refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}
                                     sortBy={SortBy.PATH}
-                                    onFavoriteFile={() => undefined}
                                     fileOperations={fileOperations}
                                 />
                             )}

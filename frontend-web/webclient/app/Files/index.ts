@@ -136,7 +136,7 @@ export interface FilesTableProps {
     onCheckFile: (c: boolean, f: File) => void
     refetchFiles: () => void
     sortBy: SortBy
-    onFavoriteFile: (f: File[]) => void
+    onFavoriteFile?: (f: File[]) => void
     fileOperations: FileOperation[]
     customEntriesPerPage?: React.ReactNode
 }
