@@ -8,6 +8,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ElasticIndexedFileTest {
 
@@ -64,5 +65,12 @@ class ElasticIndexedFileTest {
         assertEquals("linkTargetId", ElasticIndexedFile.LINK_TARGET_ID_FIELD)
         assertEquals("sensitivity", ElasticIndexedFile.SENSITIVITY_FIELD)
         assertEquals("annotations", ElasticIndexedFile.ANNOTATIONS_FIELD)
+
+        elasticfile.hashCode()
+        elasticfile.toString()
+        assertTrue(elasticfile.equals(elasticfile))
+        assertFalse(elasticfile.equals(elasticfile.copy(annotations = setOf("anno"))))
+
     }
+
 }

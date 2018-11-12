@@ -2,6 +2,7 @@ package dk.sdu.cloud.indexing.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.indexing.services.ReverseLookupService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.RPCException
@@ -18,7 +19,7 @@ import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 
-private fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
+fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
     addHeader(
         io.ktor.http.HttpHeaders.Authorization,
         "Bearer ${TokenValidationMock.createTokenForUser(username, role)}"
