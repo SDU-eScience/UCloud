@@ -50,13 +50,13 @@ class SearchController : Controller {
 
             val queryResponse = QueryDescriptions.query.call(
                 QueryRequest(
-                    FileQuery(
+                    query = FileQuery(
                         roots = roots,
                         fileNameQuery = listOf(req.query),
                         owner = AllOf.with(call.securityPrincipal.username)
                     ),
-                    req.itemsPerPage,
-                    req.page
+                    itemsPerPage =  req.itemsPerPage,
+                    page = req.page
                 ),
                 call.cloudClient
             ).orThrow()
@@ -68,7 +68,7 @@ class SearchController : Controller {
             val roots = rootsForUser(call.securityPrincipal.username)
             val queryResponse = QueryDescriptions.query.call(
                 QueryRequest(
-                    FileQuery(
+                    query = FileQuery(
                         roots = roots,
                         owner = AllOf.with(call.securityPrincipal.username),
 
@@ -81,7 +81,9 @@ class SearchController : Controller {
 
                         createdAt = req.createdAt?.toPredicateCollection(),
                         modifiedAt = req.modifiedAt?.toPredicateCollection()
-                    )
+                    ),
+                    itemsPerPage = req.itemsPerPage,
+                    page = req.page
                 ),
                 call.cloudClient
             ).orThrow()

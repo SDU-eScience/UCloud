@@ -47,19 +47,7 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) {
             writeStandardClaims(user)
             withExpiresAt(exp)
             withIssuedAt(iat)
-
-            // Legacy code. Progress tracked in #286 (this can be removed when issue has been solved)
-            val legacyAudiences = run {
-                val result = ArrayList<String>()
-
-                val hasDownload = audience.any { it.toString().startsWith("files.download:") }
-                if (hasDownload) result.add("downloadFile")
-
-                result.add("irods")
-                result
-            }
-
-            withAudience(*(audience.map { it.toString() } + legacyAudiences).toTypedArray())
+            withAudience(*(audience.map { it.toString() }).toTypedArray())
             if (extendedBy != null) withClaim(CLAIM_EXTENDED_BY, extendedBy)
             if (jwtId != null) withJWTId(jwtId)
             if (sessionReference != null) withClaim(CLAIM_SESSION_REFERENCE, sessionReference)

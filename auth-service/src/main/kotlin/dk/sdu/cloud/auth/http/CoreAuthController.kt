@@ -344,18 +344,6 @@ class CoreAuthController<DBSession>(
 
             val audiences = req.audience.split(",")
                 .asSequence()
-                .mapNotNull {
-                    // Backwards compatible transformation of audiences
-                    // Can be deleted when clients no longer use it. Progress tracked in #286
-                    when (it) {
-                        "downloadFile" -> SecurityScope.construct(
-                            listOf("files", "download"),
-                            AccessRight.READ_WRITE
-                        ).toString()
-                        "irods" -> null
-                        else -> it
-                    }
-                }
                 .map { SecurityScope.parseFromString(it) }
                 .toList()
 

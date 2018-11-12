@@ -9,9 +9,6 @@
         <Root level="debug">
             <AppenderRef ref="Console"/>
         </Root>
-        <Logger name="org.irods.jargon" level="fatal" additivity="false">
-            <AppenderRef ref="Console"/>
-        </Logger>
         <Logger name="org.apache.kafka" level="warn" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>

@@ -10,7 +10,7 @@ import io.ktor.http.HttpMethod
 
 data class UploadRequest(
     val location: String,
-    val sensitivity: SensitivityLevel?,
+    val sensitivity: SensitivityLevel = SensitivityLevel.CONFIDENTIAL,
     val upload: StreamingFile?
 )
 

@@ -137,13 +137,20 @@ class MultipartRequest<Request : Any> private constructor() {
         val requestType = getRequestTypeFromDescription(ingoing.description) as KClass<Request>
         val constructor = findConstructor(requestType)
 
+        val requiredProperties = constructor.parameters
+            .asSequence()
+            .filter { !it.isOptional }
+            .mapNotNull { it.name }
+            .toSet()
+
         val knownProps = requestType.memberProperties.associateBy { it.name }
         val partsSeen = HashSet<String>()
 
         val builder = HashMap<String, Any?>()
-        var isSendingFinal = false
+        var hasUnsentData = false
 
         suspend fun send() {
+            hasUnsentData = false
             val params = constructor.parameters.mapNotNull {
                 val value = builder[it.name]
                 if (value == null) {
@@ -170,8 +177,6 @@ class MultipartRequest<Request : Any> private constructor() {
             }
 
             consumer(block)
-
-            isSendingFinal = partsSeen.size == knownProps.size
         }
 
         var caughtException: Exception? = null
@@ -183,8 +188,8 @@ class MultipartRequest<Request : Any> private constructor() {
 
             try {
                 val name = part.name ?: run { part.dispose(); return@forEachPart }
-
                 val prop = knownProps[name] ?: run { part.dispose(); return@forEachPart }
+                hasUnsentData = true
 
                 partsSeen.add(prop.name)
                 val parsedPart = parsePart(prop, part)
@@ -209,11 +214,12 @@ class MultipartRequest<Request : Any> private constructor() {
             throw capturedException
         }
 
-        if (partsSeen.size != knownProps.size) {
+        if (partsSeen != requiredProperties) {
+            log.debug("We expected to see $requiredProperties but we only saw $partsSeen")
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
 
-        if (!isSendingFinal) send()
+        if (hasUnsentData) send()
     }
 
     private fun parsePart(prop: KProperty1<Request, *>, part: PartData): Any? {
@@ -270,7 +276,19 @@ class MultipartRequest<Request : Any> private constructor() {
                             propType.java.enumConstants.find { (it as Enum<*>).name == part.value }
                                 ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                         }
-                        else -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        propType == StreamingFile::class -> {
+                            log.info("For some reason we have parsed $prop as a normal form item.")
+                            StreamingFile(
+                                contentType,
+                                part.headers[HttpHeaders.ContentLength]?.toLongOrNull(),
+                                (part as? PartData.FileItem)?.originalFileName,
+                                part.value.byteInputStream()
+                            )
+                        }
+                        else -> {
+                            log.info("Could not convert item $prop from value ${part.value}")
+                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
                     }
                 }
             }
