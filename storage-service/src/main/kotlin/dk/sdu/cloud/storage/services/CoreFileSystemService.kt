@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
@@ -178,6 +179,30 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         // TODO Automatic renaming... Not a good idea
         val linkRenamedPath = findFreeNameForNewFile(ctx, linkPath)
         fs.createSymbolicLink(ctx, targetPath, linkRenamedPath).emitAll()
+    }
+
+    fun chmod(
+        ctx: Ctx,
+        path: String,
+        owner: Set<AccessRight>,
+        group: Set<AccessRight>,
+        other: Set<AccessRight>,
+        recurse: Boolean,
+        fileIds: ArrayList<String>? = null
+    ) {
+        fun applyChmod(path: String): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
+            return fs.chmod(ctx, path, owner, group, other)
+        }
+
+        if (recurse) {
+            fs.tree(ctx, path, setOf(FileAttribute.PATH, FileAttribute.INODE)).unwrap().forEach {
+                fileIds?.add(it.inode)
+                applyChmod(it.path).emitAll()
+            }
+        } else {
+            fileIds?.add(fs.stat(ctx, path, setOf(FileAttribute.INODE)).unwrap().inode)
+            applyChmod(path).emitAll()
+        }
     }
 
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")

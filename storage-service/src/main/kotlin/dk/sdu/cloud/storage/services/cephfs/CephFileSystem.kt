@@ -375,6 +375,36 @@ class CephFileSystem(
         )
     }
 
+    override fun chmod(
+        ctx: CephFSCommandRunner,
+        path: String,
+        owner: Set<AccessRight>,
+        group: Set<AccessRight>,
+        other: Set<AccessRight>
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
+        val absolutePath = translateAndCheckFile(path)
+        fun Set<AccessRight>.toBitSet(): Int {
+            var result = 0
+            if (AccessRight.EXECUTE in this) result = result or 1
+            if (AccessRight.WRITE in this) result = result or 2
+            if (AccessRight.READ in this) result = result or 4
+            return result
+        }
+
+        val mode = (owner.toBitSet() shl 6) or (group.toBitSet() shl 3) or (other.toBitSet())
+        return ctx.runCommand(
+            InterpreterCommand.CHMOD,
+            absolutePath,
+            mode.toString(),
+            consumer = { out ->
+                parseFileAttributes(
+                    out.stdoutLineSequence(),
+                    CREATED_OR_MODIFIED_ATTRIBUTES
+                ).asFSResult { createdOrModifiedFromRow(it, ctx.user) }
+            }
+        )
+    }
+
     private fun FSACLEntity.toUnixEntity(): FSResult<FSACLEntity> {
         val entity = this
         return when (entity) {

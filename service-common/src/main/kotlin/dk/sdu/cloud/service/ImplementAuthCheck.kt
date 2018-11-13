@@ -171,6 +171,10 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
         .getClaim("publicSessionReference")
         .takeIf { !it.isNull }?.asString()
 
+    val extendedBy = validatedToken
+        .getClaim("extendedBy")
+        .takeIf { !it.isNull }?.asString()
+
     val principal = SecurityPrincipal(
         validatedToken.subject,
         role,
@@ -192,7 +196,8 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
         scopes,
         issuedAt,
         expiresAt,
-        publicSessionReference
+        publicSessionReference,
+        extendedBy
     )
 }
 

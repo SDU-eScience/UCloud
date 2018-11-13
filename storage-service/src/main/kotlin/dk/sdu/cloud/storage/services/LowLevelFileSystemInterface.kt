@@ -140,4 +140,12 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         defaultList: Boolean = false,
         recursive: Boolean = false
     ): FSResult<Unit>
+
+    fun chmod(
+        ctx: Ctx,
+        path: String,
+        owner: Set<AccessRight>,
+        group: Set<AccessRight>,
+        other: Set<AccessRight>
+    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
 }

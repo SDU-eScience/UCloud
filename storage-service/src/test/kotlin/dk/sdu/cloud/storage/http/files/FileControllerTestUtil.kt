@@ -21,6 +21,7 @@ import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.tokenValidation
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import dk.sdu.cloud.storage.http.FilesController
+import dk.sdu.cloud.storage.services.ACLService
 import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FavoriteService
 import dk.sdu.cloud.storage.services.FileAnnotationService
@@ -83,6 +84,7 @@ fun Application.configureServerWithFileController(
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
     val coreFs = CoreFileSystemService(fs, eventProducer)
     val favoriteService = FavoriteService(coreFs)
+    val aclService = ACLService(fs)
 
     val ctx = FileControllerContext(
         cloud = cloud,
@@ -98,7 +100,14 @@ fun Application.configureServerWithFileController(
 
     routing {
         configureControllers(
-            with(ctx) { FilesController(runner, coreFs, annotationService, favoriteService, lookupService) }
+            with(ctx) { FilesController(
+                runner,
+                coreFs,
+                annotationService,
+                favoriteService,
+                lookupService,
+                aclService
+            ) }
         )
         additional(ctx)
     }

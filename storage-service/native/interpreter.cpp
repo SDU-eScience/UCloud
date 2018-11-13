@@ -25,6 +25,7 @@
 #include "move.h"
 #include "file_utils.h"
 #include "symlink.h"
+#include "chmod.h"
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
@@ -511,7 +512,7 @@ int main(int argc, char **argv) {
         } else if (IS_COMMAND("read")) {
             auto start = NEXT_ARGUMENT_INT(0);
             auto end = NEXT_ARGUMENT_INT(1);
-            fprintf(stderr, "%d, %d\n", start, end);
+            fprintf(stderr, "%lli, %lli\n", start, end);
             read_command(start, end);
         } else if (IS_COMMAND("symlink")) {
             auto target_path = NEXT_ARGUMENT(0);
@@ -528,6 +529,11 @@ int main(int argc, char **argv) {
             command << arguments;
 
             printf("EXIT:%d\n", system(command.str().c_str()));
+        } else if (IS_COMMAND("chmod")) {
+            auto path = NEXT_ARGUMENT(0);
+            verify_path_or_fatal(path);
+            auto mode = NEXT_ARGUMENT_INT(1);
+            printf("EXIT:%d\n", apply_chmod(path, mode));
         }
 
         if (strcmp("", line) != 0) {

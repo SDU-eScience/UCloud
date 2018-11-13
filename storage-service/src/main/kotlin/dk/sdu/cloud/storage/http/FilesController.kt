@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FileType
@@ -11,6 +12,8 @@ import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.service.securityToken
+import dk.sdu.cloud.storage.services.ACLService
 import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSUserContext
@@ -33,7 +36,9 @@ class FilesController<Ctx : FSUserContext>(
     private val coreFs: CoreFileSystemService<Ctx>,
     private val annotationService: FileAnnotationService<Ctx>,
     private val favoriteService: FavoriteService<Ctx>,
-    private val fileLookupService: FileLookupService<Ctx>
+    private val fileLookupService: FileLookupService<Ctx>,
+    private val aclService: ACLService<Ctx>,
+    private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {
     override val baseContext = FileDescriptions.baseContext
 
@@ -255,6 +260,24 @@ class FilesController<Ctx : FSUserContext>(
                 val stat = fileLookupService.stat(it, req.path)
                 annotationService.annotateFiles(it, req.path, req.annotatedWith)
                 audit(SingleFileAudit(stat.fileId, req))
+                ok(Unit)
+            }
+        }
+
+        implement(FileDescriptions.chmod) { req ->
+            val fileIdsUpdated = ArrayList<String>()
+            audit(BulkFileAudit(fileIdsUpdated, req))
+
+            val securityToken = call.securityToken
+            if (securityToken.principal.username !in filePermissionsAcl &&
+                securityToken.extendedBy !in filePermissionsAcl) {
+                log.debug("Token was extended by ${securityToken.extendedBy} but is not in $filePermissionsAcl")
+                error(CommonErrorMessage("Forbidden"), HttpStatusCode.Forbidden)
+                return@implement
+            }
+
+            tryWithFS(commandRunnerFactory, securityToken.principal.username) { ctx ->
+                coreFs.chmod(ctx, req.path, req.owner, req.group, req.other, req.recurse, fileIdsUpdated)
                 ok(Unit)
             }
         }

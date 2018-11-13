@@ -52,6 +52,7 @@ class Server(
     private val ktor: HttpServerProvider,
     private val db: HibernateSessionFactory,
     private val cloud: RefreshingJWTAuthenticatedCloud,
+    private val config: StorageConfiguration,
     private val micro: Micro
 ) : CommonServer {
     override val log: Logger = logger()
@@ -123,7 +124,9 @@ class Server(
                         coreFileSystem,
                         annotationService,
                         favoriteService,
-                        fileLookupService
+                        fileLookupService,
+                        aclService,
+                        config.filePermissionAcl
                     ),
 
                     IndexingController(

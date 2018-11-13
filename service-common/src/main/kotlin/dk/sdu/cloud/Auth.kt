@@ -111,7 +111,12 @@ data class SecurityPrincipalToken(
      * This makes them readable by the end-user. It is __very__ important that we do not leak refresh tokens into
      * the JWT. This reference is added solely for the purpose of auditing.
      */
-    val publicSessionReference: String?
+    val publicSessionReference: String?,
+
+    /**
+     * The username of the principal extending this token
+     */
+    val extendedBy: String? = null
 
     // NOTE: DO NOT ADD SENSITIVE DATA TO THIS CLASS (INCLUDING JWT)
     // IT IS USED IN THE AUDIT SYSTEM

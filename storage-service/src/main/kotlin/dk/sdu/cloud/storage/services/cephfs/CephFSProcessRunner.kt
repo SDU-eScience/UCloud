@@ -254,5 +254,6 @@ enum class InterpreterCommand(val command: String) {
     SET_XATTR("set-xattr"),
     LIST_XATTR("list-xattr"),
     DELETE_XATTR("delete-xattr"),
+    CHMOD("chmod"),
 }
 

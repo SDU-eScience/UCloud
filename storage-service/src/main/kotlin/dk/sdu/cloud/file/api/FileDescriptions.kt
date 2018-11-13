@@ -11,6 +11,15 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
+import dk.sdu.cloud.file.api.AccessRight as FileAccessRight
+
+data class ChmodRequest(
+    val path: String,
+    val owner: Set<FileAccessRight>,
+    val group: Set<FileAccessRight>,
+    val other: Set<FileAccessRight>,
+    val recurse: Boolean
+)
 
 data class FindByPath(val path: String)
 
@@ -439,4 +448,26 @@ object FileDescriptions : RESTDescriptions("files") {
 
         body { bindEntireRequestFromBody() }
     }
+
+    val chmod = callDescriptionWithAudit<
+            ChmodRequest,
+            Unit,
+            CommonErrorMessage,
+            BulkFileAudit<ChmodRequest>
+            > {
+        name = "chmod"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"chmod"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
 }
