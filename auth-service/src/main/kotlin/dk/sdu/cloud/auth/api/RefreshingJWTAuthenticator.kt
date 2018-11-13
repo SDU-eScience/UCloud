@@ -38,7 +38,7 @@ class RefreshingJWTAuthenticator(
 
     private fun DecodedJWT?.isExpiringSoon(): Boolean {
         if (this == null) return true
-        return expiresAt.toInstant().isAfter(Date().toInstant().plus(3, ChronoUnit.MINUTES))
+        return Date().toInstant().plus(3, ChronoUnit.MINUTES).isAfter(expiresAt.toInstant())
     }
 
     private fun refresh(): String {
