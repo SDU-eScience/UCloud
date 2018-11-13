@@ -247,7 +247,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                     <HiddenInputField type="file" onChange={(e) => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
                 </OutlineButton>
                 <Box pt="0.2em" />
-                <Link to={`/appDetails/${this.state.displayAppName}/${this.state.appVersion}/`} ><OutlineButton fullWidth color="blue">More information</OutlineButton></Link>
+                <Link to={`/appDetails/${this.state.appName}/${this.state.appVersion}/`} ><OutlineButton fullWidth color="blue">More information</OutlineButton></Link>
                 <Box pt="0.2em" />
                 <Button color="blue" fullWidth onClick={e => this.onSubmit(e)}>Submit</Button>
             </>
