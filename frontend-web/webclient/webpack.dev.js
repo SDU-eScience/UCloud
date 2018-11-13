@@ -17,7 +17,7 @@ module.exports = webpackMerge(commonConfig, {
 
     output: {
         path: path.join(process.cwd(), "/dist"),
-        publicPath: "http://localhost:9000/",
+        publicPath: "https://localhost:9000/",
         filename: "[name].js",
     },
 
@@ -46,13 +46,14 @@ module.exports = webpackMerge(commonConfig, {
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
             "Access-Control-Allow-Headers": "X-Requested-With, content-type, Authorization"
         },
+        https: true,
         inline: true,
         proxy: [{
             context: ["/auth/login", "/auth/request", "/auth/login-redirect", "/api", "/auth/css/", "/auth/logout", 
                       "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png", "/auth/wayf_logo.png", 
                       "/auth/saml/", "/auth/users/", "/auth/redirect.js"],
             target: "https://cloud.sdu.dk",
-            secure: false,
+            secure: true,
             changeOrigin: true,
         }, {
             context: "/auth",
