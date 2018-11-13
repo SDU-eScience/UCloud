@@ -59,7 +59,7 @@ class DiffTest {
                 null,
                 null,
                 emptySet(),
-                SensitivityLevel.CONFIDENTIAL
+                SensitivityLevel.PRIVATE
             )
     }
 
@@ -103,7 +103,7 @@ class DiffTest {
             null,
             null,
             emptySet(),
-            SensitivityLevel.CONFIDENTIAL
+            SensitivityLevel.PRIVATE
         )
     }
 
@@ -378,16 +378,18 @@ class DiffTest {
             },
 
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
                     val realFile = fsRoot.resolvePath("/home/a")
                     val diff = indexingService.calculateDiff(
-                        it, "/home", listOf(realFile.asMaterialized().copy(sensitivityLevel = SensitivityLevel.SENSITIVE))
+                        ctx,
+                        "/home",
+                        listOf(realFile.asMaterialized().copy(sensitivityLevel = SensitivityLevel.SENSITIVE))
                     )
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.CreatedOrRefreshed &&
                                 it.path == "/home/a" &&
-                                it.sensitivityLevel == SensitivityLevel.CONFIDENTIAL &&
+                                it.sensitivityLevel == SensitivityLevel.PRIVATE &&
                                 it.id == realFile.inode()
                     }
 

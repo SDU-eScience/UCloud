@@ -3,6 +3,7 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.paginate
@@ -87,7 +88,7 @@ class FileLookupService<Ctx : FSUserContext>(
 
     private fun readStorageFile(row: FileRow, favorites: Set<String>): StorageFile =
         StorageFile(
-            type = row.fileType,
+            fileType = row.fileType,
             path = row.rawPath,
             createdAt = row.timestamps.created,
             modifiedAt = row.timestamps.modified,
@@ -126,8 +127,8 @@ class FileLookupService<Ctx : FSUserContext>(
         return coreFs.stat(ctx, path, STORAGE_FILE_ATTRIBUTES).let { readStorageFile(it, favorites) }
     }
 
-    companion object {
-        private val log = LoggerFactory.getLogger(FileLookupService::class.java)
+    companion object : Loggable {
+        override val log = logger()
 
         @Suppress("ObjectPropertyNaming")
         private val STORAGE_FILE_ATTRIBUTES = setOf(

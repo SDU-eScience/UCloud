@@ -16,6 +16,7 @@ import dk.sdu.cloud.storage.services.BulkUploadService
 import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSUserContext
+import dk.sdu.cloud.storage.services.FileSensitivityService
 import dk.sdu.cloud.storage.services.withContext
 import dk.sdu.cloud.storage.util.tryWithFS
 import io.ktor.http.HttpStatusCode
@@ -29,6 +30,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val bulkUploadService: BulkUploadService<Ctx>,
+    private val sensitivityService: FileSensitivityService<Ctx>,
     baseContextOverride: String? = null
 ) : Controller {
     override val baseContext = baseContextOverride ?: MultiPartUploadDescriptions.baseContext
@@ -59,6 +61,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                             req.upload.payload.use { it.copyTo(out) }
                         }
 
+                        sensitivityService.setSensitivityLevel(ctx, req.location, req.sensitivity, owner)
                     }
                 }
             }

@@ -33,7 +33,13 @@ class BulkDownloadService<Ctx : FSUserContext>(
                     val stat = fs.statOrNull(
                         ctx,
                         absPath,
-                        setOf(FileAttribute.PATH, FileAttribute.SIZE, FileAttribute.TIMESTAMPS, FileAttribute.FILE_TYPE)
+                        setOf(
+                            FileAttribute.INODE,
+                            FileAttribute.PATH,
+                            FileAttribute.SIZE,
+                            FileAttribute.TIMESTAMPS,
+                            FileAttribute.FILE_TYPE
+                        )
                     ) ?: continue
 
                     // Write tar header

@@ -1,20 +1,21 @@
 package dk.sdu.cloud.storage.http.upload
 
-import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.kafka
 import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.storage.http.MultiPartUploadController
 import dk.sdu.cloud.storage.http.files.TestContext
 import dk.sdu.cloud.storage.http.files.setUser
 import dk.sdu.cloud.storage.services.BulkUploadService
-import dk.sdu.cloud.storage.services.CommandRunner
 import dk.sdu.cloud.storage.services.CoreFileSystemService
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
+import dk.sdu.cloud.storage.services.FileSensitivityService
 import dk.sdu.cloud.storage.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
@@ -63,10 +64,12 @@ class MultipartUploadTest {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         TestContext.micro = micro
-        val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
+        val storageEventProducer = micro.kafka.producer.forStream(StorageEvents.events)
+        val coreFs = CoreFileSystemService(fs, storageEventProducer)
 
         val bulkUpload = BulkUploadService(coreFs)
-        val controller = MultiPartUploadController(runner, coreFs, bulkUpload)
+        val sensitivityService = FileSensitivityService(fs, storageEventProducer)
+        val controller = MultiPartUploadController(runner, coreFs, bulkUpload, sensitivityService)
 
         installDefaultFeatures(micro)
 

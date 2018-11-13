@@ -34,6 +34,7 @@ import dk.sdu.cloud.storage.services.ExternalFileService
 import dk.sdu.cloud.storage.services.FavoriteService
 import dk.sdu.cloud.storage.services.FileAnnotationService
 import dk.sdu.cloud.storage.services.FileLookupService
+import dk.sdu.cloud.storage.services.FileSensitivityService
 import dk.sdu.cloud.storage.services.IndexingService
 import dk.sdu.cloud.storage.services.ShareHibernateDAO
 import dk.sdu.cloud.storage.services.ShareService
@@ -89,6 +90,8 @@ class Server(
         val shareDAO = ShareHibernateDAO()
         val shareService = ShareService(db, shareDAO, processRunner, aclService, coreFileSystem)
 
+        val sensitivityService = FileSensitivityService(fs, storageEventProducer)
+
         val externalFileService = ExternalFileService(processRunner, coreFileSystem, storageEventProducer)
         log.info("Core services constructed!")
 
@@ -139,13 +142,15 @@ class Server(
                     MultiPartUploadController(
                         processRunner,
                         coreFileSystem,
-                        uploadService
+                        uploadService,
+                        sensitivityService
                     ),
 
                     MultiPartUploadController(
                         processRunner,
                         coreFileSystem,
                         uploadService,
+                        sensitivityService,
                         baseContextOverride = "/api/upload" // backwards-comparability
                     ),
 

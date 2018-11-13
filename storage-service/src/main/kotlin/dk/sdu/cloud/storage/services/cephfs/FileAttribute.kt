@@ -138,7 +138,7 @@ internal fun FileAttribute.Companion.rawParse(
                     sensitivityLevel = try {
                         SensitivityLevel.valueOf(currentLine)
                     } catch (ex: IllegalArgumentException) {
-                        SensitivityLevel.CONFIDENTIAL
+                        SensitivityLevel.PRIVATE
                     }
                 }
 

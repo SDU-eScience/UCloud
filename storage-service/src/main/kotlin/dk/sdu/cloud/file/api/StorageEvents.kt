@@ -210,7 +210,7 @@ data class EventMaterializedStorageFile(
 )
 
 typealias StorageEventProducer = MappedEventProducer<String, StorageEvent>
-typealias StoraveEventStream = KStream<String, StorageEvent>
+typealias StorageEventStream = KStream<String, StorageEvent>
 
 object StorageEvents : KafkaDescriptions() {
     /**
