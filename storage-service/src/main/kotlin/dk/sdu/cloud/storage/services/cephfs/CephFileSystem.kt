@@ -319,6 +319,7 @@ class CephFileSystem(
         recursive: Boolean
     ): FSResult<Unit> {
         val absolutePath = translateAndCheckFile(path)
+        println(absolutePath)
 
         val unixEntity = entity.toUnixEntity()
         if (unixEntity.statusCode != 0) return FSResult(unixEntity.statusCode)

@@ -13,6 +13,24 @@ import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 import dk.sdu.cloud.file.api.AccessRight as FileAccessRight
 
+data class UpdateAclRequest(
+    val path: String,
+    val recurse: Boolean,
+    val changes: List<ACLEntryRequest>
+) {
+    init {
+        if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
+        if (changes.size > 1000) throw IllegalArgumentException("Too many new entries")
+    }
+}
+
+data class ACLEntryRequest(
+    val entity: String,
+    val rights: Set<FileAccessRight>,
+    val revoke: Boolean = false,
+    val isUser: Boolean = true
+)
+
 data class ChmodRequest(
     val path: String,
     val owner: Set<FileAccessRight>,
@@ -470,4 +488,24 @@ object FileDescriptions : RESTDescriptions("files") {
         body { bindEntireRequestFromBody() }
     }
 
+    val updateAcl = callDescriptionWithAudit<
+            UpdateAclRequest,
+            Unit,
+            CommonErrorMessage,
+            BulkFileAudit<UpdateAclRequest>
+            > {
+        name = "updateAcl"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"update-acl"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
 }

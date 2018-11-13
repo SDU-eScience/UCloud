@@ -10,11 +10,15 @@ import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.RESTHandler
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.service.securityToken
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.services.ACLService
 import dk.sdu.cloud.storage.services.CoreFileSystemService
+import dk.sdu.cloud.storage.services.FSACLEntity
 import dk.sdu.cloud.storage.services.FSCommandRunnerFactory
 import dk.sdu.cloud.storage.services.FSUserContext
 import dk.sdu.cloud.storage.services.FavoriteService
@@ -267,19 +271,59 @@ class FilesController<Ctx : FSUserContext>(
         implement(FileDescriptions.chmod) { req ->
             val fileIdsUpdated = ArrayList<String>()
             audit(BulkFileAudit(fileIdsUpdated, req))
+            requirePermissionToChangeFilePermissions()
 
-            val securityToken = call.securityToken
-            if (securityToken.principal.username !in filePermissionsAcl &&
-                securityToken.extendedBy !in filePermissionsAcl) {
-                log.debug("Token was extended by ${securityToken.extendedBy} but is not in $filePermissionsAcl")
-                error(CommonErrorMessage("Forbidden"), HttpStatusCode.Forbidden)
-                return@implement
-            }
-
-            tryWithFS(commandRunnerFactory, securityToken.principal.username) { ctx ->
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
                 coreFs.chmod(ctx, req.path, req.owner, req.group, req.other, req.recurse, fileIdsUpdated)
                 ok(Unit)
             }
+        }
+
+        implement(FileDescriptions.updateAcl) { req ->
+            val fileIdsUpdated = ArrayList<String>()
+            audit(BulkFileAudit(fileIdsUpdated, req))
+            requirePermissionToChangeFilePermissions()
+
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+                req.changes.forEach { change ->
+                    val entity =
+                        if (change.isUser) FSACLEntity.User(change.entity) else FSACLEntity.Group(change.entity)
+
+                    if (change.revoke) {
+                        log.debug("revoking")
+                        aclService.revokeRights(ctx, req.path, entity, req.recurse)
+                    } else {
+                        log.debug("granting")
+                        aclService.grantRights(ctx, req.path, entity, change.rights, req.recurse)
+                    }
+                }
+
+                try {
+                    if (req.recurse) {
+                        coreFs.tree(ctx, req.path, setOf(FileAttribute.INODE)).forEach {
+                            fileIdsUpdated.add(it.inode)
+                        }
+                    } else {
+                        val fileId = coreFs.stat(ctx, req.path, setOf(FileAttribute.INODE)).inode
+                        fileIdsUpdated.add(fileId)
+                    }
+                } catch (ex: Exception) {
+                    log.info(ex.stackTraceToString())
+                }
+
+                ok(Unit)
+            }
+        }
+    }
+
+    private fun RESTHandler<*, *, *, *>.requirePermissionToChangeFilePermissions() {
+        val securityToken = call.securityToken
+        if (
+            securityToken.principal.username !in filePermissionsAcl &&
+            securityToken.extendedBy !in filePermissionsAcl
+        ) {
+            log.debug("Token was extended by ${securityToken.extendedBy} but is not in $filePermissionsAcl")
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
     }
 
