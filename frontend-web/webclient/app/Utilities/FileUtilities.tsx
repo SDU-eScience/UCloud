@@ -146,7 +146,7 @@ export const newMockFolder = (path: string = "", beingRenamed: boolean = true): 
 export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
     if (["..", "/"].some((it) => path.includes(it))) { UF.failureNotification("Folder name cannot contain '..' or '/'"); return true }
     if (path === "" || path === ".") { UF.failureNotification("Folder name cannot be empty or be \".\""); return true; }
-    const existingName = filePaths.some((it) => it === path);
+    const existingName = filePaths.some(it => it === path);
     if (existingName) { UF.failureNotification("File with that name already exists"); return true; }
     return false;
 };

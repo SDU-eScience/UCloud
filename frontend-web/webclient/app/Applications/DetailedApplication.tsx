@@ -1,11 +1,14 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Grid, Header, Label, Icon, List, Rating, Button, Message } from "semantic-ui-react";
+import { List as SList, Rating as SRating, Header as SHeader } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import { ApplicationInformation, ParameterTypes } from "Applications";
+import { ApplicationInformation } from "Applications";
+import { Error, Stamp, Button } from "ui-components";
+import { MainContainer } from "MainContainer/MainContainer";
+import * as Heading from "ui-components/Heading"
 
 type DetailedApplicationProps = any
 type DetailedApplicationState = {
@@ -61,31 +64,37 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
 
     render() {
         const { appInformation } = this.state;
-        const error = this.state.error ? (
-            <Message color="red" content={this.state.error} onDismiss={() => this.setState(() => ({ error: undefined }))} />
-        ) : null;
         return (
-            <Grid container columns={16}>
-                <DefaultLoading loading={this.state.loading} />
-                <Grid.Column width={16}>
-                    {error}
-                    <ApplicationHeader favoriteApplication={this.favoriteApplication} appInformation={appInformation} />
-                    <Header as="h3" content="Tags" />
-                    <ApplicationTags tags={[] as string[]} />
-                    <Header as="h1" content="Tools" />
-                    <ApplicationTools appInformation={appInformation} />
-                </Grid.Column>
-            </Grid>
+            <MainContainer
+                header={<Error error={this.state.error} clearError={() => this.setState(() => ({ error: undefined }))} />}
+                main={
+                    <>
+                        <DefaultLoading loading={this.state.loading} />
+                        <ApplicationHeader favoriteApplication={this.favoriteApplication} appInformation={appInformation} />
+                        <Heading.h3 mt="0.3em">Tags</Heading.h3>
+                        <ApplicationTags tags={[] as string[]} />
+                        <Heading.h3 mt="0.3em">Tools</Heading.h3>
+                        <ApplicationTools appInformation={appInformation} />
+                    </>
+                }
+                sidebar={
+                    <>
+                        {appInformation !== undefined ?
+                            <Link to={`/applications/${appInformation.description.info.name}/${appInformation.description.info.version}/`}>
+                                <Button fullWidth color="blue">Run Application</Button>
+                            </Link> : null
+                        }
+                    </>
+                }
+            />
         );
     }
 }
 
 
-const ApplicationTags = (props: { tags: string[] }) => {
+const ApplicationTags = () => {
     const mockedTags = ["nanomachines", "medication", "megamachines", "hyper light simulation", "teleportation research"];
-    return (
-        <>{mockedTags.map((tag, i) => <Label key={i} basic content={tag} />)}</>
-    )
+    return (<>{mockedTags.map((tag, i) => <Stamp key={i} color="black" bg="white" borderColor="black">{tag}</Stamp>)}</>);
 };
 
 interface ApplicationDetails { appInformation?: ApplicationInformation }
@@ -97,51 +106,51 @@ const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
     const padNumber = (val: number): string => val < 10 ? `0${val}` : `${val}`;
     const timeString = `${padNumber(hours)}:${padNumber(minutes)}:${padNumber(seconds)}`;
     return (
-        <List>
-            <List.Item>
-                <List.Content floated="left">
-                    <Label color="green">
-                        <Icon name="wrench" />
+        <SList>
+            <SList.Item>
+                <SList.Content floated="left">
+                    <Stamp bg="green" color="white" borderColor="green">
+                        <i className="fas fa-wrench"></i>
                         Container: {tool.description.backend}
-                    </Label>
-                    <Label color="blue">
-                        <Icon name="file" />
+                    </Stamp>
+                    <Stamp bg="blue" color="white" borderColor="blue">
+                        <i className="far fa-file"></i>
                         Output files: {appInformation.description.outputFileGlobs.join(", ")}
-                    </Label>
-                    <Label content={`${appInformation.description.parameters.length} parameters`} />
-                </List.Content>
-                <List.Content floated="right">
-                    <Label basic>
-                        <Icon name="clock" />
+                    </Stamp>
+                    <Stamp color="black" bg="white" borderColor="black">
+                        {`${appInformation.description.parameters.length} parameters`}
+                    </Stamp>
+                </SList.Content>
+                <SList.Content floated="right">
+                    <Stamp borderColor="black" color="black" bg="white">
+                        <i className="far fa-clock"></i>
                         Default job time: {timeString}
-                    </Label>
-                    <Label basic>
+                    </Stamp>
+                    <Stamp borderColor="black" color="black" bg="white">
                         Default number of nodes: {tool.description.defaultNumberOfNodes}
-                    </Label>
-                    <Label basic content={`Default tasks per node: ${tool.description.defaultTasksPerNode}`} />
-                </List.Content>
-            </List.Item>
-        </List >
+                    </Stamp>
+                    <Stamp borderColor="black" color="black" bg="white">
+                        {`Default tasks per node: ${tool.description.defaultTasksPerNode}`}
+                    </Stamp>
+                </SList.Content>
+            </SList.Item>
+        </SList >
     )
 }
 
 interface ApplicationHeaderProps extends ApplicationDetails { favoriteApplication: () => void }
 const ApplicationHeader = ({ appInformation, favoriteApplication }: ApplicationHeaderProps) => {
     if (appInformation == null) return null;
-    const { info } = appInformation.description;
     // Not a very good pluralize function.
     const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
     let authorString = (!!appInformation.description.authors) ? appInformation.description.authors.join(", ") : "";
 
     return (
-        <Header as="h1">
-            <Header.Content className="float-right">
-                <Button as={Link} basic color="blue" content="Run Application" to={`/applications/${info.name}/${info.version}/`} />
-            </Header.Content>
-            <Header.Content>
+        <Heading.h1>
+            <SHeader.Content>
                 {appInformation.description.title}
                 <span className="app-favorite-padding">
-                    <Rating
+                    <SRating
                         icon="star"
                         size="huge"
                         rating={appInformation.favorite ? 1 : 0}
@@ -151,11 +160,11 @@ const ApplicationHeader = ({ appInformation, favoriteApplication }: ApplicationH
                 </span>
                 <h4>{appInformation.description.info.version}</h4>
                 <h4>{pluralize(appInformation.description.authors, "Author")}: {authorString}</h4>
-            </Header.Content>
-            <Header.Subheader>
+            </SHeader.Content>
+            <Heading.h5>
                 <ReactMarkdown source={appInformation.description.description} />
-            </Header.Subheader>
-        </Header>
+            </Heading.h5>
+        </Heading.h1>
     );
 };
 
