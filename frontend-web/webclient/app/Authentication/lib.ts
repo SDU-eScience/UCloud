@@ -329,7 +329,7 @@ export default class SDUCloud {
                 if (inSuccessRange(req.status)) {
                     resolve(JSON.parse(req.response));
                 } else {
-                    if (req.status === 401) this.clearTokens();
+                    if (req.status === 401 || req.status === 400) this.clearTokens();
                     reject({ status: req.status, response: req.response });
                 }
             };
