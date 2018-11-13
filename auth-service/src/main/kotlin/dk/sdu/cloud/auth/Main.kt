@@ -7,6 +7,8 @@ import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.auth.services.Service
+import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.service.HibernateFeature
@@ -66,7 +68,14 @@ data class AuthConfiguration(
     val enableWayf: Boolean = false,
     val production: Boolean = true,
     val tokenExtension: List<ServiceTokenExtension> = emptyList(),
-    val trustedOrigins: List<String> = listOf("cloud.sdu.dk", "localhost")
+    val trustedOrigins: List<String> = listOf("cloud.sdu.dk", "localhost"),
+    val services: List<Service> = listOf(
+        Service("web", "https://cloud.sdu.dk/api/auth-callback"),
+        Service("sync", "https://cloud.sdu.dk/api/sync-callback"),
+        Service("local-dev", "http://localhost:9000/api/auth-callback"),
+        Service("web-csrf", "https://cloud.sdu.dk/api/auth-callback-csrf"),
+        Service("local-dev-csrf", "http://localhost:9000/api/auth-callback-csrf")
+    )
 )
 
 fun main(args: Array<String>) {
@@ -80,6 +89,7 @@ fun main(args: Array<String>) {
 
     val configuration = micro.configuration.requestChunkAtOrNull("auth") ?: AuthConfiguration()
     KtorUtils.runningInProduction = configuration.production
+    configuration.services.forEach { ServiceDAO.insert(it) }
 
     val samlProperties = Properties().apply {
         load(Server::class.java.classLoader.getResourceAsStream("saml.properties"))

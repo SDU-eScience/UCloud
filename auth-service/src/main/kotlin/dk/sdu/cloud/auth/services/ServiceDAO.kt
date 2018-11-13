@@ -1,21 +1,12 @@
 package dk.sdu.cloud.auth.services
 
-import org.slf4j.LoggerFactory
+import dk.sdu.cloud.service.Loggable
 
 data class Service(val name: String, val endpoint: String)
 
-object ServiceDAO {
+object ServiceDAO : Loggable {
     private val inMemoryDb = HashMap<String, Service>()
-    private val log = LoggerFactory.getLogger(ServiceDAO::class.java)
-
-    init {
-        insert(Service("web", "https://cloud.sdu.dk/api/auth-callback"))
-        insert(Service("sync", "https://cloud.sdu.dk/api/sync-callback"))
-        insert(Service("local-dev", "http://localhost:9000/api/auth-callback"))
-
-        insert(Service("web-csrf", "https://cloud.sdu.dk/api/auth-callback-csrf"))
-        insert(Service("local-dev-csrf", "http://localhost:9000/api/auth-callback-csrf"))
-    }
+    override val log = logger()
 
     fun insert(service: Service): Boolean {
         log.debug("insert($service)")
