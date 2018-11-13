@@ -92,7 +92,7 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
 }
 
 
-const ApplicationTags = () => {
+const ApplicationTags = (props) => {
     const mockedTags = ["nanomachines", "medication", "megamachines", "hyper light simulation", "teleportation research"];
     return (<>{mockedTags.map((tag, i) => <Stamp key={i} color="black" bg="white" borderColor="black">{tag}</Stamp>)}</>);
 };
