@@ -173,8 +173,8 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
  */
 export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], cloud: Cloud): Page<File> => {
     filesToFavorite.forEach(f => {
-        const file = page.items.find((file: File) => file.path === f.path);
-        if (file) favoriteFile(file, cloud);
+        const file = page.items.find((file: File) => file.path === f.path)!;
+        favoriteFile(file, cloud);
     });
     return page;
 };

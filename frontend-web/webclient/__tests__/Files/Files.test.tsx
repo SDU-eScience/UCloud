@@ -3,7 +3,6 @@ import * as Renderer from "react-test-renderer";
 import { emptyPage, KeyCode } from "DefaultObjects";
 import { updateFiles } from "Files/Redux/FilesActions";
 import Files, { FilesTable, FileOperations } from "Files/Files";
-import { DropdownItem } from "semantic-ui-react";
 import { setLoading } from "Files/Redux/FilesActions"
 import { SortOrder, SortBy, Operation, PredicatedOperation, File } from "Files";
 import { mockFiles_SensitivityConfidential } from "../mock/Files"
@@ -11,7 +10,6 @@ import { MemoryRouter } from "react-router-dom";
 import { Provider } from "react-redux";
 import { createMemoryHistory } from "history";
 import files from "Files/Redux/FilesReducer";
-import { Button, Dropdown } from "semantic-ui-react";
 import { AllFileOperations } from "Utilities/FileUtilities";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initFiles } from "DefaultObjects";
@@ -111,7 +109,7 @@ describe("File operations", () => {
             <FileOperations
                 fileOperations={[]}
                 files={createMockStore().getState().files.page.items}
-                As={Button}
+                As={"Button"}
                 fluid
                 basic
             />
@@ -123,7 +121,7 @@ describe("File operations", () => {
             <FileOperations
                 fileOperations={[]}
                 files={createMockStore().getState().files.page.items}
-                As={Dropdown.Item}
+                As={"Dropdown.Item"}
             />
         ).toJSON()).toMatchSnapshot()
     );
@@ -133,7 +131,7 @@ describe("File operations", () => {
             <FileOperations
                 fileOperations={[]}
                 files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={Button}
+                As={"Button"}
                 fluid
                 basic
             />
@@ -145,7 +143,7 @@ describe("File operations", () => {
             <FileOperations
                 fileOperations={[]}
                 files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={Button}
+                As={"Button"}
                 fluid
                 basic
             />
@@ -157,7 +155,7 @@ describe("File operations", () => {
             <FileOperations
                 fileOperations={fileOperations}
                 files={createMockStore().getState().files.page.items}
-                As={Button}
+                As={"Button"}
                 fluid
                 basic
             />
@@ -169,7 +167,7 @@ describe("File operations", () => {
             <FileOperations
                 fileOperations={fileOperations}
                 files={createMockStore().getState().files.page.items}
-                As={Dropdown.Item}
+                As={"Dropdown.Item"}
                 fluid
                 basic
             />
@@ -181,7 +179,7 @@ describe("File operations", () => {
             <FileOperations
                 fileOperations={fileOperations}
                 files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={Button}
+                As={"Button"}
                 fluid
                 basic
             />
@@ -193,7 +191,7 @@ describe("File operations", () => {
             <FileOperations
                 fileOperations={fileOperations}
                 files={createMockStore(mockFiles_SensitivityConfidential).getState().files.page.items}
-                As={Dropdown.Item}
+                As={"Dropdown.Item"}
             />
         )).toMatchSnapshot()
     );
@@ -320,7 +318,7 @@ describe("FilesTable Operations being used", () => {
             </Provider>);
         const firstBeingRenamedCount = fullPageStore.getState().files.page.items.filter(it => it.beingRenamed).length;
         expect(firstBeingRenamedCount).toBe(0);
-        node.find(DropdownItem).findWhere(it => it.type() === "span").findWhere(it => it.text() === "Rename").first().simulate("click");
+        node.find("DropdownItem").findWhere(it => it.type() === "span").findWhere(it => it.text() === "Rename").first().simulate("click");
         // FIXME Must set loading as false as the component tries to fetch new page, I think
         fullPageStore.dispatch(setLoading(false));
 

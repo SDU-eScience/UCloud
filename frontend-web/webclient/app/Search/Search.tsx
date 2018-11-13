@@ -77,7 +77,6 @@ class Search extends React.Component<SearchProps> {
     }
 
     fetchAll(search: string) {
-        console.log("Fetch all")
         const { ...props } = this.props;
         props.setError();
         props.searchFiles(this.fileSearchBody);

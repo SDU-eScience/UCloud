@@ -9,7 +9,6 @@ import { mount, configure } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import * as moment from "moment";
 import { DatePicker } from "ui-components/DatePicker"
-import { Dropdown } from "semantic-ui-react";
 import { Input, Button, Label } from "ui-components";
 
 configure({ adapter: new Adapter() });
@@ -98,7 +97,7 @@ describe("DetailedFileSearch", () => {
             </Provider>
         );
         detailedFileSearchWrapper.find(Button).simulate("click");
-        const sensitivityDropdown = detailedFileSearchWrapper.find(Dropdown).findWhere(it => it.props().text === "Add sensitivity level");
+        const sensitivityDropdown = detailedFileSearchWrapper.find("Dropdown").findWhere(it => it.props().text === "Add sensitivity level");
         const detailedFileSearchComponent = detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0);
         expect((detailedFileSearchComponent.instance().state as any).sensitivities.has("Open Access")).toBe(false);
         sensitivityDropdown.findWhere(it => it.props().text === "Open Access").simulate("click");
@@ -122,7 +121,7 @@ describe("DetailedFileSearch", () => {
         );
         detailedFileSearchWrapper.find(Button).simulate("click");
         detailedFileSearchWrapper.find(Input).findWhere(it => it.props().placeholder === "Add extensions...").find("input").simulate("change", { target: { value: extensions } })
-        const extensionDropdown = detailedFileSearchWrapper.find(Dropdown).findWhere(it => it.props().text === "Add extension preset");
+        const extensionDropdown = detailedFileSearchWrapper.find("Dropdown").findWhere(it => it.props().text === "Add extension preset");
         // FIXME
 
     });

@@ -10,7 +10,6 @@ import { configure } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import { mount } from "enzyme";
 import * as ZenodoActions from "Zenodo/Redux/ZenodoActions";
-import { Button } from "semantic-ui-react";
 
 configure({ adapter: new Adapter });
 
@@ -37,9 +36,9 @@ describe("Zenodo Publish", () => {
             </Provider>
         );
         expect((publishWrapper.find(ZenodoPublish).children().instance().state as any).files.length).toBe(1);
-        publishWrapper.find(Button).findWhere(it => it.props().content === "Add file").simulate("click");
+        publishWrapper.find("Button").findWhere(it => it.props().content === "Add file").simulate("click");
         expect((publishWrapper.find(ZenodoPublish).children().instance().state as any).files.length).toBe(2);
-        publishWrapper.find(Button).findWhere(it => it.props().content === "✗").first().simulate("click");
+        publishWrapper.find("Button").findWhere(it => it.props().content === "✗").first().simulate("click");
         expect((publishWrapper.find(ZenodoPublish).children().instance().state as any).files.length).toBe(1);
     });
 
