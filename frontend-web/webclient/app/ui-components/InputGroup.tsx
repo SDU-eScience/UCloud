@@ -6,7 +6,7 @@ import Input from './Input';
 
 export type InputGroupProps = any;
 
-const InputGroup = styled<InputGroupProps, "div">("div")`
+const InputGroup = styled("div")<InputGroupProps>`
   display: flex;
   align-items: center;
   border-radius: ${theme['radius']};
@@ -25,13 +25,6 @@ const InputGroup = styled<InputGroupProps, "div">("div")`
     box-shadow: none;
   }
 `;
-
-/*
-InputGroup.propTypes = {
-  ...propTypes.space,
-  ...propTypes.borderColor
-}
-*/
 
 InputGroup.defaultProps = {
   theme,

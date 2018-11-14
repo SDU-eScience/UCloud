@@ -23,7 +23,7 @@ interface RadioWrapProps {
   disabled: boolean
 }
 
-const RadioWrap = styled<RadioWrapProps, "div">("div")`
+const RadioWrap = styled("div")<RadioWrapProps>`
   display: inline-block;
   color: ${props => props.theme.colors.borderGray};
   &:hover {
