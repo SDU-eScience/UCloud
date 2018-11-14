@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Button, Table, Header, Responsive, Dropdown, Grid, Divider } from "semantic-ui-react";
-import { Link } from "react-router-dom";
+import { Link } from "ui-components";
 import { toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -11,6 +10,11 @@ import { dateToString } from "Utilities/DateUtilities";
 import { List } from "Pagination/List";
 import { ZenodoHomeProps, ZenodoHomeState, ZenodoOperations } from ".";
 import { Dispatch } from "redux";
+import { OutlineButton, Divider, Button } from "ui-components";
+import * as Heading from "ui-components/Heading";
+import { MainContainer } from "MainContainer/MainContainer";
+import Table, { TableHeaderCell, TableRow, TableCell, TableBody, TableHeader } from "ui-components/Table";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
 class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
     constructor(props) {
@@ -32,94 +36,74 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
             return (<NotConnectedToZenodo />);
         } else {
             return (
-                <React.StrictMode>
-                    <Grid>
-                        <Grid.Column computer={13} tablet={16}>
-                            <Grid.Row>
-                                <Responsive maxWidth={991}>
-                                    <Button
-                                        as={Link}
-                                        color="blue"
-                                        to="/zenodo/publish/"
-                                        basic
-                                        fluid
-                                        content="Create new upload"
-                                        maxWidth={991}
-                                    />
-                                </Responsive>
-                            </Grid.Row>
-                            <Header as="h2">
-                                <Header.Content className="mobile-padding">
-                                    Upload progress
-                                </Header.Content>
-                                <Responsive as={Header.Subheader} minWidth={768}>
-                                    Connected to Zenodo
-                                </Responsive>
-                            </Header>
-                            <List
-                                onRefresh={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
-                                loading={loading}
-                                errorMessage={error}
-                                onErrorDismiss={onErrorDismiss}
-                                customEmptyPage={<Header.Subheader content="No Zenodo publications found." />}
-                                pageRenderer={(page) => (
-                                    <Table basic="very">
-                                        <TableHeader />
-                                        <Table.Body>
-                                            {page.items.map((it, i) => (<PublicationRow publication={it} key={i} />))}
-                                        </Table.Body>
-                                    </Table>
-                                )}
-                                page={page}
-                                onItemsPerPageChanged={(size: number) => fetchPublications(0, size)}
-                                onPageChanged={(pageNumber: number) => fetchPublications(pageNumber, page.itemsPerPage)}
-                            />
-                        </Grid.Column>
-                        <Responsive as={Grid.Column} computer={3} minWidth={992}>
-                            <Button as={Link} color="blue" to="/zenodo/publish/" basic fluid content="Create new upload" />
+                <MainContainer
+                    header={
+                        <>
+                            <Heading.h2>Upload progress</Heading.h2>
+                            <Heading.h5>Connected to Zenodo</Heading.h5>
+                        </>
+                    }
+                    main={
+                        <List
+                            onRefresh={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
+                            loading={loading}
+                            errorMessage={error}
+                            onErrorDismiss={onErrorDismiss}
+                            customEmptyPage={<Heading.h6>No Zenodo publications found.</Heading.h6>}
+                            pageRenderer={(page) => (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHeaderCell textAlign="left">ID</TableHeaderCell>
+                                            <TableHeaderCell textAlign="left">Name</TableHeaderCell>
+                                            <TableHeaderCell textAlign="left">Status</TableHeaderCell>
+                                            <TableHeaderCell textAlign="left">Last update</TableHeaderCell>
+                                            <TableHeaderCell />
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {page.items.map((it, i) => (<PublicationRow publication={it} key={i} />))}
+                                    </TableBody>
+                                </Table>
+                            )}
+                            page={page}
+                            onItemsPerPageChanged={size => fetchPublications(0, size)}
+                            onPageChanged={pageNumber => fetchPublications(pageNumber, page.itemsPerPage)}
+                        />}
+                    sidebar={
+                        <>
+                            <Link to="/zenodo/publish/">
+                                <OutlineButton fullWidth color="blue">Create new upload</OutlineButton>
+                            </Link>
                             <Divider />
-                        </Responsive>
-                    </Grid>
-                </React.StrictMode>
+                            <Link to="/zenodo/publish/">
+                                <Button color="blue" fullWidth>Create new upload</Button>
+                            </Link>
+                        </>
+                    }
+                />
             );
         }
     }
 }
 
-const TableHeader = () => (
-    <Table.Header>
-        <Table.Row>
-            <Table.HeaderCell>ID</Table.HeaderCell>
-            <Table.HeaderCell>Name</Table.HeaderCell>
-            <Table.HeaderCell>Status</Table.HeaderCell>
-            <Table.HeaderCell>Last update</Table.HeaderCell>
-            <Table.HeaderCell />
-        </Table.Row>
-    </Table.Header>
-);
-
 const PublicationRow = ({ publication }) => {
-    let actionButton: React.ReactNode = null;
-    if (publication.zenodoAction) {
-        actionButton = (
-            <Dropdown.Item content="Finish publication at Zenodo" as="a" href={publication.zenodoAction} target="_blank" />
-        )
-    }
+    const actionButton = publication.zenodoAction ?(
+            <a href={publication.zenodoAction} target="_blank">Finish publication at Zenodo</a>
+        ) : null;
     return (
-        <Table.Row>
-            <Table.Cell>{publication.id}</Table.Cell>
-            <Table.Cell>{publication.name}</Table.Cell>
-            <Table.Cell>{toLowerCaseAndCapitalize(publication.status)}</Table.Cell>
-            <Table.Cell>{dateToString(publication.modifiedAt)}</Table.Cell>
-            <Table.Cell>
-                <Dropdown direction="left" icon="ellipsis horizontal">
-                    <Dropdown.Menu>
-                        <Dropdown.Item as={Link} content="Show More" to={`/zenodo/info/${encodeURIComponent(publication.id)}`} />
-                        {actionButton}
-                    </Dropdown.Menu>
-                </Dropdown>
-            </Table.Cell>
-        </Table.Row>);
+        <TableRow>
+            <TableCell>{publication.id}</TableCell>
+            <TableCell>{publication.name}</TableCell>
+            <TableCell>{toLowerCaseAndCapitalize(publication.status)}</TableCell>
+            <TableCell>{dateToString(publication.modifiedAt)}</TableCell>
+            <TableCell>
+                <ClickableDropdown trigger={<i className="fas fa-ellipsis-h" />}>
+                    <Link to={`/zenodo/info/${encodeURIComponent(publication.id)}`}>Show More</Link>
+                    {actionButton}
+                </ClickableDropdown>
+            </TableCell>
+        </TableRow>);
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): ZenodoOperations => ({

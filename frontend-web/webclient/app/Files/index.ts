@@ -130,7 +130,7 @@ export interface FilesTableProps {
     sortingColumns: [SortBy, SortBy]
     files: File[]
     masterCheckbox?: React.ReactNode
-    sortingIcon?: (name: string) => SemanticICONS | undefined
+    sortingIcon?: (name: SortBy) => SemanticICONS | undefined
     sortFiles: (sortOrder: SortOrder, sortBy: SortBy) => void
     onRenameFile?: (key: number, file: File, name: string) => void
     onCreateFolder?: (key: number, name: string) => void

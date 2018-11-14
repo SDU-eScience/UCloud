@@ -135,8 +135,8 @@ class Files extends React.Component<FilesProps> {
                             <FilesTable
                                 onFavoriteFile={favoriteFile}
                                 fileOperations={fileOperations}
-                                sortFiles={(sortOrder: SortOrder, sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
-                                sortingIcon={(name: SortBy) => UF.getSortingIcon(sortBy, sortOrder, name)}
+                                sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                                sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
                                 sortOrder={sortOrder}
                                 sortingColumns={[leftSortingColumn, rightSortingColumn]}
                                 refetchFiles={() => refetch()}
@@ -145,7 +145,7 @@ class Files extends React.Component<FilesProps> {
                                 onRenameFile={this.onRenameFile}
                                 files={page.items}
                                 sortBy={sortBy}
-                                onCheckFile={(checked: boolean, file: File) => checkFile(checked, file.path)}
+                                onCheckFile={(checked, file) => checkFile(checked, file.path)}
                                 customEntriesPerPage={customEntriesPerPage}
                             />
                         )}

@@ -68,31 +68,6 @@ const emptyPageStore = configureStore({ files: initFiles("/home/user@test.abc/")
 }); */
 
 describe("File Selector Modal", () => {
-    // BLOCKED by https://github.com/Semantic-Org/Semantic-UI-React/issues/3100#issuecomment-415000769
-    /* test("Shown fileselector modal", () =>
-        expect(Renderer.create(
-            <MemoryRouter>
-                <FileSelectorModal
-                    show={true}
-                    path="/home/Folder/Fawlder"
-                    loading={false}
-                    onHide={(e, d) => false}
-                    page={emptyPageStore.getState().files.page}
-                    setSelectedFile={(f) => f}
-                    fetchFiles={(f) => f}
-                    disallowedPaths={[]}
-                    onlyAllowFolders={false}
-                    canSelectFolders={false}
-                    creatingFolder={false}
-                    handleKeyDown={() => null}
-                    createFolder={() => null}
-                    errorMessage={""}
-                    navigate={(a, b, c) => null}
-                    onErrorDismiss={() => null}
-                />
-            </MemoryRouter>
-        ).toJSON()).toMatchSnapshot()
-    ); */
 
     test("Hidden fileselector modal", () =>
         expect(Renderer.create(
