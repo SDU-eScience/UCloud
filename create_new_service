@@ -23,7 +23,7 @@ function titlecase() {
 }
 
 serviceName=$1
-jsonModel='{ 
+jsonModel='{
     "serviceName": "'${serviceName}'",
     "serviceNameTitle": "'$(titlecase $serviceName)'",
     "serviceCommonVersion": "0.21.0-SNAPSHOT",
@@ -47,14 +47,13 @@ for file in $(find ./service-template); do
     if [ ${file: -4} != ".jar" ]; then
         if [ -d "${file}" ]; then
             mkdir -p $targetPath
-        else 
+        else
             handlebars $jsonModelFile < $file > $targetPath
         fi
     else
         cp $file $targetPath
     fi
 done
-
 unset IFS; set +f
 
 mv $serviceName-service/src/main/kotlin/dk/sdu/cloud/service \

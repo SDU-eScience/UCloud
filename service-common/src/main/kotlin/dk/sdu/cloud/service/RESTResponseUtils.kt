@@ -47,6 +47,13 @@ fun <T> RESTResponse<T, *>.orThrow(): T {
     return result
 }
 
+fun <T> RESTResponse<T, *>.orNull(): T? {
+    if (this !is RESTResponse.Ok) {
+        return null
+    }
+    return result
+}
+
 fun AuthenticatedCloud.optionallyCausedBy(causedBy: String?): AuthenticatedCloud {
     return if (causedBy != null) withCausedBy(causedBy)
     else this

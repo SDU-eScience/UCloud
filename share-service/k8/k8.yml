@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: share-service-deployment
+  labels:
+    app: share-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: share-service
+  template:
+    metadata:
+      labels:
+        app: share-service
+    spec:
+      containers:
+      - name: share-service
+        image: registry.cloud.sdu.dk/sdu-cloud/share-service:0.1.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: 0ndexing-refresh-token
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: share
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: share-service

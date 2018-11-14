@@ -1,9 +1,8 @@
-package dk.sdu.cloud.{{ serviceName }}
+package dk.sdu.cloud.share
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.auth.api.refreshingJwtCloud
-import dk.sdu.cloud.{{ serviceName }}.api.{{ serviceNameTitle }}ServiceDescription
-import dk.sdu.cloud.service.configuration
+import dk.sdu.cloud.share.api.ShareServiceDescription
 import dk.sdu.cloud.service.initWithDefaultFeatures
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.kafka
@@ -14,7 +13,7 @@ import dk.sdu.cloud.service.HibernateFeature
 
 fun main(args: Array<String>) {
     val micro = Micro().apply {
-        initWithDefaultFeatures({{ serviceNameTitle }}ServiceDescription, args)
+        initWithDefaultFeatures(ShareServiceDescription, args)
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
     }
