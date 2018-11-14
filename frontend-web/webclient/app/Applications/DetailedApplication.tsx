@@ -1,12 +1,11 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { List as SList, Rating as SRating } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { ApplicationInformation } from "Applications";
-import { Error, Stamp, Button } from "ui-components";
+import { Error, Stamp, Button, Box, Flex, Icon } from "ui-components";
 import { MainContainer } from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading"
 
@@ -106,35 +105,34 @@ const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
     const padNumber = (val: number): string => val < 10 ? `0${val}` : `${val}`;
     const timeString = `${padNumber(hours)}:${padNumber(minutes)}:${padNumber(seconds)}`;
     return (
-        <SList>
-            <SList.Item>
-                <SList.Content floated="left">
-                    <Stamp bg="green" color="white" borderColor="green">
-                        <i className="fas fa-wrench"></i>
-                        Container: {tool.description.backend}
-                    </Stamp>
-                    <Stamp bg="blue" color="white" borderColor="blue">
-                        <i className="far fa-file"></i>
-                        Output files: {appInformation.description.outputFileGlobs.join(", ")}
-                    </Stamp>
-                    <Stamp color="black" bg="white" borderColor="black">
-                        {`${appInformation.description.parameters.length} parameters`}
-                    </Stamp>
-                </SList.Content>
-                <SList.Content floated="right">
-                    <Stamp borderColor="black" color="black" bg="white">
-                        <i className="far fa-clock"></i>
-                        Default job time: {timeString}
-                    </Stamp>
-                    <Stamp borderColor="black" color="black" bg="white">
-                        Default number of nodes: {tool.description.defaultNumberOfNodes}
-                    </Stamp>
-                    <Stamp borderColor="black" color="black" bg="white">
-                        {`Default tasks per node: ${tool.description.defaultTasksPerNode}`}
-                    </Stamp>
-                </SList.Content>
-            </SList.Item>
-        </SList >
+        <Flex>
+            <Stamp bg="green" color="white" borderColor="green">
+                <Box pr="0.2em" pl="0.2em">
+                    <i className="fas fa-wrench" />
+                </Box>
+                Container: {tool.description.backend}
+            </Stamp>
+            <Stamp bg="blue" color="white" borderColor="blue">
+                <Box pr="0.2em" pl="0.2em">
+                    <i className="far fa-file" />
+                </Box>
+                Output files: {appInformation.description.outputFileGlobs.join(", ")}
+            </Stamp>
+            <Stamp color="black" bg="white" borderColor="black">
+                {`${appInformation.description.parameters.length} parameters`}
+            </Stamp>
+            <Box ml="auto" />
+            <Stamp borderColor="black" color="black" bg="white">
+                <i className="far fa-clock" />
+                Default job time: {timeString}
+            </Stamp>
+            <Stamp borderColor="black" color="black" bg="white">
+                Default number of nodes: {tool.description.defaultNumberOfNodes}
+            </Stamp>
+            <Stamp borderColor="black" color="black" bg="white">
+                {`Default tasks per node: ${tool.description.defaultTasksPerNode}`}
+            </Stamp>
+        </Flex>
     )
 }
 
@@ -149,12 +147,11 @@ const ApplicationHeader = ({ appInformation, favoriteApplication }: ApplicationH
         <Heading.h1>
             {appInformation.description.title}
             <span className="app-favorite-padding">
-                <SRating
-                    icon="star"
-                    size="huge"
-                    rating={appInformation.favorite ? 1 : 0}
-                    maxRating={1}
+                <Icon
+                    ml="0.5em"
+                    style={{ verticalAlign: "center" }}
                     onClick={() => favoriteApplication()}
+                    name={appInformation.favorite ? "starFilled" : "starEmpty"}
                 />
             </span>
             <h4>{appInformation.description.info.version}</h4>

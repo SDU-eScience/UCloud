@@ -357,15 +357,6 @@ const JobMetaParams = (props) => {
                     />
                 </Label>
             </Box>
-
-            {/* <Label color="black" fontSize={2}>
-                Comment
-                <textarea
-                    placeholder="Comment..."
-                    disabled
-                    onChange={({ target: { value } }) => console.log(value)} // onJobSchedulingParamsChange
-                />
-            </Label> */}
         </>
     );
 }

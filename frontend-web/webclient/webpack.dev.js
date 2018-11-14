@@ -40,6 +40,7 @@ module.exports = webpackMerge(commonConfig, {
     devServer: {
         historyApiFallback: true,
         stats: "minimal",
+        contentBase: path.join(process.cwd(), "/dist"),
         index: "app/index.html",
         headers: {
             "Access-Control-Allow-Origin": "*",
@@ -47,7 +48,8 @@ module.exports = webpackMerge(commonConfig, {
             "Access-Control-Allow-Headers": "X-Requested-With, content-type, Authorization"
         },
         https: true,
-        inline: false,
+        hot: true,
+        inline: true,
         proxy: [{
             context: ["/auth/login", "/auth/request", "/auth/login-redirect", "/api", "/auth/css/", "/auth/logout",
                 "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png", "/auth/wayf_logo.png",
