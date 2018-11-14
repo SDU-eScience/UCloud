@@ -1,7 +1,7 @@
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { List as SList, Rating as SRating, Header as SHeader } from "semantic-ui-react";
+import { List as SList, Rating as SRating } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
@@ -147,20 +147,18 @@ const ApplicationHeader = ({ appInformation, favoriteApplication }: ApplicationH
 
     return (
         <Heading.h1>
-            <SHeader.Content>
-                {appInformation.description.title}
-                <span className="app-favorite-padding">
-                    <SRating
-                        icon="star"
-                        size="huge"
-                        rating={appInformation.favorite ? 1 : 0}
-                        maxRating={1}
-                        onClick={() => favoriteApplication()}
-                    />
-                </span>
-                <h4>{appInformation.description.info.version}</h4>
-                <h4>{pluralize(appInformation.description.authors, "Author")}: {authorString}</h4>
-            </SHeader.Content>
+            {appInformation.description.title}
+            <span className="app-favorite-padding">
+                <SRating
+                    icon="star"
+                    size="huge"
+                    rating={appInformation.favorite ? 1 : 0}
+                    maxRating={1}
+                    onClick={() => favoriteApplication()}
+                />
+            </span>
+            <h4>{appInformation.description.info.version}</h4>
+            <h4>{pluralize(appInformation.description.authors, "Author")}: {authorString}</h4>
             <Heading.h5>
                 <ReactMarkdown source={appInformation.description.description} />
             </Heading.h5>

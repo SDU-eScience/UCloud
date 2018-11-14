@@ -47,14 +47,17 @@ module.exports = webpackMerge(commonConfig, {
             "Access-Control-Allow-Headers": "X-Requested-With, content-type, Authorization"
         },
         https: true,
-        inline: true,
+        inline: false,
         proxy: [{
-            context: ["/auth/login", "/auth/request", "/auth/login-redirect", "/api", "/auth/css/", "/auth/logout", 
-                      "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png", "/auth/wayf_logo.png", 
-                      "/auth/saml/", "/auth/users/", "/auth/redirect.js"],
+            context: ["/auth/login", "/auth/request", "/auth/login-redirect", "/api", "/auth/css/", "/auth/logout",
+                "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png", "/auth/wayf_logo.png",
+                "/auth/saml/", "/auth/users/", "/auth/redirect.js"],
             target: "https://cloud.sdu.dk",
             secure: true,
             changeOrigin: true,
+            onProxyRes(proxyRes, req, res) {
+                delete proxyRes.headers["strict-transport-security"];
+            }
         }, {
             context: "/auth",
             target: "http://localhost:8080",
