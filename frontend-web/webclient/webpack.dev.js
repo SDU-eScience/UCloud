@@ -17,7 +17,7 @@ module.exports = webpackMerge(commonConfig, {
 
     output: {
         path: path.join(process.cwd(), "/dist"),
-        publicPath: "https://localhost:9000/",
+        publicPath: "/",
         filename: "[name].js",
     },
 
@@ -47,7 +47,6 @@ module.exports = webpackMerge(commonConfig, {
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
             "Access-Control-Allow-Headers": "X-Requested-With, content-type, Authorization"
         },
-        https: true,
         hot: true,
         inline: true,
         proxy: [{
@@ -55,14 +54,15 @@ module.exports = webpackMerge(commonConfig, {
                 "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png", "/auth/wayf_logo.png",
                 "/auth/saml/", "/auth/users/", "/auth/redirect.js"],
             target: "https://cloud.sdu.dk",
-            secure: true,
+            secure: false,
             changeOrigin: true,
             onProxyRes(proxyRes, req, res) {
+                if ("set-cookie" in proxyRes.headers) {
+                    for (let i = 0; i < proxyRes.headers["set-cookie"].length; i++)
+                        proxyRes.headers["set-cookie"][i] = proxyRes.headers["set-cookie"][i].replace(/Secure;/g, "");
+                }
                 delete proxyRes.headers["strict-transport-security"];
             }
-        }, {
-            context: "/auth",
-            target: "http://localhost:8080",
-        }],
+        }]
     }
 });
