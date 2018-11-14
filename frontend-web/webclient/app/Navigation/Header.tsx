@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Icon as SIcon } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import Link from "ui-components/Link";
@@ -71,11 +70,11 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                     <Box style={{ backgroundColor: "unset" }}>Welcome, {Cloud.userInfo.firstNames}</Box>
                     <Divider />
                     <Link color="black" to={"/usersettings/settings"}>
-                        <SIcon name="settings" />
+                        <i className="fas fa-cogs" />
                         Settings
                     </Link>
                     <Box onClick={() => Cloud.logout()}>
-                        <SIcon name="sign out" />
+                        <i className="fas fa-sign-out-alt" />
                         Logout
                     </Box>
                 </ClickableDropdown>

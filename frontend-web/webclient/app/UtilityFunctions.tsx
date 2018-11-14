@@ -1,7 +1,6 @@
 import swal from "sweetalert2";
 import { SensitivityLevel } from "DefaultObjects";
 import Cloud from "Authentication/lib";
-import { SemanticICONS } from "semantic-ui-react";
 import { SortBy, SortOrder, File, Acl, FileType } from "Files";
 import { dateToString } from "Utilities/DateUtilities";
 import {
@@ -143,7 +142,7 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
         case SortBy.ACL:
             if (file.acl !== undefined)
                 return getOwnerFromAcls(file.acl)
-            else 
+            else
                 return "";
         case SortBy.FAVORITED:
             return file.favorited ? "Favorited" : "";
@@ -228,8 +227,9 @@ export const extensionType = (ext: string): ExtensionType => {
     }
 }
 
-
-export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): SemanticICONS => {
+type FileIcons = "tasks" | "star" | "trash alternate outline" | "folder" | "file outline" |
+    "file code outline" | "image" | "file outline" | "volume up" | "file archive outline";
+export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FileIcons => {
     const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
     if (homeFolderReplaced === "Home/Jobs") return "tasks";
     if (homeFolderReplaced === "Home/Favorites") return "star";
@@ -246,12 +246,11 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
             return "file code outline";
         case "image":
             return "image";
-        case "text":
-            return "file outline";
         case "sound":
             return "volume up";
         case "archive":
             return "file archive outline";
+        case "text":
         default:
             return "file outline";
     }
