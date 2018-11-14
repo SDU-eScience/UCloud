@@ -5,9 +5,7 @@ import dk.sdu.cloud.BinaryStream
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.auth.services.AccessTokenContents
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
@@ -34,17 +32,6 @@ data class OneTimeAccessToken(val accessToken: String, val jti: String)
 data class RequestOneTimeToken(val audience: String)
 data class ClaimOneTimeToken(val jti: String)
 
-data class VerifyTokenRequest(val token: String)
-typealias VerifyTokenAudit = Unit
-
-data class RevokeTokenRequest(val token: String)
-typealias RevokeTokenAudit = Unit
-
-enum class TokenType {
-    JWT,
-    OPAQUE
-}
-
 data class TokenExtensionRequest(
     /**
      * A valid JWT for the security principal extension is requested
@@ -62,17 +49,18 @@ data class TokenExtensionRequest(
      * How many ms the new token should be valid for.
      *
      * It is not possible to extend this deadline. Currently the maximum deadline is configured to be 24 hours.
-     * A value of `-1` with [tokenType] of [TokenType.OPAQUE] will allow the token to live indefinitely.
      */
     val expiresIn: Long,
 
     /**
-     * The type of token.
+     * Should this extension allow the token to be refreshed?
+     *
+     * This will happen through a refresh token passed via [OptionalAuthenticationTokens.refreshToken].
      */
-    val tokenType: TokenType = TokenType.JWT
+    val allowRefreshes: Boolean = false
 )
 
-typealias TokenExtensionResponse = AccessToken
+typealias TokenExtensionResponse = OptionalAuthenticationTokens
 
 data class TokenExtensionAudit(
     val requestedBy: String,
@@ -80,7 +68,7 @@ data class TokenExtensionAudit(
     val role: Role?,
     val requestedScopes: List<String>,
     val expiresIn: Long,
-    val tokenType: TokenType
+    val allowRefreshes: Boolean
 )
 
 object AuthDescriptions : RESTDescriptions("auth") {
@@ -196,41 +184,6 @@ object AuthDescriptions : RESTDescriptions("auth") {
         path {
             using(baseContext)
             +"extend"
-        }
-
-        body { bindEntireRequestFromBody() }
-    }
-
-    val verifyToken = callDescriptionWithAudit<VerifyTokenRequest, SecurityPrincipalToken,
-            CommonErrorMessage, VerifyTokenAudit> {
-        name = "verifyToken"
-        method = HttpMethod.Post
-
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ
-        }
-
-        path {
-            using(baseContext)
-            +"verify-token"
-        }
-
-        body { bindEntireRequestFromBody() }
-    }
-
-    val revokeToken = callDescriptionWithAudit<RevokeTokenRequest, Unit, CommonErrorMessage, RevokeTokenAudit> {
-        name = "revokeToken"
-        method = HttpMethod.Post
-
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ_WRITE
-        }
-
-        path {
-            using(baseContext)
-            +"revoke-token"
         }
 
         body { bindEntireRequestFromBody() }

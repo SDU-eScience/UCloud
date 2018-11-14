@@ -5,5 +5,4 @@ import dk.sdu.cloud.service.install
 
 fun Micro.installAuth() {
     install(RefreshingJWTCloudFeature)
-    install(OpaqueTokenMicroFeature)
 }

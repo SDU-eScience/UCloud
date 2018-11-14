@@ -67,7 +67,6 @@ class TokenTest {
             refreshTokenDao,
             testJwtFactory,
             mockk(relaxed = true),
-            mockk(relaxed = true),
             tokenValidation = testJwtVerifier
         )
 

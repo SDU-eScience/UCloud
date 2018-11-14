@@ -12,7 +12,7 @@ import java.util.*
 class JWTFactory(private val jwtAlg: JWTAlgorithm) : TokenGenerationService {
     override fun generate(contents: AccessTokenContents): String {
         val iat = Date(contents.createdAt)
-        val exp = contents.expiresAt?.let { Date(it) }
+        val exp = Date(contents.expiresAt)
 
         return JWT.create().run {
             writeStandardClaims(contents.user)
@@ -24,32 +24,6 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) : TokenGenerationService {
             if (contents.sessionReference != null) withClaim(CLAIM_SESSION_REFERENCE, contents.sessionReference)
             sign(jwtAlg)
         }
-    }
-
-    fun create(
-        user: Principal,
-        expiresIn: Long,
-        audience: List<SecurityScope>,
-        extendedBy: String? = null,
-        jwtId: String? = null,
-        sessionReference: String? = null
-    ): AccessToken {
-        val now = System.currentTimeMillis()
-        val iat = Date(now)
-        val exp = Date(now + expiresIn)
-
-        val token = JWT.create().run {
-            writeStandardClaims(user)
-            withExpiresAt(exp)
-            withIssuedAt(iat)
-            withAudience(*(audience.map { it.toString() }).toTypedArray())
-            if (extendedBy != null) withClaim(CLAIM_EXTENDED_BY, extendedBy)
-            if (jwtId != null) withJWTId(jwtId)
-            if (sessionReference != null) withClaim(CLAIM_SESSION_REFERENCE, sessionReference)
-            sign(jwtAlg)
-        }
-
-        return AccessToken(token)
     }
 
     private fun JWTCreator.Builder.writeStandardClaims(user: Principal) {

@@ -7,7 +7,7 @@ class AccessTokenContents(
     val user: Principal,
     val scopes: List<SecurityScope>,
     val createdAt: Long,
-    val expiresAt: Long?,
+    val expiresAt: Long,
 
     val claimableId: String? = null,
     val sessionReference: String? = null,

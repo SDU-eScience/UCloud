@@ -79,7 +79,6 @@ class CoreAuthTest {
             refreshTokenDao,
             jwtFactory,
             mockk(relaxed = true),
-            mockk(relaxed = true),
             validation,
             serviceExtensionPolicy
         )

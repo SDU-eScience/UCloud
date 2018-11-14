@@ -321,7 +321,7 @@ class CoreAuthController<DBSession>(
                 role = null,
                 requestedScopes = req.requestedScopes,
                 expiresIn = req.expiresIn,
-                tokenType = req.tokenType
+                allowRefreshes = req.allowRefreshes
             )
 
             audit(auditMessage)
@@ -339,7 +339,7 @@ class CoreAuthController<DBSession>(
                     req.expiresIn,
                     req.requestedScopes,
                     call.securityPrincipal.username,
-                    req.tokenType
+                    req.allowRefreshes
                 )
             )
         }
@@ -370,7 +370,6 @@ class CoreAuthController<DBSession>(
             }
         }
 
-        // TODO This stuff won't work with cookie based auth
         implement(AuthDescriptions.logout) {
             okContentDeliveredExternally()
 
@@ -402,11 +401,6 @@ class CoreAuthController<DBSession>(
             tokenService.logout(refreshToken, csrfToken)
             call.response.cookies.appendExpired(REFRESH_WEB_REFRESH_TOKEN_COOKIE, path = "/")
             call.respond(HttpStatusCode.NoContent)
-        }
-
-        implement(AuthDescriptions.whoami) { req ->
-            log.info("Hello: ${call.securityPrincipal}")
-            ok(Unit)
         }
     }
 

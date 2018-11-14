@@ -1,11 +1,14 @@
 package dk.sdu.cloud.auth.services
 
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import org.hibernate.annotations.NaturalId
+import org.hibernate.annotations.Type
 import java.util.UUID
 import javax.persistence.Entity
 import javax.persistence.Id
@@ -14,7 +17,9 @@ import javax.persistence.Table
 
 data class RefreshTokenAndUser(
     val associatedUser: String,
+
     val token: String,
+
     val csrf: String,
 
     /**
@@ -24,7 +29,13 @@ data class RefreshTokenAndUser(
      * This makes them readable by the end-user. It is __very__ important that we do not leak refresh tokens into
      * the JWT. This reference is added solely for the purpose of auditing.
      */
-    val publicSessionReference: String? = UUID.randomUUID().toString()
+    val publicSessionReference: String? = UUID.randomUUID().toString(),
+
+    val expiresAfter: Long = 1000L * 60 * 10,
+
+    val scopes: List<SecurityScope> = listOf(SecurityScope.ALL_WRITE),
+
+    val extendedBy: String? = null
 )
 
 interface RefreshTokenDAO<Session> {
@@ -40,6 +51,7 @@ interface RefreshTokenDAO<Session> {
  * - V1__Initial.sql
  * - V2__CSRF.sql
  * - V3__Session_id.sql
+ * - V5__Refresh_Templates.sql
  */
 @Entity
 @Table(name = "refresh_tokens")
@@ -53,7 +65,14 @@ data class RefreshTokenEntity(
 
     var csrf: String,
 
-    var publicSessionReference: String?
+    var publicSessionReference: String?,
+
+    var expiresAfter: Long,
+
+    @Type(type = JSONB_TYPE)
+    var scopes: List<String>,
+
+    var extendedBy: String?
 ) {
     companion object : HibernateEntity<RefreshTokenEntity>, WithId<String>
 }
@@ -73,7 +92,10 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
                 tokenAndUser.token,
                 principal,
                 tokenAndUser.csrf,
-                tokenAndUser.publicSessionReference
+                tokenAndUser.publicSessionReference,
+                tokenAndUser.expiresAfter,
+                tokenAndUser.scopes.map { it.toString() },
+                tokenAndUser.extendedBy
             )
         )
     }
@@ -91,5 +113,13 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
 }
 
 fun RefreshTokenEntity.toModel(): RefreshTokenAndUser {
-    return RefreshTokenAndUser(associatedUser.id, token, csrf, publicSessionReference)
+    return RefreshTokenAndUser(
+        associatedUser.id,
+        token,
+        csrf,
+        publicSessionReference,
+        expiresAfter,
+        scopes.map { SecurityScope.parseFromString(it) },
+        extendedBy
+    )
 }

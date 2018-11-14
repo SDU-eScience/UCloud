@@ -65,7 +65,6 @@ class SAMLTest {
             userDao,
             refreshTokenDao,
             jwtFactory,
-            mockk(relaxed = true),
             UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true)),
             tokenValidation = validation
         )

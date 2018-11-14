@@ -3,18 +3,17 @@ package dk.sdu.cloud.auth
 import com.auth0.jwt.algorithms.Algorithm
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.LoginResponder
 import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
-import dk.sdu.cloud.auth.http.TokenController
 import dk.sdu.cloud.auth.http.TwoFactorAuthController
 import dk.sdu.cloud.auth.http.UserController
+import dk.sdu.cloud.auth.services.AccessTokenContents
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
-import dk.sdu.cloud.auth.services.OpaqueAccessTokenHibernateDao
-import dk.sdu.cloud.auth.services.OpaqueTokenService
 import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
 import dk.sdu.cloud.auth.services.TokenService
@@ -94,15 +93,11 @@ class Server(
             service to lists.flatMap { it.parsedScopes }.toSet()
         }.toMap()
 
-        val opaqueTokenDao = OpaqueAccessTokenHibernateDao()
-        val opaqueTokenService = OpaqueTokenService(db, opaqueTokenDao)
-
         val tokenService = TokenService(
             db,
             userDao,
             refreshTokenDao,
             JWTFactory(jwtAlg),
-            opaqueTokenService,
             userCreationService,
             tokenValidation,
             mergedExtensions
@@ -132,7 +127,12 @@ class Server(
                     )
 
                     userCreationService.blockingCreateUser(user)
-                    val token = tokenService.createAndRegisterTokenFor(user, ONE_YEAR_IN_MILLS)
+                    val token = tokenService.createAndRegisterTokenFor(user, AccessTokenContents(
+                        user,
+                        listOf(SecurityScope.ALL_WRITE),
+                        createdAt = System.currentTimeMillis(),
+                        expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
+                    ))
 
                     log.info("Username: admin@dev")
                     log.info("accessToken = ${token.accessToken}")
@@ -195,9 +195,7 @@ class Server(
                         tokenService
                     ),
 
-                    TwoFactorAuthController(twoFactorChallengeService, loginResponder),
-
-                    TokenController(opaqueTokenService)
+                    TwoFactorAuthController(twoFactorChallengeService, loginResponder)
                 )
             }
 

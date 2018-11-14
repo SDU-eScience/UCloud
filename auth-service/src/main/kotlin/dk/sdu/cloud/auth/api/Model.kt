@@ -150,7 +150,33 @@ data class ServicePrincipal(
     }
 }
 
+interface WithAccessToken {
+    val accessToken: String
+}
 
-data class AuthenticationTokens(val accessToken: String, val refreshToken: String, val csrfToken: String)
-data class AccessToken(val accessToken: String)
-data class AccessTokenAndCsrf(val accessToken: String, val csrfToken: String)
+interface WithOptionalCsrfToken {
+    val csrfToken: String?
+}
+
+interface WithOptionalRefreshToken {
+    val refreshToken: String?
+}
+
+data class AccessToken(override val accessToken: String) : WithAccessToken
+
+data class AccessTokenAndCsrf(
+    override val accessToken: String,
+    override val csrfToken: String
+) : WithAccessToken, WithOptionalCsrfToken
+
+data class AuthenticationTokens(
+    override val accessToken: String,
+    override val refreshToken: String,
+    override val csrfToken: String
+) : WithAccessToken, WithOptionalCsrfToken, WithOptionalRefreshToken
+
+data class OptionalAuthenticationTokens(
+    override val accessToken: String,
+    override val csrfToken: String?,
+    override val refreshToken: String?
+) : WithAccessToken, WithOptionalCsrfToken, WithOptionalRefreshToken

@@ -61,7 +61,6 @@ class PasswordTest {
             refreshTokenDao,
             jwtFactory,
             mockk(relaxed = true),
-            mockk(relaxed = true),
             tokenValidation = tokenValidation
         )
 
