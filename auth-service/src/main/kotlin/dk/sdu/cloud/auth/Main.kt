@@ -7,6 +7,7 @@ import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.auth.api.installAuth
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.service.HibernateFeature
@@ -73,7 +74,7 @@ fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(AuthServiceDescription, args)
         install(HibernateFeature)
-        install(RefreshingJWTCloudFeature)
+        installAuth()
     }
 
     if (micro.runScriptHandler()) return

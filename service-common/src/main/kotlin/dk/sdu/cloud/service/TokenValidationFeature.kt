@@ -110,7 +110,7 @@ class TokenValidationChain : TokenValidation<Any> {
             exceptions.forEach { log.debug(it.stackTraceToString()) }
         }
 
-        throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        throw TokenValidationException.Invalid()
     }
 
     override fun validate(token: String, scopes: List<SecurityScope>?): Any {
@@ -120,7 +120,7 @@ class TokenValidationChain : TokenValidation<Any> {
             if (result.isSuccess) {
                 return result.getOrThrow()
             } else {
-
+                result.exceptionOrNull()?.let { exceptions.add(it) }
             }
         }
 
@@ -130,7 +130,7 @@ class TokenValidationChain : TokenValidation<Any> {
             exceptions.forEach { log.debug(it.stackTraceToString()) }
         }
 
-        throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        throw TokenValidationException.Invalid()
     }
 
     companion object : Loggable {

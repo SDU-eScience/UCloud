@@ -403,6 +403,11 @@ class CoreAuthController<DBSession>(
             call.response.cookies.appendExpired(REFRESH_WEB_REFRESH_TOKEN_COOKIE, path = "/")
             call.respond(HttpStatusCode.NoContent)
         }
+
+        implement(AuthDescriptions.whoami) { req ->
+            log.info("Hello: ${call.securityPrincipal}")
+            ok(Unit)
+        }
     }
 
     private fun HTML.formPage(
