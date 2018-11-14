@@ -1,5 +1,6 @@
 package dk.sdu.cloud.auth.api
 
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.Role
@@ -113,8 +114,11 @@ sealed class Person : Principal() {
         override val emailAddresses: List<String>,
         override val preferredEmailAddress: String?,
 
-        val password: ByteArray,
-        val salt: ByteArray
+        @JsonIgnore
+        val password: ByteArray = ByteArray(0),
+
+        @JsonIgnore
+        val salt: ByteArray = ByteArray(0)
     ) : Person() {
         init {
             validate()

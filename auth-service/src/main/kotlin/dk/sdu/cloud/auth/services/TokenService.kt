@@ -5,7 +5,6 @@ import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
-import dk.sdu.cloud.auth.api.AccessTokenContents
 import dk.sdu.cloud.auth.api.AuthenticationTokens
 import dk.sdu.cloud.auth.api.OneTimeAccessToken
 import dk.sdu.cloud.auth.api.Person

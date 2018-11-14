@@ -5,7 +5,9 @@ import dk.sdu.cloud.BinaryStream
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.auth.services.AccessTokenContents
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
@@ -199,7 +201,7 @@ object AuthDescriptions : RESTDescriptions("auth") {
         body { bindEntireRequestFromBody() }
     }
 
-    val verifyToken = callDescriptionWithAudit<VerifyTokenRequest, AccessTokenContents,
+    val verifyToken = callDescriptionWithAudit<VerifyTokenRequest, SecurityPrincipalToken,
             CommonErrorMessage, VerifyTokenAudit> {
         name = "verifyToken"
         method = HttpMethod.Post

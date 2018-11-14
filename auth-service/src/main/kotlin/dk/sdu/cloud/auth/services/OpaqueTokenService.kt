@@ -1,6 +1,6 @@
 package dk.sdu.cloud.auth.services
 
-import dk.sdu.cloud.auth.api.AccessTokenContents
+import dk.sdu.cloud.auth.api.OPAQUE_TOKEN_PREFIX
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -17,7 +17,7 @@ class OpaqueTokenService<DBSession>(
     private fun generateToken(): String {
         val bytes = ByteArray(TOKEN_LENGTH_IN_BYTES)
         secureRandom.nextBytes(bytes)
-        return OPAQUE_PREFIX + Base64.getEncoder().encodeToString(bytes)
+        return OPAQUE_TOKEN_PREFIX + Base64.getEncoder().encodeToString(bytes)
     }
 
     override fun generate(contents: AccessTokenContents): String {
@@ -42,7 +42,5 @@ class OpaqueTokenService<DBSession>(
         override val log: Logger = logger()
 
         private const val TOKEN_LENGTH_IN_BYTES = 64
-
-        const val OPAQUE_PREFIX = "cloud-"
     }
 }

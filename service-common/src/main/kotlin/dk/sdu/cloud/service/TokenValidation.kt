@@ -24,6 +24,8 @@ sealed class TokenValidationException(why: String, statusCode: HttpStatusCode) :
 }
 
 interface TokenValidation<TokenType> {
+    val tokenType: Class<TokenType>
+
     fun decodeToken(token: TokenType): SecurityPrincipalToken
 
     fun validate(token: String, scopes: List<SecurityScope>? = null): TokenType
@@ -44,6 +46,8 @@ fun <T> TokenValidation<T>.validateAndDecodeOrNull(token: String): SecurityPrinc
 private const val CERT_CHUNK_SIZE = 64
 
 class TokenValidationJWT(val algorithm: Algorithm) : TokenValidation<DecodedJWT> {
+    override val tokenType = DecodedJWT::class.java
+
     private fun createVerifier(audience: List<String>? = null): JWTVerifier {
         return JWT.require(algorithm).run {
             withIssuer("cloud.sdu.dk")

@@ -1,7 +1,6 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.auth.api.AccessTokenContents
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.JSONB_TYPE
@@ -60,7 +59,7 @@ class OpaqueAccessTokenHibernateDao : OpaqueAccessTokenDao<HibernateSession> {
         val entity = OpaqueTokenEntity(
             token,
             contents.user.toEntity(),
-            contents.scopes.map { it },
+            contents.scopes.map { it.toString() },
             Date(contents.createdAt),
             contents.expiresAt?.let { Date(it) },
             contents.claimableId,

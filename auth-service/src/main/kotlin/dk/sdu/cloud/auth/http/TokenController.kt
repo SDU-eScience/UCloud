@@ -1,7 +1,12 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.Person
+import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.services.OpaqueTokenService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
@@ -22,7 +27,16 @@ class TokenController(
                 HttpStatusCode.NotFound
             )
 
-            ok(token)
+            ok(
+                SecurityPrincipalToken(
+                    token.user.toSecurityPrincipal(),
+                    token.scopes,
+                    token.createdAt,
+                    token.expiresAt ?: Long.MAX_VALUE,
+                    token.sessionReference,
+                    token.extendedBy
+                )
+            )
         }
 
         implement(AuthDescriptions.revokeToken) { req ->
@@ -31,5 +45,21 @@ class TokenController(
             opaqueTokenService.revoke(req.token)
             ok(Unit)
         }
+    }
+
+    private fun Principal.toSecurityPrincipal(): SecurityPrincipal = when (this) {
+        is Person -> SecurityPrincipal(
+            id,
+            role,
+            firstNames,
+            lastName
+        )
+
+        is ServicePrincipal -> SecurityPrincipal(
+            id,
+            role,
+            "N/A",
+            "N/A"
+        )
     }
 }

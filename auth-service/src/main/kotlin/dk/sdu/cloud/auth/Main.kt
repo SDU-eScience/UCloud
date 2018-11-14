@@ -87,7 +87,7 @@ fun main(args: Array<String>) {
     val (_, priv) = loadKeysAndInsertIntoProps(configuration.certsLocation, samlProperties)
     val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
 
-    val tokenValidation = micro.tokenValidation as? TokenValidationJWT
+    val tokenValidation = micro.tokenValidation.findInstanceInChain<TokenValidationJWT>()
         ?: throw IllegalStateException(
             "This service is for some reason not configured to use JWTs for validation. " +
                     "This is required!"
