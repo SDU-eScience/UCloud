@@ -299,7 +299,7 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
 
                         if (CommonErrorMessage::class.java == restCall.responseTypeFailure.type) {
                             val message =
-                                if (isInternalServerError) (ex as? RPCException)?.why ?: "Internal Server Error"
+                                if (!isInternalServerError) (ex as? RPCException)?.why ?: "Internal Server Error"
                                 else "Internal Server Error"
 
                             @Suppress("UNCHECKED_CAST")

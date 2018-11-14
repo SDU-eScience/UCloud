@@ -1,155 +1,108 @@
 package dk.sdu.cloud.auth.services
 
-import com.auth0.jwt.JWT
-import com.auth0.jwt.JWTCreator
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
+import dk.sdu.cloud.auth.api.AccessTokenContents
 import dk.sdu.cloud.auth.api.AuthenticationTokens
 import dk.sdu.cloud.auth.api.OneTimeAccessToken
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
-import dk.sdu.cloud.auth.api.ServicePrincipal
+import dk.sdu.cloud.auth.api.TokenType
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.toSecurityToken
-import io.ktor.http.HttpStatusCode
-import org.slf4j.LoggerFactory
 import java.security.SecureRandom
-import java.util.Date
-import java.util.Base64
-import java.util.UUID
-
-internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
-
-class JWTFactory(private val jwtAlg: JWTAlgorithm) {
-    fun create(
-        user: Principal,
-        expiresIn: Long,
-        audience: List<SecurityScope>,
-        extendedBy: String? = null,
-        jwtId: String? = null,
-        sessionReference: String? = null
-    ): AccessToken {
-        val now = System.currentTimeMillis()
-        val iat = Date(now)
-        val exp = Date(now + expiresIn)
-
-        val token = JWT.create().run {
-            writeStandardClaims(user)
-            withExpiresAt(exp)
-            withIssuedAt(iat)
-            withAudience(*(audience.map { it.toString() }).toTypedArray())
-            if (extendedBy != null) withClaim(CLAIM_EXTENDED_BY, extendedBy)
-            if (jwtId != null) withJWTId(jwtId)
-            if (sessionReference != null) withClaim(CLAIM_SESSION_REFERENCE, sessionReference)
-            sign(jwtAlg)
-        }
-
-        return AccessToken(token)
-    }
-
-    private fun JWTCreator.Builder.writeStandardClaims(user: Principal) {
-        withSubject(user.id)
-        withClaim("role", user.role.name)
-
-        withIssuer("cloud.sdu.dk")
-
-        when (user) {
-            is Person -> {
-                withClaim("firstNames", user.firstNames)
-                withClaim("lastName", user.lastName)
-                if (user.orcId != null) withClaim("orcId", user.orcId)
-                if (user.title != null) withClaim("title", user.title)
-            }
-
-            is ServicePrincipal -> {
-                // Do nothing
-            }
-        }
-
-        // TODO This doesn't seem right
-        val type = when (user) {
-            is Person.ByWAYF -> "wayf"
-            is Person.ByPassword -> "password"
-            is ServicePrincipal -> "service"
-        }
-        withClaim("principalType", type)
-    }
-
-    companion object {
-        const val CLAIM_EXTENDED_BY = "extendedBy"
-        const val CLAIM_SESSION_REFERENCE = "publicSessionReference"
-    }
-}
-
-private const val TEN_MIN_IN_MILLS = 1000 * 60 * 10L
-private const val THIRTY_SECONDS_IN_MILLS = 1000 * 60L
-private const val BYTE_ARRAY_SIZE = 64
+import java.util.*
 
 class TokenService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val userDao: UserDAO<DBSession>,
     private val refreshTokenDao: RefreshTokenDAO<DBSession>,
     private val jwtFactory: JWTFactory,
+    private val opaqueTokenFactory: OpaqueTokenService<DBSession>,
     private val userCreationService: UserCreationService<*>,
-    private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap(),
-    private val tokenValidation: TokenValidation<DecodedJWT>
+    private val tokenValidation: TokenValidation<DecodedJWT>,
+    private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap()
 ) {
-    private val log = LoggerFactory.getLogger(TokenService::class.java)
-
     private val secureRandom = SecureRandom()
-    private fun generateCsrfToken(): String {
-        val array = ByteArray(BYTE_ARRAY_SIZE)
-        secureRandom.nextBytes(array)
-        return Base64.getEncoder().encodeToString(array)
+
+    private fun resolveTokenGenerator(tokenType: TokenType): TokenGenerationService = when (tokenType) {
+        TokenType.JWT -> jwtFactory
+        TokenType.OPAQUE -> opaqueTokenFactory
     }
 
     private fun createAccessTokenForExistingSession(
         user: Principal,
         sessionReference: String?,
-        expiresIn: Long = TEN_MIN_IN_MILLS
+        expiresIn: Long = TEN_MIN_IN_MILLS,
+        tokenType: TokenType = TokenType.JWT
     ): AccessToken {
-        return jwtFactory.create(user, expiresIn, listOf(SecurityScope.ALL_WRITE), sessionReference = sessionReference)
+        val token = AccessTokenContents(
+            user = user,
+            scopes = listOf(SecurityScope.ALL_WRITE),
+            createdAt = System.currentTimeMillis(),
+            expiresAt = System.currentTimeMillis() + expiresIn,
+            claimableId = null,
+            sessionReference = sessionReference,
+            extendedBy = null
+        )
+        return AccessToken(resolveTokenGenerator(tokenType).generate(token))
     }
 
     private fun createOneTimeAccessTokenForExistingSession(
         user: Principal,
-        audience: List<SecurityScope>
+        audience: List<SecurityScope>,
+        tokenType: TokenType = TokenType.JWT
     ): OneTimeAccessToken {
         val jti = UUID.randomUUID().toString()
-        return OneTimeAccessToken(
-            jwtFactory.create(
-                user = user,
-                audience = audience,
-                expiresIn = THIRTY_SECONDS_IN_MILLS,
-                jwtId = jti
-            ).accessToken,
-            jti
+        val token = AccessTokenContents(
+            user = user,
+            scopes = audience,
+            createdAt = System.currentTimeMillis(),
+            expiresAt = System.currentTimeMillis() + THIRTY_SECONDS_IN_MILLS,
+            claimableId = jti
         )
+
+        return OneTimeAccessToken(resolveTokenGenerator(tokenType).generate(token), jti)
     }
 
     private fun createExtensionToken(
         user: Principal,
         expiresIn: Long,
         scopes: List<SecurityScope>,
-        requestedBy: String
+        requestedBy: String,
+        tokenType: TokenType = TokenType.JWT
     ): AccessToken {
-        return jwtFactory.create(user, expiresIn, scopes, extendedBy = requestedBy)
+        val token = AccessTokenContents(
+            user = user,
+            scopes = scopes,
+            createdAt = System.currentTimeMillis(),
+            expiresAt = if (expiresIn != -1L) System.currentTimeMillis() + expiresIn else null,
+            extendedBy = requestedBy
+        )
+
+        return AccessToken(resolveTokenGenerator(tokenType).generate(token))
     }
 
     fun createAndRegisterTokenFor(
         user: Principal,
         expiresIn: Long = TEN_MIN_IN_MILLS
     ): AuthenticationTokens {
+        fun generateCsrfToken(): String {
+            val array = ByteArray(CSRF_TOKEN_SIZE)
+            secureRandom.nextBytes(array)
+            return Base64.getEncoder().encodeToString(array)
+        }
+
         log.debug("Creating and registering token for $user")
         val refreshToken = UUID.randomUUID().toString()
         val csrf = generateCsrfToken()
@@ -173,12 +126,14 @@ class TokenService<DBSession>(
         token: SecurityPrincipalToken,
         expiresIn: Long,
         rawSecurityScopes: List<String>,
-        requestedBy: String
+        requestedBy: String,
+        tokenType: TokenType = TokenType.JWT
     ): AccessToken {
         val requestedScopes = rawSecurityScopes.map {
             try {
                 SecurityScope.parseFromString(it)
             } catch (ex: IllegalArgumentException) {
+                log.debug(ex.stackTraceToString())
                 throw ExtensionException.BadRequest("Bad scope: $it")
             }
         }
@@ -210,8 +165,10 @@ class TokenService<DBSession>(
             throw ExtensionException.Unauthorized("Cannot extend due to missing user scopes")
         }
 
-        if (expiresIn < 0 || expiresIn > MAX_EXTENSION_TIME_IN_MS) {
-            throw ExtensionException.BadRequest("Bad request (expiresIn)")
+        if (tokenType == TokenType.JWT) {
+            if (expiresIn < 0 || expiresIn > MAX_EXTENSION_TIME_IN_MS) {
+                throw ExtensionException.BadRequest("Bad request (expiresIn)")
+            }
         }
 
         // Require, additionally, that no all or special scopes are requested
@@ -229,45 +186,7 @@ class TokenService<DBSession>(
             userDao.findByIdOrNull(it, token.principal.username)
         } ?: throw ExtensionException.InternalError("Could not find user in database")
 
-        return createExtensionToken(user, expiresIn, requestedScopes, requestedBy)
-    }
-
-    fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
-        try {
-            log.debug("Processing SAML response")
-            if (samlRequestProcessor.authenticated) {
-                val id =
-                    samlRequestProcessor.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull()
-                            ?: throw IllegalArgumentException(
-                                "Missing EduPersonTargetedId"
-                            )
-
-                log.debug("User is authenticated with id $id")
-
-                return try {
-                    db.withTransaction { userDao.findById(it, id) } as Person.ByWAYF
-                } catch (ex: UserException.NotFound) {
-                    log.debug("User not found. Creating new user...")
-
-                    val userCreated = PersonUtils.createUserByWAYF(samlRequestProcessor)
-                    userCreationService.blockingCreateUser(userCreated)
-                    userCreated
-                }
-            }
-        } catch (ex: Exception) {
-            when (ex) {
-                is IllegalArgumentException -> {
-                    log.info("Illegal incoming SAML message")
-                    log.debug(ex.stackTraceToString())
-                }
-                else -> {
-                    log.warn("Caught unexpected exception while processing SAML response:")
-                    log.warn(ex.stackTraceToString())
-                }
-            }
-        }
-
-        return null
+        return createExtensionToken(user, expiresIn, requestedScopes, requestedBy, tokenType)
     }
 
     fun requestOneTimeToken(jwt: String, audience: List<SecurityScope>): OneTimeAccessToken {
@@ -331,16 +250,50 @@ class TokenService<DBSession>(
         }
     }
 
-    sealed class ExtensionException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
-        class BadRequest(why: String) : ExtensionException(why, HttpStatusCode.BadRequest)
-        class Unauthorized(why: String) : ExtensionException(why, HttpStatusCode.Unauthorized)
-        class InternalError(why: String) : ExtensionException(why, HttpStatusCode.InternalServerError)
+    // TODO Should be moved to SAML package
+    fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
+        try {
+            log.debug("Processing SAML response")
+            if (samlRequestProcessor.authenticated) {
+                val id =
+                    samlRequestProcessor.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull()
+                        ?: throw IllegalArgumentException(
+                            "Missing EduPersonTargetedId"
+                        )
+
+                log.debug("User is authenticated with id $id")
+
+                return try {
+                    db.withTransaction { userDao.findById(it, id) } as Person.ByWAYF
+                } catch (ex: UserException.NotFound) {
+                    log.debug("User not found. Creating new user...")
+
+                    val userCreated = PersonUtils.createUserByWAYF(samlRequestProcessor)
+                    userCreationService.blockingCreateUser(userCreated)
+                    userCreated
+                }
+            }
+        } catch (ex: Exception) {
+            when (ex) {
+                is IllegalArgumentException -> {
+                    log.info("Illegal incoming SAML message")
+                    log.debug(ex.stackTraceToString())
+                }
+                else -> {
+                    log.warn("Caught unexpected exception while processing SAML response:")
+                    log.warn(ex.stackTraceToString())
+                }
+            }
+        }
+
+        return null
     }
 
-    sealed class RefreshTokenException(why: String, httpStatusCode: HttpStatusCode) :
-        RPCException(why, httpStatusCode) {
-        class InvalidToken : RefreshTokenException("Invalid token", HttpStatusCode.Unauthorized)
-        class InternalError : RefreshTokenException("Internal server error", HttpStatusCode.InternalServerError)
-    }
+    companion object : Loggable {
+        private const val TEN_MIN_IN_MILLS = 1000 * 60 * 10L
+        private const val THIRTY_SECONDS_IN_MILLS = 1000 * 60L
+        private const val CSRF_TOKEN_SIZE = 64
 
+        override val log = logger()
+    }
 }

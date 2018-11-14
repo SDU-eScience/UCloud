@@ -67,6 +67,7 @@ class TokenTest {
             refreshTokenDao,
             testJwtFactory,
             mockk(relaxed = true),
+            mockk(relaxed = true),
             tokenValidation = testJwtVerifier
         )
 
@@ -164,7 +165,7 @@ class TokenTest {
         }
     }
 
-    @Test(expected = TokenService.RefreshTokenException.InvalidToken::class)
+    @Test(expected = RefreshTokenException.InvalidToken::class)
     fun `refresh test - not valid token`() {
         with(createTokenService()) {
             tokenService.refresh("not a token")
@@ -183,7 +184,7 @@ class TokenTest {
         }
     }
 
-    @Test(expected = TokenService.RefreshTokenException.InvalidToken::class)
+    @Test(expected = RefreshTokenException.InvalidToken::class)
     fun `logout test - not valid token`() {
         with(createTokenService()) {
             tokenService.logout("not a token")

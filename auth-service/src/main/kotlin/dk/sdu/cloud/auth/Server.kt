@@ -8,10 +8,13 @@ import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.LoginResponder
 import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
+import dk.sdu.cloud.auth.http.TokenController
 import dk.sdu.cloud.auth.http.TwoFactorAuthController
 import dk.sdu.cloud.auth.http.UserController
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
+import dk.sdu.cloud.auth.services.OpaqueAccessTokenHibernateDao
+import dk.sdu.cloud.auth.services.OpaqueTokenService
 import dk.sdu.cloud.auth.services.PersonUtils
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
 import dk.sdu.cloud.auth.services.TokenService
@@ -91,15 +94,18 @@ class Server(
             service to lists.flatMap { it.parsedScopes }.toSet()
         }.toMap()
 
+        val opaqueTokenDao = OpaqueAccessTokenHibernateDao()
+        val opaqueTokenService = OpaqueTokenService(db, opaqueTokenDao)
 
         val tokenService = TokenService(
             db,
             userDao,
             refreshTokenDao,
             JWTFactory(jwtAlg),
+            opaqueTokenService,
             userCreationService,
-            mergedExtensions,
-            tokenValidation
+            tokenValidation,
+            mergedExtensions
         )
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
@@ -181,6 +187,7 @@ class Server(
                         tokenValidation,
                         config.trustedOrigins.toSet()
                     ),
+
                     UserController(
                         db,
                         userDao,
@@ -188,7 +195,9 @@ class Server(
                         tokenService
                     ),
 
-                    TwoFactorAuthController(twoFactorChallengeService, loginResponder)
+                    TwoFactorAuthController(twoFactorChallengeService, loginResponder),
+
+                    TokenController(opaqueTokenService)
                 )
             }
 

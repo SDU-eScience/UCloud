@@ -2,10 +2,8 @@ package dk.sdu.cloud.auth.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.service.TYPE_PROPERTY
-
-@Deprecated(message = "Built into client-core", replaceWith = ReplaceWith("Role", imports = ["dk.sdu.cloud.Role"]))
-typealias Role = dk.sdu.cloud.Role
 
 /**
  * Represents a security principal, i.e., any entity which can authenticate with the system. A security principal
