@@ -70,7 +70,7 @@ class Uploader extends React.Component<UploaderProps> {
                 this.props.dispatch(setUploads(this.props.uploads));
             }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)); // FIXME Add error handling
         } else {
-            bulkUpload(this.props.location, upload.file, BulkUploadPolicy.OVERWRITE, e => {
+            bulkUpload(this.props.location, upload.file, upload.sensitivity, BulkUploadPolicy.OVERWRITE, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
                 this.props.dispatch(setUploads(this.props.uploads));
             }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)); // FIXME Add error handling

@@ -34,7 +34,7 @@ export const multipartUpload = async (location: string, file: File, sensitivity:
     }); */
 }
 
-export const bulkUpload = async (location: string, file: File, policy: BulkUploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
+export const bulkUpload = async (location: string, file: File, sensitivity: Sensitivity, policy: BulkUploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
     const newFile = new File([file], "ignored");
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     const format = "tgz";
@@ -42,7 +42,7 @@ export const bulkUpload = async (location: string, file: File, policy: BulkUploa
     formData.append("location", location);
     formData.append("format", format);
     formData.append("policy", policy);
-    /* formData.append("sensitivity", sensitive); */
+    /* formData.append("sensitivity", sensitivity); */
     formData.append("upload", newFile);
     let request = new XMLHttpRequest();
 
