@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.4.0'
+version '0.4.1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.activity.MainKt"
@@ -9,7 +9,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 dependencies {
     compile "dk.sdu.cloud:service-common:0.21.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.8.0-SNAPSHOT"
-    compile "dk.sdu.cloud:file-api:0.12.3-SNAPSHOT"
+    compile "dk.sdu.cloud:file-api:0.13.0-SNAPSHOT"
     compile "dk.sdu.cloud:indexing-api:1.6.0-SNAPSHOT"
 
     testCompile "dk.sdu.cloud:service-common-test:0.21.0-SNAPSHOT"

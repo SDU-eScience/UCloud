@@ -80,7 +80,7 @@ abstract class PreparedRESTCall<out T, out E>(private val namespace: String) {
                 }
             } else if (resp.status.value in INTERNAL_ERROR_CODE_START..INTERNAL_ERROR_CODE_STOP) {
                 log.info("Caught server error!")
-                log.info("Call was: $this, response was: $resp")
+                log.info("Call was: $this, response was: ${resp.status}")
                 delay(DELAY_TIME)
 
                 val ex = ConnectException("Remote server had an internal server error (${resp.status})")

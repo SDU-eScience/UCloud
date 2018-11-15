@@ -1,5 +1,6 @@
 #include <sys/stat.h>
 #include <errno.h>
+#include <iostream>
 #include "chmod.h"
 #include "file_utils.h"
 

@@ -21,6 +21,7 @@ import io.ktor.request.header
 import io.ktor.response.respond
 import io.ktor.util.AttributeKey
 import io.ktor.util.pipeline.PipelineContext
+import org.slf4j.LoggerFactory
 
 class ImplementAuthCheck {
     private lateinit var tokenValidator: TokenValidation<Any>
@@ -185,11 +186,15 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
     val issuedAt = validatedToken.issuedAt.time
     val expiresAt = validatedToken.expiresAt.time
 
-    val scopes = try {
-        validatedToken.audience.map { SecurityScope.parseFromString(it) }
-    } catch (ex: Exception) {
-        throw JWTException.InternalError(ex.stackTraceToString())
-    }
+    val scopes =
+        validatedToken.audience.mapNotNull {
+            try {
+                SecurityScope.parseFromString(it)
+            } catch (ex: Exception) {
+                authCheckLog.info(ex.stackTraceToString())
+                null
+            }
+        }
 
     return SecurityPrincipalToken(
         principal,
@@ -200,6 +205,8 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
         extendedBy
     )
 }
+
+private val authCheckLog = LoggerFactory.getLogger("dk.sdu.cloud.service.ImplementAuthCheckKt")
 
 fun SecurityPrincipalToken.requireScope(requiredScope: SecurityScope) {
     val isCovered = scopes.any { requiredScope.isCoveredBy(it) }

@@ -205,6 +205,7 @@ class ShareService<DBSession>(
                     TokenExtensionRequest(
                         userCloud.token,
                         listOf(
+                            FileDescriptions.stat.requiredAuthScope,
                             FileDescriptions.createLink.requiredAuthScope,
                             FileDescriptions.deleteFile.requiredAuthScope
                         ).map { it.toString() },
@@ -276,23 +277,28 @@ class ShareService<DBSession>(
                 ).throwIfInternal()
             }
 
-            val deleteLinkCall = if (existingShare.state == ShareState.ACCEPTED) {
+            if (existingShare.state == ShareState.ACCEPTED) {
+                // TODO FIXME WE DON'T KNOW WHAT THE ACTUAL LINK IS CALLED. THIS MIGHT NOT BE THE LINK!
+                val linkPath = linkToShare(existingShare.sharedWith, existingShare.path)
                 val recipientCloud = existingShare.recipientToken?.let { userCloudFactory(it) }
                     ?: throw ShareException.InternalError("recipient token not yet established when deleting share")
 
-                launch {
-                    // We choose not to throw if the call fails
-                    FileDescriptions.deleteFile.call(
-                        DeleteFileRequest(linkToShare(existingShare.sharedWith, existingShare.path)),
-                        recipientCloud
-                    )
+                val stat = FileDescriptions.stat.call(FindByPath(linkPath), recipientCloud).orThrow()
+                if (stat.link) {
+                    val deleteLinkCall =
+                        launch {
+                            // We choose not to throw if the call fails
+                            FileDescriptions.deleteFile.call(
+                                DeleteFileRequest(linkPath),
+                                recipientCloud
+                            )
+                        }
+
+                    deleteLinkCall.join()
                 }
-            } else {
-                null
             }
 
             updateCall.join()
-            deleteLinkCall?.join()
         }
 
         // Revoke tokens
