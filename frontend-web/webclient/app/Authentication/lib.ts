@@ -113,7 +113,7 @@ export default class SDUCloud {
                 //req.open(method, baseContext + context + path);
                 req.open(method, this.computeURL(context, path));
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
-                req.setRequestHeader("Content-Type", "application/json");
+                req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
                 req.responseType = "text"; // Explicitly set, otherwise issues with empty response
                 req.onload = () => {
                     let responseContentType = req.getResponseHeader("content-type");
