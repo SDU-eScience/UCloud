@@ -57,7 +57,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
         const { prioritizedSearch, searchFiles } = this.props;
         return (
             <HeaderContainer color='lightGray' bg='blue'>
-                <Logo onClick={() => history.push("/dashboard/")} />
+                <Logo/>
                 <Box ml="auto" />
                 <Search
                     onChange={searchText => this.setState(() => ({ searchText }))}
@@ -92,10 +92,12 @@ const HeaderContainer = styled(Flex)`
     z-index: 100;
 `;
 
-const Logo = ({ onClick }) => (
-    <Text cursor="pointer" onClick={onClick} fontSize={4} bold ml="24px">
-        SDUCloud
-    </Text>
+const Logo = () => (
+    <Link to={"/"}>
+        <Text color="white" fontSize={4} bold ml="24px">
+            SDUCloud
+        </Text>
+    </Link>
 );
 
 const SearchInput = styled(Flex)`
