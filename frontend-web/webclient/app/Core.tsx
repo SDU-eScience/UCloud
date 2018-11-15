@@ -34,7 +34,7 @@ const Core = () => (
         <Header />
         <Uploader />
         <Sidebar />
-        <Box mt="48px" ml="190px" pt="15px" pl="15px" pr="15px">
+        <Box ml="190px" pt="62px" pl="15px" pr="15px">
             <Switch>
                 <Route path="/files/*" component={Files} />
                 <Route exact path="/dashboard" component={Dashboard} />
