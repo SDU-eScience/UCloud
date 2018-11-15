@@ -140,10 +140,12 @@ const SearchInput = styled(Flex)`
 const Search = ({ searchText, onChange, navigate, searchFiles }) => (
     <Relative>
         <SearchInput>
-            <Input pl="30px"
+            <Input 
+                pl="30px"
                 id="search_input"
                 value={searchText}
                 type="text"
+                color="blue"
                 onChange={e => onChange(e.target.value)}
                 onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) { searchFiles(searchText); navigate(); } }}
                 placeholder="Do search..."
@@ -166,7 +168,7 @@ const ClippedBox = styled(Flex)`
 const UserAvatar = () => (
     <ClippedBox mr="8px" width="60px">
         <Avatar
-            style={{ width: "64px", height: "60px" }}
+            style={{ width: "64px", height: "60px", cursor: "pointer" }}
             avatarStyle="Circle"
             topType="LongHairCurly"
             accessoriesType="Sunglasses"
