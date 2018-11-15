@@ -2,6 +2,8 @@ package dk.sdu.cloud.storage.util
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.file.api.LongRunningResponse
+import dk.sdu.cloud.file.api.favoritesDirectory
+import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.stackTraceToString
@@ -16,46 +18,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.selects.select
 import org.slf4j.LoggerFactory
-import java.io.File
 import kotlin.math.absoluteValue
-
-fun homeDirectory(user: String): String = "/home/$user/"
 
 fun homeDirectory(ctx: FSUserContext): String = homeDirectory(ctx.user)
 
-fun favoritesDirectory(user: String): String = joinPath(homeDirectory(user), "Favorites", isDirectory = true)
-
 fun favoritesDirectory(ctx: FSUserContext): String = favoritesDirectory(ctx.user)
-
-fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
-    return File(components.joinToString("/") + (if (isDirectory) "/" else "")).normalize().path
-}
-
-fun String.parents(): List<String> {
-    val components = components().dropLast(1)
-    return components.mapIndexed { index, _ ->
-        val path = "/" + components.subList(0, index + 1).joinToString("/").removePrefix("/")
-        if (path == "/") path else "$path/"
-    }
-}
-
-fun String.parent(): String {
-    val components = components().dropLast(1)
-    if (components.isEmpty()) return "/"
-
-    val path = "/" + components.joinToString("/").removePrefix("/")
-    return if (path == "/") path else "$path/"
-}
-
-fun String.components(): List<String> = removeSuffix("/").split("/")
-
-fun String.fileName(): String = File(this).name
-
-fun String.normalize(): String = File(this).normalize().path
-
-fun relativize(rootPath: String, absolutePath: String): String {
-    return File(rootPath).toURI().relativize(File(absolutePath).toURI()).normalize().path
-}
 
 fun <T> FSResult<T>.unwrap(): T {
     if (statusCode != 0) {

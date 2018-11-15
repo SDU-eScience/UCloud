@@ -4,36 +4,20 @@ import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
+import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.storage.SERVICE_USER
 import dk.sdu.cloud.storage.util.FSException
 import dk.sdu.cloud.storage.util.STORAGE_EVENT_MODE
-import dk.sdu.cloud.storage.util.parent
 import dk.sdu.cloud.storage.util.toCreatedEvent
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.UUID
 import kotlin.collections.ArrayList
-import kotlin.collections.List
-import kotlin.collections.Map
-import kotlin.collections.asSequence
-import kotlin.collections.associateBy
 import kotlin.collections.component1
 import kotlin.collections.component2
-import kotlin.collections.contains
-import kotlin.collections.emptyList
-import kotlin.collections.filter
-import kotlin.collections.flatMap
-import kotlin.collections.forEach
-import kotlin.collections.isNotEmpty
-import kotlin.collections.listOf
-import kotlin.collections.map
-import kotlin.collections.plus
-import kotlin.collections.setOf
-import kotlin.collections.sorted
-import kotlin.collections.toMap
 
 /**
  * Service responsible for handling operations related to indexing

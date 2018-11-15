@@ -2,10 +2,10 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.storage.util.CappedInputStream
 import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.joinPath
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
 import java.io.File

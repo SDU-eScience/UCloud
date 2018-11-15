@@ -13,6 +13,11 @@ import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 import dk.sdu.cloud.file.api.AccessRight as FileAccessRight
 
+data class CreateLinkRequest(
+    val linkPath: String,
+    val linkTargetPath: String
+)
+
 data class UpdateAclRequest(
     val path: String,
     val recurse: Boolean,
@@ -504,6 +509,27 @@ object FileDescriptions : RESTDescriptions("files") {
         path {
             using(baseContext)
             +"update-acl"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val createLink = callDescriptionWithAudit<
+            CreateLinkRequest,
+            Unit,
+            CommonErrorMessage,
+            SingleFileAudit<CreateLinkRequest>
+            > {
+        name = "createLink"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"create-link"
         }
 
         body { bindEntireRequestFromBody() }

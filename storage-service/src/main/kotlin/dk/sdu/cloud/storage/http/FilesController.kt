@@ -268,6 +268,17 @@ class FilesController<Ctx : FSUserContext>(
             }
         }
 
+        implement(FileDescriptions.createLink) { req ->
+            audit(SingleFileAudit(null, req))
+
+            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+                coreFs.createSymbolicLink(ctx, req.linkTargetPath, req.linkPath)
+                audit(SingleFileAudit(coreFs.stat(ctx, req.linkPath, setOf(FileAttribute.INODE)).inode, req))
+            }
+
+            ok(Unit)
+        }
+
         implement(FileDescriptions.chmod) { req ->
             val fileIdsUpdated = ArrayList<String>()
             audit(BulkFileAudit(fileIdsUpdated, req))

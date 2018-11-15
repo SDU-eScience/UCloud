@@ -5,11 +5,11 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.relativize
 import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.fileName
-import dk.sdu.cloud.storage.util.joinPath
-import dk.sdu.cloud.storage.util.normalize
-import dk.sdu.cloud.storage.util.relativize
 import dk.sdu.cloud.storage.util.retryWithCatch
 import dk.sdu.cloud.storage.util.throwExceptionBasedOnStatus
 import kotlinx.coroutines.GlobalScope

@@ -5,22 +5,33 @@ import io.ktor.http.HttpStatusCode
 
 sealed class ShareException(override val message: String, statusCode: HttpStatusCode) :
     RPCException(message, statusCode) {
-    class NotFound : ShareException("Not found",
+    class NotFound : ShareException(
+        "Not found",
         HttpStatusCode.NotFound
     )
-    class NotAllowed : ShareException("Not allowed",
+
+    class NotAllowed : ShareException(
+        "Not allowed",
         HttpStatusCode.Forbidden
     )
-    class DuplicateException : ShareException("Already exists",
+
+    class DuplicateException : ShareException(
+        "Already exists",
         HttpStatusCode.Conflict
     )
-    class PermissionException : ShareException("Not allowed",
+
+    class PermissionException : ShareException(
+        "Not allowed",
         HttpStatusCode.Forbidden
     )
-    class BadRequest(why: String) : ShareException("Bad request: $why",
+
+    class BadRequest(why: String) : ShareException(
+        "Bad request: $why",
         HttpStatusCode.BadRequest
     )
-    class InternalError(why: String) : ShareException("Internal error: $why",
+
+    class InternalError(why: String) : ShareException(
+        "Internal error: $why",
         HttpStatusCode.InternalServerError
     )
 }

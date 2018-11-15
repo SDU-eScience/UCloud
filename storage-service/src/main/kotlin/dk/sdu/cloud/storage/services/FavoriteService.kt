@@ -1,8 +1,8 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.storage.util.favoritesDirectory
-import dk.sdu.cloud.storage.util.fileName
-import dk.sdu.cloud.storage.util.joinPath
 
 class FavoriteService<Ctx : FSUserContext>(val fs: CoreFileSystemService<Ctx>) {
     fun markAsFavorite(ctx: Ctx, fileToFavorite: String) {

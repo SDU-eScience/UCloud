@@ -9,11 +9,17 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.BearerTokenAuthenticatedCloud
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.client.bearerAuth
 import dk.sdu.cloud.file.api.ACLEntryRequest
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.CreateLinkRequest
+import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.UpdateAclRequest
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.homeDirectory
+import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -24,6 +30,7 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.orNull
 import dk.sdu.cloud.service.orThrow
+import dk.sdu.cloud.service.throwIfInternal
 import dk.sdu.cloud.share.api.CreateShareRequest
 import dk.sdu.cloud.share.api.MinimalShare
 import dk.sdu.cloud.share.api.ShareId
@@ -78,8 +85,8 @@ class ShareService<DBSession>(
                     TokenExtensionRequest(
                         userCloud.token,
                         listOf(
-                            // TODO
-                        ),
+                            FileDescriptions.updateAcl.requiredAuthScope
+                        ).map { it.toString() },
                         1000L * 60,
                         allowRefreshes = true
                     ),
@@ -179,37 +186,49 @@ class ShareService<DBSession>(
         }
     }
 
-    suspend fun updateState(
+    suspend fun acceptShare(
         user: String,
         shareId: ShareId,
-        newState: ShareState,
         userCloud: JWTAuthenticatedCloud
     ) {
-        if (newState != ShareState.ACCEPTED) throw ShareException.NotAllowed()
-
         val auth = AuthRequirements(user, ShareRole.RECIPIENT)
         val existingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
 
-        // TODO This needs to be done in the context of the owner!
         coroutineScope {
-            val updateCall = async { updateFSPermissions(existingShare, existingShare.rights, userCloud) }
+            val updateCall = async {
+                val ownerCloud = userCloudFactory(existingShare.ownerToken)
+                updateFSPermissions(existingShare, existingShare.rights, ownerCloud).orThrow()
+            }
+
             val extendCall = async {
                 AuthDescriptions.tokenExtension.call(
                     TokenExtensionRequest(
                         userCloud.token,
                         listOf(
+                            FileDescriptions.createLink.requiredAuthScope,
                             FileDescriptions.deleteFile.requiredAuthScope
-                            // TODO Create link endpoint
                         ).map { it.toString() },
                         expiresIn = 1000L * 60,
                         allowRefreshes = true
                     ),
                     serviceCloud
-                )
+                ).orThrow()
             }
 
-            updateCall.await().orThrow()
-            val tokenExtension = extendCall.await().orThrow().refreshToken!!
+            val linkCall = async {
+                FileDescriptions.createLink.call(
+                    CreateLinkRequest(
+                        linkPath = linkToShare(user, existingShare.path),
+                        linkTargetPath = existingShare.path
+                    ),
+                    userCloud
+                ).orThrow()
+            }
+
+            linkCall.await()
+            updateCall.await()
+            val tokenExtension = extendCall.await().refreshToken
+                ?: throw ShareException.InternalError("bad response from token extension. refreshToken == null")
 
             db.withTransaction { session ->
                 shareDao.updateShare(
@@ -217,22 +236,14 @@ class ShareService<DBSession>(
                     auth,
                     shareId,
                     recipientToken = tokenExtension,
-                    state = newState
+                    state = ShareState.ACCEPTED
                 )
             }
-
-            // TODO Create link for someone else?
-            /*
-            commandRunnerFactory.withContext(existingShare.sharedWith) {
-                fs.createSymbolicLink(
-                    it,
-                    existingShare.path,
-                    joinPath(homeDirectory(ctx), existingShare.path.substringAfterLast('/'))
-                )
-            }
-            */
         }
     }
+
+    private fun linkToShare(user: String, sharePath: String) =
+        joinPath(homeDirectory(user), sharePath.fileName())
 
     suspend fun deleteShare(
         user: String,
@@ -244,8 +255,10 @@ class ShareService<DBSession>(
 
         val ownerCloud = userCloudFactory(existingShare.ownerToken)
 
+        // Revoke permissions and remove link
         coroutineScope {
             val updateCall = async {
+                // This is allowed to fail under certain conditions, such as not existing.
                 FileDescriptions.updateAcl.call(
                     UpdateAclRequest(
                         existingShare.path,
@@ -260,17 +273,44 @@ class ShareService<DBSession>(
                         )
                     ),
                     ownerCloud
-                ).orThrow()
+                ).throwIfInternal()
             }
 
-            if (existingShare.state == ShareState.ACCEPTED) {
+            val deleteLinkCall = if (existingShare.state == ShareState.ACCEPTED) {
                 val recipientCloud = existingShare.recipientToken?.let { userCloudFactory(it) }
                     ?: throw ShareException.InternalError("recipient token not yet established when deleting share")
 
-                // TODO Delete link
+                launch {
+                    // We choose not to throw if the call fails
+                    FileDescriptions.deleteFile.call(
+                        DeleteFileRequest(linkToShare(existingShare.sharedWith, existingShare.path)),
+                        recipientCloud
+                    )
+                }
+            } else {
+                null
             }
 
-            updateCall.await()
+            updateCall.join()
+            deleteLinkCall?.join()
+        }
+
+        // Revoke tokens
+        coroutineScope {
+            val ownerTokenRevoke = launch {
+                AuthDescriptions.logout.call(Unit, serviceCloud.parent.bearerAuth(existingShare.ownerToken))
+            }
+
+            val recipientTokenRevoke = if (existingShare.recipientToken != null) {
+                launch {
+                    AuthDescriptions.logout.call(Unit, serviceCloud.parent.bearerAuth(existingShare.recipientToken))
+                }
+            } else {
+                null
+            }
+
+            ownerTokenRevoke.join()
+            recipientTokenRevoke?.join()
         }
 
         // TODO Maybe do this async in Kafka?

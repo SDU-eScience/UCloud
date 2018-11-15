@@ -5,7 +5,6 @@ import dk.sdu.cloud.file.api.BulkUploadAudit
 import dk.sdu.cloud.file.api.BulkUploadErrorMessage
 import dk.sdu.cloud.file.api.MultiPartUploadAudit
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.UploadRequestAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.service.Controller

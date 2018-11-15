@@ -3,15 +3,14 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.paginate
 import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.fileName
-import dk.sdu.cloud.storage.util.normalize
-import dk.sdu.cloud.storage.util.parent
-import org.slf4j.LoggerFactory
 
 /**
  * A service for looking up files.

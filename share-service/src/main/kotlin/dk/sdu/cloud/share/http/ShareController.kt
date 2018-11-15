@@ -9,7 +9,6 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.share.api.FindByShareId
 import dk.sdu.cloud.share.api.ShareDescriptions
-import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.services.ShareService
 import io.ktor.routing.Route
 
@@ -31,10 +30,9 @@ class ShareController(
         }
 
         implement(ShareDescriptions.accept) { req ->
-            shareService.updateState(
+            shareService.acceptShare(
                 call.securityPrincipal.username,
                 req.id,
-                ShareState.ACCEPTED,
                 cloudContext.bearerAuth(call.request.bearer!!)
             )
 
