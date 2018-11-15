@@ -12,16 +12,15 @@ typealias ShareId = Long
 typealias FindByShareId = FindByLongId
 
 data class Share(
+    val id: ShareId,
+    val state: ShareState,
+
     val owner: String,
     val sharedWith: String,
 
     val path: String,
     val rights: Set<AccessRight>,
 
-    val createdAt: Long? = null,
-    val modifiedAt: Long? = null,
-
-    val state: ShareState = ShareState.REQUEST_SENT,
-
-    val id: ShareId? = null
+    val createdAt: Long,
+    val modifiedAt: Long
 )

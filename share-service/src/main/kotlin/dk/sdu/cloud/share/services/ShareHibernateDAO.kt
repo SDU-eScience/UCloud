@@ -2,23 +2,21 @@ package dk.sdu.cloud.share.services
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.asEnumSet
 import dk.sdu.cloud.service.asInt
 import dk.sdu.cloud.service.db.CriteriaBuilderContext
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.service.db.countWithPredicate
 import dk.sdu.cloud.service.db.createCriteriaBuilder
 import dk.sdu.cloud.service.db.createQuery
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedList
-import dk.sdu.cloud.share.api.Share
 import dk.sdu.cloud.share.api.ShareState
-import dk.sdu.cloud.share.api.SharesByPath
-import dk.sdu.cloud.share.api.minimalize
+import java.io.File
 import java.util.*
 import javax.persistence.Column
 import javax.persistence.Entity
@@ -43,10 +41,6 @@ private const val COL_PATH = "path"
     ]
 )
 data class ShareEntity(
-    @Id
-    @GeneratedValue
-    var id: Long = 0,
-
     var owner: String,
 
     @Column(name = COL_SHARED_WITH)
@@ -57,278 +51,248 @@ data class ShareEntity(
 
     var rights: Int,
 
-    @Temporal(TemporalType.TIMESTAMP)
-    var createdAt: Date,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var modifiedAt: Date,
-
     @Enumerated(EnumType.ORDINAL)
     var state: ShareState,
 
-    var filename: String
-) {
+    var filename: String,
+
+    var fileId: String,
+
+    @Id
+    @GeneratedValue
+    var id: Long = 0,
+
+    var ownerToken: String,
+
+    var recipientToken: String? = null,
+
+    @Temporal(TemporalType.TIMESTAMP)
+    override var createdAt: Date = Date(System.currentTimeMillis()),
+
+    @Temporal(TemporalType.TIMESTAMP)
+    override var modifiedAt: Date = Date(System.currentTimeMillis())
+
+) : WithTimestamps {
     companion object : HibernateEntity<ShareEntity>, WithId<Long>
 }
 
 class ShareHibernateDAO : ShareDAO<HibernateSession> {
-    override fun find(
-        session: HibernateSession,
-        user: String,
-        shareId: Long
-    ): Share {
-        return shareById(session, user, shareId, requireOwnership = false).toModel()
-    }
-
-    override fun list(
-        session: HibernateSession,
-        user: String,
-        paging: NormalizedPaginationRequest
-    ): Page<SharesByPath> {
-        // Query number of paths and retrieve for current page
-        val itemsInTotal = getNumberOfSharesStatusFilterPossible(session, user, false)
-
-        val items = getSharesStatusFilterPossible(session, user, false, paging)
-
-        return Page(
-            itemsInTotal.toInt(),
-            paging.itemsPerPage,
-            paging.page,
-            items
-        )
-    }
-
-    override fun listByStatus(
-        session: HibernateSession,
-        user: String,
-        status: ShareState,
-        paging: NormalizedPaginationRequest
-    ): Page<SharesByPath> {
-        val count = getNumberOfSharesStatusFilterPossible(session, user, true, status)
-
-        val items = getSharesStatusFilterPossible(session, user, true, paging, status)
-
-        return Page(
-            count.toInt(),
-            paging.itemsPerPage,
-            paging.page,
-            items
-        )
-    }
-
-    private fun getNumberOfSharesStatusFilterPossible(
-        session: HibernateSession,
-        user: String,
-        statusSearch: Boolean,
-        status: ShareState? = ShareState.ACCEPTED
-    ): Long {
-        return session.countWithPredicate<ShareEntity>(
-            distinct = true,
-            selection = { entity[ShareEntity::path] },
-            predicate = {
-                if (statusSearch) {
-                    allOf(
-                        isAuthorized(user, requireOwnership = false),
-                        entity[ShareEntity::state] equal status
-                    )
-                } else {
-                    allOf(isAuthorized(user, requireOwnership = false))
-                }
-            }
-        )
-    }
-
-    private fun getSharesStatusFilterPossible(
-        session: HibernateSession,
-        user: String,
-        statusSearch: Boolean,
-        paging: NormalizedPaginationRequest,
-        status: ShareState? = ShareState.ACCEPTED
-    ): List<SharesByPath> {
-        val distinctPaths = session.createCriteriaBuilder<String, ShareEntity>().run {
-            with(criteria) {
-                select(entity[ShareEntity::path])
-                distinct(true)
-
-                where(
-                    if (statusSearch) {
-                        allOf(
-                            isAuthorized(user, requireOwnership = false),
-                            entity[ShareEntity::state] equal status
-                        )
-                    } else {
-                        allOf(
-                            isAuthorized(user, requireOwnership = false)
-                        )
-                    }
-                )
-
-                orderBy(ascending(entity[ShareEntity::path]))
-            }
-        }.createQuery(session).paginatedList(paging)
-
-        // Retrieve all shares for these paths and group
-        val items = session
-            .criteria<ShareEntity>(
-                orderBy = {
-                    listOf(ascending(entity[ShareEntity::filename]))
-                },
-
-                predicate = {
-                    if (statusSearch) {
-                        allOf(
-                            entity[ShareEntity::path] isInCollection distinctPaths,
-                            isAuthorized(user, requireOwnership = false),
-                            entity[ShareEntity::state] equal status
-                        )
-                    } else {
-                        allOf(
-                            entity[ShareEntity::path] isInCollection distinctPaths,
-                            isAuthorized(user, requireOwnership = false)
-                        )
-                    }
-                }
-            )
-            .list()
-            .map { it.toModel() }
-            .let { groupByPath(user, it) }
-
-        return items
-    }
-
-    override fun findShareForPath(
-        session: HibernateSession,
-        user: String,
-        path: String
-    ): SharesByPath {
-        return session.criteria<ShareEntity> {
-            allOf(
-                isAuthorized(user, requireOwnership = false),
-                entity[ShareEntity::path] equal literal(path)
-            )
-        }.list()
-            .map { it.toModel() }
-            .takeIf { it.isNotEmpty() }
-            ?.let { groupByPath(user, it).single() }
-            ?: throw ShareException.NotFound()
-    }
-
-    private fun groupByPath(user: String, shares: List<Share>): List<SharesByPath> {
-        val byPath = shares.groupBy { it.path }
-        return byPath.map { (path, sharesForPath) ->
-            val owner = sharesForPath.first().owner
-            val sharedByMe = owner == user
-            SharesByPath(path, owner, sharedByMe, sharesForPath.map { it.minimalize() })
-        }
-    }
-
     override fun create(
         session: HibernateSession,
-        user: String,
-        share: Share
+        owner: String,
+        sharedWith: String,
+        path: String,
+        initialRights: Set<AccessRight>,
+        fileId: String,
+        ownerToken: String
     ): Long {
-        if (user == share.sharedWith) throw ShareException.BadRequest("Cannot share file with yourself")
+        if (owner == sharedWith) throw ShareException.BadRequest("Cannot share file with yourself")
 
         val exists = session.criteria<ShareEntity> {
             allOf(
-                entity[ShareEntity::path] equal literal(share.path),
-                entity[ShareEntity::sharedWith] equal literal(share.sharedWith)
+                entity[ShareEntity::path] equal literal(path),
+                entity[ShareEntity::sharedWith] equal literal(sharedWith)
             )
         }.uniqueResult() != null
 
         if (exists) {
             throw ShareException.DuplicateException()
         }
-        return session.save(share.toEntity(copyId = false)) as Long
+
+        return session.save(
+            ShareEntity(
+                owner = owner,
+                sharedWith = sharedWith,
+                path = path,
+                state = ShareState.REQUEST_SENT,
+                filename = File(path).name,
+                rights = initialRights.asInt(),
+                fileId = fileId,
+                ownerToken = ownerToken
+            )
+        ) as Long
     }
 
-    override fun updateState(
+    override fun findAllByFileId(
         session: HibernateSession,
-        user: String,
-        shareId: Long,
-        newState: ShareState
-    ): Share {
-        val entity = shareById(session, user, shareId, requireOwnership = false)
-        entity.state = newState
-        entity.modifiedAt = Date()
-        session.update(entity)
-        return entity.toModel()
+        auth: AuthRequirements,
+        fileId: String
+    ): List<InternalShare> {
+        return session.criteria<ShareEntity> {
+            allOf(
+                isAuthorized(auth),
+                entity[ShareEntity::fileId] equal fileId
+            )
+        }.list().map { it.toModel() }
     }
 
-    override fun updateRights(
+    override fun findById(
         session: HibernateSession,
-        user: String,
+        auth: AuthRequirements,
+        shareId: Long
+    ): InternalShare {
+        return shareById(session, auth, shareId).toModel()
+    }
+
+    override fun findAllByPath(
+        session: HibernateSession,
+        auth: AuthRequirements,
+        path: String
+    ): List<InternalShare> {
+        return session.criteria<ShareEntity> {
+            allOf(
+                isAuthorized(auth),
+                entity[ShareEntity::path] equal literal(path)
+            )
+        }.list()
+            .map { it.toModel() }
+            .takeIf { it.isNotEmpty() }
+            ?: throw ShareException.NotFound()
+    }
+
+    override fun list(
+        session: HibernateSession,
+        auth: AuthRequirements,
+        state: ShareState?,
+        paging: NormalizedPaginationRequest
+    ): ListSharesResponse {
+        val itemsInTotal = countShareGroups(session, auth, state)
+        val items = findShareGroups(session, auth, paging, state)
+
+        return ListSharesResponse(
+            items,
+            itemsInTotal.toInt()
+        )
+    }
+
+    private fun countShareGroups(
+        session: HibernateSession,
+        auth: AuthRequirements,
+        state: ShareState?
+    ): Long {
+        return session.countWithPredicate<ShareEntity>(
+            distinct = true,
+            selection = { entity[ShareEntity::path] },
+            predicate = { findSharesBy(auth, state) }
+        )
+    }
+
+    private fun findShareGroups(
+        session: HibernateSession,
+        auth: AuthRequirements,
+        paging: NormalizedPaginationRequest,
+        state: ShareState?
+    ): List<InternalShare> {
+        // We first find the share groups (by path)
+        val distinctPaths = session.createCriteriaBuilder<String, ShareEntity>().run {
+            with(criteria) {
+                select(entity[ShareEntity::path])
+                distinct(true)
+                where(findSharesBy(auth, state))
+                orderBy(ascending(entity[ShareEntity::path]))
+            }
+        }.createQuery(session).paginatedList(paging)
+
+        // We then retrieve all shares for each group
+        return session
+            .criteria<ShareEntity>(
+                orderBy = { listOf(ascending(entity[ShareEntity::filename])) },
+                predicate = {
+                    allOf(
+                        entity[ShareEntity::path] isInCollection distinctPaths,
+                        findSharesBy(auth, state)
+                    )
+                }
+            )
+            .list()
+            .map { it.toModel() }
+    }
+
+    override fun updateShare(
+        session: HibernateSession,
+        auth: AuthRequirements,
         shareId: Long,
-        rights: Set<AccessRight>
-    ): Share {
-        val entity = shareById(session, user, shareId, requireOwnership = true)
-        entity.rights = rights.asInt()
-        entity.modifiedAt = Date()
-        session.update(entity)
-        return entity.toModel()
+        recipientToken: String?,
+        state: ShareState?,
+        rights: Set<AccessRight>?,
+        path: String?
+    ): InternalShare {
+        if (path == null && recipientToken == null && state == null && rights == null) {
+            throw ShareException.InternalError("Nothing to update")
+        }
+
+        val share = shareById(session, auth, shareId)
+        if (path != null) {
+            share.path = path
+            share.filename = File(path).name
+        }
+        if (recipientToken != null) share.recipientToken = recipientToken
+        if (state != null) share.state = state
+        if (rights != null) share.rights = rights.asInt()
+
+        session.save(share)
+        return share.toModel()
     }
 
     override fun deleteShare(
         session: HibernateSession,
-        user: String,
+        auth: AuthRequirements,
         shareId: Long
-    ): Share {
-        val entity = shareById(session, user, shareId, requireOwnership = true)
+    ): InternalShare {
+        val entity = shareById(session, auth, shareId)
         session.delete(entity)
         return entity.toModel()
     }
 
     private fun shareById(
         session: HibernateSession,
-        user: String,
-        shareId: Long,
-        requireOwnership: Boolean
+        auth: AuthRequirements,
+        shareId: Long
     ): ShareEntity {
         return session.criteria<ShareEntity> {
-            allOf(
-                isAuthorized(user, requireOwnership),
-                entity[ShareEntity::id] equal shareId
-            )
+            allOf(isAuthorized(auth), entity[ShareEntity::id] equal shareId)
         }.uniqueResult() ?: throw ShareException.NotFound()
     }
 
     private fun CriteriaBuilderContext<*, ShareEntity>.isAuthorized(
-        user: String,
-        requireOwnership: Boolean
+        auth: AuthRequirements
     ): Predicate {
-        val isOwner = entity[ShareEntity::owner] equal literal(user)
-        val isSharedWith = entity[ShareEntity::sharedWith] equal literal(user)
+        if (auth.user == null || auth.requireRole == null) return literal(true).toPredicate()
 
-        val options = arrayListOf(isOwner)
-        if (!requireOwnership) options += isSharedWith
+        val isOwner = entity[ShareEntity::owner] equal literal(auth.user)
+        val isSharedWith = entity[ShareEntity::sharedWith] equal literal(auth.user)
 
-        return anyOf(*options.toTypedArray())
+        return when (auth.requireRole) {
+            ShareRole.PARTICIPANT -> anyOf(isOwner, isSharedWith)
+            ShareRole.OWNER -> isOwner
+            ShareRole.RECIPIENT -> isSharedWith
+        }
     }
 
-    private fun Share.toEntity(copyId: Boolean): ShareEntity {
-        return ShareEntity(
-            if (copyId) id!!.toLong() else 0,
-            owner,
-            sharedWith,
-            path,
-            rights.asInt(),
-            Date(),
-            Date(),
-            state,
-            path.substringAfterLast("/")
-        )
+    private fun CriteriaBuilderContext<*, ShareEntity>.findSharesBy(
+        auth: AuthRequirements,
+        state: ShareState?
+    ): Predicate {
+        val predicates = arrayListOf(isAuthorized(auth))
+        if (state != null) {
+            predicates.add(entity[ShareEntity::state] equal state)
+        }
+        return allOf(*predicates.toTypedArray())
     }
 
-    private fun ShareEntity.toModel(): Share =
-        Share(
-            owner,
-            sharedWith,
-            path,
-            rights.asEnumSet(),
-            createdAt.time,
-            modifiedAt.time,
-            state,
-            id
+    private fun ShareEntity.toModel(): InternalShare =
+        InternalShare(
+            id = id,
+            owner = owner,
+            sharedWith = sharedWith,
+            state = state,
+            path = path,
+            rights = rights.asEnumSet(),
+            fileId = fileId,
+            ownerToken = ownerToken,
+            recipientToken = recipientToken,
+            createdAt = createdAt.time,
+            modifiedAt = modifiedAt.time
         )
 }
 

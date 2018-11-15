@@ -11,6 +11,7 @@ import io.ktor.http.HttpMethod
 private typealias AuthAccessRight = dk.sdu.cloud.AccessRight
 
 data class ListSharesRequest(
+    val state: ShareState? = null,
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
 ) : WithPaginationRequest
@@ -24,12 +25,6 @@ data class CreateShareRequest(
 data class FindByPathRequest(
     val path: String
 )
-
-data class ListByStatus(
-    val status: ShareState,
-    override val itemsPerPage: Int? = null,
-    override val page: Int? = null
-) : WithPaginationRequest
 
 data class SharesByPath(
     val path: String,
@@ -50,14 +45,6 @@ data class UpdateShareRequest(
     val rights: Set<AccessRight>
 )
 
-fun Share.minimalize(): MinimalShare =
-    MinimalShare(
-        id ?: throw NullPointerException("id must be != null"),
-        sharedWith,
-        rights,
-        state
-    )
-
 object ShareDescriptions : RESTDescriptions("shares") {
     const val baseContext = "/api/shares"
 
@@ -74,27 +61,9 @@ object ShareDescriptions : RESTDescriptions("shares") {
         }
 
         params {
+            +boundTo(ListSharesRequest::state)
             +boundTo(ListSharesRequest::itemsPerPage)
             +boundTo(ListSharesRequest::page)
-        }
-    }
-
-    val listByStatus = callDescription<ListByStatus, Page<SharesByPath>, CommonErrorMessage> {
-        name = "listByStatus"
-        method = HttpMethod.Get
-
-        auth {
-            access = AuthAccessRight.READ
-        }
-
-        path {
-            using(baseContext)
-            +boundTo(ListByStatus::status)
-        }
-
-        params {
-            +boundTo(ListByStatus::itemsPerPage)
-            +boundTo(ListByStatus::page)
         }
     }
 
@@ -161,21 +130,6 @@ object ShareDescriptions : RESTDescriptions("shares") {
         path {
             using(baseContext)
             +"revoke"
-            +boundTo(FindByShareId::id)
-        }
-    }
-
-    val reject = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        name = "reject"
-        method = HttpMethod.Post
-
-        auth {
-            access = AuthAccessRight.READ_WRITE
-        }
-
-        path {
-            using(baseContext)
-            +"reject"
             +boundTo(FindByShareId::id)
         }
     }

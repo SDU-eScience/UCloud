@@ -2,10 +2,8 @@ package dk.sdu.cloud.share.services
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.share.api.Share
 import dk.sdu.cloud.share.api.ShareState
-import dk.sdu.cloud.share.api.SharesByPath
 
 /**
  * Provides an interface to the [Share] data layer
@@ -17,60 +15,78 @@ import dk.sdu.cloud.share.api.SharesByPath
  * for a given file.
  */
 interface ShareDAO<Session> {
-    fun find(
+    fun create(
         session: Session,
-        user: String,
+        owner: String,
+        sharedWith: String,
+        path: String,
+        initialRights: Set<AccessRight>,
+        fileId: String,
+        ownerToken: String
+    ): Long
+
+    fun findById(
+        session: Session,
+        auth: AuthRequirements,
         shareId: Long
-    ): Share
+    ): InternalShare
+
+    fun findAllByPath(
+        session: Session,
+        auth: AuthRequirements,
+        path: String
+    ): List<InternalShare>
+
+    fun findAllByFileId(
+        session: Session,
+        auth: AuthRequirements,
+        fileId: String
+    ): List<InternalShare>
 
     fun list(
         session: Session,
-        user: String,
+        auth: AuthRequirements,
+        state: ShareState? = null,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-    ): Page<SharesByPath>
+    ): ListSharesResponse
 
-    fun listByStatus(
+    fun updateShare(
         session: Session,
-        user: String,
-        status: ShareState,
-        paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-    ): Page<SharesByPath>
-
-    fun findShareForPath(
-        session: Session,
-        user: String,
-        path: String
-    ): SharesByPath
-
-    fun findShareForFileId(
-        session: Session,
-        user: String,
-        fileId: String
-    ): Share
-
-    fun create(
-        session: Session,
-        user: String,
-        share: Share
-    ): Long
-
-    fun updateState(
-        session: Session,
-        user: String,
+        auth: AuthRequirements,
         shareId: Long,
-        newState: ShareState
-    ): Share
-
-    fun updateRights(
-        session: Session,
-        user: String,
-        shareId: Long,
-        rights: Set<AccessRight>
-    ): Share
+        recipientToken: String? = null,
+        state: ShareState? = null,
+        rights: Set<AccessRight>? = null,
+        path: String? = null
+    ): InternalShare
 
     fun deleteShare(
         session: Session,
-        user: String,
+        auth: AuthRequirements,
         shareId: Long
-    ): Share
+    ): InternalShare
+}
+
+data class ListSharesResponse(
+    val allSharesForPage: List<InternalShare>,
+    val groupCount: Int
+)
+
+/**
+ * Authorization requirements for a Share action.
+ *
+ * @param user The username of a user. A value of null indicates that this action is being performed by the service. It
+ *             will as a result always pass validation.
+ *
+ * @param requireRole The role to require of the [user].
+ */
+data class AuthRequirements(
+    val user: String? = null,
+    val requireRole: ShareRole? = null
+)
+
+enum class ShareRole {
+    PARTICIPANT,
+    OWNER,
+    RECIPIENT
 }

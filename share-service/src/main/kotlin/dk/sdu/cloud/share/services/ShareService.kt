@@ -1,12 +1,14 @@
 package dk.sdu.cloud.share.services
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.client.BearerTokenAuthenticatedCloud
+import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.client.jwtAuth
 import dk.sdu.cloud.file.api.ACLEntryRequest
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileDescriptions
@@ -23,70 +25,86 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.orNull
 import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.share.api.CreateShareRequest
-import dk.sdu.cloud.share.api.Share
+import dk.sdu.cloud.share.api.MinimalShare
 import dk.sdu.cloud.share.api.ShareId
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.SharesByPath
+import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 class ShareService<DBSession>(
     private val serviceCloud: AuthenticatedCloud,
     private val db: DBSessionFactory<DBSession>,
-    private val shareDAO: ShareDAO<DBSession>
+    private val shareDao: ShareDAO<DBSession>,
+    private val userCloudFactory: (refreshToken: String) -> AuthenticatedCloud
 ) {
-    fun list(
-        user: String,
-        paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-    ): Page<SharesByPath> {
-        return db.withTransaction { shareDAO.list(it, user, paging) }
-    }
-
-    fun findSharesForPath(
-        user: String,
-        path: String
-    ): SharesByPath {
-        return db.withTransaction { shareDAO.findShareForPath(it, user, path) }
-    }
-
-    fun listSharesByStatus(
-        user: String,
-        status: ShareState,
-        paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-    ): Page<SharesByPath> {
-        return db.withTransaction { shareDAO.listByStatus(it, user, status, paging) }
-    }
-
     suspend fun create(
         user: String,
         share: CreateShareRequest,
-        userCloud: AuthenticatedCloud
+        userCloud: BearerTokenAuthenticatedCloud
     ): ShareId {
-        FileDescriptions.stat
-            .call(FindByPath(share.path), userCloud)
-            .orNull()
-            ?.takeIf { it.ownerName == user } ?: throw ShareException.NotFound()
+        lateinit var fileId: String
+        lateinit var ownerToken: String
 
-        val lookup = UserDescriptions.lookupUsers.call(
-            LookupUsersRequest(listOf(share.sharedWith)),
-            serviceCloud
-        ) as? RESTResponse.Ok ?: throw ShareException.InternalError("Could not look up user")
+        // Verify request
+        coroutineScope {
+            val statJob = async {
+                FileDescriptions.stat
+                    .call(FindByPath(share.path), userCloud)
+                    .orNull()
+                    ?.takeIf { it.ownerName == user } ?: throw ShareException.NotFound()
+            }
 
-        lookup.result.results[share.sharedWith]
-            ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
+            val lookupJob = launch {
+                val lookup = UserDescriptions.lookupUsers.call(
+                    LookupUsersRequest(listOf(share.sharedWith)),
+                    serviceCloud
+                ) as? RESTResponse.Ok ?: throw ShareException.InternalError("Could not look up user")
 
-        val rewritten = Share(
-            owner = user,
-            createdAt = System.currentTimeMillis(),
-            modifiedAt = System.currentTimeMillis(),
-            state = ShareState.REQUEST_SENT,
-            path = share.path,
-            sharedWith = share.sharedWith,
-            rights = share.rights
-        )
+                lookup.result.results[share.sharedWith]
+                    ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
+            }
 
-        val result = db.withTransaction { shareDAO.create(it, user, rewritten) }
+            fileId = statJob.await().fileId
+            lookupJob.join()
+        }
 
+        // Acquire token for owner
+        // TODO If DB is failing we should delete this token
+        coroutineScope {
+            val extendJob = async {
+                AuthDescriptions.tokenExtension.call(
+                    TokenExtensionRequest(
+                        userCloud.token,
+                        listOf(
+                            // TODO
+                        ),
+                        1000L * 60,
+                        allowRefreshes = true
+                    ),
+                    serviceCloud
+                ).orThrow()
+            }
+
+            ownerToken = extendJob.await().refreshToken ?:
+                    throw ShareException.InternalError("Bad response from token extension. refreshToken == null")
+        }
+
+        // Save internal state
+        val result = db.withTransaction {
+            shareDao.create(
+                it,
+                user,
+                share.sharedWith,
+                share.path,
+                share.rights,
+                fileId,
+                ownerToken
+            )
+        }
+
+        // Notify recipient
         coroutineScope {
             launch {
                 NotificationDescriptions.create.call(
@@ -111,18 +129,53 @@ class ShareService<DBSession>(
         return result
     }
 
+    fun list(
+        user: String,
+        state: ShareState? = null,
+        paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
+    ): Page<SharesByPath> {
+        val page = db.withTransaction { shareDao.list(it, AuthRequirements(user), state = state, paging = paging) }
+
+        return Page(
+            page.groupCount,
+            paging.itemsPerPage,
+            paging.page,
+            page.allSharesForPage.groupByPath(user)
+        )
+    }
+
+    fun findSharesForPath(
+        user: String,
+        path: String
+    ): SharesByPath {
+        return db.withTransaction { shareDao.findAllByPath(it, AuthRequirements(user), path) }
+            .groupByPath(user)
+            .single()
+    }
+
+    private fun List<InternalShare>.groupByPath(user: String): List<SharesByPath> {
+        val byPath = groupBy { it.path }
+        return byPath.map { (path, sharesForPath) ->
+            val owner = sharesForPath.first().owner
+            val sharedByMe = owner == user
+
+            SharesByPath(path, owner, sharedByMe, sharesForPath.map {
+                MinimalShare(it.id, it.sharedWith, it.rights, it.state)
+            })
+        }
+    }
+
     suspend fun updateRights(
         user: String,
         shareId: ShareId,
-        newRights: Set<AccessRight>,
-        userCloud: AuthenticatedCloud
+        newRights: Set<AccessRight>
     ) {
         val existingShare = db.withTransaction {
-            shareDAO.updateRights(it, user, shareId, newRights)
+            shareDao.updateShare(it, AuthRequirements(user, ShareRole.OWNER), shareId, rights = newRights)
         }
 
         if (existingShare.state == ShareState.ACCEPTED) {
-            updateFSPermissions(existingShare, newRights, userCloud)
+            updateFSPermissions(existingShare, newRights, userCloudFactory(existingShare.ownerToken)).orThrow()
         }
     }
 
@@ -130,62 +183,69 @@ class ShareService<DBSession>(
         user: String,
         shareId: ShareId,
         newState: ShareState,
-        userCloud: AuthenticatedCloud
+        userCloud: JWTAuthenticatedCloud
     ) {
-        db.withTransaction { session ->
-            val existingShare = shareDAO.find(session, user, shareId)
+        if (newState != ShareState.ACCEPTED) throw ShareException.NotAllowed()
 
-            when (user) {
-                existingShare.sharedWith -> when (newState) {
-                    ShareState.ACCEPTED -> {
-                        // This is okay
-                    }
+        val auth = AuthRequirements(user, ShareRole.RECIPIENT)
+        val existingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
 
-                    else -> throw ShareException.NotAllowed()
-                }
-
-                existingShare.owner -> throw ShareException.NotAllowed()
-
-                else -> {
-                    throw ShareException.InternalError(
-                        "ShareDAO returned a result but user is not owner or " +
-                                "being sharedWith! $existingShare $user"
-                    )
-                }
+        // TODO This needs to be done in the context of the owner!
+        coroutineScope {
+            val updateCall = async { updateFSPermissions(existingShare, existingShare.rights, userCloud) }
+            val extendCall = async {
+                AuthDescriptions.tokenExtension.call(
+                    TokenExtensionRequest(
+                        userCloud.token,
+                        listOf(
+                            FileDescriptions.deleteFile.requiredAuthScope
+                            // TODO Create link endpoint
+                        ).map { it.toString() },
+                        expiresIn = 1000L * 60,
+                        allowRefreshes = true
+                    ),
+                    serviceCloud
+                )
             }
 
-            if (newState == ShareState.ACCEPTED) {
-                // TODO This needs to be done in the context of the owner!
-                updateFSPermissions(existingShare, existingShare.rights, userCloud)
-                // TODO Create link for someone else?
-                /*
-                commandRunnerFactory.withContext(existingShare.sharedWith) {
-                    fs.createSymbolicLink(
-                        it,
-                        existingShare.path,
-                        joinPath(homeDirectory(ctx), existingShare.path.substringAfterLast('/'))
-                    )
-                }
-                */
+            updateCall.await().orThrow()
+            val tokenExtension = extendCall.await().orThrow().refreshToken!!
+
+            db.withTransaction { session ->
+                shareDao.updateShare(
+                    session,
+                    auth,
+                    shareId,
+                    recipientToken = tokenExtension,
+                    state = newState
+                )
             }
 
-            log.debug("Updating state")
-            shareDAO.updateState(session, user, shareId, newState)
+            // TODO Create link for someone else?
+            /*
+            commandRunnerFactory.withContext(existingShare.sharedWith) {
+                fs.createSymbolicLink(
+                    it,
+                    existingShare.path,
+                    joinPath(homeDirectory(ctx), existingShare.path.substringAfterLast('/'))
+                )
+            }
+            */
         }
     }
 
     suspend fun deleteShare(
         user: String,
-        shareId: ShareId,
-        userCloud: AuthenticatedCloud
+        shareId: ShareId
     ) {
-        db.withTransaction { dbSession ->
-            val existingShare = shareDAO.find(dbSession, user, shareId)
-            if (existingShare.owner != user) {
+        val existingShare = db.withTransaction { dbSession ->
+            shareDao.findById(dbSession, AuthRequirements(user, ShareRole.PARTICIPANT), shareId)
+        }
 
-            } else {
-                // deleteShare requires ownership of the share
-                shareDAO.deleteShare(dbSession, user, shareId)
+        val ownerCloud = userCloudFactory(existingShare.ownerToken)
+
+        coroutineScope {
+            val updateCall = async {
                 FileDescriptions.updateAcl.call(
                     UpdateAclRequest(
                         existingShare.path,
@@ -199,33 +259,34 @@ class ShareService<DBSession>(
                             )
                         )
                     ),
-                    userCloud
-                )
+                    ownerCloud
+                ).orThrow()
             }
+
+            if (existingShare.state == ShareState.ACCEPTED) {
+                val recipientCloud = existingShare.recipientToken?.let { userCloudFactory(it) }
+                    ?: throw ShareException.InternalError("recipient token not yet established when deleting share")
+
+                // TODO Delete link
+            }
+
+            updateCall.await()
+        }
+
+        // TODO Maybe do this async in Kafka?
+        // Do this last to ensure that share isn't deleted before FS permissions are fixed.
+        // If we want more guarantees we would some additional steps, but this will do for now.
+        db.withTransaction { dbSession ->
+            shareDao.deleteShare(dbSession, AuthRequirements(user, ShareRole.PARTICIPANT), shareId)
         }
     }
 
-    suspend fun createUserCloud(userToken: String): AuthenticatedCloud {
-        val token = AuthDescriptions.tokenExtension.call(
-            TokenExtensionRequest(
-                userToken,
-                listOf(
-                    FileDescriptions.updateAcl.requiredAuthScope
-                ).map { it.toString() },
-                expiresIn = FIVE_MINUTES_MS
-            ),
-            serviceCloud
-        ).orThrow()
-
-        return serviceCloud.parent.jwtAuth(token.accessToken)
-    }
-
     private suspend fun updateFSPermissions(
-        existingShare: Share,
+        existingShare: InternalShare,
         newRights: Set<AccessRight>,
         userCloud: AuthenticatedCloud
-    ) {
-        FileDescriptions.updateAcl.call(
+    ): RESTResponse<Unit, CommonErrorMessage> {
+        return FileDescriptions.updateAcl.call(
             UpdateAclRequest(
                 existingShare.path,
                 true,
@@ -237,12 +298,10 @@ class ShareService<DBSession>(
                     )
                 )
             ), userCloud
-        ).orThrow()
+        )
     }
 
     companion object : Loggable {
         override val log = logger()
-
-        private const val FIVE_MINUTES_MS = 1000L * 60 * 5
     }
 }
