@@ -110,13 +110,12 @@ class Files extends React.Component<FilesProps> {
         ];
         const customEntriesPerPage = (
             <>
-                <Box ml="auto" />
-                <RefreshButton loading={loading} onClick={refetch} className="float-right" />
                 <Pagination.EntriesPerPageSelector
                     entriesPerPage={page.itemsPerPage}
                     content="Files per page"
                     onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
                 />
+                <RefreshButton loading={loading} onClick={refetch} />
             </>
         );
         return (

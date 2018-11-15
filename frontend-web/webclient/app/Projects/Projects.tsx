@@ -1,8 +1,5 @@
 import * as React from "react";
-import { Card } from "semantic-ui-react";
-import * as Pagination from "Pagination";
 import { connect } from "react-redux";
-import { emptyPage } from "DefaultObjects";
 import { Dispatch } from "redux";
 
 class Projects extends React.Component<any, any> {

@@ -39,6 +39,7 @@ Card.defaultProps = {
   borderColor: "borderGray",
   borderRadius: 1,
   borderWidth: 1,
+  p: "12px 12px 12px 12px",
   theme: theme,
   height: 336.8
 };

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Icon as SIcon, IconProps, Popup } from "semantic-ui-react";
-import { Icon, Heading } from "ui-components";
+import { Icon, Heading, OutlineButton } from "ui-components";
 
 interface FileIconProps  extends IconProps { link?: boolean, shared?: boolean, className?:string }
 export const FileIcon = ({ name, size, shared = false, link = false, className = "", color }: FileIconProps) =>
@@ -23,14 +23,7 @@ export function Chevron({ name }) {
 }
 
 export const RefreshButton = ({ loading, onClick, className }: { loading?: boolean, onClick: () => void, className?: string }) => (
-    <SIcon
-        size="small"
-        link
-        circular
-        className={className}
-        name="sync"
-        onClick={() => onClick()} loading={loading}
-    />
+    <i className={`fas fa-sync ${loading ? "fa-spin" : ""}`} onClick={() => onClick()}/>
 );
 
 export const WebSocketSupport = () =>

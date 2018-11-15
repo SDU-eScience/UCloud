@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Container } from "semantic-ui-react";
 import { connect } from "react-redux";
 import { getParentPath, fetchFileContent } from "Utilities/FileUtilities";
 import { fetchPageFromPath, updateFiles } from "Files/Redux/FilesActions";
@@ -11,6 +10,7 @@ import { FilesReduxObject } from "DefaultObjects";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { removeTrailingSlash, extensionTypeFromPath } from "UtilityFunctions";
 import { Dispatch } from "redux";
+import { Box } from "ui-components";
 
 interface FilePreviewStateProps {
     page: Page<File>
@@ -97,9 +97,9 @@ class FilePreview extends React.Component<FilePreviewProps> {
 
     render() {
         return (
-            <Container>
+            <Box>
                 {this.renderContent()}
-            </Container>
+            </Box>
         );
     }
 }

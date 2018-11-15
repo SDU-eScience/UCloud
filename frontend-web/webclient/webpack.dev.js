@@ -17,7 +17,7 @@ module.exports = webpackMerge(commonConfig, {
 
     output: {
         path: path.join(process.cwd(), "/dist"),
-        publicPath: "/",
+        publicPath: "http://localhost:9000/",
         filename: "[name].js",
     },
 
@@ -58,8 +58,9 @@ module.exports = webpackMerge(commonConfig, {
             changeOrigin: true,
             onProxyRes(proxyRes, req, res) {
                 if ("set-cookie" in proxyRes.headers) {
-                    for (let i = 0; i < proxyRes.headers["set-cookie"].length; i++)
+                    for (let i = 0; i < proxyRes.headers["set-cookie"].length; i++) {
                         proxyRes.headers["set-cookie"][i] = proxyRes.headers["set-cookie"][i].replace(/Secure;/g, "");
+                    }
                 }
                 delete proxyRes.headers["strict-transport-security"];
             }

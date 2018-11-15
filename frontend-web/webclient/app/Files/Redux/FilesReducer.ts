@@ -69,7 +69,7 @@ const files = (state: FilesReduxObject = initFiles(""), action: FileActions): Fi
         case CHECK_ALL_FILES: {
             return {
                 ...state, page: {
-                    ...state.page, items: state.page.items.map((f) => {
+                    ...state.page, items: state.page.items.map(f => {
                         f.isChecked = action.payload.checked;
                         return f;
                     })

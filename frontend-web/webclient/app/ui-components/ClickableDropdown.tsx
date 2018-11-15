@@ -17,22 +17,23 @@ type ClickableDropdownProps = {
 }
 
 class ClickableDropdown extends React.Component<ClickableDropdownProps, ClickableDropdownState> {
+    private ref;
+
     constructor(props) {
         super(props);
         this.state = { open: false };
-        document.addEventListener("click", this.handleClickOutside, true);
+        document.addEventListener("mousedown", this.handleClickOutside);
         let neither = true;
         if (!!props.children) neither = false;
         if (!!props.onChange && !!props.options) neither = false;
         if (neither) throw Error("Clickable dropdown must have either children prop or options and onChange");
     }
 
-    componentWillUnmount = () => document.removeEventListener("click", this.handleClickOutside, true);
+    componentWillUnmount = () => document.removeEventListener("mousedown", this.handleClickOutside);
 
     // https://stackoverflow.com/questions/32553158/detect-click-outside-react-component#42234988
     handleClickOutside = event => {
-        const domNode = ReactDOM.findDOMNode(this);
-        if (!domNode || !domNode.contains(event.target)) this.setState(() => ({ open: false }));
+        if (this.ref && !this.ref.contains(event.target)) this.setState(() => ({ open: false }));
     }
 
     render() {
@@ -47,7 +48,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
             children = props.children
         }
         return (
-            <Dropdown>
+            <Dropdown ref={this.ref}>
                 <span onClick={() => this.setState(() => ({ open: !this.state.open }))}>
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" /> : null}
                 </span>

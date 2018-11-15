@@ -3,7 +3,7 @@ import { Button, Icon } from ".";
 
 const LoadingButton = ({ loading, color, content, ...props }) => loading ?
     <Button color={color} disabled {...props}>
-        {content} {/* // FIXME should have rotating icon */}
+        <i className="fas fa-circle-notch fa-spin"/>
     </Button> :
     <Button color={color} {...props}>
         {content}
