@@ -69,8 +69,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         );
 
         if (this.props.redirectTo) {
-            let theRedirect = this.props.redirectTo;
-            return <Redirect to={theRedirect} />
+            return <Redirect to={this.props.redirectTo} />
         }
 
         const unreadLength = page.items.filter((e) => !e.read).length;
