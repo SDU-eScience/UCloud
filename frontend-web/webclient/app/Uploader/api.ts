@@ -8,7 +8,7 @@ export const multipartUpload = async (location: string, file: File, sensitivity:
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     let formData = new FormData();
     formData.append("location", location);
-    //formData.append("sensitivity", sensitivity);
+    formData.append("sensitivity", sensitivity);
     formData.append("upload", newFile);
     let request = new XMLHttpRequest();
     request.open("POST", "/api/files/upload");
@@ -42,7 +42,7 @@ export const bulkUpload = async (location: string, file: File, sensitivity: Sens
     formData.append("location", location);
     formData.append("format", format);
     formData.append("policy", policy);
-    /* formData.append("sensitivity", sensitivity); */
+    formData.append("sensitivity", sensitivity);
     formData.append("upload", newFile);
     let request = new XMLHttpRequest();
 

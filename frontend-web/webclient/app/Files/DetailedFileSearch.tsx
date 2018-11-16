@@ -101,147 +101,150 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
         ) : null;
 
         return (
-            <Flex flexDirection="column" pl="0.5em" pr="0.5em">
-                <Box mt="0.5em">
-                    <Heading.h3>Advanced File Search</Heading.h3>
-                    <Error error={this.props.error} clearError={() => this.props.setError()} />
-                    <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
-                    <Input
-                        pb="6px"
-                        pt="8px"
-                        mt="-2px"
-                        width="100%"
-                        placeholder="Filename must include..."
-                        defaultValue={this.props.fileName}
-                        onChange={({ target: { value: fileName } }) => this.props.setFilename(fileName)}
-                    />
-                    <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
-                    {/* FIXME ADD ERROR */}
-                    <InputGroup>
-                        <DatePicker
-                            popperPlacement="left"
+            <>
+                <OutlineButton fullWidth color="green" onClick={this.props.toggleHidden}>Hide Advanced Search</OutlineButton>
+                <Flex flexDirection="column" pl="0.5em" pr="0.5em">
+                    <Box mt="0.5em">
+                        <Heading.h3>Advanced File Search</Heading.h3>
+                        <Error error={this.props.error} clearError={() => this.props.setError()} />
+                        <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
+                        <Input
                             pb="6px"
                             pt="8px"
                             mt="-2px"
-                            placeholderText="Created after..."
-                            selected={this.props.createdAfter}
-                            startDate={this.props.createdAfter}
-                            endDate={this.props.createdBefore}
-                            onChange={d => this.validateAndSetDate(d, "createdAfter")}
-                            showTimeSelect
-                            locale="da"
-                            timeIntervals={15}
-                            isClearable
-                            selectsStart
-                            timeFormat="HH:mm"
-                            dateFormat="DD/MM/YY HH:mm"
-                            timeCaption="time"
+                            width="100%"
+                            placeholder="Filename must include..."
+                            defaultValue={this.props.fileName}
+                            onChange={({ target: { value: fileName } }) => this.props.setFilename(fileName)}
                         />
-                        <DatePicker
-                            popperPlacement="left"
-                            pb="6px"
-                            pt="8px"
-                            mt="-2px"
-                            locale="da"
-                            selectsEnd
-                            placeholderText="Created before..."
-                            selected={this.props.createdBefore}
-                            startDate={this.props.createdAfter}
-                            endDate={this.props.createdBefore}
-                            onChange={d => this.validateAndSetDate(d, "createdBefore")}
-                            showTimeSelect
-                            timeIntervals={15}
-                            isClearable
-                            timeFormat="HH:mm"
-                            dateFormat="DD/MM/YY HH:mm"
-                            timeCaption="time"
-                        />
-                    </InputGroup>
-                    <Heading.h5 pb="0.3em" pt="0.5em">Modified at</Heading.h5>
-                    <Error error={undefined} />
-                    <InputGroup>
-                        <DatePicker
-                            popperPlacement="left"
-                            pb="6px"
-                            pt="8px"
-                            mt="-2px"
-                            placeholderText="Modified after..."
-                            selected={this.props.modifiedAfter}
-                            selectsStart
-                            startDate={this.props.modifiedAfter}
-                            endDate={this.props.modifiedBefore}
-                            onChange={d => this.validateAndSetDate(d, "modifiedAfter")}
-                            showTimeSelect
-                            timeIntervals={15}
-                            isClearable
-                            locale="da"
-                            timeFormat="HH:mm"
-                            dateFormat="DD/MM/YY HH:mm"
-                            timeCaption="time"
-                        />
-                        <DatePicker
-                            popperPlacement="left"
-                            pb="6px"
-                            pt="8px"
-                            mt="-2px"
-                            placeholderText="Modified before..."
-                            selected={this.props.modifiedBefore}
-                            selectsEnd
-                            startDate={this.props.modifiedAfter}
-                            endDate={this.props.modifiedBefore}
-                            locale="da"
-                            onChange={d => this.validateAndSetDate(d, "modifiedBefore")}
-                            showTimeSelect
-                            timeIntervals={15}
-                            isClearable
-                            timeFormat="HH:mm"
-                            dateFormat="DD/MM/YY HH:mm"
-                            timeCaption="time"
-                        />
-                    </InputGroup>
-                    <Heading.h5 pb="0.3em" pt="0.5em">File Types</Heading.h5>
-                    <Flex>
-                        <Label fontSize={1} color="black">
-                            <Checkbox
-                                checked={allowFolders}
-                                onChange={e => e.stopPropagation()}
-                                onClick={_ => this.props.toggleFolderAllowed()}
+                        <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
+                        {/* FIXME ADD ERROR */}
+                        <InputGroup>
+                            <DatePicker
+                                popperPlacement="left"
+                                pb="6px"
+                                pt="8px"
+                                mt="-2px"
+                                placeholderText="Created after..."
+                                selected={this.props.createdAfter}
+                                startDate={this.props.createdAfter}
+                                endDate={this.props.createdBefore}
+                                onChange={d => this.validateAndSetDate(d, "createdAfter")}
+                                showTimeSelect
+                                locale="da"
+                                timeIntervals={15}
+                                isClearable
+                                selectsStart
+                                timeFormat="HH:mm"
+                                dateFormat="DD/MM/YY HH:mm"
+                                timeCaption="time"
                             />
-                            Folders
-                        </Label>
-                        <Label fontSize={1} color="black">
-                            <Checkbox
-                                checked={allowFiles}
-                                onChange={e => e.stopPropagation()}
-                                onClick={_ => this.props.toggleFilesAllowed()}
+                            <DatePicker
+                                popperPlacement="left"
+                                pb="6px"
+                                pt="8px"
+                                mt="-2px"
+                                locale="da"
+                                selectsEnd
+                                placeholderText="Created before..."
+                                selected={this.props.createdBefore}
+                                startDate={this.props.createdAfter}
+                                endDate={this.props.createdBefore}
+                                onChange={d => this.validateAndSetDate(d, "createdBefore")}
+                                showTimeSelect
+                                timeIntervals={15}
+                                isClearable
+                                timeFormat="HH:mm"
+                                dateFormat="DD/MM/YY HH:mm"
+                                timeCaption="time"
                             />
-                            Files
+                        </InputGroup>
+                        <Heading.h5 pb="0.3em" pt="0.5em">Modified at</Heading.h5>
+                        <Error error={undefined} />
+                        <InputGroup>
+                            <DatePicker
+                                popperPlacement="left"
+                                pb="6px"
+                                pt="8px"
+                                mt="-2px"
+                                placeholderText="Modified after..."
+                                selected={this.props.modifiedAfter}
+                                selectsStart
+                                startDate={this.props.modifiedAfter}
+                                endDate={this.props.modifiedBefore}
+                                onChange={d => this.validateAndSetDate(d, "modifiedAfter")}
+                                showTimeSelect
+                                timeIntervals={15}
+                                isClearable
+                                locale="da"
+                                timeFormat="HH:mm"
+                                dateFormat="DD/MM/YY HH:mm"
+                                timeCaption="time"
+                            />
+                            <DatePicker
+                                popperPlacement="left"
+                                pb="6px"
+                                pt="8px"
+                                mt="-2px"
+                                placeholderText="Modified before..."
+                                selected={this.props.modifiedBefore}
+                                selectsEnd
+                                startDate={this.props.modifiedAfter}
+                                endDate={this.props.modifiedBefore}
+                                locale="da"
+                                onChange={d => this.validateAndSetDate(d, "modifiedBefore")}
+                                showTimeSelect
+                                timeIntervals={15}
+                                isClearable
+                                timeFormat="HH:mm"
+                                dateFormat="DD/MM/YY HH:mm"
+                                timeCaption="time"
+                            />
+                        </InputGroup>
+                        <Heading.h5 pb="0.3em" pt="0.5em">File Types</Heading.h5>
+                        <Flex>
+                            <Label fontSize={1} color="black">
+                                <Checkbox
+                                    checked={allowFolders}
+                                    onChange={e => e.stopPropagation()}
+                                    onClick={_ => this.props.toggleFolderAllowed()}
+                                />
+                                Folders
                         </Label>
-                    </Flex>
+                            <Label fontSize={1} color="black">
+                                <Checkbox
+                                    checked={allowFiles}
+                                    onChange={e => e.stopPropagation()}
+                                    onClick={_ => this.props.toggleFilesAllowed()}
+                                />
+                                Files
+                        </Label>
+                        </Flex>
 
-                    <Heading.h5 pb="0.3em" pt="0.5em">File extensions</Heading.h5>
-                    <SearchStamps stamps={extensions} onStampRemove={l => this.props.removeExtensions([l])} clearAll={() => this.props.removeExtensions([...extensions])} />
-                    <form onSubmit={e => { e.preventDefault(); this.onAddExtension(); }}>
-                        <Input pb="6px" pt="8px" mt="-2px" ref={this.extensionsInput} placeholder={"Add extensions..."} />
-                        <ClickableDropdown
-                            chevron
-                            trigger={"Add extension preset"}
-                            onChange={value => this.onAddPresets(value)}
-                            options={extensionPresets}
-                        />
-                    </form>
-                    <Heading.h5 pb="0.3em" pt="0.5em">Sensitivity</Heading.h5>
-                    <SearchStamps stamps={sensitivities} onStampRemove={l => this.props.removeSensitivity([l])} clearAll={() => this.props.removeSensitivity([...sensitivities])} />
-                    {sensitivityDropdown}
+                        <Heading.h5 pb="0.3em" pt="0.5em">File extensions</Heading.h5>
+                        <SearchStamps stamps={extensions} onStampRemove={l => this.props.removeExtensions([l])} clearAll={() => this.props.removeExtensions([...extensions])} />
+                        <form onSubmit={e => { e.preventDefault(); this.onAddExtension(); }}>
+                            <Input pb="6px" pt="8px" mt="-2px" ref={this.extensionsInput} placeholder={"Add extensions..."} />
+                            <ClickableDropdown
+                                chevron
+                                trigger={"Add extension preset"}
+                                onChange={value => this.onAddPresets(value)}
+                                options={extensionPresets}
+                            />
+                        </form>
+                        <Heading.h5 pb="0.3em" pt="0.5em">Sensitivity</Heading.h5>
+                        <SearchStamps stamps={sensitivities} onStampRemove={l => this.props.removeSensitivity([l])} clearAll={() => this.props.removeSensitivity([...sensitivities])} />
+                        {sensitivityDropdown}
 
-                    <Heading.h5>Tags</Heading.h5>
-                    <SearchStamps stamps={tags} onStampRemove={l => this.props.removeTags([l])} clearAll={() => this.props.removeTags([...tags])} />
-                    <form onSubmit={e => { e.preventDefault(); this.onAddTags(); }}>
-                        <Input pb="6px" pt="8px" mt="-2px" placeholder={"Add tags..."} ref={this.tagsInput} />
-                    </form>
-                    <LoadingButton type="submit" loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
-                </Box>
-            </Flex>
+                        <Heading.h5>Tags</Heading.h5>
+                        <SearchStamps stamps={tags} onStampRemove={l => this.props.removeTags([l])} clearAll={() => this.props.removeTags([...tags])} />
+                        <form onSubmit={e => { e.preventDefault(); this.onAddTags(); }}>
+                            <Input pb="6px" pt="8px" mt="-2px" placeholder={"Add tags..."} ref={this.tagsInput} />
+                        </form>
+                        <LoadingButton type="submit" loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
+                    </Box>
+                </Flex>
+            </>
         );
     }
 }

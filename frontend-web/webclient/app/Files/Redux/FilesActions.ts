@@ -22,6 +22,7 @@ import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types
 import { SortOrder, SortBy, File } from "..";
 import { Action } from "redux";
 import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
+import { emptyPage } from "DefaultObjects";
 
 
 export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage<typeof UPDATE_FILES, File> |
@@ -46,10 +47,10 @@ export const fetchFiles = (path: string, itemsPerPage: number, page: number, ord
         return setErrorMessage(`An error occurred fetching files for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
     });
 
-type InvalidPath = PayloadAction<typeof FILES_INVALID_PATH, { invalidPath: true, error: string, loading: false }>
+type InvalidPath = PayloadAction<typeof FILES_INVALID_PATH, { invalidPath: true, error: string, loading: false, page: Page<File> }>
 const setInvalidPath = (): InvalidPath => ({
     type: FILES_INVALID_PATH,
-    payload: { invalidPath: true, error: "Path does not match any folder", loading: false }
+    payload: { invalidPath: true, error: "Path does not match any folder", page: emptyPage, loading: false }
 })
 
 type FilesError = Error<typeof FILES_ERROR>

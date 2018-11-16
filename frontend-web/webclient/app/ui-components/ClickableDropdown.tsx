@@ -1,8 +1,8 @@
 import * as React from "react";
-import * as ReactDOM from "react-dom";
 import { Dropdown, DropdownContent } from "./Dropdown";
 import Box from "./Box";
 import { Icon } from "ui-components";
+import * as Text from "ui-components/Text";
 
 type ClickableDropdownState = { open: boolean }
 type ClickableDropdownProps = {
@@ -49,9 +49,9 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
         }
         return (
             <Dropdown ref={this.ref}>
-                <span onClick={() => this.setState(() => ({ open: !this.state.open }))}>
+                <Text.TextSpan cursor="pointer" onClick={() => this.setState(() => ({ open: !this.state.open }))}>
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" /> : null}
-                </span>
+                </Text.TextSpan>
                 {this.state.open ?
                     <DropdownContent cursor="pointer" left={props.left} minWidth={this.props.minWidth} width={this.props.width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
                         {children}

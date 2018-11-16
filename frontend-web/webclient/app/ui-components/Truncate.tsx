@@ -1,6 +1,6 @@
-import Text from './Text'
-import theme from './theme'
-import styled from 'styled-components';
+import Text from "./Text"
+import theme from "./theme"
+import styled from "styled-components";
 
 const Truncate = styled(Text)`
   overflow: hidden;

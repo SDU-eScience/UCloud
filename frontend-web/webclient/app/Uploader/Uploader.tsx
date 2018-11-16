@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Checkbox as SCheckbox, Progress, Grid, Card, Button, Icon, Modal, Message } from "semantic-ui-react";
+import { Checkbox as SCheckbox, Progress, Grid, Card, Button, Icon, Modal } from "semantic-ui-react";
 import * as Dropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString } from "UtilityFunctions";
@@ -10,7 +10,7 @@ import { ReduxObject, Sensitivity, SensitivityLevel } from "DefaultObjects";
 import { Upload, UploaderProps } from ".";
 import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
-import { Box, Text, Flex } from "ui-components";
+import { Box, Text, Flex, Error } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
@@ -42,7 +42,7 @@ class Uploader extends React.Component<UploaderProps> {
         }
     }
 
-    beforeUnload = (e) => {
+    beforeUnload = e => {
         e.returnValue = "foo";
         uploadsNotifications(finishedUploads(this.props.uploads), this.props.uploads.length)
         return e;
@@ -119,7 +119,7 @@ class Uploader extends React.Component<UploaderProps> {
                 <Modal.Header content="Upload Files" />
                 {this.props.error ?
                     <Box pt="0.5em" pr="0.5em" pl="0.5em">
-                        <Message error content={this.props.error} onDismiss={() => this.props.dispatch(setUploaderError())} />
+                        <Error error={this.props.error} clearError={() => this.props.dispatch(setUploaderError())} />
                     </Box> : null}
                 <Modal.Content scrolling>
                     <Modal.Description>

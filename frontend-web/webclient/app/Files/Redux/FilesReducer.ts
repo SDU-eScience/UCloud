@@ -1,5 +1,5 @@
 import { FileActions } from "./FilesActions";
-import { FilesReduxObject, initFiles } from "DefaultObjects";
+import { FilesReduxObject, initFiles, emptyPage } from "DefaultObjects";
 import { newMockFolder } from "Utilities/FileUtilities";
 
 export const RECEIVE_FILES = "RECEIVE_FILES";
@@ -64,7 +64,7 @@ const files = (state: FilesReduxObject = initFiles(""), action: FileActions): Fi
             return { ...state, disallowedPaths: action.payload.paths }
         }
         case FILES_ERROR: {
-            return { ...state, error: action.payload.error, loading: false };
+            return { ...state, error: action.payload.error, loading: false, page: emptyPage };
         }
         case CHECK_ALL_FILES: {
             return {

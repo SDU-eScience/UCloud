@@ -87,7 +87,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         ) : null;
         const badgeCount = unreadLength + activeUploads;
         return (
-            <ClickableDropdown width={"200px"} left={"-135px"} trigger={
+            <ClickableDropdown width={"380px"} left={"-270px"} trigger={
                 <Flex>
                     <Relative top="0" left="0">
                         <Flex justifyContent="center" width="60px">
@@ -104,7 +104,6 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                 </Feed>
                 <Divider />
                 {uploads}
-                <Status />
             </ClickableDropdown>
         );
     }
@@ -132,7 +131,7 @@ interface NotificationEntryProps {
     onAction?: (notification: Notification) => void
 }
 
-class NotificationEntry extends React.Component<NotificationEntryProps, any> {
+export class NotificationEntry extends React.Component<NotificationEntryProps, any> {
     constructor(props: NotificationEntryProps) {
         super(props);
     }

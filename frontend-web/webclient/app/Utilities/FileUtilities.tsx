@@ -306,8 +306,8 @@ export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => vo
             return;
         } else {
             let i = 0;
-            paths.forEach((p) => {
-                cloud.delete("/files", { path: p }).then(() => ++i === paths.length ? callback() : null)
+            paths.forEach(path => {
+                cloud.delete("/files", { path }).then(() => ++i === paths.length ? callback() : null)
                     .catch(() => i++);
             });
         }

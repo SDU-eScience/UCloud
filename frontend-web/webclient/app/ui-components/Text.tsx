@@ -7,7 +7,7 @@ import {
   lineHeight,
   space,
   color,
-  SpaceProps, TextAlignProps, FontSizeProps, ColorProps, alignContent
+  SpaceProps, TextAlignProps, FontSizeProps, ColorProps
 } from 'styled-system'
 import theme from "./theme";
 
@@ -65,7 +65,7 @@ export const EllipsedText = styled(Text) <EllipsedTextProps>`
 
 
 Text.defaultProps = {
-  cursor: "auto",
+  cursor: "inherit",
   theme: theme
 };
 

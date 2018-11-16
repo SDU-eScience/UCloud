@@ -39,19 +39,15 @@ Card.defaultProps = {
   borderColor: "borderGray",
   borderRadius: 1,
   borderWidth: 1,
-  p: "12px 12px 12px 12px",
   theme: theme,
-  height: 336.8
+  height: 336.8 // "auto"
 };
 
 export const CardGroup = styled.div`
   display: flex;
   flex-wrap: wrap;
-  margin-top: 15px;
   & > div {
     margin: 2px 5px 5px 5px;
-    height: 212px;
-    width: 252px;
     flex-shrink: 0;
   }
 `;

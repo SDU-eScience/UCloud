@@ -105,7 +105,7 @@
     "jest": "^23.6.0",
     "mini-css-extract-plugin": "^0.4.4",
     "napa": "3.0.0",
-    "node-sass": "^4.10.0",
+    "node-sass": "4.10.0",
     "phantomjs-prebuilt": "2.1.16",
     "raw-loader": "0.5.1",
     "react-test-renderer": "16.6.3",
