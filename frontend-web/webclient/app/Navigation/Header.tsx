@@ -57,7 +57,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
         const { prioritizedSearch, searchFiles } = this.props;
         return (
             <HeaderContainer color='lightGray' bg='blue'>
-                <Logo/>
+                <Logo />
                 <Box ml="auto" />
                 <Search
                     onChange={searchText => this.setState(() => ({ searchText }))}
@@ -140,7 +140,7 @@ const SearchInput = styled(Flex)`
 const Search = ({ searchText, onChange, navigate, searchFiles }) => (
     <Relative>
         <SearchInput>
-            <Input 
+            <Input
                 pl="30px"
                 id="search_input"
                 value={searchText}
@@ -165,7 +165,7 @@ const ClippedBox = styled(Flex)`
     height: 48px;
 `;
 
-const UserAvatar = () => (
+const OldUserAvatar = () => (
     <ClippedBox mr="8px" width="60px">
         <Avatar
             style={{ width: "64px", height: "60px", cursor: "pointer" }}
@@ -180,6 +180,23 @@ const UserAvatar = () => (
             eyebrowType="Default"
             mouthType="Smile"
             skinColor="Light"
+        />
+    </ClippedBox>
+);
+
+const UserAvatar = () => (
+    <ClippedBox mr="8px" width="60px">
+        <Avatar
+            avatarStyle='Circle'
+            topType='ShortHairShortFlat'
+            accessoriesType='Blank'
+            hairColor='Black'
+            facialHairType='Blank'
+            clotheType='BlazerShirt'
+            eyeType='Default'
+            eyebrowType='Default'
+            mouthType='Default'
+            skinColor='Light'
         />
     </ClippedBox>
 );
