@@ -29,6 +29,7 @@ const boxBorder = props => ({
 
 export interface CardProps extends HeightProps, BoxProps, BorderColorProps, BoxShadowProps, BorderProps, BorderRadiusProps {
   borderWidth?: number | string
+  boxShadowSize?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 export const Card = styled(Box) <CardProps>`
@@ -47,7 +48,7 @@ export const CardGroup = styled.div`
   display: flex;
   flex-wrap: wrap;
   & > div {
-    margin: 2px 5px 5px 5px;
+    margin: 5px 5px 5px 5px;
     flex-shrink: 0;
   }
 `;
