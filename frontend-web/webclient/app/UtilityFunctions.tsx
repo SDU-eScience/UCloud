@@ -1,7 +1,6 @@
 import swal from "sweetalert2";
 import { SensitivityLevel } from "DefaultObjects";
 import Cloud from "Authentication/lib";
-import { SemanticICONS } from "semantic-ui-react";
 import { SortBy, SortOrder, File, Acl, FileType } from "Files";
 import { dateToString } from "Utilities/DateUtilities";
 import {
@@ -23,7 +22,8 @@ export const toLowerCaseAndCapitalize = (str: string): string => str.charAt(0).t
  * @param {Acl[]} acls - the list of access controls
  * @return {string}
  */
-export const getOwnerFromAcls = (acls: Acl[]): string => {
+export const getOwnerFromAcls = (acls?: Acl[]): string => {
+    if (acls === undefined) return "N/A";
     if (acls.length > 0) {
         return `${acls.length + 1} members`;
     } else {
@@ -140,7 +140,10 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
         case SortBy.SIZE:
             return fileSizeToString(file.size);
         case SortBy.ACL:
-            return getOwnerFromAcls(file.acl)
+            if (file.acl !== undefined)
+                return getOwnerFromAcls(file.acl)
+            else
+                return "";
         case SortBy.FAVORITED:
             return file.favorited ? "Favorited" : "";
         case SortBy.SENSITIVITY:
@@ -148,9 +151,9 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     }
 }
 
-export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy) => {
+export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy): ("arrowUp" | "arrowDown" | undefined) => {
     if (sortBy === name) {
-        return sortOrder === SortOrder.DESCENDING ? "chevron down" : "chevron up";
+        return sortOrder === SortOrder.DESCENDING ? "arrowDown" : "arrowUp";
     };
     return undefined;
 };
@@ -224,13 +227,14 @@ export const extensionType = (ext: string): ExtensionType => {
     }
 }
 
-
-export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): SemanticICONS => {
+type FileIcons = "tasks" | "star" | "trash alternate outline" | "folder" | "file outline" |
+    "file code outline" | "image" | "file outline" | "volume up" | "file archive outline";
+export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FileIcons => {
     const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
     if (homeFolderReplaced === "Home/Jobs") return "tasks";
     if (homeFolderReplaced === "Home/Favorites") return "star";
     if (homeFolderReplaced === "Home/Trash") return "trash alternate outline";
-    if (isDirectory({fileType: type})) return "folder";
+    if (isDirectory({ fileType: type })) return "folder";
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {
         return "file outline";
@@ -242,12 +246,11 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
             return "file code outline";
         case "image":
             return "image";
-        case "text":
-            return "file outline";
         case "sound":
             return "volume up";
         case "archive":
             return "file archive outline";
+        case "text":
         default:
             return "file outline";
     }

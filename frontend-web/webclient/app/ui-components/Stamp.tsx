@@ -28,6 +28,7 @@ interface StampProps extends SpaceProps {
 Stamp.defaultProps = {
   px: 1,
   py: 0,
+  mr: "4px",
   theme: theme,
   color: "black",
   bg: "lightGray",

@@ -1,9 +1,9 @@
 import styled from "styled-components";
 import { themeGet, space, color } from "styled-system";
-import theme from "./theme";
+import theme, { ThemeColor } from "./theme";
 import { NumberOrStringOrArray } from "./Types";
 
-const type = props => {
+const type = (props) => {
   const badgeColors = {
     blue: {
       backgroundColor: props.theme.colors.blue,
@@ -52,7 +52,7 @@ const type = props => {
   )
 }
 
-const Badge = styled("div")<BadgeProps>`
+const Badge = styled("div") <BadgeProps>`
   border-radius: 99999px;
   display: inline-block;
   font-size: ${props => props.theme.fontSizes[0]}px;

@@ -4,22 +4,22 @@ import * as jwt from "jsonwebtoken";
 
 // Storage Mock
 const storageMock = () => {
-    let storage = {};
+    let storage: any = {};
 
     return {
-        setItem: (key, value) => {
+        setItem: (key: string, value: any) => {
             storage[key] = value || "";
         },
-        getItem: (key) => {
+        getItem: (key: string) => {
             return key in storage ? storage[key] : null;
         },
-        removeItem: (key) => {
+        removeItem: (key: string) => {
             delete storage[key];
         },
         get length() {
             return Object.keys(storage).length;
         },
-        key: (i) => {
+        key: (i: number) => {
             var keys = Object.keys(storage);
             return keys[i] || null;
         },
@@ -34,7 +34,7 @@ export default function initializeTestCloudObject() {
     const accessToken = jwt.decode("eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0ZXN0QHRlc3QuZGsiLCJsYXN0TmFtZSI6InRlc3QiLCJyb2xlIjoiVVNFUiIsIm" +
         "lzcyI6ImNsb3VkLnNkdS5kayIsImZpcnN0TmFtZXMiOiJ0ZXN0IiwiZXhwIjozNjE1NDkxMDkzLCJpYXQiOjE1MTU0ODkyO" +
         "TMsInByaW5jaXBhbFR5cGUiOiJwYXNzd29yZCIsImF1ZCI6WyJhcGkiLCJpcm9kcyJdfQ.gfLvmBWET-WpwtWLdrN9SL0tD" +
-        "-0vrHrriWWDxnQljB8", { complete: true });
+        "-0vrHrriWWDxnQljB8", { complete: true }) as string;
 
     localStorage.setItem("accessToken", accessToken);
     return new SDUCloud();

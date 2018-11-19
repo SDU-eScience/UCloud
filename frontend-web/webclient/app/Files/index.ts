@@ -8,6 +8,8 @@ import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
 import { IconName } from "ui-components/Icon";
+import { ComponentWithPage, Sensitivity } from "DefaultObjects";
+import { Times } from "./Redux/DetailedFileSearchActions";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -22,8 +24,8 @@ export interface File {
     modifiedAt: number
     ownerName: string
     size: number
-    acl: Acl[]
-    favorited: boolean
+    acl?: Acl[]
+    favorited?: boolean
     sensitivityLevel: string
     isChecked?: boolean
     beingRenamed?: boolean
@@ -56,7 +58,7 @@ export interface FilesProps extends FilesStateProps, FilesOperations {
 }
 
 export interface MockedTableProps {
-    onCreateFolder: (a, c) => void
+    onCreateFolder: (a: number, c: number) => void
     creatingFolder: boolean
 }
 
@@ -79,6 +81,7 @@ export interface FilesStateProps { // Redux Props
     fileCount: number
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
+    invalidPath: boolean
 }
 
 export interface FilesOperations { // Redux operations
@@ -97,7 +100,7 @@ export interface FilesOperations { // Redux operations
     checkAllFiles: (checked: boolean) => void
     setDisallowedPaths: (disallowedPaths: string[]) => void
     showUploader: () => void
-    setUploaderCallback: (callback) => void
+    setUploaderCallback: (callback: (s: string) => void) => void
     createFolder: () => void
 }
 
@@ -127,14 +130,14 @@ export interface FilesTableProps {
     sortingColumns: [SortBy, SortBy]
     files: File[]
     masterCheckbox?: React.ReactNode
-    sortingIcon?: (name: string) => SemanticICONS | undefined
+    sortingIcon?: (name: SortBy) => "arrowUp" | "arrowDown" | undefined
     sortFiles: (sortOrder: SortOrder, sortBy: SortBy) => void
     onRenameFile?: (key: number, file: File, name: string) => void
     onCreateFolder?: (key: number, name: string) => void
     onCheckFile: (c: boolean, f: File) => void
     refetchFiles: () => void
     sortBy: SortBy
-    onFavoriteFile: (f: File[]) => void
+    onFavoriteFile?: (f: File[]) => void
     fileOperations: FileOperation[]
     customEntriesPerPage?: React.ReactNode
 }
@@ -145,7 +148,7 @@ export interface CreateFolderProps {
 }
 
 export interface FilesTableHeaderProps {
-    toSortingIcon?: (s: SortBy) => SemanticICONS | undefined
+    toSortingIcon?: (s: SortBy) => "arrowUp" | "arrowDown" | undefined
     sortFiles?: (sortOrder: SortOrder, sortBy: SortBy) => void
     sortOrder: SortOrder
     sortBy: SortBy
@@ -179,7 +182,7 @@ export interface FileSelectorModalProps {
     createFolder?: () => void
     errorMessage?: string
     onErrorDismiss?: () => void
-    navigate?: (path, pageNumber, itemsPerPage) => void
+    navigate?: (path: string, pageNumber: number, itemsPerPage: number) => void
 }
 
 export interface FileSelectorBodyProps {
@@ -236,7 +239,24 @@ export interface ContextButtonsProps {
 }
 
 
-export interface DetailedFileSearchProps { }
+export interface DetailedFileSearchOperations {
+    toggleHidden: () => void
+    addExtensions: (ext: string[]) => void
+    removeExtensions: (ext: string[]) => void
+    toggleFolderAllowed: () => void
+    toggleFilesAllowed: () => void
+    addSensitivity: (sensitivity: SensitivityLevel) => void
+    removeSensitivity: (sensitivity: SensitivityLevel[]) => void
+    addTags: (tags: string[]) => void
+    removeTags: (tags: string[]) => void
+    setFilename: (filename: string) => void
+    fetchPage: (request: AdvancedSearchRequest, callback?: Function) => void
+    setLoading: (loading: boolean) => void
+    setTimes: (times: Times) => void
+    setError: (error?: string) => void
+}
+
+export type DetailedFileSearchProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
 
 export enum AnnotationsMap { P = "Project" }
 
@@ -244,31 +264,26 @@ export type Annotation = keyof typeof AnnotationsMap;
 
 export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 
-export interface DetailedFileSearchState {
+export interface DetailedFileSearchReduxState extends ComponentWithPage<File> {
     hidden: boolean
     allowFolders: boolean
     allowFiles: boolean
     fileName: string
     extensions: Set<string>
-    extensionValue: string
     tags: Set<string>
-    tagValue: string,
-    sensitivities: Set<SensitivityLevel>,
+    sensitivities: Set<SensitivityLevel>
     annotations: Set<Annotation>
     createdBefore?: Moment
     createdAfter?: Moment
     modifiedBefore?: Moment
     modifiedAfter?: Moment
-    error?: string
-    loading: boolean
-    result: Page<File>
 }
 
-export type ContextBarProps = ContextButtonsProps & FileOptionsProps
+export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalidPath: boolean }
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 
-export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: SemanticICONS, minWidth?: number }
+export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: "arrowUp" | "arrowDown", minWidth?: number }
 
 export interface FileInfoProps {
     page: Page<File>

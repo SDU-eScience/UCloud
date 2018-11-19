@@ -1,9 +1,8 @@
-import * as React from 'react'
 import styled from 'styled-components'
-import * as StyledSystem from 'styled-system'
 import theme from './theme'
+import { SpaceProps, FontSizeProps, ColorProps, space, fontSize } from 'styled-system';
 
-const ToggleBadge = styled<any, any>("button")`
+const ToggleBadge = styled.button<ToggleBadge>`
   border-radius: ${props => props.theme.radius};
   border: 0;
   display: inline-block;
@@ -13,7 +12,8 @@ const ToggleBadge = styled<any, any>("button")`
   background-color: ${(props: any) =>
     props.selected ? props.theme.colors[props.bg] : props.unSelectedBg};
   color: ${(props: any) => props.theme.colors[props.color]};
-  ${StyledSystem.space} ${StyledSystem.fontSize};
+  ${space};
+  ${fontSize};
   &:hover {
     background-color: ${(props: any) => props.theme.colors[props.bg]};
   }
@@ -21,16 +21,13 @@ const ToggleBadge = styled<any, any>("button")`
 
 ToggleBadge.displayName = "ToggleBadge";
 
-interface ToggleBadge extends StyledSystem.SpaceProps, StyledSystem.FontSizeProps, StyledSystem.ColorProps {
+interface ToggleBadge extends SpaceProps, FontSizeProps, ColorProps {
   selected?: boolean
+  unSelectedBg?: string
 }
 
 ToggleBadge.defaultProps = {
   selected: false,
-  px: 2,
-  py: 1,
-  mx: 1,
-  my: 1,
   fontSize: 0,
   theme: theme,
   color: 'blue',

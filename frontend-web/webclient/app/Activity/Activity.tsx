@@ -1,7 +1,7 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import { ActivityProps, Activity as ActivityType, TrackedActivity, CountedActivity, TrackedOperations, CountedOperations, ActivityDispatchProps } from "Activity";
-import { Feed, Icon, Segment, Header, SemanticICONS, SemanticCOLORS } from "semantic-ui-react";
+import { Feed, Header, SemanticICONS, SemanticCOLORS } from "semantic-ui-react";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
 import * as moment from "moment";

@@ -1,12 +1,11 @@
 import * as React from "react";
-import { Grid, Message } from "semantic-ui-react";
 import { Page } from "Types";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import * as Self from ".";
 import { ifPresent } from "UtilityFunctions";
 import { RefreshButton } from "UtilityComponents";
 import * as Heading from "ui-components/Heading";
-import { Box, Flex, Relative } from "ui-components";
+import { Box, Flex, Relative, Error } from "ui-components";
 
 interface ListProps {
     pageRenderer: (page: Page<any>) => React.ReactNode
@@ -40,7 +39,7 @@ export class List extends React.PureComponent<ListProps> {
 
         let errorComponent: React.ReactNode = null;
         if (typeof props.errorMessage == "string") {
-            errorComponent = <Message color="red" onDismiss={props.onErrorDismiss}>{props.errorMessage}</Message>;
+            errorComponent = <Error clearError={props.onErrorDismiss} error={props.errorMessage} />;
         } else if (typeof props.errorMessage == "function") {
             errorComponent = props.errorMessage();
         }
@@ -83,11 +82,7 @@ export class List extends React.PureComponent<ListProps> {
     private renderBody(): React.ReactNode {
         const { props } = this;
         if (props.loading) {
-            return <Grid centered verticalAlign="middle" columns={1}>
-                <div className="pagination-loader">
-                    <DefaultLoading loading className="pagination-list-loading" />
-                </div>
-            </Grid>
+            return (<Flex><Box width="50%" /><DefaultLoading loading/></Flex>)
         } else {
             if (props.page == null || props.page.items.length == 0) {
                 if (!props.customEmptyPage) {

@@ -3,9 +3,9 @@ import * as ReactDOM from "react-dom";
 import { Provider } from "react-redux";
 import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "ui-components";
-import Core from "Core";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { initObject } from "DefaultObjects";
+import Core from "Core";
 import header from "Navigation/Redux/HeaderReducer";
 import files from "Files/Redux/FilesReducer";
 import status from "Navigation/Redux/StatusReducer";
@@ -18,7 +18,9 @@ import notifications from "Notifications/Redux/NotificationsReducer";
 import uploader from "Uploader/Redux/UploaderReducer";
 import activity from "Activity/Redux/ActivityReducer";
 import detailedResult from "Applications/Redux/DetailedResultReducer";
-import simpleSearch from "SimpleSearch/Redux/SimpleSearchReducer"
+import simpleSearch from "Search/Redux/SearchReducer";
+import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
+import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
 import { configureStore } from "Utilities/ReduxUtilities";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
@@ -36,7 +38,9 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     uploader,
     notifications,
     detailedResult,
-    simpleSearch
+    simpleSearch,
+    detailedFileSearch,
+    detailedApplicationSearch
 });
 
 ReactDOM.render(

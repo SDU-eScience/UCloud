@@ -24,13 +24,12 @@ const boxShadow = props => {
 }
 
 const boxBorder = props => ({
-  border: `${props.borderWidth}px solid ${
-    props.theme.colors[props.borderColor]
-    }`
+  border: `${props.borderWidth}px solid ${props.theme.colors[props.borderColor]}`
 });
 
 export interface CardProps extends HeightProps, BoxProps, BorderColorProps, BoxShadowProps, BorderProps, BorderRadiusProps {
   borderWidth?: number | string
+  boxShadowSize?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 export const Card = styled(Box) <CardProps>`
@@ -42,17 +41,14 @@ Card.defaultProps = {
   borderRadius: 1,
   borderWidth: 1,
   theme: theme,
-  height: 336.8
+  height: 336.8 // "auto"
 };
 
 export const CardGroup = styled.div`
   display: flex;
   flex-wrap: wrap;
-  margin-top: 15px;
   & > div {
-    margin: 2px 5px 5px 5px;
-    height: 212px;
-    width: 252px;
+    margin: 5px 5px 5px 5px;
     flex-shrink: 0;
   }
 `;

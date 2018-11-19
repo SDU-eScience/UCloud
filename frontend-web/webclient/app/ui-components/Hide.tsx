@@ -2,25 +2,28 @@ import styled from 'styled-components'
 import Box, { BoxProps } from './Box'
 import theme from './theme'
 
-const getMaxWidth = em => em - 0.01
+//const getMaxWidth = (em: number) => em - 0.01
 
-const breakpoints = props => ({
+const getMaxWidth = (em: string) => (parseInt(em) - 0.01) + 'em' 
+
+
+const breakpoints = (props: { theme: any }) => ({
   xs: `@media screen and (max-width: ${getMaxWidth(
     props.theme.breakpoints[0]
-  )}em)`,
+  )})`,
   sm: `@media screen and (min-width: ${
     props.theme.breakpoints[0]
-    }em) and (max-width: ${getMaxWidth(props.theme.breakpoints[1])}em)`,
+    }) and (max-width: ${getMaxWidth(props.theme.breakpoints[1])})`,
   md: `@media screen and (min-width: ${
     props.theme.breakpoints[1]
-    }em) and (max-width: ${getMaxWidth(props.theme.breakpoints[2])}em)`,
+    }) and (max-width: ${getMaxWidth(props.theme.breakpoints[2])})`,
   lg: `@media screen and (min-width: ${
     props.theme.breakpoints[2]
-    }em) and (max-width: ${getMaxWidth(props.theme.breakpoints[3])}em)`,
-  xl: `@media screen and (min-width: ${props.theme.breakpoints[3]}em)`
+    }) and (max-width: ${getMaxWidth(props.theme.breakpoints[3])})`,
+  xl: `@media screen and (min-width: ${props.theme.breakpoints[3]})`
 })
 
-export const hidden = key => props =>
+export const hidden = (key: any) => (props: any) =>
   props[key]
     ? {
       [breakpoints(props)[key]]: {
@@ -37,7 +40,7 @@ export interface HideProps extends BoxProps {
   xl?: boolean
 }
 
-const Hide = styled(Box)<HideProps>`
+const Hide = styled(Box) <HideProps>`
   ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
 

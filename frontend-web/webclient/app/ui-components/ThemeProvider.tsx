@@ -1,17 +1,11 @@
-import * as React from 'react'
-import * as PropTypes from 'prop-types'
+import * as React from "react"
 import styled, {
-  ThemeProvider as StyledThemeProvider,
-  injectGlobal
-} from 'styled-components'
-import nextTheme from './theme'
-
-injectGlobal`body {
-  margin: 0;
-}`
+  ThemeProvider as StyledThemeProvider
+} from "styled-components"
+import nextTheme from "./theme"
 
 export const Base = styled("div")<ThemeProviderProps>`
-  font-family: ${props => props.theme.font};
+  font-family: ${props => props.theme.fontFamily};
   line-height: ${props => props.theme.lineHeights.standard};
   font-weight: ${props => props.theme.fontWeights.medium};
 
@@ -37,4 +31,4 @@ interface ThemeProviderProps {
   customBreakpoints?: number[]
 }
 
-export default ThemeProvider
+export default ThemeProvider;

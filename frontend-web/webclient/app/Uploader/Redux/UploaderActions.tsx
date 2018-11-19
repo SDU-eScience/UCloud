@@ -4,7 +4,7 @@ import { PayloadAction, Error } from "Types";
 
 interface SetUploaderVisibleProps extends PayloadAction<typeof SET_UPLOADER_VISIBLE, { visible: boolean }> { }
 interface SetUploadsProps extends PayloadAction<typeof SET_UPLOADER_UPLOADS, { uploads: Upload[] }> { }
-interface SetUploaderCallbackProps extends PayloadAction<typeof SET_UPLOADER_CALLBACK, { onFilesUploaded: (string) => void }> { }
+interface SetUploaderCallbackProps extends PayloadAction<typeof SET_UPLOADER_CALLBACK, { onFilesUploaded: (str :string) => void }> { }
 
 export type UploaderActions = SetUploaderCallbackProps | SetUploadsProps | SetUploaderVisibleProps | Error<typeof SET_UPLOADER_ERROR>
 
@@ -18,7 +18,7 @@ export const setUploads = (uploads: Upload[]): SetUploadsProps => ({
     payload: { uploads }
 });
 
-export const setUploaderCallback = (onFilesUploaded: (string) => void): SetUploaderCallbackProps => ({
+export const setUploaderCallback = (onFilesUploaded: (s: string) => void): SetUploaderCallbackProps => ({
     type: SET_UPLOADER_CALLBACK,
     payload: { onFilesUploaded }
 });

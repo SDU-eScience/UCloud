@@ -11,7 +11,7 @@ import { KeyCode, ReduxObject } from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
-import { FileIcon, RefreshButton, Chevron } from "UtilityComponents";
+import { FileIcon, RefreshButton, Arrow } from "UtilityComponents";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
     FileOptionsProps, FilesTableProps, SortByDropdownProps, FileOperation, ContextButtonsProps, Operation, ContextBarProps,
@@ -29,6 +29,7 @@ import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } f
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import DetailedFileSearch from "./DetailedFileSearch";
+import { TextSpan } from "ui-components/Text";
 
 class Files extends React.Component<FilesProps> {
 
@@ -110,20 +111,19 @@ class Files extends React.Component<FilesProps> {
         ];
         const customEntriesPerPage = (
             <>
-                <Box ml="auto" />
-                <RefreshButton loading={loading} onClick={refetch} className="float-right" />
                 <Pagination.EntriesPerPageSelector
                     entriesPerPage={page.itemsPerPage}
                     content="Files per page"
                     onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
                 />
+                <RefreshButton loading={loading} onClick={refetch} />
             </>
         );
         return (
             <Flex flexDirection="row">
                 <Box width={[1, 13 / 16]}>
                     <Hide lg xl>
-                        <ContextButtons createFolder={props.createFolder} showUploader={props.showUploader} />
+                        {!props.invalidPath ? <ContextButtons createFolder={props.createFolder} showUploader={props.showUploader} /> : null}
                     </Hide>
                     <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
                     <Pagination.List
@@ -135,8 +135,8 @@ class Files extends React.Component<FilesProps> {
                             <FilesTable
                                 onFavoriteFile={favoriteFile}
                                 fileOperations={fileOperations}
-                                sortFiles={(sortOrder: SortOrder, sortBy: SortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
-                                sortingIcon={(name: SortBy) => UF.getSortingIcon(sortBy, sortOrder, name)}
+                                sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                                sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
                                 sortOrder={sortOrder}
                                 sortingColumns={[leftSortingColumn, rightSortingColumn]}
                                 refetchFiles={() => refetch()}
@@ -145,7 +145,7 @@ class Files extends React.Component<FilesProps> {
                                 onRenameFile={this.onRenameFile}
                                 files={page.items}
                                 sortBy={sortBy}
-                                onCheckFile={(checked: boolean, file: File) => checkFile(checked, file.path)}
+                                onCheckFile={(checked, file) => checkFile(checked, file.path)}
                                 customEntriesPerPage={customEntriesPerPage}
                             />
                         )}
@@ -156,15 +156,20 @@ class Files extends React.Component<FilesProps> {
                     />
                 </Box>
                 <Hide xs sm md width={3 / 16}>
-                    <ContextBar
-                        showUploader={props.showUploader}
-                        fileOperations={fileOperations}
-                        files={selectedFiles}
-                        createFolder={() => props.createFolder()}
-                    />
-                    <Box pl="5px" pr="5px" pt="3px">
-                        <DetailedFileSearch />
-                    </Box>
+                    {!props.invalidPath ?
+                        <>
+                            <ContextBar
+                                invalidPath={props.invalidPath}
+                                showUploader={props.showUploader}
+                                fileOperations={fileOperations}
+                                files={selectedFiles}
+                                createFolder={() => props.createFolder()}
+                            />
+                            <Box pl="5px" pr="5px" pt="3px">
+                                <DetailedFileSearch />
+                            </Box>
+                        </> : null
+                    }
                 </Hide>
                 <FileSelectorModal
                     show={props.fileSelectorShown}
@@ -224,9 +229,12 @@ export const FilesTable = ({
     );
 
 const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder }: ResponsiveTableColumnProps) => (
-    <TableHeaderCell xs sm md textAlign="left">
-        <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
-        <Chevron name={iconName} />
+    <TableHeaderCell width="17.5%" xs sm md textAlign="left">
+        <Flex>
+            <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
+            <Box ml="auto" />
+            <Arrow name={iconName} />
+        </Flex>
     </TableHeaderCell>
 );
 
@@ -236,7 +244,7 @@ const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
 const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => null, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy, customEntriesPerPage }: FilesTableHeaderProps) => (
     <TableHeader>
         <TableRow>
-            <TableHeaderCell textAlign="left">
+            <TableHeaderCell width="50%" textAlign="left">
                 <Flex>
                     <Box ml="9px">
                         {masterCheckbox}
@@ -245,7 +253,7 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
                         Filename
                     </Box>
                     <Box ml="auto" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)} />
-                    <Chevron name={toSortingIcon(SortBy.PATH)} />
+                    <Arrow name={toSortingIcon(SortBy.PATH)} />
                 </Flex>
             </TableHeaderCell>
             {sortingColumns.map((sC, i) => (
@@ -260,7 +268,7 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
                     iconName={toSortingIcon(sC)}
                 />
             ))}
-            <TableHeaderCell colSpan={3} textAlign="right">
+            <TableHeaderCell width="15%" colSpan={3} textAlign="right">
                 {customEntriesPerPage}
             </TableHeaderCell>
         </TableRow>
@@ -268,17 +276,29 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
 );
 
 const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isSortedBy }: SortByDropdownProps) => asDropdown ? (
-    <Dropdown>
-        {UF.prettierString(currentSelection)}
-        <DropdownContent cursor="pointer">
-            <Box ml="-16px" mr="-16px" pl="15px" onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)} /* disabled={sortOrder === SortOrder.ASCENDING && isSortedBy} */>{UF.prettierString(SortOrder.ASCENDING)}</Box>
-            <Box ml="-16px" mr="-16px" pl="15px" onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)} /* disabled={sortOrder === SortOrder.DESCENDING && isSortedBy} */>{UF.prettierString(SortOrder.DESCENDING)}</Box>
-            <Divider ml="-16px" mr="-16px" />
-            {Object.keys(SortBy).filter(it => it !== currentSelection).map((sortByKey: SortBy, i) => (
-                <Box ml="-16px" mr="-16px" pl="15px" key={i} onClick={() => onSelect(sortOrder, sortByKey)}>{UF.prettierString(sortByKey)}</Box>
-            ))}
-        </DropdownContent>
-    </Dropdown>) : <>{UF.prettierString(currentSelection)}</>;
+    <ClickableDropdown trigger={<TextSpan>{UF.prettierString(currentSelection)}</TextSpan>} chevron>
+        <Box ml="-16px" mr="-16px" pl="15px"
+            hidden={sortOrder === SortOrder.ASCENDING && isSortedBy}
+            onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)}
+        >
+            {UF.prettierString(SortOrder.ASCENDING)}
+        </Box>
+        <Box ml="-16px" mr="-16px" pl="15px"
+            onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)}
+            hidden={sortOrder === SortOrder.DESCENDING && isSortedBy}
+        >
+            {UF.prettierString(SortOrder.DESCENDING)}
+        </Box>
+        <Divider ml="-16px" mr="-16px" />
+        {Object.keys(SortBy).map((sortByKey: SortBy, i) => (
+            <Box ml="-16px" mr="-16px" pl="15px" key={i}
+                onClick={() => onSelect(sortOrder, sortByKey)}
+                hidden={sortByKey === currentSelection || sortByKey === SortBy.PATH}
+            >
+                {UF.prettierString(sortByKey)}
+            </Box>
+        ))}
+    </ClickableDropdown>) : <>{UF.prettierString(currentSelection)}</>;
 
 const ContextBar = ({ files, ...props }: ContextBarProps) => (
     <Box mt="65px">
@@ -305,7 +325,7 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
             color="blue"
             name={item.favorited ? "starFilled" : "starEmpty"}
             className={`${item.favorited ? "" : "file-data"}`}
-            onClick={onClick}
+            onClick={() => onClick([item])}
         />
     ) : null;
 
@@ -322,19 +342,19 @@ const FileLink = ({ file, children }) => {
     }
 }
 
-function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile = () => null }: FilenameAndIconsProps) {
+function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
-    const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(e) => onCheckFile(e.target.checked)} /></Box>
+    const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} /></Box>
     const icon = (
         <FileIcon
             color={isDirectory(file) ? "blue" : "grey"}
             name={UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)}
-            size={size} link={file.link} shared={file.acl.length > 0}
+            size={size} link={file.link} shared={(file.acl !== undefined ? file.acl.length : 0) > 0}
         />
     );
     const nameLink = <FileLink file={file}>{icon}{fileName}</FileLink>;
     return file.beingRenamed ?
-        <TableCell>
+        <TableCell width="50%">
             <Flex>
                 {checkbox}
                 <Box ml="9px">
@@ -366,7 +386,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                 <Box>
                     <GroupIcon isProject={isProject(file)} />
                     <InlinedRelative pl="7px">
-                        <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={() => onFavoriteFile([file])} />
+                        <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={onFavoriteFile} />
                     </InlinedRelative>
                 </Box>
             </Flex>
@@ -396,7 +416,7 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) => files
     }) : null;
 
 const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
-    const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown,
+    const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown, invalidPath,
         fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError, sortingColumns } = files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const renamingCount = page.items.filter(file => file.beingRenamed).length;
@@ -404,7 +424,7 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     return {
         error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
-        leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount
+        leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount, invalidPath
     }
 };
 

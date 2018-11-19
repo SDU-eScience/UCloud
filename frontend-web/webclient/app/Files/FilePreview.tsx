@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Container } from "semantic-ui-react";
 import { connect } from "react-redux";
 import { getParentPath, fetchFileContent } from "Utilities/FileUtilities";
 import { fetchPageFromPath, updateFiles } from "Files/Redux/FilesActions";
@@ -11,6 +10,7 @@ import { FilesReduxObject } from "DefaultObjects";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { removeTrailingSlash, extensionTypeFromPath } from "UtilityFunctions";
 import { Dispatch } from "redux";
+import { Box } from "ui-components";
 
 interface FilePreviewStateProps {
     page: Page<File>
@@ -19,11 +19,11 @@ interface FilePreviewStateProps {
 }
 
 interface FilePreviewOperations {
-    fetchPage: (p) => void
-    updatePage: (p) => void
+    fetchPage: (p: string) => void
+    updatePage: (p: Page<File>) => void
 }
 
-interface FilePreviewProps extends FilePreviewOperations, FilePreviewStateProps { }
+type FilePreviewProps = FilePreviewOperations & FilePreviewStateProps;
 
 class FilePreview extends React.Component<FilePreviewProps> {
     componentDidMount() {
@@ -71,7 +71,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
     }
 
 
-    shouldComponentUpdate(nextProps, _nextState) {
+    shouldComponentUpdate(nextProps: any) {
         if (this.props.page.items.length) {
             if (getParentPath(this.props.page.items[0].path) !== getParentPath(nextProps.match.params[0])) {
                 this.props.fetchPage(this.filepath);
@@ -97,9 +97,9 @@ class FilePreview extends React.Component<FilePreviewProps> {
 
     render() {
         return (
-            <Container>
+            <Box>
                 {this.renderContent()}
-            </Container>
+            </Box>
         );
     }
 }

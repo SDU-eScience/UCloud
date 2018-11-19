@@ -19,7 +19,7 @@ interface CheckBoxWrapper extends BoxProps {
   disabled: boolean
 }
 
-const CheckBoxWrapper = Box.extend<CheckBoxWrapper>`
+const CheckBoxWrapper = styled(Box)<CheckBoxWrapper>`
   display: inline-block;
   position: relative;
   vertical-align: middle;

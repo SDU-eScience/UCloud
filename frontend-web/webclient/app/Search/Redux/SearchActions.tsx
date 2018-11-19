@@ -1,11 +1,11 @@
-import * as SSActionTypes from "./SimpleSearchReducer";
+import * as SSActionTypes from "./SearchReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { fileSearchQuery } from "Utilities/FileUtilities";
 import { Page, PayloadAction } from "Types";
-import { File } from "Files";
+import { File, AdvancedSearchRequest } from "Files";
 import { Application } from "Applications";
 import { ProjectMetadata, simpleSearch } from "Metadata/api";
-import { hpcApplicationsQuery, hpcApplicationsSearchQuery } from "Utilities/ApplicationUtilities";
+import { hpcApplicationsSearchQuery } from "Utilities/ApplicationUtilities";
+import { advancedFileSearch } from "Utilities/FileUtilities";
 
 export type SimpleSearchActions = SetFilesLoading | SetApplicationsLoading | SetProjectsLoading | ReceiveFiles |
     ReceiveApplications | ReceiveProjects | SetErrorMessage | SetSearchType
@@ -29,21 +29,21 @@ export const setProjectsLoading = (loading: boolean): SetProjectsLoading => ({
 });
 
 
-export const searchFiles = (search: string, pageNumber: number, itemsPerPage: number): Promise<any> =>
-    Cloud.get(fileSearchQuery(search, pageNumber, itemsPerPage))
+export const searchFiles = (request: AdvancedSearchRequest): Promise<any> =>
+    Cloud.post(advancedFileSearch, request)
         .then(({ response }) => receiveFiles(response))
-        .catch(_ => setErrorMessage("An error occurred searching for files\n"));
+        .catch(_ => setErrorMessage("An error occurred searching for files\n", { filesLoading: false }));
 
 export const searchApplications = (query: string, page: number, itemsPerPage: number): Promise<any> =>
     Cloud.get(hpcApplicationsSearchQuery(query, page, itemsPerPage))
         .then(({ response }) => receiveApplications(response))
-        .catch(_ => setErrorMessage("An error occurred searching for applications\n"));
+        .catch(_ => setErrorMessage("An error occurred searching for applications\n", { applicationsLoading: false }));
 
 
 export const searchProjects = (query: string, page: number, itemsPerPage: number): Promise<any> =>
     simpleSearch(query, page, itemsPerPage)
         .then(response => receiveProjects(response))
-        .catch(_ => setErrorMessage("An error occurred searching for projects\n"));
+        .catch(_ => setErrorMessage("An error occurred searching for projects\n", { projectsLoading: false }));
 
 
 type ReceiveFiles = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE, { files: Page<File>, filesLoading: false }>
@@ -70,8 +70,14 @@ export const setSearch = (search: string): SetSearchType => ({
     payload: { search }
 })
 
-type SetErrorMessage = PayloadAction<typeof SSActionTypes.SET_SIMPLE_SEARCH_ERROR, { error?: string }>
-export const setErrorMessage = (error?: string): SetErrorMessage => ({
+type SetErrorMessage = PayloadAction<typeof SSActionTypes.SET_SIMPLE_SEARCH_ERROR, { error?: string } & LoadingPanes>
+export const setErrorMessage = (error?: string, loading?: LoadingPanes): SetErrorMessage => ({
     type: SSActionTypes.SET_SIMPLE_SEARCH_ERROR,
-    payload: { error }
+    payload: { error, ...loading }
 });
+
+interface LoadingPanes {
+    filesLoading?: boolean
+    applicationsLoading?: boolean
+    projectsLoading?: boolean
+}

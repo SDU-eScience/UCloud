@@ -9,7 +9,7 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
     let i = 0;
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);
-    operations.setFileSelectorCallback((file) => {
+    operations.setFileSelectorCallback((file: File) => {
         const newPath = file.path;
         operations.showFileSelector(false);
         operations.setFileSelectorCallback(undefined);
@@ -33,7 +33,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud
     operations.showFileSelector(true);
     const parentPath = getParentPath(files[0].path);
     operations.setDisallowedPaths([parentPath].concat(files.map(f => f.path)));
-    operations.setFileSelectorCallback((file) => {
+    operations.setFileSelectorCallback((file: File) => {
         const newPath = file.path;
         files.forEach((f) => {
             const currentPath = f.path;
@@ -63,7 +63,7 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
 }
 
 type AccessRight = "READ" | "WRITE" | "EXECUTE";
-const hasAccess = (accessRight: AccessRight, file: File) => file.acl.every(acl => acl.rights.includes(accessRight));
+const hasAccess = (accessRight: AccessRight, file: File) => file.acl === undefined ? false : file.acl.every(acl => acl.rights.includes(accessRight));
 const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => files.every(f => hasAccess(accessRight, f));
 
 /**
@@ -118,9 +118,7 @@ export const filepathQuery = (path: string, page: number, itemsPerPage: number, 
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
     `files/lookup?path=${UF.removeTrailingSlash(path)}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
 
-export const fileSearchQuery = (search: string, pageNumber: number, itemsPerPage: number) =>
-    `/file-search?query=${search}&page=${pageNumber}&itemsPerPage=${itemsPerPage}`
-
+export const advancedFileSearch = "/file-search/advanced"
 
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
     fileType: "DIRECTORY",
@@ -148,7 +146,7 @@ export const newMockFolder = (path: string = "", beingRenamed: boolean = true): 
 export const isInvalidPathName = (path: string, filePaths: string[]): boolean => {
     if (["..", "/"].some((it) => path.includes(it))) { UF.failureNotification("Folder name cannot contain '..' or '/'"); return true }
     if (path === "" || path === ".") { UF.failureNotification("Folder name cannot be empty or be \".\""); return true; }
-    const existingName = filePaths.some((it) => it === path);
+    const existingName = filePaths.some(it => it === path);
     if (existingName) { UF.failureNotification("File with that name already exists"); return true; }
     return false;
 };
@@ -175,8 +173,8 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
  */
 export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], cloud: Cloud): Page<File> => {
     filesToFavorite.forEach(f => {
-        const file = page.items.find((file: File) => file.path === f.path);
-        if (file) favoriteFile(file, cloud);
+        const file = page.items.find((file: File) => file.path === f.path)!;
+        favoriteFile(file, cloud);
     });
     return page;
 };
@@ -308,8 +306,8 @@ export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => vo
             return;
         } else {
             let i = 0;
-            paths.forEach((p) => {
-                cloud.delete("/files", { path: p }).then(() => ++i === paths.length ? callback() : null)
+            paths.forEach(path => {
+                cloud.delete("/files", { path }).then(() => ++i === paths.length ? callback() : null)
                     .catch(() => i++);
             });
         }

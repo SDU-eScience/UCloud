@@ -1,14 +1,12 @@
-import { RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT } from "./NotificationsReducer";
+import { RECEIVE_NOTIFICATIONS, NOTIFICATION_READ, SET_REDIRECT, NOTIFICATIONS_ERROR } from "./NotificationsReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Page, ReceivePage, PayloadAction } from "Types";
 import { Action } from "redux";
 import { failureNotification } from "UtilityFunctions";
 import { Notification } from ".."
 
-const ERROR = "ERROR";
-
-export type NotificationActions = ReceivePage<typeof RECEIVE_NOTIFICATIONS, Notification> | SetRedirectToAction | ReadAction
-
+export type NotificationActions = ReceivePage<typeof RECEIVE_NOTIFICATIONS, Notification> | SetRedirectToAction |
+    ReadAction | { type: typeof NOTIFICATIONS_ERROR }
 /**
  * Returns the action for receiving the notifications
  * @param {Page<Notification>} page Page of notifications received
@@ -26,7 +24,7 @@ export const fetchNotifications = (): Promise<ReceivePage<typeof RECEIVE_NOTIFIC
         .then(({ response }) => receiveNotifications(response))
         .catch(() => {
             failureNotification("Failed to retrieve notifications, please try again later");
-            return { type: ERROR };
+            return { type: NOTIFICATIONS_ERROR };
         });
 
 interface ReadAction extends PayloadAction<typeof NOTIFICATION_READ, { id: Number }> { }
@@ -34,10 +32,13 @@ interface ReadAction extends PayloadAction<typeof NOTIFICATION_READ, { id: Numbe
  * Sets a notification as read, based on the id
  * @param id the id of the notification that has been read
  */
-export const notificationRead = (id: Number): ReadAction => ({
-    type: NOTIFICATION_READ,
-    payload: { id }
-});
+export const notificationRead = async (id: number): Promise<ReadAction> => {
+    await Cloud.post(`notifications/read/${id}`);
+    return {
+        type: NOTIFICATION_READ,
+        payload: { id }
+    };
+}
 
 interface SetRedirectToAction extends PayloadAction<typeof SET_REDIRECT, { redirectTo: string }> { }
 /**

@@ -4,7 +4,7 @@ import { space, width, borderColor, SpaceProps, WidthProps, BorderColorProps } f
 
 export interface DividerProps extends SpaceProps, WidthProps, BorderColorProps {}
 
-const Divider = styled<DividerProps, "hr">("hr")`
+const Divider = styled("hr")<DividerProps>`
   border: 0;
   border-bottom-style: solid;
   border-bottom-width: 1px;

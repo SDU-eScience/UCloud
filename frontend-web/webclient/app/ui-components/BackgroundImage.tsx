@@ -3,10 +3,9 @@ import { width } from 'styled-system'
 import theme from './theme'
 import { NumberOrStringOrArray } from "./Types";
 
-const image = props =>
-  props.image ? { backgroundImage: `url(${props.image})` } : null
+const image = (props: { image?: string }) => props.image ? { backgroundImage: `url(${props.image})` } : null
 
-const height = props => (props.height ? { height: props.height } : null)
+const height = (props) => (props.height ? { height: props.height } : null)
 
 interface BackgroundImageProps {
   image?: string
@@ -14,7 +13,7 @@ interface BackgroundImageProps {
   height?: NumberOrStringOrArray
 }
 
-const BackgroundImage = styled<BackgroundImageProps, "div">("div")`
+const BackgroundImage = styled("div")<BackgroundImageProps>`
   background-position: center;
   background-size: cover;
   background-repeat: no-repeat;

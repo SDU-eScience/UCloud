@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject"
-import { Popup, Feed, SemanticICONS, Icon as SIcon, Button, Divider } from 'semantic-ui-react';
+import { Feed as SFeed, SemanticICONS as SSemanticICONS, Icon as SIcon, Button as SButton, Divider as SDivider } from 'semantic-ui-react';
 import { Redirect } from "react-router";
 import * as moment from "moment";
 import { connect } from "react-redux";
@@ -8,12 +8,13 @@ import { withRouter } from "react-router";
 import { Page } from "Types";
 import { fetchNotifications, notificationRead } from "./Redux/NotificationsActions";
 import { History } from "history";
-import Status from "Navigation/Status";
 import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
 import { Dispatch } from "redux";
-import { Relative, Flex, Icon, Badge, Absolute } from "ui-components";
-import { Dropdown } from "ui-components/Dropdown";
+import { Relative, Flex, Icon, Badge, Absolute, Box, theme } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import { TextSpan } from "ui-components/Text";
+import styled from "styled-components";
+import { IconName } from "ui-components/Icon";
 
 interface NotificationProps {
     page: Page<Notification>
@@ -38,11 +39,6 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         this.props.fetchNotifications();
     }
 
-    private onNotificationRead(notification: Notification) {
-        this.props.notificationRead(notification.id);
-        Cloud.post(`notifications/read/${notification.id}`);
-    }
-
     private onNotificationAction(notification: Notification) {
         switch (notification.type) {
             case "APP_COMPLETE":
@@ -63,31 +59,31 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             <NotificationEntry
                 key={index}
                 notification={notification}
-                onMarkAsRead={(it) => this.onNotificationRead(it)}
+                onMarkAsRead={(it) => this.props.notificationRead(it.id)}
                 onAction={(it) => this.onNotificationAction(it)}
             />
         );
 
         if (this.props.redirectTo) {
-            let theRedirect = this.props.redirectTo;
-            return <Redirect to={theRedirect} />
+            return <Redirect to={this.props.redirectTo} />
         }
 
         const unreadLength = page.items.filter((e) => !e.read).length;
         const uploads = activeUploads > 0 ? (
             <>
-                <Button
+                <SDivider />
+                <SButton
                     content={`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
                     color="green"
                     fluid
                     onClick={() => this.props.showUploader()}
                 />
-                <Divider />
+                <SDivider />
             </>
         ) : null;
         const badgeCount = unreadLength + activeUploads;
         return (
-            <ClickableDropdown width={"200px"} left={"-135px"} trigger={
+            <ClickableDropdown width={"380px"} left={"-270px"} trigger={
                 <Flex>
                     <Relative top="0" left="0">
                         <Flex justifyContent="center" width="60px">
@@ -99,23 +95,21 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                     </Relative>
                 </Flex>
             }>
-                <Feed style={{ backgroundColor: "unset" }}>
+                <SFeed style={{ backgroundColor: "unset" }}>
                     {entries.length ? entries : <NoNotifications />}
-                </Feed>
-                <Divider />
+                </SFeed>
                 {uploads}
-                <Status />
             </ClickableDropdown>
         );
     }
 }
 
 const NoNotifications = () =>
-    <Feed.Event className="notification">
-        <Feed.Content>
-            <Feed.Label>No notifications</Feed.Label>
-        </Feed.Content>
-    </Feed.Event>
+    <SFeed.Event className="notification">
+        <SFeed.Content>
+            <SFeed.Label>No notifications</SFeed.Label>
+        </SFeed.Content>
+    </SFeed.Event>
 
 export interface Notification {
     type: string
@@ -132,20 +126,25 @@ interface NotificationEntryProps {
     onAction?: (notification: Notification) => void
 }
 
-class NotificationEntry extends React.Component<NotificationEntryProps, any> {
+export class NotificationEntry extends React.Component<NotificationEntryProps, any> {
     constructor(props: NotificationEntryProps) {
         super(props);
     }
 
     public render() {
+        const { notification } = this.props;
         return (
-            <Feed.Event className={"notification " + (this.props.notification.read ? "read " : "unread ")} onClick={() => this.handleAction()}>
-                <Feed.Label><SIcon name={this.resolveEventIcon(this.props.notification.type)} /></Feed.Label>
-                <Feed.Content>
-                    <Feed.Date content={moment(this.props.notification.ts.toString(), "x").fromNow()} />
-                    <Feed.Summary>{this.props.notification.message}</Feed.Summary>
-                </Feed.Content>
-            </Feed.Event>
+            <NotificationWrapper read={notification.read} flexDirection="row" onClick={() => this.handleAction()}>
+                <Box width="0.20" m="0 0.3em 0 0.3em">
+                    <Icon size={1} name={this.resolveEventIcon(notification.type)} />
+                </Box>
+                <Box width="0.80">
+                    <Flex flexDirection="column">
+                        <TextSpan color="grey" fontSize={1}>{moment(notification.ts.toString(), "x").fromNow()}</TextSpan>
+                        <TextSpan>{notification.message}</TextSpan>
+                    </Flex>
+                </Box>
+            </NotificationWrapper>
         );
     }
 
@@ -158,14 +157,27 @@ class NotificationEntry extends React.Component<NotificationEntryProps, any> {
         if (this.props.onAction) this.props.onAction(this.props.notification);
     }
 
-    private resolveEventIcon(eventType: string): SemanticICONS {
+    private resolveEventIcon(eventType: string): IconName {
         switch (eventType) {
-            case "APP_COMPLETE": return "tasks";
-            case "SHARE_REQUEST": return "share";
-            default: return "question";
+            case "APP_COMPLETE": return "information";
+            case "SHARE_REQUEST": return "shares";
+            default: return "warning";
         }
     }
 }
+
+const read = ({ read }) => read ? { backgroundColor: theme.colors.white } : { backgroundColor: theme.colors.gray };
+
+const NotificationWrapper = styled(Flex)`
+    ${read};
+    margin: 0.1em 0.1em 0.1em 0.1em;
+    padding: 0.3em 0.3em 0.3em 0.3em;
+    border-radius: 3px;
+    cursor: pointer;
+    &:hover {
+        background-color: ${theme.colors.lightGray};
+    }
+`;
 
 interface NotificationsDispatchToProps {
     fetchNotifications: () => void
@@ -174,7 +186,7 @@ interface NotificationsDispatchToProps {
 }
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps => ({
     fetchNotifications: async () => dispatch(await fetchNotifications()),
-    notificationRead: (id) => dispatch(notificationRead(id)),
+    notificationRead: async id => dispatch(await notificationRead(id)),
     showUploader: () => dispatch(setUploaderVisible(true))
 });
 const mapStateToProps = (state) => ({

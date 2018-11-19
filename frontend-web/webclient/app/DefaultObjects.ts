@@ -1,7 +1,7 @@
 import { SidebarOption, Page } from "Types";
 import { Status } from "Navigation";
-import { Analysis, Application } from "Applications";
-import { File } from "Files";
+import { Analysis, Application, DetailedApplicationSearchReduxState } from "Applications";
+import { File, DetailedFileSearchReduxState } from "Files";
 import { SortOrder, SortBy } from "Files";
 import { DashboardStateProps } from "Dashboard";
 import { Publication } from "Zenodo";
@@ -9,7 +9,7 @@ import { Notification } from "Notifications";
 import { Upload } from "Uploader";
 import { Activity } from "Activity";
 import { Reducer } from "redux";
-import { SimpleSearchStateProps } from "SimpleSearch";
+import { SimpleSearchStateProps } from "Search";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -47,6 +47,7 @@ export enum RightsNameMap {
 
 export enum SensitivityLevel {
     "OPEN_ACCESS" = "Open Access",
+    "PRIVATE" = "Private",
     "CONFIDENTIAL" = "Confidential",
     "SENSITIVE" = "Sensitive"
 };
@@ -55,6 +56,7 @@ export type Sensitivity = keyof typeof SensitivityLevel;
 
 export enum SensitivityLevelMap {
     "OPEN_ACCESS",
+    "PRIVATE",
     "CONFIDENTIAL",
     "SENSITIVE"
 };
@@ -73,7 +75,7 @@ const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
     return sortingColumn;
 };
 
-interface ComponentWithPage<T> {
+export interface ComponentWithPage<T> {
     page: Page<T>
     loading: boolean
     error?: string
@@ -92,6 +94,7 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     fileSelectorPath: string
     fileSelectorCallback: Function
     disallowedPaths: string[]
+    invalidPath: boolean
 }
 
 export type AnalysisReduxObject = ComponentWithPage<Analysis>;
@@ -176,6 +179,8 @@ export interface ReduxObject {
     activity: ActivityReduxObject
     detailedResult: DetailedResultReduxObject
     simpleSearch: SimpleSearchStateProps
+    detailedFileSearch: DetailedFileSearchReduxState
+    detailedApplicationSearch: DetailedApplicationSearchReduxState
 }
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -232,7 +237,9 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     uploader: initUploads(),
     activity: initActivity(),
     detailedResult: initDetailedResult(),
-    simpleSearch: initSimpleSearch()
+    simpleSearch: initSimpleSearch(),
+    detailedApplicationSearch: initApplicationsAdvancedSearch(),
+    detailedFileSearch: initFilesDetailedSearch()
 });
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
@@ -243,7 +250,9 @@ export const initSimpleSearch = (): SimpleSearchStateProps => ({
     projects: emptyPage,
     projectsLoading: false,
     errors: [],
-    search: ""
+    search: "",
+    applicationSearch: initApplicationsAdvancedSearch(),
+    fileSearch: initFilesDetailedSearch()
 })
 
 export const initAnalyses = (): ComponentWithPage<Analysis> => ({
@@ -341,7 +350,36 @@ export const initFiles = (homeFolder: string): FilesReduxObject => ({
     fileSelectorShown: false,
     fileSelectorPage: emptyPage,
     fileSelectorPath: homeFolder,
-    fileSelectorCallback: () => null,
+    fileSelectorCallback: () => undefined,
     fileSelectorError: undefined,
-    disallowedPaths: []
+    disallowedPaths: [],
+    invalidPath: false
+});
+
+export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
+    hidden: true,
+    allowFolders: true,
+    allowFiles: true,
+    fileName: "",
+    extensions: new Set(),
+    tags: new Set(),
+    annotations: new Set(),
+    sensitivities: new Set(),
+    createdBefore: undefined,
+    createdAfter: undefined,
+    modifiedBefore: undefined,
+    modifiedAfter: undefined,
+    error: undefined,
+    page: emptyPage,
+    loading: false
+});
+
+export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchReduxState => ({
+    page: emptyPage,
+    error: undefined,
+    loading: false,
+    hidden: true,
+    appName: "",
+    appVersion: "", // Makes sense as range instead
+    tags: ""
 });

@@ -40,23 +40,30 @@ module.exports = webpackMerge(commonConfig, {
     devServer: {
         historyApiFallback: true,
         stats: "minimal",
+        contentBase: path.join(process.cwd(), "/dist"),
         index: "app/index.html",
         headers: {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
             "Access-Control-Allow-Headers": "X-Requested-With, content-type, Authorization"
         },
+        hot: true,
         inline: true,
         proxy: [{
-            context: ["/auth/login", "/auth/request", "/auth/login-redirect", "/api", "/auth/css/", "/auth/logout", 
-                      "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png", "/auth/wayf_logo.png", 
-                      "/auth/saml/", "/auth/users/", "/auth/redirect.js"],
+            context: ["/auth/login", "/auth/request", "/auth/login-redirect", "/api", "/auth/css/", "/auth/logout",
+                "/auth/refresh", "/auth/fonts/", "/auth/sdu_plain_white.png", "/auth/wayf_logo.png",
+                "/auth/saml/", "/auth/users/", "/auth/redirect.js"],
             target: "https://cloud.sdu.dk",
             secure: false,
             changeOrigin: true,
-        }, {
-            context: "/auth",
-            target: "http://localhost:8080",
-        }],
+            onProxyRes(proxyRes, req, res) {
+                if ("set-cookie" in proxyRes.headers) {
+                    for (let i = 0; i < proxyRes.headers["set-cookie"].length; i++) {
+                        proxyRes.headers["set-cookie"][i] = proxyRes.headers["set-cookie"][i].replace(/Secure;/g, "");
+                    }
+                }
+                delete proxyRes.headers["strict-transport-security"];
+            }
+        }]
     }
 });

@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Label, Icon, Card, Header, Responsive, Input } from "semantic-ui-react";
 import { simpleSearch, ProjectMetadata } from "./api";
 import { Page } from "Types";
 import { emptyPage } from "DefaultObjects";
@@ -10,6 +9,8 @@ import * as Pagination from "Pagination";
 import { KeyCode } from "DefaultObjects";
 import { History } from "history";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import * as Heading from "ui-components/Heading";
+import { Hide, Input, Box, Flex, Text, Stamp, Divider, Card } from "ui-components";
 
 interface SearchState {
     query: string
@@ -49,10 +50,6 @@ class SearchComponent extends React.Component<SearchProps, SearchState> {
     }
 
     private checkQueryParams() {
-        // console.log(window.location.search);
-        // const params = new URLSearchParams(window.location.search);
-        // const rawQuery = params.get("query");
-        // const query = rawQuery ? rawQuery : "";
         const query = this.props.match.params.query;
         if (query == null) {
             return;
@@ -68,12 +65,14 @@ class SearchComponent extends React.Component<SearchProps, SearchState> {
         const { history } = this.props;
         return (
             <div>
-                <Responsive as={Input} maxWidth={999}
-                    fluid
-                    placeholder="Search..."
-                    onKeyDown={(e) => { if (e.keyCode === KeyCode.ENTER) history.push(`/metadata/search/${e.target.value}`) }}
-                />
-                <Header as="h2">Results matching '{this.state.query}'</Header>
+                <Hide xl lg md>
+                    <Input
+                        width="100%"
+                        placeholder="Search..."
+                        onKeyDown={(e: any) => { if (e.keyCode === KeyCode.ENTER) history.push(`/metadata/search/${e.target.value}`) }}
+                    />
+                </Hide>
+                <Heading.h2>Results matching '{this.state.query}'</Heading.h2>
 
                 <Pagination.ManagedList
                     dataProvider={this.state.dataProvider}
@@ -89,30 +88,34 @@ class SearchComponent extends React.Component<SearchProps, SearchState> {
 }
 
 export const SearchItem = ({ item }: { item: ProjectMetadata }) => (
-    <Card fluid>
-        <Card.Content>
-            <Header><Link to={`/metadata/${item.sduCloudRoot}`}>{item.title}</Link></Header>
-        </Card.Content>
+    <Card height="154px" p="12px" mb="0.5em" mt="0.5em" borderRadius=".28571429rem">
+        <Heading.h3><Link to={`/metadata/${item.sduCloudRoot}`}>{item.title}</Link></Heading.h3>
 
-        <Card.Content
-            description={
-                firstParagraphWithLimitedLength(
+        <Divider />
+        <Box mt="1em" mb="1em">
+            <Text>
+                {firstParagraphWithLimitedLength(
                     defaultIfBlank(item.description, "No description"),
                     800
-                )
-            }
-        />
-        <Card.Content extra>
-            <Label color='green'>
-                <Icon name='folder open' />
-                Open Access
-            </Label>
-            <Label color='blue'>
-                <Icon name='book' />
+                )}
+            </Text>
+        </Box>
+        <Divider mb="1em" />
+        <Stamp bg="green" color="white" borderColor="green">
+            <Box pl="0.5em" pr="0.5em">
+                <i className="fas fa-folder-open" />
+            </Box>
+            Open Access
+            </Stamp>
+        <Stamp bg="blue" color="white" borderColor="blue" ml="0.2em">
+            <Flex>
+                <Box pl="0.5em" pr="0.5em">
+                    <i className="fas fa-book"></i>
+                </Box>
                 MIT
-                <Label.Detail>License</Label.Detail>
-            </Label>
-        </Card.Content>
+                <Text pl="0.2em" color="lightGrey">License</Text>
+            </Flex>
+        </Stamp>
     </Card>
 );
 

@@ -1,5 +1,5 @@
 import { FileActions } from "./FilesActions";
-import { FilesReduxObject, initFiles } from "DefaultObjects";
+import { FilesReduxObject, initFiles, emptyPage } from "DefaultObjects";
 import { newMockFolder } from "Utilities/FileUtilities";
 
 export const RECEIVE_FILES = "RECEIVE_FILES";
@@ -18,6 +18,7 @@ export const SET_FILE_SELECTOR_ERROR = "SET_FILE_SELECTOR_ERROR";
 export const CHECK_ALL_FILES = "CHECK_ALL_FILES";
 export const CHECK_FILE = "CHECK_FILE";
 export const CREATE_FOLDER = "CREATE_FOLDER";
+export const FILES_INVALID_PATH = "FILES_INVALID_PATH";
 
 const files = (state: FilesReduxObject = initFiles(""), action: FileActions): FilesReduxObject => {
     switch (action.type) {
@@ -33,9 +34,11 @@ const files = (state: FilesReduxObject = initFiles(""), action: FileActions): Fi
                 sortBy: action.payload.sortBy,
                 error: undefined,
                 fileSelectorError: undefined,
+                invalidPath: false
             };
         }
         case SET_FILES_LOADING:
+        case FILES_INVALID_PATH:
         case UPDATE_FILES: {
             return { ...state, ...action.payload };
         }
@@ -61,12 +64,12 @@ const files = (state: FilesReduxObject = initFiles(""), action: FileActions): Fi
             return { ...state, disallowedPaths: action.payload.paths }
         }
         case FILES_ERROR: {
-            return { ...state, error: action.payload.error, loading: false };
+            return { ...state, error: action.payload.error, loading: false, page: emptyPage };
         }
         case CHECK_ALL_FILES: {
             return {
                 ...state, page: {
-                    ...state.page, items: state.page.items.map((f) => {
+                    ...state.page, items: state.page.items.map(f => {
                         f.isChecked = action.payload.checked;
                         return f;
                     })

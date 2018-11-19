@@ -1,14 +1,5 @@
-import * as React from "react";
-import { create } from "react-test-renderer";
-import { Provider } from "react-redux";
-import { configureStore } from "Utilities/ReduxUtilities";
-import { initSidebar } from "DefaultObjects";
-import sidebar from "Navigation/Redux/SidebarReducer";
-import { MemoryRouter } from "react-router";
 import * as Adapter from "enzyme-adapter-react-16";
-import { mount, configure } from "enzyme";
-import * as SidebarActions from "Navigation/Redux/SidebarActions";
-import { Sidebar, Accordion } from "semantic-ui-react";
+import { configure } from "enzyme";
 
 configure({ adapter: new Adapter() });
 const initialWidth = window.innerWidth;

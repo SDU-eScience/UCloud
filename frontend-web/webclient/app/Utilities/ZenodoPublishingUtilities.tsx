@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Button } from "semantic-ui-react";
+import { Button } from "ui-components";
+
 
 
 const zenodoRedirectPath = (returnTo: string) => `/zenodo/request?returnTo=${returnTo}`;

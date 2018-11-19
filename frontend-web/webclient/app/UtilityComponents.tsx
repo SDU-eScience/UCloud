@@ -2,11 +2,11 @@ import * as React from "react";
 import { Icon as SIcon, IconProps, Popup } from "semantic-ui-react";
 import { Icon, Heading } from "ui-components";
 
-interface FileIconProps  extends IconProps { link?: boolean, shared?: boolean, className?:string }
-export const FileIcon = ({ name, size, shared = false, link = false, className = "", color }: FileIconProps) =>
+interface FileIconProps  extends IconProps { link?: boolean, shared?: boolean }
+export const FileIcon = ({ name, size, shared = false, link = false, color }: FileIconProps) =>
     link || shared ?
         // FIXME Inline style
-        <SIcon.Group style={{ paddingLeft: "3px", paddingRight: "5px" }} className={className} size={size}>
+        <SIcon.Group size={size}>
             <SIcon name={name} color={color} />
             <Popup
                 content={shared ? "This file is shared" : "This is a link to a file"}
@@ -16,21 +16,14 @@ export const FileIcon = ({ name, size, shared = false, link = false, className =
         </SIcon.Group> :
         <SIcon name={name} size={size} color={color} />
 
-export function Chevron({ name }) {
-    if (name === "chevron down") return (<Icon rotation={0} name="chevronDown" />);
-    else if (name === "chevron up") return (<Icon rotation={180} name="chevronDown" />);
+export function Arrow({ name }: { name: "arrowUp" | "arrowDown" | undefined}) {
+    if (name === "arrowUp") return (<Icon name="arrowUp" />);
+    else if (name === "arrowDown") return (<Icon name="arrowDown" />);
     return null;
 }
 
-export const RefreshButton = ({ loading, onClick, className }: { loading?: boolean, onClick: () => void, className?: string }) => (
-    <SIcon
-        size="small"
-        link
-        circular
-        className={className}
-        name="sync"
-        onClick={() => onClick()} loading={loading}
-    />
+export const RefreshButton = ({ loading, onClick }: { loading?: boolean, onClick: () => void, className?: string }) => (
+    <i className={`fas fa-sync ${loading ? "fa-spin" : ""}`} onClick={() => onClick()}/>
 );
 
 export const WebSocketSupport = () =>

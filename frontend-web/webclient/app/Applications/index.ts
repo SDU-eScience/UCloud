@@ -3,7 +3,7 @@ import { Page } from "Types";
 import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
-import { DetailedResultReduxObject, ApplicationReduxObject } from "DefaultObjects";
+import { DetailedResultReduxObject, ApplicationReduxObject, ComponentWithPage } from "DefaultObjects";
 
 export type ApplicationsProps = ApplicationReduxObject & ApplicationsOperations;
 
@@ -277,4 +277,18 @@ export interface SearchFieldProps {
     value: string
     loading: boolean
     onValueChange: (value: string) => void
+}
+
+export interface DetailedApplicationSearchReduxState extends ComponentWithPage<Application> {
+    hidden: boolean
+    appName: string
+    appVersion: string
+    tags: string
+}
+
+export interface DetailedApplicationOperations {
+    setAppName: (n: string) => void
+    setVersionName: (v: string) => void
+    fetchApplicationsFromName: (q: string, i: number, p: number, c?: Function) => void
+    fetchApplicationsFromTag: (t: string, i: number, p: number, c?: Function) => void
 }

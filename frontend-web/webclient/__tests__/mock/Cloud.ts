@@ -21,19 +21,19 @@ class MockCloud {
     call = (method: string, path: string, body?: object, context: string = this.apiContext): Promise<any> =>
         new Promise((resolve, reject) => resolve(1));
 
-    get = (path, context = this.apiContext) => this.call("GET", path, undefined, context);
+    get = (path: string, context = this.apiContext) => this.call("GET", path, undefined, context);
 
-    post = (path, body?: object, context = this.apiContext) => this.call("POST", path, body, context);
+    post = (path: string, body?: object, context = this.apiContext) => this.call("POST", path, body, context);
 
-    put = (path, body, context = this.apiContext) => this.call("PUT", path, body, context);
+    put = (path: string, body: object, context = this.apiContext) => this.call("PUT", path, body, context);
 
-    delete = (path, body, context = this.apiContext) => this.call("DELETE", path, body, context);
+    delete = (path: string, body: object, context = this.apiContext) => this.call("DELETE", path, body, context);
 
-    patch = (path, body, context = this.apiContext) => this.call("PATCH", path, body, context);
+    patch = (path: string, body: object, context = this.apiContext) => this.call("PATCH", path, body, context);
 
-    options = (path, body, context = this.apiContext) => this.call("OPTIONS", path, body, context);
+    options = (path: string, body: object, context = this.apiContext) => this.call("OPTIONS", path, body, context);
 
-    head = (path, context = this.apiContext) => this.call("HEAD", path, undefined, context);
+    head = (path: string, context = this.apiContext) => this.call("HEAD", path, undefined, context);
 
     openBrowserLoginPage() {
         window.location.href = this.context + this.authContext + "/login?service=" + encodeURIComponent(this.serviceName);
@@ -72,7 +72,7 @@ class MockCloud {
 
     receiveAccessTokenOrRefreshIt = (): Promise<any> => new Promise(resolve => resolve("1"));
 
-    createOneTimeTokenWithPermission(permission) { }
+    createOneTimeTokenWithPermission(permission: string) { }
 
     private refresh() { }
 

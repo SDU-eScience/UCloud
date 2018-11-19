@@ -1,8 +1,8 @@
 import * as React from "react";
-import * as ReactDOM from "react-dom";
 import { Dropdown, DropdownContent } from "./Dropdown";
 import Box from "./Box";
 import { Icon } from "ui-components";
+import * as Text from "ui-components/Text";
 
 type ClickableDropdownState = { open: boolean }
 type ClickableDropdownProps = {
@@ -17,22 +17,23 @@ type ClickableDropdownProps = {
 }
 
 class ClickableDropdown extends React.Component<ClickableDropdownProps, ClickableDropdownState> {
+    private ref;
+
     constructor(props) {
         super(props);
         this.state = { open: false };
-        document.addEventListener("click", this.handleClickOutside, true);
+        document.addEventListener("mousedown", this.handleClickOutside);
         let neither = true;
         if (!!props.children) neither = false;
         if (!!props.onChange && !!props.options) neither = false;
-        if (neither) console.error("Clickable dropdown must have either children prop or options and onChange");
+        if (neither) throw Error("Clickable dropdown must have either children prop or options and onChange");
     }
 
-    componentWillUnmount = () => document.removeEventListener("click", this.handleClickOutside, true);
+    componentWillUnmount = () => document.removeEventListener("mousedown", this.handleClickOutside);
 
     // https://stackoverflow.com/questions/32553158/detect-click-outside-react-component#42234988
     handleClickOutside = event => {
-        const domNode = ReactDOM.findDOMNode(this);
-        if (!domNode || !domNode.contains(event.target)) this.setState(() => ({ open: false }));
+        if (this.ref && !this.ref.contains(event.target)) this.setState(() => ({ open: false }));
     }
 
     render() {
@@ -47,10 +48,10 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
             children = props.children
         }
         return (
-            <Dropdown>
-                <span onClick={() => this.setState(() => ({ open: !this.state.open }))}>
+            <Dropdown ref={this.ref}>
+                <Text.TextSpan cursor="pointer" onClick={() => this.setState(() => ({ open: !this.state.open }))}>
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" /> : null}
-                </span>
+                </Text.TextSpan>
                 {this.state.open ?
                     <DropdownContent cursor="pointer" left={props.left} minWidth={this.props.minWidth} width={this.props.width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
                         {children}

@@ -1,8 +1,8 @@
 import styled from "styled-components";
 import { space, ButtonStyleProps, SpaceProps, SizeProps } from "styled-system";
-import theme from "./theme";
+import theme, { ThemeColor } from "./theme";
 
-const size = ({ size, theme }) => {
+const size = ({ size, theme }: { size: string, theme: any }) => {
   switch (size) {
     case "tiny":
       return {
@@ -32,9 +32,9 @@ const size = ({ size, theme }) => {
   }
 };
 
-export const fullWidth = (props) => (props.fullWidth ? { width: "100%" } : null)
+export const fullWidth = (props: { fullWidth?: boolean }) => (props.fullWidth ? { width: "100%" } : null)
 
-export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean } & SpaceProps & SizeProps & { title?: string }
+export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean, hoverColor?: ThemeColor } & SpaceProps & SizeProps & { title?: string }
 
 const Button = styled.button<ButtonProps>` 
   -webkit-font-smoothing: antialiased;
@@ -47,7 +47,7 @@ const Button = styled.button<ButtonProps>`
   line-height: 1.5;
   cursor: pointer;
   border-radius: ${props => props.theme.radius};
-  background-color: ${props => props.theme.colors.blue};
+  background-color: ${props => props.color ? props.theme.colors[props.color] : props.theme.colors.blue};
   color: ${props => props.theme.colors.white};
   border-width: 0;
   border-style: solid;
@@ -58,15 +58,16 @@ const Button = styled.button<ButtonProps>`
 
   &:hover {
     transition: ease 0.3s;
-    background-color: ${props =>
-    props.disabled ? null : props.theme.colors.darkBlue};
+    background-color: ${props => props.disabled ? null : props.theme.colors[props.hoverColor!]};
   }
 
   ${fullWidth} ${size} ${space};
 `;
 
 Button.defaultProps = {
-  theme
+  theme,
+  hoverColor: "darkBlue",
+  color: "blue"
 };
 
 Button.displayName = "Button";

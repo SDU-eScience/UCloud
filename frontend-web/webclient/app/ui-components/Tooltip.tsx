@@ -1,11 +1,11 @@
 import * as React from "react";
-import Box, { BoxProps } from './Box'
+import Box, { BoxProps } from "./Box"
 
-import theme from './theme'
+import theme from "./theme"
 
-import styled from 'styled-components'
+import styled from "styled-components"
 
-const arrowShadow = props => {
+const arrowShadow = (props: { top?: boolean }) => {
   return props.top
     ? {
       'box-shadow':
@@ -17,7 +17,7 @@ const arrowShadow = props => {
     }
 }
 
-const arrowAlign = props => {
+const arrowAlign = (props: { top?: boolean, left?: boolean, center?: boolean }) => {
   return props.left
     ? { left: '16px', 'margin-left': props.top ? 0 : '15px' }
     : props.center
@@ -25,7 +25,7 @@ const arrowAlign = props => {
       : { right: '16px', 'margin-right': props.top ? '5px' : '-10px' }
 }
 
-const arrowPosition = props => {
+const arrowPosition = (props: { top?: boolean }) => {
   return props.top
     ? {
       'transform-origin': '0 0',
@@ -39,7 +39,7 @@ const arrowPosition = props => {
     }
 }
 
-const arrow = props => {
+const arrow = (props: { top?: boolean }) => {
   return props.top
     ? {
       'transform-origin': '0 0',
@@ -51,11 +51,11 @@ const arrow = props => {
     }
 }
 
-const tooltipPosition = (props) => {
+const tooltipPosition = (props: { top?: boolean }) => {
   return props.top ? { bottom: '-8px' } : { top: 0 }
 }
 
-const tooltipAlign = props => {
+const tooltipAlign = (props: { right: boolean, center: boolean }) => {
   return props.right
     ? { right: 0 }
     : props.center
@@ -67,7 +67,7 @@ interface TooltipContentProps extends BoxProps {
   bg?: any
 };
 
-const TooltipContent = styled(Box)<TooltipContentProps>`
+const TooltipContent = styled(Box) <TooltipContentProps>`
   display: inline;
   box-shadow: ${({ theme }) => theme.boxShadows[1]};
   font-size: ${({ theme }) => theme.fontSizes[0]}px;
@@ -87,7 +87,7 @@ const TooltipContent = styled(Box)<TooltipContentProps>`
     border-color: transparent transparent ${({ theme, bg }) => theme.colors[bg]}
       ${({ theme, bg }) => theme.colors[bg]};
 
-    ${arrow} ${arrowPosition as any} ${arrowAlign  as any} ${arrowShadow};
+    ${arrow as any} ${arrowPosition as any} ${arrowAlign as any} ${arrowShadow as any};
   }
 `
 
@@ -111,7 +111,7 @@ const defaultProps = {
   zIndex: 9999
 }
 
-const Tooltip = ({ children, ...props }) => {
+const Tooltip = ({ children, ...props }: any) => {
   return (
     <div style={{ position: "relative", zIndex: props.zIndex }}>
       <TooltipContent p={2} mb={3} mt={2} {...props}>

@@ -113,7 +113,7 @@ export default class SDUCloud {
                 //req.open(method, baseContext + context + path);
                 req.open(method, this.computeURL(context, path));
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
-                req.setRequestHeader("Content-Type", "application/json");
+                req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
                 req.responseType = "text"; // Explicitly set, otherwise issues with empty response
                 req.onload = () => {
                     let responseContentType = req.getResponseHeader("content-type");
@@ -329,7 +329,7 @@ export default class SDUCloud {
                 if (inSuccessRange(req.status)) {
                     resolve(JSON.parse(req.response));
                 } else {
-                    if (req.status === 401) this.clearTokens();
+                    if (req.status === 401 || req.status === 400) this.clearTokens();
                     reject({ status: req.status, response: req.response });
                 }
             };
@@ -374,7 +374,6 @@ export default class SDUCloud {
             },
             method: "POST",
             credentials: "same-origin"
-
         }).then(response => {
             if (!is5xxStatusCode(response.status)) {
                 window.localStorage.removeItem("accessToken");

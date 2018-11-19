@@ -14,20 +14,22 @@ import {
     SET_FILE_SELECTOR_ERROR,
     CHECK_ALL_FILES,
     CHECK_FILE,
-    CREATE_FOLDER
+    CREATE_FOLDER,
+    FILES_INVALID_PATH
 } from "./FilesReducer";
 import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
 import { SortOrder, SortBy, File } from "..";
 import { Action } from "redux";
 import { filepathQuery, fileLookupQuery } from "Utilities/FileUtilities";
+import { emptyPage } from "DefaultObjects";
 
 
 export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage<typeof UPDATE_FILES, File> |
     SetLoadingAction<typeof SET_FILES_LOADING> | UpdatePathAction | FileSelectorShownAction |
     ReceiveFileSelectorFilesAction | Action<typeof SET_FILE_SELECTOR_LOADING> | SetFileSelectorCallbackAction |
     Error<typeof SET_FILE_SELECTOR_ERROR> | SetDisallowedPathsAction | SetSortingColumnAction | CheckAllFilesAction |
-    CheckFileAction | CreateFolderAction
+    CheckFileAction | CreateFolderAction | InvalidPath
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
@@ -37,12 +39,19 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
 * @param {Page<File>} page number of the page to be fetched
 */
 
-export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError> =>
+export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<typeof RECEIVE_FILES, File> | InvalidPath | FilesError> =>
     Cloud.get(filepathQuery(path, page, itemsPerPage, order, sortBy)).then(({ response }) =>
         receiveFiles(response, path, order, sortBy)
-    ).catch(err =>{
+    ).catch(err => {
+        if (err.request.status === 404) return setInvalidPath();
         return setErrorMessage(`An error occurred fetching files for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
     });
+
+type InvalidPath = PayloadAction<typeof FILES_INVALID_PATH, { invalidPath: true, error: string, loading: false, page: Page<File> }>
+const setInvalidPath = (): InvalidPath => ({
+    type: FILES_INVALID_PATH,
+    payload: { invalidPath: true, error: "Path does not match any folder", page: emptyPage, loading: false }
+})
 
 type FilesError = Error<typeof FILES_ERROR>
 /**
@@ -164,10 +173,10 @@ export const fetchPageFromPath = (path: string, itemsPerPage: number, order: Sor
  * @param itemsPerPage 
  */
 export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> =>
-    Cloud.get(filepathQuery(path, page, itemsPerPage)).then(({ response }) => {
+    Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage)).then(({ response }) => {
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, path);
-    }).catch(() => setFileSelectorError({ error:`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`}));
+    }).catch(() => setFileSelectorError({ error: `An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}` }));
 
 /**
  * Sets the fileselector as loading. Intended for use when retrieving files.
@@ -202,7 +211,7 @@ export const setFileSelectorCallback = (callback: Function): SetFileSelectorCall
  * Sets the error message for use in the null means nothing will be rendered.
  * @param {string} error The error message to be set.
  */
-export const setFileSelectorError = (error:{error?: string, statusCode?: number}): Error<typeof SET_FILE_SELECTOR_ERROR> => ({
+export const setFileSelectorError = (error: { error?: string, statusCode?: number }): Error<typeof SET_FILE_SELECTOR_ERROR> => ({
     type: SET_FILE_SELECTOR_ERROR,
     payload: { ...error }
 });

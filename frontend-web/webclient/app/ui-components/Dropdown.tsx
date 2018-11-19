@@ -26,9 +26,12 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     color: black;
     width: ${props => props.width};
     min-width: ${props => props.minWidth ? props.minWidth : "138" }px;
+    max-height: ${props => props.maxHeight ? props.maxHeight : ""};
     box-shadow: 0px 0px 3px 1px rgba(0, 0, 0, 0.2);
     padding: 12px 16px;
     z-index: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
     text-align: left;
     & > *:hover {
         background-color: rgba(0, 0, 0, 0.05);
@@ -49,7 +52,8 @@ DropdownContent.defaultProps = {
     width: "138px",
     disabled: false,
     cursor: "auto",
-    minWidth: "138px"
+    minWidth: "138px",
+    maxHeight: "300px"
 }
 
 interface DropdownContentProps {
@@ -58,5 +62,6 @@ interface DropdownContentProps {
     width?: string
     disabled?: boolean
     minWidth?: string
+    maxHeight?: number | string
     cursor?: string // FIXME There must be a type
 }

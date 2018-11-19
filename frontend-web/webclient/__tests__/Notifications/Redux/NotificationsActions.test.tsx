@@ -19,11 +19,11 @@ describe("Notifications Actions", () => {
         expect(store.getState().notifications.redirectTo).toEqual(redirectTo);
     });
 
-    test("Read notification", () => {
+    test("Read notification", async () => {
         const store = configureStore({ notifications: initNotifications() }, { notifications });
         store.dispatch(NotificationsActions.receiveNotifications(mockNotifications));
         expect(store.getState().notifications.page.items[0].read).toBe(false);
-        store.dispatch(NotificationsActions.notificationRead(mockNotifications.items[0].id));
+        store.dispatch(await NotificationsActions.notificationRead(mockNotifications.items[0].id));
         expect(store.getState().notifications.page.items[0].read).toBe(true);
     })
 });

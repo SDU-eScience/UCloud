@@ -66,6 +66,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, auditing: Side
             { icon: "files", label: "Files", to: `/files/${Cloud.homeFolder}` },
             { icon: "shares", label: "Shares", to: "/shares/" },
             { icon: "apps", label: "Apps", to: "/applications/" },
+            { icon: "information", label: "Job Results", to: "/analyses/" },
             { icon: "publish", label: "Publish", to: "/zenodo/publish/" },
         ], predicate: () => true
     },
@@ -78,10 +79,10 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
     return (
-        <SideBarContainer color="darkGray" bg="lightGray" width={["auto", "190px"]}>
+        <SideBarContainer color="darkGray" bg="lightGray" width={190}>
             {sidebar.map((it, iteration) =>
                 <React.Fragment key={iteration}>
-                    {it.items.map(({ icon, label, to }) => (
+                    {it.items.map(({ icon, label, to }: { icon: IconName, label: string, to: string }) => (
                         <React.Fragment key={label}>
                             {iteration === 0 ? <SideBarSpacer /> : null}
                             <SideBarElement icon={icon} label={label} showLabel={showLabel} to={to} />

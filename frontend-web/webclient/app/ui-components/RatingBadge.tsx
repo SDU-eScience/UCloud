@@ -12,7 +12,7 @@ export interface RatingBadgeProps extends BoxProps, FontWeightProps,
     BorderRadiusProps {
 }
 
-const RatingBadge = styled<any, any>(Box)`
+const RatingBadge = styled(Box)<RatingBadgeProps>`
   display: inline-block;
   line-height: 1.5;
   ${fontWeight} ${borderRadius};

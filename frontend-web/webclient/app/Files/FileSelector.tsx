@@ -10,7 +10,7 @@ import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
 import { FileIcon } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
-import { FileSelectorProps, FileSelectorState, FileListProps, FileSelectorModalProps, FileSelectorBodyProps } from ".";
+import { FileSelectorProps, FileSelectorState, FileListProps, FileSelectorModalProps, FileSelectorBodyProps, File } from ".";
 import { filepathQuery, isInvalidPathName } from "Utilities/FileUtilities";
 import { Input } from "ui-components";
 
@@ -33,7 +33,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     };
 
     // FIXME Find better name
-    handleKeyDown = (key, name) => {
+    handleKeyDown = (key: number, name: string) => {
         if (key === KeyCode.ESC) {
             this.setState(() => ({ creatingFolder: false }));
         } else if (key === KeyCode.ENTER) {
@@ -57,7 +57,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         this.state.promises.cancelPromises();
     }
 
-    setSelectedFile = (file) => {
+    setSelectedFile = (file: File) => {
         let fileCopy = { path: file.path };
         this.setState(() => ({
             modalShown: false,
@@ -187,8 +187,15 @@ const CreateFolderButton = ({ createFolder }: CreateFolderButton) =>
     !!createFolder ?
         (<SButton onClick={() => createFolder()} basic className="float-right" content="Create new folder" />) : null;
 
-
-function MockFolder({ predicate, path, folderName, fetchFiles, setSelectedFile, canSelectFolders }) {
+interface MockFolderProps {
+    predicate: boolean
+    path: string
+    folderName: string
+    canSelectFolders: boolean
+    setSelectedFile: Function
+    fetchFiles: (p: string) => void
+}
+function MockFolder({ predicate, path, folderName, fetchFiles, setSelectedFile, canSelectFolders }: MockFolderProps) {
     const folderSelection = canSelectFolders ? (
         <SList.Content floated="right">
             <SButton onClick={() => setSelectedFile({ path })} content="Select" />

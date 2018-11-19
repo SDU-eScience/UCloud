@@ -54,6 +54,7 @@ describe("Uploader", () => {
         store.dispatch(UploaderActions.setUploads([{
             file: new File([], "file"),
             isUploading: false,
+            sensitivity: "PRIVATE",
             progressPercentage: 0,
             extractArchive: false,
             uploadXHR: undefined

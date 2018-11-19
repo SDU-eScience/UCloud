@@ -1,21 +1,27 @@
 import * as React from "react";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { iconFromFilePath, toLowerCaseAndCapitalize } from "UtilityFunctions";
-import { Link } from "react-router-dom";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { favoriteFile, getParentPath, getFilenameFromPath } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
-import { Card as SCard, List as SList, Icon as SIcon, Message as SMessage } from "semantic-ui-react";
 import * as moment from "moment";
 import { FileIcon } from "UtilityComponents";
 import { DASHBOARD_FAVORITE_ERROR } from "./Redux/DashboardReducer";
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
-import { Notification } from "Notifications";
+import { Notification, NotificationEntry } from "Notifications";
 import { Analysis } from "Applications";
 import { File, FileType } from "Files";
 import { Dispatch } from "redux";
+import { ReduxObject } from "DefaultObjects";
+import { Error, Box, Flex, Card, Text, Link } from "ui-components";
+import * as Heading from "ui-components/Heading";
+import List from "ui-components/List";
+import { CardGroup } from "ui-components/Card";
+import { TextSpan } from "ui-components/Text";
+import { notificationRead } from "Notifications/Redux/NotificationsActions";
+
 
 class Dashboard extends React.Component<DashboardProps> {
     constructor(props) {
@@ -41,134 +47,123 @@ class Dashboard extends React.Component<DashboardProps> {
 
         return (
             <React.StrictMode>
-                {errors.length ? <SMessage list={errors} onDismiss={this.props.errorDismiss} negative /> : null}
-                <SCard.Group className="mobile-padding">
+                <Error error={errors.join(",\n")} clearError={this.props.errorDismiss} />
+                <CardGroup>
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
                         isLoading={favoriteLoading}
-                        favorite={(file: File) => favoriteOrUnfavorite(file)}
+                        favorite={file => favoriteOrUnfavorite(file)}
                     />
                     <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
                     <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
                     <DashboardNotifications notifications={notifications} />
-                </SCard.Group>
+                </CardGroup>
             </React.StrictMode>
         );
     }
 }
 
-const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: Function }) => {
-    const noFavorites = files.length || isLoading ? null : (<h3><small>No favorites found</small></h3>);
-    const filesList = files.map((file: File, i: number) =>
-        (<SList.Item key={i} className="itemPadding">
-            <SList.Content floated="right">
-                <SIcon name="star" color="blue" onClick={() => favorite(file)} />
-            </SList.Content>
-            <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={200} />
-        </SList.Item>)
-    );
-
+const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: (file: File) => void }) => {
+    const noFavorites = files.length || isLoading ? null : (<Heading.h6>No favorites found</Heading.h6>);
     return (
-        <SCard fluid={window.innerWidth <= 645}>
-            <SCard.Content>
-                <SCard.Header content="Favorite files" />
+        <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+            <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+                <Heading.h4>Favorite files</Heading.h4>
+            </Flex>
+            <Box px={3} py={1}>
                 <DefaultLoading loading={isLoading} />
+                <Box pb="0.5em" />
                 {noFavorites}
-                <SList divided size={"large"}>
-                    {filesList}
-                </SList>
-            </SCard.Content >
-        </SCard>)
+                <List>
+                    {files.map((file, i) => (
+                        <Flex key={i} pt="0.8em" pb="6px">
+                            <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={200} />
+                            <Box ml="auto" />
+                            <Box><i className="fas fa-star" style={{ color: "blue", verticalAlign: "middle" }} onClick={() => favorite(file)} /></Box>
+                        </Flex>)
+                    )}
+                </List>
+            </Box>
+        </Card>)
 };
 
 const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 117 | 200 }) =>
-    <SList.Content>
+    <>
         <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={undefined} link={link} color="grey" />
         <Link to={`/files/${type === "FILE" ? getParentPath(path) : path}`}>
-            <span className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(path)}</span>
+            <TextSpan mt="-1.5px" fontSize={2} className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(path)}</TextSpan>
         </Link>
-    </SList.Content>
+    </>
 
-
-const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => {
-    return (
-        <SCard fluid={window.innerWidth <= 645}>
-            <SCard.Content>
-                <SCard.Header content="Recently used files" />
-                {isLoading || files.length ? null : (<h3><small>No recently used files</small></h3>)}
-                <DefaultLoading loading={isLoading} />
-                <SList divided size={"large"}>
-                    {files.map((file, i) => (
-                        <SList.Item key={i} className="itemPadding">
-                            <SList.Content floated="right">
-                                <SList.Description>{moment(new Date(file.modifiedAt)).fromNow()}</SList.Description>
-                            </SList.Content>
-                            <ListFileContent path={file.path} type={file.fileType} link={file.link} pixelsWide={117} />
-                        </SList.Item>
-                    ))}
-                </SList>
-            </SCard.Content>
-        </SCard>);
-};
+const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
+    <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+            <Heading.h4>Recently used files</Heading.h4>
+        </Flex>
+        <Box px={3} py={1}>
+            {isLoading || files.length ? null : (<h3><small>No recently used files</small></h3>)}
+            <DefaultLoading loading={isLoading} />
+            <Box pb="0.5em" />
+            <List>
+                {files.map((file, i) => (
+                    <Flex key={i} pt="0.8em" pb="6px">
+                        <ListFileContent path={file.path} type={file.fileType} link={file.link} pixelsWide={117} />
+                        <Box ml="auto" />
+                        <Text color="grey">{moment(new Date(file.modifiedAt)).fromNow()}</Text>
+                    </Flex>
+                ))}
+            </List>
+        </Box>
+    </Card>
+);
 
 const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLoading: boolean }) => (
-    <SCard fluid={window.innerWidth <= 645}>
-        <SCard.Content>
-            <SCard.Header content="Recent Analyses" />
+    <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+            <Heading.h4>Recent Analyses</Heading.h4>
+        </Flex>
+        <Box px={3} py={1}>
             <DefaultLoading loading={isLoading} />
             {isLoading || analyses.length ? null : (<h3><small>No Analyses found</small></h3>)}
-            <SList divided size={"large"}>
+            <Box pb="0.5em" />
+            <List>
                 {analyses.map((analysis: Analysis, index: number) =>
-                    <SList.Item key={index} className="itemPadding">
-                        <SList.Content floated="right" content={toLowerCaseAndCapitalize(analysis.state)} />
-                        <SList.Icon name={statusToIconName(analysis.state)} color={statusToColor(analysis.state)} />
-                        <SList.Content>
-                            <Link to={`/analyses/${analysis.jobId}`}>{analysis.appName}</Link>
-                        </SList.Content>
-                    </SList.Item>
+                    <Flex key={index} pt="0.9em" pb="9.85px">
+                        <Box pr="0.3em">
+                            <i className={`fa ${statusToIconName(analysis.state)}`} style={{
+                                color: statusToColor(analysis.state),
+                                alignSelf: "center"
+                            }} />
+                        </Box>
+                        <Link mt="-3px" to={`/analyses/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.appName}</TextSpan></Link>
+                        <Box ml="auto" />
+                        <TextSpan mt="-3px" fontSize={2}>{toLowerCaseAndCapitalize(analysis.state)}</TextSpan>
+                    </Flex>
                 )}
-            </SList>
-        </SCard.Content>
-    </SCard>
+            </List>
+        </Box>
+    </Card>
 );
 
 const DashboardNotifications = ({ notifications }: { notifications: Notification[] }) => (
-    <SCard fluid={window.innerWidth <= 645}>
-        <SCard.Content>
-            <SCard.Header content="Recent notifications" />
+    <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+            <Heading.h4>Recent notifications</Heading.h4>
+        </Flex>
+        <Box px={3} py={1}>
             {notifications.length === 0 ? <h3><small>No notifications</small></h3> : null}
-            <SList divided>
-                {notifications.slice(0, 10).map((n: Notification, i: number) =>
-                    <SList.Item key={i}>
-                        <Notification notification={n} />
-                    </SList.Item>
+            <List>
+                {notifications.slice(0, 7).map((n, i) =>
+                    <Flex key={i}>
+                        <NotificationEntry notification={n} />
+                    </Flex>
                 )}
-            </SList>
-        </SCard.Content>
-    </SCard>
+            </List>
+        </Box>
+    </Card>
 );
 
-const DashboardAccounting = () => { }
-
-const Notification = ({ notification }: { notification: Notification }) => {
-    switch (notification.type) {
-        case "SHARE_REQUEST":
-            return (
-                <>
-                    <SList.Content floated="right">
-                        <SList.Description content={moment(new Date(notification.ts as number)).fromNow()} />
-                    </SList.Content>
-                    <SList.Icon name="share alternate" color="blue" verticalAlign="middle" />
-                    <SList.Content header="Share Request" description={notification.message} />
-                </>
-            )
-        default: {
-            return null;
-        }
-    }
-};
-
-const statusToIconName = (status: string) => status === "SUCCESS" ? "check" : "x";
+const statusToIconName = (status: string) => status === "SUCCESS" ? "fa-check" : "fa-times";
 const statusToColor = (status: string) => status === "SUCCESS" ? "green" : "red";
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
@@ -178,11 +173,12 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     fetchFavorites: async () => dispatch(await fetchFavorites()),
     fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
+    notificationRead: async id => dispatch(await notificationRead(id)),
     // FIXME: Make action instead
     receiveFavorites: (files) => dispatch(receiveFavorites(files))
 });
 
-const mapStateToProps = (state): DashboardStateProps => {
+const mapStateToProps = (state: ReduxObject): DashboardStateProps => {
     const {
         errors,
         favoriteFiles,

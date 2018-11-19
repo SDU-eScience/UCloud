@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as Renderer from "react-test-renderer";
-import Applications, { SingleApplication } from "Applications/Applications";
+import Applications, { ApplicationCard } from "Applications/Applications";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initApplications } from "DefaultObjects";
 import applicationsReducer from "Applications/Redux/ApplicationsReducer";
@@ -21,7 +21,7 @@ describe("Single Application Component", () => {
     test("Render Single Application", () => {
         expect(Renderer.create(
             <MemoryRouter>
-                <SingleApplication
+                <ApplicationCard
                     app={applicationsPage.items[0]}
                     favoriteApp={() => null}
                 />
@@ -34,7 +34,7 @@ describe("Single Applications", () => {
     test.skip("Favorite application", () => {
         const func = jest.fn();
         const application = applicationsPage.items[0];
-        const singleApp = shallow(<SingleApplication
+        const singleApp = shallow(<ApplicationCard
             app={application}
             favoriteApp={func}
         />);

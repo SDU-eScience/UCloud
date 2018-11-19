@@ -9,7 +9,7 @@ export interface Upload {
     isUploading: boolean
     progressPercentage: number
     extractArchive: boolean
-    sensitivity?: Sensitivity
+    sensitivity: Sensitivity
     uploadXHR?: XMLHttpRequest
 }
 

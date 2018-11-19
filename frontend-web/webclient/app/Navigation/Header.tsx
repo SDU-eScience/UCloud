@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Icon as SIcon } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import Link from "ui-components/Link";
@@ -25,6 +24,7 @@ import {
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import { searchFiles } from "Search/Redux/SearchActions";
 
 interface HeaderProps {
     sidebarOpen?: boolean
@@ -45,6 +45,8 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
         props.fetchLoginStatus()
     }
 
+    context: { router: { history: History } }
+
     static contextTypes = {
         router: PropTypes.object
     }
@@ -52,25 +54,27 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
     public render() {
         const { history } = this.context.router;
         const { searchText } = this.state;
-        const { prioritizedSearch } = this.props;
+        const { prioritizedSearch, searchFiles } = this.props;
         return (
             <HeaderContainer color='lightGray' bg='blue'>
-                <Logo onClick={() => history.push("/dashboard/")} />
+                <Logo />
                 <Box ml="auto" />
                 <Search
                     onChange={searchText => this.setState(() => ({ searchText }))}
                     navigate={() => history.push(`/simplesearch/${prioritizedSearch}/${searchText}`)}
-                    searchText={searchText} />
+                    searchText={searchText}
+                    searchFiles={searchFiles}
+                />
                 <Notification />
                 <ClickableDropdown left={"-100%"} trigger={<Flex><UserAvatar /></Flex>}>
                     <Box style={{ backgroundColor: "unset" }}>Welcome, {Cloud.userInfo.firstNames}</Box>
                     <Divider />
                     <Link color="black" to={"/usersettings/settings"}>
-                        <SIcon name="settings" />
+                        <i className="fas fa-cogs" />
                         Settings
                     </Link>
                     <Box onClick={() => Cloud.logout()}>
-                        <SIcon name="sign out" />
+                        <i className="fas fa-sign-out-alt" />
                         Logout
                     </Box>
                 </ClickableDropdown>
@@ -88,10 +92,12 @@ const HeaderContainer = styled(Flex)`
     z-index: 100;
 `;
 
-const Logo = ({ onClick }) => (
-    <Text cursor="pointer" onClick={onClick} fontSize={4} bold ml="24px">
-        SDUCloud
-    </Text>
+const Logo = () => (
+    <Link to={"/"}>
+        <Text color="white" fontSize={4} bold ml="24px">
+            SDUCloud
+        </Text>
+    </Link>
 );
 
 const SearchInput = styled(Flex)`
@@ -131,15 +137,17 @@ const SearchInput = styled(Flex)`
     }
 `;
 
-const Search = ({ searchText, onChange, navigate }) => (
+const Search = ({ searchText, onChange, navigate, searchFiles }) => (
     <Relative>
         <SearchInput>
-            <Input pl="30px"
+            <Input
+                pl="30px"
                 id="search_input"
                 value={searchText}
                 type="text"
+                color="blue"
                 onChange={e => onChange(e.target.value)}
-                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) navigate(); }}
+                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) { searchFiles(searchText); navigate(); } }}
                 placeholder="Do search..."
             />
             <Absolute left="6px" top="7px">
@@ -157,10 +165,10 @@ const ClippedBox = styled(Flex)`
     height: 48px;
 `;
 
-const UserAvatar = () => (
+const OldUserAvatar = () => (
     <ClippedBox mr="8px" width="60px">
         <Avatar
-            style={{ width: "64px", height: "60px" }}
+            style={{ width: "64px", height: "60px", cursor: "pointer" }}
             avatarStyle="Circle"
             topType="LongHairCurly"
             accessoriesType="Sunglasses"
@@ -176,14 +184,33 @@ const UserAvatar = () => (
     </ClippedBox>
 );
 
+const UserAvatar = () => (
+    <ClippedBox mr="8px" width="60px">
+        <Avatar
+            avatarStyle='Circle'
+            topType='ShortHairShortFlat'
+            accessoriesType='Blank'
+            hairColor='Black'
+            facialHairType='Blank'
+            clotheType='BlazerShirt'
+            eyeType='Default'
+            eyebrowType='Default'
+            mouthType='Default'
+            skinColor='Light'
+        />
+    </ClippedBox>
+);
+
 interface HeaderOperations {
     setSidebarOpen: (open: boolean) => void
     fetchLoginStatus: () => void
+    searchFiles: (fileName: string) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     setSidebarOpen: (open) => dispatch(setSidebarState(open)),
-    fetchLoginStatus: async () => dispatch(await fetchLoginStatus())
+    fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
+    searchFiles: async (fileName) => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] }))
 });
 
 const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps => ({

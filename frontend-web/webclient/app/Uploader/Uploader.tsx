@@ -1,16 +1,16 @@
 import * as React from "react";
-import { Checkbox as SCheckbox, Progress, Grid, Card, Button, Icon, Modal, Message } from "semantic-ui-react";
+import { Checkbox as SCheckbox, Progress, Grid, Card, Button, Icon, Modal } from "semantic-ui-react";
 import * as Dropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString } from "UtilityFunctions";
 import { fileSizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
-import { ReduxObject, Sensitivity } from "DefaultObjects";
+import { ReduxObject, Sensitivity, SensitivityLevel } from "DefaultObjects";
 import { Upload, UploaderProps } from ".";
 import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
-import { Box, Text } from "ui-components";
+import { Box, Text, Flex, Error } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
@@ -19,7 +19,7 @@ const isFinishedUploading = (xhr?: XMLHttpRequest): boolean => !!xhr && xhr.read
 
 const newUpload = (file: File): Upload => ({
     file,
-    sensitivity: undefined,
+    sensitivity: "PRIVATE",
     isUploading: false,
     progressPercentage: 0,
     extractArchive: false,
@@ -42,7 +42,7 @@ class Uploader extends React.Component<UploaderProps> {
         }
     }
 
-    beforeUnload = (e) => {
+    beforeUnload = e => {
         e.returnValue = "foo";
         uploadsNotifications(finishedUploads(this.props.uploads), this.props.uploads.length)
         return e;
@@ -70,7 +70,7 @@ class Uploader extends React.Component<UploaderProps> {
                 this.props.dispatch(setUploads(this.props.uploads));
             }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)); // FIXME Add error handling
         } else {
-            bulkUpload(this.props.location, upload.file, BulkUploadPolicy.OVERWRITE, e => {
+            bulkUpload(this.props.location, upload.file, upload.sensitivity, BulkUploadPolicy.OVERWRITE, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
                 this.props.dispatch(setUploads(this.props.uploads));
             }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)); // FIXME Add error handling
@@ -107,13 +107,19 @@ class Uploader extends React.Component<UploaderProps> {
         this.props.dispatch(setUploads(uploads));
     }
 
+    updateSensitivity(index: number, sensitivity: Sensitivity) {
+        const uploads = this.props.uploads;
+        uploads[index].sensitivity = sensitivity;
+        this.props.dispatch(setUploads(uploads));
+    }
+
     render() {
         return (
             <Modal open={this.props.visible} onClose={() => this.props.dispatch(setUploaderVisible(false))}>
                 <Modal.Header content="Upload Files" />
                 {this.props.error ?
                     <Box pt="0.5em" pr="0.5em" pl="0.5em">
-                        <Message error content={this.props.error} onDismiss={() => this.props.dispatch(setUploaderError())} />
+                        <Error error={this.props.error} clearError={() => this.props.dispatch(setUploaderError())} />
                     </Box> : null}
                 <Modal.Content scrolling>
                     <Modal.Description>
@@ -122,6 +128,7 @@ class Uploader extends React.Component<UploaderProps> {
                                 <UploaderRow
                                     key={index}
                                     {...upload}
+                                    setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
                                     onExtractChange={value => this.onExtractChange(index, value)}
                                     onUpload={() => this.startUpload(index)}
                                     onDelete={it => { it.preventDefault(); this.removeUpload(index) }}
@@ -161,10 +168,11 @@ class Uploader extends React.Component<UploaderProps> {
 const UploaderRow = (p: {
     file: File,
     extractArchive: boolean,
-    sensitivity?: Sensitivity
+    sensitivity: Sensitivity
     isUploading: boolean,
     progressPercentage: number,
     uploadXHR?: XMLHttpRequest,
+    setSensitivity: (key: Sensitivity) => void,
     onExtractChange?: (value: boolean) => void,
     onUpload?: (e: React.MouseEvent<any>) => void,
     onDelete?: (e: React.MouseEvent<any>) => void,
@@ -203,9 +211,14 @@ const UploaderRow = (p: {
                         onClick={e => ifPresent(p.onDelete, c => c(e))}
                     />
                 </Button.Group>
-                <ClickableDropdown chevron trigger={!!p.sensitivity ? p.sensitivity : "No sensitivity selected"}>
-                    <Box><Text>Sensitive</Text></Box>
-                </ClickableDropdown>
+                <Flex justifyContent="center" pt="0.3em">
+                    <ClickableDropdown
+                        chevron
+                        trigger={prettierString(p.sensitivity)}
+                        onChange={key => p.setSensitivity(key as Sensitivity)}
+                        options={[{ text: "Private", value: "PRIVATE" }, { text: "Confidential", value: "CONFIDENTIAL" }, { text: "Sensitive", value: "SENSITIVE" }]}
+                    />
+                </Flex>
             </Grid.Column>
         </>;
     } else {
@@ -253,11 +266,6 @@ const UploaderRow = (p: {
 
 const archiveExtensions: string[] = [".tar.gz"]
 const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
-
-interface UploaderStateToProps {
-    visible: boolean
-    location: string
-}
 
 const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
     activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),

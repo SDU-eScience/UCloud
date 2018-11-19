@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Button, Header, Form, Message } from "semantic-ui-react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
@@ -14,6 +13,8 @@ import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { File } from "Files";
 import { SET_ZENODO_ERROR } from "Zenodo/Redux/ZenodoReducer";
 import { Dispatch } from "redux";
+import { Button, Error, Input, Label, Flex, LoadingButton, Box } from "ui-components";
+import * as Heading from "ui-components/Heading";
 
 interface ZenodoPublishState {
     files: string[]
@@ -47,7 +48,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
 
     componentWillUnmount = () => this.props.setErrorMessage();
 
-    submit = (e) => {
+    submit = e => {
         e.preventDefault();
         const filePaths = this.state.files.filter(filePath => filePath);
         Cloud.post("/zenodo/publish/", { filePaths, name: this.state.name }).then((res) => {
@@ -88,46 +89,42 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
         }
         return (
             <>
-                <Header as="h3" >
-                    <Header.Content className="mobile-padding">
-                        File Selection
-                    </Header.Content>
-                </Header>
-                {this.props.error ? <Message error content={this.props.error} onDismiss={() => this.props.setErrorMessage(undefined)} /> : null}
-                <Form onSubmit={(e) => this.submit(e)}>
+                <Heading.h3>
+                    File Selection
+                </Heading.h3>
+                <Error error={this.props.error} clearError={() => this.props.setErrorMessage(undefined)} />
+                <form onSubmit={(e) => this.submit(e)}>
                     <FileSelections
                         handleFileSelection={this.handleFileSelection}
                         files={this.state.files}
                         removeFile={this.removeFile}
                     />
-                    <Form.Field className="mobile-padding">
-                        <Form.Input
-                            fluid
-                            label="Publication Name"
+                    <Label>Publication Name
+                    <Input
+
                             required={true}
                             value={name}
                             type="text"
-                            onChange={(_, { value }) => this.setState(() => ({ name: value }))}
+                            onChange={({ target: { value } }) => this.setState(() => ({ name: value }))}
                         />
-                    </Form.Field>
-                    <Form.Field>
-                        <Button className="bottom-padding"
-                            floated="left"
+                    </Label>
+                    <Flex mt="0.5em">
+                        <Button
                             color="green"
-                            content="Add file"
                             type="button"
                             onClick={() => this.newFile()}
-                        />
-                        <Button className="bottom-padding"
+                        >Add file</Button>
+                        <Box ml="auto" />
+                        <LoadingButton
                             disabled={!name || this.state.files.filter(p => p).length === 0}
-                            floated="right"
                             color="blue"
+                            type="submit"
                             loading={this.state.requestSent}
                             content="Upload files"
                             onClick={this.submit}
                         />
-                    </Form.Field>
-                </Form>
+                    </Flex>
+                </form>
             </>
         );
     }
@@ -136,15 +133,14 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
 const FileSelections = ({ files, handleFileSelection, removeFile }: { files: string[], handleFileSelection: Function, removeFile: Function }) => (
     <>
         {files.map((file, index) =>
-            (<Form.Field key={index}>
-                <FileSelector
-                    isRequired={files.length === 1}
-                    path={file}
-                    onFileSelect={(chosenFile: File) => handleFileSelection(chosenFile, index)}
-                    allowUpload={false}
-                    remove={files.length > 1 ? () => removeFile(index) : undefined}
-                />
-            </Form.Field>))}
+            (<FileSelector
+                key={index}
+                isRequired={files.length === 1}
+                path={file}
+                onFileSelect={(chosenFile: File) => handleFileSelection(chosenFile, index)}
+                allowUpload={false}
+                remove={files.length > 1 ? () => removeFile(index) : undefined}
+            />))}
     </>
 );
 
