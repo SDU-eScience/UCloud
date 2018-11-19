@@ -26,4 +26,5 @@ export interface DashboardOperations {
     fetchFavorites: () => void
     fetchRecentFiles: () => void
     fetchRecentAnalyses: () => void
+    notificationRead: (id: number) => void
 }

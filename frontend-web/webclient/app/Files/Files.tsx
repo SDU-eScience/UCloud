@@ -344,7 +344,7 @@ const FileLink = ({ file, children }) => {
 
 function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
-    const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={(e) => onCheckFile(e.target.checked)} /></Box>
+    const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} /></Box>
     const icon = (
         <FileIcon
             color={isDirectory(file) ? "blue" : "grey"}

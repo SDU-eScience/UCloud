@@ -20,7 +20,7 @@ import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import { CardGroup } from "ui-components/Card";
 import { TextSpan } from "ui-components/Text";
-import { EveryIcon } from "ui-components/Icon";
+import { notificationRead } from "Notifications/Redux/NotificationsActions";
 
 
 class Dashboard extends React.Component<DashboardProps> {
@@ -173,6 +173,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     fetchFavorites: async () => dispatch(await fetchFavorites()),
     fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
+    notificationRead: async id => dispatch(await notificationRead(id)),
     // FIXME: Make action instead
     receiveFavorites: (files) => dispatch(receiveFavorites(files))
 });

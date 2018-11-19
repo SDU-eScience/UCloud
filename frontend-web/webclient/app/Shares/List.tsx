@@ -342,8 +342,8 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
 
 function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
-    if (byState) url += `state=${byState}`
-    return Cloud.get(url).then((e) => e.response).catch(e => e.response); // FIXME Add error handling
+    if (byState) url += `state=${byState}`;
+    return Cloud.get(url).then(it => it.response);
 }
 
 function acceptShare(shareId: ShareId): Promise<any> {

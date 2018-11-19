@@ -39,11 +39,6 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         this.props.fetchNotifications();
     }
 
-    private onNotificationRead(notification: Notification) {
-        this.props.notificationRead(notification.id);
-        Cloud.post(`notifications/read/${notification.id}`);
-    }
-
     private onNotificationAction(notification: Notification) {
         switch (notification.type) {
             case "APP_COMPLETE":
@@ -64,7 +59,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             <NotificationEntry
                 key={index}
                 notification={notification}
-                onMarkAsRead={(it) => this.onNotificationRead(it)}
+                onMarkAsRead={(it) => this.props.notificationRead(it.id)}
                 onAction={(it) => this.onNotificationAction(it)}
             />
         );
@@ -141,7 +136,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
         return (
             <NotificationWrapper read={notification.read} flexDirection="row" onClick={() => this.handleAction()}>
                 <Box width="0.20" m="0 0.3em 0 0.3em">
-                    <Icon name={this.resolveEventIcon(notification.type)} />
+                    <Icon size={1} name={this.resolveEventIcon(notification.type)} />
                 </Box>
                 <Box width="0.80">
                     <Flex flexDirection="column">
@@ -171,7 +166,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
     }
 }
 
-const read = ({ read }) => read ? { backgroundColor: theme.colors.gray } : { backgroundColor: theme.colors.white };
+const read = ({ read }) => read ? { backgroundColor: theme.colors.white } : { backgroundColor: theme.colors.gray };
 
 const NotificationWrapper = styled(Flex)`
     ${read};
@@ -191,7 +186,7 @@ interface NotificationsDispatchToProps {
 }
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps => ({
     fetchNotifications: async () => dispatch(await fetchNotifications()),
-    notificationRead: id => dispatch(notificationRead(id)),
+    notificationRead: async id => dispatch(await notificationRead(id)),
     showUploader: () => dispatch(setUploaderVisible(true))
 });
 const mapStateToProps = (state) => ({

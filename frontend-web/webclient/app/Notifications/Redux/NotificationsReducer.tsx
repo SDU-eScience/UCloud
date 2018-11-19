@@ -5,9 +5,11 @@ export const RECEIVE_NOTIFICATIONS = "RECEIVE_NOTIFICATIONS";
 export const NOTIFICATION_READ = "NOTIFICATION_READ";
 export const SET_REDIRECT = "SET_REDIRECT";
 export const SET_NOTIFICATIONS_ERROR = "SET_NOTIFICATIONS_ERROR";
+export const NOTIFICATIONS_ERROR = "NOTIFICATIONS_ERROR";
 
 const Notifications = (state: NotificationsReduxObject = initNotifications(), action: NotificationActions): NotificationsReduxObject => {
     switch (action.type) {
+        case SET_REDIRECT:
         case RECEIVE_NOTIFICATIONS: {
             return { ...state, ...action.payload };
         }
@@ -22,10 +24,7 @@ const Notifications = (state: NotificationsReduxObject = initNotifications(), ac
                 }
             }
         }
-        case SET_REDIRECT: {
-            return { ...state, ...action.payload };
-        }
-        // FIXME Error case missing
+        case NOTIFICATIONS_ERROR:
         default: {
             return state;
         }
