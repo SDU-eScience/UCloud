@@ -16,6 +16,7 @@ import dk.sdu.cloud.file.api.CreateLinkRequest
 import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.homeDirectory
@@ -325,6 +326,21 @@ class ShareService<DBSession>(
         db.withTransaction { dbSession ->
             shareDao.deleteShare(dbSession, AuthRequirements(user, ShareRole.PARTICIPANT), shareId)
         }
+    }
+
+    suspend fun handleFilesDeletedOrInvalidated(events: List<StorageEvent>) {
+        if (events.isEmpty()) return
+
+        val shares = db.withTransaction { session ->
+            shareDao.findAllByFileIds(session, events.map { it.id })
+        }
+
+        // TODO Confirm files were deleted
+    }
+
+    suspend fun handleFilesMoved(events: List<StorageEvent.Moved>) {
+        if (events.isEmpty()) return
+
     }
 
     private suspend fun updateFSPermissions(

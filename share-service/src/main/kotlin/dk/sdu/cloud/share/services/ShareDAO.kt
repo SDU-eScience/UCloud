@@ -1,6 +1,8 @@
 package dk.sdu.cloud.share.services
 
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.share.api.Share
 import dk.sdu.cloud.share.api.ShareState
@@ -65,6 +67,21 @@ interface ShareDAO<Session> {
         auth: AuthRequirements,
         shareId: Long
     ): InternalShare
+
+    fun onFilesMoved(
+        session: Session,
+        events: List<StorageEvent.Moved>
+    ): List<InternalShare>
+
+    fun findAllByFileIds(
+        session: Session,
+        fileIds: List<String>
+    ):  List<InternalShare>
+
+    fun deleteByFileIds(
+        session: Session,
+        fileIds: List<String>
+    )
 }
 
 data class ListSharesResponse(

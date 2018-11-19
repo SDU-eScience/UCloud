@@ -1,6 +1,7 @@
 package dk.sdu.cloud.share.services
 
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.asEnumSet
 import dk.sdu.cloud.service.asInt
@@ -11,12 +12,15 @@ import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.service.db.countWithPredicate
 import dk.sdu.cloud.service.db.createCriteriaBuilder
+import dk.sdu.cloud.service.db.createCriteriaDelete
 import dk.sdu.cloud.service.db.createQuery
 import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.deleteCriteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedList
 import dk.sdu.cloud.share.api.ShareState
 import java.io.File
+import java.lang.IllegalArgumentException
 import java.util.*
 import javax.persistence.Column
 import javax.persistence.Entity
@@ -54,8 +58,6 @@ data class ShareEntity(
     @Enumerated(EnumType.ORDINAL)
     var state: ShareState,
 
-    var filename: String,
-
     var fileId: String,
 
     @Id
@@ -71,8 +73,10 @@ data class ShareEntity(
 
     @Temporal(TemporalType.TIMESTAMP)
     override var modifiedAt: Date = Date(System.currentTimeMillis())
-
 ) : WithTimestamps {
+    val filename: String
+        get() = File(path).name
+
     companion object : HibernateEntity<ShareEntity>, WithId<Long>
 }
 
@@ -105,7 +109,6 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
                 sharedWith = sharedWith,
                 path = path,
                 state = ShareState.REQUEST_SENT,
-                filename = File(path).name,
                 rights = initialRights.asInt(),
                 fileId = fileId,
                 ownerToken = ownerToken
@@ -224,7 +227,6 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         val share = shareById(session, auth, shareId)
         if (path != null) {
             share.path = path
-            share.filename = File(path).name
         }
         if (recipientToken != null) share.recipientToken = recipientToken
         if (state != null) share.state = state
@@ -242,6 +244,33 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         val entity = shareById(session, auth, shareId)
         session.delete(entity)
         return entity.toModel()
+    }
+
+    override fun onFilesMoved(session: HibernateSession, events: List<StorageEvent.Moved>): List<InternalShare> {
+        val shares = internalFindAllByFileId(session, events.map { it.id })
+        if (shares.isNotEmpty()) {
+            val eventsByFileId = events.associateBy { it.id }
+            shares.forEach { share ->
+                val event = eventsByFileId[share.fileId] ?: return@forEach
+                share.path = event.path
+                session.save(share)
+            }
+        }
+        session.flush()
+        return shares.map { it.toModel() }
+    }
+
+    override fun findAllByFileIds(session: HibernateSession, fileIds: List<String>): List<InternalShare> {
+        return internalFindAllByFileId(session, fileIds).map { it.toModel() }
+    }
+
+    override fun deleteByFileIds(session: HibernateSession, fileIds: List<String>) {
+        session.deleteCriteria<ShareEntity> { entity[ShareEntity::fileId] isInCollection fileIds }.executeUpdate()
+    }
+
+    private fun internalFindAllByFileId(session: HibernateSession, fileIds: List<String>): List<ShareEntity> {
+        if (fileIds.size > 250) throw IllegalArgumentException("fileIds.size > 250")
+        return session.criteria<ShareEntity> { entity[ShareEntity::fileId] isInCollection fileIds }.list()
     }
 
     private fun shareById(

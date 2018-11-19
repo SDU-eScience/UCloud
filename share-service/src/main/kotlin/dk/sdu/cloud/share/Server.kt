@@ -14,6 +14,7 @@ import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.service.tokenValidation
 import dk.sdu.cloud.share.http.ShareController
+import dk.sdu.cloud.share.processors.StorageEventProcessor
 import dk.sdu.cloud.share.services.ShareHibernateDAO
 import dk.sdu.cloud.share.services.ShareService
 import io.ktor.routing.routing
@@ -38,7 +39,7 @@ class Server(
     }
 
     override fun start() {
-        // Initialize services here
+        // Initialize services here:
         val jwtValidation = micro.tokenValidation as TokenValidationJWT
         val shareDao = ShareHibernateDAO()
         val shareService = ShareService(
@@ -49,9 +50,11 @@ class Server(
         )
 
         // Initialize consumers here:
-        // addConsumers(...)
+        addConsumers(
+            StorageEventProcessor(shareService, kafka).init()
+        )
 
-        // Initialize server
+        // Initialize server:
         httpServer = ktor {
             installDefaultFeatures(micro)
 
