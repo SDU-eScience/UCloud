@@ -7,7 +7,7 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import * as ReactMarkdown from "react-markdown";
 import { connect } from "react-redux";
-import { infoNotification, failureNotification } from "UtilityFunctions";
+import { infoNotification, failureNotification, inSuccessRange } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { RunAppProps, RunAppState, JobInfo, MaxTime } from "."
@@ -53,13 +53,9 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         this.props.updatePageTitle();
     };
 
-    componentDidMount() {
-        this.retrieveApplication();
-    }
+    componentDidMount = () => this.retrieveApplication();
 
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
-    }
+    componentWillUnmount = () => this.state.promises.cancelPromises();
 
     onJobSchedulingParamsChange = (field, value, timeField) => {
         let { jobInfo } = this.state;
@@ -148,29 +144,19 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
             numberOfNodes: this.state.jobInfo.numberOfNodes,
             tasksPerNode: this.state.jobInfo.tasksPerNode,
             maxTime: maxTime,
-            type: "start",
+            type: "start"
             //comment: this.state.comment.slice(),
         };
-        Cloud.post("/hpc/jobs", job).then(req => {
-            if (req.request.status === 200) { // FIXME Guaranteed to be 200?
-                this.props.history.push(`/analyses/${req.response.jobId}`);
-            } else {
-                swal("And error occurred. Please try again later.");
-            }
-        });
         this.setState(() => ({ jobSubmitted: true }));
+        Cloud.post("/hpc/jobs", job).then(req => {
+            inSuccessRange(req.request.status) ?
+                this.props.history.push(`/analyses/${req.response.jobId}`) :
+                swal("And error occurred. Please try again later.")
+        }).catch(err => this.setState(() => ({ error: err.message, jobSubmitted: false })));
     }
 
-    onInputChange = (parameterName, value) => {
-        this.setState(() => {
-            let result = {
-                parameterValues: { ...this.state.parameterValues },
-            };
-
-            result.parameterValues[parameterName] = value;
-            return result;
-        });
-    }
+    onInputChange = (parameterName, value) =>
+        this.setState(() => ({ parameterValues: { ...this.state.parameterValues, [parameterName]: value } }));
 
     onCommentChange = comment => this.setState(() => ({ comment }));
 
@@ -191,7 +177,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                 appAuthor: app.authors,
                 appDescription: app.description,
                 loading: false,
-                tool,
+                tool
             }));
         }).catch(_ => this.setState(() => ({
             loading: false,
