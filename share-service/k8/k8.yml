@@ -22,15 +22,23 @@ spec:
         - /opt/service/bin/service
         - --config-dir
         - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
 
       volumes:
       - name: refresh-token
         secret:
           optional: false
-          secretName: 0ndexing-refresh-token
+          secretName: share-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+          defaultMode: 420
 
       imagePullSecrets:
         - name: esci-docker

@@ -10,7 +10,7 @@ spec:
   - host: cloud.sdu.dk
     http:
       paths:
-      - path: /api/share
+      - path: /api/shares
         backend:
           serviceName: share
           servicePort: 8080

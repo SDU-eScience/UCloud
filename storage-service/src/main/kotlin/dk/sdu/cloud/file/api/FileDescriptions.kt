@@ -516,7 +516,7 @@ object FileDescriptions : RESTDescriptions("files") {
 
     val createLink = callDescriptionWithAudit<
             CreateLinkRequest,
-            Unit,
+            StorageFile,
             CommonErrorMessage,
             SingleFileAudit<CreateLinkRequest>
             > {

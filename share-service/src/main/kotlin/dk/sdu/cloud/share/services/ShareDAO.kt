@@ -2,7 +2,6 @@ package dk.sdu.cloud.share.services
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.share.api.Share
 import dk.sdu.cloud.share.api.ShareState
@@ -59,7 +58,8 @@ interface ShareDAO<Session> {
         recipientToken: String? = null,
         state: ShareState? = null,
         rights: Set<AccessRight>? = null,
-        path: String? = null
+        path: String? = null,
+        linkId: String? = null
     ): InternalShare
 
     fun deleteShare(
@@ -75,12 +75,14 @@ interface ShareDAO<Session> {
 
     fun findAllByFileIds(
         session: Session,
-        fileIds: List<String>
-    ):  List<InternalShare>
+        fileIds: List<String>,
+        includeShares: Boolean = true,
+        includeLinks: Boolean = false
+    ): List<InternalShare>
 
-    fun deleteByFileIds(
+    fun deleteAllByShareId(
         session: Session,
-        fileIds: List<String>
+        shareIds: List<Long>
     )
 }
 

@@ -175,10 +175,11 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         ctx: Ctx,
         targetPath: String,
         linkPath: String
-    ) {
+    ): StorageEvent.CreatedOrRefreshed {
         // TODO Automatic renaming... Not a good idea
         val linkRenamedPath = findFreeNameForNewFile(ctx, linkPath)
-        fs.createSymbolicLink(ctx, targetPath, linkRenamedPath).emitAll()
+        val filesCreated = fs.createSymbolicLink(ctx, targetPath, linkRenamedPath).emitAll()
+        return filesCreated.single()
     }
 
     fun chmod(
@@ -254,10 +255,12 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
-    private fun <T : StorageEvent> FSResult<List<T>>.emitAll() {
-        unwrap().forEach { event ->
+    private fun <T : StorageEvent> FSResult<List<T>>.emitAll(): List<T> {
+        val result = unwrap()
+        result.forEach { event ->
             GlobalScope.launch { eventProducer.emit(event) } // TODO BAD IDEA
         }
+        return result
     }
 
     private fun <T> FSResult<T>.unwrap(): T {

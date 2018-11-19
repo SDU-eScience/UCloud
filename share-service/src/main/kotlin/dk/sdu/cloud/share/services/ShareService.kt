@@ -15,6 +15,7 @@ import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.CreateLinkRequest
 import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.UpdateAclRequest
@@ -39,6 +40,7 @@ import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.SharesByPath
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
 class ShareService<DBSession>(
@@ -227,7 +229,7 @@ class ShareService<DBSession>(
                 ).orThrow()
             }
 
-            linkCall.await()
+            val createdLink = linkCall.await()
             updateCall.await()
             val tokenExtension = extendCall.await().refreshToken
                 ?: throw ShareException.InternalError("bad response from token extension. refreshToken == null")
@@ -238,7 +240,8 @@ class ShareService<DBSession>(
                     auth,
                     shareId,
                     recipientToken = tokenExtension,
-                    state = ShareState.ACCEPTED
+                    state = ShareState.ACCEPTED,
+                    linkId = createdLink.fileId
                 )
             }
         }
@@ -255,30 +258,36 @@ class ShareService<DBSession>(
             shareDao.findById(dbSession, AuthRequirements(user, ShareRole.PARTICIPANT), shareId)
         }
 
+        deleteShare(existingShare)
+    }
+
+    private suspend fun deleteShare(
+        existingShare: InternalShare
+    ) {
         val ownerCloud = userCloudFactory(existingShare.ownerToken)
 
-        // Revoke permissions and remove link
-        coroutineScope {
-            val updateCall = async {
-                // This is allowed to fail under certain conditions, such as not existing.
-                FileDescriptions.updateAcl.call(
-                    UpdateAclRequest(
-                        existingShare.path,
-                        true,
-                        listOf(
-                            ACLEntryRequest(
-                                existingShare.sharedWith,
-                                emptySet(),
-                                revoke = true,
-                                isUser = true
+        if (existingShare.state == ShareState.ACCEPTED) {
+            // Revoke permissions and remove link
+            coroutineScope {
+                val updateCall = async {
+                    // This is allowed to fail under certain conditions, such as not existing.
+                    FileDescriptions.updateAcl.call(
+                        UpdateAclRequest(
+                            existingShare.path,
+                            true,
+                            listOf(
+                                ACLEntryRequest(
+                                    existingShare.sharedWith,
+                                    emptySet(),
+                                    revoke = true,
+                                    isUser = true
+                                )
                             )
-                        )
-                    ),
-                    ownerCloud
-                ).throwIfInternal()
-            }
+                        ),
+                        ownerCloud
+                    ).throwIfInternal()
+                }
 
-            if (existingShare.state == ShareState.ACCEPTED) {
                 // TODO FIXME WE DON'T KNOW WHAT THE ACTUAL LINK IS CALLED. THIS MIGHT NOT BE THE LINK!
                 val linkPath = linkToShare(existingShare.sharedWith, existingShare.path)
                 val recipientCloud = existingShare.recipientToken?.let { userCloudFactory(it) }
@@ -297,9 +306,9 @@ class ShareService<DBSession>(
 
                     deleteLinkCall.join()
                 }
-            }
 
-            updateCall.join()
+                updateCall.join()
+            }
         }
 
         // Revoke tokens
@@ -324,23 +333,79 @@ class ShareService<DBSession>(
         // Do this last to ensure that share isn't deleted before FS permissions are fixed.
         // If we want more guarantees we would some additional steps, but this will do for now.
         db.withTransaction { dbSession ->
-            shareDao.deleteShare(dbSession, AuthRequirements(user, ShareRole.PARTICIPANT), shareId)
+            shareDao.deleteShare(dbSession, AuthRequirements(null), existingShare.id)
         }
     }
 
     suspend fun handleFilesDeletedOrInvalidated(events: List<StorageEvent>) {
         if (events.isEmpty()) return
 
-        val shares = db.withTransaction { session ->
-            shareDao.findAllByFileIds(session, events.map { it.id })
+        lateinit var deletedShares: List<InternalShare>
+        lateinit var deletedLinks: List<InternalShare>
+        db.withTransaction { session ->
+            deletedShares =
+                    shareDao.findAllByFileIds(session, events.map { it.id }, includeShares = true, includeLinks = false)
+            deletedLinks =
+                    shareDao.findAllByFileIds(session, events.map { it.id }, includeShares = false, includeLinks = true)
         }
 
-        // TODO Confirm files were deleted
+        coroutineScope {
+            // TODO Performance, we could bundle these by file ID and bulk updateAcl
+            // TODO Confirm file was deleted, in this case we can skip the updateAcl call
+            val deletedShareJobs = deletedShares.map { launch { deleteShare(it) } }
+
+            // TODO Performance. This is not even slightly optimized for bulk.
+            // The DB transfers are not in a single transaction (because we can't).
+            // We cannot update multiple ACLs either.
+            val deletedLinkJobs = deletedLinks.map { launch { deleteShare(it) } }
+
+            deletedShareJobs.joinAll()
+            deletedLinkJobs.joinAll()
+        }
     }
 
     suspend fun handleFilesMoved(events: List<StorageEvent.Moved>) {
         if (events.isEmpty()) return
 
+        // We update shares first, just to be more efficient. We will retry later (due to Kafka) if updating links
+        // fail hard.
+        val shares = db.withTransaction { session ->
+            shareDao.onFilesMoved(session, events)
+        }
+
+        coroutineScope {
+            shares.mapNotNull { share ->
+                val recipientCloud = share.recipientToken?.let(userCloudFactory) ?: return@mapNotNull null
+
+                launch {
+                    val path = linkToShare(share.sharedWith, share.path)
+                    val stat = FileDescriptions.stat.call(
+                        FindByPath(path),
+                        recipientCloud
+                    ).throwIfInternal()
+
+                    val isLink = (stat as? RESTResponse.Ok)?.result?.fileType == FileType.LINK
+                    if (isLink) {
+                        FileDescriptions.deleteFile.call(
+                            DeleteFileRequest(path),
+                            recipientCloud
+                        ).throwIfInternal()
+
+                        val createdLink = FileDescriptions.createLink.call(
+                            CreateLinkRequest(
+                                linkPath = path,
+                                linkTargetPath = share.path
+                            ),
+                            recipientCloud
+                        ).orThrow()
+
+                        db.withTransaction { session ->
+                            shareDao.updateShare(session, AuthRequirements(null), share.id, linkId = createdLink.fileId)
+                        }
+                    }
+                }
+            }.joinAll()
+        }
     }
 
     private suspend fun updateFSPermissions(

@@ -30,8 +30,7 @@ fun main(args: Array<String>) {
                 basePackages = listOf(
                     "dk.sdu.cloud.file.api",
                     "dk.sdu.cloud.share.api",
-                    "dk.sdu.cloud.storage.api",
-                    "dk.sdu.cloud.upload.api"
+                    "dk.sdu.cloud.storage.api"
                 )
             )
         )

@@ -272,11 +272,11 @@ class FilesController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, req))
 
             tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                coreFs.createSymbolicLink(ctx, req.linkTargetPath, req.linkPath)
+                val created = coreFs.createSymbolicLink(ctx, req.linkTargetPath, req.linkPath)
                 audit(SingleFileAudit(coreFs.stat(ctx, req.linkPath, setOf(FileAttribute.INODE)).inode, req))
-            }
 
-            ok(Unit)
+                ok(fileLookupService.stat(ctx, created.path))
+            }
         }
 
         implement(FileDescriptions.chmod) { req ->

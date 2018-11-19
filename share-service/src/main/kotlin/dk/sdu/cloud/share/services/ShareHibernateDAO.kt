@@ -33,6 +33,7 @@ import javax.persistence.TemporalType
 import javax.persistence.UniqueConstraint
 import javax.persistence.criteria.Predicate
 
+private const val COL_LINK_FILE_ID = "link_id"
 private const val COL_FILE_ID = "file_id"
 private const val COL_SHARED_WITH = "shared_with"
 private const val COL_PATH = "path"
@@ -44,7 +45,8 @@ private const val COL_PATH = "path"
         UniqueConstraint(columnNames = [COL_SHARED_WITH, COL_PATH])
     ],
     indexes = [
-        Index(columnList = COL_FILE_ID)
+        Index(columnList = COL_FILE_ID),
+        Index(columnList = COL_LINK_FILE_ID)
     ]
 )
 data class ShareEntity(
@@ -53,7 +55,7 @@ data class ShareEntity(
     @Column(name = COL_SHARED_WITH)
     var sharedWith: String,
 
-    @Column(name = COL_PATH)
+    @Column(name = COL_PATH, length = 4096)
     var path: String,
 
     var rights: Int,
@@ -71,6 +73,9 @@ data class ShareEntity(
     var ownerToken: String,
 
     var recipientToken: String? = null,
+
+    @Column(name = COL_LINK_FILE_ID)
+    var linkId: String? = null,
 
     @Temporal(TemporalType.TIMESTAMP)
     override var createdAt: Date = Date(System.currentTimeMillis()),
@@ -222,9 +227,10 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         recipientToken: String?,
         state: ShareState?,
         rights: Set<AccessRight>?,
-        path: String?
+        path: String?,
+        linkId: String?
     ): InternalShare {
-        if (path == null && recipientToken == null && state == null && rights == null) {
+        if (path == null && recipientToken == null && state == null && rights == null && linkId == null) {
             throw ShareException.InternalError("Nothing to update")
         }
 
@@ -235,6 +241,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         if (recipientToken != null) share.recipientToken = recipientToken
         if (state != null) share.state = state
         if (rights != null) share.rights = rights.asInt()
+        if (linkId != null) share.linkId = linkId
 
         session.save(share)
         return share.toModel()
@@ -264,18 +271,32 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         return shares.map { it.toModel() }
     }
 
-    override fun findAllByFileIds(session: HibernateSession, fileIds: List<String>): List<InternalShare> {
-        return internalFindAllByFileId(session, fileIds).map { it.toModel() }
+    override fun findAllByFileIds(
+        session: HibernateSession,
+        fileIds: List<String>,
+        includeShares: Boolean,
+        includeLinks: Boolean
+    ): List<InternalShare> {
+        return internalFindAllByFileId(session, fileIds, includeShares, includeLinks).map { it.toModel() }
     }
 
-    override fun deleteByFileIds(session: HibernateSession, fileIds: List<String>) {
-        if (fileIds.size > 250) throw IllegalArgumentException("fileIds.size > 250")
-        session.deleteCriteria<ShareEntity> { entity[ShareEntity::fileId] isInCollection fileIds }.executeUpdate()
+    override fun deleteAllByShareId(session: HibernateSession, shareIds: List<Long>) {
+        session.deleteCriteria<ShareEntity> { entity[ShareEntity::id] isInCollection shareIds }.executeUpdate()
     }
 
-    private fun internalFindAllByFileId(session: HibernateSession, fileIds: List<String>): List<ShareEntity> {
+    private fun internalFindAllByFileId(
+        session: HibernateSession,
+        fileIds: List<String>,
+        includeShares: Boolean = true,
+        includeLinks: Boolean = false
+    ): List<ShareEntity> {
         if (fileIds.size > 250) throw IllegalArgumentException("fileIds.size > 250")
-        return session.criteria<ShareEntity> { entity[ShareEntity::fileId] isInCollection fileIds }.list()
+        return session.criteria<ShareEntity> {
+            allOf(*ArrayList<Predicate>().apply {
+                if (includeShares) add(entity[ShareEntity::fileId] isInCollection fileIds)
+                if (includeLinks) add(entity[ShareEntity::linkId] isInCollection fileIds)
+            }.toTypedArray())
+        }.list()
     }
 
     private fun shareById(
@@ -325,6 +346,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             fileId = fileId,
             ownerToken = ownerToken,
             recipientToken = recipientToken,
+            linkId = linkId,
             createdAt = createdAt.time,
             modifiedAt = modifiedAt.time
         )
