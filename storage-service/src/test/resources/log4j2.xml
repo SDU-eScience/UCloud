@@ -15,7 +15,7 @@
         <Logger name="org.hibernate" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="dk.sdu.cloud.file.services.cephfs.CephFSUserDao" level="info" additivity="false">
+        <Logger name="dk.sdu.cloud.file.services.unixfs.UnixFSUserDao" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
     </Loggers>

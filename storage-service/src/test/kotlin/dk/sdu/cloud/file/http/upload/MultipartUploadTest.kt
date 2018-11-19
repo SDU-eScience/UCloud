@@ -17,10 +17,10 @@ import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunner
-import dk.sdu.cloud.file.services.cephfs.CephFileSystem
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFSInRoot
 import dk.sdu.cloud.storage.util.createFS
 import dk.sdu.cloud.storage.util.withAuthMock
@@ -53,13 +53,13 @@ class MultipartUploadTest {
     }
 
     fun Application.createService(root: String) {
-        val (runner, fs) = cephFSWithRelaxedMocks(root)
+        val (runner, fs) = unixFSWithRelaxedMocks(root)
         return createService(runner, fs)
     }
 
     fun Application.createService(
-        runner: FSCommandRunnerFactory<CephFSCommandRunner>,
-        fs: LowLevelFileSystemInterface<CephFSCommandRunner>
+        runner: FSCommandRunnerFactory<UnixFSCommandRunner>,
+        fs: LowLevelFileSystemInterface<UnixFSCommandRunner>
     ) {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
@@ -83,11 +83,11 @@ class MultipartUploadTest {
         withAuthMock {
             withTestApplication(
                 moduleFunction = {
-                    val runner = mockk<FSCommandRunnerFactory<CephFSCommandRunner>>(relaxed = true)
-                    val userContext = mockk<CephFSCommandRunner>(relaxed = true)
+                    val runner = mockk<FSCommandRunnerFactory<UnixFSCommandRunner>>(relaxed = true)
+                    val userContext = mockk<UnixFSCommandRunner>(relaxed = true)
                     every { runner.invoke(any()) } returns userContext
 
-                    val fs = mockk<CephFileSystem>()
+                    val fs = mockk<UnixFileSystem>()
                     every { fs.openForWriting(any(), any(), any()) } throws FSException.PermissionException()
                     every { fs.write(any(), any()) } throws FSException.PermissionException()
 

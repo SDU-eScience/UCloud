@@ -24,12 +24,12 @@ import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.StorageUserDao
-import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunner
-import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.cephfs.CephFileSystem
-import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
-import dk.sdu.cloud.storage.util.simpleCloudToCephFSDao
+import dk.sdu.cloud.storage.util.simpleStorageUserDao
 import io.ktor.application.Application
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -47,13 +47,13 @@ import java.util.*
 data class FileControllerContext(
     val cloud: AuthenticatedCloud,
     val fsRoot: String,
-    val runner: CephFSCommandRunnerFactory,
-    val fs: CephFileSystem,
-    val coreFs: CoreFileSystemService<CephFSCommandRunner>,
-    val annotationService: FileAnnotationService<CephFSCommandRunner>,
-    val favoriteService: FavoriteService<CephFSCommandRunner>,
+    val runner: UnixFSCommandRunnerFactory,
+    val fs: UnixFileSystem,
+    val coreFs: CoreFileSystemService<UnixFSCommandRunner>,
+    val annotationService: FileAnnotationService<UnixFSCommandRunner>,
+    val favoriteService: FavoriteService<UnixFSCommandRunner>,
     val eventProducer: StorageEventProducer,
-    val lookupService: FileLookupService<CephFSCommandRunner>
+    val lookupService: FileLookupService<UnixFSCommandRunner>
 )
 
 object TestContext {
@@ -65,7 +65,7 @@ object TestContext {
 
 fun Application.configureServerWithFileController(
     fsRootInitializer: () -> File = { createDummyFS() },
-    userDao: StorageUserDao = simpleCloudToCephFSDao(),
+    userDao: StorageUserDao = simpleStorageUserDao(),
     additional: Routing.(FileControllerContext) -> Unit = {}
 ) {
     val micro = initializeMicro()
@@ -76,7 +76,7 @@ fun Application.configureServerWithFileController(
     installDefaultFeatures(micro)
 
     val fsRoot = fsRootInitializer()
-    val (runner, fs) = cephFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
+    val (runner, fs) = unixFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
     val coreFs = CoreFileSystemService(fs, eventProducer)
     val favoriteService = FavoriteService(coreFs)

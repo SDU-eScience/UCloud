@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.services.cephfs
+package dk.sdu.cloud.file.services.unixfs
 
 import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.AccessRight
@@ -13,7 +13,7 @@ private const val SHARED_WITH_UTYPE = 1
 private const val SHARED_WITH_READ = 2
 private const val SHARED_WITH_WRITE = 4
 private const val SHARED_WITH_EXECUTE = 8
-private const val TO_MILLISECONDS = 1000
+private const val SECONDS_TO_MILLISECONDS = 1000
 internal fun FileAttribute.Companion.rawParse(
     iterator: Iterator<String>,
     attributes: Set<FileAttribute>
@@ -91,9 +91,9 @@ internal fun FileAttribute.Companion.rawParse(
                 FileAttribute.GROUP -> group = currentLine
 
                 FileAttribute.TIMESTAMPS -> {
-                    val accessed = currentLine.toLong() * TO_MILLISECONDS
-                    val modified = next().toLong() * TO_MILLISECONDS
-                    val created = next().toLong() * TO_MILLISECONDS
+                    val accessed = currentLine.toLong() * SECONDS_TO_MILLISECONDS
+                    val modified = next().toLong() * SECONDS_TO_MILLISECONDS
+                    val created = next().toLong() * SECONDS_TO_MILLISECONDS
 
                     timestamps = Timestamps(accessed, created, modified)
                 }

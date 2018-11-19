@@ -3,11 +3,11 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunner
-import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -20,8 +20,8 @@ class RemoveTest {
     private fun createService(
         root: String,
         emitter: StorageEventProducer = mockk(relaxed = true)
-    ): Pair<CephFSCommandRunnerFactory, CoreFileSystemService<CephFSCommandRunner>> {
-        val (runner, fs) = cephFSWithRelaxedMocks(root)
+    ): Pair<UnixFSCommandRunnerFactory, CoreFileSystemService<UnixFSCommandRunner>> {
+        val (runner, fs) = unixFSWithRelaxedMocks(root)
         return Pair(runner, CoreFileSystemService(fs, emitter))
     }
 

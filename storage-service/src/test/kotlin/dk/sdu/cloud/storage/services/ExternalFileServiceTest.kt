@@ -7,8 +7,8 @@ import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.ExternalFileService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
-import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunner
-import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFSInRoot
 import dk.sdu.cloud.storage.util.createFS
 import dk.sdu.cloud.storage.util.mkdir
@@ -31,12 +31,12 @@ class ExternalFileServiceTest {
         val collectedEvents: MutableList<StorageEvent>
     )
 
-    fun createService(builder: File.() -> Unit = File::createDummyFSInRoot): TestContext<CephFSCommandRunner> {
+    fun createService(builder: File.() -> Unit = File::createDummyFSInRoot): TestContext<UnixFSCommandRunner> {
         return createService(createFS(builder))
     }
 
-    fun createService(root: String): TestContext<CephFSCommandRunner> {
-        val (runner, fs) = cephFSWithRelaxedMocks(root)
+    fun createService(root: String): TestContext<UnixFSCommandRunner> {
+        val (runner, fs) = unixFSWithRelaxedMocks(root)
         val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
         val eventProducer = mockk<StorageEventProducer>(relaxed = true)
         val collectedEvents = ArrayList<StorageEvent>()

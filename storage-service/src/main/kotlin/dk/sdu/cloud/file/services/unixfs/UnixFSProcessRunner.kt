@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.services.cephfs
+package dk.sdu.cloud.file.services.unixfs
 
 import dk.sdu.cloud.service.GuardedOutputStream
 import dk.sdu.cloud.file.SERVICE_USER
@@ -16,20 +16,20 @@ import kotlin.NoSuchElementException
 import kotlin.collections.ArrayList
 import kotlin.collections.set
 
-class CephFSCommandRunnerFactory(
+class UnixFSCommandRunnerFactory(
     private val userDao: StorageUserDao,
     private val isDevelopment: Boolean
-) : FSCommandRunnerFactory<CephFSCommandRunner>() {
-    override fun invoke(user: String): CephFSCommandRunner {
-        return CephFSCommandRunner(userDao, isDevelopment, user)
+) : FSCommandRunnerFactory<UnixFSCommandRunner>() {
+    override fun invoke(user: String): UnixFSCommandRunner {
+        return UnixFSCommandRunner(userDao, isDevelopment, user)
     }
 }
 
 @Suppress("unused")
 data class ProcessRunnerAttributeKey<T>(val name: String)
 
-class CephFSCommandRunner(
-    private val cephFSUserDao: StorageUserDao,
+class UnixFSCommandRunner(
+    private val userDao: StorageUserDao,
     private val isDevelopment: Boolean,
     override val user: String
 ) : CommandRunner {
@@ -45,7 +45,7 @@ class CephFSCommandRunner(
             if (user == SERVICE_USER) {
                 emptyList()
             } else {
-                val unixUser = cephFSUserDao.findStorageUser(user) ?: throw IllegalStateException("Could not find user")
+                val unixUser = userDao.findStorageUser(user) ?: throw IllegalStateException("Could not find user")
                 listOf("sudo", "-u", unixUser)
             }
         }
@@ -122,7 +122,7 @@ class CephFSCommandRunner(
         command: InterpreterCommand,
         vararg args: String,
         writer: (OutputStream) -> Unit = {},
-        consumer: (CephFSCommandRunner) -> T
+        consumer: (UnixFSCommandRunner) -> T
     ): T {
         log.debug("Running command: $command ${args.joinToString(" ")}")
 
@@ -184,7 +184,7 @@ class CephFSCommandRunner(
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(CephFSCommandRunner::class.java)
+        private val log = LoggerFactory.getLogger(UnixFSCommandRunner::class.java)
     }
 }
 

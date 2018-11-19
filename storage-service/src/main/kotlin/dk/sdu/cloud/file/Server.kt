@@ -35,9 +35,9 @@ import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.IndexingService
-import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.cephfs.CephFSUserDao
-import dk.sdu.cloud.file.services.cephfs.CephFileSystem
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.unixfs.UnixFSUserDao
+import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -66,12 +66,12 @@ class Server(
 
     override fun start() {
         log.info("Creating core services")
-        val cloudToCephFsDao = CephFSUserDao(micro.developmentModeEnabled)
+        val cloudToCephFsDao = UnixFSUserDao(micro.developmentModeEnabled)
         val processRunner =
-            CephFSCommandRunnerFactory(cloudToCephFsDao, micro.developmentModeEnabled)
+            UnixFSCommandRunnerFactory(cloudToCephFsDao, micro.developmentModeEnabled)
         val fsRoot = File(if (micro.developmentModeEnabled) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
 
-        val fs = CephFileSystem(cloudToCephFsDao, fsRoot)
+        val fs = UnixFileSystem(cloudToCephFsDao, fsRoot)
         val storageEventProducer = kafka.producer.forStream(StorageEvents.events)
         val coreFileSystem = CoreFileSystemService(fs, storageEventProducer)
 

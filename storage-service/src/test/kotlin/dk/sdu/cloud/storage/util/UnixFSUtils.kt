@@ -2,15 +2,15 @@ package dk.sdu.cloud.storage.util
 
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.services.StorageUserDao
-import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.cephfs.CephFileSystem
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import io.mockk.every
 import io.mockk.mockk
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
 
-fun simpleCloudToCephFSDao(): StorageUserDao {
+fun simpleStorageUserDao(): StorageUserDao {
     val dao = mockk<StorageUserDao>()
     every { dao.findStorageUser(any()) } answers {
         firstArg() as String
@@ -22,21 +22,21 @@ fun simpleCloudToCephFSDao(): StorageUserDao {
     return dao
 }
 
-fun cloudToCephFsDAOWithFixedAnswer(answer: String): StorageUserDao {
+fun storageUserDaoWithFixedAnswer(answer: String): StorageUserDao {
     val dao = mockk<StorageUserDao>()
     every { dao.findStorageUser(any()) } returns answer
     every { dao.findCloudUser(any()) } returns answer
     return dao
 }
 
-fun cephFSWithRelaxedMocks(
+fun unixFSWithRelaxedMocks(
     fsRoot: String,
-    userDao: StorageUserDao = simpleCloudToCephFSDao()
-): Pair<CephFSCommandRunnerFactory, CephFileSystem> {
-    val commandRunner = CephFSCommandRunnerFactory(userDao, true)
+    userDao: StorageUserDao = simpleStorageUserDao()
+): Pair<UnixFSCommandRunnerFactory, UnixFileSystem> {
+    val commandRunner = UnixFSCommandRunnerFactory(userDao, true)
     return Pair(
         commandRunner,
-        CephFileSystem(
+        UnixFileSystem(
             userDao,
             fsRoot
         )

@@ -2,9 +2,9 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.cephfs.CephFSUserDao
-import dk.sdu.cloud.file.services.cephfs.CephFileSystem
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.unixfs.UnixFSUserDao
+import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.file.services.withContext
 import org.junit.Ignore
 import org.junit.Test
@@ -13,14 +13,14 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class CephSymlinkTest {
+class UnixSymlinkTest {
     @Ignore
     @Test
     fun `test creating a symlink`() {
-        val userDao = CephFSUserDao(true)
+        val userDao = UnixFSUserDao(true)
         val fsRoot = Files.createTempDirectory("ceph-fs").toFile()
-        val cephFs = CephFileSystem(userDao, fsRoot.absolutePath)
-        val factory = CephFSCommandRunnerFactory(userDao, true)
+        val cephFs = UnixFileSystem(userDao, fsRoot.absolutePath)
+        val factory = UnixFSCommandRunnerFactory(userDao, true)
         val owner = SERVICE_USER
 
         factory.withContext(owner) { ctx ->

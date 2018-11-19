@@ -1,11 +1,10 @@
-package dk.sdu.cloud.file.services.cephfs
+package dk.sdu.cloud.file.services.unixfs
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.service.BashEscaper
 import dk.sdu.cloud.file.services.FSACLEntity
 import dk.sdu.cloud.file.services.FSResult
 import dk.sdu.cloud.file.services.FileAttribute
@@ -13,19 +12,19 @@ import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.asBitSet
+import dk.sdu.cloud.service.BashEscaper
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 
-
 private const val NOT_FOUND = -2
 
-class CephFileSystem(
+class UnixFileSystem(
     private val userDao: StorageUserDao,
     private val fsRoot: String
-) : LowLevelFileSystemInterface<CephFSCommandRunner> {
+) : LowLevelFileSystemInterface<UnixFSCommandRunner> {
     override fun copy(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         from: String,
         to: String,
         allowOverwrite: Boolean
@@ -40,7 +39,8 @@ class CephFileSystem(
             if (allowOverwrite) "1" else "0",
 
             consumer = { out ->
-                parseFileAttributes(out.stdoutLineSequence(),
+                parseFileAttributes(
+                    out.stdoutLineSequence(),
                     CREATED_OR_MODIFIED_ATTRIBUTES
                 )
                     .asFSResult { createdOrModifiedFromRow(it, ctx.user) }
@@ -49,7 +49,7 @@ class CephFileSystem(
     }
 
     override fun move(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         from: String,
         to: String,
         allowOverwrite: Boolean
@@ -77,7 +77,8 @@ class CephFileSystem(
 
                 val realTo = sequence.next().toCloudPath()
 
-                parseFileAttributes(sequence,
+                parseFileAttributes(
+                    sequence,
                     MOVED_ATTRIBUTES
                 ).asFSResult {
                     assert(it.path.startsWith(realTo))
@@ -95,7 +96,7 @@ class CephFileSystem(
     }
 
     override fun listDirectory(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         directory: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>> {
@@ -108,7 +109,7 @@ class CephFileSystem(
         )
     }
 
-    override fun delete(ctx: CephFSCommandRunner, path: String): FSResult<List<StorageEvent.Deleted>> {
+    override fun delete(ctx: UnixFSCommandRunner, path: String): FSResult<List<StorageEvent.Deleted>> {
         val timestamp = System.currentTimeMillis()
         val absolutePath = translateAndCheckFile(path)
 
@@ -116,7 +117,8 @@ class CephFileSystem(
             InterpreterCommand.DELETE,
             absolutePath,
             consumer = { out ->
-                parseFileAttributes(out.stdoutLineSequence(),
+                parseFileAttributes(
+                    out.stdoutLineSequence(),
                     DELETED_ATTRIBUTES
                 ).asFSResult {
                     StorageEvent.Deleted(
@@ -132,7 +134,7 @@ class CephFileSystem(
     }
 
     override fun openForWriting(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         path: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
@@ -151,7 +153,7 @@ class CephFileSystem(
     }
 
     override fun write(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         writer: (OutputStream) -> Unit
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
         return ctx.runCommand(
@@ -166,7 +168,7 @@ class CephFileSystem(
         )
     }
 
-    override fun tree(ctx: CephFSCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<List<FileRow>> {
+    override fun tree(ctx: UnixFSCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<List<FileRow>> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.TREE,
@@ -177,7 +179,7 @@ class CephFileSystem(
     }
 
     override fun makeDirectory(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         path: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
         val absolutePath = translateAndCheckFile(path)
@@ -193,7 +195,7 @@ class CephFileSystem(
         )
     }
 
-    override fun getExtendedAttribute(ctx: CephFSCommandRunner, path: String, attribute: String): FSResult<String> {
+    override fun getExtendedAttribute(ctx: UnixFSCommandRunner, path: String, attribute: String): FSResult<String> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.GET_XATTR,
@@ -218,7 +220,7 @@ class CephFileSystem(
     }
 
     override fun setExtendedAttribute(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         path: String,
         attribute: String,
         value: String
@@ -233,7 +235,7 @@ class CephFileSystem(
         )
     }
 
-    override fun listExtendedAttribute(ctx: CephFSCommandRunner, path: String): FSResult<List<String>> {
+    override fun listExtendedAttribute(ctx: UnixFSCommandRunner, path: String): FSResult<List<String>> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.LIST_XATTR,
@@ -250,7 +252,7 @@ class CephFileSystem(
         )
     }
 
-    override fun deleteExtendedAttribute(ctx: CephFSCommandRunner, path: String, attribute: String): FSResult<Unit> {
+    override fun deleteExtendedAttribute(ctx: UnixFSCommandRunner, path: String, attribute: String): FSResult<Unit> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.DELETE_XATTR,
@@ -259,7 +261,7 @@ class CephFileSystem(
         )
     }
 
-    override fun stat(ctx: CephFSCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<FileRow> {
+    override fun stat(ctx: UnixFSCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<FileRow> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.STAT,
@@ -273,7 +275,7 @@ class CephFileSystem(
         )
     }
 
-    override fun openForReading(ctx: CephFSCommandRunner, path: String): FSResult<Unit> {
+    override fun openForReading(ctx: UnixFSCommandRunner, path: String): FSResult<Unit> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.READ_OPEN,
@@ -282,7 +284,7 @@ class CephFileSystem(
         )
     }
 
-    override fun <R> read(ctx: CephFSCommandRunner, range: IntRange?, consumer: (InputStream) -> R): R {
+    override fun <R> read(ctx: UnixFSCommandRunner, range: IntRange?, consumer: (InputStream) -> R): R {
         val start = range?.start ?: -1
         val end = range?.endInclusive ?: -1
 
@@ -298,7 +300,7 @@ class CephFileSystem(
     }
 
     override fun createSymbolicLink(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         targetPath: String,
         linkPath: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
@@ -319,7 +321,7 @@ class CephFileSystem(
     }
 
     override fun createACLEntry(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         path: String,
         entity: FSACLEntity,
         rights: Set<AccessRight>,
@@ -358,7 +360,7 @@ class CephFileSystem(
     }
 
     override fun removeACLEntry(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         path: String,
         entity: FSACLEntity,
         defaultList: Boolean,
@@ -385,7 +387,7 @@ class CephFileSystem(
     }
 
     override fun chmod(
-        ctx: CephFSCommandRunner,
+        ctx: UnixFSCommandRunner,
         path: String,
         owner: Set<AccessRight>,
         group: Set<AccessRight>,
@@ -426,7 +428,7 @@ class CephFileSystem(
         }
     }
 
-    private fun consumeStatusCode(it: CephFSCommandRunner): FSResult<Unit> {
+    private fun consumeStatusCode(it: UnixFSCommandRunner): FSResult<Unit> {
         var statusCode: Int? = null
         val stdoutLineSequence = it.stdoutLineSequence().toList()
         for (line in stdoutLineSequence) {

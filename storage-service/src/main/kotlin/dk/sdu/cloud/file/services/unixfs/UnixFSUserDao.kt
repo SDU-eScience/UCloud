@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.services.cephfs
+package dk.sdu.cloud.file.services.unixfs
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -12,7 +12,7 @@ import java.util.Base64
 import kotlin.collections.HashMap
 import kotlin.collections.set
 
-class CephFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
+class UnixFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
     private val cloudToUser = HashMap<String, String>()
     private val userToCloud = HashMap<String, String>()
 
@@ -73,7 +73,7 @@ class CephFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
     }
 
     companion object {
-        private val log = LoggerFactory.getLogger(CephFSUserDao::class.java)
+        private val log = LoggerFactory.getLogger(UnixFSUserDao::class.java)
 
         // We use a non-standard file-name and URL safe base64 encoding with '.' as the padding
         // character as opposed to '='. This makes the encoding Unix username safe
