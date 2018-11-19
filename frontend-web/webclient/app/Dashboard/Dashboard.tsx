@@ -20,6 +20,7 @@ import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import { CardGroup } from "ui-components/Card";
 import { TextSpan } from "ui-components/Text";
+import { EveryIcon } from "ui-components/Icon";
 
 
 class Dashboard extends React.Component<DashboardProps> {
@@ -152,7 +153,7 @@ const DashboardNotifications = ({ notifications }: { notifications: Notification
         <Box px={3} py={1}>
             {notifications.length === 0 ? <h3><small>No notifications</small></h3> : null}
             <List>
-                {notifications.slice(0, 5).map((n, i) =>
+                {notifications.slice(0, 7).map((n, i) =>
                     <Flex key={i}>
                         <NotificationEntry notification={n} />
                     </Flex>
