@@ -79,7 +79,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
     return (
-        <SideBarContainer color="darkGray" bg="lightGray" width={["auto", "190px"]}>
+        <SideBarContainer color="darkGray" bg="lightGray" width={190}>
             {sidebar.map((it, iteration) =>
                 <React.Fragment key={iteration}>
                     {it.items.map(({ icon, label, to }: { icon: IconName, label: string, to: string }) => (
