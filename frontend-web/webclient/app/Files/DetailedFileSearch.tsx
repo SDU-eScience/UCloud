@@ -111,7 +111,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 onChange={({ target: { value } }) => this.props.setFilename(value)}
                             />
                             <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
-                            {/* FIXME ADD ERROR */}
                             <InputGroup>
                                 <DatePicker
                                     popperPlacement="left"
