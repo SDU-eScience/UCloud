@@ -1,9 +1,11 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
-import dk.sdu.cloud.storage.util.FSException
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunner
+import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
 import io.mockk.mockk

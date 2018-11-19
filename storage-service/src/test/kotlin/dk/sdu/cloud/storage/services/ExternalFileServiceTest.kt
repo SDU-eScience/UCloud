@@ -3,7 +3,11 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
+import dk.sdu.cloud.file.services.CommandRunner
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.ExternalFileService
+import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.cephfs.CephFSCommandRunner
 import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFSInRoot
 import dk.sdu.cloud.storage.util.createFS
