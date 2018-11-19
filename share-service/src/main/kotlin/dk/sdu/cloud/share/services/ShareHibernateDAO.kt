@@ -2,6 +2,7 @@ package dk.sdu.cloud.share.services
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.asEnumSet
 import dk.sdu.cloud.service.asInt
@@ -18,7 +19,6 @@ import dk.sdu.cloud.service.db.deleteCriteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedList
 import dk.sdu.cloud.share.api.ShareState
-import java.io.File
 import java.util.*
 import javax.persistence.Column
 import javax.persistence.Entity
@@ -58,6 +58,9 @@ data class ShareEntity(
     @Column(name = COL_PATH, length = 4096)
     var path: String,
 
+    @Column(length = 4096)
+    var filename: String,
+
     var rights: Int,
 
     @Enumerated(EnumType.ORDINAL)
@@ -83,9 +86,6 @@ data class ShareEntity(
     @Temporal(TemporalType.TIMESTAMP)
     override var modifiedAt: Date = Date(System.currentTimeMillis())
 ) : WithTimestamps {
-    val filename: String
-        get() = File(path).name
-
     companion object : HibernateEntity<ShareEntity>, WithId<Long>
 }
 
@@ -117,6 +117,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
                 owner = owner,
                 sharedWith = sharedWith,
                 path = path,
+                filename = path.fileName(),
                 state = ShareState.REQUEST_SENT,
                 rights = initialRights.asInt(),
                 fileId = fileId,
@@ -237,6 +238,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         val share = shareById(session, auth, shareId)
         if (path != null) {
             share.path = path
+            share.filename = path.fileName()
         }
         if (recipientToken != null) share.recipientToken = recipientToken
         if (state != null) share.state = state
@@ -264,6 +266,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             shares.forEach { share ->
                 val event = eventsByFileId[share.fileId] ?: return@forEach
                 share.path = event.path
+                share.filename = event.path.fileName()
                 session.save(share)
             }
         }

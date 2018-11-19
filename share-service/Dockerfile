@@ -62,3 +62,4 @@ RUN apk add --no-cache openjdk8-jre
 COPY --from=build-production-ready /opt/service/ /opt/service/
 
 CMD ["/opt/service/bin/service"]
+

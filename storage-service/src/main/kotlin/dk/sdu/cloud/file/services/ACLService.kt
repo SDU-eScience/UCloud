@@ -27,8 +27,8 @@ class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterfac
         }
 
         // Add to both the default and the actual list. This needs to be recursively applied
-        fs.createACLEntry(ctx, path, entity, rights, defaultList = true, recursive = recursive).unwrap()
-        fs.createACLEntry(ctx, path, entity, rights, defaultList = false, recursive = recursive).unwrap()
+        fs.createACLEntry(ctx, path, entity, rights, defaultList = true, recursive = recursive).setfaclUnwrap()
+        fs.createACLEntry(ctx, path, entity, rights, defaultList = false, recursive = recursive).setfaclUnwrap()
     }
 
     fun revokeRights(
@@ -37,7 +37,15 @@ class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterfac
         entity: FSACLEntity,
         recursive: Boolean = true
     ) {
-        fs.removeACLEntry(ctx, path, entity, defaultList = true, recursive = recursive).unwrap()
-        fs.removeACLEntry(ctx, path, entity, defaultList = false, recursive = recursive).unwrap()
+        fs.removeACLEntry(ctx, path, entity, defaultList = true, recursive = recursive).setfaclUnwrap()
+        fs.removeACLEntry(ctx, path, entity, defaultList = false, recursive = recursive).setfaclUnwrap()
+    }
+
+    private fun <T> FSResult<T>.setfaclUnwrap(): T {
+        if (statusCode == 256) {
+            throw FSException.NotFound()
+        }
+
+        return unwrap()
     }
 }

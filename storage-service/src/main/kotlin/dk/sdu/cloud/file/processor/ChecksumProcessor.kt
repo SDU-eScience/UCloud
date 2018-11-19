@@ -17,7 +17,7 @@ import java.math.BigInteger
 import java.security.MessageDigest
 
 private const val BUFFER_SIZE = 4096 * 1024
-private const val HEX_INTEGER = 16
+private const val BASE_HEX = 16
 
 class ChecksumProcessor<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
@@ -112,7 +112,7 @@ class ChecksumProcessor<Ctx : FSUserContext>(
 
         private fun ByteArray.toHexString(): String {
             val bi = BigInteger(1, this)
-            val hex = bi.toString(HEX_INTEGER)
+            val hex = bi.toString(BASE_HEX)
             val paddingLength = this.size * 2 - hex.length
             return if (paddingLength > 0) {
                 String.format("%0" + paddingLength + "d", 0) + hex

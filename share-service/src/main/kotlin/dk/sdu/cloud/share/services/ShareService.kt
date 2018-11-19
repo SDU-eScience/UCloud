@@ -22,6 +22,8 @@ import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.indexing.api.LookupDescriptions
+import dk.sdu.cloud.indexing.api.ReverseLookupRequest
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
@@ -144,7 +146,14 @@ class ShareService<DBSession>(
         state: ShareState? = null,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
     ): Page<SharesByPath> {
-        val page = db.withTransaction { shareDao.list(it, AuthRequirements(user), state = state, paging = paging) }
+        val page = db.withTransaction {
+            shareDao.list(
+                it,
+                AuthRequirements(user, ShareRole.PARTICIPANT),
+                state = state,
+                paging = paging
+            )
+        }
 
         return Page(
             page.groupCount,
@@ -222,7 +231,7 @@ class ShareService<DBSession>(
             val linkCall = async {
                 FileDescriptions.createLink.call(
                     CreateLinkRequest(
-                        linkPath = linkToShare(user, existingShare.path),
+                        linkPath = defaultLinkToShare(existingShare),
                         linkTargetPath = existingShare.path
                     ),
                     userCloud
@@ -247,8 +256,8 @@ class ShareService<DBSession>(
         }
     }
 
-    private fun linkToShare(user: String, sharePath: String) =
-        joinPath(homeDirectory(user), sharePath.fileName())
+    private fun defaultLinkToShare(share: InternalShare) =
+        joinPath(homeDirectory(share.sharedWith), share.path.fileName())
 
     suspend fun deleteShare(
         user: String,
@@ -264,6 +273,7 @@ class ShareService<DBSession>(
     private suspend fun deleteShare(
         existingShare: InternalShare
     ) {
+        log.debug("Deleting share $existingShare")
         val ownerCloud = userCloudFactory(existingShare.ownerToken)
 
         if (existingShare.state == ShareState.ACCEPTED) {
@@ -288,23 +298,26 @@ class ShareService<DBSession>(
                     ).throwIfInternal()
                 }
 
-                // TODO FIXME WE DON'T KNOW WHAT THE ACTUAL LINK IS CALLED. THIS MIGHT NOT BE THE LINK!
-                val linkPath = linkToShare(existingShare.sharedWith, existingShare.path)
-                val recipientCloud = existingShare.recipientToken?.let { userCloudFactory(it) }
-                    ?: throw ShareException.InternalError("recipient token not yet established when deleting share")
+                val linkPath = findShareLink(existingShare)
+                if (linkPath != null) {
+                    log.debug("linkPath found $linkPath")
+                    val recipientCloud = existingShare.recipientToken?.let { userCloudFactory(it) }
+                        ?: throw ShareException.InternalError("recipient token not yet established when deleting share")
 
-                val stat = FileDescriptions.stat.call(FindByPath(linkPath), recipientCloud).orThrow()
-                if (stat.link) {
-                    val deleteLinkCall =
-                        launch {
-                            // We choose not to throw if the call fails
-                            FileDescriptions.deleteFile.call(
-                                DeleteFileRequest(linkPath),
-                                recipientCloud
-                            )
-                        }
+                    val stat = FileDescriptions.stat.call(FindByPath(linkPath), recipientCloud).throwIfInternal()
+                    if ((stat as? RESTResponse.Ok)?.result?.link == true) {
+                        log.debug("Found link!")
+                        val deleteLinkCall =
+                            launch {
+                                // We choose not to throw if the call fails
+                                FileDescriptions.deleteFile.call(
+                                    DeleteFileRequest(linkPath),
+                                    recipientCloud
+                                )
+                            }
 
-                    deleteLinkCall.join()
+                        deleteLinkCall.join()
+                    }
                 }
 
                 updateCall.join()
@@ -335,18 +348,18 @@ class ShareService<DBSession>(
         db.withTransaction { dbSession ->
             shareDao.deleteShare(dbSession, AuthRequirements(null), existingShare.id)
         }
+
+        log.debug("Share deleted $existingShare")
     }
 
     suspend fun handleFilesDeletedOrInvalidated(events: List<StorageEvent>) {
         if (events.isEmpty()) return
+        log.debug("Handling deleted or invalidated events $events")
 
         lateinit var deletedShares: List<InternalShare>
-        lateinit var deletedLinks: List<InternalShare>
         db.withTransaction { session ->
             deletedShares =
                     shareDao.findAllByFileIds(session, events.map { it.id }, includeShares = true, includeLinks = false)
-            deletedLinks =
-                    shareDao.findAllByFileIds(session, events.map { it.id }, includeShares = false, includeLinks = true)
         }
 
         coroutineScope {
@@ -357,15 +370,14 @@ class ShareService<DBSession>(
             // TODO Performance. This is not even slightly optimized for bulk.
             // The DB transfers are not in a single transaction (because we can't).
             // We cannot update multiple ACLs either.
-            val deletedLinkJobs = deletedLinks.map { launch { deleteShare(it) } }
 
             deletedShareJobs.joinAll()
-            deletedLinkJobs.joinAll()
         }
     }
 
     suspend fun handleFilesMoved(events: List<StorageEvent.Moved>) {
         if (events.isEmpty()) return
+        log.debug("Handling moved events: $events")
 
         // We update shares first, just to be more efficient. We will retry later (due to Kafka) if updating links
         // fail hard.
@@ -378,34 +390,43 @@ class ShareService<DBSession>(
                 val recipientCloud = share.recipientToken?.let(userCloudFactory) ?: return@mapNotNull null
 
                 launch {
-                    val path = linkToShare(share.sharedWith, share.path)
-                    val stat = FileDescriptions.stat.call(
-                        FindByPath(path),
-                        recipientCloud
-                    ).throwIfInternal()
+                    log.debug("Handling moved event for share: $share")
 
-                    val isLink = (stat as? RESTResponse.Ok)?.result?.fileType == FileType.LINK
-                    if (isLink) {
-                        FileDescriptions.deleteFile.call(
-                            DeleteFileRequest(path),
+                    val path = findShareLink(share)
+                    if (path != null) {
+                        log.debug("Share path is $path")
+                        val stat = FileDescriptions.stat.call(
+                            FindByPath(path),
                             recipientCloud
                         ).throwIfInternal()
 
-                        val createdLink = FileDescriptions.createLink.call(
-                            CreateLinkRequest(
-                                linkPath = path,
-                                linkTargetPath = share.path
-                            ),
-                            recipientCloud
-                        ).orThrow()
-
-                        db.withTransaction { session ->
-                            shareDao.updateShare(session, AuthRequirements(null), share.id, linkId = createdLink.fileId)
+                        val isLink = (stat as? RESTResponse.Ok)?.result?.fileType == FileType.LINK
+                        log.debug("Found link? $isLink")
+                        if (isLink) {
+                            FileDescriptions.deleteFile.call(
+                                DeleteFileRequest(path),
+                                recipientCloud
+                            ).throwIfInternal()
+                            log.debug("File deleted")
                         }
                     }
+
+                    log.debug("Creating link for $share")
+                    val createdLink = FileDescriptions.createLink.call(
+                        CreateLinkRequest(
+                            linkPath = defaultLinkToShare(share),
+                            linkTargetPath = share.path
+                        ),
+                        recipientCloud
+                    ).orThrow()
+
+                    db.withTransaction { session ->
+                        shareDao.updateShare(session, AuthRequirements(null), share.id, linkId = createdLink.fileId)
+                    }
+                    log.debug("$share updated from moved event")
                 }
-            }.joinAll()
-        }
+            }
+        }.joinAll()
     }
 
     private suspend fun updateFSPermissions(
@@ -426,6 +447,18 @@ class ShareService<DBSession>(
                 )
             ), userCloud
         )
+    }
+
+    private suspend fun findShareLink(
+        existingShare: InternalShare
+    ): String? {
+        val linkId = existingShare.linkId ?: return null
+        val result = LookupDescriptions.reverseLookup.call(
+            ReverseLookupRequest(linkId),
+            serviceCloud
+        ) as? RESTResponse.Ok ?: return null
+
+        return result.result.canonicalPath.firstOrNull()
     }
 
     companion object : Loggable {

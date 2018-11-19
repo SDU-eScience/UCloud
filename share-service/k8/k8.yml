@@ -17,18 +17,22 @@ spec:
     spec:
       containers:
       - name: share-service
-        image: registry.cloud.sdu.dk/sdu-cloud/share-service:0.1.0
+        image: registry.cloud.sdu.dk/sdu-cloud/share-service:0.1.1
         command:
         - /opt/service/bin/service
         - --config-dir
         - /etc/refresh-token
         - --config-dir
         - /etc/token-validation
+        - --config-dir
+        - /etc/psql
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
         - mountPath: /etc/token-validation
           name: token-validation
+        - mountPath: /etc/psql
+          name: share-psql
 
       volumes:
       - name: refresh-token
@@ -39,6 +43,10 @@ spec:
         configMap:
           name: token-validation
           defaultMode: 420
+      - name: share-psql
+        secret:
+          optional: false
+          secretName: share-psql
 
       imagePullSecrets:
         - name: esci-docker
