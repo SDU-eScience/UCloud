@@ -66,7 +66,7 @@
     "styled-components": "^4.1.1",
     "styled-system": "^3.1.11",
     "svgi": "^1.1.0",
-    "sweetalert2": "7.29.0"
+    "sweetalert2": "7.29.1"
   },
   "devDependencies": {
     "@babel/core": "^7.1.6",

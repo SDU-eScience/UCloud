@@ -29,7 +29,12 @@ class Search extends React.Component<SearchProps> {
 
     componentDidMount() {
         this.props.toggleAdvancedSearch();
-        if (!this.props.match.params[0]) { this.props.setError("No search text provided."); return };
+        if (!this.props.match.params[0]) { this.props.setError("No search text provided."); }
+        else {
+            this.props.setSearch(this.props.match.params[0]);
+            this.props.setPrioritizedSearch(this.props.match.params.priority as HeaderSearchType);
+            this.fetchAll(this.props.match.params[0]);
+        }
     }
 
     get fileSearchBody(): AdvancedSearchRequest {
@@ -48,7 +53,7 @@ class Search extends React.Component<SearchProps> {
         };
 
         return {
-            fileName: fileSearch.fileName,
+            fileName: !!fileSearch.fileName ? fileSearch.fileName : this.props.match.params[0],
             extensions: [...fileSearch.extensions],
             fileTypes,
             createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
@@ -67,6 +72,7 @@ class Search extends React.Component<SearchProps> {
         }
         if (nextProps.match.params.priority !== this.props.match.params.priority) {
             this.props.setPrioritizedSearch(nextProps.match.params.priority as HeaderSearchType);
+            this.fetchAll(nextProps.match.params[0]);
         }
         return true;
     }
