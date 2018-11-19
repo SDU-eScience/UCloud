@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link } from "ui-components";
+import { Link, Image } from "ui-components";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import {
@@ -20,7 +20,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { CardGroup, Card, PlayIcon } from "ui-components/Card";
-import { Relative, BackgroundImage, Box, Absolute, Text, Icon, Divider, Button } from "ui-components";
+import { Relative, Box, Absolute, Text, Icon, Divider } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
@@ -30,7 +30,8 @@ import DetailedApplicationSearch from "./DetailedApplicationSearch";
 const COLORS_KEYS = Object.keys(MaterialColors);
 
 // We need dynamic import due to nature of the import
-const blurOverlay = require("Assets/Images/circuitboard-bg.png");
+const curcuitBoard = require("Assets/Images/circuitboard-bg.png");
+const blurOverlay = require("Assets/Images/blur-overlay2.png");
 
 class Applications extends React.Component<ApplicationsProps> {
 
@@ -109,42 +110,46 @@ interface ApplicationCardProps {
 export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCardProps) => (
     <Card height={212} width={252}>
         <Relative>
-            <BackgroundImage
-                height="138px"
-                color={hexFromAppName(app.description.title)}
-                image={blurOverlay}
-            >
-                <Box p={4}>
-                    <Absolute top="6px" left="10px">
-                        <Text fontSize={2} align="left" color="grey">
-                            {app.description.title}
-                        </Text>
-                    </Absolute>
-                    <Absolute top={"26px"} left={"14px"}>
-                        <Text fontSize={"xxs-small"} align="left" color="grey">
-                            v {app.description.info.version}
-                        </Text>
-                    </Absolute>
-                    <Absolute top="10px" left="215px">
-                        <Icon
-                            onClick={() => !!favoriteApp ? favoriteApp(app.description.info.name, app.description.info.version) : undefined}
-                            cursor="pointer"
-                            color="red"
-                            name={isFavorite ? "starFilled" : "starEmpty"}
-                        />
-                    </Absolute>
-                    <Absolute top="112px" left="10px">
-                        <EllipsedText width={180} title={`by ${app.description.authors.join(", ")}`} color="grey">
-                            by {app.description.authors.join(", ")}
-                        </EllipsedText>
-                    </Absolute>
-                    <Absolute top="86px" left="200px">
-                        <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
-                            <PlayIcon />
-                        </Link>
-                    </Absolute>
+            <Box>
+                <Box style={{ background: hexFromAppName(app.description.title) }}>
+                    <Image
+                        src={curcuitBoard}
+                        style={{ opacity: 0.4 }}
+                    />
                 </Box>
-            </BackgroundImage>
+                <Absolute top="6px" left="10px">
+                    <Text
+                        fontSize={2}
+                        align="left"
+                        color="white"
+                    >
+                        {app.description.title}
+                    </Text>
+                </Absolute>
+                <Absolute top={"26px"} left={"14px"}>
+                    <Text fontSize={"xxs-small"} align="left" color="white">
+                        v {app.description.info.version}
+                    </Text>
+                </Absolute>
+                <Absolute top="10px" left="215px">
+                    <Icon
+                        onClick={() => !!favoriteApp ? favoriteApp(app.description.info.name, app.description.info.version) : undefined}
+                        cursor="pointer"
+                        color="red"
+                        name={isFavorite ? "starFilled" : "starEmpty"}
+                    />
+                </Absolute>
+                <Absolute top="112px" left="10px">
+                    <EllipsedText width={180} title={`by ${app.description.authors.join(", ")}`} color="white">
+                        by {app.description.authors.join(", ")}
+                    </EllipsedText>
+                </Absolute>
+                <Absolute top="86px" left="200px">
+                    <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
+                        <PlayIcon />
+                    </Link>
+                </Absolute>
+            </Box>
         </Relative>
         <Relative>
             <Absolute left="14px" top="6px">
@@ -156,54 +161,11 @@ export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCar
     </Card >
 );
 
-
-
-/* interface SingleApplicationProps { app: Application, favoriteApp?: (app: Application) => void }
-export function SingleApplication({ app, favoriteApp }: SingleApplicationProps) {
-    const hex = hexFromAppName(app.description.info.name);
-    const even = app.modifiedAt % 2 === 0;
-    const { description } = app.description;
-    const image = even ? blurOverlay : `https://placekitten.com/200/200`;
-    const imageStyle = {
-        opacity: even ? 0.3 : 1,
-        backgroundImage: `url('${image}')`
-    };
-    return (
-        <SCard>
-            <div style={{ background: hex }}>
-                <Link to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}>
-                    <div className="app-image" style={imageStyle} />
-                </Link>
-            </div>
-            <SCard.Content>
-                <SList horizontal floated="right">
-                    {!!favoriteApp ? <SList.Item>
-                        <SRating icon={"star"} maxRating={1} rating={app.favorite ? 1 : 0} onClick={() => !!favoriteApp ? favoriteApp(app) : null} />
-                    </SList.Item> : null}
-                    <SList.Item>
-                        <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
-                            <Icon color="green" name="play" />
-                        </Link>
-                    </SList.Item>
-                </SList>
-                <SCard.Header
-                    as={Link}
-                    to={`/appDetails/${app.description.info.name}/${app.description.info.version}/`}
-                    content={app.description.title}
-                />
-                <SCard.Meta content={app.description.info.version} />
-            </SCard.Content>
-            <SCard.Content extra>
-                {description.length > 72 ? `${description.slice(0, 72)}...` : description}
-            </SCard.Content>
-        </SCard>
-    );
-} */
-
 function hexFromAppName(name: string): string {
     const hashCode = toHashCode(name);
     const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
     const mClength = MaterialColors[color].length;
+    console.warn(MaterialColors[color][(hashCode % mClength)]);
     return MaterialColors[color][(hashCode % mClength)];
 }
 

@@ -39,7 +39,7 @@ class Dashboard extends React.Component<DashboardProps> {
     render() {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
             analysesLoading, errors } = this.props;
-        favoriteFiles.forEach((f: File) => f.favorited = true);
+        favoriteFiles.forEach(f => f.favorited = true);
         const favoriteOrUnfavorite = (file: File) => {
             favoriteFile(file, Cloud);
             this.props.receiveFavorites(favoriteFiles.filter((f: File) => f.favorited));
