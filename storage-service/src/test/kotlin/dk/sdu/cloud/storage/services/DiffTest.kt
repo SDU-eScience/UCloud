@@ -9,12 +9,20 @@ import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.service.test.assertCollectionHasItem
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
-import dk.sdu.cloud.storage.SERVICE_USER
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
-import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
-import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.cloudToCephFsDAOWithFixedAnswer
+import dk.sdu.cloud.file.SERVICE_USER
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.FSUserContext
+import dk.sdu.cloud.file.services.FileRow
+import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.storage.util.storageUserDaoWithFixedAnswer
 import dk.sdu.cloud.storage.util.createFS
 import dk.sdu.cloud.storage.util.inode
 import dk.sdu.cloud.storage.util.mkdir
@@ -64,17 +72,17 @@ class DiffTest {
     }
 
     private fun ctx(
-        consumer: TestingContext<CephFSCommandRunner>.() -> Unit = {},
+        consumer: TestingContext<UnixFSCommandRunner>.() -> Unit = {},
         builder: File.() -> Unit
-    ): TestingContext<CephFSCommandRunner> {
-        val userDao = cloudToCephFsDAOWithFixedAnswer(FILE_OWNER)
+    ): TestingContext<UnixFSCommandRunner> {
+        val userDao = storageUserDaoWithFixedAnswer(FILE_OWNER)
         val root = File(createFS(builder))
-        val cephFs = CephFileSystem(userDao, root.absolutePath)
+        val cephFs = UnixFileSystem(userDao, root.absolutePath)
 
         val eventProducer = mockk<StorageEventProducer>(relaxed = true)
         val coreFs = CoreFileSystemService(cephFs, eventProducer)
 
-        val commandRunnerFactory = CephFSCommandRunnerFactory(userDao, true)
+        val commandRunnerFactory = UnixFSCommandRunnerFactory(userDao, true)
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
 
         return TestingContext(

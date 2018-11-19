@@ -17,8 +17,8 @@ class RefreshingJWTCloudFeature : MicroFeature {
         val cloudContext = ctx.cloudContext
         val refreshToken = ctx.configuration.requestChunkAt<String>("refreshToken")
 
-        val tokenValidation = ctx.tokenValidation as? TokenValidationJWT ?:
-            throw IllegalStateException("Token validation needs to use JWTs!")
+        val tokenValidation = ctx.tokenValidation as? TokenValidationJWT
+            ?: throw IllegalStateException("Token validation needs to use JWTs!")
 
         val authenticatedCloud = RefreshingJWTAuthenticatedCloud(cloudContext, refreshToken, tokenValidation)
         cloudFeature.addAuthenticatedCloud(100, authenticatedCloud)

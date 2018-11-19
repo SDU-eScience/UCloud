@@ -1,7 +1,6 @@
 package dk.sdu.cloud.auth.http
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
@@ -21,7 +20,6 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.error
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.ok
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.service.toSecurityToken
@@ -42,8 +40,6 @@ import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.routing.Route
-import io.ktor.routing.get
-import io.ktor.util.escapeHTML
 import kotlinx.html.ButtonType
 import kotlinx.html.FORM
 import kotlinx.html.FlowContent
@@ -64,14 +60,13 @@ import kotlinx.html.img
 import kotlinx.html.input
 import kotlinx.html.link
 import kotlinx.html.meta
-import kotlinx.html.p
-import kotlinx.html.script
 import kotlinx.html.title
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
 import java.time.ZonedDateTime
+import kotlin.collections.set
 
 class CoreAuthController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -321,8 +316,12 @@ class CoreAuthController<DBSession>(
 
         implement(AuthDescriptions.tokenExtension) { req ->
             val auditMessage = TokenExtensionAudit(
-                call.securityPrincipal.username, null, null, req.requestedScopes,
-                req.expiresIn
+                requestedBy = call.securityPrincipal.username,
+                username = null,
+                role = null,
+                requestedScopes = req.requestedScopes,
+                expiresIn = req.expiresIn,
+                allowRefreshes = req.allowRefreshes
             )
 
             audit(auditMessage)
@@ -334,7 +333,15 @@ class CoreAuthController<DBSession>(
 
             audit(auditMessage.copy(username = token.principal.username, role = token.principal.role))
 
-            ok(tokenService.extendToken(token, req.expiresIn, req.requestedScopes, call.securityPrincipal.username))
+            ok(
+                tokenService.extendToken(
+                    token,
+                    req.expiresIn,
+                    req.requestedScopes,
+                    call.securityPrincipal.username,
+                    req.allowRefreshes
+                )
+            )
         }
 
         implement(AuthDescriptions.requestOneTimeTokenWithAudience) { req ->
@@ -363,7 +370,6 @@ class CoreAuthController<DBSession>(
             }
         }
 
-        // TODO This stuff won't work with cookie based auth
         implement(AuthDescriptions.logout) {
             okContentDeliveredExternally()
 

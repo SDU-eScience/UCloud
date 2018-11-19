@@ -36,7 +36,8 @@ fun Saml2Settings.validateOrThrow(): Saml2Settings {
 // For the most part this just copy & pastes the solution and replaces servlet parts with ktor equivalents
 // TODO The paramsMap is a hack. We can only call receive once, this is why we need it.
 class SamlRequestProcessor(
-    private val settings: Saml2Settings, private val call: ApplicationCall,
+    private val settings: Saml2Settings,
+    private val call: ApplicationCall,
     private val paramsMap: Parameters? = null
 ) {
     /**

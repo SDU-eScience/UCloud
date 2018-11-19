@@ -1,17 +1,19 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.processor.ChecksumProcessor
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
-import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
+import dk.sdu.cloud.file.processor.ChecksumProcessor
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
 import io.mockk.mockk
 import org.junit.Assert
 import org.junit.Test
 
 class ChecksumTest {
-    private fun createService(root: String): Pair<CephFSCommandRunnerFactory, ChecksumProcessor<CephFSCommandRunner>> {
-        val (runner, fs) = cephFSWithRelaxedMocks(root)
+    private fun createService(root: String): Pair<UnixFSCommandRunnerFactory, ChecksumProcessor<UnixFSCommandRunner>> {
+        val (runner, fs) = unixFSWithRelaxedMocks(root)
         val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
         return Pair(runner, ChecksumProcessor(runner, fs, coreFs))
     }

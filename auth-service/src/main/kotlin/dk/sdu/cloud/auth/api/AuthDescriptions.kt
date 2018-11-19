@@ -6,7 +6,6 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.client.MultipartRequest
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
@@ -51,21 +50,29 @@ data class TokenExtensionRequest(
      *
      * It is not possible to extend this deadline. Currently the maximum deadline is configured to be 24 hours.
      */
-    val expiresIn: Long
+    val expiresIn: Long,
+
+    /**
+     * Should this extension allow the token to be refreshed?
+     *
+     * This will happen through a refresh token passed via [OptionalAuthenticationTokens.refreshToken].
+     */
+    val allowRefreshes: Boolean = false
 )
 
-typealias TokenExtensionResponse = AccessToken
+typealias TokenExtensionResponse = OptionalAuthenticationTokens
 
 data class TokenExtensionAudit(
     val requestedBy: String,
     val username: String?,
     val role: Role?,
     val requestedScopes: List<String>,
-    val expiresIn: Long
+    val expiresIn: Long,
+    val allowRefreshes: Boolean
 )
 
 object AuthDescriptions : RESTDescriptions("auth") {
-    private const val baseContext = "/auth"
+    const val baseContext = "/auth"
 
     val refresh = callDescription<Unit, AccessToken, Unit> {
         method = HttpMethod.Post

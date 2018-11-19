@@ -56,7 +56,7 @@ class RefreshingJWTAuthenticator(
                     prepared.call(refreshAuthenticator)
                 }
 
-                log.info("Refresh token result: $result")
+                log.info("Refresh token result: ${result.status}")
                 if (result is RESTResponse.Ok) {
                     currentAccessToken = result.result.accessToken
                     return currentAccessToken

@@ -8,10 +8,10 @@ import org.hibernate.tool.hbm2ddl.SchemaExport
 import org.hibernate.tool.schema.TargetType
 import java.io.Serializable
 import java.nio.file.Files
-import java.util.EnumSet
-import java.util.Date
+import java.util.*
 import javax.persistence.PreUpdate
 import javax.persistence.criteria.CriteriaBuilder
+import javax.persistence.criteria.CriteriaDelete
 import javax.persistence.criteria.CriteriaQuery
 import javax.persistence.criteria.Expression
 import javax.persistence.criteria.Order
@@ -81,11 +81,9 @@ operator fun <X, Y> Path<X>.get(prop: KProperty1<X, Y>): Path<Y> {
     return get<Y>(prop.name)
 }
 
-class CriteriaBuilderContext<R, T>(
-    val builder: CriteriaBuilder,
-    val criteria: CriteriaQuery<R>,
-    val entity: Root<T>
-) {
+abstract class CriteriaBuilderGeneralContext {
+    abstract val builder: CriteriaBuilder
+
     infix fun <E> Expression<E>.equal(value: E): Predicate {
         return builder.equal(this, value)
     }
@@ -271,13 +269,6 @@ class CriteriaBuilderContext<R, T>(
         return builder.literal(value)
     }
 
-    inline fun <reified E> nullLiteral(): Expression<E> {
-        return builder.nullLiteral(E::class.java)
-    }
-
-    inline fun <reified E> parameter(name: String): ParameterExpression<E> {
-        return builder.parameter(E::class.java, name)
-    }
 
     fun <E : Collection<*>> isEmpty(expression: Expression<E>): Predicate {
         return builder.isEmpty(expression)
@@ -345,6 +336,14 @@ class CriteriaBuilderContext<R, T>(
 
     fun Expression<Boolean>.toPredicate() = builder.isTrue(this)
 
+    inline fun <reified E> nullLiteral(): Expression<E> {
+        return builder.nullLiteral(E::class.java)
+    }
+
+    inline fun <reified E> parameter(name: String): ParameterExpression<E> {
+        return builder.parameter(E::class.java, name)
+    }
+
     companion object {
         @PublishedApi
         internal fun isNumberType(other: Class<*>): Boolean {
@@ -353,11 +352,36 @@ class CriteriaBuilderContext<R, T>(
     }
 }
 
+class CriteriaBuilderContext<R, T>(
+    override val builder: CriteriaBuilder,
+    val criteria: CriteriaQuery<R>,
+    val entity: Root<T>
+) : CriteriaBuilderGeneralContext()
+
+class DeleteCriteriaBuilderContext<R>(
+    override val builder: CriteriaBuilder,
+    val criteria: CriteriaDelete<R>,
+    val entity: Root<R>
+) : CriteriaBuilderGeneralContext()
+
+inline fun <reified Root> Session.createCriteriaDelete(): DeleteCriteriaBuilderContext<Root> {
+    val criteriaBuilder = criteriaBuilder
+    val criteria = criteriaBuilder.createCriteriaDelete(Root::class.java)
+    val root = criteria.from(Root::class.java)
+    return DeleteCriteriaBuilderContext(criteriaBuilder, criteria, root)
+}
+
 inline fun <reified Result, reified Root> Session.createCriteriaBuilder(): CriteriaBuilderContext<Result, Root> {
     val criteriaBuilder = criteriaBuilder
     val criteria = criteriaBuilder.createQuery(Result::class.java)
     val root = criteria.from(Root::class.java)
     return CriteriaBuilderContext<Result, Root>(criteriaBuilder, criteria, root)
+}
+
+inline fun <reified T> Session.deleteCriteria(
+    noinline predicate: DeleteCriteriaBuilderContext<T>.() -> Predicate
+): Query<*> {
+    return createCriteriaDelete<T>().run { criteria.where(predicate()) }.createQuery(this)
 }
 
 // The "noinline"s are working around what seems to be a kotlin bug. For some reason it fails inlining for the
@@ -412,6 +436,10 @@ inline fun <reified T> Session.countWithPredicate(
 }
 
 fun <T> CriteriaQuery<T>.createQuery(session: Session): Query<T> {
+    return session.createQuery(this)
+}
+
+fun <T> CriteriaDelete<T>.createQuery(session: Session): Query<*> {
     return session.createQuery(this)
 }
 

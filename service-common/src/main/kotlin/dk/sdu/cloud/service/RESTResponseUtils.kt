@@ -47,6 +47,35 @@ fun <T> RESTResponse<T, *>.orThrow(): T {
     return result
 }
 
+fun <T, E> RESTResponse<T, E>.orRethrowAs(rethrow: (RESTResponse.Err<T, E>) -> Nothing): T {
+    when (this) {
+        is RESTResponse.Ok -> {
+            return result
+        }
+
+        is RESTResponse.Err -> {
+            rethrow(this)
+        }
+    }
+}
+
+fun <T, E> RESTResponse<T, E>.throwIfInternal(): RESTResponse<T, E> {
+    if (status in 500..599) throw RPCException(rawResponseBody, HttpStatusCode.fromValue(status))
+    return this
+}
+
+fun <T, E> RESTResponse<T, E>.throwIfInternalOrBadRequest(): RESTResponse<T, E> {
+    if (status in 500..599 || status == 400) throw RPCException(rawResponseBody, HttpStatusCode.InternalServerError)
+    return this
+}
+
+fun <T> RESTResponse<T, *>.orNull(): T? {
+    if (this !is RESTResponse.Ok) {
+        return null
+    }
+    return result
+}
+
 fun AuthenticatedCloud.optionallyCausedBy(causedBy: String?): AuthenticatedCloud {
     return if (causedBy != null) withCausedBy(causedBy)
     else this

@@ -1,10 +1,13 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
-import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
+import dk.sdu.cloud.file.services.BulkUploadService
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import io.mockk.mockk
 import junit.framework.Assert.*
 import org.junit.Test
@@ -62,8 +65,8 @@ class BulkUploadTest {
         }
     }
 
-    private fun createService(root: String): Pair<CephFSCommandRunnerFactory, BulkUploadService<CephFSCommandRunner>> {
-        val (runner, fs) = cephFSWithRelaxedMocks(root)
+    private fun createService(root: String): Pair<UnixFSCommandRunnerFactory, BulkUploadService<UnixFSCommandRunner>> {
+        val (runner, fs) = unixFSWithRelaxedMocks(root)
         val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
         return Pair(runner, BulkUploadService(coreFs))
     }

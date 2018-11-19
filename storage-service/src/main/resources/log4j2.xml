@@ -39,5 +39,8 @@
         <Logger name="com.zaxxer.hikari" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
+        <Logger name="dk.sdu.cloud.service.KafkaEventConsumer" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
     </Loggers>
 </Configuration>

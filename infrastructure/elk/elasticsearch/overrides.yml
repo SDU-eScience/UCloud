@@ -13,10 +13,10 @@ data:
   persistence:
     storageClass: rbd
     size: 50Gi
-  heapSize: 4096m
+  heapSize: 16384m
   resources:
     limits:
-      cpu: "4000m"
+      cpu: "8000m"
     requests:
       cpu: "1000m"
 

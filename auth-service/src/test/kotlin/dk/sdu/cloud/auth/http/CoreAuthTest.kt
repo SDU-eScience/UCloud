@@ -27,7 +27,6 @@ import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TokenValidationMock
-import dk.sdu.cloud.service.test.createTokenForService
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.service.toSecurityToken
 import dk.sdu.cloud.service.tokenValidation
@@ -80,8 +79,8 @@ class CoreAuthTest {
             refreshTokenDao,
             jwtFactory,
             mockk(relaxed = true),
-            serviceExtensionPolicy,
-            validation
+            validation,
+            serviceExtensionPolicy
         )
 
         val controllers = listOf(

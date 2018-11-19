@@ -1,8 +1,11 @@
 package dk.sdu.cloud.storage.services
 
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
-import dk.sdu.cloud.storage.util.cephFSWithRelaxedMocks
+import dk.sdu.cloud.file.services.BulkDownloadService
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -42,8 +45,8 @@ class BulkDownloadTest {
     }
 
     private fun createService(root: String):
-            Pair<CephFSCommandRunnerFactory, BulkDownloadService<CephFSCommandRunner>> {
-        val (runner, fs) = cephFSWithRelaxedMocks(root)
+            Pair<UnixFSCommandRunnerFactory, BulkDownloadService<UnixFSCommandRunner>> {
+        val (runner, fs) = unixFSWithRelaxedMocks(root)
         val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
 
         return Pair(runner, BulkDownloadService(coreFs))

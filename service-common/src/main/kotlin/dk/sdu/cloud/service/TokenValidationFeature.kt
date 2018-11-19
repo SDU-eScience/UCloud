@@ -9,7 +9,7 @@ class TokenValidationFeature : MicroFeature {
 
         val config = ctx.configuration.requestChunkAt<TokenValidationConfig>("tokenValidation")
 
-        val validator: TokenValidation<*> = when {
+        @Suppress("UNCHECKED_CAST") val validator = when {
             config.jwt != null -> createJWTValidator(config.jwt)
 
             else -> {
@@ -18,10 +18,9 @@ class TokenValidationFeature : MicroFeature {
                             "validation strategy"
                 )
             }
-        }
+        } as TokenValidation<Any>
 
-        @Suppress("UNCHECKED_CAST")
-        ctx.tokenValidation = validator as TokenValidation<Any>
+        ctx.tokenValidation = validator
     }
 
     private fun createJWTValidator(config: JWTTokenValidationConfig): TokenValidation<DecodedJWT> {
@@ -43,7 +42,7 @@ class TokenValidationFeature : MicroFeature {
 var Micro.tokenValidation: TokenValidation<Any>
     get() = attributes[TokenValidationFeature.tokenValidationKey]
     private set (value) {
-       attributes[TokenValidationFeature.tokenValidationKey] = value
+        attributes[TokenValidationFeature.tokenValidationKey] = value
     }
 
 internal data class TokenValidationConfig(
@@ -54,3 +53,4 @@ internal data class JWTTokenValidationConfig(
     val publicCertificate: String?,
     val sharedSecret: String?
 )
+

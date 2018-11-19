@@ -1,18 +1,16 @@
 package dk.sdu.cloud.service
 
-import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
-import org.slf4j.LoggerFactory
 import kotlin.coroutines.suspendCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
-import kotlin.math.min
 
 private const val MAX_INDEX = 100
 
 class EventProducer<in K, in V>(
-    private val producer: KafkaProducer<String, String>,
+    private val producer: Producer<String, String>,
     private val description: StreamDescription<K, V>
 ) {
     val topicName: String get() = description.name
@@ -34,7 +32,7 @@ class EventProducer<in K, in V>(
 }
 
 class MappedEventProducer<in K, in V>(
-    producer: KafkaProducer<String, String>,
+    producer: Producer<String, String>,
     private val description: MappedStreamDescription<K, V>
 ) {
     private val delegate = EventProducer(producer, description)
@@ -45,9 +43,9 @@ class MappedEventProducer<in K, in V>(
     }
 }
 
-fun <K, V> KafkaProducer<String, String>.forStream(description: StreamDescription<K, V>): EventProducer<K, V> =
+fun <K, V> Producer<String, String>.forStream(description: StreamDescription<K, V>): EventProducer<K, V> =
     EventProducer(this, description)
 
-fun <K, V> KafkaProducer<String, String>.forStream(
+fun <K, V> Producer<String, String>.forStream(
     description: MappedStreamDescription<K, V>
 ): MappedEventProducer<K, V> = MappedEventProducer(this, description)
