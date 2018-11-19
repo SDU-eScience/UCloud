@@ -12,7 +12,6 @@ import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.service.db.countWithPredicate
 import dk.sdu.cloud.service.db.createCriteriaBuilder
-import dk.sdu.cloud.service.db.createCriteriaDelete
 import dk.sdu.cloud.service.db.createQuery
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.deleteCriteria
@@ -20,7 +19,6 @@ import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedList
 import dk.sdu.cloud.share.api.ShareState
 import java.io.File
-import java.lang.IllegalArgumentException
 import java.util.*
 import javax.persistence.Column
 import javax.persistence.Entity
@@ -28,12 +26,14 @@ import javax.persistence.EnumType
 import javax.persistence.Enumerated
 import javax.persistence.GeneratedValue
 import javax.persistence.Id
+import javax.persistence.Index
 import javax.persistence.Table
 import javax.persistence.Temporal
 import javax.persistence.TemporalType
 import javax.persistence.UniqueConstraint
 import javax.persistence.criteria.Predicate
 
+private const val COL_FILE_ID = "file_id"
 private const val COL_SHARED_WITH = "shared_with"
 private const val COL_PATH = "path"
 
@@ -42,6 +42,9 @@ private const val COL_PATH = "path"
     name = "shares",
     uniqueConstraints = [
         UniqueConstraint(columnNames = [COL_SHARED_WITH, COL_PATH])
+    ],
+    indexes = [
+        Index(columnList = COL_FILE_ID)
     ]
 )
 data class ShareEntity(
@@ -58,6 +61,7 @@ data class ShareEntity(
     @Enumerated(EnumType.ORDINAL)
     var state: ShareState,
 
+    @Column(name = COL_FILE_ID)
     var fileId: String,
 
     @Id
@@ -265,6 +269,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
     }
 
     override fun deleteByFileIds(session: HibernateSession, fileIds: List<String>) {
+        if (fileIds.size > 250) throw IllegalArgumentException("fileIds.size > 250")
         session.deleteCriteria<ShareEntity> { entity[ShareEntity::fileId] isInCollection fileIds }.executeUpdate()
     }
 
