@@ -129,6 +129,7 @@ export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCar
                         <Icon
                             onClick={() => !!favoriteApp ? favoriteApp(app.description.info.name, app.description.info.version) : undefined}
                             cursor="pointer"
+                            color="red"
                             name={isFavorite ? "starFilled" : "starEmpty"}
                         />
                     </Absolute>

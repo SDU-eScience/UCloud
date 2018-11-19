@@ -151,9 +151,9 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     }
 }
 
-export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy) => {
+export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortBy): ("arrowUp" | "arrowDown" | undefined) => {
     if (sortBy === name) {
-        return sortOrder === SortOrder.DESCENDING ? "chevron down" : "chevron up";
+        return sortOrder === SortOrder.DESCENDING ? "arrowDown" : "arrowUp";
     };
     return undefined;
 };

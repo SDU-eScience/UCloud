@@ -11,7 +11,7 @@ import { KeyCode, ReduxObject } from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
-import { FileIcon, RefreshButton, Chevron } from "UtilityComponents";
+import { FileIcon, RefreshButton, Arrow } from "UtilityComponents";
 import {
     FilesProps, SortBy, SortOrder, FilesStateProps, FilesOperations, File, FilesTableHeaderProps, FilenameAndIconsProps,
     FileOptionsProps, FilesTableProps, SortByDropdownProps, FileOperation, ContextButtonsProps, Operation, ContextBarProps,
@@ -29,6 +29,7 @@ import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } f
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import DetailedFileSearch from "./DetailedFileSearch";
+import { TextSpan } from "ui-components/Text";
 
 class Files extends React.Component<FilesProps> {
 
@@ -229,8 +230,11 @@ export const FilesTable = ({
 
 const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder }: ResponsiveTableColumnProps) => (
     <TableHeaderCell width="17.5%" xs sm md textAlign="left">
-        <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
-        <Chevron name={iconName} />
+        <Flex>
+            <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
+            <Box ml="auto" />
+            <Arrow name={iconName} />
+        </Flex>
     </TableHeaderCell>
 );
 
@@ -249,7 +253,7 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
                         Filename
                     </Box>
                     <Box ml="auto" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)} />
-                    <Chevron name={toSortingIcon(SortBy.PATH)} />
+                    <Arrow name={toSortingIcon(SortBy.PATH)} />
                 </Flex>
             </TableHeaderCell>
             {sortingColumns.map((sC, i) => (
@@ -272,17 +276,29 @@ const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => n
 );
 
 const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isSortedBy }: SortByDropdownProps) => asDropdown ? (
-    <Dropdown>
-        {UF.prettierString(currentSelection)}
-        <DropdownContent cursor="pointer">
-            <Box ml="-16px" mr="-16px" pl="15px" onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)} /* disabled={sortOrder === SortOrder.ASCENDING && isSortedBy} */>{UF.prettierString(SortOrder.ASCENDING)}</Box>
-            <Box ml="-16px" mr="-16px" pl="15px" onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)} /* disabled={sortOrder === SortOrder.DESCENDING && isSortedBy} */>{UF.prettierString(SortOrder.DESCENDING)}</Box>
-            <Divider ml="-16px" mr="-16px" />
-            {Object.keys(SortBy).filter(it => it !== currentSelection).map((sortByKey: SortBy, i) => (
-                <Box ml="-16px" mr="-16px" pl="15px" key={i} onClick={() => onSelect(sortOrder, sortByKey)}>{UF.prettierString(sortByKey)}</Box>
-            ))}
-        </DropdownContent>
-    </Dropdown>) : <>{UF.prettierString(currentSelection)}</>;
+    <ClickableDropdown trigger={<TextSpan>{UF.prettierString(currentSelection)}</TextSpan>} chevron>
+        <Box ml="-16px" mr="-16px" pl="15px"
+            hidden={sortOrder === SortOrder.ASCENDING && isSortedBy}
+            onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)}
+        >
+            {UF.prettierString(SortOrder.ASCENDING)}
+        </Box>
+        <Box ml="-16px" mr="-16px" pl="15px"
+            onClick={() => onSelect(SortOrder.DESCENDING, currentSelection)}
+            hidden={sortOrder === SortOrder.DESCENDING && isSortedBy}
+        >
+            {UF.prettierString(SortOrder.DESCENDING)}
+        </Box>
+        <Divider ml="-16px" mr="-16px" />
+        {Object.keys(SortBy).map((sortByKey: SortBy, i) => (
+            <Box ml="-16px" mr="-16px" pl="15px" key={i}
+                onClick={() => onSelect(sortOrder, sortByKey)}
+                hidden={sortByKey === currentSelection || sortByKey === SortBy.PATH}
+            >
+                {UF.prettierString(sortByKey)}
+            </Box>
+        ))}
+    </ClickableDropdown>) : <>{UF.prettierString(currentSelection)}</>;
 
 const ContextBar = ({ files, ...props }: ContextBarProps) => (
     <Box mt="65px">

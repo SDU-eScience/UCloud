@@ -16,9 +16,9 @@ export const FileIcon = ({ name, size, shared = false, link = false, color }: Fi
         </SIcon.Group> :
         <SIcon name={name} size={size} color={color} />
 
-export function Chevron({ name }) {
-    if (name === "chevron down") return (<Icon rotation={0} name="chevronDown" />);
-    else if (name === "chevron up") return (<Icon rotation={180} name="chevronDown" />);
+export function Arrow({ name }: { name: "arrowUp" | "arrowDown" | undefined}) {
+    if (name === "arrowUp") return (<Icon name="arrowUp" />);
+    else if (name === "arrowDown") return (<Icon name="arrowDown" />);
     return null;
 }
 

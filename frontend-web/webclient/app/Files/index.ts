@@ -130,7 +130,7 @@ export interface FilesTableProps {
     sortingColumns: [SortBy, SortBy]
     files: File[]
     masterCheckbox?: React.ReactNode
-    sortingIcon?: (name: SortBy) => SemanticICONS | undefined
+    sortingIcon?: (name: SortBy) => "arrowUp" | "arrowDown" | undefined
     sortFiles: (sortOrder: SortOrder, sortBy: SortBy) => void
     onRenameFile?: (key: number, file: File, name: string) => void
     onCreateFolder?: (key: number, name: string) => void
@@ -148,7 +148,7 @@ export interface CreateFolderProps {
 }
 
 export interface FilesTableHeaderProps {
-    toSortingIcon?: (s: SortBy) => SemanticICONS | undefined
+    toSortingIcon?: (s: SortBy) => "arrowUp" | "arrowDown" | undefined
     sortFiles?: (sortOrder: SortOrder, sortBy: SortBy) => void
     sortOrder: SortOrder
     sortBy: SortBy
@@ -283,7 +283,7 @@ export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalid
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 
-export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: string, minWidth?: number }
+export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: "arrowUp" | "arrowDown", minWidth?: number }
 
 export interface FileInfoProps {
     page: Page<File>

@@ -277,7 +277,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     onReject(share: Share) {
         this.setState({ isLoading: true });
 
-        this.state.promises.makeCancelable(rejectShare(share.id))
+        this.state.promises.makeCancelable(revokeShare(share.id))
             .promise
             .then(it => { this.maybeInvoke(share, this.props.onRejected); this.setState(() => ({ isLoading: false })) })
             .catch(e => { this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError); this.setState(() => ({ isLoading: false })) });
@@ -348,10 +348,6 @@ function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState
 
 function acceptShare(shareId: ShareId): Promise<any> {
     return Cloud.post(`/shares/accept/${shareId}`).then(e => e.response); // FIXME Add error handling
-}
-
-function rejectShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/reject/${shareId}`).then(e => e.response); // FIXME Add error handling
 }
 
 function revokeShare(shareId: ShareId): Promise<any> {

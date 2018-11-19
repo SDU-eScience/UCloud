@@ -49,6 +49,7 @@ const Text = styled("div") <TextProps>`
   ${bold}
   ${italic}
 `;
+
 export const div = Text;
 export const TextSpan = Text.withComponent("span");
 export const TextP = Text.withComponent("p");
