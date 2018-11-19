@@ -15,6 +15,8 @@ import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.indexing.api.LookupDescriptions
+import dk.sdu.cloud.indexing.api.ReverseLookupResponse
 import dk.sdu.cloud.notification.api.FindByNotificationId
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.HibernateFeature
@@ -137,7 +139,14 @@ class ShareServiceTest {
             OptionalAuthenticationTokens(TokenValidationMock.createTokenForPrincipal(owner), "csrf", "refresh")
         ),
 
-        val createLinkResult: TestCallResult<Unit, CommonErrorMessage> = TestCallResult.Ok(Unit),
+        val createLinkResult: TestCallResult<StorageFile, CommonErrorMessage> = TestCallResult.Ok(
+            StorageFile(
+                FileType.DIRECTORY,
+                path = joinPath(homeDirectory(recipient.username), "to_share"),
+                link = true,
+                ownerName = recipient.username
+            )
+        ),
 
         val updateAclResult: TestCallResult<Unit, CommonErrorMessage> = TestCallResult.Ok(Unit)
     )
@@ -183,6 +192,10 @@ class ShareServiceTest {
             StorageFile(FileType.FILE, sharePath, ownerName = owner.username, link = true)
         ),
 
+        val linkLookup: TestCallResult<ReverseLookupResponse, CommonErrorMessage> = TestCallResult.Ok(
+            ReverseLookupResponse(listOf(joinPath(homeDirectory(recipient.username), "to_share")))
+        ),
+
         val deleteFileResult: TestCallResult<LongRunningResponse<Unit>, CommonErrorMessage> = TestCallResult.Ok(
             LongRunningResponse.Result(Unit)
         )
@@ -205,6 +218,12 @@ class ShareServiceTest {
             FileDescriptions,
             { FileDescriptions.stat },
             { linkStatResult }
+        )
+
+        CloudMock.mockCall(
+            LookupDescriptions,
+            { LookupDescriptions.reverseLookup },
+            { linkLookup }
         )
 
         CloudMock.mockCallSuccess(
