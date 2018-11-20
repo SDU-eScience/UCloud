@@ -13,7 +13,7 @@ import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
 import org.hibernate.annotations.Type
-import java.util.Date
+import java.util.*
 import javax.persistence.Entity
 import javax.persistence.GeneratedValue
 import javax.persistence.Id
@@ -64,6 +64,8 @@ interface NotificationDAO<Session> {
      * notification doesn't exist
      */
     fun markAsRead(session: Session, user: String, id: NotificationId): Boolean
+
+    fun markAllAsRead(session: Session, user: String)
 }
 
 @Entity
@@ -144,5 +146,11 @@ class NotificationHibernateDAO : NotificationDAO<HibernateSession> {
         entity.read = true
         session.update(entity)
         return true
+    }
+
+    override fun markAllAsRead(session: HibernateSession, user: String) {
+        session.createQuery("update NotificationEntity e set e.read = true where e.owner = :owner")
+            .setParameter("owner", user)
+            .executeUpdate()
     }
 }

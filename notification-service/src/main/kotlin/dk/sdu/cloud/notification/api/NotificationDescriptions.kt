@@ -20,6 +20,14 @@ data class ListNotificationRequest(
 
 data class CreateNotification(val user: String, val notification: Notification)
 
+data class MarkAsReadRequest(
+    val bulkId: FindByNotificationIdBulk
+)
+
+data class DeleteNotificationRequest(
+    val bulkId: FindByNotificationIdBulk
+)
+
 object NotificationDescriptions : RESTDescriptions("notifications") {
     const val baseContext = "/api/notifications"
 
@@ -43,7 +51,7 @@ object NotificationDescriptions : RESTDescriptions("notifications") {
         }
     }
 
-    val markAsRead = callDescription<FindByNotificationId, Unit, CommonErrorMessage> {
+    val markAsRead = callDescription<MarkAsReadRequest, Unit, CommonErrorMessage> {
         name = "markAsRead"
         method = HttpMethod.Post
 
@@ -54,7 +62,22 @@ object NotificationDescriptions : RESTDescriptions("notifications") {
         path {
             using(baseContext)
             +"read"
-            +boundTo(FindByNotificationId::id)
+            +boundTo(MarkAsReadRequest::bulkId)
+        }
+    }
+
+    val markAllAsRead = callDescription<Unit, Unit, CommonErrorMessage> {
+        name = "markAllAsRead"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"read"
+            +"all"
         }
     }
 
@@ -76,7 +99,7 @@ object NotificationDescriptions : RESTDescriptions("notifications") {
         }
     }
 
-    val delete = callDescription<FindByNotificationId, Unit, CommonErrorMessage> {
+    val delete = callDescription<DeleteNotificationRequest, Unit, CommonErrorMessage> {
         name = "delete"
         method = HttpMethod.Delete
 
@@ -87,7 +110,7 @@ object NotificationDescriptions : RESTDescriptions("notifications") {
 
         path {
             using(baseContext)
-            +boundTo(FindByNotificationId::id)
+            +boundTo(DeleteNotificationRequest::bulkId)
         }
     }
 }
