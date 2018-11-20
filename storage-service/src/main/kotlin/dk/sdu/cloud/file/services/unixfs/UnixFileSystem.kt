@@ -9,10 +9,15 @@ import dk.sdu.cloud.file.services.FSACLEntity
 import dk.sdu.cloud.file.services.FSResult
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
+import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.asBitSet
+import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.service.BashEscaper
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -23,6 +28,9 @@ class UnixFileSystem(
     private val userDao: StorageUserDao,
     private val fsRoot: String
 ) : LowLevelFileSystemInterface<UnixFSCommandRunner> {
+    // TODO This attribute probably needs to live somewhere else
+    private val attributesToCopy = listOf(FileSensitivityService.SENSITIVITY_ATTRIBUTE)
+
     override fun copy(
         ctx: UnixFSCommandRunner,
         from: String,
@@ -32,7 +40,7 @@ class UnixFileSystem(
         val fromPath = translateAndCheckFile(from)
         val toPath = translateAndCheckFile(to)
 
-        return ctx.runCommand(
+        val result = ctx.runCommand(
             InterpreterCommand.COPY,
             fromPath,
             toPath,
@@ -46,6 +54,22 @@ class UnixFileSystem(
                     .asFSResult { createdOrModifiedFromRow(it, ctx.user) }
             }
         )
+
+        if (result.statusCode == 0) {
+            attributesToCopy.forEach { attr ->
+                try {
+                    val value = getExtendedAttribute(ctx, from, attr).unwrap()
+                    setExtendedAttribute(ctx, to, attr, value).unwrap()
+                } catch (ex: Exception) {
+                    if (ex !is FSException.NotFound) {
+                        log.info("Exception caught while copying attribute: $attr")
+                        log.info(ex.stackTraceToString())
+                    }
+                }
+            }
+        }
+
+        return result
     }
 
     override fun move(
@@ -538,7 +562,8 @@ class UnixFileSystem(
         )
     }
 
-    companion object {
+    companion object : Loggable {
+        override val log = logger()
         const val PATH_MAX = 1024
 
         private const val EXIT = "EXIT:"
