@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
@@ -122,6 +123,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         path: String
     ) {
         fs.makeDirectory(ctx, path).emitAll()
+
     }
 
     fun move(

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
 import java.io.InputStream
 import java.io.OutputStream

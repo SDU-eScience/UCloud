@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.services.unixfs
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize

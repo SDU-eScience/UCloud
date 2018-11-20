@@ -9,13 +9,6 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.RESTHandler
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
-import dk.sdu.cloud.service.securityToken
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.file.services.ACLService
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSACLEntity
@@ -29,6 +22,13 @@ import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.util.CallResult
 import dk.sdu.cloud.file.util.tryWithFS
 import dk.sdu.cloud.file.util.tryWithFSAndTimeout
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.RESTHandler
+import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.service.securityToken
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
@@ -135,18 +135,21 @@ class FilesController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.createDirectory) { req ->
-
             if (call.securityPrincipal.role in Roles.PRIVILEDGED && req.owner != null) {
-                log.debug("Authenticated as a privileged account. Using direct strategy")
                 tryWithFSAndTimeout(commandRunnerFactory, req.owner) {
                     coreFs.makeDirectory(it, req.path)
+                    sensitivityService.setSensitivityLevel(it, req.path, req.sensitivity, null)
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
             } else {
-                log.debug("Authenticated as a normal user. Using Jargon strategy")
-
                 tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
                     coreFs.makeDirectory(it, req.path)
+                    sensitivityService.setSensitivityLevel(
+                        it,
+                        req.path,
+                        req.sensitivity,
+                        call.securityPrincipal.username
+                    )
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
             }
