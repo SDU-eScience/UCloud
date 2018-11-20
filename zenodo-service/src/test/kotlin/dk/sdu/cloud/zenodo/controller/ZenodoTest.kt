@@ -44,7 +44,7 @@ fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.
 }
 
 private fun configureZenodoServer(
-    zenodoRpcService: ZenodoRPCService = ZenodoRPCService(mockk(relaxed = true)),
+    zenodoRpcService: ZenodoRPCService = ZenodoRPCService(true, mockk(relaxed = true)),
     publicationService: PublicationService<*> = mockk(relaxed = true),
     eventEmitter: MappedEventProducer<String, ZenodoPublishCommand> = mockk(
         relaxed = true

@@ -48,7 +48,7 @@ class ZenodoRPCTest {
         """.trimIndent()
 
     private val oauth = mockk<ZenodoOAuth<Unit>>()
-    private val zenodo = ZenodoRPCService(oauth)
+    private val zenodo = ZenodoRPCService(true, oauth)
     private val decodedJWT = mockk<DecodedJWT>(relaxed = true).also {
         every { it.subject } returns "user"
     }
@@ -74,7 +74,6 @@ class ZenodoRPCTest {
     fun `validate Token test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.get(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns 200
@@ -95,7 +94,6 @@ class ZenodoRPCTest {
     fun `validate Token - timeout - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.get(any(), any()) } answers {
             throw TimeoutException()
         }
@@ -106,7 +104,6 @@ class ZenodoRPCTest {
     fun `validate Token - Unauthorized -  test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.get(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns HttpStatusCode.Unauthorized.value
@@ -119,7 +116,6 @@ class ZenodoRPCTest {
     fun `validate Token - Forbidden -  test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.get(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns HttpStatusCode.Forbidden.value
@@ -132,7 +128,6 @@ class ZenodoRPCTest {
     fun `validate Token - Internal Server Error 500 -  test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.get(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns 500
@@ -145,7 +140,6 @@ class ZenodoRPCTest {
     fun `validate Token - unknown response status -  test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.get(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns 300
@@ -158,7 +152,6 @@ class ZenodoRPCTest {
     fun `create Deposition test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns 200
@@ -181,7 +174,6 @@ class ZenodoRPCTest {
     fun `create Deposition - timeout - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             throw TimeoutException()
         }
@@ -192,7 +184,6 @@ class ZenodoRPCTest {
     fun `create Deposition - Unauthorized - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns HttpStatusCode.Unauthorized.value
@@ -205,7 +196,6 @@ class ZenodoRPCTest {
     fun `create Deposition - Forbidden - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns HttpStatusCode.Forbidden.value
@@ -218,7 +208,6 @@ class ZenodoRPCTest {
     fun `create Deposition - Internal error 500 - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns 500
@@ -231,7 +220,6 @@ class ZenodoRPCTest {
     fun `create Deposition - Unknown response status - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns 300
@@ -244,7 +232,6 @@ class ZenodoRPCTest {
     fun `create upload test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns 200
@@ -280,7 +267,6 @@ class ZenodoRPCTest {
     fun `create upload - Timeout - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             throw TimeoutException()
         }
@@ -298,7 +284,6 @@ class ZenodoRPCTest {
     fun `create upload - Unauthorized - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns HttpStatusCode.Unauthorized.value
@@ -318,7 +303,6 @@ class ZenodoRPCTest {
     fun `create upload - Forbidden - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns HttpStatusCode.Forbidden.value
@@ -338,7 +322,6 @@ class ZenodoRPCTest {
     fun `create upload - Internal Server Error 500 - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns 500
@@ -359,7 +342,6 @@ class ZenodoRPCTest {
     fun `create upload - Unknown response status - test`() {
         mockkObject((HttpClient))
         coEvery { oauth.retrieveTokenOrRefresh(any()) } returns oToken
-        every { oauth.baseUrl } returns "baseURL"
         coEvery { HttpClient.post(any(), any()) } answers {
             val response = mockk<Response>()
             every { response.statusCode } returns 300

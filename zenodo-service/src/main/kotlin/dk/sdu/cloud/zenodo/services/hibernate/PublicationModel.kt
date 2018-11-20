@@ -6,6 +6,7 @@ import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.zenodo.api.ZenodoPublicationStatus
 import dk.sdu.cloud.zenodo.api.ZenodoPublicationWithFiles
 import dk.sdu.cloud.zenodo.api.ZenodoUpload
+import dk.sdu.cloud.zenodo.services.zenodoBaseUrl
 import java.io.Serializable
 import java.util.Date
 import javax.persistence.Embeddable
@@ -71,11 +72,11 @@ internal class PublicationEntity(
         WithId<Long>
 }
 
-internal fun PublicationEntity.toModel(): ZenodoPublicationWithFiles = ZenodoPublicationWithFiles(
+internal fun PublicationEntity.toModel(useSandbox: Boolean): ZenodoPublicationWithFiles = ZenodoPublicationWithFiles(
     id,
     name,
     status,
-    zenodoId?.let { "https://sandbox.zenodo.org/deposit/$it" }, // TODO Hardcoded string
+    zenodoId?.let { "${zenodoBaseUrl(useSandbox)}/deposit/$it" },
     createdAt.time,
     modifiedAt.time,
     dataObjects.map { it.toModel() }

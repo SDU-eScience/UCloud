@@ -50,17 +50,15 @@ class Server(
             clientSecret = config.zenodo.clientSecret,
             clientId = config.zenodo.clientId,
 
-            // TODO FIX THIS
-            callback = if (config.production) "https://cloud.sdu.dk/zenodo/oauth"
-            else "http://localhost:42250/zenodo/oauth",
+            callback = "https://cloud.sdu.dk/zenodo/oauth",
 
             stateStore = ZenodoOAuthHibernateStateStore(),
 
-            useSandbox = true // TODO FIX THIS
+            useSandbox = config.zenodo.useSandbox
         )
 
-        val zenodo = ZenodoRPCService(zenodoOauth)
-        val publicationService = PublicationHibernateDAO()
+        val zenodo = ZenodoRPCService(config.zenodo.useSandbox, zenodoOauth)
+        val publicationService = PublicationHibernateDAO(config.zenodo.useSandbox)
         log.info("Core services configured")
 
         kStreams = buildStreams { kBuilder ->
