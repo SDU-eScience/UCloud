@@ -214,7 +214,7 @@ class MultipartRequest<Request : Any> private constructor() {
             throw capturedException
         }
 
-        if (partsSeen != requiredProperties) {
+        if (!partsSeen.containsAll(requiredProperties)) {
             log.debug("We expected to see $requiredProperties but we only saw $partsSeen")
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
