@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.10.1-SNAPSHOT'
+version '0.10.3-SNAPSHOT'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
@@ -28,6 +28,6 @@ dependencies {
 sduCloud.createTasksForApiJar(
         "app",
         [
-                "dk.sdu.cloud:file-api:0.12.2-SNAPSHOT"
+                "dk.sdu.cloud:file-api:0.13.1-SNAPSHOT"
         ]
 )

@@ -188,13 +188,14 @@ class JobOrchestrator<DBSession>(
         jobId: String,
         securityPrincipal: SecurityPrincipal,
         filePath: String,
+        length: Long,
         data: InputStream
     ) {
         withJobExceptionHandler(jobId) {
             val jobWithToken = findJobForId(jobId)
             computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
 
-            jobFileService.acceptFile(jobWithToken, filePath, data)
+            jobFileService.acceptFile(jobWithToken, filePath, length, data)
         }
     }
 

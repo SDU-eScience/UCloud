@@ -37,6 +37,7 @@ class JobFileService(
         jobWithToken: VerifiedJobWithAccessToken,
 
         filePath: String,
+        length: Long,
         fileData: InputStream
     ) {
         log.debug("Accepting file at $filePath for ${jobWithToken.job.id}")
@@ -63,7 +64,7 @@ class JobFileService(
                     sensitivity = SensitivityLevel.CONFIDENTIAL,
                     upload = StreamingFile(
                         contentType = ContentType.defaultForFilePath(filePath),
-                        length = null,
+                        length = length,
                         fileName = destPath.name,
                         payload = fileData
                     )

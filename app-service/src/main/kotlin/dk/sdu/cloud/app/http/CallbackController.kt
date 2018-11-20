@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.services.JobOrchestrator
@@ -17,15 +18,21 @@ class CallbackController<DBSession>(
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputationCallbackDescriptions.submitFile) { multipart ->
             multipart.receiveBlocks { req ->
-                jobOrchestrator.handleIncomingFile(
-                    req.jobId,
-                    call.securityPrincipal,
-                    req.filePath,
-                    req.fileData.payload
-                )
+                val length = req.fileData.length
+                if (length != null) {
+                    jobOrchestrator.handleIncomingFile(
+                        req.jobId,
+                        call.securityPrincipal,
+                        req.filePath,
+                        length,
+                        req.fileData.payload
+                    )
+                    ok(Unit)
+                } else {
+                    error(CommonErrorMessage("Missing file length"))
+                }
             }
 
-            ok(Unit)
         }
 
         implement(ComputationCallbackDescriptions.requestStateChange) { req ->
