@@ -9,13 +9,7 @@ import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.bearer
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
-import dk.sdu.cloud.service.toSecurityToken
+import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
@@ -23,6 +17,13 @@ import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.tryWithFS
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.bearer
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.securityPrincipal
+import dk.sdu.cloud.service.toSecurityToken
 import io.ktor.application.ApplicationCall
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -34,7 +35,6 @@ import io.ktor.response.respond
 import io.ktor.routing.Route
 import kotlinx.coroutines.io.ByteWriteChannel
 import kotlinx.coroutines.io.jvm.javaio.toOutputStream
-import kotlinx.coroutines.runBlocking
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -75,12 +75,19 @@ class SimpleDownloadController<Ctx : FSUserContext>(
             }
 
             tryWithFS(commandRunnerFactory, principal.subject) { ctx ->
-                val stat =
-                    fs.stat(
-                        ctx,
-                        request.path,
-                        setOf(FileAttribute.PATH, FileAttribute.INODE, FileAttribute.SIZE, FileAttribute.FILE_TYPE)
-                    )
+                val mode = setOf(
+                    FileAttribute.PATH,
+                    FileAttribute.INODE,
+                    FileAttribute.SIZE,
+                    FileAttribute.FILE_TYPE,
+                    FileAttribute.IS_LINK,
+                    FileAttribute.LINK_TARGET
+                )
+
+                val stat = run {
+                    val stat = fs.stat(ctx, request.path, mode)
+                    if (stat.isLink) fs.stat(ctx, stat.linkTarget, mode) else stat
+                }
 
                 filesDownloaded.add(stat.inode)
 
@@ -88,7 +95,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                     stat.fileType == FileType.DIRECTORY -> {
                         call.response.header(
                             HttpHeaders.ContentDisposition,
-                            "attachment; filename=\"${stat.path.substringAfterLast('/')}.zip\""
+                            "attachment; filename=\"${stat.path.safeFileName()}.zip\""
                         )
 
                         okContentDeliveredExternally()
@@ -124,53 +131,18 @@ class SimpleDownloadController<Ctx : FSUserContext>(
 
                     stat.fileType == FileType.FILE -> {
                         val contentType = ContentType.defaultForFilePath(stat.path)
+                        // TODO FIXME HEADERS ARE NOT ESCAPED
                         call.response.header(
                             HttpHeaders.ContentDisposition,
-                            "attachment; filename=\"${stat.path.substringAfterLast('/')}\""
+                            "attachment; filename=\"${stat.path.safeFileName()}\""
                         )
 
                         okContentDeliveredExternally()
                         call.respondDirectWrite(stat.size, contentType, HttpStatusCode.OK) {
+                            val writeChannel = this
                             fs.read(ctx, request.path) {
                                 val stream = this
-                                runBlocking {
-                                    var readSum = 0L
-                                    var writeSum = 0L
-                                    var iterations = 0
-                                    var bytes = 0
-
-                                    val buffer = ByteArray(BUFFER_SIZE)
-                                    var hasMoreData = true
-                                    while (hasMoreData) {
-                                        var ptr = 0
-                                        val startRead = System.nanoTime()
-                                        while (ptr < buffer.size && hasMoreData) {
-                                            val read = stream.read(buffer, ptr, buffer.size - ptr)
-                                            if (read <= 0) {
-                                                hasMoreData = false
-                                                break
-                                            }
-                                            ptr += read
-                                            bytes += read
-                                        }
-                                        val startWrite = System.nanoTime()
-                                        readSum += startWrite - startRead
-                                        writeFully(buffer, 0, ptr)
-                                        writeSum += System.nanoTime() - startWrite
-
-                                        iterations++
-                                        if (iterations % LOG_INTERVAL == 0) {
-                                            var rStr = (readSum / iterations).toString()
-                                            var wStr = (writeSum / iterations).toString()
-
-                                            if (rStr.length > wStr.length) wStr = wStr.padStart(rStr.length, ' ')
-                                            if (wStr.length > rStr.length) rStr = rStr.padStart(rStr.length, ' ')
-
-                                            log.debug("Avg. read time:  $rStr")
-                                            log.debug("Avg. write time: $wStr")
-                                        }
-                                    }
-                                }
+                                stream.copyTo(writeChannel.toOutputStream())
                             }
                         }
                     }
@@ -204,9 +176,25 @@ class SimpleDownloadController<Ctx : FSUserContext>(
         }
     }
 
-
     companion object : Loggable {
         override val log = logger()
+
+        private val safeFileNameChars =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-+,@£$€!½§~'=()[]{}0123456789".let {
+                CharArray(it.length) { i -> it[i] }.toSet()
+            }
+
+        private fun String.safeFileName(): String {
+            val normalName = fileName()
+            return buildString(normalName.length) {
+                normalName.forEach {
+                    when (it) {
+                        in safeFileNameChars -> append(it)
+                        else -> append('_')
+                    }
+                }
+            }
+        }
     }
 }
 
