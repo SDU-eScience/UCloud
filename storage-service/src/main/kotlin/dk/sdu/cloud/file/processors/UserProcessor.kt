@@ -1,4 +1,4 @@
-package dk.sdu.cloud.file.processor
+package dk.sdu.cloud.file.processors
 
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.file.api.homeDirectory

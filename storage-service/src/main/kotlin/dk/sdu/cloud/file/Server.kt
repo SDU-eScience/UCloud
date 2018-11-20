@@ -3,6 +3,24 @@ package dk.sdu.cloud.file
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.http.FilesController
+import dk.sdu.cloud.file.http.IndexingController
+import dk.sdu.cloud.file.http.MultiPartUploadController
+import dk.sdu.cloud.file.http.SimpleDownloadController
+import dk.sdu.cloud.file.processors.UserProcessor
+import dk.sdu.cloud.file.services.ACLService
+import dk.sdu.cloud.file.services.BulkDownloadService
+import dk.sdu.cloud.file.services.BulkUploadService
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.ExternalFileService
+import dk.sdu.cloud.file.services.FavoriteService
+import dk.sdu.cloud.file.services.FileAnnotationService
+import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.unixfs.UnixFSUserDao
+import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
@@ -19,25 +37,6 @@ import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.service.stream
 import dk.sdu.cloud.service.tokenValidation
-import dk.sdu.cloud.file.http.FilesController
-import dk.sdu.cloud.file.http.IndexingController
-import dk.sdu.cloud.file.http.MultiPartUploadController
-import dk.sdu.cloud.file.http.SimpleDownloadController
-import dk.sdu.cloud.file.processor.StorageEventProcessor
-import dk.sdu.cloud.file.processor.UserProcessor
-import dk.sdu.cloud.file.services.ACLService
-import dk.sdu.cloud.file.services.BulkDownloadService
-import dk.sdu.cloud.file.services.BulkUploadService
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.ExternalFileService
-import dk.sdu.cloud.file.services.FavoriteService
-import dk.sdu.cloud.file.services.FileAnnotationService
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileSensitivityService
-import dk.sdu.cloud.file.services.IndexingService
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFSUserDao
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -102,9 +101,6 @@ class Server(
                 externalFileService
             ).init()
         }
-
-        val storageEventProcessor = StorageEventProcessor(kafka)
-        addProcessors(storageEventProcessor.init())
 
         val tokenValidation =
             micro.tokenValidation as? TokenValidationJWT ?: throw IllegalStateException("JWT token validation required")
