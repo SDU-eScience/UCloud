@@ -2,7 +2,11 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.service.Loggable
 
-data class Service(val name: String, val endpoint: String)
+data class Service(
+    val name: String,
+    val endpoint: String,
+    val refreshTokenExpiresAfter: Long? = null
+)
 
 object ServiceDAO : Loggable {
     private val inMemoryDb = HashMap<String, Service>()

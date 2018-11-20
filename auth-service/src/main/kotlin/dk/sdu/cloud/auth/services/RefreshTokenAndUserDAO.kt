@@ -9,7 +9,7 @@ import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Type
-import java.util.UUID
+import java.util.*
 import javax.persistence.Entity
 import javax.persistence.Id
 import javax.persistence.ManyToOne
@@ -21,6 +21,8 @@ data class RefreshTokenAndUser(
     val token: String,
 
     val csrf: String,
+
+    val refreshTokenExpiry: Long? = null,
 
     /**
      * An opaque token that uniquely identifies a refresh token.
@@ -52,6 +54,7 @@ interface RefreshTokenDAO<Session> {
  * - V2__CSRF.sql
  * - V3__Session_id.sql
  * - V5__Refresh_Templates.sql
+ * - V6__Refresh_Expiry.sql
  */
 @Entity
 @Table(name = "refresh_tokens")
@@ -64,6 +67,8 @@ data class RefreshTokenEntity(
     var associatedUser: PrincipalEntity,
 
     var csrf: String,
+
+    var refreshTokenExpiry: Long?,
 
     var publicSessionReference: String?,
 
@@ -80,7 +85,15 @@ data class RefreshTokenEntity(
 class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
     override fun findById(session: HibernateSession, token: String): RefreshTokenAndUser? {
         return session
-            .criteria<RefreshTokenEntity> { entity[RefreshTokenEntity::token] equal token }
+            .criteria<RefreshTokenEntity> {
+                (entity[RefreshTokenEntity::token] equal token) and (anyOf(
+                    entity[RefreshTokenEntity::refreshTokenExpiry] equal nullLiteral(),
+                    builder.greaterThan<Long>(
+                        entity[RefreshTokenEntity::refreshTokenExpiry],
+                        System.currentTimeMillis()
+                    )
+                ))
+            }
             .uniqueResult()
             ?.toModel()
     }
@@ -89,13 +102,14 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
         val principal = PrincipalEntity[session, tokenAndUser.associatedUser] ?: throw UserException.NotFound()
         session.save(
             RefreshTokenEntity(
-                tokenAndUser.token,
-                principal,
-                tokenAndUser.csrf,
-                tokenAndUser.publicSessionReference,
-                tokenAndUser.expiresAfter,
-                tokenAndUser.scopes.map { it.toString() },
-                tokenAndUser.extendedBy
+                token = tokenAndUser.token,
+                associatedUser = principal,
+                csrf = tokenAndUser.csrf,
+                refreshTokenExpiry = tokenAndUser.refreshTokenExpiry,
+                publicSessionReference = tokenAndUser.publicSessionReference,
+                expiresAfter = tokenAndUser.expiresAfter,
+                scopes = tokenAndUser.scopes.map { it.toString() },
+                extendedBy = tokenAndUser.extendedBy
             )
         )
     }
@@ -114,12 +128,13 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
 
 fun RefreshTokenEntity.toModel(): RefreshTokenAndUser {
     return RefreshTokenAndUser(
-        associatedUser.id,
-        token,
-        csrf,
-        publicSessionReference,
-        expiresAfter,
-        scopes.map { SecurityScope.parseFromString(it) },
-        extendedBy
+        associatedUser = associatedUser.id,
+        token = token,
+        csrf = csrf,
+        refreshTokenExpiry = refreshTokenExpiry,
+        publicSessionReference = publicSessionReference,
+        expiresAfter = expiresAfter,
+        scopes = scopes.map { SecurityScope.parseFromString(it) },
+        extendedBy = extendedBy
     )
 }

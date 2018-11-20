@@ -74,8 +74,8 @@ data class AuthConfiguration(
         Service("web", "https://cloud.sdu.dk/api/auth-callback"),
         Service("sync", "https://cloud.sdu.dk/api/sync-callback"),
         Service("local-dev", "http://localhost:9000/api/auth-callback"),
-        Service("web-csrf", "https://cloud.sdu.dk/api/auth-callback-csrf"),
-        Service("local-dev-csrf", "http://localhost:9000/api/auth-callback-csrf")
+        Service("web-csrf", "https://cloud.sdu.dk/api/auth-callback-csrf", 1000L * 60 * 60 * 24 * 30),
+        Service("local-dev-csrf", "http://localhost:9000/api/auth-callback-csrf", 1000L * 60 * 60 * 24 * 30)
     )
 )
 

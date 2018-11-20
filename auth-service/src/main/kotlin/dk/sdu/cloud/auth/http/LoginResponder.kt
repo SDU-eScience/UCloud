@@ -55,12 +55,13 @@ class LoginResponder<DBSession>(
     }
 
     private suspend fun handleCompletedLogin(call: ApplicationCall, service: String, user: Principal) {
-        val (token, refreshToken, csrfToken) = tokenService.createAndRegisterTokenFor(user)
-
         val resolvedService = ServiceDAO.findByName(service) ?: return run {
             log.info("Missing service")
             call.respondRedirect("/auth/login")
         }
+        val expiry = resolvedService.refreshTokenExpiresAfter?.let { System.currentTimeMillis() + it }
+
+        val (token, refreshToken, csrfToken) = tokenService.createAndRegisterTokenFor(user, refreshTokenExpiry = expiry)
 
         call.respondHtml {
             head {

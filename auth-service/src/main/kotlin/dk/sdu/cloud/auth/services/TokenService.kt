@@ -64,7 +64,8 @@ class TokenService<DBSession>(
             listOf(SecurityScope.ALL_WRITE),
             System.currentTimeMillis(),
             System.currentTimeMillis() + TEN_MIN_IN_MILLS
-        )
+        ),
+        refreshTokenExpiry: Long? = null
     ): AuthenticationTokens {
         fun generateCsrfToken(): String {
             val array = ByteArray(CSRF_TOKEN_SIZE)
@@ -83,7 +84,8 @@ class TokenService<DBSession>(
             csrf,
             expiresAfter = expiresAfter,
             scopes = tokenTemplate.scopes,
-            extendedBy = tokenTemplate.extendedBy
+            extendedBy = tokenTemplate.extendedBy,
+            refreshTokenExpiry = refreshTokenExpiry
         )
 
         db.withTransaction {
