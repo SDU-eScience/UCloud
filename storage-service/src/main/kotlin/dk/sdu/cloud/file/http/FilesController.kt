@@ -25,6 +25,7 @@ import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.util.CallResult
 import dk.sdu.cloud.file.util.tryWithFS
 import dk.sdu.cloud.file.util.tryWithFSAndTimeout
@@ -41,6 +42,7 @@ class FilesController<Ctx : FSUserContext>(
     private val annotationService: FileAnnotationService<Ctx>,
     private val favoriteService: FavoriteService<Ctx>,
     private val fileLookupService: FileLookupService<Ctx>,
+    private val sensitivityService: FileSensitivityService<Ctx>,
     private val aclService: ACLService<Ctx>,
     private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {
@@ -324,6 +326,19 @@ class FilesController<Ctx : FSUserContext>(
 
                 ok(Unit)
             }
+        }
+
+        implement(FileDescriptions.reclassify) { req ->
+            audit(SingleFileAudit(null, req))
+
+            val user = call.securityPrincipal.username
+            tryWithFS(commandRunnerFactory, user) { ctx ->
+                val stat = coreFs.stat(ctx, req.path, setOf(FileAttribute.INODE))
+                audit(SingleFileAudit(stat.inode, req))
+
+                sensitivityService.setSensitivityLevel(ctx, req.path, req.sensitivity, user)
+            }
+            ok(Unit)
         }
     }
 

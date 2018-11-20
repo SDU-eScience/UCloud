@@ -7,6 +7,17 @@ import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.http.FilesController
+import dk.sdu.cloud.file.services.ACLService
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FavoriteService
+import dk.sdu.cloud.file.services.FileAnnotationService
+import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.TokenValidationJWT
@@ -17,19 +28,9 @@ import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
 import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.tokenValidation
-import dk.sdu.cloud.file.http.FilesController
-import dk.sdu.cloud.file.services.ACLService
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FavoriteService
-import dk.sdu.cloud.file.services.FileAnnotationService
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.StorageUserDao
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
-import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
 import dk.sdu.cloud.storage.util.simpleStorageUserDao
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import io.ktor.application.Application
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -80,6 +81,7 @@ fun Application.configureServerWithFileController(
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
     val coreFs = CoreFileSystemService(fs, eventProducer)
     val favoriteService = FavoriteService(coreFs)
+    val sensitivityService = FileSensitivityService(fs, eventProducer)
     val aclService = ACLService(fs)
 
     val ctx = FileControllerContext(
@@ -96,14 +98,17 @@ fun Application.configureServerWithFileController(
 
     routing {
         configureControllers(
-            with(ctx) { FilesController(
-                runner,
-                coreFs,
-                annotationService,
-                favoriteService,
-                lookupService,
-                aclService
-            ) }
+            with(ctx) {
+                FilesController(
+                    runner,
+                    coreFs,
+                    annotationService,
+                    favoriteService,
+                    lookupService,
+                    sensitivityService,
+                    aclService
+                )
+            }
         )
         additional(ctx)
     }

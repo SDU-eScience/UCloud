@@ -68,6 +68,8 @@ enum class SortOrder {
     DESCENDING
 }
 
+data class ReclassifyRequest(val path: String, val sensitivity: SensitivityLevel)
+
 /**
  * Audit entry for operations that work with a single file
  *
@@ -530,6 +532,26 @@ object FileDescriptions : RESTDescriptions("files") {
         path {
             using(baseContext)
             +"create-link"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val reclassify = callDescriptionWithAudit<
+            ReclassifyRequest,
+            Unit,
+            CommonErrorMessage,
+            SingleFileAudit<ReclassifyRequest>> {
+        name = "reclassify"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"reclassify"
         }
 
         body { bindEntireRequestFromBody() }

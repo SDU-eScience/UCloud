@@ -118,6 +118,7 @@ class Server(
                         annotationService,
                         favoriteService,
                         fileLookupService,
+                        sensitivityService,
                         aclService,
                         config.filePermissionAcl
                     ),
