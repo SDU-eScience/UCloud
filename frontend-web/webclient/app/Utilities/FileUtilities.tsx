@@ -203,7 +203,7 @@ export const toFileText = (selectedFiles: File[]): string =>
     `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected.`
 
 export const isLink = (file: File) => file.link;
-export const isDirectory = (file: { fileType: FileType}) => file.fileType === "DIRECTORY";
+export const isDirectory = (file: { fileType: FileType }) => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string) => path.replace(UF.addTrailingSlash(homeFolder), "Home/");
 
 export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>
@@ -247,7 +247,7 @@ export const fetchFileContent = (path: string, cloud: Cloud) =>
     cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) =>
         fetch(`/api/files/download?path=${encodeURI(path)}&token=${encodeURI(token)}`)
     );
-    
+
 export const fileSizeToString = (bytes: number): string => {
     if (bytes < 0) return "Invalid size";
     if (bytes < 1000) {
@@ -281,8 +281,8 @@ export const shareFiles = (files: File[], cloud: Cloud) =>
                 path,
                 rights
             };
-            cloud.put(`/shares/`, body).then((): void => { if (++i === paths.length) UF.successNotification("Files shared successfully") })
-                .catch(() => UF.failureNotification(`${getFilenameFromPath(path)} could not be shared at this time. Please try again later.`));
+            cloud.put(`/shares/`, body).then(() => { if (++i === paths.length) UF.successNotification("Files shared successfully") })
+                .catch(({ response }) => UF.failureNotification(`${response.why}`));
         });
     }); // FIXME Error handling
 
