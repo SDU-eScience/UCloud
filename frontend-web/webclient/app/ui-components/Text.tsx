@@ -9,7 +9,7 @@ import {
   color,
   SpaceProps, TextAlignProps, FontSizeProps, ColorProps
 } from 'styled-system'
-import theme from "./theme";
+import theme, { Theme } from "./theme";
 
 export const caps = (props: { caps?: boolean }) =>
   props.caps
@@ -18,10 +18,10 @@ export const caps = (props: { caps?: boolean }) =>
     }
     : null
 
-export const regular = (props: { regular?: boolean, theme: any }) =>
+export const regular = (props: { regular?: boolean, theme: Theme }) =>
   props.regular ? { fontWeight: props.theme.regular } : null
 
-export const bold = (props: { bold?: boolean, theme: any }) =>
+export const bold = (props: { bold?: boolean, theme: Theme }) =>
   props.bold ? { fontWeight: props.theme.bold } : null
 
 export const italic = (props: { italic?: boolean }) => (props.italic ? { fontStyle: "italic" } : null)

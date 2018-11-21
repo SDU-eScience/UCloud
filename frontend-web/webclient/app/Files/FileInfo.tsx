@@ -5,13 +5,12 @@ import { favoriteFileFromPage, fileSizeToString, getParentPath, replaceHomeFolde
 import { updatePath, updateFiles, setLoading, fetchPageFromPath } from "./Redux/FilesActions";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel, emptyPage } from "DefaultObjects";
-import { Container, Header, List, Card, Icon, Segment, GridColumn } from "semantic-ui-react";
+import { Container, Header, List, Card, Icon, Segment } from "semantic-ui-react";
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { List as ShareList } from "Shares/List";
-import { File, Annotation, SortOrder, SortBy, FileInfoProps, FileInfoState } from "Files";
-import { annotationToString } from "Utilities/FileUtilities";
+import { File, SortOrder, SortBy, FileInfoProps, FileInfoState } from "Files";
 import { ActivityFeed } from "Activity/Activity";
 import { Dispatch } from "redux";
 import { Page } from "Types";
@@ -53,7 +52,7 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations, FileI
         if (!file) { return (<DefaultLoading loading={true} />) }
         const fileName = replaceHomeFolder(isDirectory(file) ? addTrailingSlash(file.path) : file.path, Cloud.homeFolder);
         return (
-            <Container className="container-margin" >
+            <Container className="container-margin">
                 <Header as="h2" icon textAlign="center">
                     <Header.Content content={fileName} />
                     <Header.Subheader content={toLowerCaseAndCapitalize(file.fileType)} />
@@ -114,18 +113,6 @@ const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
                                 {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.
                                 </List.Content>
                         </List.Item> : null}
-                    </List>
-                </Card.Content>
-            </Card>
-            <Card fluid>
-                <Card.Content>
-                    <Card.Header content="Annotations" />
-                    <List divided>
-                        {file.annotations.map((it, i) => (
-                            <List.Item key={i} floated="right">
-                                {annotationToString(it as Annotation)}
-                            </List.Item>
-                        ))}
                     </List>
                 </Card.Content>
             </Card>

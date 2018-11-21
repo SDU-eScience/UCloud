@@ -27,7 +27,6 @@ import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex, Divider, Checkbo
 import { Dispatch } from "redux";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import DetailedFileSearch from "./DetailedFileSearch";
 import { TextSpan } from "ui-components/Text";
 

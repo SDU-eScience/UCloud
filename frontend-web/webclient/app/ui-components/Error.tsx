@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Card, Flex, Box, Text } from "ui-components";
 import CloseButton from "./CloseButton";
-import { TextSpan } from "./Text";
 
 interface ErrorProps { clearError?: () => void, error?: string }
 const Error = (props: ErrorProps) => !!props.error ?

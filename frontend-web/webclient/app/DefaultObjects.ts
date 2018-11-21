@@ -363,7 +363,6 @@ export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
     fileName: "",
     extensions: new Set(),
     tags: new Set(),
-    annotations: new Set(),
     sensitivities: new Set(),
     createdBefore: undefined,
     createdAfter: undefined,
