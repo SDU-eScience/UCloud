@@ -224,6 +224,8 @@ data class NumericStatistics(
 data class QueryRequest(
     override val query: FileQuery,
 
+    val sortBy: SortRequest? = null,
+
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
 ) : WithFileQuery, WithPaginationRequest
@@ -252,6 +254,28 @@ data class StatisticsResponse(
     val size: NumericStatistics?,
     val fileDepth: NumericStatistics?
 )
+
+data class SortRequest(
+    val field: SortableField,
+    val direction: SortDirection
+)
+
+enum class SortableField {
+    FILE_NAME,
+    FILE_TYPE,
+
+    IS_LINK,
+
+    SIZE,
+
+    CREATED_AT,
+    MODIFIED_AT
+}
+
+enum class SortDirection {
+    ASCENDING,
+    DESCENDING
+}
 
 /**
  * REST interface for queries of indexing data.

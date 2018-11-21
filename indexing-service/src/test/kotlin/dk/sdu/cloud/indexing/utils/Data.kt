@@ -30,7 +30,7 @@ val fileQuery = FileQuery(
     ))
 )
 
-val queryRequest= QueryRequest(fileQuery, 25, 0)
+val queryRequest= QueryRequest(fileQuery, itemsPerPage = 25, page = 0)
 val minimumStatisticRequest = StatisticsRequest(fileQuery)
 
 val elasticFile = ElasticIndexedFile(

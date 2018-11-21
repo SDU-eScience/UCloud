@@ -10,6 +10,9 @@ import dk.sdu.cloud.indexing.api.FileQuery
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.NumericStatisticsRequest
 import dk.sdu.cloud.indexing.api.PredicateCollection
+import dk.sdu.cloud.indexing.api.SortDirection
+import dk.sdu.cloud.indexing.api.SortRequest
+import dk.sdu.cloud.indexing.api.SortableField
 import dk.sdu.cloud.indexing.api.StatisticsRequest
 import dk.sdu.cloud.indexing.api.StatisticsResponse
 import dk.sdu.cloud.indexing.util.search
@@ -35,6 +38,7 @@ import org.elasticsearch.search.aggregations.metrics.min.Min
 import org.elasticsearch.search.aggregations.metrics.percentiles.Percentiles
 import org.elasticsearch.search.aggregations.metrics.sum.Sum
 import org.elasticsearch.search.builder.SearchSourceBuilder
+import org.elasticsearch.search.sort.SortOrder
 
 /**
  * An implementation of [IndexQueryService] and [ReverseLookupService] using an Elasticsearch backend.
@@ -73,8 +77,30 @@ class ElasticQueryService(
         return fileIds.map { files[it]?.path }
     }
 
-    override fun query(query: FileQuery, paging: NormalizedPaginationRequest): Page<EventMaterializedStorageFile> {
+    override fun query(
+        query: FileQuery,
+        paging: NormalizedPaginationRequest,
+        sorting: SortRequest?
+    ): Page<EventMaterializedStorageFile> {
         return elasticClient.search<ElasticIndexedFile>(mapper, paging, FILES_INDEX) {
+            if (sorting != null) {
+                val field = when (sorting.field) {
+                    SortableField.FILE_NAME -> ElasticIndexedFile.FILE_NAME_KEYWORD
+                    SortableField.FILE_TYPE -> ElasticIndexedFile.FILE_TYPE_FIELD
+                    SortableField.IS_LINK -> ElasticIndexedFile.FILE_IS_LINK_FIELD
+                    SortableField.SIZE -> ElasticIndexedFile.SIZE_FIELD
+                    SortableField.CREATED_AT -> ElasticIndexedFile.TIMESTAMP_CREATED_FIELD
+                    SortableField.MODIFIED_AT -> ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD
+                }
+
+                val direction = when (sorting.direction) {
+                    SortDirection.ASCENDING -> SortOrder.ASC
+                    SortDirection.DESCENDING -> SortOrder.DESC
+                }
+
+                sort(field, direction)
+            }
+
             searchBasedOnQuery(query).also {
                 log.debug(it.toString())
             }
