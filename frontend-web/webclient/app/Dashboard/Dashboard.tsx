@@ -21,6 +21,7 @@ import List from "ui-components/List";
 import { CardGroup } from "ui-components/Card";
 import { TextSpan } from "ui-components/Text";
 import { notificationRead } from "Notifications/Redux/NotificationsActions";
+import { PaginationButtons } from "Pagination/Pagination";
 
 
 class Dashboard extends React.Component<DashboardProps> {

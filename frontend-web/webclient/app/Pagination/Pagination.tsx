@@ -1,32 +1,78 @@
 import * as React from "react";
-import { Pagination } from "semantic-ui-react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Icon, Box, Text, Flex } from "ui-components";
-
-interface PaginationButtons {
-    totalPages: number,
-    toPage: Function,
-    currentPage: number,
-    as?: string
-    className?: string
-}
-
-export const Buttons = ({ className, totalPages, toPage, currentPage, as }: PaginationButtons) =>
-    totalPages > 1 ?
-        (<Pagination
-            as={as}
-            className={className}
-            totalPages={Math.max(1, totalPages)}
-            activePage={currentPage + 1}
-            onPageChange={(e, u) => toPage(u.activePage as number - 1)}
-        />) : null;
+import { Icon, Box, Text, Flex, Button, theme } from "ui-components";
+import styled from "styled-components";
 
 const EntriesPerPageSelectorOptions = [
     { key: 1, text: "10", value: 10 },
     { key: 2, text: "25", value: 25 },
     { key: 3, text: "50", value: 50 },
     { key: 4, text: "100", value: 100 }
-]
+];
+
+interface PaginationButtons { totalPages: number, currentPage: number, toPage: (p: number) => void }
+export function PaginationButtons({ totalPages, currentPage, toPage }: PaginationButtons) {
+    if (totalPages === 0) return null;
+    const pages = [...new Set([0, totalPages - 1, currentPage - 1, currentPage, currentPage + 1].sort((a, b) => a - b))];
+    console.log(pages);
+    const buttons = pages.filter(i => i >= 0 && i < totalPages).map((it, i, arr) =>
+        it - arr[i + 1] < -1 ? ( // If the two numbers do not immediately follow each other, insert ellipses
+            <>
+                <PaginationButton onClick={() => toPage(it)}>{it + 1}</PaginationButton>
+                <PaginationButton onClick={() => undefined} unclickable>{"..."}</PaginationButton>
+            </>
+        ) : (
+                <PaginationButton unclickable={currentPage === it} color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
+            )
+    );
+    return (
+        <PaginationGroup>
+            <PaginationButton onClick={() => toPage(0)} unclickable={currentPage === 0}>{"<<"}</PaginationButton>
+            <PaginationButton onClick={() => toPage(currentPage - 1)} unclickable={currentPage === 0}>{"<"}</PaginationButton>
+            {buttons}
+            <PaginationButton onClick={() => toPage(currentPage + 1)} unclickable={currentPage === totalPages - 1}>{">"}</PaginationButton>
+            <PaginationButton onClick={() => toPage(totalPages)} unclickable={currentPage === totalPages - 1}>{">>"}</PaginationButton>
+        </PaginationGroup>
+    );
+};
+
+
+const PaginationButtonBase = styled(Button) <{ unclickable?: boolean }>`
+    color: ${props => props.unclickable ? props.theme.colors.gray : props.theme.colors.black};
+    background-color: ${props => props.disabled ? props.theme.colors.lightGray : "transparent"};
+    border-color: black;
+    border-width: 1px;
+    &:hover {
+        ${props => props.unclickable ? null : { backgroundColor: props.theme.colors.lightGray }};
+        ${props => props.unclickable ? { cursor: "default" } : null};
+    }
+`;
+
+
+const PaginationButton = ({ onClick, ...props }) => (
+    props.unclickable ? <PaginationButtonBase {...props} /> : <PaginationButtonBase onClick={onClick} {...props} />
+);
+
+PaginationButtonBase.defaultProps = {
+    theme
+}
+
+const PaginationGroup = styled(Flex)`
+    & > ${PaginationButtonBase} {
+        width: 42px;
+        padding-left: 0px;
+        padding-right: 0px;
+        border-radius: 0px;
+    }
+
+    & > ${PaginationButtonBase}:last-child {
+        border-radius: 0 5px 5px 0;
+    }
+
+    & > ${PaginationButtonBase}:first-child {
+        border-radius: 5px 0 0 5px;
+    }
+`;
 
 interface EntriesPerPageSelector {
     entriesPerPage: number,

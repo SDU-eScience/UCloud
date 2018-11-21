@@ -47,7 +47,7 @@ const Button = styled.button<ButtonProps>`
   line-height: 1.5;
   cursor: pointer;
   border-radius: ${props => props.theme.radius};
-  background-color: ${props => props.color ? props.theme.colors[props.color] : props.theme.colors.blue};
+  background-color: ${props => props.theme.colors[props.color!]};
   color: ${props => props.theme.colors.white};
   border-width: 0;
   border-style: solid;
