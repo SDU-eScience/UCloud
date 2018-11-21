@@ -1,6 +1,4 @@
 import * as React from "react";
-import { Cloud } from "Authentication/SDUCloudObject"
-import { Feed as SFeed, SemanticICONS as SSemanticICONS, Icon as SIcon, Button as SButton, Divider as SDivider } from 'semantic-ui-react';
 import { Redirect } from "react-router";
 import * as moment from "moment";
 import { connect } from "react-redux";
@@ -69,16 +67,15 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         }
 
         const unreadLength = page.items.filter((e) => !e.read).length;
-        const uploads = activeUploads > 0 ? (
+        const uploads = 1 > 0 ? (
             <>
-                <SDivider />
-                <SButton
-                    content={`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
-                    color="green"
-                    fluid
+                <Divider />
+                <UploaderButton
+                    fullWidth
                     onClick={() => this.props.showUploader()}
-                />
-                <SDivider />
+                >
+                    {`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
+                </UploaderButton>
             </>
         ) : null;
         const readAllButton = unreadLength ? (
@@ -99,21 +96,14 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                     </Relative>
                 </Flex>
             }>
-                <SFeed style={{ backgroundColor: "unset" }}>
-                    {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
-                </SFeed>
+                {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
                 {uploads}
             </ClickableDropdown>
         );
     }
 }
 
-const NoNotifications = () =>
-    <SFeed.Event className="notification">
-        <SFeed.Content>
-            <SFeed.Label>No notifications</SFeed.Label>
-        </SFeed.Content>
-    </SFeed.Event>
+const NoNotifications = () => <TextSpan>No notifications</TextSpan>
 
 export interface Notification {
     type: string
@@ -182,6 +172,13 @@ const NotificationWrapper = styled(Flex)`
         background-color: ${theme.colors.lightGray};
     }
 `;
+
+const UploaderButton = styled(Button)`
+    background-color: ${props => props.theme.colors.green}
+    &:hover {
+        background-color: ${props => props.theme.colors.green};
+    }
+`
 
 interface NotificationsDispatchToProps {
     fetchNotifications: () => void
