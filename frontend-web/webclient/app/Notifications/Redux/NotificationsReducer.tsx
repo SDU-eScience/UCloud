@@ -6,6 +6,7 @@ export const NOTIFICATION_READ = "NOTIFICATION_READ";
 export const SET_REDIRECT = "SET_REDIRECT";
 export const SET_NOTIFICATIONS_ERROR = "SET_NOTIFICATIONS_ERROR";
 export const NOTIFICATIONS_ERROR = "NOTIFICATIONS_ERROR";
+export const READ_ALL = "READ_ALL";
 
 const Notifications = (state: NotificationsReduxObject = initNotifications(), action: NotificationActions): NotificationsReduxObject => {
     switch (action.type) {
@@ -19,6 +20,17 @@ const Notifications = (state: NotificationsReduxObject = initNotifications(), ac
                     ...state.page,
                     items: state.page.items.map((n) => {
                         if (n.id === action.payload.id) n.read = true;
+                        return n;
+                    })
+                }
+            }
+        }
+        case READ_ALL: {
+            return {
+                ...state, page: {
+                    ...state.page,
+                    items: state.page.items.map((n) => {
+                        n.read = true;
                         return n;
                     })
                 }

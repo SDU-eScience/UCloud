@@ -2,7 +2,7 @@ import * as React from "react";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { iconFromFilePath, toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject"
-import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder } from "Utilities/FileUtilities";
+import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
@@ -20,8 +20,7 @@ import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import { CardGroup } from "ui-components/Card";
 import { TextSpan } from "ui-components/Text";
-import { notificationRead } from "Notifications/Redux/NotificationsActions";
-import { PaginationButtons } from "Pagination/Pagination";
+import { notificationRead, readAllNotifications } from "Notifications/Redux/NotificationsActions";
 
 
 class Dashboard extends React.Component<DashboardProps> {
@@ -39,7 +38,7 @@ class Dashboard extends React.Component<DashboardProps> {
 
     render() {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
-            analysesLoading, errors } = this.props;
+            analysesLoading, errors, ...props } = this.props;
         favoriteFiles.forEach(f => f.favorited = true);
         const favoriteOrUnfavorite = (file: File) => {
             favoriteFile(file, Cloud);
@@ -48,7 +47,7 @@ class Dashboard extends React.Component<DashboardProps> {
 
         return (
             <React.StrictMode>
-                <Error error={errors.join(",\n")} clearError={this.props.errorDismiss} />
+                <Error error={errors.join(",\n")} clearError={props.errorDismiss} />
                 <CardGroup>
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
@@ -57,7 +56,7 @@ class Dashboard extends React.Component<DashboardProps> {
                     />
                     <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
                     <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
-                    <DashboardNotifications notifications={notifications} />
+                    <DashboardNotifications notifications={notifications} readAll={() => props.readAll()} />
                 </CardGroup>
             </React.StrictMode>
         );
@@ -88,13 +87,13 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
         </Card>)
 };
 
-const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 117 | 200 }) =>
+const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 117 | 200 }) => (
     <>
         <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={undefined} link={link} color="grey" />
-        <Link to={`/files/${type === "FILE" ? getParentPath(path) : path}`}>
+        <Link to={`/files/${isDirectory({ fileType: type }) ? path : getParentPath(path)}`}>
             <TextSpan mt="-1.5px" fontSize={2} className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}</TextSpan>
         </Link>
-    </>
+    </>);
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
     <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
@@ -146,10 +145,12 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
     </Card>
 );
 
-const DashboardNotifications = ({ notifications }: { notifications: Notification[] }) => (
+const DashboardNotifications = ({ notifications, readAll }: { notifications: Notification[], readAll: () => void }) => (
     <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+        <Flex bg="lightGray" color="darkGray" p={3}>
             <Heading.h4>Recent notifications</Heading.h4>
+            <Box ml="auto" />
+            <i style={{ margin: "5px", cursor: "pointer" }} title="Mark all as read" onClick={readAll} className="fas fa-check-double"></i>
         </Flex>
         <Box px={3} py={1}>
             {notifications.length === 0 ? <h3><small>No notifications</small></h3> : null}
@@ -175,6 +176,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     notificationRead: async id => dispatch(await notificationRead(id)),
+    readAll: async () => dispatch(await readAllNotifications()),
     // FIXME: Make action instead
     receiveFavorites: (files) => dispatch(receiveFavorites(files))
 });
