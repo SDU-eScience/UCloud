@@ -13,9 +13,10 @@ import { Analysis } from "Applications";
 import { File } from "Files";
 import { hpcJobsQuery } from "Utilities/ApplicationUtilities";
 import { PayloadAction } from "Types";
+import { recentFilesQuery } from "Utilities/FileUtilities";
 
 
-export type DashboardActions = Error<DashboardError> | ReceiveFavoritesProps | ReceiveRecentFilesProps | 
+export type DashboardActions = Error<DashboardError> | ReceiveFavoritesProps | ReceiveRecentFilesProps |
     SetLoadingAction<typeof SET_ALL_LOADING> | ReceiveRecentAnalyses;
 
 
@@ -61,10 +62,9 @@ type ReceiveRecentFilesProps = PayloadAction<typeof RECEIVE_RECENT_FILES, { cont
 /**
  * Fetches the contents of the users homefolder and returns 10 of them.
  */
-// FIXME Should have specific endpoint so as to not use homefolder for this
 export const fetchRecentFiles = (): Promise<ReceiveRecentFilesProps | Error<DashboardError>> =>
-    Cloud.get(`files?path=${Cloud.homeFolder}&itemsPerPage=10&page=0&order=DESCENDING&sortBy=MODIFIED_AT`).then(({ response }) =>
-        receiveRecentFiles(response.items)
+    Cloud.get(recentFilesQuery).then(({ response }) =>
+        receiveRecentFiles(response.recentFiles)
     ).catch(() => setErrorMessage(DASHBOARD_RECENT_FILES_ERROR, "Failed to fetch recent files. Please try again later."));
 
 /**

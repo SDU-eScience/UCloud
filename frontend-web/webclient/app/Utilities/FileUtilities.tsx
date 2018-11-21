@@ -120,6 +120,8 @@ export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: 
 
 export const advancedFileSearch = "/file-search/advanced"
 
+export const recentFilesQuery = "/files/stats/recent";
+
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
     fileType: "DIRECTORY",
     path,
