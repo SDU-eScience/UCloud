@@ -22,29 +22,33 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
                 <PaginationButton onClick={() => undefined} unclickable>{"..."}</PaginationButton>
             </>
         ) : (
-                <PaginationButton unclickable={currentPage === it} color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
+                <PaginationButton unclickable={currentPage === it}  color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
             )
     );
     return (
         <PaginationGroup>
-            <PaginationButton onClick={() => toPage(0)} unclickable={currentPage === 0}>{"<<"}</PaginationButton>
-            <PaginationButton onClick={() => toPage(currentPage - 1)} unclickable={currentPage === 0}>{"<"}</PaginationButton>
+            <PaginationButton onClick={() => toPage(0)} unclickable={currentPage === 0}>{"⟨⟨"}</PaginationButton>
+            <PaginationButton onClick={() => toPage(currentPage - 1)} unclickable={currentPage === 0}>{"⟨"}</PaginationButton>
             {buttons}
-            <PaginationButton onClick={() => toPage(currentPage + 1)} unclickable={currentPage === totalPages - 1}>{">"}</PaginationButton>
-            <PaginationButton onClick={() => toPage(totalPages)} unclickable={currentPage === totalPages - 1}>{">>"}</PaginationButton>
+            <PaginationButton onClick={() => toPage(currentPage + 1)} unclickable={currentPage === totalPages - 1}>{"⟩"}</PaginationButton>
+            <PaginationButton onClick={() => toPage(totalPages)} unclickable={currentPage === totalPages - 1}>{"⟩⟩"}</PaginationButton>
         </PaginationGroup>
     );
 };
 
 
 const PaginationButtonBase = styled(Button) <{ unclickable?: boolean }>`
-    color: ${props => props.unclickable ? props.theme.colors.gray : props.theme.colors.black};
-    background-color: ${props => props.disabled ? props.theme.colors.lightGray : "transparent"};
-    border-color: black;
+    color: ${props => props.theme.colors.black};
+    background-color: ${props => props.unclickable ? props.theme.colors.lightGray : "transparent"};
+    border-color: ${props => props.theme.colors.borderGray};
     border-width: 1px;
+    &:disabled {
+        opacity: 1;
+    }
+    border-right-width: 0px;
     &:hover {
-        ${props => props.unclickable ? null : { backgroundColor: props.theme.colors.lightGray }};
-        ${props => props.unclickable ? { cursor: "default" } : null};
+        background-color: ${props => props.unclickable ? null : props.theme.colors.paginationHoverColor };
+        cursor: ${props => props.unclickable ? "default" : null};
     }
 `;
 
@@ -66,11 +70,12 @@ const PaginationGroup = styled(Flex)`
     }
 
     & > ${PaginationButtonBase}:last-child {
-        border-radius: 0 5px 5px 0;
+        border-radius: 0 3px 3px 0;
+        border-right-width: 1px;
     }
 
     & > ${PaginationButtonBase}:first-child {
-        border-radius: 5px 0 0 5px;
+        border-radius: 3px 0 0 3px;
     }
 `;
 

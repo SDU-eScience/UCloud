@@ -107,6 +107,7 @@ interface ApplicationCardProps {
     app: Application,
     isFavorite?: boolean
 }
+
 export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCardProps) => (
     <Card height={212} width={252}>
         <Relative>

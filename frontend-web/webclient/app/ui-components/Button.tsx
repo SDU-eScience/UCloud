@@ -1,8 +1,8 @@
 import styled from "styled-components";
 import { space, ButtonStyleProps, SpaceProps, SizeProps } from "styled-system";
-import theme, { ThemeColor } from "./theme";
+import theme, { Theme, ThemeColor } from "./theme";
 
-const size = ({ size, theme }: { size: string, theme: any }) => {
+const size = ({ size, theme }: { size: string, theme: Theme }) => {
   switch (size) {
     case "tiny":
       return {

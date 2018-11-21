@@ -8,7 +8,7 @@ Heading.defaultProps = {
   regular: true,
   fontSize: 4,
   m: 0,
-  theme: theme
+  theme
 };
 
 export const h1 = Heading.withComponent('h1')
