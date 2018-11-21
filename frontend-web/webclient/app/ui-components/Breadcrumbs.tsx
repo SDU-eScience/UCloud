@@ -1,5 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
+import { addTrailingSlash } from "UtilityFunctions";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
 const BreadCrumbsBase = styled.ul<{ divider?: string }>`
@@ -73,7 +74,7 @@ function buildBreadCrumbs(path: string, homeFolder: string) {
         }
         pathsMapping.push({ actualPath: actualPath, local: paths[i] });
     }
-    if (path.startsWith(homeFolder)) { // remove first two indices 
+    if (addTrailingSlash(path).startsWith(homeFolder)) { // remove first two indices 
         pathsMapping =
             [{ actualPath: homeFolder, local: "Home" }].concat(pathsMapping.slice(2, pathsMapping.length));
     }

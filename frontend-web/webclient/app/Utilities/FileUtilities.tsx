@@ -206,7 +206,7 @@ export const toFileText = (selectedFiles: File[]): string =>
 
 export const isLink = (file: File) => file.link;
 export const isDirectory = (file: { fileType: FileType }) => file.fileType === "DIRECTORY";
-export const replaceHomeFolder = (path: string, homeFolder: string) => path.replace(UF.addTrailingSlash(homeFolder), "Home/");
+export const replaceHomeFolder = (path: string, homeFolder: string) => UF.addTrailingSlash(path).replace(homeFolder, "Home/");
 
 export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>
     deletionSwal([filePath]).then((result: any) => {

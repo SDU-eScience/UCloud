@@ -2,7 +2,7 @@ import * as React from "react";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { iconFromFilePath, toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject"
-import { favoriteFile, getParentPath, getFilenameFromPath } from "Utilities/FileUtilities";
+import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
@@ -92,7 +92,7 @@ const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type:
     <>
         <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={undefined} link={link} color="grey" />
         <Link to={`/files/${type === "FILE" ? getParentPath(path) : path}`}>
-            <TextSpan mt="-1.5px" fontSize={2} className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(path)}</TextSpan>
+            <TextSpan mt="-1.5px" fontSize={2} className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}</TextSpan>
         </Link>
     </>
 
