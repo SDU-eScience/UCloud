@@ -1,5 +1,5 @@
 import Cloud from "Authentication/lib";
-import { File, MoveCopyOperations, Operation, SortOrder, SortBy, Annotation, AnnotationsMap, PredicatedOperation, FileType } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal from "sweetalert2";
@@ -327,5 +327,3 @@ export const createFolder = (path: string, cloud: Cloud, onSuccess: () => void) 
             onSuccess()
         }
     }).catch(() => UF.failureNotification("An error ocurred trying to creating the file."));
-
-export const annotationToString = (annotation: Annotation) => AnnotationsMap[annotation];
