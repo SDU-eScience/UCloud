@@ -1,2243 +1,395 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Applications component Render empty component 1`] = `
-Array [
-  <i
-    aria-hidden="true"
-    className="sync small circular link icon pagination-float-right"
-    onClick={[Function]}
-  />,
-  <span
-    className="items-per-page-padding pagination-float-right"
-  >
-    <span>
-      Items per page 
-    </span>
-    <div
-      aria-expanded={false}
-      className="ui compact inline dropdown"
-      onBlur={[Function]}
-      onChange={[Function]}
-      onClick={[Function]}
-      onFocus={[Function]}
-      onMouseDown={[Function]}
-      role="listbox"
-      tabIndex={0}
-    >
-      <div
-        aria-live="polite"
-        className="text"
-        role="alert"
-      >
-        25
-      </div>
-      <i
-        aria-hidden="true"
-        className="dropdown icon"
-        onClick={[Function]}
-      />
-      <div
-        className="menu transition"
-      >
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            10
-          </span>
-        </div>
-        <div
-          aria-checked={true}
-          aria-selected={true}
-          className="active selected item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            25
-          </span>
-        </div>
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            50
-          </span>
-        </div>
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            100
-          </span>
-        </div>
-      </div>
-    </div>
-  </span>,
-  <div
-    className="ui cards card-margin"
-  >
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#D4E157",
-          }
-        }
-      >
-        <a
-          href="/appDetails/palms/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('function loader(content) {
-  if (!this.emitFile) throw new Error('File Loader\\\\n\\\\nemitFile is required from module system');
-
-  const options = _loaderUtils2.default.getOptions(this) || {};
-
-  (0, _schemaUtils2.default)(_options2.default, options, 'File Loader');
-
-  const context = options.context || this.rootContext || this.options && this.options.context;
-
-  const url = _loaderUtils2.default.interpolateName(this, options.name, {
-    context,
-    content,
-    regExp: options.regExp
-  });
-
-  let outputPath = url;
-
-  if (options.outputPath) {
-    if (typeof options.outputPath === 'function') {
-      outputPath = options.outputPath(url);
-    } else {
-      outputPath = _path2.default.posix.join(options.outputPath, url);
-    }
-  }
-
-  if (options.useRelativePath) {
-    const filePath = this.resourcePath;
-
-    const issuer = options.context ? context : this._module && this._module.issuer && this._module.issuer.context;
-
-    const relativeUrl = issuer && _path2.default.relative(issuer, filePath).split(_path2.default.sep).join('/');
-
-    const relativePath = relativeUrl && \`\${_path2.default.dirname(relativeUrl)}/\`;
-    // eslint-disable-next-line no-bitwise
-    if (~relativePath.indexOf('../')) {
-      outputPath = _path2.default.posix.join(outputPath, relativePath, url);
-    } else {
-      outputPath = _path2.default.posix.join(relativePath, url);
-    }
-  }
-
-  let publicPath = \`__webpack_public_path__ + \${JSON.stringify(outputPath)}\`;
-
-  if (options.publicPath) {
-    if (typeof options.publicPath === 'function') {
-      publicPath = options.publicPath(url);
-    } else if (options.publicPath.endsWith('/')) {
-      publicPath = options.publicPath + url;
-    } else {
-      publicPath = \`\${options.publicPath}/\${url}\`;
-    }
-
-    publicPath = JSON.stringify(publicPath);
-  }
-
-  // eslint-disable-next-line no-undefined
-  if (options.emitFile === undefined || options.emitFile) {
-    this.emitFile(outputPath, content);
-  }
-  // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
-  return \`module.exports = \${publicPath};\`;
-}')",
-                "opacity": 0.3,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/palms/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/palms/1.0.0/"
-          onClick={[Function]}
-        >
-          PALMS
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        The central role of places in which physical activity (PA) is done is no...
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#FFF176",
-          }
-        }
-      >
-        <a
-          href="/appDetails/bwa-mem/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('https://placekitten.com/200/200')",
-                "opacity": 1,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/bwa-mem/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/bwa-mem/1.0.0/"
-          onClick={[Function]}
-        >
-          BWA-MEM
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        BWA-MEM
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#5D4037",
-          }
-        }
-      >
-        <a
-          href="/appDetails/figlet-count/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('https://placekitten.com/200/200')",
-                "opacity": 1,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/figlet-count/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/figlet-count/1.0.0/"
-          onClick={[Function]}
-        >
-          Figlet Counter
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        Count with Figlet!
-
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#455A64",
-          }
-        }
-      >
-        <a
-          href="/appDetails/tqdist_triplet/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('https://placekitten.com/200/200')",
-                "opacity": 1,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/tqdist_triplet/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/tqdist_triplet/1.0.0/"
-          onClick={[Function]}
-        >
-          tqDist: Triplet Distance
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        Distance measures between trees are useful for comparing trees in a syst...
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#FF8F00",
-          }
-        }
-      >
-        <a
-          href="/appDetails/figlet/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('function loader(content) {
-  if (!this.emitFile) throw new Error('File Loader\\\\n\\\\nemitFile is required from module system');
-
-  const options = _loaderUtils2.default.getOptions(this) || {};
-
-  (0, _schemaUtils2.default)(_options2.default, options, 'File Loader');
-
-  const context = options.context || this.rootContext || this.options && this.options.context;
-
-  const url = _loaderUtils2.default.interpolateName(this, options.name, {
-    context,
-    content,
-    regExp: options.regExp
-  });
-
-  let outputPath = url;
-
-  if (options.outputPath) {
-    if (typeof options.outputPath === 'function') {
-      outputPath = options.outputPath(url);
-    } else {
-      outputPath = _path2.default.posix.join(options.outputPath, url);
-    }
-  }
-
-  if (options.useRelativePath) {
-    const filePath = this.resourcePath;
-
-    const issuer = options.context ? context : this._module && this._module.issuer && this._module.issuer.context;
-
-    const relativeUrl = issuer && _path2.default.relative(issuer, filePath).split(_path2.default.sep).join('/');
-
-    const relativePath = relativeUrl && \`\${_path2.default.dirname(relativeUrl)}/\`;
-    // eslint-disable-next-line no-bitwise
-    if (~relativePath.indexOf('../')) {
-      outputPath = _path2.default.posix.join(outputPath, relativePath, url);
-    } else {
-      outputPath = _path2.default.posix.join(relativePath, url);
-    }
-  }
-
-  let publicPath = \`__webpack_public_path__ + \${JSON.stringify(outputPath)}\`;
-
-  if (options.publicPath) {
-    if (typeof options.publicPath === 'function') {
-      publicPath = options.publicPath(url);
-    } else if (options.publicPath.endsWith('/')) {
-      publicPath = options.publicPath + url;
-    } else {
-      publicPath = \`\${options.publicPath}/\${url}\`;
-    }
-
-    publicPath = JSON.stringify(publicPath);
-  }
-
-  // eslint-disable-next-line no-undefined
-  if (options.emitFile === undefined || options.emitFile) {
-    this.emitFile(outputPath, content);
-  }
-  // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
-  return \`module.exports = \${publicPath};\`;
-}')",
-                "opacity": 0.3,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/figlet/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/figlet/1.0.0/"
-          onClick={[Function]}
-        >
-          Figlet
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        Render some text!
-
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#37474F",
-          }
-        }
-      >
-        <a
-          href="/appDetails/rapidnj/2.3.2/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('https://placekitten.com/200/200')",
-                "opacity": 1,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/rapidnj/2.3.2/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/rapidnj/2.3.2/"
-          onClick={[Function]}
-        >
-          RapidNJ
-        </a>
-        <div
-          className="meta"
-        >
-          2.3.2
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        RapidNJ is an algorithmic engineered implementation of canonical neighbo...
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#DCE775",
-          }
-        }
-      >
-        <a
-          href="/appDetails/searchgui_msgf/3.3.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('function loader(content) {
-  if (!this.emitFile) throw new Error('File Loader\\\\n\\\\nemitFile is required from module system');
-
-  const options = _loaderUtils2.default.getOptions(this) || {};
-
-  (0, _schemaUtils2.default)(_options2.default, options, 'File Loader');
-
-  const context = options.context || this.rootContext || this.options && this.options.context;
-
-  const url = _loaderUtils2.default.interpolateName(this, options.name, {
-    context,
-    content,
-    regExp: options.regExp
-  });
-
-  let outputPath = url;
-
-  if (options.outputPath) {
-    if (typeof options.outputPath === 'function') {
-      outputPath = options.outputPath(url);
-    } else {
-      outputPath = _path2.default.posix.join(options.outputPath, url);
-    }
-  }
-
-  if (options.useRelativePath) {
-    const filePath = this.resourcePath;
-
-    const issuer = options.context ? context : this._module && this._module.issuer && this._module.issuer.context;
-
-    const relativeUrl = issuer && _path2.default.relative(issuer, filePath).split(_path2.default.sep).join('/');
-
-    const relativePath = relativeUrl && \`\${_path2.default.dirname(relativeUrl)}/\`;
-    // eslint-disable-next-line no-bitwise
-    if (~relativePath.indexOf('../')) {
-      outputPath = _path2.default.posix.join(outputPath, relativePath, url);
-    } else {
-      outputPath = _path2.default.posix.join(relativePath, url);
-    }
-  }
-
-  let publicPath = \`__webpack_public_path__ + \${JSON.stringify(outputPath)}\`;
-
-  if (options.publicPath) {
-    if (typeof options.publicPath === 'function') {
-      publicPath = options.publicPath(url);
-    } else if (options.publicPath.endsWith('/')) {
-      publicPath = options.publicPath + url;
-    } else {
-      publicPath = \`\${options.publicPath}/\${url}\`;
-    }
-
-    publicPath = JSON.stringify(publicPath);
-  }
-
-  // eslint-disable-next-line no-undefined
-  if (options.emitFile === undefined || options.emitFile) {
-    this.emitFile(outputPath, content);
-  }
-  // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
-  return \`module.exports = \${publicPath};\`;
-}')",
-                "opacity": 0.3,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/searchgui_msgf/3.3.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/searchgui_msgf/3.3.0/"
-          onClick={[Function]}
-        >
-          SearchCLI: MS-GF+
-        </a>
-        <div
-          className="meta"
-        >
-          3.3.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        SearchGUI is a user-friendly open-source graphical user interface for co...
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#AD1457",
-          }
-        }
-      >
-        <a
-          href="/appDetails/tqdist_quartet/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('https://placekitten.com/200/200')",
-                "opacity": 1,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/tqdist_quartet/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/tqdist_quartet/1.0.0/"
-          onClick={[Function]}
-        >
-          tqDist: Quartet Distance
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        Distance measures between trees are useful for comparing trees in a syst...
-      </div>
-    </div>
-  </div>,
-  <div />,
-]
-`;
-
-exports[`Applications component Render full component 1`] = `
-Array [
-  <i
-    aria-hidden="true"
-    className="sync small circular link icon pagination-float-right"
-    onClick={[Function]}
-  />,
-  <span
-    className="items-per-page-padding pagination-float-right"
-  >
-    <span>
-      Items per page 
-    </span>
-    <div
-      aria-expanded={false}
-      className="ui compact inline dropdown"
-      onBlur={[Function]}
-      onChange={[Function]}
-      onClick={[Function]}
-      onFocus={[Function]}
-      onMouseDown={[Function]}
-      role="listbox"
-      tabIndex={0}
-    >
-      <div
-        aria-live="polite"
-        className="text"
-        role="alert"
-      >
-        25
-      </div>
-      <i
-        aria-hidden="true"
-        className="dropdown icon"
-        onClick={[Function]}
-      />
-      <div
-        className="menu transition"
-      >
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            10
-          </span>
-        </div>
-        <div
-          aria-checked={true}
-          aria-selected={true}
-          className="active selected item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            25
-          </span>
-        </div>
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            50
-          </span>
-        </div>
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            100
-          </span>
-        </div>
-      </div>
-    </div>
-  </span>,
-  <div
-    className="ui cards card-margin"
-  >
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#D4E157",
-          }
-        }
-      >
-        <a
-          href="/appDetails/palms/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('function loader(content) {
-  if (!this.emitFile) throw new Error('File Loader\\\\n\\\\nemitFile is required from module system');
-
-  const options = _loaderUtils2.default.getOptions(this) || {};
-
-  (0, _schemaUtils2.default)(_options2.default, options, 'File Loader');
-
-  const context = options.context || this.rootContext || this.options && this.options.context;
-
-  const url = _loaderUtils2.default.interpolateName(this, options.name, {
-    context,
-    content,
-    regExp: options.regExp
-  });
-
-  let outputPath = url;
-
-  if (options.outputPath) {
-    if (typeof options.outputPath === 'function') {
-      outputPath = options.outputPath(url);
-    } else {
-      outputPath = _path2.default.posix.join(options.outputPath, url);
-    }
-  }
-
-  if (options.useRelativePath) {
-    const filePath = this.resourcePath;
-
-    const issuer = options.context ? context : this._module && this._module.issuer && this._module.issuer.context;
-
-    const relativeUrl = issuer && _path2.default.relative(issuer, filePath).split(_path2.default.sep).join('/');
-
-    const relativePath = relativeUrl && \`\${_path2.default.dirname(relativeUrl)}/\`;
-    // eslint-disable-next-line no-bitwise
-    if (~relativePath.indexOf('../')) {
-      outputPath = _path2.default.posix.join(outputPath, relativePath, url);
-    } else {
-      outputPath = _path2.default.posix.join(relativePath, url);
-    }
-  }
-
-  let publicPath = \`__webpack_public_path__ + \${JSON.stringify(outputPath)}\`;
-
-  if (options.publicPath) {
-    if (typeof options.publicPath === 'function') {
-      publicPath = options.publicPath(url);
-    } else if (options.publicPath.endsWith('/')) {
-      publicPath = options.publicPath + url;
-    } else {
-      publicPath = \`\${options.publicPath}/\${url}\`;
-    }
-
-    publicPath = JSON.stringify(publicPath);
-  }
-
-  // eslint-disable-next-line no-undefined
-  if (options.emitFile === undefined || options.emitFile) {
-    this.emitFile(outputPath, content);
-  }
-  // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
-  return \`module.exports = \${publicPath};\`;
-}')",
-                "opacity": 0.3,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/palms/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/palms/1.0.0/"
-          onClick={[Function]}
-        >
-          PALMS
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        The central role of places in which physical activity (PA) is done is no...
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#FFF176",
-          }
-        }
-      >
-        <a
-          href="/appDetails/bwa-mem/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('https://placekitten.com/200/200')",
-                "opacity": 1,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/bwa-mem/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/bwa-mem/1.0.0/"
-          onClick={[Function]}
-        >
-          BWA-MEM
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        BWA-MEM
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#5D4037",
-          }
-        }
-      >
-        <a
-          href="/appDetails/figlet-count/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('https://placekitten.com/200/200')",
-                "opacity": 1,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/figlet-count/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/figlet-count/1.0.0/"
-          onClick={[Function]}
-        >
-          Figlet Counter
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        Count with Figlet!
-
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#455A64",
-          }
-        }
-      >
-        <a
-          href="/appDetails/tqdist_triplet/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('https://placekitten.com/200/200')",
-                "opacity": 1,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/tqdist_triplet/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/tqdist_triplet/1.0.0/"
-          onClick={[Function]}
-        >
-          tqDist: Triplet Distance
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        Distance measures between trees are useful for comparing trees in a syst...
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#FF8F00",
-          }
-        }
-      >
-        <a
-          href="/appDetails/figlet/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('function loader(content) {
-  if (!this.emitFile) throw new Error('File Loader\\\\n\\\\nemitFile is required from module system');
-
-  const options = _loaderUtils2.default.getOptions(this) || {};
-
-  (0, _schemaUtils2.default)(_options2.default, options, 'File Loader');
-
-  const context = options.context || this.rootContext || this.options && this.options.context;
-
-  const url = _loaderUtils2.default.interpolateName(this, options.name, {
-    context,
-    content,
-    regExp: options.regExp
-  });
-
-  let outputPath = url;
-
-  if (options.outputPath) {
-    if (typeof options.outputPath === 'function') {
-      outputPath = options.outputPath(url);
-    } else {
-      outputPath = _path2.default.posix.join(options.outputPath, url);
-    }
-  }
-
-  if (options.useRelativePath) {
-    const filePath = this.resourcePath;
-
-    const issuer = options.context ? context : this._module && this._module.issuer && this._module.issuer.context;
-
-    const relativeUrl = issuer && _path2.default.relative(issuer, filePath).split(_path2.default.sep).join('/');
-
-    const relativePath = relativeUrl && \`\${_path2.default.dirname(relativeUrl)}/\`;
-    // eslint-disable-next-line no-bitwise
-    if (~relativePath.indexOf('../')) {
-      outputPath = _path2.default.posix.join(outputPath, relativePath, url);
-    } else {
-      outputPath = _path2.default.posix.join(relativePath, url);
-    }
-  }
-
-  let publicPath = \`__webpack_public_path__ + \${JSON.stringify(outputPath)}\`;
-
-  if (options.publicPath) {
-    if (typeof options.publicPath === 'function') {
-      publicPath = options.publicPath(url);
-    } else if (options.publicPath.endsWith('/')) {
-      publicPath = options.publicPath + url;
-    } else {
-      publicPath = \`\${options.publicPath}/\${url}\`;
-    }
-
-    publicPath = JSON.stringify(publicPath);
-  }
-
-  // eslint-disable-next-line no-undefined
-  if (options.emitFile === undefined || options.emitFile) {
-    this.emitFile(outputPath, content);
-  }
-  // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
-  return \`module.exports = \${publicPath};\`;
-}')",
-                "opacity": 0.3,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/figlet/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/figlet/1.0.0/"
-          onClick={[Function]}
-        >
-          Figlet
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        Render some text!
-
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#37474F",
-          }
-        }
-      >
-        <a
-          href="/appDetails/rapidnj/2.3.2/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('https://placekitten.com/200/200')",
-                "opacity": 1,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/rapidnj/2.3.2/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/rapidnj/2.3.2/"
-          onClick={[Function]}
-        >
-          RapidNJ
-        </a>
-        <div
-          className="meta"
-        >
-          2.3.2
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        RapidNJ is an algorithmic engineered implementation of canonical neighbo...
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#DCE775",
-          }
-        }
-      >
-        <a
-          href="/appDetails/searchgui_msgf/3.3.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('function loader(content) {
-  if (!this.emitFile) throw new Error('File Loader\\\\n\\\\nemitFile is required from module system');
-
-  const options = _loaderUtils2.default.getOptions(this) || {};
-
-  (0, _schemaUtils2.default)(_options2.default, options, 'File Loader');
-
-  const context = options.context || this.rootContext || this.options && this.options.context;
-
-  const url = _loaderUtils2.default.interpolateName(this, options.name, {
-    context,
-    content,
-    regExp: options.regExp
-  });
-
-  let outputPath = url;
-
-  if (options.outputPath) {
-    if (typeof options.outputPath === 'function') {
-      outputPath = options.outputPath(url);
-    } else {
-      outputPath = _path2.default.posix.join(options.outputPath, url);
-    }
-  }
-
-  if (options.useRelativePath) {
-    const filePath = this.resourcePath;
-
-    const issuer = options.context ? context : this._module && this._module.issuer && this._module.issuer.context;
-
-    const relativeUrl = issuer && _path2.default.relative(issuer, filePath).split(_path2.default.sep).join('/');
-
-    const relativePath = relativeUrl && \`\${_path2.default.dirname(relativeUrl)}/\`;
-    // eslint-disable-next-line no-bitwise
-    if (~relativePath.indexOf('../')) {
-      outputPath = _path2.default.posix.join(outputPath, relativePath, url);
-    } else {
-      outputPath = _path2.default.posix.join(relativePath, url);
-    }
-  }
-
-  let publicPath = \`__webpack_public_path__ + \${JSON.stringify(outputPath)}\`;
-
-  if (options.publicPath) {
-    if (typeof options.publicPath === 'function') {
-      publicPath = options.publicPath(url);
-    } else if (options.publicPath.endsWith('/')) {
-      publicPath = options.publicPath + url;
-    } else {
-      publicPath = \`\${options.publicPath}/\${url}\`;
-    }
-
-    publicPath = JSON.stringify(publicPath);
-  }
-
-  // eslint-disable-next-line no-undefined
-  if (options.emitFile === undefined || options.emitFile) {
-    this.emitFile(outputPath, content);
-  }
-  // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
-  return \`module.exports = \${publicPath};\`;
-}')",
-                "opacity": 0.3,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/searchgui_msgf/3.3.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/searchgui_msgf/3.3.0/"
-          onClick={[Function]}
-        >
-          SearchCLI: MS-GF+
-        </a>
-        <div
-          className="meta"
-        >
-          3.3.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        SearchGUI is a user-friendly open-source graphical user interface for co...
-      </div>
-    </div>
-    <div
-      className="ui card"
-      onClick={[Function]}
-    >
-      <div
-        style={
-          Object {
-            "background": "#AD1457",
-          }
-        }
-      >
-        <a
-          href="/appDetails/tqdist_quartet/1.0.0/"
-          onClick={[Function]}
-        >
-          <div
-            className="app-image"
-            style={
-              Object {
-                "backgroundImage": "url('https://placekitten.com/200/200')",
-                "opacity": 1,
-              }
-            }
-          />
-        </a>
-      </div>
-      <div
-        className="content"
-      >
-        <div
-          className="ui horizontal right floated list"
-          role="list"
-        >
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <div
-              className="ui star rating"
-              onClick={[Function]}
-              onMouseLeave={[Function]}
-              role="radiogroup"
-            >
-              <i
-                aria-checked={false}
-                aria-posinset={1}
-                aria-setsize={1}
-                className="icon"
-                onClick={[Function]}
-                onKeyUp={[Function]}
-                onMouseEnter={[Function]}
-                role="radio"
-                tabIndex={0}
-              />
-            </div>
-          </div>
-          <div
-            className="item"
-            onClick={[Function]}
-            role="listitem"
-          >
-            <a
-              href="/applications/tqdist_quartet/1.0.0/"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="green play icon"
-              />
-            </a>
-          </div>
-        </div>
-        <a
-          className="header"
-          href="/appDetails/tqdist_quartet/1.0.0/"
-          onClick={[Function]}
-        >
-          tqDist: Quartet Distance
-        </a>
-        <div
-          className="meta"
-        >
-          1.0.0
-        </div>
-      </div>
-      <div
-        className="extra content"
-      >
-        Distance measures between trees are useful for comparing trees in a syst...
-      </div>
-    </div>
-  </div>,
-  <div />,
-]
-`;
-
 exports[`Single Application Component Render Single Application 1`] = `
 <div
-  className="ui card"
-  onClick={[Function]}
+  className="sc-kGXeez cABhMr"
+  height={212}
+  width={252}
 >
   <div
-    style={
-      Object {
-        "background": "#D4E157",
-      }
-    }
-  >
-    <a
-      href="/appDetails/palms/1.0.0/"
-      onClick={[Function]}
-    >
-      <div
-        className="app-image"
-        style={
-          Object {
-            "backgroundImage": "url('function loader(content) {
-  if (!this.emitFile) throw new Error('File Loader\\\\n\\\\nemitFile is required from module system');
-
-  const options = _loaderUtils2.default.getOptions(this) || {};
-
-  (0, _schemaUtils2.default)(_options2.default, options, 'File Loader');
-
-  const context = options.context || this.rootContext || this.options && this.options.context;
-
-  const url = _loaderUtils2.default.interpolateName(this, options.name, {
-    context,
-    content,
-    regExp: options.regExp
-  });
-
-  let outputPath = url;
-
-  if (options.outputPath) {
-    if (typeof options.outputPath === 'function') {
-      outputPath = options.outputPath(url);
-    } else {
-      outputPath = _path2.default.posix.join(options.outputPath, url);
-    }
-  }
-
-  if (options.useRelativePath) {
-    const filePath = this.resourcePath;
-
-    const issuer = options.context ? context : this._module && this._module.issuer && this._module.issuer.context;
-
-    const relativeUrl = issuer && _path2.default.relative(issuer, filePath).split(_path2.default.sep).join('/');
-
-    const relativePath = relativeUrl && \`\${_path2.default.dirname(relativeUrl)}/\`;
-    // eslint-disable-next-line no-bitwise
-    if (~relativePath.indexOf('../')) {
-      outputPath = _path2.default.posix.join(outputPath, relativePath, url);
-    } else {
-      outputPath = _path2.default.posix.join(relativePath, url);
-    }
-  }
-
-  let publicPath = \`__webpack_public_path__ + \${JSON.stringify(outputPath)}\`;
-
-  if (options.publicPath) {
-    if (typeof options.publicPath === 'function') {
-      publicPath = options.publicPath(url);
-    } else if (options.publicPath.endsWith('/')) {
-      publicPath = options.publicPath + url;
-    } else {
-      publicPath = \`\${options.publicPath}/\${url}\`;
-    }
-
-    publicPath = JSON.stringify(publicPath);
-  }
-
-  // eslint-disable-next-line no-undefined
-  if (options.emitFile === undefined || options.emitFile) {
-    this.emitFile(outputPath, content);
-  }
-  // TODO revert to ES2015 Module export, when new CSS Pipeline is in place
-  return \`module.exports = \${publicPath};\`;
-}')",
-            "opacity": 0.3,
-          }
-        }
-      />
-    </a>
-  </div>
-  <div
-    className="content"
+    className="sc-gipzik hYhsek"
   >
     <div
-      className="ui horizontal right floated list"
-      role="list"
+      className="sc-bdVaJa bQBfBb"
     >
       <div
-        className="item"
-        onClick={[Function]}
-        role="listitem"
+        className="sc-bdVaJa bQBfBb"
+        style={
+          Object {
+            "background": "#E91E63",
+          }
+        }
+      >
+        <img
+          className="sc-hMqMXs iipvbU"
+          src={[Function]}
+          style={
+            Object {
+              "opacity": 0.4,
+            }
+          }
+        />
+      </div>
+      <div
+        className="sc-bwzfXH hDECRi"
       >
         <div
-          className="ui star rating"
-          onClick={[Function]}
-          onMouseLeave={[Function]}
-          role="radiogroup"
+          className="sc-EHOje jjZauP"
+          color="white"
+          cursor="inherit"
+          fontSize={2}
         >
-          <i
-            aria-checked={false}
-            aria-posinset={1}
-            aria-setsize={1}
-            className="icon"
-            onClick={[Function]}
-            onKeyUp={[Function]}
-            onMouseEnter={[Function]}
-            role="radio"
-            tabIndex={0}
-          />
+          PALMS
         </div>
       </div>
       <div
-        className="item"
-        onClick={[Function]}
-        role="listitem"
+        className="sc-bwzfXH iLsITc"
+      >
+        <div
+          className="sc-EHOje irgxuc"
+          color="white"
+          cursor="inherit"
+          fontSize="xxs-small"
+        >
+          v 
+          1.0.0
+        </div>
+      </div>
+      <div
+        className="sc-bwzfXH hTtHjt"
+      >
+        <svg
+          className="sc-gZMcBi gyTeqP sc-iwsKbI jzxgXF"
+          color="red"
+          cursor="pointer"
+          fill="currentcolor"
+          height={24}
+          onClick={[Function]}
+          viewBox="0 0 23 22"
+          width={24}
+        >
+          <path
+            d="M14.939 7.146l7.886 1.146-5.707 5.562 1.347 7.854L11.412 18 4.36 21.708l1.347-7.854L0 8.292l7.886-1.146L11.412 0l3.527 7.146zM9.878 9.888l-3.432.498 2.483 2.42-.586 3.418 3.07-1.614 3.068 1.614-.586-3.417 2.483-2.42-3.431-.499-1.535-3.11-1.534 3.11z"
+            fill="#c00"
+          />
+        </svg>
+      </div>
+      <div
+        className="sc-bwzfXH biWzgY"
+      >
+        <div
+          className="sc-dnqmqq gAvPes"
+          color="white"
+          title="by Dan Sebastian Thrane <dthrane@imada.sdu.dk>"
+          width={180}
+        >
+          by 
+          Dan Sebastian Thrane &lt;dthrane@imada.sdu.dk&gt;
+        </div>
+      </div>
+      <div
+        className="sc-bwzfXH cebrxn"
       >
         <a
+          className="sc-cMljjf gvnKqJ"
+          color="black"
           href="/applications/palms/1.0.0/"
           onClick={[Function]}
+          theme={
+            Object {
+              "bold": 400,
+              "boxShadows": Array [
+                "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
+                "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
+                "0 0 2px 0 rgba(0,0,0,.08),0 4px 16px 0 rgba(0,0,0,.16)",
+                "0 0 2px 0 rgba(0,0,0,.08),0 8px 32px 0 rgba(0,0,0,.16)",
+              ],
+              "breakpoints": Array [
+                "32em",
+                "40em",
+                "48em",
+                "64em",
+              ],
+              "colorStyles": Object {
+                "blueOnLightBlue": Object {
+                  "backgroundColor": "#cdf",
+                  "color": "#0055d5",
+                },
+                "blueOnWhite": Object {
+                  "backgroundColor": "#fff",
+                  "color": "#0055d5",
+                },
+                "danger": Object {
+                  "backgroundColor": "#c00",
+                  "color": "#fff",
+                },
+                "grayOnWhite": Object {
+                  "backgroundColor": "#fff",
+                  "color": "#c9d3df",
+                },
+                "greenOnLightGreen": Object {
+                  "backgroundColor": "#cec",
+                  "color": "#0a0",
+                },
+                "greenOnWhite": Object {
+                  "backgroundColor": "#fff",
+                  "color": "#0a0",
+                },
+                "info": Object {
+                  "backgroundColor": "#ebeff3",
+                  "color": "#001833",
+                },
+                "purpleOnLightPurple": Object {
+                  "backgroundColor": "#ecf",
+                  "color": "#70b",
+                },
+                "purpleOnWhite": Object {
+                  "backgroundColor": "#fff",
+                  "color": "#70b",
+                },
+                "redOnLightRed": Object {
+                  "backgroundColor": "#fcc",
+                  "color": "#c00",
+                },
+                "redOnWhite": Object {
+                  "backgroundColor": "#fff",
+                  "color": "#c00",
+                },
+                "success": Object {
+                  "backgroundColor": "#0a0",
+                  "color": "#fff",
+                },
+                "textOnLightGray": Object {
+                  "backgroundColor": "#ebeff3",
+                  "color": "#001833",
+                },
+                "textOnOrange": Object {
+                  "backgroundColor": "#fa0",
+                  "color": "#001833",
+                },
+                "textOnWhite": Object {
+                  "backgroundColor": "#fff",
+                  "color": "#001833",
+                },
+                "warning": Object {
+                  "backgroundColor": "#fa0",
+                  "color": "#001833",
+                },
+                "whiteOnBlue": Object {
+                  "backgroundColor": "#0055d5",
+                  "color": "#fff",
+                },
+                "whiteOnDarkOrange": Object {
+                  "backgroundColor": "#a50",
+                  "color": "#fff",
+                },
+                "whiteOnGray": Object {
+                  "backgroundColor": "#c9d3df",
+                  "color": "#fff",
+                },
+                "whiteOnGreen": Object {
+                  "backgroundColor": "#0a0",
+                  "color": "#fff",
+                },
+                "whiteOnPurple": Object {
+                  "backgroundColor": "#70b",
+                  "color": "#fff",
+                },
+                "whiteOnRed": Object {
+                  "backgroundColor": "#c00",
+                  "color": "#fff",
+                },
+                "whiteOnText": Object {
+                  "backgroundColor": "#001833",
+                  "color": "#fff",
+                },
+              },
+              "colors": Object {
+                "black": "#000",
+                "blue": "#0055d5",
+                "borderGray": "#d1d6db",
+                "darkBlue": "#049",
+                "darkGray": "#53657d",
+                "darkGreen": "#060",
+                "darkOrange": "#a50",
+                "darkRed": "#800",
+                "gray": "#c9d3df",
+                "green": "#0a0",
+                "lightBlue": "#cdf",
+                "lightGray": "#ebeff3",
+                "lightGreen": "#cec",
+                "lightPurple": "#ecf",
+                "lightRed": "#fcc",
+                "midGray": "#53657d",
+                "orange": "#fa0",
+                "paginationHoverColor": "#f7f7f7",
+                "purple": "#70b",
+                "red": "#c00",
+                "text": "#001833",
+                "white": "#fff",
+              },
+              "duration": Object {
+                "fast": "150ms",
+                "normal": "300ms",
+                "slow": "450ms",
+                "slowest": "600ms",
+              },
+              "fontFamily": "'IBM Plex Sans',sans-serif",
+              "fontSizes": Array [
+                12,
+                14,
+                16,
+                20,
+                24,
+                32,
+                40,
+                56,
+                72,
+              ],
+              "fontWeights": Object {
+                "bold": 400,
+                "medium": 300,
+                "regular": 300,
+              },
+              "letterSpacings": Object {
+                "caps": "0.025em",
+                "normal": "normal",
+              },
+              "lineHeights": Object {
+                "display": 1.25,
+                "standard": 1.5,
+              },
+              "maxContainerWidth": "1280px",
+              "mediaQueries": Array [
+                "@media screen and (min-width:32em)",
+                "@media screen and (min-width:40em)",
+                "@media screen and (min-width:48em)",
+                "@media screen and (min-width:64em)",
+              ],
+              "radii": Array [
+                0,
+                2,
+                6,
+              ],
+              "radius": "2px",
+              "regular": 300,
+              "space": Array [
+                0,
+                4,
+                8,
+                16,
+                32,
+                64,
+                128,
+              ],
+              "textStyles": Object {
+                "body0": Object {
+                  "fontSize": "12px",
+                  "fontWeight": 300,
+                  "lineHeight": 1.5,
+                },
+                "body1": Object {
+                  "fontSize": "14px",
+                  "fontWeight": 300,
+                  "lineHeight": 1.5,
+                },
+                "body2": Object {
+                  "fontSize": "16px",
+                  "fontWeight": 300,
+                  "lineHeight": 1.5,
+                },
+                "display0": Object {
+                  "fontSize": "12px",
+                  "fontWeight": 400,
+                  "letterSpacing": "0.025em",
+                  "lineHeight": 1.25,
+                  "textTransform": "uppercase",
+                },
+                "display1": Object {
+                  "fontSize": "14px",
+                  "fontWeight": 400,
+                  "lineHeight": 1.25,
+                },
+                "display2": Object {
+                  "fontSize": "16px",
+                  "fontWeight": 400,
+                  "lineHeight": 1.25,
+                },
+                "display3": Object {
+                  "fontSize": "20px",
+                  "fontWeight": 400,
+                  "lineHeight": 1.25,
+                },
+                "display4": Object {
+                  "fontSize": "24px",
+                  "fontWeight": 400,
+                  "lineHeight": 1.25,
+                },
+                "display5": Object {
+                  "fontSize": "32px",
+                  "fontWeight": 400,
+                  "lineHeight": 1.25,
+                },
+                "display6": Object {
+                  "fontSize": "40px",
+                  "fontWeight": 400,
+                  "lineHeight": 1.25,
+                },
+                "display7": Object {
+                  "fontSize": "56px",
+                  "fontWeight": 400,
+                  "lineHeight": 1.25,
+                },
+                "display8": Object {
+                  "fontSize": "72px",
+                  "fontWeight": 400,
+                  "lineHeight": 1.25,
+                },
+              },
+              "timingFunctions": Object {
+                "easeIn": "cubic-bezier(0.5, 0, 1, 1)",
+                "easeInOut": "cubic-bezier(0.5, 0, 0.25, 1)",
+                "easeOut": "cubic-bezier(0, 0, 0.25, 1)",
+              },
+              "transitionDelays": Object {
+                "large": "260ms",
+                "medium": "160ms",
+                "small": "60ms",
+                "xLarge": "360ms",
+              },
+            }
+          }
         >
-          <i
-            aria-hidden="true"
-            className="green play icon"
-          />
+          <svg
+            className="sc-dxgOiQ jQZQST sc-iwsKbI fSJFTj"
+            cursor="pointer"
+            fill="currentcolor"
+            height={38}
+            viewBox="0 0 32 36"
+            width={38}
+          >
+            <path
+              d="M0 2.04C0 1.3.37.65 1.02.28c.65-.37 1.4-.37 2.04.02l27.27 15.88c.64.37 1 1 1 1.74 0 .73-.36 1.38-1 1.75L3.06 35.55a2 2 0 0 1-2.04.01A1.98 1.98 0 0 1 0 33.8V2.04z"
+              fill="#8393a7"
+            />
+          </svg>
         </a>
       </div>
     </div>
-    <a
-      className="header"
-      href="/appDetails/palms/1.0.0/"
-      onClick={[Function]}
-    >
-      PALMS
-    </a>
-    <div
-      className="meta"
-    >
-      1.0.0
-    </div>
   </div>
   <div
-    className="extra content"
+    className="sc-gipzik hYhsek"
   >
-    The central role of places in which physical activity (PA) is done is no...
+    <div
+      className="sc-bwzfXH bVqAki"
+    >
+      <div
+        className="sc-EHOje kvayUm"
+        cursor="inherit"
+      >
+        The central role of places in which physical activity (PA) is done is now widely recognized, so it i
+      </div>
+    </div>
   </div>
 </div>
 `;

@@ -35,7 +35,7 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
         return (
             <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                 <Box mt="0.5em">
-                    <Heading.h3>Advanced Application Search</Heading.h3>
+                    <Heading.h3>Search</Heading.h3>
                     <Error clearError={console.log} error={this.props.error} />
                     <form onSubmit={e => this.onSearch(e)}>
                         <Heading.h5 pb="0.3em" pt="0.5em">Application Name</Heading.h5>
