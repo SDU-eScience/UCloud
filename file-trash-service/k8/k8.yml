@@ -1,0 +1,59 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: file-trash-service-deployment
+  labels:
+    app: file-trash-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: file-trash-service
+  template:
+    metadata:
+      labels:
+        app: file-trash-service
+    spec:
+      containers:
+      - name: file-trash-service
+        image: registry.cloud.sdu.dk/sdu-cloud/file-trash-service:0.1.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: file-trash-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: file-trash
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: file-trash-service
