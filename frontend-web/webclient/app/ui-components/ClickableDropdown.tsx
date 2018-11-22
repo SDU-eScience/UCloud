@@ -34,7 +34,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
 
     // https://stackoverflow.com/questions/32553158/detect-click-outside-react-component#42234988
     handleClickOutside = event => {
-        if (this.ref && !this.ref.current.contains(event.target)) this.setState(() => ({ open: false }));
+        if (this.ref.current && !this.ref.current.contains(event.target)) this.setState(() => ({ open: false }));
     }
 
     render() {

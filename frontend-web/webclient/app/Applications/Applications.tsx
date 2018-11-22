@@ -47,14 +47,17 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 
     render() {
-        const { page, loading, fetchApplications, favorites, onErrorDismiss, receiveApplications, error } = this.props;
-        const favoriteApp = (name: string, version: string) => receiveApplications(favoriteApplicationFromPage(name, version, page, Cloud));
+        const { page, loading, fetchApplications, favorites, onErrorDismiss, receiveApplications, ...props } = this.props;
+        const favoriteApp = async (name: string, version: string) => {
+            receiveApplications(await favoriteApplicationFromPage(name, version, page, Cloud));
+            props.fetchFavorites(0, favorites.itemsPerPage);
+        }
 
         const main = (
             <Pagination.List
                 loading={loading}
                 onErrorDismiss={onErrorDismiss}
-                errorMessage={error}
+                errorMessage={props.error}
                 onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
                 pageRenderer={({ items }: Page<Application>) =>
                     <React.Fragment>
@@ -64,7 +67,7 @@ class Applications extends React.Component<ApplicationsProps> {
                                 <CardGroup>
                                     {favorites.items.map(app =>
                                         <ApplicationCard
-                                            key={`${app.description.info.name}${app.description.info.version}`}
+                                            key={`fav-${app.description.info.name}${app.description.info.version}`}
                                             favoriteApp={favoriteApp}
                                             app={app}
                                             isFavorite={app.favorite}
