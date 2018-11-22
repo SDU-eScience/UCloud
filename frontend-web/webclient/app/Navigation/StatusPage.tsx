@@ -1,16 +1,15 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import { updatePageTitle } from "./Redux/StatusActions";
-import { Segment } from "semantic-ui-react";
-import { statusToColor } from "Navigation/Status";
 import { Dispatch } from "redux";
+import { Box } from "ui-components";
 
 const Status = ({ status, updatePageTitle }) => {
     updatePageTitle();
     return (
         <React.StrictMode>
-            <Segment size="huge" content={status.title} color={statusToColor(status.level)} />
-            <Segment padded="very" content={status.body} />
+            <Box>{status.title}</Box>
+            <Box>{status.body}</Box>
         </React.StrictMode>
     );
 };

@@ -11,7 +11,7 @@ describe("Sidebar", () => {
             Object.defineProperty(window, "innerWidth", { value: 500 })
         );
 
-        test("Sidebar", () => false);
+        test.skip("Sidebar", () => { false });
 
         afterAll(() => Object.defineProperty(window, "innerWidth", { value: initialWidth }));
     });

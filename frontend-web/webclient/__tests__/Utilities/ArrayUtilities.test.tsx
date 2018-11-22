@@ -22,5 +22,4 @@ describe("Array Utilities", () => {
         const array = [] as number[];
         expect(ArrayUtilities.removeEntry(array, 2).length).toBe(0);
     });
-
-})
+});
