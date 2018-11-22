@@ -67,7 +67,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         }
 
         const unreadLength = page.items.filter((e) => !e.read).length;
-        const uploads = 1 > 0 ? (
+        const uploads = unreadLength > 0 ? (
             <>
                 <Divider />
                 <UploaderButton
