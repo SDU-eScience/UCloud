@@ -227,6 +227,7 @@ export interface Description {
     invocation: Invocation[]
     parameters: ApplicationParameter[]
     outputFileGlobs: [string, string]
+    tags: string[]
 }
 interface Tool {
     owner: string

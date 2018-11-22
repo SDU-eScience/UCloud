@@ -4,10 +4,17 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import { ApplicationInformation } from "Applications";
-import { Error, Stamp, Button, Box, Flex, Icon } from "ui-components";
+import { ApplicationInformation, ApplicationDescription } from "Applications";
+import { Error, Stamp, Button, Box, Flex, Icon, ContainerForText } from "ui-components";
 import { MainContainer } from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading"
+import styled from "styled-components";
+import { dateToString } from "Utilities/DateUtilities";
+import { toLowerCaseAndCapitalize } from "UtilityFunctions"
+
+const HeaderSeparator = styled.div`
+    margin-bottom: 10px;
+`;
 
 type DetailedApplicationProps = any
 type DetailedApplicationState = {
@@ -16,7 +23,6 @@ type DetailedApplicationState = {
     loading: boolean
     error?: string
 }
-
 
 class DetailedApplication extends React.Component<DetailedApplicationProps, DetailedApplicationState> {
     constructor(props) {
@@ -49,33 +55,27 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
             }));
     }
 
-    favoriteApplication = (): void => {
-        const { appInformation } = this.state;
-        if (!appInformation) return;
-        appInformation.favorite = !appInformation.favorite;
-        if (appInformation.favorite) {
-            // post
-        } else {
-            // delete
-        }
-        this.setState(() => ({ appInformation }));
-    }
-
     render() {
         const { appInformation } = this.state;
         return (
             <MainContainer
-                header={<Error error={this.state.error} clearError={() => this.setState(() => ({ error: undefined }))} />}
-                main={
-                    <>
-                        <DefaultLoading loading={this.state.loading} />
-                        <ApplicationHeader favoriteApplication={this.favoriteApplication} appInformation={appInformation} />
-                        <Heading.h3 mt="0.3em">Tags</Heading.h3>
-                        <ApplicationTags tags={[] as string[]} />
-                        <Heading.h3 mt="0.3em">Tools</Heading.h3>
-                        <ApplicationTools appInformation={appInformation} />
-                    </>
+                header={
+                    <Error
+                        error={this.state.error}
+                        clearError={() => this.setState(() => ({ error: undefined }))}
+                    />
                 }
+
+                main={
+                    <ContainerForText>
+                        {
+                            !!!appInformation ?
+                                <DefaultLoading loading={this.state.loading} /> :
+                                <MainContent application={appInformation} />
+                        }
+                    </ContainerForText>
+                }
+
                 sidebar={
                     <>
                         {appInformation !== undefined ?
@@ -90,77 +90,135 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
     }
 }
 
-
-const ApplicationTags = (props) => {
-    const mockedTags = ["nanomachines", "medication", "megamachines", "hyper light simulation", "teleportation research"];
-    return (<>{mockedTags.map((tag, i) => <Stamp key={i} color="black" bg="white" borderColor="black">{tag}</Stamp>)}</>);
-};
-
-interface ApplicationDetails { appInformation?: ApplicationInformation }
-const ApplicationTools = ({ appInformation }: ApplicationDetails) => {
-    if (appInformation == null) return null;
-
-    const { tool } = appInformation;
-    const { hours, minutes, seconds } = tool.description.defaultMaxTime;
-    const padNumber = (val: number): string => val < 10 ? `0${val}` : `${val}`;
-    const timeString = `${padNumber(hours)}:${padNumber(minutes)}:${padNumber(seconds)}`;
-    return (
-        <Flex>
-            <Stamp bg="green" color="white" borderColor="green">
-                <Box pr="0.2em" pl="0.2em">
-                    <i className="fas fa-wrench" />
-                </Box>
-                Container: {tool.description.backend}
-            </Stamp>
-            <Stamp bg="blue" color="white" borderColor="blue">
-                <Box pr="0.2em" pl="0.2em">
-                    <i className="far fa-file" />
-                </Box>
-                Output files: {appInformation.description.outputFileGlobs.join(", ")}
-            </Stamp>
-            <Stamp color="black" bg="white" borderColor="black">
-                {`${appInformation.description.parameters.length} parameters`}
-            </Stamp>
-            <Box ml="auto" />
-            <Stamp borderColor="black" color="black" bg="white">
-                <i className="far fa-clock" />
-                Default job time: {timeString}
-            </Stamp>
-            <Stamp borderColor="black" color="black" bg="white">
-                Default number of nodes: {tool.description.defaultNumberOfNodes}
-            </Stamp>
-            <Stamp borderColor="black" color="black" bg="white">
-                {`Default tasks per node: ${tool.description.defaultTasksPerNode}`}
-            </Stamp>
-        </Flex>
-    )
+interface MainContentProps {
+    onFavorite?: () => void
+    application: ApplicationInformation
 }
 
-interface ApplicationHeaderProps extends ApplicationDetails { favoriteApplication: () => void }
-const ApplicationHeader = ({ appInformation, favoriteApplication }: ApplicationHeaderProps) => {
-    if (appInformation == null) return null;
-    // Not a very good pluralize function.
-    const pluralize = (array, text) => (array.length > 1) ? text + "s" : text;
-    let authorString = (!!appInformation.description.authors) ? appInformation.description.authors.join(", ") : "";
+function MainContent(props: MainContentProps) {
+    return <>
+        <Header
+            onFavorite={props.onFavorite}
+            application={props.application} />
 
+        <Authors authors={props.application.description.authors} />
+
+        <Tags tags={props.application.description.tags} />
+
+        <HeaderSeparator />
+
+        <ReactMarkdown source={props.application.description.description} />
+
+        <Technical application={props.application} />
+    </>;
+}
+
+interface HeaderProps {
+    application: ApplicationInformation
+    onFavorite?: () => void
+}
+
+const HeaderStyle = styled(Heading.h1)`
+    > small {
+        padding-left: 10px;
+        font-size: 50%;
+    }
+
+    > span {
+        float: right;
+        padding-right: 15px;
+    }
+`;
+
+const Header = ({ application, onFavorite }: HeaderProps) => {
+    const desc = application.description;
     return (
-        <Heading.h1>
-            {appInformation.description.title}
-            <span className="app-favorite-padding">
-                <Icon
-                    ml="0.5em"
-                    style={{ verticalAlign: "center" }}
-                    onClick={() => favoriteApplication()}
-                    name={appInformation.favorite ? "starFilled" : "starEmpty"}
-                />
-            </span>
-            <h4>{appInformation.description.info.version}</h4>
-            <h4>{pluralize(appInformation.description.authors, "Author")}: {authorString}</h4>
-            <Heading.h5>
-                <ReactMarkdown source={appInformation.description.description} />
-            </Heading.h5>
-        </Heading.h1>
+        <HeaderStyle>
+            {application.description.title}
+            <small>v. {desc.info.version}</small>
+
+            {onFavorite ?
+                <span>
+                    <Icon
+                        ml="0.5em"
+                        style={{ verticalAlign: "center" }}
+                        onClick={() => onFavorite()}
+                        name={application.favorite ? "starFilled" : "starEmpty"}
+                    />
+                </span> : null
+            }
+        </HeaderStyle>
     );
 };
+
+function Authors({ authors }: { authors: string[] }) {
+    return <div><b>Submitted by:</b> {authors.join(", ")}</div>;
+}
+
+const TagStyle = styled.a`
+    padding-right: 10px;
+`;
+
+function Tags({ tags }: { tags: string[] }) {
+    if (!!!tags) return null;
+
+    return <div>
+        {
+            tags.map(tag => (
+                <TagStyle href={`foo/${tag}`}>#{tag}</TagStyle>
+            ))
+        }
+    </div>;
+}
+
+function TechnicalAttribute(props: {
+    name: string,
+    value?: string,
+    children?: JSX.Element
+}) {
+    return <Box width={0.33} mt={10}>
+        <Heading.h5>{props.name}</Heading.h5>
+        {props.value}
+        {props.children}
+    </Box>;
+}
+
+const pad = (value, length) =>
+    (value.toString().length < length) ? pad("0" + value, length) : value;
+
+function Technical({ application }: { application: ApplicationInformation }) {
+    const time = application.tool.description.defaultMaxTime;
+    const timeString = `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}`;
+
+    return <>
+        <Heading.h3>Technical Information</Heading.h3>
+
+        <Flex flexDirection="row" flexWrap={"wrap"}>
+            <TechnicalAttribute
+                name="Release Date"
+                value={dateToString(application.createdAt)} />
+
+            <TechnicalAttribute
+                name="Default Time Allocation"
+                value={timeString} />
+
+            <TechnicalAttribute
+                name="Default Nodes"
+                value={`${application.tool.description.defaultNumberOfNodes}`} />
+
+            <TechnicalAttribute name="Output Files">
+                <ul>
+                    {application.description.outputFileGlobs.map(output =>
+                        <li><code>{output}</code></li>
+                    )}
+                </ul>
+            </TechnicalAttribute>
+
+            <TechnicalAttribute
+                name="Container Type"
+                value={toLowerCaseAndCapitalize(application.tool.description.backend)} />
+        </Flex>
+    </>;
+}
 
 export default DetailedApplication;

@@ -32,6 +32,7 @@ export { default as ToggleBadge } from './ToggleBadge'
 export { default as Truncate } from './Truncate'
 export { default as Checkbox } from './Checkbox'
 export { default as Error } from "./Error";
+export { default as ContainerForText } from "./ContainerForText";
 
 export { default as Sidebar } from './Sidebar'
 
