@@ -57,8 +57,8 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             <NotificationEntry
                 key={index}
                 notification={notification}
-                onMarkAsRead={(it) => this.props.notificationRead(it.id)}
-                onAction={(it) => this.onNotificationAction(it)}
+                onMarkAsRead={it => this.props.notificationRead(it.id)}
+                onAction={it => this.onNotificationAction(it)}
             />
         );
 
