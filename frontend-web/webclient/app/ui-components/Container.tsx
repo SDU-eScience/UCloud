@@ -1,7 +1,7 @@
 import styled from "styled-components"
-import theme from "./theme"
+import theme, {Theme} from "./theme"
 
-const maxWidth = (props: { maxWidth?: number | string, theme: any }) =>
+const maxWidth = (props: { maxWidth?: number | string, theme: Theme }) =>
   props.maxWidth
     ? { maxWidth: `${props.maxWidth}px` }
     : { maxWidth: props.theme.maxContainerWidth }
@@ -14,7 +14,7 @@ const Container = styled("div") <{ maxWidth?: number }> `
 `;
 
 Container.defaultProps = {
-  theme: theme
+  theme
 };
 
 Container.displayName = "Container";

@@ -21,6 +21,7 @@ import List from "ui-components/List";
 import { CardGroup } from "ui-components/Card";
 import { TextSpan } from "ui-components/Text";
 import { notificationRead } from "Notifications/Redux/NotificationsActions";
+import { PaginationButtons } from "Pagination/Pagination";
 
 
 class Dashboard extends React.Component<DashboardProps> {
@@ -39,7 +40,7 @@ class Dashboard extends React.Component<DashboardProps> {
     render() {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
             analysesLoading, errors } = this.props;
-        favoriteFiles.forEach((f: File) => f.favorited = true);
+        favoriteFiles.forEach(f => f.favorited = true);
         const favoriteOrUnfavorite = (file: File) => {
             favoriteFile(file, Cloud);
             this.props.receiveFavorites(favoriteFiles.filter((f: File) => f.favorited));

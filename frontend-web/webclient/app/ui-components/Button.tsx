@@ -1,8 +1,8 @@
 import styled from "styled-components";
 import { space, ButtonStyleProps, SpaceProps, SizeProps } from "styled-system";
-import theme, { ThemeColor } from "./theme";
+import theme, { Theme, ThemeColor } from "./theme";
 
-const size = ({ size, theme }: { size: string, theme: any }) => {
+const size = ({ size, theme }: { size: string, theme: Theme }) => {
   switch (size) {
     case "tiny":
       return {
@@ -47,7 +47,7 @@ const Button = styled.button<ButtonProps>`
   line-height: 1.5;
   cursor: pointer;
   border-radius: ${props => props.theme.radius};
-  background-color: ${props => props.color ? props.theme.colors[props.color] : props.theme.colors.blue};
+  background-color: ${props => props.theme.colors[props.color!]};
   color: ${props => props.theme.colors.white};
   border-width: 0;
   border-style: solid;

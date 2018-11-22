@@ -3,6 +3,7 @@ import { Image, Header, Form, Input, Button, Divider } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { TwoFactorSetupState } from ".";
 import * as UF from "UtilityFunctions";
+import * as Heading from "ui-components/Heading";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
@@ -62,7 +63,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
     private setupPage() {
         return (
             <div>
-                <Header><h3>2FA Setup</h3></Header>
+                <Heading.h3>2FA Setup</Heading.h3>
                 <p>
                     In order to activate 2FA on your account you must have a
                     device capable of issuing time-based one time passwords

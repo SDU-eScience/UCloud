@@ -1,13 +1,13 @@
 import styled from 'styled-components'
 import Box, { BoxProps } from './Box'
-import theme from './theme'
+import theme, { Theme } from './theme'
 
 //const getMaxWidth = (em: number) => em - 0.01
 
 const getMaxWidth = (em: string) => (parseInt(em) - 0.01) + 'em' 
 
 
-const breakpoints = (props: { theme: any }) => ({
+const breakpoints = (props: { theme: Theme }) => ({
   xs: `@media screen and (max-width: ${getMaxWidth(
     props.theme.breakpoints[0]
   )})`,

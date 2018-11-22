@@ -1,4 +1,4 @@
-export { Buttons, EntriesPerPageSelector } from "./Pagination";
+export { EntriesPerPageSelector, PaginationButtons } from "./Pagination";
 export { List } from "./List";
 export { ManagedList } from "./ManagedList";
 import { Page } from "Types";

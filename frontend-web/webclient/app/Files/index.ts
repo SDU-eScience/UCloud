@@ -8,7 +8,7 @@ import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
 import { IconName } from "ui-components/Icon";
-import { ComponentWithPage, Sensitivity } from "DefaultObjects";
+import { ComponentWithPage } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 
 export enum SortOrder {
@@ -30,7 +30,7 @@ export interface File {
     isChecked?: boolean
     beingRenamed?: boolean
     link: boolean
-    annotations: Annotation[]
+    annotations: string[]
     isMockFolder?: boolean
     content?: any
 }
@@ -170,7 +170,7 @@ export interface FileSelectorModalProps {
     show: boolean
     loading: boolean
     path: string
-    onHide: (event: React.MouseEvent<HTMLButtonElement | HTMLElement>, data: ButtonProps | ModalProps) => void
+    onHide: (event: any, data?: ButtonProps | ModalProps) => void
     page: Page<File>
     setSelectedFile: Function
     fetchFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
@@ -258,10 +258,6 @@ export interface DetailedFileSearchOperations {
 
 export type DetailedFileSearchProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
 
-export enum AnnotationsMap { P = "Project" }
-
-export type Annotation = keyof typeof AnnotationsMap;
-
 export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 
 export interface DetailedFileSearchReduxState extends ComponentWithPage<File> {
@@ -272,7 +268,6 @@ export interface DetailedFileSearchReduxState extends ComponentWithPage<File> {
     extensions: Set<string>
     tags: Set<string>
     sensitivities: Set<SensitivityLevel>
-    annotations: Set<Annotation>
     createdBefore?: Moment
     createdAfter?: Moment
     modifiedBefore?: Moment
@@ -303,7 +298,6 @@ export type AdvancedSearchRequest = {
     createdAt?: { after?: number, before?: number }
     modifiedAt?: { after?: number, before?: number }
     sensitivity?: Array<SensitivityLevel>
-    annotations?: Array<String>
     itemsPerPage?: number
     page?: number
 };

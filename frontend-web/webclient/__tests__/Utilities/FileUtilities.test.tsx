@@ -256,7 +256,3 @@ describe("File Operations", () => {
         });
     });
 });
-
-test("Annotation to string", () => {
-    expect(FileUtils.annotationToString("P")).toBe("Project");
-});

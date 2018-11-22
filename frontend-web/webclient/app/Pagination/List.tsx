@@ -67,8 +67,7 @@ export class List extends React.PureComponent<ListProps> {
                 </Flex>
                 {body}
                 <div>
-                    <Self.Buttons
-                        as="span"
+                    <Self.PaginationButtons
                         currentPage={props.page.pageNumber}
                         toPage={(page) => ifPresent(props.onPageChanged, c => c(page))}
                         totalPages={props.page.pagesInTotal}
