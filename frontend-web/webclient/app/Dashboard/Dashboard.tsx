@@ -15,7 +15,7 @@ import { Analysis } from "Applications";
 import { File, FileType } from "Files";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Error, Box, Flex, Card, Text, Link } from "ui-components";
+import { Error, Box, Flex, Card, Text, Link, theme } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import { CardGroup } from "ui-components/Card";
@@ -79,7 +79,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
                         <Flex key={i} pt="0.8em" pb="6px">
                             <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={200} />
                             <Box ml="auto" />
-                            <Box><i className="fas fa-star" style={{ color: "blue", verticalAlign: "middle" }} onClick={() => favorite(file)} /></Box>
+                            <Box><i className="fas fa-star" style={{ color: theme.colors.blue, verticalAlign: "middle" }} onClick={() => favorite(file)} /></Box>
                         </Flex>)
                     )}
                 </List>
