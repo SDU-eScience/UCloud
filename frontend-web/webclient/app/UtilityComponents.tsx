@@ -5,7 +5,6 @@ import { Icon, Heading, Button } from "ui-components";
 interface FileIconProps extends IconProps { link?: boolean, shared?: boolean }
 export const FileIcon = ({ name, size, shared = false, link = false, color }: FileIconProps) =>
     link || shared ?
-        // FIXME Inline style
         <SIcon.Group size={size}>
             <SIcon name={name} color={color} />
             <Popup
