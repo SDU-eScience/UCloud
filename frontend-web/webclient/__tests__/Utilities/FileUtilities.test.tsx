@@ -213,7 +213,7 @@ describe("File Operations", () => {
             });
 
             describe("DeleteFileOperation", () => {
-                const deleteOp = FileUtils.DeleteFileOperation(() => undefined)[0];
+                const deleteOp = FileUtils.MoveFileToTrashOperation(() => undefined)[0];
                 const files = mockFiles_SensitivityConfidential.items;
 
 

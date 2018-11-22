@@ -157,7 +157,7 @@ const DashboardNotifications = ({ notifications, readAll }: { notifications: Not
             <List>
                 {notifications.slice(0, 7).map((n, i) =>
                     <Flex key={i}>
-                        <NotificationEntry notification={n} />
+                        <NotificationEntry notification={n} onAction={() => console.log("TODO")} />
                     </Flex>
                 )}
             </List>
