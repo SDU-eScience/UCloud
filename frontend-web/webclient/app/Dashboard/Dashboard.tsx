@@ -121,11 +121,11 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
 const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLoading: boolean }) => (
     <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
-            <Heading.h4>Recent Analyses</Heading.h4>
+            <Heading.h4>Recent Jobs</Heading.h4>
         </Flex>
         <Box px={3} py={1}>
             <DefaultLoading loading={isLoading} />
-            {isLoading || analyses.length ? null : (<h3><small>No Analyses found</small></h3>)}
+            {isLoading || analyses.length ? null : (<h3><small>No results found</small></h3>)}
             <Box pb="0.5em" />
             <List>
                 {analyses.map((analysis: Analysis, index: number) =>
@@ -136,7 +136,7 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
                                 alignSelf: "center"
                             }} />
                         </Box>
-                        <Link mt="-3px" to={`/analyses/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.appName}</TextSpan></Link>
+                        <Link mt="-3px" to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.appName}</TextSpan></Link>
                         <Box ml="auto" />
                         <TextSpan mt="-3px" fontSize={2}>{toLowerCaseAndCapitalize(analysis.state)}</TextSpan>
                     </Flex>

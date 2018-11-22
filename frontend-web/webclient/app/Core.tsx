@@ -4,7 +4,7 @@ import Files from "Files/Files";
 import Dashboard from "Dashboard/Dashboard";
 import Applications from "Applications/Applications";
 import RunApp from "Applications/RunApp";
-import Analyses from "Applications/Analyses";
+import JobResults from "Applications/JobResults";
 import Header from "Navigation/Header";
 import Sidebar from "ui-components/Sidebar";
 import ZenodoPublish from "Zenodo/Publish";
@@ -36,29 +36,39 @@ const Core = () => (
         <Sidebar />
         <Box ml="190px" pt="62px" pl="15px" pr="15px">
             <Switch>
-                <Route path="/files/*" component={Files} />
-                <Route exact path="/dashboard" component={Dashboard} />
                 <Route exact path="/" component={Dashboard} />
-                <Route exact path="/fileInfo/*" component={FileInfo} />
-                <Route exact path="/filepreview/*" component={FilePreview} />
+                <Route exact path="/dashboard" component={Dashboard} />
+
+                <Route exact path="/files/info/*" component={FileInfo} />
+                <Route exact path="/files/preview/*" component={FilePreview} />
+                <Route path="/files/*" component={Files} />
+
                 <Route exact path="/activity/*" component={Activity} />
                 <Route exact path="/status" component={Status} />s
+
                 <Route exact path="/applications" component={Applications} />
+                <Route exact path="/applications/details/:appName/:appVersion" component={DetailedApplication} />
+                <Route exact path="/applications/results" component={JobResults} />
+                <Route exact path="/applications/results/:jobId" component={DetailedResult} />
                 <Route exact path="/applications/:appName/:appVersion" component={RunApp} />
-                <Route exact path="/appDetails/:appName/:appVersion" component={DetailedApplication} />
-                <Route exact path="/analyses" component={Analyses} />
-                <Route exact path="/analyses/:jobId" component={DetailedResult} />
+
                 <Route exact path="/zenodo/" component={ZenodoHome} />
                 <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo} />
                 <Route exact path="/zenodo/publish/" component={ZenodoPublish} />
+
                 <Route exact path="/shares" component={Share.List} />
+
+                <Route exact path="/projects" component={Projects} />
                 <Route exact path="/metadata/edit/*" component={Metadata.CreateUpdate} />
                 <Route exact path="/metadata/search/:query?" component={Metadata.Search} />
                 <Route exact path="/metadata/*" component={Metadata.ManagedView} />
+
                 <Route exact path="/admin/usercreation" component={UserCreation} />
+
                 <Route exact path="/usersettings/settings" component={UserSettings} />
+
                 <Route exact path="/simpleSearch/:priority/*" component={Search} />
-                <Route exact path="/projects" component={Projects} />
+
                 <Route component={NotFound} />
             </Switch>
         </Box>

@@ -386,11 +386,11 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       <div
         className="header"
       >
-        Recent Analyses
+        Recent Jobs
       </div>
       <h3>
         <small>
-          No Analyses found
+          No results found
         </small>
       </h3>
       <div
@@ -483,7 +483,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
       <div
         className="header"
       >
-        Recent Analyses
+        Recent Jobs
       </div>
       <i
         aria-hidden="true"
@@ -579,7 +579,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       <div
         className="header"
       >
-        Recent Analyses
+        Recent Jobs
       </div>
       <i
         aria-hidden="true"
@@ -1065,11 +1065,11 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       <div
         className="header"
       >
-        Recent Analyses
+        Recent Jobs
       </div>
       <h3>
         <small>
-          No Analyses found
+          No results found
         </small>
       </h3>
       <div
@@ -1164,7 +1164,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       <div
         className="header"
       >
-        Recent Analyses
+        Recent Jobs
       </div>
       <div
         className="ui large divided list"
@@ -1188,7 +1188,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             className="content"
           >
             <a
-              href="/analyses/bbcf5395-e78e-4fa7-a4e1-989fe5ce21ee"
+              href="/applications/results/bbcf5395-e78e-4fa7-a4e1-989fe5ce21ee"
               onClick={[Function]}
             >
               figlet-count
@@ -1213,7 +1213,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             className="content"
           >
             <a
-              href="/analyses/15274bec-ef72-4ed2-97ff-2be1829a2db1"
+              href="/applications/results/15274bec-ef72-4ed2-97ff-2be1829a2db1"
               onClick={[Function]}
             >
               figlet
@@ -1238,7 +1238,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             className="content"
           >
             <a
-              href="/analyses/3544b177-e9a7-4323-bcde-c4d6e442dc36"
+              href="/applications/results/3544b177-e9a7-4323-bcde-c4d6e442dc36"
               onClick={[Function]}
             >
               figlet
@@ -1263,7 +1263,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             className="content"
           >
             <a
-              href="/analyses/e28defb0-d66c-4461-91f6-b09afd85480c"
+              href="/applications/results/e28defb0-d66c-4461-91f6-b09afd85480c"
               onClick={[Function]}
             >
               figlet-count

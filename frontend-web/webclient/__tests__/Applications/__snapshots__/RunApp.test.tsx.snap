@@ -38,7 +38,7 @@ exports[`RunApp component Mount 1`] = `
         </label>
         <a
           className="ui blue basic button"
-          href="/appDetails/appName/appVersion/"
+          href="/applications/details/appName/appVersion/"
           onClick={[Function]}
           role="button"
         >

@@ -1,4 +1,13 @@
 {
     "typescript.tsdk": "node_modules/typescript/lib",
-    "telemetry.enableTelemetry": false
+    "telemetry.enableTelemetry": false,
+    "spellright.language": [
+        "en",
+        "da"
+    ],
+    "spellright.documentTypes": [
+        "markdown",
+        "latex",
+        "plaintext"
+    ]
 }

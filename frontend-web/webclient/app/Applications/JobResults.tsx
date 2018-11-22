@@ -12,7 +12,7 @@ import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
 import { Hide } from "ui-components";
 
-class Analyses extends React.Component<AnalysesProps, AnalysesState> {
+class JobResults extends React.Component<AnalysesProps, AnalysesState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -89,7 +89,7 @@ const Analysis = ({ analysis }) => {
                 </Link>
             </TableCell>
             <TableCell>
-                <Link to={`/analyses/${jobIdField}`}>
+                <Link to={`/applications/results/${jobIdField}`}>
                     <span title={jobIdField}>{shortUUID(jobIdField)}</span>
                 </Link>
             </TableCell>
@@ -118,4 +118,4 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
 });
 
 const mapStateToProps = ({ analyses }): AnalysesStateProps => analyses;
-export default connect(mapStateToProps, mapDispatchToProps)(Analyses);
+export default connect(mapStateToProps, mapDispatchToProps)(JobResults);

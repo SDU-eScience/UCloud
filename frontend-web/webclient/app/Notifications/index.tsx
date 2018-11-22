@@ -44,7 +44,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             case "APP_COMPLETE":
                 // TODO This is buggy! Does't update if already present on analyses page
                 // TODO Should refactor these URLs somewhere else
-                this.props.history.push(`/analyses/${notification.meta.jobId}`);
+                this.props.history.push(`/applications/results/${notification.meta.jobId}`);
                 break;
             case "SHARE_REQUEST":
                 // TODO This is a bit lazy

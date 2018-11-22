@@ -82,7 +82,7 @@ export const receiveRecentFiles = (content: File[]): ReceiveRecentFilesProps => 
 export const fetchRecentAnalyses = (): Promise<ReceiveRecentAnalyses | Error<DashboardError>> =>
     Cloud.get(hpcJobsQuery(10, 0)).then(({ response }) =>
         receiveRecentAnalyses(response.items)
-    ).catch(_ => setErrorMessage(DASHBOARD_RECENT_ANALYSES_ERROR, "Failed to fetch recent analyses. Please try again later."));
+    ).catch(_ => setErrorMessage(DASHBOARD_RECENT_ANALYSES_ERROR, "Failed to fetch recent jobs. Please try again later."));
 
 type ReceiveRecentAnalyses = PayloadAction<typeof RECEIVE_RECENT_ANALYSES, { content: Analysis[] }>
 /**

@@ -1,5 +1,5 @@
 import * as React from "react";
-import Analyses from "Applications/Analyses.tsx";
+import JobResults from "Applications/JobResults";
 import { create } from "react-test-renderer";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initAnalyses } from "DefaultObjects";
@@ -15,7 +15,7 @@ describe("Analyses component", () => {
         expect(create(
             <Provider store={store}>
                 <MemoryRouter>
-                    <Analyses />
+                    <JobResults />
                 </MemoryRouter>
             </Provider>).toJSON()).toMatchSnapshot();
     });
@@ -26,7 +26,7 @@ describe("Analyses component", () => {
         expect(create(
             <Provider store={store}>
                 <MemoryRouter>
-                    <Analyses />
+                    <JobResults />
                 </MemoryRouter>
             </Provider>).toJSON()).toMatchSnapshot();
     });

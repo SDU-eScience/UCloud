@@ -62,7 +62,7 @@ const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
         extraText={activity.entries.map((entry, i) => !!entry.path ?
             (<div key={i}>
                 <b>
-                    <Link to={`/fileInfo/${entry.path}`}>{getFilenameFromPath(entry.path)}</Link>
+                    <Link to={`/files/info/${entry.path}`}>{getFilenameFromPath(entry.path)}</Link>
                 </b> was <b>{operationToPastTense(activity.operation)}</b> {entry.count === 1 ? "once" : <><b>{entry.count}</b> times</>}</div>) : null
         )}
     />
@@ -76,7 +76,7 @@ const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
         extraText={activity.files.map((f, i) => !!f.path ?
             (<div key={i}>
                 <b>
-                    <Link to={`/fileInfo/${f.path}`}>{getFilenameFromPath(f.path)}</Link>
+                    <Link to={`/files/info/${f.path}`}>{getFilenameFromPath(f.path)}</Link>
                 </b> was <b>{operationToPastTense(activity.operation)}</b>
             </div>) : null
         )}

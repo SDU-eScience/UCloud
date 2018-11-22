@@ -150,7 +150,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         this.setState(() => ({ jobSubmitted: true }));
         Cloud.post("/hpc/jobs", job).then(req => {
             inSuccessRange(req.request.status) ?
-                this.props.history.push(`/analyses/${req.response.jobId}`) :
+                this.props.history.push(`/applications/results/${req.response.jobId}`) :
                 swal("And error occurred. Please try again later.")
         }).catch(err => this.setState(() => ({ error: err.message, jobSubmitted: false })));
     }
@@ -233,7 +233,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
                     <HiddenInputField type="file" onChange={(e) => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
                 </OutlineButton>
                 <Box pt="0.2em" />
-                <Link to={`/appDetails/${this.state.appName}/${this.state.appVersion}/`} ><OutlineButton fullWidth color="blue">More information</OutlineButton></Link>
+                <Link to={`/applications/details/${this.state.appName}/${this.state.appVersion}/`} ><OutlineButton fullWidth color="blue">More information</OutlineButton></Link>
                 <Box pt="0.2em" />
                 <Button color="blue" fullWidth onClick={e => this.onSubmit(e)}>Submit</Button>
             </>

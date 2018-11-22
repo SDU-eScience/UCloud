@@ -335,7 +335,7 @@ const FileLink = ({ file, children }) => {
     if (isDirectory(file)) {
         return (<Link to={`/files/${file.path}`}>{children}</Link>);
     } else if (previewSupportedExtension(file.path)) {
-        return (<Link to={`/filepreview/${file.path}`}>{children}</Link>);
+        return (<Link to={`/files/preview/${file.path}`}>{children}</Link>);
     } else {
         return (<>{children}</>);
     }
