@@ -5,6 +5,7 @@ import Button, { ButtonProps } from "./Button"
 import theme from "./theme"
 
 export interface IconButtonProps extends ButtonProps {
+  name: IconName
   size?: number | string
   color?: string
   onClick?: () => void
@@ -21,7 +22,7 @@ const TransparentButton = styled(Button)`
   }
 `;
 
-const IconButton = ({ name, size, color, ...props }: IconButtonProps & { name: IconName }) => (
+const IconButton = ({ name, size, color, ...props }: IconButtonProps) => (
   <TransparentButton {...props}>
     <Icon name={name} size={size} color={color} />
   </TransparentButton>
