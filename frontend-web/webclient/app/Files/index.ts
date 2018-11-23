@@ -283,7 +283,7 @@ export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconNa
 export interface FileInfoProps {
     page: Page<File>
     loading: boolean
-    match: { params: string[] }
+    location: { pathname: string, search: string }
     filesPath: string
 }
 

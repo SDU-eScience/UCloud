@@ -95,13 +95,37 @@ export const DeleteFileOperation = (onDeleted: () => void): Operation[] => [
  * @returns Properties and Project Operations for files.
  */
 export const HistoryFilesOperations = (history: History): [Operation, PredicatedOperation] => [
-    { text: "Properties", onClick: (files: File[], cloud: Cloud) => history.push(`/files/info/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => files.length !== 1, icon: "properties", color: "blue" },
+    {
+        text: "Properties",
+        onClick: (files: File[], cloud: Cloud) => history.push(fileInfoPage(files[0].path)),
+        disabled: (files: File[], cloud: Cloud) => files.length !== 1,
+        icon: "properties", color: "blue"
+    },
     {
         predicate: (files: File[], cloud: Cloud) => isProject(files[0]),
-        onTrue: { text: "Edit Project", onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`), disabled: (files: File[], cloud: Cloud) => !canBeProject(files, cloud.homeFolder), icon: "projects", color: "blue" },
-        onFalse: { text: "Create Project", onClick: (files: File[], cloud: Cloud) => UF.createProject(files[0].path, cloud, (projectPath: string) => history.push(`/metadata/${projectPath}`)), disabled: (files: File[], cloud: Cloud) => files.length !== 1 || !canBeProject(files, cloud.homeFolder), icon: "projects", color: "blue" },
+        onTrue: {
+            text: "Edit Project",
+            onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`),
+            disabled: (files: File[], cloud: Cloud) => !canBeProject(files, cloud.homeFolder),
+            icon: "projects", color: "blue"
+        },
+        onFalse: {
+            text: "Create Project",
+            onClick: (files: File[], cloud: Cloud) =>
+                UF.createProject(
+                    files[0].path,
+                    cloud,
+                    (projectPath: string) => history.push(`/metadata/${projectPath}`)
+                ),
+            disabled: (files: File[], cloud: Cloud) =>
+                files.length !== 1 || !canBeProject(files, cloud.homeFolder),
+            icon: "projects",
+            color: "blue"
+        },
     }
 ];
+
+export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURI(path)}`;
 
 export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: (() => void) | false, history: History | false) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
@@ -112,11 +136,11 @@ export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyO
 };
 
 export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): string =>
-    `files?path=${path}&itemsPerPage=${itemsPerPage}&page=${page}&order=${order}&sortBy=${sortBy}`;
+    `files?path=${encodeURI(path)}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURI(order)}&sortBy=${encodeURI(sortBy)}`;
 
 // FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes backend issues
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
-    `files/lookup?path=${UF.removeTrailingSlash(path)}&itemsPerPage=${itemsPerPage}&order=${order}&sortBy=${sortBy}`;
+    `files/lookup?path=${encodeURI(UF.removeTrailingSlash(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURI(order)}&sortBy=${encodeURI(sortBy)}`;
 
 export const advancedFileSearch = "/file-search/advanced"
 
@@ -131,7 +155,7 @@ export const newMockFolder = (path: string = "", beingRenamed: boolean = true): 
     size: 0,
     acl: [],
     favorited: false,
-    sensitivityLevel: "OPEN ACCESS",
+    sensitivityLevel: "OPEN_ACCESS",
     isChecked: false,
     beingRenamed,
     link: false,
@@ -189,9 +213,9 @@ export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], 
 export const favoriteFile = (file: File, cloud: Cloud): void => {
     file.favorited = !file.favorited;
     if (file.favorited)
-        cloud.post(`/files/favorite?path=${file.path}`, {}); // FIXME: Error handling
+        cloud.post(`/files/favorite?path=${encodeURI(file.path)}`, {}); // FIXME: Error handling
     else
-        cloud.delete(`/files/favorite?path=${file.path}`, {}); // FIXME: Error handling
+        cloud.delete(`/files/favorite?path=${encodeURI(file.path)}`, {}); // FIXME: Error handling
 }
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>
