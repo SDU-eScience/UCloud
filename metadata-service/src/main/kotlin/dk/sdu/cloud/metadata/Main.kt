@@ -58,8 +58,6 @@ fun main(args: Array<String>) {
         configuration,
         micro.kafka,
         micro.serverProvider,
-        micro.refreshingJwtCloud,
-        args,
-        micro.serviceInstance
+        micro
     ).start()
 }

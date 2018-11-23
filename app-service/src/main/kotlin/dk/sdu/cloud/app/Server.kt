@@ -3,14 +3,8 @@ package dk.sdu.cloud.app
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.api.AccountingEvents
 import dk.sdu.cloud.app.api.ApplicationDescription
-import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.JobStreams
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
-import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.ToolDescription
-import dk.sdu.cloud.app.api.VariableInvocationParameter
-import dk.sdu.cloud.app.api.WordInvocationParameter
 import dk.sdu.cloud.app.http.AppController
 import dk.sdu.cloud.app.http.CallbackController
 import dk.sdu.cloud.app.http.JobController
@@ -27,17 +21,20 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.service.stream
+import dk.sdu.cloud.service.tokenValidation
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -49,9 +46,8 @@ class Server(
     private val cloud: RefreshingJWTAuthenticatedCloud,
     private val ktor: HttpServerProvider,
     private val db: HibernateSessionFactory,
-    private val instance: ServiceInstance,
     private val config: Configuration,
-    private val developmentModeEnabled: Boolean
+    private val micro: Micro
 ) : CommonServer {
     private var initialized = false
     override val log: Logger = logger()
@@ -65,7 +61,7 @@ class Server(
         val toolDao = ToolHibernateDAO()
         val applicationDao = ApplicationHibernateDAO(toolDao)
 
-        val computationBackendService = ComputationBackendService(config.backends, developmentModeEnabled)
+        val computationBackendService = ComputationBackendService(config.backends, micro.developmentModeEnabled)
         val jobDao = JobHibernateDao(applicationDao)
         val jobVerificationService = JobVerificationService(db, applicationDao)
         val jobFileService = JobFileService(cloud)
@@ -90,7 +86,7 @@ class Server(
 
         httpServer = ktor {
             log.info("Configuring HTTP server")
-            installDefaultFeatures(cloud, kafka, instance, requireJobId = !developmentModeEnabled)
+            installDefaultFeatures(micro)
 
             routing {
                 configureControllers(
@@ -99,7 +95,7 @@ class Server(
                         applicationDao
                     ),
 
-                    JobController(db, jobOrchestrator, jobDao),
+                    JobController(db, jobOrchestrator, jobDao, micro.tokenValidation as TokenValidationJWT),
 
                     CallbackController(jobOrchestrator),
 
@@ -112,7 +108,7 @@ class Server(
             log.info("HTTP server successfully configured!")
         }
 
-        if (developmentModeEnabled) {
+        if (micro.developmentModeEnabled) {
             val listOfApps = db.withTransaction {
                 applicationDao.listLatestVersion(it, null, NormalizedPaginationRequest(null, null))
             }

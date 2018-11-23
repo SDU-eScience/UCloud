@@ -6,9 +6,9 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
@@ -180,7 +180,7 @@ object ApplicationDescriptions : RESTDescriptions("hpc.apps") {
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY
+    property = TYPE_PROPERTY
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = AppRequest.Start::class, name = "start")

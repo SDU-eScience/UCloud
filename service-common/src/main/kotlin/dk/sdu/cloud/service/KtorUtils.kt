@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.MapperFeature
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
-import dk.sdu.cloud.client.AuthenticatedCloud
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
@@ -16,7 +15,6 @@ import io.ktor.features.DefaultHeaders
 import io.ktor.features.XForwardedHeaderSupport
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
-import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.httpMethod
 import io.ktor.request.path
@@ -27,6 +25,7 @@ import io.ktor.routing.Routing
 import io.ktor.routing.route
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.util.AttributeKey
+import io.ktor.util.pipeline.PipelineContext
 import io.ktor.util.toMap
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -34,31 +33,11 @@ import org.slf4j.LoggerFactory
 private val utilsLog = LoggerFactory.getLogger("dk.sdu.cloud.service.KtorUtilsKt")
 internal val healthLog = LoggerFactory.getLogger("dk.sdu.cloud.service.HealthCheck")
 
-fun Application.installDefaultFeatures(
-    cloud: AuthenticatedCloud,
-    kafkaServices: KafkaServices,
-    serviceInstance: ServiceInstance,
-    requireJobId: Boolean = true
-) {
-    utilsLog.info("Installing default features. requireJobId=$requireJobId")
-
-    intercept(ApplicationCallPipeline.Infrastructure) {
-        if (call.request.path() == HEALTH_URI) {
-            healthLog.debug("Received request for health!")
-            call.respond(HttpStatusCode.NoContent)
-            finish()
-            return@intercept
-        }
-    }
-
+fun Application.installDefaultFeatures(micro: Micro) {
+    // Default ktor features
     install(CallLogging)
     install(DefaultHeaders)
     install(XForwardedHeaderSupport)
-    install(KafkaHttpLogger) {
-        kafka = kafkaServices
-        serverDescription = serviceInstance
-    }
-
     install(ContentNegotiation) {
         jackson {
             registerKotlinModule()
@@ -71,15 +50,38 @@ fun Application.installDefaultFeatures(
         }
     }
 
-    install(CloudClient) {
-        baseCloud = cloud
+    // Custom features
+    install(KtorMicroServiceFeature) {
+        this.micro = micro
     }
 
-    interceptJobId(requireJobId)
+    install(KafkaHttpLogger) {
+        kafka = micro.kafka
+        serverDescription = micro.serviceInstance
+    }
+
+    install(CloudClient) {
+        baseCloud = micro.authenticatedCloud
+    }
+
+    // Basic interceptors
+    interceptJobId(requireJobId = !micro.developmentModeEnabled)
+    interceptHealthCheck()
+}
+
+private fun Application.interceptHealthCheck() {
+    intercept(ApplicationCallPipeline.Features) {
+        if (call.request.path() == HEALTH_URI) {
+            healthLog.debug("Received request for health!")
+            call.respond(HttpStatusCode.NoContent)
+            finish()
+            return@intercept
+        }
+    }
 }
 
 fun Application.interceptJobId(requireJobId: Boolean) {
-    intercept(ApplicationCallPipeline.Infrastructure) {
+    intercept(ApplicationCallPipeline.Features) {
         val jobId = call.request.headers["Job-Id"]
         if (jobId == null) {
             if (requireJobId) {
@@ -162,20 +164,13 @@ fun PipelineContext<*, ApplicationCall>.logEntry(
     log.info("$method $uri jobId=$jobId causedBy=$causedBy payload={$parameterString $headerString}")
 }
 
+@Deprecated(message = "Included by default. Override toString if needed on request type")
 fun <R : Any> RESTHandler<R, *, *, *>.logEntry(
     log: Logger,
     payload: R,
     requestToString: (R) -> String = { it.toString() }
 ) {
-    val requestName = restCall.fullName
-    val method = call.request.httpMethod.value
-    val uri = call.request.uri
-    val jobId = call.request.safeJobId
-    val causedBy = call.request.causedBy
-
-    val name = "$method $uri ($requestName)"
-
-    log.info("$name jobId=$jobId causedBy=$causedBy payload=${requestToString(payload)}")
+    // Do nothing
 }
 
 typealias HttpServerProvider = (Application.() -> Unit) -> ApplicationEngine

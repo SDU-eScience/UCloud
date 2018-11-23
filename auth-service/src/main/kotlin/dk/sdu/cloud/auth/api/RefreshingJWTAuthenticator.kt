@@ -1,24 +1,24 @@
 package dk.sdu.cloud.auth.api
 
+import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.prepare
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.runBlocking
-import org.slf4j.LoggerFactory
+import kotlinx.coroutines.runBlocking
 import java.net.ConnectException
 import java.time.temporal.ChronoUnit
-import java.util.Date
-
-private const val MINUTES_TO_ADD = 5L
+import java.util.*
 
 class RefreshingJWTAuthenticator(
     cloud: CloudContext,
-    refreshToken: String
+    refreshToken: String,
+    private val tokenValidation: TokenValidation<DecodedJWT>
 ) {
     private val lock = Any()
     private var currentAccessToken = "~~token will not validate~~"
@@ -26,40 +26,43 @@ class RefreshingJWTAuthenticator(
 
     fun retrieveTokenRefreshIfNeeded(): String {
         log.debug("retrieveTokenRefreshIfNeeded()")
-        val tempToken = currentAccessToken
-        return if (TokenValidation.validateOrNull(tempToken) == null) {
+        val currentToken = currentAccessToken
+        return if (tokenValidation.validateOrNull(currentToken).isExpiringSoon()) {
             log.debug("Refreshing token")
             refresh()
         } else {
-            log.debug("Using currentToken: $tempToken")
-            tempToken
+            log.debug("Using currentToken: $currentToken")
+            currentToken
         }
     }
 
+    private fun DecodedJWT?.isExpiringSoon(): Boolean {
+        if (this == null) return true
+        return Date().toInstant().plus(3, ChronoUnit.MINUTES).isAfter(expiresAt.toInstant())
+    }
+
     private fun refresh(): String {
-        // The initial check is done without locking. This way multiple threads might decide that a refresh is needed.
-        // Because of this we check once we acquire the lock to see if someone had already done the token refresh.
-        // It is _a lot_ cheaper to do the check than to refresh again, also avoids some load on the auth service.
+        // The initial check (in retrieveTokenRefreshIfNeeded) is done without locking. This way multiple threads
+        // might decide that a refresh is needed. Because of this we check once we acquire the lock to see if someone
+        // had already done the token refresh. It is _a lot_ cheaper to do the check than to refresh again, also
+        // avoids some load on the auth service.
         log.debug("Entering refresh() - Awaiting lock")
         synchronized(lock) {
-            val validatedToken = TokenValidation.validateOrNull(currentAccessToken)
-            if (
-                validatedToken == null ||
-                validatedToken.expiresAt.toInstant().isAfter((Date().toInstant()
-                    .plus(MINUTES_TO_ADD, ChronoUnit.MINUTES)))
-            ) {
+            val validatedToken = tokenValidation.validateOrNull(currentAccessToken)
+            if (validatedToken.isExpiringSoon()) {
                 log.info("Need to refresh token")
                 val prepared = AuthDescriptions.refresh.prepare()
                 val result = runBlocking {
                     prepared.call(refreshAuthenticator)
                 }
 
-                log.info("Refresh token result: $result")
+                log.info("Refresh token result: ${result.status}")
                 if (result is RESTResponse.Ok) {
                     currentAccessToken = result.result.accessToken
                     return currentAccessToken
                 } else {
-                    if (result.status == HttpStatusCode.BadGateway.value ||
+                    if (
+                        result.status == HttpStatusCode.BadGateway.value ||
                         result.status == HttpStatusCode.GatewayTimeout.value
                     ) {
                         throw ConnectException(
@@ -68,7 +71,8 @@ class RefreshingJWTAuthenticator(
                         )
                     }
 
-                    if (result.status == HttpStatusCode.Unauthorized.value ||
+                    if (
+                        result.status == HttpStatusCode.Unauthorized.value ||
                         result.status == HttpStatusCode.Forbidden.value
                     ) {
                         throw IllegalStateException("We are not authorized to refresh the token! $result")
@@ -82,16 +86,17 @@ class RefreshingJWTAuthenticator(
         }
     }
 
-    companion object {
-        private val log = LoggerFactory.getLogger(RefreshingJWTAuthenticator::class.java)
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
 class RefreshingJWTAuthenticatedCloud(
     override val parent: CloudContext,
-    refreshToken: String
+    refreshToken: String,
+    tokenValidation: TokenValidation<DecodedJWT>
 ) : AuthenticatedCloud {
-    val tokenRefresher = RefreshingJWTAuthenticator(parent, refreshToken)
+    val tokenRefresher = RefreshingJWTAuthenticator(parent, refreshToken, tokenValidation)
 
     override fun HttpRequestBuilder.configureCall() {
         val actualToken = tokenRefresher.retrieveTokenRefreshIfNeeded()

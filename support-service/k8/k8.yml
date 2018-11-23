@@ -1,0 +1,61 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: support-service-deployment
+  labels:
+    app: support-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: support-service
+  template:
+    metadata:
+      labels:
+        app: support-service
+    spec:
+      containers:
+      - name: support-service
+        image: registry.cloud.sdu.dk/sdu-cloud/support-service:0.1.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/notifiers
+        - --config-dir
+        - /etc/token-validation
+        volumeMounts:
+        - mountPath: /etc/notifiers
+          name: notifiers
+        - mountPath: /etc/token-validation
+          name: token-validation
+
+      volumes:
+      - name: notifiers
+        secret:
+          defaultMode: 420
+          optional: false
+          secretName: support-notifiers
+      - configMap:
+          defaultMode: 420
+          name: token-validation
+        name: token-validation
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: support
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: support-service

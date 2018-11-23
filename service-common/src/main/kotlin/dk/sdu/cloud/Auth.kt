@@ -1,5 +1,7 @@
 package dk.sdu.cloud
 
+import java.util.*
+
 /**
  * Represents a [SecurityPrincipal]'s system-wide role.
  *
@@ -111,7 +113,12 @@ data class SecurityPrincipalToken(
      * This makes them readable by the end-user. It is __very__ important that we do not leak refresh tokens into
      * the JWT. This reference is added solely for the purpose of auditing.
      */
-    val publicSessionReference: String?
+    val publicSessionReference: String?,
+
+    /**
+     * The username of the principal extending this token
+     */
+    val extendedBy: String? = null
 
     // NOTE: DO NOT ADD SENSITIVE DATA TO THIS CLASS (INCLUDING JWT)
     // IT IS USED IN THE AUDIT SYSTEM
@@ -124,7 +131,8 @@ enum class AccessRight(val scopeName: String) {
 
 data class SecurityScope internal constructor(
     val segments: List<String>,
-    val access: AccessRight
+    val access: AccessRight,
+    val meta: Map<String, String> = emptyMap()
 ) {
     init {
         if (segments.isEmpty()) throw IllegalArgumentException("segments cannot be empty")
@@ -150,7 +158,22 @@ data class SecurityScope internal constructor(
         return true
     }
 
-    override fun toString() = segments.joinToString(".") + ':' + access.scopeName
+    override fun toString(): String {
+        return StringBuilder().apply {
+            append(segments.joinToString("."))
+            append(':')
+            append(access.scopeName)
+            if (meta.isNotEmpty()) {
+                append(':')
+                append(
+                    meta.map { (key, rawValue) ->
+                        val value = Base64.getEncoder().encodeToString(rawValue.toByteArray(Charsets.UTF_8))
+                        "$key!$value"
+                    }.joinToString(",")
+                )
+            }
+        }.toString()
+    }
 
     companion object {
         private val segmentRegex = Regex("[a-zA-Z0-9]+")
@@ -160,27 +183,41 @@ data class SecurityScope internal constructor(
         val ALL_WRITE = SecurityScope.construct(listOf(ALL_SCOPE), AccessRight.READ_WRITE)
         val ALL_READ = SecurityScope.construct(listOf(ALL_SCOPE), AccessRight.READ)
 
-        fun parseFromString(value: String): SecurityScope {
-            if (value == "api") return SecurityScope(listOf("all"), AccessRight.READ_WRITE)
-            if (value == "irods") return parseFromString("irods:write") // Remove with #286
-            if (value == "downloadFile") return parseFromString("files.download:write") // Remove with #286
+        fun parseFromString(rawScope: String): SecurityScope {
+            if (rawScope == "api") return SecurityScope(listOf("all"), AccessRight.READ_WRITE)
 
-            val parts = value.split(':')
-            if (parts.size != 2) throw IllegalArgumentException("Too many parts. Value was: '$value'")
+            val parts = rawScope.split(':')
+            if (parts.size < 2) throw IllegalArgumentException("Not enough parts. '$rawScope'")
             val segments = parts.first().split('.')
             val firstInvalidSegment = segments.find { !it.matches(segmentRegex) }
             if (firstInvalidSegment != null) {
-                throw IllegalArgumentException("Invalid segment found '$firstInvalidSegment' from '$value'")
+                throw IllegalArgumentException("Invalid segment found '$firstInvalidSegment' from '$rawScope'")
             }
 
-            val normalizedAccess = parts.last().toLowerCase()
+            val normalizedAccess = parts[1].toLowerCase()
             val access = AccessRight.values().find { it.scopeName == normalizedAccess }
-                    ?: throw IllegalArgumentException("Bad access right in audience")
+                ?: throw IllegalArgumentException("Bad access right in audience")
 
-            return SecurityScope(segments, access)
+            val metadataString = parts.getOrNull(2)
+            val metadata = if (metadataString == null) {
+                emptyMap()
+            } else {
+                val kvPairs = metadataString.split(",").filter { it.isNotEmpty() }
+                kvPairs.map { pair ->
+                    val (key, b64Value) = pair.split('!').takeIf { it.size >= 2 }
+                        ?: throw IllegalArgumentException("Missing kv pair in meta of '$rawScope'")
+                    key to Base64.getDecoder().decode(b64Value).toString(Charsets.UTF_8)
+                }.toMap()
+            }
+
+            return SecurityScope(segments, access, metadata)
         }
 
-        fun construct(segments: List<String>, access: AccessRight): SecurityScope {
+        fun construct(
+            segments: List<String>,
+            access: AccessRight,
+            meta: Map<String, String> = emptyMap()
+        ): SecurityScope {
             val firstInvalidSegment = segments.find { !it.matches(segmentRegex) }
             if (firstInvalidSegment != null) {
                 throw IllegalArgumentException("Invalid segment found '$firstInvalidSegment'")

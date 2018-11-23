@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.abacus.services.ssh
 
+import dk.sdu.cloud.service.BashEscaper
+
 data class SBatchSubmissionResult(val exitCode: Int, val output: String, val jobId: Long?)
 
 private val submitRegex = Regex("Submitted batch job (\\d+)")

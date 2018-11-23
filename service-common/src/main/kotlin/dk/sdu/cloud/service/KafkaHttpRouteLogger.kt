@@ -19,7 +19,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
-import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
 import io.ktor.request.contentType
 import io.ktor.request.header
@@ -28,11 +27,14 @@ import io.ktor.request.uri
 import io.ktor.request.userAgent
 import io.ktor.response.ApplicationSendPipeline
 import io.ktor.util.AttributeKey
-import kotlinx.coroutines.experimental.async
+import io.ktor.util.pipeline.PipelineContext
+import kotlinx.coroutines.async
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
-import java.util.Collections
+import java.util.*
+import kotlin.collections.HashMap
+import kotlin.collections.set
 
 @Deprecated(
     "Replaced with SecurityPrincipalToken",
@@ -71,6 +73,7 @@ class KafkaHttpRouteLogger {
     private lateinit var kafka: KafkaServices
     private lateinit var httpProducer: EventProducer<String, HttpCallLogEntry>
     private lateinit var auditProducer: MappedEventProducer<String, AuditEvent<*>>
+    private lateinit var tokenValidation: TokenValidation<Any>
 
     private val ApplicationRequest.bearer: String?
         get() {
@@ -84,7 +87,7 @@ class KafkaHttpRouteLogger {
     private fun PipelineContext<*, ApplicationCall>.loadFromParentFeature() {
         if (!::serviceDescription.isInitialized) {
             val feature = application.featureOrNull(KafkaHttpLogger)
-                    ?: throw IllegalStateException("Could not find the KafkaHttpLogger feature on the application")
+                ?: throw IllegalStateException("Could not find the KafkaHttpLogger feature on the application")
             serviceDescription = feature.serverDescription
             kafka = feature.kafka
             httpProducer = kafka.producer.forStream(KafkaHttpLogger.httpLogsStream)
@@ -99,15 +102,17 @@ class KafkaHttpRouteLogger {
             auditProducer =
                     kafka.producer.forStream(description.auditStreamProducersOnly)
                             as MappedEventProducer<String, AuditEvent<*>>
+
+            val micro = application.featureOrNull(KtorMicroServiceFeature)?.micro
+                ?: throw IllegalStateException("Could not find KtorMicroServiceFeature")
+
+            tokenValidation = micro.tokenValidation
         }
     }
 
     private suspend fun interceptBefore(context: PipelineContext<Unit, ApplicationCall>) = with(context) {
         loadFromParentFeature()
-        val jobId = call.request.safeJobId
-        if (jobId != null) {
-            call.attributes.put(requestStartTime, System.currentTimeMillis())
-        }
+        call.attributes.put(requestStartTime, System.currentTimeMillis())
     }
 
     private suspend fun interceptAfter(
@@ -128,12 +133,11 @@ class KafkaHttpRouteLogger {
         val remoteOrigin = call.request.origin.remoteHost
         val userAgent = call.request.userAgent()
 
-        val jobId = call.request.safeJobId ?: return@with run {
-            log.debug("Missing jobId")
-        }
+        val jobId = call.request.safeJobId ?: (MISSING_JOB_ID_PREFIX + UUID.randomUUID().toString())
 
-        val startTime = call.attributes.getOrNull(requestStartTime) ?: return@with run {
+        val startTime = call.attributes.getOrNull(requestStartTime) ?: run {
             log.warn("Missing start time. This should probably not happen.")
+            System.currentTimeMillis()
         }
         val responseTime = System.currentTimeMillis() - startTime
 
@@ -141,8 +145,9 @@ class KafkaHttpRouteLogger {
             is HttpStatusCode -> message.value
             is OutgoingContent -> message.status?.value
             else -> null
-        } ?: context.context.response.status()?.value ?: return@with run {
-            log.debug("Missing statusCode: $message")
+        } ?: context.context.response.status()?.value ?: run {
+            log.warn("Missing statusCode: $message")
+            HttpStatusCode.InternalServerError.value
         }
 
         val responseContentType = when (message) {
@@ -158,7 +163,14 @@ class KafkaHttpRouteLogger {
         val responsePayload = call.attributes.getOrNull(responsePayloadToLogKey)
 
         async {
-            val principal = bearerToken?.let { TokenValidation.validateOrNull(it)?.toSecurityToken() }
+            val principal = run {
+                val principalFromBearerToken = bearerToken
+                    ?.let { tokenValidation.validateOrNull(it) }
+                    ?.let { tokenValidation.decodeToken(it) }
+
+                val principalFromOverride = call.attributes.getOrNull(securityPrincipalTokenOverride)
+                principalFromOverride ?: principalFromBearerToken
+            }
 
             val entry = HttpCallLogEntry(
                 jobId,
@@ -190,8 +202,11 @@ class KafkaHttpRouteLogger {
         private val requestStartTime = AttributeKey<Long>("request-start-time")
         internal val requestPayloadToLogKey = AttributeKey<Any>("request-payload")
         internal val responsePayloadToLogKey = AttributeKey<Any>("response-payload")
-
+        internal val securityPrincipalTokenOverride =
+            AttributeKey<SecurityPrincipalToken>("security-principal-token-override")
         override val key: AttributeKey<KafkaHttpRouteLogger> = AttributeKey("kafka-http-route-log")
+
+        const val MISSING_JOB_ID_PREFIX = "MISSING-"
 
         override fun install(
             pipeline: ApplicationCallPipeline,
@@ -200,7 +215,7 @@ class KafkaHttpRouteLogger {
             val feature = KafkaHttpRouteLogger()
             feature.configure()
 
-            pipeline.intercept(ApplicationCallPipeline.Infrastructure) { feature.interceptBefore(this) }
+            pipeline.intercept(ApplicationCallPipeline.Monitoring) { feature.interceptBefore(this) }
             pipeline.sendPipeline.intercept(ApplicationSendPipeline.After) { feature.interceptAfter(this, it) }
             return feature
         }
@@ -297,7 +312,16 @@ private val requestNamePointer = JsonPointer.compile(
             HttpCallLogEntry::requestName.name
 )
 
-fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(tree: JsonNode): AuditEvent<A>? {
+/**
+ * Parses an audit message from [tree].
+ *
+ * If [acceptRequestsWithServerFailure] is true then all audit messages matching the description is accepted. Otherwise
+ * only messages that do not have a status code of 5XX will be accepted.
+ */
+fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(
+    tree: JsonNode,
+    acceptRequestsWithServerFailure: Boolean = false
+): AuditEvent<A>? {
     val incomingRequestName =
         tree.at(requestNamePointer)?.takeIf { !it.isMissingNode && it.isTextual }?.textValue() ?: run {
             auditLog.warn("Could not find requestName field in message.")
@@ -309,6 +333,7 @@ fun <A : Any> RESTCallDescription<*, *, *, A>.parseAuditMessageOrNull(tree: Json
         val type = auditJavaType
         val reader = defaultMapper.readerFor(type)
         return reader.readValue<AuditEvent<A>>(tree)
+            ?.takeIf { acceptRequestsWithServerFailure || it.http.responseCode !in 500..599 }
     }
 
     return null

@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.service.BashEscaper
 import dk.sdu.cloud.service.stackTraceToString
 import org.slf4j.LoggerFactory
 

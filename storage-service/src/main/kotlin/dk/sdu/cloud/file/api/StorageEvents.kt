@@ -3,8 +3,8 @@ package dk.sdu.cloud.file.api
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.KafkaDescriptions
-import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.service.TYPE_PROPERTY
 import org.apache.kafka.streams.kstream.KStream
 
 /**
@@ -30,7 +30,7 @@ import org.apache.kafka.streams.kstream.KStream
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY
+    property = TYPE_PROPERTY
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = StorageEvent.CreatedOrRefreshed::class, name = "created"),
@@ -210,7 +210,7 @@ data class EventMaterializedStorageFile(
 )
 
 typealias StorageEventProducer = MappedEventProducer<String, StorageEvent>
-typealias StoraveEventStream = KStream<String, StorageEvent>
+typealias StorageEventStream = KStream<String, StorageEvent>
 
 object StorageEvents : KafkaDescriptions() {
     /**

@@ -9,15 +9,16 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.Tool
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.services.ToolHibernateDAO
-import dk.sdu.cloud.app.utils.withAuthMock
-import dk.sdu.cloud.app.utils.withDatabase
+import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import io.ktor.application.Application
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.hibernateDatabase
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.withTestApplication
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
@@ -25,11 +26,11 @@ import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-private fun Application.configureToolServer(
-    db: HibernateSessionFactory,
+private fun KtorApplicationTestSetupContext.configureToolServer(
     toolDao: ToolHibernateDAO
-) {
-    configureBaseServer(ToolController(db, toolDao))
+): List<ToolController<HibernateSession>> {
+    micro.install(HibernateFeature)
+    return listOf(ToolController(micro.hibernateDatabase, toolDao))
 }
 
 class ToolTest {
@@ -77,149 +78,131 @@ class ToolTest {
 
     @Test
     fun `find By name test `() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val toolDao = mockk<ToolHibernateDAO>()
-                        configureToolServer(db, toolDao)
+        withKtorTest(
+            setup = {
+                val toolDao = mockk<ToolHibernateDAO>()
+                every { toolDao.findAllByName(any(), any(), any(), any()) } answers {
+                    Page(1, 10, 0, listOf(tool))
+                }
 
-                        every { toolDao.findAllByName(any(), any(), any(), any()) } answers {
-                            Page(1, 10, 0, listOf(tool))
+                configureToolServer(toolDao)
+            },
 
-                        }
-                    },
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Get, "/api/hpc/tools/name?itemsPerPage=10&page=0") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                        }.response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/api/hpc/tools/name?itemsPerPage=10&page=0") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
+                    assertEquals(HttpStatusCode.OK, response.status())
 
-                        assertEquals(HttpStatusCode.OK, response.status())
-
-                        val obj = mapper.readTree(response.content)
-                        assertEquals(1, obj["itemsInTotal"].asInt())
-                    }
-                )
+                    val obj = mapper.readTree(response.content)
+                    assertEquals(1, obj["itemsInTotal"].asInt())
+                }
             }
-        }
+        )
     }
 
     @Test
     fun `find By name and version test `() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val toolDao = mockk<ToolHibernateDAO>()
-                        configureToolServer(db, toolDao)
+        withKtorTest(
+            setup = {
+                val toolDao = mockk<ToolHibernateDAO>()
+                every { toolDao.findByNameAndVersion(any(), any(), any(), any()) } returns tool
+                configureToolServer(toolDao)
+            },
 
-                        every { toolDao.findByNameAndVersion(any(), any(), any(), any()) } returns tool
-                    },
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Get, "/api/hpc/tools/name/2.2") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                        }.response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/api/hpc/tools/name/2.2") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
+                    assertEquals(HttpStatusCode.OK, response.status())
 
-                        assertEquals(HttpStatusCode.OK, response.status())
+                    val obj = mapper.readTree(response.content)
 
-                        val obj = mapper.readTree(response.content)
-
-                        assertEquals("\"owner\"", obj["owner"].toString())
-                    }
-                )
+                    assertEquals("\"owner\"", obj["owner"].toString())
+                }
             }
-        }
+        )
     }
 
     @Test
     fun `list all test `() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val toolDao = mockk<ToolHibernateDAO>()
-                        configureToolServer(db, toolDao)
+        withKtorTest(
+            setup = {
+                val toolDao = mockk<ToolHibernateDAO>()
+                every { toolDao.listLatestVersion(any(), any(), any()) } answers {
+                    Page(1, 10, 0, listOf(tool))
+                }
+                configureToolServer(toolDao)
+            },
 
-                        every { toolDao.listLatestVersion(any(), any(), any()) } answers {
-                            Page(1, 10, 0, listOf(tool))
-                        }
-                    },
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Get, "/api/hpc/tools") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                        }.response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/api/hpc/tools") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
+                    assertEquals(HttpStatusCode.OK, response.status())
 
-                        assertEquals(HttpStatusCode.OK, response.status())
-
-                        val obj = mapper.readTree(response.content)
-                        assertEquals(1, obj["itemsInTotal"].asInt())
-                        assertTrue(obj["items"].toString().contains("\"owner\":\"owner\""))
-                    }
-                )
+                    val obj = mapper.readTree(response.content)
+                    assertEquals(1, obj["itemsInTotal"].asInt())
+                    assertTrue(obj["items"].toString().contains("\"owner\":\"owner\""))
+                }
             }
-        }
+        )
     }
 
     //TODO NEED SUPPORT FOR YAML CANT TEST
     @Test
     fun `Create test - Cant read YAML`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val toolDao = mockk<ToolHibernateDAO>()
-                        configureToolServer(db, toolDao)
+        withKtorTest(
+            setup = {
+                val toolDao = mockk<ToolHibernateDAO>()
+                configureToolServer(toolDao)
+            },
 
-                    },
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Put, "/api/hpc/tools") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser(role = Role.ADMIN)
+                        }.response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Put, "/api/hpc/tools") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser(role = Role.ADMIN)
-                            }.response
-
-                        assertEquals(HttpStatusCode.BadRequest, response.status())
-
-                    }
-                )
+                    assertEquals(HttpStatusCode.BadRequest, response.status())
+                }
             }
-        }
+        )
     }
 
     @Test
-    fun `Create test - not priviliged `() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val toolDao = mockk<ToolHibernateDAO>()
-                        configureToolServer(db, toolDao)
+    fun `Create test - not privileged`() {
+        withKtorTest(
+            setup = {
+                val toolDao = mockk<ToolHibernateDAO>()
+                configureToolServer(toolDao)
+            },
 
-                    },
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Put, "/api/hpc/tools") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                        }.response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Put, "/api/hpc/tools") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
-
-                        assertEquals(HttpStatusCode.Unauthorized, response.status())
-
-                    }
-                )
+                    assertEquals(HttpStatusCode.Unauthorized, response.status())
+                }
             }
-        }
+        )
     }
-
 }

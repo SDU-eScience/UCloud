@@ -7,12 +7,22 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.storage.SERVICE_USER
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunner
-import dk.sdu.cloud.storage.services.cephfs.CephFSCommandRunnerFactory
-import dk.sdu.cloud.storage.services.cephfs.CephFileSystem
-import dk.sdu.cloud.storage.util.FSException
-import dk.sdu.cloud.storage.util.cloudToCephFsDAOWithFixedAnswer
+import dk.sdu.cloud.service.test.assertCollectionHasItem
+import dk.sdu.cloud.service.test.assertThatPropertyEquals
+import dk.sdu.cloud.file.SERVICE_USER
+import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.FSUserContext
+import dk.sdu.cloud.file.services.FileRow
+import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
+import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
+import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.storage.util.storageUserDaoWithFixedAnswer
 import dk.sdu.cloud.storage.util.createFS
 import dk.sdu.cloud.storage.util.inode
 import dk.sdu.cloud.storage.util.mkdir
@@ -25,7 +35,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.io.File
 import kotlin.test.assertFailsWith
@@ -57,22 +67,22 @@ class DiffTest {
                 null,
                 null,
                 emptySet(),
-                SensitivityLevel.CONFIDENTIAL
+                SensitivityLevel.PRIVATE
             )
     }
 
     private fun ctx(
-        consumer: TestingContext<CephFSCommandRunner>.() -> Unit = {},
+        consumer: TestingContext<UnixFSCommandRunner>.() -> Unit = {},
         builder: File.() -> Unit
-    ): TestingContext<CephFSCommandRunner> {
-        val userDao = cloudToCephFsDAOWithFixedAnswer(FILE_OWNER)
+    ): TestingContext<UnixFSCommandRunner> {
+        val userDao = storageUserDaoWithFixedAnswer(FILE_OWNER)
         val root = File(createFS(builder))
-        val cephFs = CephFileSystem(userDao, root.absolutePath)
+        val cephFs = UnixFileSystem(userDao, root.absolutePath)
 
         val eventProducer = mockk<StorageEventProducer>(relaxed = true)
         val coreFs = CoreFileSystemService(cephFs, eventProducer)
 
-        val commandRunnerFactory = CephFSCommandRunnerFactory(userDao, true)
+        val commandRunnerFactory = UnixFSCommandRunnerFactory(userDao, true)
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
 
         return TestingContext(
@@ -85,7 +95,6 @@ class DiffTest {
             commandRunnerFactory
         ).also(consumer)
     }
-
 
     private fun File.resolvePath(path: String): File = File(absolutePath + path)
 
@@ -102,7 +111,7 @@ class DiffTest {
             null,
             null,
             emptySet(),
-            SensitivityLevel.CONFIDENTIAL
+            SensitivityLevel.PRIVATE
         )
     }
 
@@ -110,26 +119,28 @@ class DiffTest {
     fun `test with no reference fs`() {
         ctx(
             builder = {
-                touch("a")
-                touch("b")
+                mkdir("home") {
+                    touch("a")
+                    touch("b")
+                }
             },
 
             consumer = {
                 commandRunnerFactory.withContext(SERVICE_USER) {
                     val diff = indexingService.calculateDiff(
-                        it, "/", emptyList()
+                        it, "/home", emptyList()
                     )
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.CreatedOrRefreshed &&
-                                it.path == "/a" &&
-                                it.id == fsRoot.resolvePath("/a").inode()
+                                it.path == "/home/a" &&
+                                it.id == fsRoot.resolvePath("/home/a").inode()
                     }
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.CreatedOrRefreshed &&
-                                it.path == "/b" &&
-                                it.id == fsRoot.resolvePath("/b").inode()
+                                it.path == "/home/b" &&
+                                it.id == fsRoot.resolvePath("/home/b").inode()
                     }
 
                     assertThatPropertyEquals(diff, { it.diff.size }, 2)
@@ -144,22 +155,24 @@ class DiffTest {
     fun `test with correct reference fs`() {
         ctx(
             builder = {
-                touch("a")
-                touch("b")
-                mkdir("c") {
-                    touch("1")
-                    touch("2")
-                    touch("3")
+                mkdir("home") {
+                    touch("a")
+                    touch("b")
+                    mkdir("c") {
+                        touch("1")
+                        touch("2")
+                        touch("3")
+                    }
                 }
             },
 
             consumer = {
                 commandRunnerFactory.withContext(SERVICE_USER) {
                     val diff = indexingService.calculateDiff(
-                        it, "/", listOf(
-                            fsRoot.resolvePath("/a").asMaterialized(),
-                            fsRoot.resolvePath("/b").asMaterialized(),
-                            fsRoot.resolvePath("/c").asMaterialized()
+                        it, "/home", listOf(
+                            fsRoot.resolvePath("/home/a").asMaterialized(),
+                            fsRoot.resolvePath("/home/b").asMaterialized(),
+                            fsRoot.resolvePath("/home/c").asMaterialized()
                         )
                     )
 
@@ -173,22 +186,24 @@ class DiffTest {
     @Test
     fun `test with no real fs, but a reference`() {
         ctx(
-            builder = {},
+            builder = {
+                mkdir("home") {}
+            },
             consumer = {
                 commandRunnerFactory.withContext(SERVICE_USER) {
                     val diff = indexingService.calculateDiff(
-                        it, "/", listOf(
-                            fakeMaterializedFile("1", "/foo", FileType.DIRECTORY),
-                            fakeMaterializedFile("2", "/bar", FileType.FILE)
+                        it, "/home", listOf(
+                            fakeMaterializedFile("1", "/home/foo", FileType.DIRECTORY),
+                            fakeMaterializedFile("2", "/home/bar", FileType.FILE)
                         )
                     )
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.Invalidated && it.id == "1" && it.path == "/foo"
+                        it is StorageEvent.Invalidated && it.id == "1" && it.path == "/home/foo"
                     }
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.Invalidated && it.id == "2" && it.path == "/bar"
+                        it is StorageEvent.Invalidated && it.id == "2" && it.path == "/home/bar"
                     }
 
                     assertThatPropertyEquals(diff, { diff.diff.size }, 2)
@@ -201,10 +216,12 @@ class DiffTest {
     @Test
     fun `test with correct empty reference`() {
         ctx(
-            builder = {},
+            builder = {
+                mkdir("home") {}
+            },
             consumer = {
                 commandRunnerFactory.withContext(SERVICE_USER) {
-                    val diff = indexingService.calculateDiff(it, "/", emptyList())
+                    val diff = indexingService.calculateDiff(it, "/home", emptyList())
                     assertThatPropertyEquals(diff, { it.diff.size }, 0)
                     assertTrue(diff.shouldContinue)
                 }
@@ -214,10 +231,12 @@ class DiffTest {
 
     @Test
     fun `test reference with duplicate files different ids`() {
-        val filePath = "/real.txt"
+        val filePath = "/home/real.txt"
         ctx(
             builder = {
-                touch("real.txt")
+                mkdir("home") {
+                    touch("real.txt")
+                }
             },
 
             consumer = {
@@ -227,7 +246,7 @@ class DiffTest {
 
                     val diff = indexingService.calculateDiff(
                         it,
-                        "/",
+                        "/home",
                         listOf(
                             referenceFile,
                             referenceFile.copy(id = "invalid id")
@@ -257,9 +276,9 @@ class DiffTest {
 
             consumer = {
                 commandRunnerFactory.withContext(SERVICE_USER) {
-                    val diff = indexingService.calculateDiff(it, "/notThere", emptyList())
+                    val diff = indexingService.calculateDiff(it, "/home/notThere", emptyList())
 
-                    assertCollectionHasItem(diff.diff) { it is StorageEvent.Invalidated && it.path == "/notThere" }
+                    assertCollectionHasItem(diff.diff) { it is StorageEvent.Invalidated && it.path == "/home/notThere" }
                     assertThatPropertyEquals(diff, { it.diff.size }, 1)
                     assertFalse(diff.shouldContinue)
                 }
@@ -271,22 +290,24 @@ class DiffTest {
     fun `test moved file`() {
         ctx(
             builder = {
-                touch("b")
+                mkdir("home") {
+                    touch("b")
+                }
             },
 
             consumer = {
                 commandRunnerFactory.withContext(SERVICE_USER) {
-                    val realFile = fsRoot.resolvePath("/b")
+                    val realFile = fsRoot.resolvePath("/home/b")
                     val diff = indexingService.calculateDiff(
-                        it, "/", listOf(
-                            realFile.asMaterialized().copy(path = "/a")
+                        it, "/home", listOf(
+                            realFile.asMaterialized().copy(path = "/home/a")
                         )
                     )
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.Moved &&
-                                it.path == "/b" &&
-                                it.oldPath == "/a" &&
+                                it.path == "/home/b" &&
+                                it.oldPath == "/home/a" &&
                                 it.id == realFile.inode()
                     }
 
@@ -301,49 +322,51 @@ class DiffTest {
     fun `test moved directory`() {
         ctx(
             builder = {
-                mkdir("b") {
-                    touch("1")
-                    touch("2")
-                    touch("3")
+                mkdir("home") {
+                    mkdir("b") {
+                        touch("1")
+                        touch("2")
+                        touch("3")
+                    }
                 }
             },
 
             consumer = {
                 commandRunnerFactory.withContext(SERVICE_USER) {
-                    val realFile = fsRoot.resolvePath("/b")
+                    val realFile = fsRoot.resolvePath("/home/b")
                     val diff = indexingService.calculateDiff(
-                        it, "/", listOf(
-                            realFile.asMaterialized().copy(path = "/a")
+                        it, "/home", listOf(
+                            realFile.asMaterialized().copy(path = "/home/a")
                         )
                     )
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.Moved &&
-                                it.path == "/b" &&
-                                it.oldPath == "/a" &&
+                                it.path == "/home/b" &&
+                                it.oldPath == "/home/a" &&
                                 it.id == realFile.inode()
                     }
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.Invalidated &&
-                                it.path == "/a"
+                                it.path == "/home/a"
                     }
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/b"
+                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/b"
                     }
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/b/1"
+                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/b/1"
                     }
 
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/b/2"
+                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/b/2"
                     }
 
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/b/3"
+                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/b/3"
                     }
 
                     assertThatPropertyEquals(diff, { it.diff.size }, 6)
@@ -357,20 +380,24 @@ class DiffTest {
     fun `test new sensitivity`() {
         ctx(
             builder = {
-                touch("a")
+                mkdir("home") {
+                    touch("a")
+                }
             },
 
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
-                    val realFile = fsRoot.resolvePath("/a")
+                commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
+                    val realFile = fsRoot.resolvePath("/home/a")
                     val diff = indexingService.calculateDiff(
-                        it, "/", listOf(realFile.asMaterialized().copy(sensitivityLevel = SensitivityLevel.SENSITIVE))
+                        ctx,
+                        "/home",
+                        listOf(realFile.asMaterialized().copy(sensitivityLevel = SensitivityLevel.SENSITIVE))
                     )
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.CreatedOrRefreshed &&
-                                it.path == "/a" &&
-                                it.sensitivityLevel == SensitivityLevel.CONFIDENTIAL &&
+                                it.path == "/home/a" &&
+                                it.sensitivityLevel == SensitivityLevel.PRIVATE &&
                                 it.id == realFile.inode()
                     }
 
@@ -385,26 +412,28 @@ class DiffTest {
     fun `test new directory`() {
         ctx(
             builder = {
-                touch("a")
-                mkdir("dir") {
-                    mkdir("1") {
-                        touch("file")
+                mkdir("home") {
+                    touch("a")
+                    mkdir("dir") {
+                        mkdir("1") {
+                            touch("file")
+                        }
                     }
                 }
             },
 
             consumer = {
                 commandRunnerFactory.withContext(SERVICE_USER) {
-                    val aFile = fsRoot.resolvePath("/a")
+                    val aFile = fsRoot.resolvePath("/home/a")
 
                     val diff = indexingService.calculateDiff(
-                        it, "/", listOf(aFile.asMaterialized())
+                        it, "/home", listOf(aFile.asMaterialized())
                     )
 
-                    assertCollectionHasItem(diff.diff) { it is StorageEvent.CreatedOrRefreshed && it.path == "/dir" }
-                    assertCollectionHasItem(diff.diff) { it is StorageEvent.CreatedOrRefreshed && it.path == "/dir/1" }
+                    assertCollectionHasItem(diff.diff) { it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir" }
+                    assertCollectionHasItem(diff.diff) { it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir/1" }
                     assertCollectionHasItem(diff.diff) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/dir/1/file"
+                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir/1/file"
                     }
 
                     assertThatPropertyEquals(diff, { it.diff.size }, 3)
@@ -418,21 +447,23 @@ class DiffTest {
     fun `test on file root`() {
         ctx(
             builder = {
-                touch("a")
-                mkdir("b") {}
+                mkdir("home") {
+                    touch("a")
+                    mkdir("b") {}
+                }
             },
 
             consumer = {
                 val result = indexingService.runDiffOnRoots(
                     mapOf(
-                        "/a" to emptyList(),
-                        "/b" to emptyList()
+                        "/home/a" to emptyList(),
+                        "/home/b" to emptyList()
                     )
                 )
 
                 runBlocking { result.second.join() }
-                assertFalse(result.first["/a"]!!)
-                assertTrue(result.first["/b"]!!)
+                assertFalse(result.first["/home/a"]!!)
+                assertTrue(result.first["/home/b"]!!)
                 assertThatPropertyEquals(result.first, { it.size }, 2)
 
                 coVerify(exactly = 0) { mockedEventProducer.emit(any()) }
@@ -444,31 +475,33 @@ class DiffTest {
     fun `test correct emission of events - new directory`() {
         ctx(
             builder = {
-                touch("a")
-                mkdir("dir") {
-                    mkdir("1") {
-                        touch("file")
+                mkdir("home") {
+                    touch("a")
+                    mkdir("dir") {
+                        mkdir("1") {
+                            touch("file")
+                        }
                     }
                 }
             },
 
             consumer = {
                 fun assertCorrectEvents(collection: List<StorageEvent>) {
-                    assertCollectionHasItem(collection) { it is StorageEvent.CreatedOrRefreshed && it.path == "/dir" }
-                    assertCollectionHasItem(collection) { it is StorageEvent.CreatedOrRefreshed && it.path == "/dir/1" }
+                    assertCollectionHasItem(collection) { it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir" }
+                    assertCollectionHasItem(collection) { it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir/1" }
                     assertCollectionHasItem(collection) {
-                        it is StorageEvent.CreatedOrRefreshed && it.path == "/dir/1/file"
+                        it is StorageEvent.CreatedOrRefreshed && it.path == "/home/dir/1/file"
                     }
 
                     assertThatPropertyEquals(collection, { it.size }, 3)
                 }
 
                 commandRunnerFactory.withContext(SERVICE_USER) {
-                    val aFile = fsRoot.resolvePath("/a")
+                    val aFile = fsRoot.resolvePath("/home/a")
                     val reference = listOf(aFile.asMaterialized())
 
                     val diff = indexingService.calculateDiff(
-                        it, "/", reference
+                        it, "/home", reference
                     )
 
                     assertCorrectEvents(diff.diff)
@@ -477,8 +510,8 @@ class DiffTest {
                     val collectedEvents = ArrayList<StorageEvent>()
                     coEvery { mockedEventProducer.emit(capture(collectedEvents)) } just Runs
 
-                    val (shouldContinue, job) = indexingService.runDiffOnRoots(mapOf("/" to reference))
-                    assertTrue(shouldContinue["/"]!!)
+                    val (shouldContinue, job) = indexingService.runDiffOnRoots(mapOf("/home" to reference))
+                    assertTrue(shouldContinue["/home"]!!)
                     runBlocking { job.join() }
                     assertCorrectEvents(collectedEvents)
                 }
@@ -529,48 +562,5 @@ class DiffTest {
 
         verify { ctx.close() }
         coVerify(exactly = 0) { eventProducer.emit(any()) }
-    }
-
-    fun <T> assertCollectionHasItem(
-        collection: Iterable<T>,
-        description: String = "Custom matcher",
-        matcher: (T) -> Boolean
-    ) {
-        assertTrue("Expected collection to contain an item that matches $description: $collection ") {
-            collection.any(matcher)
-        }
-    }
-
-    fun <T> assertThatInstance(
-        instance: T,
-        description: String = "Custom matcher",
-        matcher: (T) -> Boolean
-    ) {
-        assertTrue("Expected instance to match $description. Actual value: $instance") { matcher(instance) }
-    }
-
-    fun <T, P> assertThatProperty(
-        instance: T,
-        property: (T) -> P,
-        description: String = "Custom matcher",
-        matcher: (P) -> Boolean
-    ) {
-        val prop = property(instance)
-        assertTrue(
-            "Expected instance's property to match $description." +
-                    "\n  Actual value: $instance." +
-                    "\n  Computed property: $prop"
-        ) {
-            matcher(prop)
-        }
-    }
-
-    fun <T, P> assertThatPropertyEquals(
-        instance: T,
-        property: (T) -> P,
-        value: P,
-        description: String = "Custom matcher"
-    ) {
-        assertThatProperty(instance, property, description) { it == value }
     }
 }

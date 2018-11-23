@@ -15,13 +15,13 @@ import dk.sdu.cloud.service.serviceInstance
 import dk.sdu.cloud.zenodo.api.ZenodoServiceDescription
 
 data class Configuration(
-    val zenodo: ZenodoAPIConfiguration,
-    val production: Boolean
+    val zenodo: ZenodoAPIConfiguration
 )
 
 data class ZenodoAPIConfiguration(
     val clientId: String,
-    val clientSecret: String
+    val clientSecret: String,
+    val useSandbox: Boolean = true
 ) {
     override fun toString(): String {
         return "ZenodoAPIConfiguration()"
@@ -45,6 +45,6 @@ fun main(args: Array<String>) {
         micro.kafka,
         configuration,
         micro.serverProvider,
-        micro.serviceInstance
+        micro
     ).start()
 }

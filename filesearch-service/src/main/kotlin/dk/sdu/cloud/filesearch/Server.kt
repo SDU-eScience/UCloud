@@ -1,11 +1,10 @@
 package dk.sdu.cloud.filesearch
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.filesearch.http.SearchController
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
@@ -20,8 +19,7 @@ import org.slf4j.Logger
 class Server(
     override val kafka: KafkaServices,
     private val http: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val serviceInstance: ServiceInstance
+    private val micro: Micro
 ) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
     override val kStreams: KafkaStreams? = null
@@ -29,7 +27,7 @@ class Server(
 
     override fun start() {
         httpServer = http {
-            installDefaultFeatures(cloud, kafka, serviceInstance)
+            installDefaultFeatures(micro)
 
             routing {
                 configureControllers(

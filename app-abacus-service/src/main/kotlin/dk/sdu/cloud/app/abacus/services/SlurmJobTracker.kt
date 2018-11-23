@@ -18,7 +18,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.runBlocking
 
 class SlurmJobTracker<DBSession>(
     private val jobFileService: JobFileService,

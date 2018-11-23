@@ -9,16 +9,16 @@ import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.ApplicationFeature
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
-import io.ktor.pipeline.PipelineContext
 import io.ktor.request.ApplicationRequest
 import io.ktor.response.respond
 import io.ktor.routing.Route
 import io.ktor.util.AttributeKey
+import io.ktor.util.pipeline.PipelineContext
 
 @Deprecated(message = "Built into service-common", replaceWith = ReplaceWith(""))
 @Suppress("deprecation")
 fun Route.protect(rolesAllowed: List<Role> = Role.values().toList()) {
-    intercept(ApplicationCallPipeline.Infrastructure) { protect(rolesAllowed) }
+    intercept(ApplicationCallPipeline.Features) { protect(rolesAllowed) }
 }
 
 @Deprecated(message = "Built into service-common")

@@ -39,6 +39,6 @@ fun main(args: Array<String>) {
         configuration,
         micro.serverProvider,
         micro.hibernateDatabase,
-        micro.serviceInstance
+        micro
     ).start()
 }

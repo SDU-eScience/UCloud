@@ -11,6 +11,7 @@ import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.app.api.WordInvocationParameter
+import dk.sdu.cloud.client.defaultMapper
 
 object JobData {
     val tool = Tool(

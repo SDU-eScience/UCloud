@@ -1,14 +1,15 @@
 package dk.sdu.cloud.service
 
-import kotlinx.coroutines.experimental.Deferred
-import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 
 sealed class ResultOrException<E> {
     data class Result<E>(val result: E) : ResultOrException<E>()
     data class Exception<E>(val throwable: Throwable) : ResultOrException<E>()
 }
 
-fun <E> safeAsync(coroutine: suspend () -> E): Deferred<ResultOrException<E>> {
+fun <E> CoroutineScope.safeAsync(coroutine: suspend () -> E): Deferred<ResultOrException<E>> {
     return async {
         try {
             ResultOrException.Result(coroutine())

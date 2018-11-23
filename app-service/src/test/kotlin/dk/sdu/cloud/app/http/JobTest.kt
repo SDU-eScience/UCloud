@@ -13,16 +13,19 @@ import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.app.api.WordInvocationParameter
 import dk.sdu.cloud.app.services.JobDao
 import dk.sdu.cloud.app.services.VerifiedJobWithAccessToken
-import dk.sdu.cloud.app.utils.withAuthMock
-import dk.sdu.cloud.app.utils.withDatabase
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
-import io.ktor.application.Application
+import dk.sdu.cloud.service.hibernateDatabase
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.withKtorTest
+import dk.sdu.cloud.service.tokenValidation
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.withTestApplication
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
@@ -31,11 +34,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import dk.sdu.cloud.app.api.Application as CloudApp
 
-private fun Application.configureJobServer(
-    db: DBSessionFactory<HibernateSession>,
+private fun KtorApplicationTestSetupContext.configureJobServer(
     jobService: JobDao<HibernateSession>
-) {
-    configureBaseServer(JobController(db, mockk(relaxed = true), jobService))
+): List<Controller> {
+    micro.install(HibernateFeature)
+    val tokenValidation = micro.tokenValidation as TokenValidationJWT
+    return listOf(JobController(micro.hibernateDatabase, mockk(relaxed = true), jobService, tokenValidation))
 }
 
 class JobTest {
@@ -93,90 +97,82 @@ class JobTest {
 
     @Test
     fun `find By ID test`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val jobService = mockk<JobDao<HibernateSession>>()
-                        configureJobServer(db, jobService)
+        withKtorTest(
+            setup = {
+                val jobService = mockk<JobDao<HibernateSession>>()
+                every { jobService.findOrNull(any(), any(), any()) } returns job
+                configureJobServer(jobService)
+            },
 
-                        every { jobService.findOrNull(any(), any(), any()) } returns job
-                    },
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Get, "/api/hpc/jobs/2") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                        }.response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/api/hpc/jobs/2") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
+                    assertEquals(HttpStatusCode.OK, response.status())
 
-                        assertEquals(HttpStatusCode.OK, response.status())
-
-                        val obj = mapper.readTree(response.content)
-                        assertEquals("\"${job.job.id}\"", obj["jobId"].toString())
-                        assertEquals("\"${job.job.owner}\"", obj["owner"].toString())
-                    }
-                )
+                    val obj = mapper.readTree(response.content)
+                    assertEquals("\"${job.job.id}\"", obj["jobId"].toString())
+                    assertEquals("\"${job.job.owner}\"", obj["owner"].toString())
+                }
             }
-        }
+        )
     }
 
     @Test
     fun `find By ID test - not found`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val jobService = mockk<JobDao<HibernateSession>>()
-                        configureJobServer(db, jobService)
+        withKtorTest(
+            setup = {
+                val jobService = mockk<JobDao<HibernateSession>>()
 
-                        every { jobService.findOrNull(any(), any(), any()) } returns null
+                every { jobService.findOrNull(any(), any(), any()) } returns null
+                configureJobServer(jobService)
+            },
 
-                    },
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Get, "/api/hpc/jobs/2") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                        }.response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/api/hpc/jobs/2") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
-
-                        assertEquals(HttpStatusCode.NotFound, response.status())
-                    }
-                )
+                    assertEquals(HttpStatusCode.NotFound, response.status())
+                }
             }
-        }
+        )
     }
 
     @Test
     fun `list recent test`() {
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        val jobService = mockk<JobDao<HibernateSession>>()
-                        configureJobServer(db, jobService)
-                        every { jobService.list(any(), any(), any()) } answers {
-                            Page(1, 10, 0, listOf(job))
-                        }
-                    },
+        withKtorTest(
+            setup = {
+                val jobService = mockk<JobDao<HibernateSession>>()
+                every { jobService.list(any(), any(), any()) } answers {
+                    Page(1, 10, 0, listOf(job))
+                }
+                configureJobServer(jobService)
+            },
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/api/hpc/jobs?itemsPerPage=10&page=0") {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
+            test = {
+                with(engine) {
+                    val response =
+                        handleRequest(HttpMethod.Get, "/api/hpc/jobs?itemsPerPage=10&page=0") {
+                            addHeader("Job-Id", UUID.randomUUID().toString())
+                            setUser()
+                        }.response
 
-                        assertEquals(HttpStatusCode.OK, response.status())
+                    assertEquals(HttpStatusCode.OK, response.status())
 
-                        val obj = mapper.readTree(response.content)
+                    val obj = mapper.readTree(response.content)
 
-                        assertEquals(1, obj["itemsInTotal"].asInt())
-                        assertTrue(obj["items"].toString().contains("\"state\":\"SUCCESS\""))
-                    }
-                )
+                    assertEquals(1, obj["itemsInTotal"].asInt())
+                    assertTrue(obj["items"].toString().contains("\"state\":\"SUCCESS\""))
+                }
             }
-        }
+        )
     }
 }

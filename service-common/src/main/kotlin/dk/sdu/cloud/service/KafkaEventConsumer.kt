@@ -3,6 +3,7 @@ package dk.sdu.cloud.service
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
+import java.time.Duration
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -131,7 +132,7 @@ class KafkaEventConsumer<K, V>(
             }
 
             val events = kafkaConsumer
-                .poll(pollTimeoutInMs)
+                .poll(Duration.ofMillis(pollTimeoutInMs))
                 .map {
                     if (it.topic() != description.name) {
                         throw IllegalStateException(

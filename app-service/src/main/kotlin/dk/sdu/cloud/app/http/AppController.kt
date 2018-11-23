@@ -12,7 +12,6 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.ok
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.service.stackTraceToString
@@ -30,10 +29,7 @@ class AppController<DBSession>(
     override val baseContext = ApplicationDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
-
         implement(ApplicationDescriptions.toggleFavorite) { req ->
-            logEntry(log, req)
-
             db.withTransaction {
                 source.toggleFavorite(
                     it,
@@ -44,12 +40,9 @@ class AppController<DBSession>(
             }
 
             ok(HttpStatusCode.OK)
-
         }
 
         implement(ApplicationDescriptions.retrieveFavorites) { req ->
-            logEntry(log, req)
-
             val favorites = db.withTransaction {
                 source.retrieveFavorites(
                     it,
@@ -62,8 +55,6 @@ class AppController<DBSession>(
         }
 
         implement(ApplicationDescriptions.searchTags) { req ->
-            logEntry(log, req)
-
             val app = db.withTransaction {
                 source.searchTags(
                     it,
@@ -78,8 +69,6 @@ class AppController<DBSession>(
 
 
         implement(ApplicationDescriptions.searchApps) { req ->
-            logEntry(log, req)
-
             val app = db.withTransaction {
                 source.search(
                     it,
@@ -93,8 +82,6 @@ class AppController<DBSession>(
         }
 
         implement(ApplicationDescriptions.findByNameAndVersion) { req ->
-            logEntry(log, req)
-
             val app = db.withTransaction {
                 source.findByNameAndVersion(
                     it,
@@ -108,8 +95,6 @@ class AppController<DBSession>(
         }
 
         implement(ApplicationDescriptions.findByName) { req ->
-            logEntry(log, req)
-
             val result = db.withTransaction {
                 source.findAllByName(it, call.securityPrincipal.username, req.name, req.normalize())
             }
@@ -118,8 +103,6 @@ class AppController<DBSession>(
         }
 
         implement(ApplicationDescriptions.listAll) { req ->
-            logEntry(log, req)
-
             ok(
                 db.withTransaction {
                     source.listLatestVersion(it, call.securityPrincipal.username, req.normalize())
@@ -128,8 +111,6 @@ class AppController<DBSession>(
         }
 
         implement(ApplicationDescriptions.create) { req ->
-            logEntry(log, req)
-
             val content = try {
                 call.receiveText()
             } catch (ex: ContentTransformationException) {

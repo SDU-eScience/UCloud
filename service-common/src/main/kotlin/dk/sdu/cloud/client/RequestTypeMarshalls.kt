@@ -2,7 +2,7 @@ package dk.sdu.cloud.client
 
 import dk.sdu.cloud.service.InputParsingResponse
 import io.ktor.application.ApplicationCall
-import io.ktor.pipeline.PipelineContext
+import io.ktor.util.pipeline.PipelineContext
 
 interface RequestPathSegmentMarshall<R> {
     fun deserializeSegment(segment: RESTPathSegment<*>, call: ApplicationCall): Pair<String, Any?>?

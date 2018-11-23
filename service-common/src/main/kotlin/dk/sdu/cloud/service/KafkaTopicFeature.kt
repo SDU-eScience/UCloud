@@ -2,7 +2,7 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.ServiceDescription
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.runBlocking
 import org.apache.kafka.clients.admin.NewPartitions
 import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.clients.admin.TopicDescription

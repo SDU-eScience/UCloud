@@ -19,8 +19,9 @@ import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.withCausedBy
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.async
-import kotlinx.coroutines.experimental.awaitAll
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 
 private const val CHUNK_SIZE = 100
 
@@ -176,23 +177,25 @@ class ActivityService<DBSession>(
             }
         }.asSequence().toSet().asSequence().chunked(CHUNK_SIZE).toList()
 
-        val fileIdToCanonicalPath = fileIdsInChunks
-            .map { chunkOfIds ->
-                async {
-                    chunkOfIds.zip(
-                        LookupDescriptions.reverseLookup
-                            .call(
-                                ReverseLookupRequest(chunkOfIds),
-                                cloud
-                            )
-                            .orThrow()
-                            .canonicalPath
-                    )
+        val fileIdToCanonicalPath = coroutineScope {
+            fileIdsInChunks
+                .map { chunkOfIds ->
+                    async {
+                        chunkOfIds.zip(
+                            LookupDescriptions.reverseLookup
+                                .call(
+                                    ReverseLookupRequest(chunkOfIds),
+                                    cloud
+                                )
+                                .orThrow()
+                                .canonicalPath
+                        )
+                    }
                 }
-            }
-            .awaitAll()
-            .flatten()
-            .toMap()
+                .awaitAll()
+                .flatten()
+                .toMap()
+        }
 
         return resultFromDao.mapItems { entry ->
             when (entry) {

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.client.RESTBody
 import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.RESTPathSegment
@@ -27,8 +28,9 @@ import io.ktor.features.conversionService
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
-import io.ktor.pipeline.PipelineContext
+import io.ktor.request.httpMethod
 import io.ktor.request.receiveOrNull
+import io.ktor.request.uri
 import io.ktor.response.respond
 import io.ktor.response.respondText
 import io.ktor.routing.Route
@@ -36,6 +38,8 @@ import io.ktor.routing.application
 import io.ktor.routing.method
 import io.ktor.routing.route
 import io.ktor.util.DataConversionException
+import io.ktor.util.pipeline.PipelineContext
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
@@ -105,6 +109,22 @@ private fun resolveCompanionInstanceFromType(type: Type): Any? {
     }
 }
 
+private fun <R : Any> RESTHandler<R, *, *, *>.doLogEntry(
+    log: Logger,
+    payload: R,
+    requestToString: (R) -> String = { it.toString() }
+) {
+    val requestName = restCall.fullName
+    val method = call.request.httpMethod.value
+    val uri = call.request.uri
+    val jobId = call.request.safeJobId
+    val causedBy = call.request.causedBy
+
+    val name = "$method $uri ($requestName)"
+
+    log.info("$name jobId=$jobId causedBy=$causedBy payload=${requestToString(payload)}")
+}
+
 fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
     restCall: RESTCallDescription<P, S, E, A>,
     logResponse: Boolean = false,
@@ -129,7 +149,11 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                 }
             }
 
-            handle { _ ->
+            val log = LoggerFactory.getLogger(restCall.fullName)
+
+            handle {
+                log.debug("Handling call for ${restCall.fullName}")
+
                 try {
                     @Suppress("UNCHECKED_CAST")
                     val companion =
@@ -259,22 +283,27 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                     }
 
                     val restHandler = RESTHandler(payload, this, logResponse, restCall)
+                    restHandler.doLogEntry(log, payload)
                     try {
                         // Call the handler with the payload
                         restHandler.handler(payload)
-                    } catch (ex: RPCException) {
-                        if (ex.httpStatusCode == HttpStatusCode.InternalServerError) {
+                    } catch (ex: Exception) {
+                        val statusCode =
+                            if (ex !is RPCException) HttpStatusCode.InternalServerError else ex.httpStatusCode
+                        val isInternalServerError = statusCode == HttpStatusCode.InternalServerError
+
+                        if (isInternalServerError) {
                             log.warn("Internal server error in ${restCall.fullName}")
                             log.warn(ex.stackTraceToString())
                         }
 
                         if (CommonErrorMessage::class.java == restCall.responseTypeFailure.type) {
                             val message =
-                                if (ex.httpStatusCode != HttpStatusCode.InternalServerError) ex.why
+                                if (!isInternalServerError) (ex as? RPCException)?.why ?: "Internal Server Error"
                                 else "Internal Server Error"
 
                             @Suppress("UNCHECKED_CAST")
-                            restHandler.error(CommonErrorMessage(message) as E, ex.httpStatusCode)
+                            restHandler.error(CommonErrorMessage(message) as E, statusCode)
                         } else {
                             log.info(ex.stackTraceToString())
 
@@ -282,7 +311,7 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                                 "Cannot auto-complete exception message when error type is not " +
                                         "CommonErrorMessage. Please catch exceptions yourself."
                             )
-                            call.respond(ex.httpStatusCode)
+                            call.respond(statusCode)
                         }
 
                         restHandler.okContentDeliveredExternally()
@@ -355,6 +384,10 @@ class RESTHandler<P : Any, S : Any, E : Any, A : Any>(
     private var auditRequest: A? = null
 
     internal var finalized = false
+
+    fun overridePrincipalToken(token: SecurityPrincipalToken) {
+        call.attributes.put(KafkaHttpRouteLogger.securityPrincipalTokenOverride, token)
+    }
 
     fun audit(transformedRequest: A) {
         auditRequest = transformedRequest

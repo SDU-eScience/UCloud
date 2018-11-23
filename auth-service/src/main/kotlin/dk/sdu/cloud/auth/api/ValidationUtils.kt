@@ -2,14 +2,14 @@ package dk.sdu.cloud.auth.api
 
 import com.auth0.jwt.impl.PublicClaims
 import com.auth0.jwt.interfaces.DecodedJWT
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.service.RawAuthToken
 import dk.sdu.cloud.service.TokenValidation
 
-suspend fun TokenValidation.validateAndClaim(
-    token: RawAuthToken,
-    audience: List<String>? = null,
+suspend fun TokenValidation<DecodedJWT>.validateAndClaim(
+    token: String,
+    audience: List<SecurityScope>? = null,
     cloud: AuthenticatedCloud
 ): DecodedJWT? {
     val validated = validateOrNull(token, audience) ?: return null

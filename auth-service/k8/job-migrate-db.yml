@@ -18,9 +18,11 @@ spec:
         - /etc/service
         - --config-dir
         - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
         - --run-script
         - migrate-db
-        image: registry.cloud.sdu.dk/sdu-cloud/auth-service:1.7.0
+        image: registry.cloud.sdu.dk/sdu-cloud/auth-service:1.10.0
         name: auth-migration
 
         volumeMounts:
@@ -28,6 +30,8 @@ spec:
           name: vol1
         - mountPath: /etc/refresh-token
           name: vol2
+        - mountPath: /etc/token-validation
+          name: token-validation
 
       imagePullSecrets:
         - name: esci-docker
@@ -41,3 +45,8 @@ spec:
       - name: vol2
         secret:
           secretName: auth-refresh-token
+      - configMap:
+          defaultMode: 420
+          name: token-validation
+        name: token-validation
+

@@ -16,7 +16,8 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import kotlinx.coroutines.experimental.async
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import java.io.File
 import java.net.URI
 import java.util.*
@@ -100,17 +101,19 @@ class JobVerificationService<DBSession>(
         workDir: URI,
         cloud: AuthenticatedCloud
     ): List<ValidatedFileForUpload> {
-        return application.description.parameters
-            .asSequence()
-            .filter { it is ApplicationParameter.InputFile || it is ApplicationParameter.InputDirectory }
-            .map {
-                @Suppress("UNCHECKED_CAST")
-                val appParameter = it as ApplicationParameter<FileTransferDescription>
+        return coroutineScope {
+            application.description.parameters
+                .asSequence()
+                .filter { it is ApplicationParameter.InputFile || it is ApplicationParameter.InputDirectory }
+                .map {
+                    @Suppress("UNCHECKED_CAST")
+                    val appParameter = it as ApplicationParameter<FileTransferDescription>
 
-                async { collectSingleFile(verifiedParameters, workDir, cloud, appParameter) }
-            }
-            .toList()
-            .mapNotNull { it.await() }
+                    async { collectSingleFile(verifiedParameters, workDir, cloud, appParameter) }
+                }
+                .toList()
+                .mapNotNull { it.await() }
+        }
     }
 
     private suspend fun collectSingleFile(

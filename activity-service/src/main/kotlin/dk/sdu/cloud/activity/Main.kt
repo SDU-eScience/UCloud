@@ -27,6 +27,6 @@ fun main(args: Array<String>) {
         micro.serverProvider,
         micro.hibernateDatabase,
         micro.refreshingJwtCloud,
-        micro.serviceInstance
+        micro
     ).start()
 }

@@ -13,15 +13,14 @@ import dk.sdu.cloud.zenodo.api.ZenodoPublicationWithFiles
 import dk.sdu.cloud.zenodo.services.PublicationException
 import dk.sdu.cloud.zenodo.services.PublicationService
 
-class PublicationHibernateDAO :
-    PublicationService<HibernateSession> {
+class PublicationHibernateDAO(private val useSandbox: Boolean) : PublicationService<HibernateSession> {
     override fun findById(
         session: HibernateSession,
         user: String,
         id: Long
     ): ZenodoPublicationWithFiles {
         return (PublicationEntity[session, id]?.takeIf { it.owner == user }
-                ?: throw PublicationException.NotFound()).toModel()
+            ?: throw PublicationException.NotFound()).toModel(useSandbox)
     }
 
     override fun findForUser(
@@ -31,7 +30,7 @@ class PublicationHibernateDAO :
     ): Page<ZenodoPublication> {
         return session.paginatedCriteria<PublicationEntity>(pagination) {
             entity[PublicationEntity::owner] equal user
-        }.mapItems { it.toModel() }
+        }.mapItems { it.toModel(useSandbox) }
     }
 
     override fun createUploadForFiles(

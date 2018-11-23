@@ -15,19 +15,8 @@ import dk.sdu.cloud.app.abacus.services.ssh.scpDownload
 import dk.sdu.cloud.app.abacus.services.ssh.scpUpload
 import dk.sdu.cloud.app.abacus.services.ssh.stat
 import dk.sdu.cloud.app.abacus.services.ssh.unzip
-import dk.sdu.cloud.app.api.Application
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.FileForUploadArchiveType
-import dk.sdu.cloud.app.api.JobState
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
-import dk.sdu.cloud.app.api.NormalizedToolDescription
-import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.Tool
-import dk.sdu.cloud.app.api.ToolBackend
-import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.app.api.VerifiedJobInput
-import dk.sdu.cloud.app.api.WordInvocationParameter
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import io.mockk.CapturingSlot
@@ -35,8 +24,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.mockkStatic
 import io.mockk.objectMockk
-import io.mockk.staticMockk
 import io.mockk.verify
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -57,25 +47,14 @@ class JobFileServiceTest {
         cloud = mockk(relaxed = true)
 
         service = JobFileService(connectionPool, cloud, workingDirectory)
-
-        staticMockk("dk.sdu.cloud.app.abacus.services.ssh.SFTPKt").mock()
-        staticMockk("dk.sdu.cloud.app.abacus.services.ssh.SCPKt").mock()
-        staticMockk("dk.sdu.cloud.app.abacus.services.ssh.ZIPKt").mock()
-
-        objectMockk(ComputationCallbackDescriptions).mock()
     }
 
     @BeforeTest
     fun before() {
-        val scopes = listOf(
-            staticMockk("dk.sdu.cloud.app.abacus.services.ssh.SFTPKt"),
-            staticMockk("dk.sdu.cloud.app.abacus.services.ssh.SCPKt"),
-            staticMockk("dk.sdu.cloud.app.abacus.services.ssh.ZIPKt"),
-            objectMockk(ComputationCallbackDescriptions)
-        )
-
-        scopes.forEach { it.unmock() }
-        scopes.forEach { it.mock() }
+        mockkStatic("dk.sdu.cloud.app.abacus.services.ssh.SFTPKt")
+        mockkStatic("dk.sdu.cloud.app.abacus.services.ssh.SCPKt")
+        mockkStatic("dk.sdu.cloud.app.abacus.services.ssh.ZIPKt")
+        mockkObject(ComputationCallbackDescriptions)
     }
 
     @Test

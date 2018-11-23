@@ -2,14 +2,14 @@ package dk.sdu.cloud.activity.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY
+    property = TYPE_PROPERTY
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = ActivityEvent.Download::class, name = "download"),

@@ -1,11 +1,11 @@
 package dk.sdu.cloud.indexing.http
 
+import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import io.ktor.routing.Route
 
 /**
@@ -18,16 +18,30 @@ class QueryController(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(QueryDescriptions.query) { req ->
-            logEntry(log, req)
-
-            ok(queryService.query(req.query, req.normalize()))
+            ok(
+                queryService.query(
+                    req.query.copy(roots = req.query.roots.map { it.normalizePath() }),
+                    req.normalize(),
+                    req.sortBy
+                )
+            )
         }
 
         implement(QueryDescriptions.statistics) { req ->
-            logEntry(log, req)
-
-            ok(queryService.statisticsQuery(req))
+            ok(
+                queryService.statisticsQuery(
+                    req.copy(
+                        query = req.query.copy(
+                            roots = req.query.roots.map { it.normalizePath() }
+                        )
+                    )
+                )
+            )
         }
+    }
+
+    private fun String.normalizePath(): String {
+        return normalize().removeSuffix("/")
     }
 
     companion object : Loggable {

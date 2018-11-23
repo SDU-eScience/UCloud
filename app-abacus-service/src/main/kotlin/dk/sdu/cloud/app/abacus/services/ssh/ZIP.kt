@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.abacus.services.ssh
 
 import dk.sdu.cloud.app.abacus.services.ssh.SSH.log
+import dk.sdu.cloud.service.BashEscaper
 
 fun SSHConnection.createZipFileOfDirectory(outputPath: String, inputDirectoryPath: String): Int {
     log.debug("Creating zip file of directory: outputPath=$outputPath, inputDirectoryPath=$inputDirectoryPath")

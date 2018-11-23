@@ -1,12 +1,16 @@
 group 'dk.sdu.cloud'
-version '0.6.0-SNAPSHOT'
+version '0.7.3-SNAPSHOT'
 
 apply plugin: "application"
 mainClassName = "dk.sdu.cloud.notification.MainKt"
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.1.0/sdu-cloud.gradle"
+
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.1/sdu-cloud.gradle"
+
 dependencies {
-    compile "dk.sdu.cloud:service-common:0.18.0-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.6.4-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.21.0-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.8.0-SNAPSHOT"
+
+    testCompile "dk.sdu.cloud:service-common-test:0.21.0-SNAPSHOT"
 }
 
 sduCloud.createTasksForApiJar("notification", [])

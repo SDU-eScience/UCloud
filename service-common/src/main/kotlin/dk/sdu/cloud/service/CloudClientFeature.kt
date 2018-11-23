@@ -8,8 +8,8 @@ import io.ktor.application.ApplicationFeature
 import io.ktor.application.call
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
-import io.ktor.pipeline.PipelineContext
 import io.ktor.util.AttributeKey
+import io.ktor.util.pipeline.PipelineContext
 import java.util.UUID
 
 class CloudClient {
@@ -31,7 +31,7 @@ class CloudClient {
                 throw IllegalStateException("You need to set the baseCloud property in the configure block of install!")
             }
 
-            pipeline.intercept(ApplicationCallPipeline.Infrastructure) { feature.intercept(this) }
+            pipeline.intercept(ApplicationCallPipeline.Features) { feature.intercept(this) }
             return feature
         }
     }

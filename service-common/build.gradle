@@ -1,10 +1,11 @@
-import java.nio.channels.*
+import java.nio.channels.Channels
+import java.nio.channels.ReadableByteChannel
 import java.nio.file.Files
 
 buildscript {
-    ext.kotlin_version = "1.2.61"
-    ext.ktor_version = "0.9.4"
-    ext.dokka_version = "0.9.16"
+    ext.kotlin_version = "1.3.0"
+    ext.ktor_version = "1.0.0-beta-3"
+    ext.dokka_version = "0.9.17"
 
     repositories {
         mavenCentral()
@@ -26,7 +27,7 @@ detekt {
     filters = ".*/resources/.*,.*/build/.*"
 
     // https://stackoverflow.com/a/921400
-    def currentVersion = "v0.1.0"
+    def currentVersion = "v0.2.1"
     URL website = new URL("https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/$currentVersion/detekt.yml")
     ReadableByteChannel rbc = Channels.newChannel(website.openStream())
     def outputFile = Files.createTempFile("detekt", ".yml").toFile()
@@ -98,7 +99,7 @@ dependencies {
     compile 'org.flywaydb:flyway-core:5.1.4'
 
     compile 'eu.infomas:annotation-detector:3.0.5'
-    
+
     // Client
     compile group: 'org.asynchttpclient', name: 'async-http-client', version: '2.4.8'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.9.2'
@@ -106,11 +107,11 @@ dependencies {
     compile group: 'com.fasterxml.jackson.module', name: 'jackson-module-kotlin', version: '2.9.2'
     compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:0.22.5'
 
-    compile "io.ktor:ktor-client-core:0.9.4"
-    compile "io.ktor:ktor-client-apache:0.9.4"
-    compile "io.ktor:ktor-client-json:0.9.4"
-    compile "io.ktor:ktor-client-json-jvm:0.9.4"
-    compile 'io.ktor:ktor-client-jackson:0.9.4'
+    compile "io.ktor:ktor-client-core:$ktor_version"
+    compile "io.ktor:ktor-client-apache:$ktor_version"
+    compile "io.ktor:ktor-client-json:$ktor_version"
+    compile "io.ktor:ktor-client-json-jvm:$ktor_version"
+    compile "io.ktor:ktor-client-jackson:$ktor_version"
 
     // Service discovery
     compile group: "com.github.zafarkhaja", name: "java-semver", version: "0.9.0"
@@ -126,8 +127,11 @@ dependencies {
     testCompile group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.9.1'
     testCompile group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.9.1'
     testCompile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.9.1'
-    testCompile "io.ktor:ktor-server-test-host:$ktor_version"
-    testCompile "io.mockk:mockk:1.8"
+
+    // Exported via testing lib
+    // TODO How could we mark them in a unified location?
+    compile "io.ktor:ktor-server-test-host:$ktor_version"
+    compile "io.mockk:mockk:1.8.12.kotlin13"
 }
 
 compileKotlin {
@@ -150,35 +154,92 @@ jacocoTestReport {
 }
 test.finalizedBy(project.tasks.jacocoTestReport)
 
-kotlin {
-    experimental {
-        coroutines "enable"
+kotlin.sourceSets.all {
+    it.languageSettings {
+        progressiveMode = true
     }
 }
 
+
 task sourceJar(type: Jar) {
+    classifier = "sources"
     from sourceSets.main.allSource
+    exclude("**/dk/sdu/cloud/service/test/**")
+}
+
+jar {
+    exclude("**/dk/sdu/cloud/service/test/**")
+}
+
+def testJarTask = tasks.create("testJarTask", Jar) { task ->
+    task.baseName = "${project.name}-test"
+    task.from(sourceSets.main.output)
+    task.from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    task.include("**/dk/sdu/cloud/service/test/**")
+    task.include("META-INF/**/${project.name}.kotlin_module")
+    task.includeEmptyDirs = false
+    task.with(jar)
+}
+
+task testSourceJar(type: Jar) {
+    archiveName = "service-common-test-${project.version}-sources.jar"
+    from(sourceSets.main.allSource) {
+        include("**/dk/sdu/cloud/service/test/**")
+        includeEmptyDirs = false
+    }
 }
 
 publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
+    def pub = it as PublishingExtension
 
-            artifact sourceJar {
-                classifier "sources"
-            }
+    def testDependencies = [
+            "dk.sdu.cloud:service-common:${project.version}",
+            "io.ktor:ktor-server-test-host:$ktor_version",
+            "io.mockk:mockk:1.8.12.kotlin13"
+    ].collect { it.toString() }.toSet()
+
+    def testJavaPublication = pub.publications.create("testJava", MavenPublication) as MavenPublication
+    testJavaPublication.groupId = project.group
+    testJavaPublication.artifactId = project.name + "-test"
+    testJavaPublication.version = project.version
+    testJavaPublication.artifact(testJarTask)
+    testJavaPublication.artifact(testSourceJar).classifier = "sources"
+    testJavaPublication.pom.withXml {
+        def dependenciesNode = it.asNode().appendNode('dependencies')
+
+        testDependencies.each { dep ->
+            def depSplit = dep.split(":")
+            assert (depSplit.length == 3)
+            def dependencyNode = dependenciesNode.appendNode('dependency')
+            dependencyNode.appendNode('groupId', depSplit[0])
+            dependencyNode.appendNode('artifactId', depSplit[1])
+            dependencyNode.appendNode('version', depSplit[2])
         }
     }
 
-    // For this to work you should create a file at ~/.gradle/gradle.properties
-    // This file should contain the configuration for the repository, user, and password.
-    //
-    // Example:
-    // eScienceCloudUser=admin
-    // eScienceCloudPassword=qwer
-    //
+    def mainPublication = pub.publications.create("mavenJava", MavenPublication) as MavenPublication
+    mainPublication.groupId = project.group
+    mainPublication.artifactId = project.name
+    mainPublication.version = project.version
+    mainPublication.artifact(jar)
+    mainPublication.artifact(sourceJar)
+    mainPublication.pom.withXml {
+        def rootNode = it.asNode()
+        (rootNode.get("dependencies") as List<Node>).each {
+            rootNode.remove(it)
+        }
 
+        def dependenciesNode = rootNode.appendNode('dependencies')
+        configurations.compile.allDependencies.each {
+            def altNotation = "${it.group}:${it.name}:${it.version}".toString()
+            if (!testDependencies.contains(altNotation)) {
+                def dependencyNode = dependenciesNode.appendNode('dependency')
+                dependencyNode.appendNode('groupId', it.group)
+                dependencyNode.appendNode('artifactId', it.name)
+                dependencyNode.appendNode('version', it.version)
+            }
+        }
+    }
 
     def username = System.getenv("ESCIENCE_MVN_USER") ?: eScienceCloudUser
     def password = System.getenv("ESCIENCE_MVN_PASSWORD") ?: eScienceCloudPassword

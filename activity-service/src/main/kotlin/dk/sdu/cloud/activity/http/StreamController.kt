@@ -10,7 +10,6 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.jobId
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
 
@@ -22,8 +21,6 @@ class StreamController<Session>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ActivityDescriptions.streamByPath) { req ->
-            logEntry(log, req)
-
             db.withTransaction { session ->
                 ok(
                     activityService.findStreamForPath(
@@ -38,8 +35,6 @@ class StreamController<Session>(
         }
 
         implement(ActivityDescriptions.streamForUser) { req ->
-            logEntry(log, req)
-
             val user =
                 req.user?.takeIf { call.securityPrincipal.role in Roles.ADMIN } ?: call.securityPrincipal.username
 

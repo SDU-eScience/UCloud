@@ -6,7 +6,7 @@ import dk.sdu.cloud.zenodo.util.HttpClient
 import dk.sdu.cloud.zenodo.util.asJson
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.delay
+import kotlinx.coroutines.delay
 import org.asynchttpclient.request.body.multipart.FilePart
 import org.asynchttpclient.request.body.multipart.StringPart
 import org.slf4j.LoggerFactory
@@ -27,15 +27,23 @@ data class ZenodoRPCFailure(
 ) : ZenodoRPCException("Error while communicating with Zenodo", HttpStatusCode.BadGateway)
 
 private const val NUMBER_OF_RETRIES = 5
-private const val DELAY_IN_MILLS = 500
+private const val DELAY_IN_MILLS = 500L
 private const val OK_STATUSCODE_START = 200
 private const val OK_STATUSCODE_END = 299
 private const val INTERNAL_STATUSCODE_START = 500
 private const val INTERNAL_STATUSCODE_END = 599
 
+const val SANDBOX_BASE = "https://sandbox.zenodo.org"
+const val PRODUCTION_BASE = "https://zenodo.org"
+
+fun zenodoBaseUrl(useSandbox: Boolean): String = if (useSandbox) SANDBOX_BASE else PRODUCTION_BASE
+
 class ZenodoRPCService(
+    useSandbox: Boolean,
     private val oauthService: ZenodoOAuth<*>
 ) {
+    private val baseUrl = zenodoBaseUrl(useSandbox)
+
     fun isConnected(user: String): Boolean {
         return oauthService.isConnected(user)
     }
@@ -47,7 +55,7 @@ class ZenodoRPCService(
             oauthService.retrieveTokenOrRefresh(user) ?: throw MissingOAuthToken()
 
         val rawResponse = try {
-            HttpClient.get("${oauthService.baseUrl}/api/deposit/depositions") {
+            HttpClient.get("$baseUrl/api/deposit/depositions") {
                 setHeader(HttpHeaders.Authorization, "Bearer ${token.accessToken}")
             }
         } catch (ex: TimeoutException) {
@@ -90,7 +98,7 @@ class ZenodoRPCService(
             oauthService.retrieveTokenOrRefresh(user) ?: throw MissingOAuthToken()
 
         val rawResponse = try {
-            HttpClient.post("${oauthService.baseUrl}/api/deposit/depositions") {
+            HttpClient.post("$baseUrl/api/deposit/depositions") {
                 setHeader(HttpHeaders.Authorization, "Bearer ${token.accessToken}")
                 setHeader("Content-Type", "application/json")
                 setBody("{}")
@@ -139,7 +147,7 @@ class ZenodoRPCService(
         val token = oauthService.retrieveTokenOrRefresh(user) ?: throw MissingOAuthToken()
 
         val response = try {
-            HttpClient.post("${oauthService.baseUrl}/api/deposit/depositions/$depositionId/files") {
+            HttpClient.post("$baseUrl/api/deposit/depositions/$depositionId/files") {
                 setHeader(HttpHeaders.Authorization, "Bearer ${token.accessToken}")
                 addBodyPart(StringPart("filename", fileName))
                 addBodyPart(FilePart("file", filePart, null, null, fileName))

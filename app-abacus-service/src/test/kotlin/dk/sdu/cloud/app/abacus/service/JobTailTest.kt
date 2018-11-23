@@ -9,7 +9,7 @@ import dk.sdu.cloud.app.api.InternalFollowStdStreamsRequest
 import dk.sdu.cloud.app.api.JobState
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.staticMockk
+import io.mockk.mockkStatic
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
@@ -28,12 +28,7 @@ class JobTailTest {
 
     @BeforeTest
     fun before() {
-        val scopes = listOf(
-            staticMockk("dk.sdu.cloud.app.abacus.services.ssh.SFTPKt")
-        )
-
-        scopes.forEach { it.unmock() }
-        scopes.forEach { it.mock() }
+        mockkStatic("dk.sdu.cloud.app.abacus.services.ssh.SFTPKt")
     }
 
     @Test

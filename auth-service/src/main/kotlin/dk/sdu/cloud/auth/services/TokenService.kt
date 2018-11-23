@@ -1,110 +1,25 @@
 package dk.sdu.cloud.auth.services
 
-import com.auth0.jwt.JWT
-import com.auth0.jwt.JWTCreator
+import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
 import dk.sdu.cloud.auth.api.AuthenticationTokens
 import dk.sdu.cloud.auth.api.OneTimeAccessToken
+import dk.sdu.cloud.auth.api.OptionalAuthenticationTokens
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
-import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.toSecurityToken
-import io.ktor.http.HttpStatusCode
-import org.slf4j.LoggerFactory
 import java.security.SecureRandom
-import java.util.Date
-import java.util.Base64
-import java.util.UUID
-
-internal typealias JWTAlgorithm = com.auth0.jwt.algorithms.Algorithm
-
-class JWTFactory(private val jwtAlg: JWTAlgorithm) {
-    fun create(
-        user: Principal,
-        expiresIn: Long,
-        audience: List<SecurityScope>,
-        extendedBy: String? = null,
-        jwtId: String? = null,
-        sessionReference: String? = null
-    ): AccessToken {
-        val now = System.currentTimeMillis()
-        val iat = Date(now)
-        val exp = Date(now + expiresIn)
-
-        val token = JWT.create().run {
-            writeStandardClaims(user)
-            withExpiresAt(exp)
-            withIssuedAt(iat)
-
-            // Legacy code. Progress tracked in #286 (this can be removed when issue has been solved)
-            val legacyAudiences = run {
-                val result = ArrayList<String>()
-
-                val hasDownload = audience.any { it.toString().startsWith("files.download:") }
-                if (hasDownload) result.add("downloadFile")
-
-                result.add("irods")
-                result
-            }
-
-            withAudience(*(audience.map { it.toString() } + legacyAudiences).toTypedArray())
-            if (extendedBy != null) withClaim(CLAIM_EXTENDED_BY, extendedBy)
-            if (jwtId != null) withJWTId(jwtId)
-            if (sessionReference != null) withClaim(CLAIM_SESSION_REFERENCE, sessionReference)
-            sign(jwtAlg)
-        }
-
-        return AccessToken(token)
-    }
-
-    private fun JWTCreator.Builder.writeStandardClaims(user: Principal) {
-        withSubject(user.id)
-        withClaim("role", user.role.name)
-
-        withIssuer("cloud.sdu.dk")
-
-        when (user) {
-            is Person -> {
-                withClaim("firstNames", user.firstNames)
-                withClaim("lastName", user.lastName)
-                if (user.orcId != null) withClaim("orcId", user.orcId)
-                if (user.title != null) withClaim("title", user.title)
-            }
-
-            is ServicePrincipal -> {
-                // Do nothing
-            }
-        }
-
-        // TODO This doesn't seem right
-        val type = when (user) {
-            is Person.ByWAYF -> "wayf"
-            is Person.ByPassword -> "password"
-            is ServicePrincipal -> "service"
-        }
-        withClaim("principalType", type)
-    }
-
-    companion object {
-        const val CLAIM_EXTENDED_BY = "extendedBy"
-        const val CLAIM_SESSION_REFERENCE = "publicSessionReference"
-    }
-}
-
-private const val TEN_MIN_IN_MILLS = 1000 * 60 * 10L
-private const val THIRTY_SECONDS_IN_MILLS = 1000 * 60L
-private const val BYTE_ARRAY_SIZE = 64
+import java.util.*
 
 class TokenService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -112,83 +27,88 @@ class TokenService<DBSession>(
     private val refreshTokenDao: RefreshTokenDAO<DBSession>,
     private val jwtFactory: JWTFactory,
     private val userCreationService: UserCreationService<*>,
+    private val tokenValidation: TokenValidation<DecodedJWT>,
     private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap()
 ) {
-    private val log = LoggerFactory.getLogger(TokenService::class.java)
-
     private val secureRandom = SecureRandom()
-    private fun generateCsrfToken(): String {
-        val array = ByteArray(BYTE_ARRAY_SIZE)
-        secureRandom.nextBytes(array)
-        return Base64.getEncoder().encodeToString(array)
-    }
-
-    private fun createAccessTokenForExistingSession(
-        user: Principal,
-        sessionReference: String?,
-        expiresIn: Long = TEN_MIN_IN_MILLS
-    ): AccessToken {
-        return jwtFactory.create(user, expiresIn, listOf(SecurityScope.ALL_WRITE), sessionReference = sessionReference)
-    }
 
     private fun createOneTimeAccessTokenForExistingSession(
         user: Principal,
         audience: List<SecurityScope>
     ): OneTimeAccessToken {
         val jti = UUID.randomUUID().toString()
-        return OneTimeAccessToken(
-            jwtFactory.create(
-                user = user,
-                audience = audience,
-                expiresIn = THIRTY_SECONDS_IN_MILLS,
-                jwtId = jti
-            ).accessToken,
-            jti
+        val token = AccessTokenContents(
+            user = user,
+            scopes = audience,
+            createdAt = System.currentTimeMillis(),
+            expiresAt = System.currentTimeMillis() + THIRTY_SECONDS_IN_MILLS,
+            claimableId = jti
         )
+
+        return OneTimeAccessToken(jwtFactory.generate(token), jti)
     }
 
-    private fun createExtensionToken(
-        user: Principal,
-        expiresIn: Long,
-        scopes: List<SecurityScope>,
-        requestedBy: String
-    ): AccessToken {
-        return jwtFactory.create(user, expiresIn, scopes, extendedBy = requestedBy)
-    }
-
+    /**
+     * Creates and registers a set of [AuthenticationTokens] for a [user].
+     *
+     * The [tokenTemplate] is used for tokens generated by the [AuthenticationTokens.refreshToken]. Note that
+     * fields in [tokenTemplate] related to a concrete token are ignored. This list includes:
+     *
+     * - [AccessTokenContents.sessionReference]
+     * - [AccessTokenContents.claimableId]
+     */
     fun createAndRegisterTokenFor(
         user: Principal,
-        expiresIn: Long = TEN_MIN_IN_MILLS
+        tokenTemplate: AccessTokenContents = AccessTokenContents(
+            user,
+            listOf(SecurityScope.ALL_WRITE),
+            System.currentTimeMillis(),
+            System.currentTimeMillis() + TEN_MIN_IN_MILLS
+        ),
+        refreshTokenExpiry: Long? = null
     ): AuthenticationTokens {
+        fun generateCsrfToken(): String {
+            val array = ByteArray(CSRF_TOKEN_SIZE)
+            secureRandom.nextBytes(array)
+            return Base64.getEncoder().encodeToString(array)
+        }
+
         log.debug("Creating and registering token for $user")
         val refreshToken = UUID.randomUUID().toString()
         val csrf = generateCsrfToken()
 
-        val tokenAndUser = RefreshTokenAndUser(user.id, refreshToken, csrf)
+        val expiresAfter = tokenTemplate.expiresAt - tokenTemplate.createdAt
+        val tokenAndUser = RefreshTokenAndUser(
+            user.id,
+            refreshToken,
+            csrf,
+            expiresAfter = expiresAfter,
+            scopes = tokenTemplate.scopes,
+            extendedBy = tokenTemplate.extendedBy,
+            refreshTokenExpiry = refreshTokenExpiry
+        )
+
         db.withTransaction {
             log.debug(tokenAndUser.toString())
             refreshTokenDao.insert(it, tokenAndUser)
         }
 
-        val accessToken = createAccessTokenForExistingSession(
-            user,
-            tokenAndUser.publicSessionReference,
-            expiresIn
-        ).accessToken
-
-        return AuthenticationTokens(accessToken, refreshToken, csrf)
+        val (accessToken, newCsrf) = refresh(user, tokenAndUser)
+        return AuthenticationTokens(accessToken, refreshToken, newCsrf)
     }
 
     fun extendToken(
         token: SecurityPrincipalToken,
         expiresIn: Long,
         rawSecurityScopes: List<String>,
-        requestedBy: String
-    ): AccessToken {
+        requestedBy: String,
+        allowRefreshes: Boolean
+    ): OptionalAuthenticationTokens {
         val requestedScopes = rawSecurityScopes.map {
             try {
                 SecurityScope.parseFromString(it)
             } catch (ex: IllegalArgumentException) {
+                log.debug(ex.stackTraceToString())
                 throw ExtensionException.BadRequest("Bad scope: $it")
             }
         }
@@ -239,18 +159,114 @@ class TokenService<DBSession>(
             userDao.findByIdOrNull(it, token.principal.username)
         } ?: throw ExtensionException.InternalError("Could not find user in database")
 
-        return createExtensionToken(user, expiresIn, requestedScopes, requestedBy)
+        val tokenTemplate = AccessTokenContents(
+            user = user,
+            scopes = requestedScopes,
+            createdAt = System.currentTimeMillis(),
+            expiresAt = System.currentTimeMillis() + expiresIn,
+            extendedBy = requestedBy
+        )
+
+        return if (allowRefreshes) {
+            val result = createAndRegisterTokenFor(
+                user,
+                tokenTemplate
+            )
+
+            OptionalAuthenticationTokens(result.accessToken, result.csrfToken, result.refreshToken)
+        } else {
+            OptionalAuthenticationTokens(jwtFactory.generate(tokenTemplate), null, null)
+        }
     }
 
+    fun requestOneTimeToken(jwt: String, audience: List<SecurityScope>): OneTimeAccessToken {
+        log.debug("Requesting one-time token: audience=$audience jwt=$jwt")
+
+        val validated = tokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
+        val user = db.withTransaction {
+            userDao.findByIdOrNull(it, validated.subject) ?: throw RefreshTokenException.InternalError()
+        }
+
+        val currentScopes = validated.toSecurityToken().scopes
+        val allScopesCovered = audience.all { requestedScope ->
+            currentScopes.any { requestedScope.isCoveredBy(it) }
+        }
+
+        if (!allScopesCovered) {
+            log.debug("We were asked to cover $audience, but the token only covers $currentScopes")
+            throw RefreshTokenException.InvalidToken()
+        }
+
+        return createOneTimeAccessTokenForExistingSession(user, audience)
+    }
+
+    private fun refresh(
+        user: Principal,
+        token: RefreshTokenAndUser,
+        csrfToken: String? = null
+    ): AccessTokenAndCsrf {
+        if (csrfToken != null && csrfToken != token.csrf) {
+            log.info("Invalid CSRF token")
+            log.debug("Received token: $csrfToken, but I expected ${token.csrf}")
+            throw RefreshTokenException.InvalidToken()
+        }
+
+        val accessToken = jwtFactory.generate(
+            AccessTokenContents(
+                user,
+                token.scopes,
+                System.currentTimeMillis(),
+                System.currentTimeMillis() + token.expiresAfter,
+                claimableId = null,
+                sessionReference = token.publicSessionReference,
+                extendedBy = token.extendedBy
+            )
+        )
+        return AccessTokenAndCsrf(accessToken, token.csrf)
+    }
+
+    fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {
+        return db.withTransaction { session ->
+            log.debug("Refreshing token: rawToken=$rawToken")
+            val token = refreshTokenDao.findById(session, rawToken) ?: run {
+                log.debug("Could not find token!")
+                throw RefreshTokenException.InvalidToken()
+            }
+
+            val user = userDao.findByIdOrNull(session, token.associatedUser) ?: run {
+                log.warn(
+                    "Received a valid token, but was unable to resolve the associated user: " +
+                            token.associatedUser
+                )
+                throw RefreshTokenException.InternalError()
+            }
+            refresh(user, token, csrfToken)
+        }
+    }
+
+    fun logout(refreshToken: String, csrfToken: String? = null) {
+        db.withTransaction {
+            if (csrfToken == null) {
+                if (!refreshTokenDao.delete(it, refreshToken)) throw RefreshTokenException.InvalidToken()
+            } else {
+                val userAndToken =
+                    refreshTokenDao.findById(it, refreshToken) ?: throw RefreshTokenException.InvalidToken()
+                if (csrfToken != userAndToken.csrf) throw RefreshTokenException.InvalidToken()
+                if (!refreshTokenDao.delete(it, refreshToken)) throw RefreshTokenException.InvalidToken()
+            }
+        }
+    }
+
+    // TODO Should be moved to SAML package
     fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
         try {
             log.debug("Processing SAML response")
             if (samlRequestProcessor.authenticated) {
                 val id =
                     samlRequestProcessor.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull()
-                            ?: throw IllegalArgumentException(
-                                "Missing EduPersonTargetedId"
-                            )
+                        ?: throw IllegalArgumentException(
+                            "Missing EduPersonTargetedId"
+                        )
 
                 log.debug("User is authenticated with id $id")
 
@@ -280,79 +296,11 @@ class TokenService<DBSession>(
         return null
     }
 
-    fun requestOneTimeToken(jwt: String, audience: List<SecurityScope>): OneTimeAccessToken {
-        log.debug("Requesting one-time token: audience=$audience jwt=$jwt")
+    companion object : Loggable {
+        private const val TEN_MIN_IN_MILLS = 1000 * 60 * 10L
+        private const val THIRTY_SECONDS_IN_MILLS = 1000 * 60L
+        private const val CSRF_TOKEN_SIZE = 64
 
-        val validated = TokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
-        val user = db.withTransaction {
-            userDao.findByIdOrNull(it, validated.subject) ?: throw RefreshTokenException.InternalError()
-        }
-
-        val currentScopes = validated.toSecurityToken().scopes
-        val allScopesCovered = audience.all { requestedScope ->
-            currentScopes.any { requestedScope.isCoveredBy(it) }
-        }
-
-        if (!allScopesCovered) {
-            log.debug("We were asked to cover $audience, but the token only covers $currentScopes")
-            throw RefreshTokenException.InvalidToken()
-        }
-
-        return createOneTimeAccessTokenForExistingSession(user, audience)
+        override val log = logger()
     }
-
-    fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {
-        return db.withTransaction { session ->
-            log.debug("Refreshing token: rawToken=$rawToken")
-            val token = refreshTokenDao.findById(session, rawToken) ?: run {
-                log.debug("Could not find token!")
-                throw RefreshTokenException.InvalidToken()
-            }
-
-            if (csrfToken != null && csrfToken != token.csrf) {
-                log.info("Invalid CSRF token")
-                log.debug("Received token: $csrfToken, but I expected ${token.csrf}")
-                throw RefreshTokenException.InvalidToken()
-            }
-
-            val user = userDao.findByIdOrNull(session, token.associatedUser) ?: run {
-                log.warn(
-                    "Received a valid token, but was unable to resolve the associated user: " +
-                            token.associatedUser
-                )
-                throw RefreshTokenException.InternalError()
-            }
-
-//            val newCsrf = generateCsrfToken()
-//            refreshTokenDao.updateCsrf(session, rawToken, newCsrf)
-            val accessToken = createAccessTokenForExistingSession(user, token.publicSessionReference)
-            AccessTokenAndCsrf(accessToken.accessToken, token.csrf)
-        }
-    }
-
-    fun logout(refreshToken: String, csrfToken: String? = null) {
-        db.withTransaction {
-            if (csrfToken == null) {
-                if (!refreshTokenDao.delete(it, refreshToken)) throw RefreshTokenException.InvalidToken()
-            } else {
-                val userAndToken =
-                    refreshTokenDao.findById(it, refreshToken) ?: throw RefreshTokenException.InvalidToken()
-                if (csrfToken != userAndToken.csrf) throw RefreshTokenException.InvalidToken()
-                if (!refreshTokenDao.delete(it, refreshToken)) throw RefreshTokenException.InvalidToken()
-            }
-        }
-    }
-
-    sealed class ExtensionException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
-        class BadRequest(why: String) : ExtensionException(why, HttpStatusCode.BadRequest)
-        class Unauthorized(why: String) : ExtensionException(why, HttpStatusCode.Unauthorized)
-        class InternalError(why: String) : ExtensionException(why, HttpStatusCode.InternalServerError)
-    }
-
-    sealed class RefreshTokenException(why: String, httpStatusCode: HttpStatusCode) :
-        RPCException(why, httpStatusCode) {
-        class InvalidToken : RefreshTokenException("Invalid token", HttpStatusCode.Unauthorized)
-        class InternalError : RefreshTokenException("Internal server error", HttpStatusCode.InternalServerError)
-    }
-
 }

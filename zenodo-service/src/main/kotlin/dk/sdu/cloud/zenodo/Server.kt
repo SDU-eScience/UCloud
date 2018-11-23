@@ -4,13 +4,14 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
+import dk.sdu.cloud.service.tokenValidation
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.http.ZenodoController
 import dk.sdu.cloud.zenodo.processors.PublishProcessor
@@ -35,10 +36,9 @@ class Server(
     override val kafka: KafkaServices,
     private val config: Configuration,
     private val ktor: HttpServerProvider,
-    private val instance: ServiceInstance
+    private val micro: Micro
 ) : CommonServer {
     override val log: Logger = logger()
-//    override val endpoints = listOf("/api/zenodo", "/zenodo/oauth")
 
     override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
@@ -50,25 +50,27 @@ class Server(
             clientSecret = config.zenodo.clientSecret,
             clientId = config.zenodo.clientId,
 
-            // TODO FIX THIS
-            callback = if (config.production) "https://cloud.sdu.dk/zenodo/oauth"
-                        else "http://localhost:42250/zenodo/oauth",
+            callback = "https://cloud.sdu.dk/zenodo/oauth",
 
             stateStore = ZenodoOAuthHibernateStateStore(),
 
-            useSandbox = true // TODO FIX THIS
+            useSandbox = config.zenodo.useSandbox
         )
 
-        val zenodo = ZenodoRPCService(zenodoOauth)
-        val publicationService = PublicationHibernateDAO()
+        val zenodo = ZenodoRPCService(config.zenodo.useSandbox, zenodoOauth)
+        val publicationService = PublicationHibernateDAO(config.zenodo.useSandbox)
         log.info("Core services configured")
 
         kStreams = buildStreams { kBuilder ->
-            PublishProcessor(db, zenodo, publicationService, cloud.parent).also { it.init(kBuilder) }
+            PublishProcessor(db, zenodo, publicationService, cloud.parent, micro.tokenValidation).also {
+                it.init(
+                    kBuilder
+                )
+            }
         }
 
         httpServer = ktor {
-            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
+            installDefaultFeatures(micro)
 
             routing {
                 route("zenodo") {

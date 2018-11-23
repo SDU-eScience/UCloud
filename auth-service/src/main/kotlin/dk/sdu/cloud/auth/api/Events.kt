@@ -3,12 +3,12 @@ package dk.sdu.cloud.auth.api
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.service.KafkaRequest
+import dk.sdu.cloud.service.TYPE_PROPERTY
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY
+    property = TYPE_PROPERTY
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = UserEvent.Created::class, name = "created"),

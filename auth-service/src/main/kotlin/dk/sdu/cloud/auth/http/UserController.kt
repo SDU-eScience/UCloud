@@ -30,7 +30,6 @@ class UserController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(UserDescriptions.createNewUser) { req ->
-            logEntry(log, req)
             audit(CreateUserAudit(req.username, req.role))
 
             if (req.role != Role.SERVICE) {
@@ -54,7 +53,6 @@ class UserController<DBSession>(
         }
 
         implement(UserDescriptions.changePassword) {
-            logEntry(log, it)
             audit(ChangePasswordAudit())
 
             db.withTransaction { session ->
@@ -64,8 +62,6 @@ class UserController<DBSession>(
         }
 
         implement(UserDescriptions.lookupUsers) { req ->
-            logEntry(log, req)
-
             ok(
                 LookupUsersResponse(
                     db.withTransaction { session ->

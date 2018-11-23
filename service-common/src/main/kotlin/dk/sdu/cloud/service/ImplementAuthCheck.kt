@@ -8,9 +8,12 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.client.RESTCallDescription
+import io.ktor.application.Application
 import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.ApplicationFeature
+import io.ktor.application.application
+import io.ktor.application.feature
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.ApplicationRequest
@@ -18,8 +21,11 @@ import io.ktor.request.header
 import io.ktor.response.respond
 import io.ktor.util.AttributeKey
 import io.ktor.util.pipeline.PipelineContext
+import org.slf4j.LoggerFactory
 
 class ImplementAuthCheck {
+    private lateinit var tokenValidator: TokenValidation<Any>
+
     private lateinit var description: RESTCallDescription<*, *, *, *>
     fun <A : Any, B : Any, C : Any, D : Any> call(call: RESTCallDescription<A, B, C, D>) {
         this.description = call
@@ -31,7 +37,16 @@ class ImplementAuthCheck {
         }
     }
 
+    private fun ensureLoaded(application: Application) {
+        if (!this::tokenValidator.isInitialized) {
+            val micro = application.feature(KtorMicroServiceFeature).micro
+            tokenValidator = micro.tokenValidation
+        }
+    }
+
     private suspend fun interceptBefore(ctx: PipelineContext<*, ApplicationCall>) {
+        ensureLoaded(ctx.application)
+
         val call = ctx.context
         val tokenMustValidate = Role.GUEST !in description.auth.roles
 
@@ -45,7 +60,7 @@ class ImplementAuthCheck {
         }
 
         if (bearer != null) {
-            val validatedToken = TokenValidation.validateOrNull(bearer)
+            val validatedToken = tokenValidator.validateOrNull(bearer)
 
             if (validatedToken == null && tokenMustValidate) {
                 log.debug("Invalid bearer token (required)")
@@ -54,7 +69,7 @@ class ImplementAuthCheck {
                 return
             } else if (validatedToken != null) {
                 try {
-                    val token = validatedToken.toSecurityToken()
+                    val token = tokenValidator.decodeToken(validatedToken)
                     call.securityToken = token
 
                     if (call.securityPrincipal.role !in description.auth.roles) {
@@ -90,7 +105,7 @@ class ImplementAuthCheck {
             feature.configure()
             feature.validateConfiguration()
 
-            pipeline.intercept(ApplicationCallPipeline.Infrastructure) { feature.interceptBefore(this) }
+            pipeline.intercept(ApplicationCallPipeline.Features) { feature.interceptBefore(this) }
             return feature
         }
     }
@@ -157,6 +172,10 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
         .getClaim("publicSessionReference")
         .takeIf { !it.isNull }?.asString()
 
+    val extendedBy = validatedToken
+        .getClaim("extendedBy")
+        .takeIf { !it.isNull }?.asString()
+
     val principal = SecurityPrincipal(
         validatedToken.subject,
         role,
@@ -167,20 +186,27 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
     val issuedAt = validatedToken.issuedAt.time
     val expiresAt = validatedToken.expiresAt.time
 
-    val scopes = try {
-        validatedToken.audience.map { SecurityScope.parseFromString(it) }
-    } catch (ex: Exception) {
-        throw JWTException.InternalError(ex.stackTraceToString())
-    }
+    val scopes =
+        validatedToken.audience.mapNotNull {
+            try {
+                SecurityScope.parseFromString(it)
+            } catch (ex: Exception) {
+                authCheckLog.info(ex.stackTraceToString())
+                null
+            }
+        }
 
     return SecurityPrincipalToken(
         principal,
         scopes,
         issuedAt,
         expiresAt,
-        publicSessionReference
+        publicSessionReference,
+        extendedBy
     )
 }
+
+private val authCheckLog = LoggerFactory.getLogger("dk.sdu.cloud.service.ImplementAuthCheckKt")
 
 fun SecurityPrincipalToken.requireScope(requiredScope: SecurityScope) {
     val isCovered = scopes.any { requiredScope.isCoveredBy(it) }

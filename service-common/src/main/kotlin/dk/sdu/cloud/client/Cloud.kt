@@ -8,7 +8,7 @@ import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.client.response.HttpResponse
 import io.ktor.client.response.readText
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.runBlocking
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.ConnectException
@@ -36,7 +36,6 @@ sealed class RESTResponse<out T, out E> {
     }
 }
 
-
 interface CloudContext {
     fun resolveEndpoint(namespace: String): String
     fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean
@@ -56,7 +55,9 @@ interface AuthenticatedCloud {
     fun HttpRequestBuilder.configureCall()
 }
 
-class JWTAuthenticatedCloud(
+typealias JWTAuthenticatedCloud = BearerTokenAuthenticatedCloud
+
+class BearerTokenAuthenticatedCloud(
     override val parent: CloudContext,
     val token: String // token is kept public such that tools may check if JWT has expired
 ) : AuthenticatedCloud {
@@ -66,3 +67,4 @@ class JWTAuthenticatedCloud(
 }
 
 fun CloudContext.jwtAuth(token: String) = JWTAuthenticatedCloud(this, token)
+fun CloudContext.bearerAuth(token: String) = BearerTokenAuthenticatedCloud(this, token)

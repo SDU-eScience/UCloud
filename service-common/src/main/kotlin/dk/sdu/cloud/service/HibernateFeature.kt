@@ -29,6 +29,20 @@ class HibernateFeature : MicroFeature {
 
         log.info("Using ${configuration.profile} database configuration profile.")
         when (configuration.profile) {
+            Profile.PERSISTENT_H2 -> {
+                ctx.jdbcUrl = "jdbc:h2:~/${configuration.database ?: "h2-persistent"}.db"
+                ctx.hibernateDatabase =
+                        HibernateSessionFactory.create(
+                            H2_TEST_CONFIG.copy(
+                                jdbcUrl = ctx.jdbcUrl,
+                                showSQLInStdout = configuration.logSql,
+                                username = null,
+                                password = null,
+                                recreateSchemaOnStartup = false
+                            )
+                        )
+            }
+
             Profile.TEST_H2 -> {
                 ctx.jdbcUrl = H2_TEST_JDBC_URL
                 ctx.hibernateDatabase =
@@ -37,7 +51,7 @@ class HibernateFeature : MicroFeature {
 
             Profile.PERSISTENT_POSTGRES -> {
                 val credentials = configuration.credentials
-                        ?: invalidConfig("Cannot connect to postgres without credentials")
+                    ?: invalidConfig("Cannot connect to postgres without credentials")
 
                 val hostname = configuration.hostname ?: run {
                     log.info(
@@ -119,6 +133,7 @@ class HibernateFeature : MicroFeature {
 
         enum class Profile {
             TEST_H2,
+            PERSISTENT_H2,
             PERSISTENT_POSTGRES
         }
 

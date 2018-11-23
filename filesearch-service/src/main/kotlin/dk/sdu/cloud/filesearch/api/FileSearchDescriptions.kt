@@ -42,7 +42,14 @@ data class AdvancedSearchRequest(
  */
 data class SearchResult(
     val path: String,
-    val fileType: FileType
+    val fileType: FileType,
+    val annotations: Set<kotlin.String>,
+    val createdAt: Long,
+    val fileId: String,
+    val link: Boolean,
+    val modifiedAt: Long,
+    val ownerName: String,
+    val sensitivityLevel: SensitivityLevel
 )
 
 /**

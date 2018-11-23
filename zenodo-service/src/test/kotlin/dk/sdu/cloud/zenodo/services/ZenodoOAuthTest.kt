@@ -5,9 +5,8 @@ import dk.sdu.cloud.zenodo.util.HttpClient
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.objectMockk
-import io.mockk.use
-import kotlinx.coroutines.experimental.runBlocking
+import io.mockk.mockkObject
+import kotlinx.coroutines.runBlocking
 import org.asynchttpclient.Response
 import org.junit.Test
 import java.net.URI
@@ -61,8 +60,8 @@ class ZenodoOAuthTest {
         val params = result.toURI().queryParams
         val state = params["state"]
         assertNotNull(state)
-        assertEquals(1, state?.size)
-        assertTrue(!state!!.first().isBlank())
+        assertEquals(1, state.size)
+        assertTrue(!state.first().isBlank())
 
         assertEquals(clientId, params["client_id"]?.firstOrNull())
         assertEquals(callback, params["redirect_uri"]?.firstOrNull())
@@ -70,82 +69,77 @@ class ZenodoOAuthTest {
 
     @Test
     fun `Request Tokens with Code test`() {
-        objectMockk(HttpClient).use {
-            coEvery { HttpClient.post(any(), any()) } answers {
-                val response = mockk<Response>()
-                every { response.statusCode } returns 200
-                every { response.responseBody } returns responseBody
-                response
-            }
-            statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
-            val result = runBlocking { zenodoAuth.requestTokenWithCode("code", token) }
-            assertEquals("ReturnToString", result)
+        mockkObject(HttpClient)
+        coEvery { HttpClient.post(any(), any()) } answers {
+            val response = mockk<Response>()
+            every { response.statusCode } returns 200
+            every { response.responseBody } returns responseBody
+            response
         }
+        statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
+        val result = runBlocking { zenodoAuth.requestTokenWithCode("code", token) }
+        assertEquals("ReturnToString", result)
     }
 
     @Test
     fun `Request Tokens with Code - Wrong statusCode - test `() {
-        objectMockk(HttpClient).use {
-            coEvery { HttpClient.post(any(), any()) } answers {
-                val response = mockk<Response>()
-                every { response.statusCode } returns 400
-                every { response.responseBody } returns responseBody
-                response
-            }
-            statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
-            val result = runBlocking { zenodoAuth.requestTokenWithCode("code", token) }
-            assertEquals(null, result)
+        mockkObject(HttpClient)
+        coEvery { HttpClient.post(any(), any()) } answers {
+            val response = mockk<Response>()
+            every { response.statusCode } returns 400
+            every { response.responseBody } returns responseBody
+            response
         }
+        statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
+        val result = runBlocking { zenodoAuth.requestTokenWithCode("code", token) }
+        assertEquals(null, result)
     }
 
     @Test
     fun `Request Tokens or Refresh test `() {
-        objectMockk(HttpClient).use {
-            coEvery { HttpClient.post(any(), any()) } answers {
-                val response = mockk<Response>()
-                every { response.statusCode } returns 200
-                every { response.responseBody } returns responseBody
-                response
-            }
-            statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
-            statesStore.storeAccessAndRefreshToken(Unit, user, oauthToken)
-            val result = runBlocking { zenodoAuth.retrieveTokenOrRefresh(user) }
-
-            assertEquals("tokenToUser1", result?.accessToken)
-            assertEquals("refresh", result?.refreshToken)
+        mockkObject((HttpClient))
+        coEvery { HttpClient.post(any(), any()) } answers {
+            val response = mockk<Response>()
+            every { response.statusCode } returns 200
+            every { response.responseBody } returns responseBody
+            response
         }
+        statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
+        statesStore.storeAccessAndRefreshToken(Unit, user, oauthToken)
+        val result = runBlocking { zenodoAuth.retrieveTokenOrRefresh(user) }
+
+        assertEquals("tokenToUser1", result?.accessToken)
+        assertEquals("refresh", result?.refreshToken)
     }
 
     @Test
     fun `Request Tokens or Refresh - no token - test `() {
-        objectMockk(HttpClient).use {
-            coEvery { HttpClient.post(any(), any()) } answers {
-                val response = mockk<Response>()
-                every { response.statusCode } returns 200
-                every { response.responseBody } returns responseBody
-                response
-            }
-            val result = runBlocking { zenodoAuth.retrieveTokenOrRefresh(user) }
-            assertEquals(null, result)
+        mockkObject((HttpClient))
+        coEvery { HttpClient.post(any(), any()) } answers {
+            val response = mockk<Response>()
+            every { response.statusCode } returns 200
+            every { response.responseBody } returns responseBody
+            response
         }
+        val result = runBlocking { zenodoAuth.retrieveTokenOrRefresh(user) }
+        assertEquals(null, result)
     }
 
     @Test
     fun `Request Tokens or Refresh - token expired - test `() {
-        objectMockk(HttpClient).use {
-            coEvery { HttpClient.post(any(), any()) } answers {
-                val response = mockk<Response>()
-                every { response.statusCode } returns 200
-                every { response.responseBody } returns responseBody
-                response
-            }
-            statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
-            statesStore.storeAccessAndRefreshToken(Unit, user, oauthTokenExpired)
-            val result = runBlocking { zenodoAuth.retrieveTokenOrRefresh(user) }
-
-            assertEquals("access", result?.accessToken)
-            assertEquals("refreshed", result?.refreshToken)
+        mockkObject((HttpClient))
+        coEvery { HttpClient.post(any(), any()) } answers {
+            val response = mockk<Response>()
+            every { response.statusCode } returns 200
+            every { response.responseBody } returns responseBody
+            response
         }
+        statesStore.storeStateTokenForUser(Unit, user, token, returnTo)
+        statesStore.storeAccessAndRefreshToken(Unit, user, oauthTokenExpired)
+        val result = runBlocking { zenodoAuth.retrieveTokenOrRefresh(user) }
+
+        assertEquals("access", result?.accessToken)
+        assertEquals("refreshed", result?.refreshToken)
     }
 
     @Test

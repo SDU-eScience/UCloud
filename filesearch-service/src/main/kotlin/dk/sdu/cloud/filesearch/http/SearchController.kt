@@ -22,7 +22,6 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
@@ -47,19 +46,17 @@ class SearchController : Controller {
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(FileSearchDescriptions.simpleSearch) { req ->
-            logEntry(log, req)
-
             val roots = rootsForUser(call.securityPrincipal.username)
 
             val queryResponse = QueryDescriptions.query.call(
                 QueryRequest(
-                    FileQuery(
+                    query = FileQuery(
                         roots = roots,
                         fileNameQuery = listOf(req.query),
                         owner = AllOf.with(call.securityPrincipal.username)
                     ),
-                    req.itemsPerPage,
-                    req.page
+                    itemsPerPage =  req.itemsPerPage,
+                    page = req.page
                 ),
                 call.cloudClient
             ).orThrow()
@@ -68,12 +65,10 @@ class SearchController : Controller {
         }
 
         implement(FileSearchDescriptions.advancedSearch) { req ->
-            logEntry(log, req)
-
             val roots = rootsForUser(call.securityPrincipal.username)
             val queryResponse = QueryDescriptions.query.call(
                 QueryRequest(
-                    FileQuery(
+                    query = FileQuery(
                         roots = roots,
                         owner = AllOf.with(call.securityPrincipal.username),
 
@@ -86,7 +81,9 @@ class SearchController : Controller {
 
                         createdAt = req.createdAt?.toPredicateCollection(),
                         modifiedAt = req.modifiedAt?.toPredicateCollection()
-                    )
+                    ),
+                    itemsPerPage = req.itemsPerPage,
+                    page = req.page
                 ),
                 call.cloudClient
             ).orThrow()
@@ -135,7 +132,17 @@ class SearchController : Controller {
         )
     }
 
-    private fun EventMaterializedStorageFile.toExternalResult(): SearchResult = SearchResult(path, fileType)
+    private fun EventMaterializedStorageFile.toExternalResult(): SearchResult = SearchResult(
+        path,
+        fileType,
+        annotations,
+        fileTimestamps.created,
+        id,
+        isLink,
+        fileTimestamps.modified,
+        owner,
+        sensitivityLevel
+    )
 
     // TODO Get these from the storage-service
     private fun rootsForUser(user: String): List<String> = listOf("/home/$user")

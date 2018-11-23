@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.abacus.services.ssh
 
 import dk.sdu.cloud.app.abacus.services.ssh.SSH.log
 import dk.sdu.cloud.app.abacus.util.CappedInputStream
+import dk.sdu.cloud.service.BashEscaper
 import dk.sdu.cloud.service.GuardedOutputStream
 import java.io.File
 import java.io.InputStream

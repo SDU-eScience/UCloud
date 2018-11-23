@@ -15,8 +15,7 @@ enum class FileType {
 }
 
 data class StorageFile(
-    @Deprecated(message = "Replaced with fileType", replaceWith = ReplaceWith("fileType"))
-    val type: FileType,
+    val fileType: FileType,
     val path: String,
     val createdAt: Long = System.currentTimeMillis(),
     val modifiedAt: Long = System.currentTimeMillis(),
@@ -24,17 +23,39 @@ data class StorageFile(
     val size: Long = 0,
     val acl: List<AccessEntry> = emptyList(),
     val favorited: Boolean = false,
-    val sensitivityLevel: SensitivityLevel = SensitivityLevel.CONFIDENTIAL,
+    val sensitivityLevel: SensitivityLevel = SensitivityLevel.PRIVATE,
     val link: Boolean = false,
     val annotations: Set<String> = emptySet(),
     val fileId: String = ""
-) {
-    val fileType: FileType = type
-}
+)
 
+/**
+ * Describes the sensitivity classification of a file
+ */
 enum class SensitivityLevel {
+    /**
+     * Open access means that a file can be read by the public.
+     *
+     * Having this classification requires the data to be non-sensitive. This classification will also change the
+     * access permissions of the file.
+     */
     OPEN_ACCESS,
+
+    /**
+     * The default sensitivity level. The file is private, but doesn't contain any confidential/sensitive information.
+     *
+     * The file can only be read by you (or anyone you share it with).
+     */
+    PRIVATE,
+
+    /**
+     * The file contains confidential information. (Non-personal)
+     */
     CONFIDENTIAL,
+
+    /**
+     * The file contains sensitive information. (Personal)
+     */
     SENSITIVE
 }
 

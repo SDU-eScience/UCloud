@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth
 import com.auth0.jwt.algorithms.Algorithm
 import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.LoginResponder
@@ -10,6 +11,7 @@ import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
 import dk.sdu.cloud.auth.http.TwoFactorAuthController
 import dk.sdu.cloud.auth.http.UserController
+import dk.sdu.cloud.auth.services.AccessTokenContents
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
 import dk.sdu.cloud.auth.services.PersonUtils
@@ -22,14 +24,15 @@ import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.services.WSTOTPService
 import dk.sdu.cloud.auth.services.ZXingQRService
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
@@ -41,21 +44,20 @@ import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 import java.security.SecureRandom
-import java.util.Base64
+import java.util.*
 
 private const val ONE_YEAR_IN_MILLS = 1000 * 60 * 60 * 24 * 365L
 private const val PASSWORD_BYTES = 64
 
 class Server(
     private val db: HibernateSessionFactory,
-    private val cloud: AuthenticatedCloud,
     private val jwtAlg: Algorithm,
     private val config: AuthConfiguration,
     private val authSettings: Saml2Settings,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    private val instance: ServiceInstance,
-    private val developmentMode: Boolean
+    private val tokenValidation: TokenValidationJWT,
+    private val micro: Micro
 ) : CommonServer {
     override val log: Logger = logger()
 
@@ -91,13 +93,13 @@ class Server(
             service to lists.flatMap { it.parsedScopes }.toSet()
         }.toMap()
 
-
         val tokenService = TokenService(
             db,
             userDao,
             refreshTokenDao,
             JWTFactory(jwtAlg),
             userCreationService,
+            tokenValidation,
             mergedExtensions
         )
 
@@ -105,7 +107,7 @@ class Server(
 
         log.info("Core services constructed!")
 
-        if (developmentMode) {
+        if (micro.developmentModeEnabled) {
             log.info("In development mode. Checking if we need to create a dummy account.")
             db.withTransaction {
                 val existingDevAdmin = userDao.findByIdOrNull(it, "admin@dev")
@@ -125,7 +127,12 @@ class Server(
                     )
 
                     userCreationService.blockingCreateUser(user)
-                    val token = tokenService.createAndRegisterTokenFor(user, ONE_YEAR_IN_MILLS)
+                    val token = tokenService.createAndRegisterTokenFor(user, AccessTokenContents(
+                        user,
+                        listOf(SecurityScope.ALL_WRITE),
+                        createdAt = System.currentTimeMillis(),
+                        expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
+                    ))
 
                     log.info("Username: admin@dev")
                     log.info("accessToken = ${token.accessToken}")
@@ -139,9 +146,9 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
 
-            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
+            installDefaultFeatures(micro)
 
-            if (developmentMode) {
+            if (micro.developmentModeEnabled) {
                 install(CORS) {
                     anyHost()
                     allowCredentials = true
@@ -156,15 +163,6 @@ class Server(
 
             log.info("Creating HTTP controllers")
 
-            val coreController = CoreAuthController(
-                db,
-                ottDao,
-                tokenService,
-                config.enablePasswords,
-                config.enableWayf,
-                config.trustedOrigins.toSet()
-            )
-
             val samlController = SAMLController(
                 authSettings,
                 { settings, call, params -> SamlRequestProcessor(settings, call, params) },
@@ -176,11 +174,20 @@ class Server(
             log.info("HTTP controllers configured!")
 
             routing {
-                coreController.configure(this)
-                if (config.enableWayf) samlController.configure(this)
-                if (config.enablePasswords) passwordController.configure(this)
+                if (config.enableWayf) configureControllers(samlController)
+                if (config.enablePasswords) configureControllers(passwordController)
 
                 configureControllers(
+                    CoreAuthController(
+                        db,
+                        ottDao,
+                        tokenService,
+                        config.enablePasswords,
+                        config.enableWayf,
+                        tokenValidation,
+                        config.trustedOrigins.toSet()
+                    ),
+
                     UserController(
                         db,
                         userDao,

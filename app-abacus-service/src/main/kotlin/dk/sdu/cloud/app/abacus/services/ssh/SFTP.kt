@@ -3,8 +3,9 @@ package dk.sdu.cloud.app.abacus.services.ssh
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.SftpATTRS
 import com.jcraft.jsch.SftpException
-import dk.sdu.cloud.app.abacus.services.ssh.BashEscaper.safeBashArgument
 import dk.sdu.cloud.app.abacus.services.ssh.SSH.log
+import dk.sdu.cloud.service.BashEscaper
+import dk.sdu.cloud.service.BashEscaper.safeBashArgument
 import java.io.File
 
 // TODO I'm not certain we should always disconnect after running a command. We might have to, but not sure.

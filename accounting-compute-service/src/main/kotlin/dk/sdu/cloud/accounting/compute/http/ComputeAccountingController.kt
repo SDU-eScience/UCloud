@@ -10,7 +10,6 @@ import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
 
@@ -21,8 +20,6 @@ class ComputeAccountingController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputeAccountingDescriptions.buildReport) { req ->
-            logEntry(log, req)
-
             val computeTime = completedJobsService.computeBillableItems(
                 req.periodStartMs,
                 req.periodEndMs,
@@ -33,8 +30,6 @@ class ComputeAccountingController<DBSession>(
         }
 
         implement(ComputeAccountingDescriptions.listResources) { req ->
-            logEntry(log, req)
-
             ok(
                 ListResourceResponse(
                     listOf(

@@ -1,0 +1,68 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: share-service-deployment
+  labels:
+    app: share-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: share-service
+  template:
+    metadata:
+      labels:
+        app: share-service
+    spec:
+      containers:
+      - name: share-service
+        image: registry.cloud.sdu.dk/sdu-cloud/share-service:0.1.1
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/psql
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/psql
+          name: share-psql
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: share-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+          defaultMode: 420
+      - name: share-psql
+        secret:
+          optional: false
+          secretName: share-psql
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: share
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: share-service

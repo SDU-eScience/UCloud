@@ -10,7 +10,6 @@ import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.kafka
 import dk.sdu.cloud.service.runScriptHandler
 import dk.sdu.cloud.service.serverProvider
-import dk.sdu.cloud.service.serviceInstance
 import java.net.InetAddress
 import java.net.UnknownHostException
 
@@ -58,7 +57,6 @@ fun main(args: Array<String>) {
         micro.kafka,
         micro.serverProvider,
         micro.refreshingJwtCloud,
-        args,
-        micro.serviceInstance
+        micro
     ).start()
 }

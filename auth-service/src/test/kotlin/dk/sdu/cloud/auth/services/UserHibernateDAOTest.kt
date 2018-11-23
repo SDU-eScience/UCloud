@@ -4,8 +4,8 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.withDatabase
 import io.mockk.every
 import io.mockk.mockk
 import org.hibernate.NonUniqueObjectException
@@ -89,7 +89,6 @@ class UserHibernateDAOTest {
     @Test
     fun `insert WAYF`() {
         withDatabase { db ->
-
             val auth = mockk<SamlRequestProcessor>()
 
             db.withTransaction { session ->

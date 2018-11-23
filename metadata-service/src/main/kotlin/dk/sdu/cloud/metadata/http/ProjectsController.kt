@@ -35,8 +35,6 @@ class ProjectsController(
 
     override fun configure(routing: Route) = with(routing) {
         implement(ProjectDescriptions.create) { request ->
-            logEntry(log, request)
-
             tryWithProject {
                 val cloudCtx = call.cloudClient.parent
                 val cloud = cloudCtx.jwtAuth(call.request.bearer!!).withCausedBy(call.request.jobId)
@@ -90,8 +88,6 @@ class ProjectsController(
         }
 
         implement(ProjectDescriptions.findProjectByPath) {
-            logEntry(log, it)
-
             tryWithProject {
                 ok(projectService.findByFSRoot(it.path))
             }

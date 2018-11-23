@@ -1,6 +1,6 @@
 package dk.sdu.cloud.zenodo.processors
 
-import com.auth0.jwt.interfaces.DecodedJWT
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.RequestOneTimeToken
 import dk.sdu.cloud.client.AuthenticatedCloud
@@ -22,8 +22,8 @@ import dk.sdu.cloud.zenodo.services.PublicationException
 import dk.sdu.cloud.zenodo.services.PublicationService
 import dk.sdu.cloud.zenodo.services.ZenodoRPCException
 import dk.sdu.cloud.zenodo.services.ZenodoRPCService
-import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.runBlocking
 import org.apache.kafka.streams.StreamsBuilder
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -35,7 +35,8 @@ class PublishProcessor<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val zenodoService: ZenodoRPCService,
     private val publicationService: PublicationService<DBSession>,
-    private val cloudContext: CloudContext
+    private val cloudContext: CloudContext,
+    private val tokenValidation: TokenValidation<Any>
 ) {
     fun init(kBuilder: StreamsBuilder) {
         kBuilder.stream(ZenodoCommandStreams.publishCommands).foreach { _, command ->
@@ -48,13 +49,13 @@ class PublishProcessor<DBSession>(
 
                 log.debug("Validating principal...")
                 val validatedPrincipal =
-                    TokenValidation.validateOrNull(command.jwt)
-                            ?: return@runBlocking run {
-                                log.info("Token for command is not valid or is missing the correct scope!")
-                                log.debug("Bad command was: $command")
-                            }
+                    tokenValidation.validateOrNull(command.jwt)?.let { tokenValidation.decodeToken(it) }
+                        ?: return@runBlocking run {
+                            log.info("Token for command is not valid or is missing the correct scope!")
+                            log.debug("Bad command was: $command")
+                        }
 
-                val cloud = JWTAuthenticatedCloud(cloudContext, validatedPrincipal.token).withCausedBy(command.uuid)
+                val cloud = JWTAuthenticatedCloud(cloudContext, command.jwt).withCausedBy(command.uuid)
 
                 log.debug("Updating status of command: ${command.publicationId} to UPLOADING")
                 db.withTransaction {
@@ -63,7 +64,7 @@ class PublishProcessor<DBSession>(
 
                 val files = transferCloudFilesToTemporaryStorage(command, cloud)
                 try {
-                    transferTemporaryFilesToZenodo(command, validatedPrincipal, files)
+                    transferTemporaryFilesToZenodo(command, validatedPrincipal.principal, files)
 
                     log.debug("Updating status of command: ${command.publicationId} to COMPLETE")
                     db.withTransaction {
@@ -162,12 +163,12 @@ class PublishProcessor<DBSession>(
 
     private suspend fun transferTemporaryFilesToZenodo(
         command: ZenodoPublishCommand,
-        validatedPrincipal: DecodedJWT,
+        validatedPrincipal: SecurityPrincipal,
         files: List<File>
     ) {
         log.debug("Creating deposition at Zenodo!")
         val deposition = try {
-            zenodoService.createDeposition(validatedPrincipal.subject)
+            zenodoService.createDeposition(validatedPrincipal.username)
         } catch (ex: ZenodoRPCException) {
             log.warn("Unable to create a response at Zenodo!")
             log.warn(ex.stackTraceToString())
@@ -185,7 +186,7 @@ class PublishProcessor<DBSession>(
             log.debug("Uploading file: $name ${file.length()}")
             try {
                 zenodoService.createUpload(
-                    validatedPrincipal.subject,
+                    validatedPrincipal.username,
                     depositionId,
                     name,
                     file

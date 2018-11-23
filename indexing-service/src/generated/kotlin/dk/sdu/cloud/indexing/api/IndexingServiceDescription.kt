@@ -4,5 +4,5 @@ import dk.sdu.cloud.client.ServiceDescription
 
 object IndexingServiceDescription : ServiceDescription {
     override val name: String = "indexing"
-    override val version: String = "1.5.0-SNAPSHOT"
+    override val version: String = "1.7.1-SNAPSHOT"
 }

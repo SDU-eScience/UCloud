@@ -11,6 +11,10 @@ import dk.sdu.cloud.zenodo.util.asDynamicJson
 import java.io.File
 import java.net.URL
 import java.util.UUID
+import kotlin.collections.HashMap
+import kotlin.collections.isNotEmpty
+import kotlin.collections.joinToString
+import kotlin.collections.set
 
 interface ZenodoOAuthStateStore<Session> {
     fun storeStateTokenForUser(session: Session, cloudUser: String, token: String, returnTo: String)
@@ -77,8 +81,7 @@ class InMemoryZenodoOAuthStateStore : ZenodoOAuthStateStore<Unit> {
         )
     }
 }
-private const val SANDBOX_BASE = "https://sandbox.zenodo.org"
-private const val PRODUCTION_BASE = "https://zenodo.org"
+
 private const val OK_STATUSCODE_START = 200
 private const val OK_STATUSCODE_END = 299
 
@@ -90,7 +93,7 @@ class ZenodoOAuth<DBSession>(
     private val stateStore: ZenodoOAuthStateStore<DBSession>,
     private val useSandbox: Boolean
 ) {
-    val baseUrl: String get() = if (useSandbox) SANDBOX_BASE else PRODUCTION_BASE
+    private val baseUrl: String get() = zenodoBaseUrl(useSandbox)
 
     fun createAuthorizationUrl(user: String, returnTo: String, vararg scopes: String): URL = StringBuilder().apply {
         append(baseUrl)

@@ -8,7 +8,6 @@ import dk.sdu.cloud.metadata.api.UserEditableProjectMetadata
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.stackTraceToString
-import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match
 import mbuhot.eskotlin.query.term.match_all
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
@@ -81,7 +80,7 @@ class ElasticMetadataService(
                 grants = if (metadata.grants != null) metadata.grants!! else existing.grants,
                 subjects = if (metadata.subjects != null) metadata.subjects!! else existing.subjects,
                 relatedIdentifiers = if (metadata.relatedIdentifiers != null) metadata.relatedIdentifiers!!
-                                        else existing.relatedIdentifiers
+                else existing.relatedIdentifiers
             )
 
             internalUpdate(newMetadata)

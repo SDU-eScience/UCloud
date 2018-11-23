@@ -4,21 +4,11 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.MultipartRequest
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.StreamingFile
 import dk.sdu.cloud.client.bindEntireRequestFromBody
-import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
-import okhttp3.MediaType
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okio.BufferedSink
 
 data class AddStatusJob(val id: String, val status: String)
 data class StateChangeRequest(val id: String, val newState: JobState, val newStatus: String? = null)

@@ -1,9 +1,9 @@
 package dk.sdu.cloud.app.abacus.services
 
-import dk.sdu.cloud.app.abacus.services.ssh.BashEscaper.safeBashArgument
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.buildSafeBashString
+import dk.sdu.cloud.service.BashEscaper.safeBashArgument
 
 class SBatchGenerator {
     fun generate(

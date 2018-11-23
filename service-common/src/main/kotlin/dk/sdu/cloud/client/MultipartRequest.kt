@@ -18,10 +18,10 @@ import io.ktor.http.content.MultiPartData
 import io.ktor.http.content.PartData
 import io.ktor.http.content.forEachPart
 import io.ktor.http.defaultForFile
-import io.ktor.pipeline.PipelineContext
 import io.ktor.request.receiveOrNull
 import io.ktor.util.asStream
-import kotlinx.coroutines.experimental.io.jvm.javaio.copyTo
+import io.ktor.util.pipeline.PipelineContext
+import kotlinx.coroutines.io.jvm.javaio.copyTo
 import java.io.File
 import java.io.InputStream
 import java.lang.reflect.ParameterizedType
@@ -137,13 +137,20 @@ class MultipartRequest<Request : Any> private constructor() {
         val requestType = getRequestTypeFromDescription(ingoing.description) as KClass<Request>
         val constructor = findConstructor(requestType)
 
+        val requiredProperties = constructor.parameters
+            .asSequence()
+            .filter { !it.isOptional }
+            .mapNotNull { it.name }
+            .toSet()
+
         val knownProps = requestType.memberProperties.associateBy { it.name }
         val partsSeen = HashSet<String>()
 
         val builder = HashMap<String, Any?>()
-        var isSendingFinal = false
+        var hasUnsentData = false
 
         suspend fun send() {
+            hasUnsentData = false
             val params = constructor.parameters.mapNotNull {
                 val value = builder[it.name]
                 if (value == null) {
@@ -162,36 +169,57 @@ class MultipartRequest<Request : Any> private constructor() {
                 constructor.callBy(params) as Request
             } catch (ex: Exception) {
                 log.debug(ex.stackTraceToString())
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                when (ex) {
+                    is RPCException -> throw ex
+                    else -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                }
             }
 
             consumer(block)
-
-            isSendingFinal = partsSeen.size == knownProps.size
         }
 
+        var caughtException: Exception? = null
         ingoing.multipart.forEachPart { part ->
-            val name = part.name ?: run { part.dispose(); return@forEachPart }
-
-            val prop = knownProps[name] ?: run { part.dispose(); return@forEachPart }
-
-            partsSeen.add(prop.name)
-            val parsedPart = parsePart(prop, part)
-            builder[name] = parsedPart
-
-            if (parsedPart is StreamingFile) {
-                send()
-                builder.remove(name) // We need to remove StreamingFiles from the builder.
+            if (caughtException != null) {
+                part.dispose()
+                return@forEachPart
             }
 
-            part.dispose()
+            try {
+                val name = part.name ?: run { part.dispose(); return@forEachPart }
+                val prop = knownProps[name] ?: run { part.dispose(); return@forEachPart }
+                hasUnsentData = true
+
+                partsSeen.add(prop.name)
+                val parsedPart = parsePart(prop, part)
+                builder[name] = parsedPart
+
+                if (parsedPart is StreamingFile) {
+                    send()
+                    builder.remove(name) // We need to remove StreamingFiles from the builder.
+                }
+
+            } catch (ex: Exception) {
+                caughtException = ex
+            } finally {
+                part.dispose()
+            }
         }
 
-        if (partsSeen.size != knownProps.size) {
+        val capturedException = caughtException
+        if (capturedException != null) {
+            log.debug("Caught exception in MultipartRequest")
+            log.debug(capturedException.stackTraceToString())
+            throw capturedException
+        }
+
+        if (!partsSeen.containsAll(requiredProperties)) {
+            log.debug("We expected to see $requiredProperties but we only saw $partsSeen")
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
         }
 
-        if (!isSendingFinal) send()
+        if (hasUnsentData) send()
     }
 
     private fun parsePart(prop: KProperty1<Request, *>, part: PartData): Any? {
@@ -229,22 +257,38 @@ class MultipartRequest<Request : Any> private constructor() {
                         }
                     }
                 } else {
-                    when (propType) {
-                        String::class -> part.value
-                        Byte::class -> part.value.toByteOrNull()
+                    when {
+                        propType == String::class -> part.value
+                        propType == Byte::class -> part.value.toByteOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Short::class -> part.value.toShortOrNull()
+                        propType == Short::class -> part.value.toShortOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Int::class -> part.value.toIntOrNull()
+                        propType == Int::class -> part.value.toIntOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Long::class -> part.value.toLongOrNull()
+                        propType == Long::class -> part.value.toLongOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Short::class -> part.value.toShortOrNull()
+                        propType == Short::class -> part.value.toShortOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Double::class -> part.value.toDoubleOrNull()
+                        propType == Double::class -> part.value.toDoubleOrNull()
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        Boolean::class -> part.value.toBoolean()
-                        else -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        propType == Boolean::class -> part.value.toBoolean()
+                        propType.java.isEnum -> {
+                            propType.java.enumConstants.find { (it as Enum<*>).name == part.value }
+                                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
+                        propType == StreamingFile::class -> {
+                            log.info("For some reason we have parsed $prop as a normal form item.")
+                            StreamingFile(
+                                contentType,
+                                part.headers[HttpHeaders.ContentLength]?.toLongOrNull(),
+                                (part as? PartData.FileItem)?.originalFileName,
+                                part.value.byteInputStream()
+                            )
+                        }
+                        else -> {
+                            log.info("Could not convert item $prop from value ${part.value}")
+                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
                     }
                 }
             }
@@ -258,6 +302,7 @@ class MultipartRequest<Request : Any> private constructor() {
                     else -> throw IllegalStateException()
                 }
 
+                @Suppress("EXPERIMENTAL_API_USAGE")
                 return StreamingFile(
                     contentType,
                     part.headers[HttpHeaders.ContentLength]?.toLongOrNull(),
@@ -325,8 +370,8 @@ class MultipartRequest<Request : Any> private constructor() {
                 val memberProperties = klass.memberProperties
 
                 constructor.parameters.forEach { param ->
-                    val prop = memberProperties.find { it.name == param.name } ?:
-                        throw IllegalStateException("Request types must be simple data classes!")
+                    val prop = memberProperties.find { it.name == param.name }
+                        ?: throw IllegalStateException("Request types must be simple data classes!")
 
                     val name = prop.name
                     val propValue = prop.get(outgoing)

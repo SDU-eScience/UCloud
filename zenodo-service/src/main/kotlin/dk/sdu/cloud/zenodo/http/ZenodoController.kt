@@ -13,7 +13,6 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.jobId
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.zenodo.api.ZenodoAccessRedirectURL
 import dk.sdu.cloud.zenodo.api.ZenodoConnectedStatus
@@ -39,7 +38,6 @@ class ZenodoController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ZenodoDescriptions.publish) { req ->
-            logEntry(log, req)
             val extensionResponse = AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(
                     call.request.bearer!!,
@@ -77,8 +75,6 @@ class ZenodoController<DBSession>(
         }
 
         implement(ZenodoDescriptions.requestAccess) {
-            logEntry(log, it)
-
             val returnTo = URL(it.returnTo)
             if (returnTo.protocol !in ALLOWED_PROTOCOLS || returnTo.host !in ALLOWED_HOSTS) {
                 error(CommonErrorMessage("Bad Request"), HttpStatusCode.BadRequest)
@@ -93,21 +89,16 @@ class ZenodoController<DBSession>(
         }
 
         implement(ZenodoDescriptions.status) {
-            logEntry(log, it)
             ok(ZenodoConnectedStatus(zenodo.isConnected(call.securityPrincipal.username)))
         }
 
         implement(ZenodoDescriptions.listPublications) { req ->
-            logEntry(log, req)
-
             ok(db.withTransaction {
                 publicationService.findForUser(it, call.securityPrincipal.username, req.normalize())
             })
         }
 
         implement(ZenodoDescriptions.findPublicationById) { req ->
-            logEntry(log, req)
-
             ok(db.withTransaction {
                 publicationService.findById(it, call.securityPrincipal.username, req.id)
             })

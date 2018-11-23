@@ -2,20 +2,16 @@ package dk.sdu.cloud.accounting.compute.services
 
 import dk.sdu.cloud.accounting.api.ContextQueryImpl
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
+import dk.sdu.cloud.accounting.compute.util.withDatabase
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
-import dk.sdu.cloud.service.db.HibernateSessionFactory
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class CompletedJobsHibernateDaoTest {
-    private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-        HibernateSessionFactory.create(H2_TEST_CONFIG.copy(showSQLInStdout = true)).use(closure)
-    }
 
     private val dummyEvent = AccountingJobCompletedEvent(
         NameAndVersion("foo", "1.0.0"),
@@ -75,7 +71,7 @@ class CompletedJobsHibernateDaoTest {
     }
 
     @Test
-    fun `insert multiple for same user`() {
+    fun `insert multiple for same user and list all`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
             val service = CompletedJobsService(db, dao)
@@ -106,6 +102,11 @@ class CompletedJobsHibernateDaoTest {
                 val expectedUsage = dummyEvent.totalDuration.toMillis() * 10
                 val actualUsage = service.computeUsage(ContextQueryImpl(), dummyEvent.startedBy)
                 assertEquals(expectedUsage, actualUsage)
+            }
+
+            run {
+                val allevents = service.listAllEvents(ContextQueryImpl(since = 1), dummyEvent.startedBy)
+                assertEquals(count, allevents.size)
             }
         }
     }
@@ -143,6 +144,7 @@ class CompletedJobsHibernateDaoTest {
                 assertEquals(entryCount, events.items.size)
                 assertTrue { events.items.all { it.startedBy == username(userId) } }
             }
+
         }
     }
 

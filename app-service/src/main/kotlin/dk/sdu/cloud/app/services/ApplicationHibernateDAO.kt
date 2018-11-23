@@ -141,6 +141,7 @@ class ApplicationHibernateDAO(
         query: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationForUser> {
+        val normalizedQuery = normalizeQuery(query)
         val count = session.typedQuery<Long>(
             """
                 select count (A.id.name)
@@ -149,9 +150,9 @@ class ApplicationHibernateDAO(
                     from ApplicationEntity as B
                     where A.id.name = B.id.name
                     group by id.name
-                ) and A.id.name like '%' || :query || '%'
+                ) and lower(A.id.name) like '%' || :query || '%'
                 """.trimIndent()
-        ).setParameter("query", query)
+        ).setParameter("query", normalizedQuery)
             .uniqueResult()
             .toInt()
 
@@ -162,10 +163,10 @@ class ApplicationHibernateDAO(
                         from ApplicationEntity as B
                         where A.id.name = B.id.name
                         group by id.name
-                    ) and A.id.name like '%' || :query || '%'
+                    ) and lower(A.id.name) like '%' || :query || '%'
                     order by A.id.name
                 """.trimIndent()
-        ).setParameter("query", query)
+        ).setParameter("query", normalizedQuery)
             .paginatedList(paging)
             .map { it.toModel() }
 
@@ -348,6 +349,10 @@ class ApplicationHibernateDAO(
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         }
     }
+
+    private fun normalizeQuery(query: String): String {
+        return query.toLowerCase()
+    }
 }
 
 internal fun ApplicationEntity.toModel(): Application {
@@ -365,5 +370,5 @@ sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) :
     class NotAllowed : ApplicationException("Not allowed", HttpStatusCode.Forbidden)
     class AlreadyExists : ApplicationException("Already exists", HttpStatusCode.Conflict)
     class BadToolReference : ApplicationException("Tool does not exist", HttpStatusCode.BadRequest)
-    class BadApplication : ApplicationException("Application does not exists", HttpStatusCode.BadRequest)
+    class BadApplication : ApplicationException("Application does not exists", HttpStatusCode.NotFound)
 }

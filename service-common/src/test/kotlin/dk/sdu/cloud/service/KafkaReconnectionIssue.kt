@@ -1,12 +1,11 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.ServiceDescription
-import kotlinx.coroutines.experimental.delay
-import kotlinx.coroutines.experimental.launch
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 object KafkaReconnectionStreams : KafkaDescriptions() {
     val testStream = stream<String, String>("kafka-reconnection-issue") { UUID.randomUUID().toString() }
@@ -34,7 +33,7 @@ fun main(args: Array<String>) {
             while (true) {
                 try {
                     producer.emit("New event at ${Date(System.currentTimeMillis())}")
-                    delay(1, TimeUnit.SECONDS)
+                    delay(1000)
                 } catch (ex: Exception) {
                     log.info("Exception caught in producer thread")
                     log.info(ex.stackTraceToString())

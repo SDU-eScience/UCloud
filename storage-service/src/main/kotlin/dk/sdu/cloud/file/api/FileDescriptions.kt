@@ -7,17 +7,49 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
-import dk.sdu.cloud.service.KafkaRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
-
 import io.ktor.http.HttpMethod
+import dk.sdu.cloud.file.api.AccessRight as FileAccessRight
+
+data class CreateLinkRequest(
+    val linkPath: String,
+    val linkTargetPath: String
+)
+
+data class UpdateAclRequest(
+    val path: String,
+    val recurse: Boolean,
+    val changes: List<ACLEntryRequest>
+) {
+    init {
+        if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
+        if (changes.size > 1000) throw IllegalArgumentException("Too many new entries")
+    }
+}
+
+data class ACLEntryRequest(
+    val entity: String,
+    val rights: Set<FileAccessRight>,
+    val revoke: Boolean = false,
+    val isUser: Boolean = true
+)
+
+data class ChmodRequest(
+    val path: String,
+    val owner: Set<FileAccessRight>,
+    val group: Set<FileAccessRight>,
+    val other: Set<FileAccessRight>,
+    val recurse: Boolean
+)
 
 data class FindByPath(val path: String)
 
 data class CreateDirectoryRequest(
     val path: String,
-    val owner: String?
+    val owner: String?,
+    val sensitivity: SensitivityLevel = SensitivityLevel.PRIVATE
 )
 
 enum class FileSortBy {
@@ -36,6 +68,8 @@ enum class SortOrder {
     ASCENDING,
     DESCENDING
 }
+
+data class ReclassifyRequest(val path: String, val sensitivity: SensitivityLevel)
 
 /**
  * Audit entry for operations that work with a single file
@@ -111,7 +145,7 @@ fun validateAnnotation(annotation: String) {
     }
 }
 
-const val DOWNLOAD_FILE_SCOPE = "downloadFile"
+val DOWNLOAD_FILE_SCOPE = FileDescriptions.download.requiredAuthScope
 
 data class DownloadByURI(val path: String, val token: String?)
 
@@ -120,7 +154,7 @@ data class FavoriteCommand(val path: String)
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
-    property = KafkaRequest.TYPE_PROPERTY
+    property = TYPE_PROPERTY
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = LongRunningResponse.Timeout::class, name = "timeout"),
@@ -282,7 +316,7 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val download = callDescriptionWithAudit<DownloadByURI, Unit, CommonErrorMessage, SingleFileAudit<FindByPath>> {
+    val download = callDescriptionWithAudit<DownloadByURI, Unit, CommonErrorMessage, BulkFileAudit<FindByPath>> {
         name = "download"
 
         auth {
@@ -436,6 +470,89 @@ object FileDescriptions : RESTDescriptions("files") {
         path {
             using(baseContext)
             +"deliver-materialized"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val chmod = callDescriptionWithAudit<
+            ChmodRequest,
+            Unit,
+            CommonErrorMessage,
+            BulkFileAudit<ChmodRequest>
+            > {
+        name = "chmod"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"chmod"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val updateAcl = callDescriptionWithAudit<
+            UpdateAclRequest,
+            Unit,
+            CommonErrorMessage,
+            BulkFileAudit<UpdateAclRequest>
+            > {
+        name = "updateAcl"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"update-acl"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val createLink = callDescriptionWithAudit<
+            CreateLinkRequest,
+            StorageFile,
+            CommonErrorMessage,
+            SingleFileAudit<CreateLinkRequest>
+            > {
+        name = "createLink"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"create-link"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val reclassify = callDescriptionWithAudit<
+            ReclassifyRequest,
+            Unit,
+            CommonErrorMessage,
+            SingleFileAudit<ReclassifyRequest>> {
+        name = "reclassify"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"reclassify"
         }
 
         body { bindEntireRequestFromBody() }

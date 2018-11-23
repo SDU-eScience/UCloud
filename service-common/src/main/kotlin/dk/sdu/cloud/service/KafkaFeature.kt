@@ -6,6 +6,7 @@ import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.Producer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
@@ -27,7 +28,7 @@ private const val POLL_TIMEOUT_IN_MS = 10L
 class KafkaServices(
     private val streamsConfig: Properties,
     private val consumerConfig: Properties,
-    val producer: KafkaProducer<String, String>,
+    val producer: Producer<String, String>,
     val adminClient: AdminClient,
     val defaultPartitions: Int = 32,
     val defaultReplicas: Short = 1
@@ -50,7 +51,8 @@ class KafkaServices(
 class KafkaFeatureConfiguration(
     internal val streamsConfigBody: (Properties) -> Unit = {},
     internal val consumerConfigBody: (Properties) -> Unit = {},
-    internal val producerConfigBody: (Properties) -> Unit = {}
+    internal val producerConfigBody: (Properties) -> Unit = {},
+    internal val kafkaServicesOverride: KafkaServices? = null
 )
 
 class KafkaFeature(
@@ -88,43 +90,48 @@ class KafkaFeature(
     }
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
-        ctx.requireFeature(ConfigurationFeature)
+        if (config.kafkaServicesOverride != null) {
+            log.info("overriding kafka services")
+            ctx.kafka = config.kafkaServicesOverride
+        } else {
+            ctx.requireFeature(ConfigurationFeature)
 
-        log.info("Connecting to Kafka")
+            log.info("Connecting to Kafka")
 
-        val userConfig = ctx.configuration.requestChunkAtOrNull("kafka") ?: KafkaUserConfig()
-        val hosts = userConfig.brokers?.takeIf { it.isNotEmpty() } ?: run {
-            log.info("No available configuration found at 'kafka/brokers'.")
-            log.info("Attempting to look for defaults.")
+            val userConfig = ctx.configuration.requestChunkAtOrNull("kafka") ?: KafkaUserConfig()
+            val hosts = userConfig.brokers?.takeIf { it.isNotEmpty() } ?: run {
+                log.info("No available configuration found at 'kafka/brokers'.")
+                log.info("Attempting to look for defaults.")
 
-            val hostname = findValidHostname(DEFAULT_HOST_NAMES)
-                ?: throw IllegalStateException("Could not find a valid kafka host")
+                val hostname = findValidHostname(DEFAULT_HOST_NAMES)
+                    ?: throw IllegalStateException("Could not find a valid kafka host")
 
-            log.info("$hostname is a valid host, assuming Kafka is running on this machine.")
+                log.info("$hostname is a valid host, assuming Kafka is running on this machine.")
 
-            listOf(KafkaHostConfig(hostname))
+                listOf(KafkaHostConfig(hostname))
+            }
+
+            val streamsConfig = retrieveKafkaStreamsConfiguration(hosts, ctx.serviceDescription)
+                .also(config.streamsConfigBody)
+            val producerConfig = retrieveKafkaProducerConfiguration(hosts).also(config.producerConfigBody)
+            val consumerConfig = retrieveConsumerConfig(hosts, ctx.serviceDescription).also(config.consumerConfigBody)
+
+            val producer = KafkaProducer<String, String>(producerConfig)
+            val adminClient: AdminClient = AdminClient.create(mapOf(
+                AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to hosts.joinToString(",") { it.toString() }
+            ))
+
+            log.info("Connected to Kafka")
+
+            ctx.kafka = KafkaServices(
+                streamsConfig,
+                consumerConfig,
+                producer,
+                adminClient,
+                userConfig.defaultPartitions,
+                userConfig.defaultReplicas
+            )
         }
-
-        val streamsConfig = retrieveKafkaStreamsConfiguration(hosts, ctx.serviceDescription)
-            .also(config.streamsConfigBody)
-        val producerConfig = retrieveKafkaProducerConfiguration(hosts).also(config.producerConfigBody)
-        val consumerConfig = retrieveConsumerConfig(hosts, ctx.serviceDescription).also(config.consumerConfigBody)
-
-        val producer = KafkaProducer<String, String>(producerConfig)
-        val adminClient: AdminClient = AdminClient.create(mapOf(
-            AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to hosts.joinToString(",") { it.toString() }
-        ))
-
-        log.info("Connected to Kafka")
-
-        ctx.kafka = KafkaServices(
-            streamsConfig,
-            consumerConfig,
-            producer,
-            adminClient,
-            userConfig.defaultPartitions,
-            userConfig.defaultReplicas
-        )
     }
 
     companion object Feature : MicroFeatureFactory<KafkaFeature, KafkaFeatureConfiguration>, Loggable {

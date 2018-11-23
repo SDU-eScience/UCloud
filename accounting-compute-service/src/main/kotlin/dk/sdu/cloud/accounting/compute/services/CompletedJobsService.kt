@@ -60,7 +60,6 @@ class CompletedJobsService<DBSession>(
         user: String
     ): List<BillableItem> {
         val usageInMillis = db.withTransaction { dao.computeUsage(it, ContextQueryImpl(since, until, null), user) }
-
         // In this example we only bill the for an integer amount of minutes. The remainder is discarded.
         val billableUnits = usageInMillis / MINUTES_MS
         val pricePerUnit = BigDecimal("0.0001")

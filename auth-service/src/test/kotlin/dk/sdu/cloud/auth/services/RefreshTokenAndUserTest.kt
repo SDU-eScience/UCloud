@@ -1,8 +1,8 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.withDatabase
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -10,11 +10,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RefreshTokenAndUserTest {
-
     @Test
     fun `insert, find and delete`() {
         withDatabase { db ->
-
             val email = "test@testmail.com"
             val token = "tokenToGive"
 
@@ -58,5 +56,4 @@ class RefreshTokenAndUserTest {
             }
         }
     }
-
 }

@@ -13,9 +13,9 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
@@ -32,7 +32,7 @@ class Server(
     private val config: HPCConfig,
     private val ktor: HttpServerProvider,
     private val db: HibernateSessionFactory,
-    private val instance: ServiceInstance
+    private val micro: Micro
 ) : CommonServer {
     override val log = logger()
 
@@ -77,7 +77,7 @@ class Server(
         log.info("Core services initialized")
 
         httpServer = ktor {
-            installDefaultFeatures(cloud, kafka, instance, requireJobId = false)
+            installDefaultFeatures(micro)
 
             routing {
                 configureControllers(

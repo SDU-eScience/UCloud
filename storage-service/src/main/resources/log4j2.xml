@@ -18,16 +18,10 @@
         <Logger name="org.asynchttpclient" level="warn" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
-        <Logger name="org.irods.jargon" level="warn" additivity="false">
-            <AppenderRef ref="Console"/>
-        </Logger>
         <Logger name="io.netty" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="dk.sdu.cloud.storage.api" level="warn" additivity="false">
-            <AppenderRef ref="Console"/>
-        </Logger>
-        <Logger name="org.irods.jargon.core.connection" level="fatal" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="dk.sdu.cloud.service.HealthCheck" level="info" additivity="false">
@@ -43,6 +37,9 @@
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="com.zaxxer.hikari" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="dk.sdu.cloud.service.KafkaEventConsumer" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
     </Loggers>

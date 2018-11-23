@@ -26,7 +26,6 @@ fun main(args: Array<String>) {
         micro.hibernateDatabase,
         micro.kafka,
         micro.serverProvider,
-        micro.serviceInstance,
-        micro.refreshingJwtCloud
+        micro
     ).start()
 }

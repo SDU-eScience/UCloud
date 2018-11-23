@@ -211,7 +211,7 @@ static void print_sensitivity(std::ostream &stream, const char *path) {
 
     char *sensitivity_result = xattr_buffer;
     if (strlen(xattr_buffer) == 0) {
-        sensitivity_result = const_cast<char *>("CONFIDENTIAL");
+        sensitivity_result = const_cast<char *>("PRIVATE");
     }
 
     EMIT_STAT(sensitivity_result);

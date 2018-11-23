@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.http
 
+import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.JobDescriptions
 import dk.sdu.cloud.app.api.JobStartedResponse
@@ -12,6 +13,7 @@ import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.TokenValidation
@@ -20,14 +22,10 @@ import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.jobId
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.optionallyCausedBy
 import dk.sdu.cloud.service.safeJobId
 import dk.sdu.cloud.service.securityPrincipal
-import dk.sdu.cloud.service.withCausedBy
-import dk.sdu.cloud.upload.api.MultiPartUploadDescriptions
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
@@ -37,13 +35,13 @@ private const val ONE_DAY_IN_MILLS = 1000 * 60 * 60 * 24L
 class JobController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val jobOrchestrator: JobOrchestrator<DBSession>,
-    private val jobDao: JobDao<DBSession>
+    private val jobDao: JobDao<DBSession>,
+    private val tokenValidation: TokenValidation<DecodedJWT>
 ) : Controller {
     override val baseContext = JobDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(JobDescriptions.findById) { req ->
-            logEntry(log, req)
             val (job, _) = db.withTransaction { session ->
                 jobDao.findOrNull(session, req.id, call.securityPrincipal.username)
             } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -52,8 +50,6 @@ class JobController<DBSession>(
         }
 
         implement(JobDescriptions.listRecent) { req ->
-            logEntry(log, req)
-
             val result = db.withTransaction {
                 jobDao.list(it, call.securityPrincipal.username, req.normalize())
             }.mapItems { it.job.toJobWithStatus() }
@@ -62,7 +58,6 @@ class JobController<DBSession>(
         }
 
         implement(JobDescriptions.start) { req ->
-            logEntry(log, req)
             val extensionResponse = AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(
                     call.request.bearer!!,
@@ -82,7 +77,7 @@ class JobController<DBSession>(
                 return@implement
             }
 
-            val extendedToken = TokenValidation.validate(extensionResponse.result.accessToken)
+            val extendedToken = tokenValidation.validate(extensionResponse.result.accessToken)
 
             val userCloud = JWTAuthenticatedCloud(
                 call.cloudClient.parent,
@@ -94,7 +89,6 @@ class JobController<DBSession>(
         }
 
         implement(JobDescriptions.follow) { req ->
-            logEntry(log, req)
             ok(jobOrchestrator.followStreams(req))
         }
     }

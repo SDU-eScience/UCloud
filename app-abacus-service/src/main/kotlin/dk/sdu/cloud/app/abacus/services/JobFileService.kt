@@ -26,10 +26,9 @@ import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.runBlocking
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.InputStream
-import java.net.URI
 
 /**
  * Manages file associated to a job

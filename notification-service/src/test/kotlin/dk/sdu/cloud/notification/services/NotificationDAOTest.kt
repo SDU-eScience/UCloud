@@ -16,7 +16,6 @@ private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
 }
 
 class NotificationDAOTest {
-
     private val user = "user"
     private val notificationInstance = Notification(
         "type",

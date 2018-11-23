@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.util.urlDecoded
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.logEntry
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
@@ -17,10 +18,10 @@ import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
 import io.ktor.response.respondText
+import io.ktor.routing.Route
 import io.ktor.routing.Routing
 import io.ktor.routing.get
 import io.ktor.routing.post
-import io.ktor.routing.route
 import io.ktor.util.toMap
 import org.slf4j.LoggerFactory
 
@@ -33,71 +34,69 @@ class SAMLController(
     private val samlProcessorFactory: SAMLRequestProcessorFactory,
     private val tokenService: TokenService<*>,
     private val loginResponder: LoginResponder<*>
-) {
-    fun configure(routing: Routing): Unit = with(routing) {
-        route("auth") {
-            route("saml") {
-                get("metadata") {
-                    logEntry(log)
-                    call.respondText(authSettings.spMetadata, ContentType.Application.Xml)
-                }
+) : Controller {
+    override val baseContext = "/auth/saml"
 
-                get("login") {
-                    val service = call.parameters["service"] ?: return@get run {
-                        logEntry(log, mapOf("message" to "missing service"))
-                        call.respondRedirect("/auth/login")
-                    }
+    override fun configure(routing: Route): Unit = with(routing) {
+        get("metadata") {
+            logEntry(log)
+            call.respondText(authSettings.spMetadata, ContentType.Application.Xml)
+        }
 
-                    logEntry(log, mapOf("service" to service))
+        get("login") {
+            val service = call.parameters["service"] ?: return@get run {
+                logEntry(log, mapOf("message" to "missing service"))
+                call.respondRedirect("/auth/login")
+            }
 
-                    val relayState = KtorUtils.getSelfURLhost(call) +
-                            "$SAML_RELAY_STATE_PREFIX${service.urlEncoded}"
+            logEntry(log, mapOf("service" to service))
 
-                    log.debug("Using relayState=$relayState")
+            val relayState = KtorUtils.getSelfURLhost(call) +
+                    "$SAML_RELAY_STATE_PREFIX${service.urlEncoded}"
 
-                    val auth = SamlRequestProcessor(authSettings, call)
-                    val samlRequestTarget = auth.login(
-                        setNameIdPolicy = true,
-                        returnTo = relayState,
-                        stay = true
-                    )
+            log.debug("Using relayState=$relayState")
 
-                    log.debug("Redirecting to $samlRequestTarget")
-                    call.respondRedirect(samlRequestTarget, permanent = false)
-                }
+            val auth = SamlRequestProcessor(authSettings, call)
+            val samlRequestTarget = auth.login(
+                setNameIdPolicy = true,
+                returnTo = relayState,
+                stay = true
+            )
 
-                post("acs") {
-                    val params = try {
-                        call.receiveParameters()
-                    } catch (ex: ContentTransformationException) {
-                        logEntry(log, mapOf("message" to "missing parameters"))
-                        call.respond(HttpStatusCode.BadRequest)
-                        return@post
-                    }
+            log.debug("Redirecting to $samlRequestTarget")
+            call.respondRedirect(samlRequestTarget, permanent = false)
+        }
 
-                    logEntry(log, mapOf("params" to params.toMap()))
+        post("acs") {
+            val params = try {
+                call.receiveParameters()
+            } catch (ex: ContentTransformationException) {
+                logEntry(log, mapOf("message" to "missing parameters"))
+                call.respond(HttpStatusCode.BadRequest)
+                return@post
+            }
 
-                    val service = params["RelayState"]?.let {
-                        val index = it.indexOf(SAML_RELAY_STATE_PREFIX)
-                        if (index == -1) return@let null
+            logEntry(log, mapOf("params" to params.toMap()))
 
-                        it.substring(index + SAML_RELAY_STATE_PREFIX.length).urlDecoded
-                    } ?: return@post run {
-                        log.info("Missing or invalid relayState")
-                        call.respondRedirect("/auth/login")
-                    }
+            val service = params["RelayState"]?.let {
+                val index = it.indexOf(SAML_RELAY_STATE_PREFIX)
+                if (index == -1) return@let null
 
-                    val auth = samlProcessorFactory(authSettings, call, params)
-                    auth.processResponse()
+                it.substring(index + SAML_RELAY_STATE_PREFIX.length).urlDecoded
+            } ?: return@post run {
+                log.info("Missing or invalid relayState")
+                call.respondRedirect("/auth/login")
+            }
 
-                    val user = tokenService.processSAMLAuthentication(auth)
-                    if (user == null) {
-                        log.debug("User not successfully authenticated")
-                        call.respond(HttpStatusCode.Unauthorized)
-                    } else {
-                        loginResponder.handleSuccessfulLogin(call, service, user)
-                    }
-                }
+            val auth = samlProcessorFactory(authSettings, call, params)
+            auth.processResponse()
+
+            val user = tokenService.processSAMLAuthentication(auth)
+            if (user == null) {
+                log.debug("User not successfully authenticated")
+                call.respond(HttpStatusCode.Unauthorized)
+            } else {
+                loginResponder.handleSuccessfulLogin(call, service, user)
             }
         }
     }

@@ -6,7 +6,7 @@ import io.ktor.http.BadContentTypeFormatException
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import java.io.InputStream
 
 data class RESTResponseContent(
@@ -43,6 +43,35 @@ val RESTResponse<*, *>.okContentOrNull: RESTResponseContent?
 fun <T> RESTResponse<T, *>.orThrow(): T {
     if (this !is RESTResponse.Ok) {
         throw RPCException(rawResponseBody, HttpStatusCode.fromValue(status))
+    }
+    return result
+}
+
+fun <T, E> RESTResponse<T, E>.orRethrowAs(rethrow: (RESTResponse.Err<T, E>) -> Nothing): T {
+    when (this) {
+        is RESTResponse.Ok -> {
+            return result
+        }
+
+        is RESTResponse.Err -> {
+            rethrow(this)
+        }
+    }
+}
+
+fun <T, E> RESTResponse<T, E>.throwIfInternal(): RESTResponse<T, E> {
+    if (status in 500..599) throw RPCException(rawResponseBody, HttpStatusCode.fromValue(status))
+    return this
+}
+
+fun <T, E> RESTResponse<T, E>.throwIfInternalOrBadRequest(): RESTResponse<T, E> {
+    if (status in 500..599 || status == 400) throw RPCException(rawResponseBody, HttpStatusCode.InternalServerError)
+    return this
+}
+
+fun <T> RESTResponse<T, *>.orNull(): T? {
+    if (this !is RESTResponse.Ok) {
+        return null
     }
     return result
 }

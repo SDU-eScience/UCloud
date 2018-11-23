@@ -32,8 +32,8 @@ import dk.sdu.cloud.service.safeAsync
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.experimental.runBlocking
-import java.io.ByteArrayInputStream
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
 import java.io.InputStream
 
 class JobOrchestrator<DBSession>(
@@ -144,7 +144,7 @@ class JobOrchestrator<DBSession>(
         }
     }
 
-    suspend fun handleAddStatus(jobId: String, newStatus: String, securityPrincipal: SecurityPrincipal) {
+    fun handleAddStatus(jobId: String, newStatus: String, securityPrincipal: SecurityPrincipal) {
         // We don't cancel the job if this fails
         val (job, _) = findJobForId(jobId)
         computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
@@ -188,13 +188,14 @@ class JobOrchestrator<DBSession>(
         jobId: String,
         securityPrincipal: SecurityPrincipal,
         filePath: String,
+        length: Long,
         data: InputStream
     ) {
         withJobExceptionHandler(jobId) {
             val jobWithToken = findJobForId(jobId)
             computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
 
-            jobFileService.acceptFile(jobWithToken, filePath, data)
+            jobFileService.acceptFile(jobWithToken, filePath, length, data)
         }
     }
 
@@ -295,31 +296,33 @@ class JobOrchestrator<DBSession>(
     private suspend fun transferFilesToCompute(jobWithToken: VerifiedJobWithAccessToken) {
         val (job, accessToken) = jobWithToken
         val backend = computationBackendService.getAndVerifyByName(job.backend)
-        job.files.map { file ->
-            safeAsync {
-                val userCloud = serviceCloud.parent.jwtAuth(accessToken)
-                val fileStream = FileDescriptions.download.call(
-                    DownloadByURI(file.sourcePath, null),
-                    userCloud
-                ).okContentOrNull ?: throw JobException.TransferError()
+        coroutineScope {
+            job.files.map { file ->
+                safeAsync {
+                    val userCloud = serviceCloud.parent.jwtAuth(accessToken)
+                    val fileStream = FileDescriptions.download.call(
+                        DownloadByURI(file.sourcePath, null),
+                        userCloud
+                    ).okContentOrNull ?: throw JobException.TransferError()
 
-                backend.submitFile.call(
-                    MultipartRequest.create(
-                        SubmitFileToComputation(
-                            job,
-                            file.id,
-                            StreamingFile(
-                                fileStream.contentType ?: ContentType.Application.OctetStream,
-                                fileStream.contentLength,
-                                file.destinationPath,
-                                fileStream.stream
+                    backend.submitFile.call(
+                        MultipartRequest.create(
+                            SubmitFileToComputation(
+                                job,
+                                file.id,
+                                StreamingFile(
+                                    fileStream.contentType ?: ContentType.Application.OctetStream,
+                                    fileStream.contentLength,
+                                    file.destinationPath,
+                                    fileStream.stream
+                                )
                             )
-                        )
-                    ),
-                    serviceCloud
-                ).orThrow()
-            }
-        }.awaitAllOrThrow()
+                        ),
+                        serviceCloud
+                    ).orThrow()
+                }
+            }.awaitAllOrThrow()
+        }
     }
 
     fun lookupOwnJob(jobId: String, securityPrincipal: SecurityPrincipal): VerifiedJob {

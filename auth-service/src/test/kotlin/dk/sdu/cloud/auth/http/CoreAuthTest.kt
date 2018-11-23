@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.AuthConfiguration
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
@@ -15,33 +16,31 @@ import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
-import dk.sdu.cloud.auth.utils.createJWTWithTestAlgorithm
-import dk.sdu.cloud.auth.utils.createServiceJWTWithTestAlgorithm
-import dk.sdu.cloud.auth.utils.testJwtFactory
-import dk.sdu.cloud.auth.utils.testJwtVerifier
-import dk.sdu.cloud.auth.utils.withAuthMock
-import dk.sdu.cloud.auth.utils.withDatabase
 import dk.sdu.cloud.client.defaultMapper
-import dk.sdu.cloud.service.TokenValidation
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.hibernateDatabase
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TokenValidationMock
+import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.service.toSecurityToken
-import io.ktor.application.Application
+import dk.sdu.cloud.service.tokenValidation
 import io.ktor.http.Cookie
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.renderCookieHeader
-import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationCall
 import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.TestApplicationResponse
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
-import io.ktor.server.testing.withTestApplication
 import io.mockk.mockk
 import org.junit.Test
 import java.util.*
@@ -56,45 +55,56 @@ class CoreAuthTest {
         val refreshTokenDao: RefreshTokenHibernateDAO,
         val jwtFactory: JWTFactory,
         val config: AuthConfiguration,
-        val tokenService: TokenService<HibernateSession>
+        val tokenService: TokenService<HibernateSession>,
+        val validation: TokenValidationJWT,
+        val controllers: List<Controller>
     )
 
-    private fun Application.createCoreAuthController(
-        db: HibernateSessionFactory,
+    private fun KtorApplicationTestSetupContext.createCoreAuthController(
         enablePassword: Boolean,
         enableWayf: Boolean,
         serviceExtensionPolicy: Map<String, Set<SecurityScope>> = emptyMap()
     ): TestContext {
+        micro.install(HibernateFeature)
+        val validation = micro.tokenValidation as TokenValidationJWT
+
         val ottDao = OneTimeTokenHibernateDAO()
         val userDao = UserHibernateDAO()
         val refreshTokenDao = RefreshTokenHibernateDAO()
         val config = mockk<AuthConfiguration>()
+        val jwtFactory = JWTFactory(validation.algorithm)
         val tokenService = TokenService(
-            db,
+            micro.hibernateDatabase,
             userDao,
             refreshTokenDao,
-            testJwtFactory,
+            jwtFactory,
             mockk(relaxed = true),
-            allowedServiceExtensionScopes = serviceExtensionPolicy
-        )
-        installDefaultFeatures(
-            mockk(relaxed = true),
-            mockk(relaxed = true),
-            mockk(relaxed = true),
-            requireJobId = true
+            validation,
+            serviceExtensionPolicy
         )
 
-        routing {
+        val controllers = listOf(
             CoreAuthController(
-                db,
+                micro.hibernateDatabase,
                 ottDao,
                 tokenService,
                 enablePassword,
-                enableWayf
-            ).configure(this)
-        }
+                enableWayf,
+                validation
+            )
+        )
 
-        return TestContext(db, ottDao, userDao, refreshTokenDao, testJwtFactory, config, tokenService)
+        return TestContext(
+            micro.hibernateDatabase,
+            ottDao,
+            userDao,
+            refreshTokenDao,
+            jwtFactory,
+            config,
+            tokenService,
+            validation,
+            controllers
+        )
     }
 
     private fun withBasicSetup(
@@ -104,19 +114,16 @@ class CoreAuthTest {
         test: TestApplicationEngine.(ctx: TestContext) -> Unit
     ) {
         lateinit var ctx: TestContext
-        withDatabase { db ->
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = {
-                        ctx = createCoreAuthController(db, enablePassword, enableWayf, serviceExtensionPolicy)
-                    },
+        withKtorTest(
+            setup = {
+                ctx = createCoreAuthController(enablePassword, enableWayf, serviceExtensionPolicy)
+                ctx.controllers
+            },
 
-                    test = {
-                        test(ctx)
-                    }
-                )
+            test = {
+                engine.test(ctx)
             }
-        }
+        )
     }
 
     private fun TestContext.createUser(
@@ -184,7 +191,7 @@ class CoreAuthTest {
 
     @Test
     fun `Login Test - service given, isInvalid True, Wayf true, password false`() {
-        withBasicSetup(enablePassword = false, enableWayf = true) { ctx ->
+        withBasicSetup(enablePassword = false, enableWayf = true) {
             val serviceName = "_service"
             ServiceDAO.insert(Service(serviceName, "endpointOfService"))
             val response =
@@ -197,44 +204,6 @@ class CoreAuthTest {
     fun `Login test - no service given`() {
         withBasicSetup {
             val response = sendRequest(HttpMethod.Get, "/auth/login", addUser = false).response
-            assertEquals(HttpStatusCode.OK, response.status())
-        }
-    }
-
-    @Test
-    fun `Redirect login test - no service given`() {
-        withBasicSetup {
-            val response = sendRequest(HttpMethod.Get, "/auth/login-redirect").response
-            assertEquals(HttpStatusCode.Found, response.status())
-            val result = response.headers.values("Location").toString().trim('[', ']')
-            assertEquals("/auth/login", result)
-        }
-    }
-
-    @Test
-    fun `Redirect login test - service given, no accessToken given`() {
-        withBasicSetup {
-            val serviceName = "_service"
-            ServiceDAO.insert(Service(serviceName, "endpointOfService"))
-            val response = sendRequest(HttpMethod.Get, "/auth/login-redirect?service=$serviceName").response
-            assertEquals(HttpStatusCode.Found, response.status())
-            val result = response.headers.values("Location").toString().trim('[', ']')
-            assertEquals("/auth/login?invalid&service=$serviceName", result)
-        }
-    }
-
-    @Test
-    fun `Redirect login test - service given, accessToken given`() {
-        withBasicSetup {
-            val serviceName = "_service"
-            ServiceDAO.insert(Service(serviceName, "endpointOfService"))
-            val jwt = createServiceJWTWithTestAlgorithm(serviceName).token
-
-            val response = sendRequest(
-                HttpMethod.Get,
-                "/auth/login-redirect?service=$serviceName&accessToken=$jwt&refreshToken=rtoken"
-            ).response
-
             assertEquals(HttpStatusCode.OK, response.status())
         }
     }
@@ -399,7 +368,7 @@ class CoreAuthTest {
         }
     }
 
-    private fun TestApplicationEngine.webRefreshInitialize(ctx: TestContext): RefreshTokenAndUser {
+    private fun webRefreshInitialize(ctx: TestContext): RefreshTokenAndUser {
         val (username, role) = "user" to Role.USER
         lateinit var refreshToken: RefreshTokenAndUser
         ctx.db.withTransaction { session ->
@@ -426,6 +395,7 @@ class CoreAuthTest {
             }
 
             if (addRefreshToken) {
+                @Suppress("EXPERIMENTAL_API_USAGE")
                 addHeader(
                     HttpHeaders.Cookie,
                     renderCookieHeader(
@@ -442,6 +412,7 @@ class CoreAuthTest {
     }
 
     private fun webRefreshVerifySuccess(
+        ctx: TestContext,
         response: TestApplicationResponse,
         sessionReference: String?
     ) {
@@ -457,7 +428,7 @@ class CoreAuthTest {
         assertTrue(accessToken.asText().isNotBlank())
         assertTrue(csrfToken.asText().isNotBlank())
 
-        val jwt = testJwtVerifier.verify(accessToken.asText()).toSecurityToken()
+        val jwt = ctx.validation.validate(accessToken.asText()).toSecurityToken()
         assertEquals(jwt.publicSessionReference, sessionReference)
     }
 
@@ -466,7 +437,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
             val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin))
-            webRefreshVerifySuccess(response, token.publicSessionReference)
+            webRefreshVerifySuccess(ctx, response, token.publicSessionReference)
         }
     }
 
@@ -475,7 +446,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
             val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Referrer))
-            webRefreshVerifySuccess(response, token.publicSessionReference)
+            webRefreshVerifySuccess(ctx, response, token.publicSessionReference)
         }
     }
 
@@ -484,7 +455,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
             val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin, HttpHeaders.Referrer))
-            webRefreshVerifySuccess(response, token.publicSessionReference)
+            webRefreshVerifySuccess(ctx, response, token.publicSessionReference)
         }
     }
 
@@ -495,7 +466,7 @@ class CoreAuthTest {
             val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Referrer)) {
                 addHeader(HttpHeaders.Origin, "         ")
             }
-            webRefreshVerifySuccess(response, token.publicSessionReference)
+            webRefreshVerifySuccess(ctx, response, token.publicSessionReference)
         }
     }
 
@@ -586,6 +557,7 @@ class CoreAuthTest {
     fun `Web refresh - test bad refresh token`() {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
+            @Suppress("EXPERIMENTAL_API_USAGE")
             val response = webRefresh(token, addRefreshToken = false, headersToUse = *arrayOf(HttpHeaders.Origin)) {
                 addHeader(
                     HttpHeaders.Cookie,
@@ -606,7 +578,7 @@ class CoreAuthTest {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
             val response = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin))
-            webRefreshVerifySuccess(response, token.publicSessionReference)
+            webRefreshVerifySuccess(ctx, response, token.publicSessionReference)
 
             val response2 = webRefresh(token, headersToUse = *arrayOf(HttpHeaders.Origin))
             assertEquals(HttpStatusCode.OK, response2.status())
@@ -626,10 +598,12 @@ class CoreAuthTest {
 
         scopeOverrideJson: String? = null,
 
-        verifier: (TestApplicationResponse) -> Unit
+        verifier: (TestApplicationResponse, TestContext) -> Unit
     ) {
         val extensionPolicy = mapOf(serviceName to serviceScope.toSet())
-        val userJwt = createJWTWithTestAlgorithm(user, userRole, userAudience).token
+        val userJwt = TokenValidationMock.createTokenForPrincipal(
+            SecurityPrincipal(user, userRole, "", ""), userAudience
+        )
 
         withBasicSetup(serviceExtensionPolicy = extensionPolicy) { ctx ->
             ctx.db.withTransaction { session ->
@@ -652,7 +626,7 @@ class CoreAuthTest {
                 )
             }.response
 
-            verifier(response)
+            verifier(response, ctx)
         }
     }
 
@@ -662,12 +636,13 @@ class CoreAuthTest {
     }
 
     private fun extensionAssertValid(
+        ctx: TestContext,
         response: TokenExtensionResponse,
         user: String = "user",
         userRole: Role = Role.USER,
         extensionExpiresIn: Long = 3600 * 1000L
     ) {
-        val parsedToken = TokenValidation.validateOrNull(response.accessToken)!!.toSecurityToken()
+        val parsedToken = ctx.validation.validateOrNull(response.accessToken)!!.toSecurityToken()
         assertEquals(user, parsedToken.principal.username)
         assertEquals(userRole, parsedToken.principal.role)
         assertTrue(
@@ -684,9 +659,9 @@ class CoreAuthTest {
         extensionTest(
             serviceScope = scope,
             requestedScopes = scope
-        ) { response ->
+        ) { response, ctx ->
             val parsedResponse = extensionParseValidResponse(response)
-            extensionAssertValid(parsedResponse)
+            extensionAssertValid(ctx, parsedResponse)
         }
     }
 
@@ -700,9 +675,9 @@ class CoreAuthTest {
         extensionTest(
             serviceScope = scope,
             requestedScopes = scope
-        ) { response ->
+        ) { response, ctx ->
             val parsedResponse = extensionParseValidResponse(response)
-            extensionAssertValid(parsedResponse)
+            extensionAssertValid(ctx, parsedResponse)
         }
     }
 
@@ -717,9 +692,9 @@ class CoreAuthTest {
             serviceScope = scope,
             requestedScopes = scope,
             userAudience = scope
-        ) { response ->
+        ) { response, ctx ->
             val parsedResponse = extensionParseValidResponse(response)
-            extensionAssertValid(parsedResponse)
+            extensionAssertValid(ctx, parsedResponse)
         }
     }
 
@@ -733,9 +708,9 @@ class CoreAuthTest {
             serviceScope = scope,
             requestedScopes = scope,
             userAudience = scope
-        ) { response ->
+        ) { response, ctx ->
             val parsedResponse = extensionParseValidResponse(response)
-            extensionAssertValid(parsedResponse)
+            extensionAssertValid(ctx, parsedResponse)
         }
     }
 
@@ -744,7 +719,7 @@ class CoreAuthTest {
         extensionTest(
             serviceScope = emptyList(),
             requestedScopes = listOf(SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE))
-        ) { response ->
+        ) { response, _ ->
             assertEquals(HttpStatusCode.Unauthorized, response.status())
         }
     }
@@ -760,7 +735,7 @@ class CoreAuthTest {
                 SecurityScope.construct(listOf("foo"), AccessRight.READ_WRITE),
                 SecurityScope.construct(listOf("bar"), AccessRight.READ_WRITE)
             )
-        ) { response ->
+        ) { response, _ ->
             assertEquals(HttpStatusCode.Unauthorized, response.status())
         }
     }
@@ -775,7 +750,7 @@ class CoreAuthTest {
 
             // User JWT only has limited scope (for bar:read)
             userAudience = listOf(SecurityScope.construct(listOf("bar"), AccessRight.READ))
-        ) { response ->
+        ) { response, _ ->
             // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
             // the original JWT
 
@@ -790,7 +765,7 @@ class CoreAuthTest {
             serviceScope = scope,
             requestedScopes = scope,
             userAudience = scope
-        ) { response ->
+        ) { response, _ ->
             // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
             // the original JWT
 
@@ -805,7 +780,7 @@ class CoreAuthTest {
             serviceScope = scope,
             requestedScopes = scope,
             userAudience = scope
-        ) { response ->
+        ) { response, _ ->
             // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
             // the original JWT
 
@@ -821,7 +796,7 @@ class CoreAuthTest {
             requestedScopes = scope,
             userAudience = scope,
             extensionExpiresIn = -1L
-        ) { response ->
+        ) { response, _ ->
             // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
             // the original JWT
 
@@ -837,7 +812,7 @@ class CoreAuthTest {
             requestedScopes = scope,
             userAudience = scope,
             extensionExpiresIn = 1000L * 60 * 60 * 24 * 365
-        ) { response ->
+        ) { response, _ ->
             // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
             // the original JWT
 
@@ -854,7 +829,7 @@ class CoreAuthTest {
             scopeOverrideJson = "\"foo::::\"",
             userAudience = scope,
             extensionExpiresIn = 1000L * 60 * 60 * 24 * 365
-        ) { response ->
+        ) { response, _ ->
             // Service should not be able to extend for the purpose of foo:write, since it is not allowed by
             // the original JWT
 

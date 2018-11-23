@@ -1,0 +1,15 @@
+#
+# Production container copying from locally build artifact
+#
+
+FROM alpine:3.8 as production-cached
+
+ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
+    PATH=$PATH:$JAVA_HOME/jre/bin:$JAVA_HOME/bin
+
+RUN apk add --no-cache openjdk8-jre
+
+COPY build/service /opt/service/
+COPY static /var/auth-static
+
+CMD ["/opt/service/bin/service"]

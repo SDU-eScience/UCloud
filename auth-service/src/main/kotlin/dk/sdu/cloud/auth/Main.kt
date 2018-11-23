@@ -7,24 +7,26 @@ import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.auth.api.refreshingJwtCloud
+import dk.sdu.cloud.auth.api.installAuth
+import dk.sdu.cloud.auth.services.Service
+import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
 import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configuration
-import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.initWithDefaultFeatures
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.kafka
 import dk.sdu.cloud.service.runScriptHandler
 import dk.sdu.cloud.service.serverProvider
-import dk.sdu.cloud.service.serviceInstance
+import dk.sdu.cloud.service.tokenValidation
 import java.io.File
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
-import java.util.Properties
+import java.util.*
 import kotlin.collections.set
 
 private fun loadKeysAndInsertIntoProps(
@@ -33,11 +35,11 @@ private fun loadKeysAndInsertIntoProps(
 ): Pair<RSAPublicKey, RSAPrivateKey> {
     val certs =
         File(certsLocation).takeIf { it.exists() && it.isDirectory }
-                ?: throw IllegalStateException("Missing 'certs' folder")
+            ?: throw IllegalStateException("Missing 'certs' folder")
     val x509Cert = File(certs, "cert.pem").takeIf { it.exists() && it.isFile }
-            ?: throw IllegalStateException("Missing x509 cert. Expected at: ${certs.absolutePath} with name cert.pem")
+        ?: throw IllegalStateException("Missing x509 cert. Expected at: ${certs.absolutePath} with name cert.pem")
     val privateKey = File(certs, "key.pem").takeIf { it.exists() && it.isFile }
-            ?: throw IllegalStateException("Missing x509 cert. Expected at: ${certs.absolutePath} with name key.pem")
+        ?: throw IllegalStateException("Missing x509 cert. Expected at: ${certs.absolutePath} with name key.pem")
 
     val x509Text = x509Cert.readText()
     val privText = privateKey.readText()
@@ -67,20 +69,28 @@ data class AuthConfiguration(
     val enableWayf: Boolean = false,
     val production: Boolean = true,
     val tokenExtension: List<ServiceTokenExtension> = emptyList(),
-    val trustedOrigins: List<String> = listOf("cloud.sdu.dk", "localhost")
+    val trustedOrigins: List<String> = listOf("cloud.sdu.dk", "localhost"),
+    val services: List<Service> = listOf(
+        Service("web", "https://cloud.sdu.dk/api/auth-callback"),
+        Service("sync", "https://cloud.sdu.dk/api/sync-callback"),
+        Service("local-dev", "http://localhost:9000/api/auth-callback"),
+        Service("web-csrf", "https://cloud.sdu.dk/api/auth-callback-csrf", 1000L * 60 * 60 * 24 * 30),
+        Service("local-dev-csrf", "http://localhost:9000/api/auth-callback-csrf", 1000L * 60 * 60 * 24 * 30)
+    )
 )
 
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(AuthServiceDescription, args)
         install(HibernateFeature)
-        install(RefreshingJWTCloudFeature)
+        installAuth()
     }
 
     if (micro.runScriptHandler()) return
 
     val configuration = micro.configuration.requestChunkAtOrNull("auth") ?: AuthConfiguration()
     KtorUtils.runningInProduction = configuration.production
+    configuration.services.forEach { ServiceDAO.insert(it) }
 
     val samlProperties = Properties().apply {
         load(Server::class.java.classLoader.getResourceAsStream("saml.properties"))
@@ -88,15 +98,20 @@ fun main(args: Array<String>) {
     val (_, priv) = loadKeysAndInsertIntoProps(configuration.certsLocation, samlProperties)
     val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
 
+    val tokenValidation = micro.tokenValidation as? TokenValidationJWT
+        ?: throw IllegalStateException(
+            "This service is for some reason not configured to use JWTs for validation. " +
+                    "This is required!"
+        )
+
     Server(
         db = micro.hibernateDatabase,
         jwtAlg = Algorithm.RSA256(null, priv),
         config = configuration,
         authSettings = authSettings,
-        instance = micro.serviceInstance,
         kafka = micro.kafka,
         ktor = micro.serverProvider,
-        cloud = micro.refreshingJwtCloud,
-        developmentMode = micro.developmentModeEnabled
+        tokenValidation = tokenValidation,
+        micro = micro
     ).start()
 }

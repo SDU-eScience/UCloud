@@ -11,7 +11,6 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.application.ApplicationCall
 import io.ktor.http.HttpStatusCode
@@ -30,21 +29,15 @@ class TwoFactorAuthController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(TwoFactorAuthDescriptions.createCredentials) { req ->
-            logEntry(log, req)
-
             ok(twoFactorChallengeService.createSetupCredentialsAndChallenge(call.securityPrincipal.username))
         }
 
         implement(TwoFactorAuthDescriptions.answerChallenge) { req ->
-            logEntry(log, req)
-
             verifyChallenge(call, req.challengeId, req.verificationCode)
             okContentDeliveredExternally()
         }
 
         implement(TwoFactorAuthDescriptions.answerChallengeViaForm) { req ->
-            logEntry(log, req)
-
             val params = try {
                 call.receiveParameters().toMap()
             } catch (ex: Exception) {
@@ -62,14 +55,12 @@ class TwoFactorAuthController<DBSession>(
 
             val codeAsInt =
                 verificationCode.toIntOrNull()
-                        ?: return@implement call.respondRedirect("/auth/2fa?challengeId=$challengeId&invalid")
+                    ?: return@implement call.respondRedirect("/auth/2fa?challengeId=$challengeId&invalid")
 
             verifyChallenge(call, challengeId, codeAsInt, submittedViaForm = true)
         }
 
         implement(TwoFactorAuthDescriptions.twoFactorStatus) { req ->
-            logEntry(log, req)
-
             ok(TwoFactorStatusResponse(twoFactorChallengeService.isConnected(call.securityPrincipal.username)))
         }
     }
