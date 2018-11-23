@@ -67,7 +67,7 @@ const Core = () => (
 
                 <Route exact path="/usersettings/settings" component={UserSettings} />
 
-                <Route exact path="/simpleSearch/:priority/*" component={Search} />
+                <Route exact path="/search/:priority" component={Search} />
 
                 <Route component={NotFound} />
             </Switch>

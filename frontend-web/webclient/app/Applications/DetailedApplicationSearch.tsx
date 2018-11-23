@@ -8,6 +8,7 @@ import { Dispatch } from "redux";
 import { setAppName, setVersion, fetchApplicationPageFromName, fetchApplicationPageFromTag } from "./Redux/DetailedApplicationSearchActions";
 import { object } from "prop-types";
 import { History } from "history";
+import { searchPage } from "Utilities/SearchUtilities";
 
 type DetailedApplicationSearchProps = DetailedApplicationOperations & DetailedApplicationSearchReduxState;
 class DetailedApplicationSearch extends React.Component<DetailedApplicationSearchProps> {
@@ -27,8 +28,12 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
         e.preventDefault();
         const inputFieldValue = this.inputField.current.value;
         this.props.setAppName(inputFieldValue);
-        this.props.fetchApplicationsFromName(this.inputField.current.value, 25, 0,
-            () => this.context.router.history.push(`/simplesearch/applications/${inputFieldValue}`));
+        this.props.fetchApplicationsFromName(
+            this.inputField.current.value, 
+            25, 
+            0,
+            () => this.context.router.history.push(searchPage("applications", inputFieldValue))
+        );
     }
 
     render() {

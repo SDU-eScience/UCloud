@@ -25,6 +25,7 @@ import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { searchFiles } from "Search/Redux/SearchActions";
+import { searchPage } from "Utilities/SearchUtilities";
 
 interface HeaderProps {
     sidebarOpen?: boolean
@@ -61,7 +62,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                 <Box ml="auto" />
                 <Search
                     onChange={searchText => this.setState(() => ({ searchText }))}
-                    navigate={() => history.push(`/simplesearch/${prioritizedSearch}/${searchText}`)}
+                    navigate={() => history.push(searchPage(prioritizedSearch, searchText))}
                     searchText={searchText}
                     searchFiles={searchFiles}
                 />
