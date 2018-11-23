@@ -231,9 +231,9 @@ type FileIcons = "tasks" | "star" | "trash alternate outline" | "folder" | "file
     "file code outline" | "image" | "file outline" | "volume up" | "file archive outline";
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FileIcons => {
     const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
-    if (homeFolderReplaced === "Home/Jobs") return "tasks";
-    if (homeFolderReplaced === "Home/Favorites") return "star";
-    if (homeFolderReplaced === "Home/Trash") return "trash alternate outline";
+    if (homeFolderReplaced === "Home/Jobs/") return "tasks";
+    if (homeFolderReplaced === "Home/Favorites/") return "star";
+    if (homeFolderReplaced === "Home/Trash/") return "trash alternate outline";
     if (isDirectory({ fileType: type })) return "folder";
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {

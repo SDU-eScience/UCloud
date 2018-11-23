@@ -2,129 +2,68 @@
 
 exports[`Analyses component Mount component 1`] = `
 Array [
-  <i
-    aria-hidden="true"
-    className="sync small circular link loading icon pagination-float-right"
-    onClick={[Function]}
-  />,
-  <span
-    className="items-per-page-padding pagination-float-right"
+  <div
+    className="sc-bZQynM cNFsWw"
   >
-    <span>
-      Items per page 
-    </span>
     <div
-      aria-expanded={false}
-      className="ui compact inline dropdown"
-      onBlur={[Function]}
-      onChange={[Function]}
-      onClick={[Function]}
-      onFocus={[Function]}
-      onMouseDown={[Function]}
-      role="listbox"
-      tabIndex={0}
+      className="sc-htpNat hjOqln"
+    />
+    <div
+      className="sc-Rmtcm idAtlS"
     >
       <div
-        aria-live="polite"
-        className="text"
-        role="alert"
+        className="sc-bdVaJa hfvaUK"
       >
-        25
+        <span
+          className="sc-htoDjs bChhWZ"
+          cursor="pointer"
+          onClick={[Function]}
+        >
+          <div
+            className="sc-bZQynM bqIUrb"
+          >
+            <div
+              className="sc-htpNat llOEfe"
+            >
+               
+              Items per page 25
+            </div>
+            <div
+              className="sc-htpNat llOEfe"
+            >
+              <svg
+                className="sc-VigVT hlFKbn sc-gqjmRU eNpPdi"
+                cursor="auto"
+                fill="currentcolor"
+                height={24}
+                viewBox="0 0 24 24"
+                width={24}
+              >
+                <path
+                  d="M7.4,8l4.6,4.6L16.6,8L18,9.4l-6,6l-6-6L7.4,8z"
+                  fill={null}
+                />
+              </svg>
+            </div>
+          </div>
+        </span>
       </div>
       <i
-        aria-hidden="true"
-        className="dropdown icon"
+        className="fas fa-sync fa-spin"
         onClick={[Function]}
       />
-      <div
-        className="menu transition"
-      >
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            10
-          </span>
-        </div>
-        <div
-          aria-checked={true}
-          aria-selected={true}
-          className="active selected item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            25
-          </span>
-        </div>
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            50
-          </span>
-        </div>
-        <div
-          aria-checked={false}
-          aria-selected={false}
-          className="item"
-          onClick={[Function]}
-          role="option"
-          style={
-            Object {
-              "pointerEvents": "all",
-            }
-          }
-        >
-          <span
-            className="text"
-          >
-            100
-          </span>
-        </div>
-      </div>
     </div>
-  </span>,
+  </div>,
   <div
-    className="ui centered middle aligned one column grid"
+    className="sc-bZQynM bqIUrb"
   >
     <div
-      className="pagination-loader"
-    >
-      <i
-        aria-hidden="true"
-        className="circle notched loading icon pagination-list-loading"
-      />
-    </div>
+      className="sc-htpNat knGhlu"
+      width="50%"
+    />
+    <i
+      className="fas fa-circle-notch fa-spin"
+    />
   </div>,
   <div />,
 ]

@@ -48,7 +48,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
 
     // FIXME, should show errors in fields instead, the upper corner error is not very noticeable;
     validateAndSetDate(m: Moment | null, property: PossibleTime) {
-        const { setTimes, setError } = this.props;
+        const { setTimes } = this.props;
         setTimes({ [property]: m === null ? undefined : m });
     }
 
@@ -99,7 +99,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                 <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                     <Box mt="0.5em">
                         <form onSubmit={e => { e.preventDefault(); this.onSearch() }}>
-                            <Heading.h3>Advanced File Search</Heading.h3>
+                            <Heading.h3>Search</Heading.h3>
                             <Error error={this.props.error} clearError={() => this.props.setError()} />
                             <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
                             <Input

@@ -236,6 +236,8 @@ export type FileOperation = Operation | PredicatedOperation
 export interface ContextButtonsProps {
     createFolder: () => void
     showUploader: () => void
+    inTrashFolder: boolean
+    toHome: () => void
 }
 
 

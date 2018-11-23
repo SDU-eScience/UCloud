@@ -2,154 +2,173 @@
 
 exports[`UserSettings Mount 1`] = `
 <div
-  className="ui container one column grid"
+  className="sc-jzJRlG btgqKG"
 >
   <div
-    className="column"
+    className="sc-gqjmRU gancRw"
+    width={0.7}
   >
     <div
-      className="ui header"
-    >
-      <h1>
-        Change Password
-      </h1>
-    </div>
-  </div>
-  <div
-    className="column"
-  >
-    <form
-      className="ui form"
-      onSubmit={[Function]}
+      className="sc-jzJRlG wOIhZ"
     >
       <div
-        className="field"
+        className="sc-gqjmRU dyPuak"
+        width={
+          Array [
+            1,
+            1,
+          ]
+        }
       >
-        <label>
-          Current password
-        </label>
         <div
-          className="ui input"
-        >
-          <input
-            onChange={[Function]}
-            placeholder="Old password"
-            type="password"
-            value=""
-          />
-        </div>
-      </div>
-      <div
-        className="field"
-      >
-        <label>
-          New password
-        </label>
-        <div
-          className="ui input"
-        >
-          <input
-            onChange={[Function]}
-            placeholder="New password"
-            type="password"
-            value=""
-          />
-        </div>
-      </div>
-      <div
-        className="field"
-      >
-        <label>
-          Repeat password
-        </label>
-        <div
-          className="ui input"
-        >
-          <input
-            onChange={[Function]}
-            placeholder="Repeat password"
-            type="password"
-            value=""
-          />
-        </div>
-      </div>
-      <button
-        className="ui positive button"
-        onClick={[Function]}
-        role="button"
-        type="submit"
-      >
-        <i
-          aria-hidden="true"
-          className="lock icon"
+          className="sc-eNQAEJ dPxNMT"
         />
-        Change password
-      </button>
-    </form>
-  </div>
-  <div
-    className="column"
-  >
-    <div
-      className="ui header"
-    >
-      <h1>
-        Two Factor Authentication
-      </h1>
-    </div>
-    <b>
-      You do NOT have a 2FA device connected to your account
-    </b>
-    <div
-      className="ui divider"
-    />
-    <div>
-      <div
-        className="ui header"
-      >
-        <h3>
-          2FA Setup
-        </h3>
-      </div>
-      <p>
-        In order to activate 2FA on your account you must have a device capable of issuing time-based one time passwords (TOTP). For this we recommend the "Google Authenticator" app, available for both Android and iOS.
-      </p>
-      <div
-        className="ui small images"
-      >
-        <a
-          href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us"
-          target="_blank"
+        <h1
+          className="sc-bZQynM ynGKB"
+          fontSize={6}
         >
-          <img
-            className="ui image"
-            src={[Function]}
-          />
-        </a>
-        <a
-          href="https://itunes.apple.com/us/app/google-authenticator/id388497605"
-          target="_blank"
+          Change Password
+        </h1>
+        <form
+          onSubmit={[Function]}
         >
-          <img
-            className="ui image"
-            src={[Function]}
-          />
-        </a>
-      </div>
-      <p>
-        Once you are ready click the button below to get started:
-      </p>
-      <button
-        className="ui positive button"
-        onClick={[Function]}
-        role="button"
-      >
-        <i
-          aria-hidden="true"
-          className="qrcode icon"
+          <div
+            className="sc-gqjmRU dIxMCE"
+          >
+            <label
+              className="sc-cvbbAY cavXjd"
+              color="black"
+              fontSize={1}
+              fontWeight="bold"
+            >
+              Current Password
+              <input
+                className="sc-kEYyzF efbqgH"
+                id="default"
+                onChange={[Function]}
+                placeholder="Current password"
+                type="password"
+                value=""
+              />
+            </label>
+          </div>
+          <div
+            className="sc-gqjmRU dIxMCE"
+          >
+            <label
+              className="sc-cvbbAY cavXjd"
+              color="black"
+              fontSize={1}
+              fontWeight="bold"
+            >
+              New Password
+              <input
+                className="sc-kEYyzF efbqgH"
+                id="default"
+                onChange={[Function]}
+                placeholder="New password"
+                type="password"
+                value=""
+              />
+            </label>
+          </div>
+          <div
+            className="sc-gqjmRU dIxMCE"
+          >
+            <label
+              className="sc-cvbbAY cavXjd"
+              color="black"
+              fontSize={1}
+              fontWeight="bold"
+            >
+              Repeat new password
+              <input
+                className="sc-kEYyzF efbqgH"
+                id="default"
+                onChange={[Function]}
+                placeholder="Repeat password"
+                type="password"
+                value=""
+              />
+            </label>
+          </div>
+          <button
+            className="sc-chPdSV evYfpJ"
+            color="green"
+            type="submit"
+          >
+            Change password
+          </button>
+        </form>
+        <h1
+          className="sc-bZQynM ynGKB"
+          fontSize={6}
+        >
+          Two Factor Authentication
+        </h1>
+        <b>
+          You do NOT have a 2FA device connected to your account
+        </b>
+        <div
+          className="ui divider"
         />
-        Start setup
-      </button>
+        <div>
+          <h3
+            className="sc-htoDjs fRPTcT"
+            fontSize={4}
+          >
+            2FA Setup
+          </h3>
+          <p>
+            In order to activate 2FA on your account you must have a device capable of issuing time-based one time passwords (TOTP). For this we recommend the "Google Authenticator" app, available for both Android and iOS.
+          </p>
+          <div
+            className="ui small images"
+          >
+            <a
+              href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us"
+              target="_blank"
+            >
+              <img
+                className="ui image"
+                src={[Function]}
+              />
+            </a>
+            <a
+              href="https://itunes.apple.com/us/app/google-authenticator/id388497605"
+              target="_blank"
+            >
+              <img
+                className="ui image"
+                src={[Function]}
+              />
+            </a>
+          </div>
+          <p>
+            Once you are ready click the button below to get started:
+          </p>
+          <button
+            className="ui loading positive button"
+            onClick={[Function]}
+            role="button"
+          >
+            <i
+              aria-hidden="true"
+              className="qrcode icon"
+            />
+            Start setup
+          </button>
+        </div>
+      </div>
+      <div
+        className="sc-eNQAEJ lhZsvT"
+        width={
+          Array [
+            0,
+            0,
+          ]
+        }
+      />
     </div>
   </div>
 </div>

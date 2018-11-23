@@ -4,11 +4,6 @@
   "description": "SDU Cloud",
   "author": "IMADA - eScience Center, SDU",
   "jest": {
-    "globals": {
-      "ts-jest": {
-        "tsConfig": "<rootDir>/tsconfig.json"
-      }
-    },
     "collectCoverage": true,
     "coverageDirectory": "<rootDir>/coverage",
     "coverageReporters": [
@@ -19,7 +14,8 @@
       "app"
     ],
     "transform": {
-      "^.+\\.tsx?$": "ts-jest"
+      "^.+\\.tsx?$": "ts-jest",
+      "^.+\\.js$": "babel-jest"
     },
     "moduleNameMapper": {
       "^.+\\.png$": "file-loader",
@@ -33,7 +29,12 @@
       "jsx",
       "json",
       "node"
-    ]
+    ],
+    "globals": {
+      "ts-jest": {
+        "ts-config": "tsconfig.json"
+      }
+    }
   },
   "scripts": {
     "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
@@ -76,14 +77,14 @@
     "@types/json-schema": "^7.0.1",
     "@types/jsonwebtoken": "^8.3.0",
     "@types/moment-timezone": "^0.5.9",
-    "@types/react": "^16.7.6",
+    "@types/react": "^16.7.7",
     "@types/react-datepicker": "^1.1.7",
-    "@types/react-dom": "^16.0.9",
-    "@types/react-redux": "^6.0.9",
+    "@types/react-dom": "^16.0.10",
+    "@types/react-redux": "^6.0.10",
     "@types/react-router": "^4.4.1",
     "@types/react-router-dom": "^4.3.1",
     "@types/react-test-renderer": "16.0.3",
-    "@types/styled-components": "^4.1.0",
+    "@types/styled-components": "4.1.0",
     "@types/styled-system": "^3.0.8",
     "babel-jest": "23.6.0",
     "babel-loader": "8.0.4",

@@ -55,7 +55,7 @@ exports[`View component Mount view 1`] = `
           role="listitem"
         >
           <a
-            href="/project/edit//home/jonas@hinchely.dk/The Project"
+            href="/projects/edit?filePath=/home/jonas@hinchely.dk/The%20Project"
             onClick={[Function]}
           >
             <div
@@ -88,22 +88,6 @@ exports[`View component Mount view 1`] = `
         className="ui list"
         role="list"
       >
-        <div
-          className="item"
-          onClick={[Function]}
-          role="listitem"
-        >
-          <div
-            className="ui green label metadata-detailed-tag"
-            onClick={[Function]}
-          >
-            <i
-              aria-hidden="true"
-              className="folder open icon"
-            />
-            Open Access
-          </div>
-        </div>
         <div
           className="item"
           onClick={[Function]}

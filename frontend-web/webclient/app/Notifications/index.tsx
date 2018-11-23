@@ -1,16 +1,14 @@
 import * as React from "react";
-import { Cloud } from "Authentication/SDUCloudObject"
-import { Feed as SFeed, SemanticICONS as SSemanticICONS, Icon as SIcon, Button as SButton, Divider as SDivider } from 'semantic-ui-react';
 import { Redirect } from "react-router";
 import * as moment from "moment";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
 import { Page } from "Types";
-import { fetchNotifications, notificationRead } from "./Redux/NotificationsActions";
+import { fetchNotifications, notificationRead, readAllNotifications } from "./Redux/NotificationsActions";
 import { History } from "history";
 import { setUploaderVisible } from "Uploader/Redux/UploaderActions";
 import { Dispatch } from "redux";
-import { Relative, Flex, Icon, Badge, Absolute, Box, theme } from "ui-components";
+import { Relative, Flex, Icon, Badge, Absolute, Box, theme, Button, Divider } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { TextSpan } from "ui-components/Text";
 import styled from "styled-components";
@@ -59,8 +57,8 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             <NotificationEntry
                 key={index}
                 notification={notification}
-                onMarkAsRead={(it) => this.props.notificationRead(it.id)}
-                onAction={(it) => this.onNotificationAction(it)}
+                onMarkAsRead={it => this.props.notificationRead(it.id)}
+                onAction={it => this.onNotificationAction(it)}
             />
         );
 
@@ -69,18 +67,21 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         }
 
         const unreadLength = page.items.filter((e) => !e.read).length;
-        const uploads = activeUploads > 0 ? (
+        const uploads = unreadLength > 0 ? (
             <>
-                <SDivider />
-                <SButton
-                    content={`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
-                    color="green"
-                    fluid
+                <Divider />
+                <UploaderButton
+                    fullWidth
                     onClick={() => this.props.showUploader()}
-                />
-                <SDivider />
+                >
+                    {`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
+                </UploaderButton>
             </>
         ) : null;
+        const readAllButton = unreadLength ? (
+            <><Button onClick={() => this.props.readAll()} fullWidth>Mark all as read</Button>
+                <Divider />
+            </>) : null;
         const badgeCount = unreadLength + activeUploads;
         return (
             <ClickableDropdown width={"380px"} left={"-270px"} trigger={
@@ -95,21 +96,14 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                     </Relative>
                 </Flex>
             }>
-                <SFeed style={{ backgroundColor: "unset" }}>
-                    {entries.length ? entries : <NoNotifications />}
-                </SFeed>
+                {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
                 {uploads}
             </ClickableDropdown>
         );
     }
 }
 
-const NoNotifications = () =>
-    <SFeed.Event className="notification">
-        <SFeed.Content>
-            <SFeed.Label>No notifications</SFeed.Label>
-        </SFeed.Content>
-    </SFeed.Event>
+const NoNotifications = () => <TextSpan>No notifications</TextSpan>
 
 export interface Notification {
     type: string
@@ -179,15 +173,24 @@ const NotificationWrapper = styled(Flex)`
     }
 `;
 
+const UploaderButton = styled(Button)`
+    background-color: ${props => props.theme.colors.green}
+    &:hover {
+        background-color: ${props => props.theme.colors.green};
+    }
+`
+
 interface NotificationsDispatchToProps {
     fetchNotifications: () => void
     notificationRead: (id: number) => void
     showUploader: () => void
+    readAll: () => void
 }
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps => ({
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
-    showUploader: () => dispatch(setUploaderVisible(true))
+    showUploader: () => dispatch(setUploaderVisible(true)),
+    readAll: async () => dispatch(await readAllNotifications())
 });
 const mapStateToProps = (state) => ({
     ...state.notifications,

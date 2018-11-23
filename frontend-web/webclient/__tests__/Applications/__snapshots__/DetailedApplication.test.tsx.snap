@@ -1,58 +1,44 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Detailed application Component with application 1`] = `"<div class=\\"ui container sixteen column grid\\"><div class=\\"sixteen wide column\\"><h1 class=\\"ui header\\"><div class=\\"content float-right\\"><a class=\\"ui blue basic button\\" role=\\"button\\" href=\\"/applications/figlet-count/1.0.0/\\">Run Application</a></div><div class=\\"content\\">Figlet Counter<span class=\\"app-favorite-padding\\"><div class=\\"ui star huge rating\\" role=\\"radiogroup\\"><i aria-checked=\\"false\\" aria-posinset=\\"1\\" aria-setsize=\\"1\\" class=\\"icon\\" tabindex=\\"0\\" role=\\"radio\\"></i></div></span><h4>1.0.0</h4><h4>Author: Dan Sebastian Thrane &lt;dthrane@imada.sdu.dk&gt;</h4></div><div class=\\"sub header\\"><p>Count with Figlet!</p></div></h1><h3 class=\\"ui header\\">Tags</h3><div class=\\"ui basic label\\">nanomachines</div><div class=\\"ui basic label\\">medication</div><div class=\\"ui basic label\\">megamachines</div><div class=\\"ui basic label\\">hyper light simulation</div><div class=\\"ui basic label\\">teleportation research</div><h1 class=\\"ui header\\">Tools</h1><div role=\\"list\\" class=\\"ui list\\"><div role=\\"listitem\\" class=\\"item\\"><div class=\\"left floated content\\"><div class=\\"ui green label\\"><i aria-hidden=\\"true\\" class=\\"wrench icon\\"></i>Container: SINGULARITY</div><div class=\\"ui blue label\\"><i aria-hidden=\\"true\\" class=\\"file icon\\"></i>Output files: stdout.txt, stderr.txt</div><div class=\\"ui label\\">1 parameters</div></div><div class=\\"right floated content\\"><div class=\\"ui basic label\\"><i aria-hidden=\\"true\\" class=\\"clock icon\\"></i>Default job time: 00:01:00</div><div class=\\"ui basic label\\">Default number of nodes: 1</div><div class=\\"ui basic label\\">Default tasks per node: 1</div></div></div></div></div></div>"`;
+exports[`Detailed application Component with application 1`] = `"<div class=\\"sc-ifAKCX iCcktw\\"><div width=\\"1,0.8125\\" class=\\"sc-bdVaJa iAxnNK\\"><div class=\\"sc-eNQAEJ dPxNMT\\"><a href=\\"/applications/figlet-count/1.0.0/\\"><button color=\\"blue\\" class=\\"sc-chPdSV koOMMT\\">Run Application</button></a></div><h1 font-size=\\"6\\" class=\\"sc-VigVT dzBifV\\">Figlet Counter<span class=\\"app-favorite-padding\\"><svg style=\\"vertical-align: center;\\" cursor=\\"auto\\" class=\\"sc-gZMcBi cRLIbN sc-iwsKbI dwZotm\\" viewBox=\\"0 0 23 22\\" width=\\"24\\" height=\\"24\\" fill=\\"currentcolor\\"><path d=\\"M14.939 7.146l7.886 1.146-5.707 5.562 1.347 7.854L11.412 18 4.36 21.708l1.347-7.854L0 8.292l7.886-1.146L11.412 0l3.527 7.146zM9.878 9.888l-3.432.498 2.483 2.42-.586 3.418 3.07-1.614 3.068 1.614-.586-3.417 2.483-2.42-3.431-.499-1.535-3.11-1.534 3.11z\\" fill=\\"red\\"></path></svg></span><h4>1.0.0</h4><h4>Author: Dan Sebastian Thrane &lt;dthrane@imada.sdu.dk&gt;</h4><h5 font-size=\\"2\\" class=\\"sc-cSHVUG jOGwme\\"><p>Count with Figlet!</p></h5></h1><h3 font-size=\\"4\\" class=\\"sc-fjdhpX gjFQeq\\">Tags</h3><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">nanomachines</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">medication</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">megamachines</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">hyper light simulation</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">teleportation research</div><h3 font-size=\\"4\\" class=\\"sc-fjdhpX gjFQeq\\">Tools</h3><div class=\\"sc-ifAKCX hEFUra\\"><div color=\\"white\\" font-size=\\"0\\" class=\\"sc-csuQGl cIWzZI\\"><div class=\\"sc-bdVaJa guxnrH\\"><i class=\\"fas fa-wrench\\"></i></div>Container: SINGULARITY</div><div color=\\"white\\" font-size=\\"0\\" class=\\"sc-csuQGl hcRoGT\\"><div class=\\"sc-bdVaJa guxnrH\\"><i class=\\"far fa-file\\"></i></div>Output files: stdout.txt, stderr.txt</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">1 parameters</div><div class=\\"sc-bdVaJa gtvdIr\\"></div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\"><i class=\\"far fa-clock\\"></i>Default job time: 00:01:00</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">Default number of nodes: 1</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">Default tasks per node: 1</div></div></div><div width=\\"0,0.1875\\" class=\\"sc-eNQAEJ hUvKIa\\"><a href=\\"/applications/figlet-count/1.0.0/\\"><button color=\\"blue\\" class=\\"sc-chPdSV koOMMT\\">Run Application</button></a></div></div>"`;
 
 exports[`Detailed application Mount component 1`] = `
 <div
-  className="ui container sixteen column grid"
+  className="sc-ifAKCX iCcktw"
 >
-  <i
-    aria-hidden="true"
-    className="circle notched loading icon"
-  />
   <div
-    className="sixteen wide column"
+    className="sc-bdVaJa iAxnNK"
+    width={
+      Array [
+        1,
+        0.8125,
+      ]
+    }
   >
-    <h3
-      className="ui header"
-    >
-      Tags
-    </h3>
     <div
-      className="ui basic label"
-      onClick={[Function]}
-    >
-      nanomachines
-    </div>
+      className="sc-eNQAEJ dPxNMT"
+    />
     <div
-      className="ui basic label"
-      onClick={[Function]}
+      className="sc-ifAKCX LORpy"
     >
-      medication
+      <div
+        className="sc-bdVaJa jqyTwv"
+        width={0.7}
+      >
+        <i
+          className="fas fa-circle-notch fa-spin"
+        />
+      </div>
     </div>
-    <div
-      className="ui basic label"
-      onClick={[Function]}
-    >
-      megamachines
-    </div>
-    <div
-      className="ui basic label"
-      onClick={[Function]}
-    >
-      hyper light simulation
-    </div>
-    <div
-      className="ui basic label"
-      onClick={[Function]}
-    >
-      teleportation research
-    </div>
-    <h1
-      className="ui header"
-    >
-      Tools
-    </h1>
   </div>
+  <div
+    className="sc-eNQAEJ hUvKIa"
+    width={
+      Array [
+        0,
+        0.1875,
+      ]
+    }
+  />
 </div>
 `;

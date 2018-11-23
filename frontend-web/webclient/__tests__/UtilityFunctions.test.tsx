@@ -116,12 +116,12 @@ test("Upper 5xx range", () =>
 
 // Get sorting icon
 
-test("Chevron up", () =>
-    expect(UF.getSortingIcon(SortBy.PATH, SortOrder.ASCENDING, SortBy.PATH)).toBe("chevron up")
+test("Arrow up", () =>
+    expect(UF.getSortingIcon(SortBy.PATH, SortOrder.ASCENDING, SortBy.PATH)).toBe("arrowUp")
 );
 
-test("Chevron down", () =>
-    expect(UF.getSortingIcon(SortBy.PATH, SortOrder.DESCENDING, SortBy.PATH)).toBe("chevron down")
+test("Arrow down", () =>
+    expect(UF.getSortingIcon(SortBy.PATH, SortOrder.DESCENDING, SortBy.PATH)).toBe("arrowDown")
 );
 
 test("Undefined", () =>
@@ -369,11 +369,11 @@ test("shareSwal", () => {
 
 describe("Get sorting icon", () => {
     test("Matching sortBy, up", () =>
-        expect(UF.getSortingIcon(SortBy.ACL, SortOrder.ASCENDING, SortBy.ACL)).toBe("chevron up")
+        expect(UF.getSortingIcon(SortBy.ACL, SortOrder.ASCENDING, SortBy.ACL)).toBe("arrowUp")
     )
 
     test("Matching sortBy, down", () =>
-        expect(UF.getSortingIcon(SortBy.ACL, SortOrder.DESCENDING, SortBy.ACL)).toBe("chevron down")
+        expect(UF.getSortingIcon(SortBy.ACL, SortOrder.DESCENDING, SortBy.ACL)).toBe("arrowDown")
     )
 });
 

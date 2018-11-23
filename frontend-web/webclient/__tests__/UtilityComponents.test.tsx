@@ -53,7 +53,7 @@ describe("RefreshButton", () => {
                 loading={false}
                 onClick={fun}
             />)
-        button.findWhere(it => it.props().loading === false).simulate("click");
+        button.simulate("click");
         expect(fun).toHaveBeenCalled();
     });
 });

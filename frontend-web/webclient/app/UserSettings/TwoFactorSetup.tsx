@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Image, Header, Form, Input, Button, Divider } from "semantic-ui-react";
+import { Image, Form, Input, Button, Divider } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { TwoFactorSetupState } from ".";
 import * as UF from "UtilityFunctions";
@@ -26,7 +26,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
                     isConnectedToAccount: res.response.connected
                 }));
             })
-            .catch((res) => {
+            .catch(res => {
                 const why: string = res.response.why ? res.response.why : "";
                 UF.failureNotification("Could not fetch 2FA status. " + why);
             })
@@ -42,7 +42,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
     render() {
         return (
             <React.StrictMode>
-                <Header><h1>Two Factor Authentication</h1></Header>
+                <Heading.h1>Two Factor Authentication</Heading.h1>
                 <b>{this.displayConnectedStatus()}</b>
                 <Divider />
                 {!this.state.isConnectedToAccount ? this.setupPage() : undefined}

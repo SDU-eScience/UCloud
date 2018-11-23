@@ -24,6 +24,7 @@ describe("Initialize Redux Objects", () => {
             loading: false,
             error: undefined,
             path: "",
+            invalidPath: false,
             filesInfoPath: "",
             sortingColumns: [SortBy.MODIFIED_AT, SortBy.ACL],
             fileSelectorLoading: false,
@@ -47,6 +48,14 @@ describe("Initialize Redux Objects", () => {
         expect(Defaults.initApplications()).toEqual({
             page: Defaults.emptyPage,
             loading: false,
+            favorites: {
+                items: [],
+                itemsInTotal: 0,
+                itemsPerPage: 25,
+                pageNumber: 0,
+                pagesInTotal: 0
+            },
+            favoritesLoading: false,
             error: undefined
         })
     );

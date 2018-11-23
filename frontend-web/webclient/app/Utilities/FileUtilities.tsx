@@ -15,7 +15,7 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
         operations.showFileSelector(false);
         operations.setFileSelectorCallback(undefined);
         operations.setDisallowedPaths([]);
-        files.forEach((f) => {
+        files.forEach(f => {
             const currentPath = f.path;
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
             cloud.post(`/files/copy?path=${encodeURI(currentPath)}&newPath=${encodeURI(newPathForFile)}`).then(() => i++)
@@ -55,8 +55,8 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
     const paths = files.map(it => it.path);
     // FIXME Very slow
-    page.items.forEach((file: File) => {
-        if (paths.some((p: string) => p === file.path)) {
+    page.items.forEach(file => {
+        if (paths.some(p => p === file.path)) {
             file.beingRenamed = true
         }
     });
@@ -85,11 +85,12 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
 
 /**
  * 
- * @param onDeleted To be called on completed deletion of files
+ * @param onMoved To be called on completed deletion of files
  * @returns the Delete operation in an array
  */
-export const DeleteFileOperation = (onDeleted: () => void): Operation[] => [
-    { text: "Delete", onClick: (files: File[], cloud: Cloud) => batchDeleteFiles(files, cloud, onDeleted), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "trash", color: "red" }
+export const MoveFileToTrashOperation = (onMoved: () => void): Operation[] => [
+    { text: "Move to Trash", onClick: (files, cloud) => moveToTrash(files, cloud, onMoved), disabled: (files: File[], cloud: Cloud) => (!allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)) || files.every(({ path }) => inTrashDir(path, cloud))), icon: "trash", color: "red" },
+    { text: "Clear Trash", onClick: (files, cloud) => clearTrash(cloud, onMoved), disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder), icon: "trash", color: "red" }
 ];
 
 /**
@@ -132,7 +133,7 @@ export const fileTablePage = (path: string): string => `/files?path=${encodeURI(
 export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: (() => void) | false, history: History | false) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps) : [];
-    const deleteOperation = !!onDeleted ? DeleteFileOperation(onDeleted) : [];
+    const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history) : [];
     return [...stateLessOperations, ...fileSelectorOperations, ...deleteOperation, ...historyOperations];
 };
@@ -151,8 +152,8 @@ export const recentFilesQuery = "/files/stats/recent";
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
     fileType: "DIRECTORY",
     path,
-    createdAt: new Date().getMilliseconds(),
-    modifiedAt: new Date().getMilliseconds(),
+    createdAt: new Date().getTime(),
+    modifiedAt: new Date().getTime(),
     ownerName: "",
     size: 0,
     acl: [],
@@ -221,7 +222,7 @@ export const favoriteFile = (file: File, cloud: Cloud): void => {
 }
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>
-    files.length === 1 && files.every((f) => isDirectory(f)) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
+    files.length === 1 && files.every(f => isDirectory(f)) && !isFixedFolder(files[0].path, homeFolder) && !isLink(files[0]);
 
 export const previewSupportedExtension = (path: string) => false;
 
@@ -232,14 +233,24 @@ export const toFileText = (selectedFiles: File[]): string =>
 
 export const isLink = (file: File) => file.link;
 export const isDirectory = (file: { fileType: FileType }) => file.fileType === "DIRECTORY";
-export const replaceHomeFolder = (path: string, homeFolder: string) => path.replace(UF.addTrailingSlash(homeFolder), "Home/");
+export const replaceHomeFolder = (path: string, homeFolder: string) => UF.addTrailingSlash(path).replace(homeFolder, "Home/");
 
 export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>
-    deletionSwal([filePath]).then((result: any) => {
+    moveToTrashSwal([filePath]).then((result: any) => {
         if (result.dismiss) {
             return;
         } else {
             cloud.delete("/files", { path: filePath }).then(() => callback ? callback() : null);
+        }
+    });
+
+
+export const clearTrash = (cloud: Cloud, callback: () => void) =>
+    clearTrashSwal().then((result: any) => {
+        if (result.dismiss) {
+            return;
+        } else {
+            cloud.post("/files/trash/clear", {}).then(() => callback ? callback() : null);
         }
     });
 
@@ -254,10 +265,7 @@ export const getParentPath = (path: string): string => {
     return parentPath;
 };
 
-export const getFilenameFromPath = (path: string): string => {
-    const p = path.split("/").filter(p => p).pop();
-    if (p) return p; else return "";
-}
+export const getFilenameFromPath = (path: string): string => path.split("/").filter(p => p).pop()!;
 
 export const downloadFiles = (files: File[], cloud: Cloud) =>
     files.map(f => f.path).forEach(p =>
@@ -314,30 +322,38 @@ export const shareFiles = (files: File[], cloud: Cloud) =>
         });
     }); // FIXME Error handling
 
-const deletionSwal = (filePaths: string[]) => {
-    const deletionText = filePaths.length > 1 ? `Delete ${filePaths.length} files?` :
-        `Delete file ${getFilenameFromPath(filePaths[0])}`;
+const moveToTrashSwal = (filePaths: string[]) => {
+    const deletionText = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
+        `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
     return swal({
-        title: "Delete files",
+        title: "Move files to trash",
         text: deletionText,
-        confirmButtonText: "Delete files",
+        confirmButtonText: "Move files",
         type: "warning",
         showCancelButton: true,
         showCloseButton: true,
     });
 };
 
-export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => void) => {
+export const clearTrashSwal = () => {
+    return swal({
+        title: "Empty trash?",
+        confirmButtonText: "Confirm",
+        type: "warning",
+        showCancelButton: true,
+        showCloseButton: true,
+    });
+};
+
+export const moveToTrash = (files: File[], cloud: Cloud, callback: () => void) => {
     const paths = files.map(f => f.path);
-    deletionSwal(paths).then((result: any) => {
+    moveToTrashSwal(paths).then((result: any) => {
         if (result.dismiss) {
             return;
         } else {
-            let i = 0;
-            paths.forEach(path => {
-                cloud.delete("/files", { path }).then(() => ++i === paths.length ? callback() : null)
-                    .catch(() => i++);
-            });
+            cloud.post("/files/trash/", { files: paths })
+                .then(() => callback())
+                .catch(({ request }) => { UF.failureNotification("An error occurred moving to trash"); callback() });
         }
     })
 };
@@ -355,3 +371,6 @@ export const createFolder = (path: string, cloud: Cloud, onSuccess: () => void) 
             onSuccess()
         }
     }).catch(() => UF.failureNotification("An error ocurred trying to creating the file."));
+
+
+const inTrashDir = (path: string, cloud: Cloud): boolean => getParentPath(path) === cloud.trashFolder;

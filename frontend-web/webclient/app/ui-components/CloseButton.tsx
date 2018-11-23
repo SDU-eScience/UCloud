@@ -1,9 +1,9 @@
 import * as React from "react";
 import IconButton, { IconButtonProps } from "./IconButton";
-import { Omit } from "react-redux";
-import { IconName } from "./Icon";
 
-const CloseButton = (props: IconButtonProps) => <IconButton {...props} name="close" />
+type CloseButtonProps = Pick<IconButtonProps, Exclude<keyof IconButtonProps, "name">>
+
+const CloseButton = (props: CloseButtonProps) => <IconButton {...props} name="close" />
 
 CloseButton.defaultProps = {
   size: 24,

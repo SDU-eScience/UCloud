@@ -27,4 +27,5 @@ export interface DashboardOperations {
     fetchRecentFiles: () => void
     fetchRecentAnalyses: () => void
     notificationRead: (id: number) => void
+    readAll: () => void
 }

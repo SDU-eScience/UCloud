@@ -16,7 +16,7 @@ pageStore.dispatch(updatePath("/home/user@user.telecity/"));
 pageStore.dispatch(updateFiles(mockFiles_SensitivityConfidential));
 
 describe("FileInfo", () => {
-    test("No file", () => {
+    test.skip("No file", () => {
         expect(Renderer.create(
             <Provider store={emptyPageStore}>
                 <MemoryRouter>

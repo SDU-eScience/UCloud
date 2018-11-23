@@ -6,9 +6,9 @@ Array [
     You are not connected to Zenodo
   </h1>,
   <button
-    className="ui button"
+    className="sc-kGXeez faGHyz"
+    color="blue"
     onClick={[Function]}
-    role="button"
   >
     Connect to Zenodo
   </button>,

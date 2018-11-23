@@ -19,8 +19,8 @@ import {
 } from ".";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
-    startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
-    isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension, fileTablePage
+    startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath, isProject,
+    toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension, clearTrash, fileTablePage
 } from "Utilities/FileUtilities";
 import InlinedRelative from "ui-components/InlinedRelative";
 import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex, Divider, Checkbox, Label, Input } from "ui-components";
@@ -94,7 +94,6 @@ class Files extends React.Component<FilesProps> {
             </Label>
         );
 
-
         const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
 
@@ -108,7 +107,7 @@ class Files extends React.Component<FilesProps> {
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const fileOperations: FileOperation[] = [
             {
-                text: "Rename", onClick: (files: File[]) => updateFiles(startRenamingFiles(files, page)),
+                text: "Rename", onClick: files => updateFiles(startRenamingFiles(files, page)),
                 disabled: () => false, icon: "rename", color: undefined
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
@@ -127,7 +126,14 @@ class Files extends React.Component<FilesProps> {
             <Flex flexDirection="row">
                 <Box width={[1, 13 / 16]}>
                     <Hide lg xl>
-                        {!props.invalidPath ? <ContextButtons createFolder={props.createFolder} showUploader={props.showUploader} /> : null}
+                        {!props.invalidPath ? (
+                            <ContextButtons
+                                createFolder={props.createFolder}
+                                showUploader={props.showUploader}
+                                inTrashFolder={UF.addTrailingSlash(path) === Cloud.trashFolder}
+                                toHome={() => navigate(Cloud.homeFolder)}
+                            />
+                        ) : null}
                     </Hide>
                     <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
                     <Pagination.List
@@ -167,7 +173,9 @@ class Files extends React.Component<FilesProps> {
                                 showUploader={props.showUploader}
                                 fileOperations={fileOperations}
                                 files={selectedFiles}
+                                inTrashFolder={UF.addTrailingSlash(path) === Cloud.trashFolder}
                                 createFolder={() => props.createFolder()}
+                                toHome={() => navigate(Cloud.homeFolder)}
                             />
                             <Box pl="5px" pr="5px" pt="3px">
                                 <DetailedFileSearch />
@@ -327,15 +335,16 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
 
 const ContextBar = ({ files, ...props }: ContextBarProps) => (
     <Box mt="65px">
-        <ContextButtons showUploader={props.showUploader} createFolder={props.createFolder} />
+        <ContextButtons toHome={props.toHome} inTrashFolder={props.inTrashFolder} showUploader={props.showUploader} createFolder={props.createFolder} />
         <FileOptions files={files} {...props} />
     </Box>
 );
 
-const ContextButtons = ({ createFolder, showUploader }: ContextButtonsProps) => (
+const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
     <Box pl="5px" pr="5px">
         <Button mt="3px" color="blue" fullWidth onClick={showUploader}>Upload Files</Button>
         <OutlineButton mt="3px" color="black" fullWidth onClick={createFolder}>New folder</OutlineButton>
+        {inTrashFolder ? <Button mt="3px" fullWidth onClick={() => clearTrash(Cloud, () => toHome())} color="red">Clear trash</Button> : null}
     </Box>
 );
 

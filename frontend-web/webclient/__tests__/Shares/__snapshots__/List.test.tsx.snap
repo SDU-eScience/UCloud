@@ -3,8 +3,7 @@
 exports[`Shares List Shares component 1`] = `
 Array [
   <i
-    aria-hidden="true"
-    className="circle notched big loading icon"
+    className="fas fa-circle-notch fa-spin"
   />,
   <div
     className="ui header"

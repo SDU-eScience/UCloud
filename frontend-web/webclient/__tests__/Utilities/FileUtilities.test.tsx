@@ -92,7 +92,7 @@ describe("Replace homefolder", () => {
     );
 
     test("Replace homefolder subfolder", () =>
-        expect(FileUtils.replaceHomeFolder("/home/user@mail.co.uk/subFolder/withSomething", mockHomeFolder)).toBe("Home/subFolder/withSomething")
+        expect(FileUtils.replaceHomeFolder("/home/user@mail.co.uk/subFolder/withSomething", mockHomeFolder)).toBe("Home/subFolder/withSomething/")
     );
 
     const noHomeFolder = "NotHomeFolder/subfolder/";
@@ -213,7 +213,7 @@ describe("File Operations", () => {
             });
 
             describe("DeleteFileOperation", () => {
-                const deleteOp = FileUtils.DeleteFileOperation(() => undefined)[0];
+                const deleteOp = FileUtils.MoveFileToTrashOperation(() => undefined)[0];
                 const files = mockFiles_SensitivityConfidential.items;
 
 
