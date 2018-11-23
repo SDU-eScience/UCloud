@@ -12,7 +12,7 @@ import { MemoryRouter } from "react-router";
 import * as UploaderActions from "Uploader/Redux/UploaderActions";
 
 
-configure({ adapter: new Adapter() });
+// configure({ adapter: new Adapter() });
 
 describe("Uploader", () => {
     test("Closed Uploader component", () => {

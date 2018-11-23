@@ -2,168 +2,1221 @@
 
 exports[`Zenodo Mount Zenodo component 1`] = `
 <div
-  className="ui grid"
+  className="sc-ifAKCX iCcktw"
 >
   <div
-    className="thirteen wide computer sixteen wide tablet column"
+    className="sc-bdVaJa iAxnNK"
+    width={
+      Array [
+        1,
+        0.8125,
+      ]
+    }
   >
     <div
-      className="row"
-    />
-    <h2
-      className="ui header"
+      className="sc-eNQAEJ dPxNMT"
     >
-      <div
-        className="content mobile-padding"
-      >
-        Upload progress
-      </div>
-      <div
-        className="sub header"
-      >
-        Connected to Zenodo
-      </div>
-    </h2>
-    <i
-      aria-hidden="true"
-      className="sync small circular link loading icon pagination-float-right"
-      onClick={[Function]}
-    />
-    <span
-      className="items-per-page-padding pagination-float-right"
-    >
-      <span>
-        Items per page 
-      </span>
-      <div
-        aria-expanded={false}
-        className="ui compact inline dropdown"
-        onBlur={[Function]}
-        onChange={[Function]}
+      <a
+        className="sc-cMljjf gvnKqJ"
+        color="black"
+        href="/zenodo/publish/"
         onClick={[Function]}
-        onFocus={[Function]}
-        onMouseDown={[Function]}
-        role="listbox"
-        tabIndex={0}
+        theme={
+          Object {
+            "bold": 400,
+            "boxShadows": Array [
+              "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
+              "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
+              "0 0 2px 0 rgba(0,0,0,.08),0 4px 16px 0 rgba(0,0,0,.16)",
+              "0 0 2px 0 rgba(0,0,0,.08),0 8px 32px 0 rgba(0,0,0,.16)",
+            ],
+            "breakpoints": Array [
+              "32em",
+              "40em",
+              "48em",
+              "64em",
+            ],
+            "colorStyles": Object {
+              "blueOnLightBlue": Object {
+                "backgroundColor": "#cdf",
+                "color": "#0055d5",
+              },
+              "blueOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#0055d5",
+              },
+              "danger": Object {
+                "backgroundColor": "#c00",
+                "color": "#fff",
+              },
+              "grayOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#c9d3df",
+              },
+              "greenOnLightGreen": Object {
+                "backgroundColor": "#cec",
+                "color": "#0a0",
+              },
+              "greenOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#0a0",
+              },
+              "info": Object {
+                "backgroundColor": "#ebeff3",
+                "color": "#001833",
+              },
+              "purpleOnLightPurple": Object {
+                "backgroundColor": "#ecf",
+                "color": "#70b",
+              },
+              "purpleOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#70b",
+              },
+              "redOnLightRed": Object {
+                "backgroundColor": "#fcc",
+                "color": "#c00",
+              },
+              "redOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#c00",
+              },
+              "success": Object {
+                "backgroundColor": "#0a0",
+                "color": "#fff",
+              },
+              "textOnLightGray": Object {
+                "backgroundColor": "#ebeff3",
+                "color": "#001833",
+              },
+              "textOnOrange": Object {
+                "backgroundColor": "#fa0",
+                "color": "#001833",
+              },
+              "textOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#001833",
+              },
+              "warning": Object {
+                "backgroundColor": "#fa0",
+                "color": "#001833",
+              },
+              "whiteOnBlue": Object {
+                "backgroundColor": "#0055d5",
+                "color": "#fff",
+              },
+              "whiteOnDarkOrange": Object {
+                "backgroundColor": "#a50",
+                "color": "#fff",
+              },
+              "whiteOnGray": Object {
+                "backgroundColor": "#c9d3df",
+                "color": "#fff",
+              },
+              "whiteOnGreen": Object {
+                "backgroundColor": "#0a0",
+                "color": "#fff",
+              },
+              "whiteOnPurple": Object {
+                "backgroundColor": "#70b",
+                "color": "#fff",
+              },
+              "whiteOnRed": Object {
+                "backgroundColor": "#c00",
+                "color": "#fff",
+              },
+              "whiteOnText": Object {
+                "backgroundColor": "#001833",
+                "color": "#fff",
+              },
+            },
+            "colors": Object {
+              "black": "#000",
+              "blue": "#0055d5",
+              "borderGray": "#d1d6db",
+              "darkBlue": "#049",
+              "darkGray": "#53657d",
+              "darkGreen": "#060",
+              "darkOrange": "#a50",
+              "darkRed": "#800",
+              "gray": "#c9d3df",
+              "green": "#0a0",
+              "lightBlue": "#cdf",
+              "lightGray": "#ebeff3",
+              "lightGreen": "#cec",
+              "lightPurple": "#ecf",
+              "lightRed": "#fcc",
+              "midGray": "#53657d",
+              "orange": "#fa0",
+              "paginationHoverColor": "#f7f7f7",
+              "purple": "#70b",
+              "red": "#c00",
+              "text": "#001833",
+              "white": "#fff",
+            },
+            "duration": Object {
+              "fast": "150ms",
+              "normal": "300ms",
+              "slow": "450ms",
+              "slowest": "600ms",
+            },
+            "fontFamily": "'IBM Plex Sans',sans-serif",
+            "fontSizes": Array [
+              12,
+              14,
+              16,
+              20,
+              24,
+              32,
+              40,
+              56,
+              72,
+            ],
+            "fontWeights": Object {
+              "bold": 400,
+              "medium": 300,
+              "regular": 300,
+            },
+            "letterSpacings": Object {
+              "caps": "0.025em",
+              "normal": "normal",
+            },
+            "lineHeights": Object {
+              "display": 1.25,
+              "standard": 1.5,
+            },
+            "maxContainerWidth": "1280px",
+            "mediaQueries": Array [
+              "@media screen and (min-width:32em)",
+              "@media screen and (min-width:40em)",
+              "@media screen and (min-width:48em)",
+              "@media screen and (min-width:64em)",
+            ],
+            "radii": Array [
+              0,
+              2,
+              6,
+            ],
+            "radius": "2px",
+            "regular": 300,
+            "space": Array [
+              0,
+              4,
+              8,
+              16,
+              32,
+              64,
+              128,
+            ],
+            "textStyles": Object {
+              "body0": Object {
+                "fontSize": "12px",
+                "fontWeight": 300,
+                "lineHeight": 1.5,
+              },
+              "body1": Object {
+                "fontSize": "14px",
+                "fontWeight": 300,
+                "lineHeight": 1.5,
+              },
+              "body2": Object {
+                "fontSize": "16px",
+                "fontWeight": 300,
+                "lineHeight": 1.5,
+              },
+              "display0": Object {
+                "fontSize": "12px",
+                "fontWeight": 400,
+                "letterSpacing": "0.025em",
+                "lineHeight": 1.25,
+                "textTransform": "uppercase",
+              },
+              "display1": Object {
+                "fontSize": "14px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display2": Object {
+                "fontSize": "16px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display3": Object {
+                "fontSize": "20px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display4": Object {
+                "fontSize": "24px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display5": Object {
+                "fontSize": "32px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display6": Object {
+                "fontSize": "40px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display7": Object {
+                "fontSize": "56px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display8": Object {
+                "fontSize": "72px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+            },
+            "timingFunctions": Object {
+              "easeIn": "cubic-bezier(0.5, 0, 1, 1)",
+              "easeInOut": "cubic-bezier(0.5, 0, 0.25, 1)",
+              "easeOut": "cubic-bezier(0, 0, 0.25, 1)",
+            },
+            "transitionDelays": Object {
+              "large": "260ms",
+              "medium": "160ms",
+              "small": "60ms",
+              "xLarge": "360ms",
+            },
+          }
+        }
+      >
+        <button
+          className="sc-jAaTju bYvlXj"
+          color="blue"
+        >
+          Create new upload
+        </button>
+      </a>
+      <hr
+        className="sc-jKJlTe hSavXI"
+      />
+      <a
+        className="sc-cMljjf gvnKqJ"
+        color="black"
+        href="/zenodo/publish/"
+        onClick={[Function]}
+        theme={
+          Object {
+            "bold": 400,
+            "boxShadows": Array [
+              "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
+              "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
+              "0 0 2px 0 rgba(0,0,0,.08),0 4px 16px 0 rgba(0,0,0,.16)",
+              "0 0 2px 0 rgba(0,0,0,.08),0 8px 32px 0 rgba(0,0,0,.16)",
+            ],
+            "breakpoints": Array [
+              "32em",
+              "40em",
+              "48em",
+              "64em",
+            ],
+            "colorStyles": Object {
+              "blueOnLightBlue": Object {
+                "backgroundColor": "#cdf",
+                "color": "#0055d5",
+              },
+              "blueOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#0055d5",
+              },
+              "danger": Object {
+                "backgroundColor": "#c00",
+                "color": "#fff",
+              },
+              "grayOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#c9d3df",
+              },
+              "greenOnLightGreen": Object {
+                "backgroundColor": "#cec",
+                "color": "#0a0",
+              },
+              "greenOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#0a0",
+              },
+              "info": Object {
+                "backgroundColor": "#ebeff3",
+                "color": "#001833",
+              },
+              "purpleOnLightPurple": Object {
+                "backgroundColor": "#ecf",
+                "color": "#70b",
+              },
+              "purpleOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#70b",
+              },
+              "redOnLightRed": Object {
+                "backgroundColor": "#fcc",
+                "color": "#c00",
+              },
+              "redOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#c00",
+              },
+              "success": Object {
+                "backgroundColor": "#0a0",
+                "color": "#fff",
+              },
+              "textOnLightGray": Object {
+                "backgroundColor": "#ebeff3",
+                "color": "#001833",
+              },
+              "textOnOrange": Object {
+                "backgroundColor": "#fa0",
+                "color": "#001833",
+              },
+              "textOnWhite": Object {
+                "backgroundColor": "#fff",
+                "color": "#001833",
+              },
+              "warning": Object {
+                "backgroundColor": "#fa0",
+                "color": "#001833",
+              },
+              "whiteOnBlue": Object {
+                "backgroundColor": "#0055d5",
+                "color": "#fff",
+              },
+              "whiteOnDarkOrange": Object {
+                "backgroundColor": "#a50",
+                "color": "#fff",
+              },
+              "whiteOnGray": Object {
+                "backgroundColor": "#c9d3df",
+                "color": "#fff",
+              },
+              "whiteOnGreen": Object {
+                "backgroundColor": "#0a0",
+                "color": "#fff",
+              },
+              "whiteOnPurple": Object {
+                "backgroundColor": "#70b",
+                "color": "#fff",
+              },
+              "whiteOnRed": Object {
+                "backgroundColor": "#c00",
+                "color": "#fff",
+              },
+              "whiteOnText": Object {
+                "backgroundColor": "#001833",
+                "color": "#fff",
+              },
+            },
+            "colors": Object {
+              "black": "#000",
+              "blue": "#0055d5",
+              "borderGray": "#d1d6db",
+              "darkBlue": "#049",
+              "darkGray": "#53657d",
+              "darkGreen": "#060",
+              "darkOrange": "#a50",
+              "darkRed": "#800",
+              "gray": "#c9d3df",
+              "green": "#0a0",
+              "lightBlue": "#cdf",
+              "lightGray": "#ebeff3",
+              "lightGreen": "#cec",
+              "lightPurple": "#ecf",
+              "lightRed": "#fcc",
+              "midGray": "#53657d",
+              "orange": "#fa0",
+              "paginationHoverColor": "#f7f7f7",
+              "purple": "#70b",
+              "red": "#c00",
+              "text": "#001833",
+              "white": "#fff",
+            },
+            "duration": Object {
+              "fast": "150ms",
+              "normal": "300ms",
+              "slow": "450ms",
+              "slowest": "600ms",
+            },
+            "fontFamily": "'IBM Plex Sans',sans-serif",
+            "fontSizes": Array [
+              12,
+              14,
+              16,
+              20,
+              24,
+              32,
+              40,
+              56,
+              72,
+            ],
+            "fontWeights": Object {
+              "bold": 400,
+              "medium": 300,
+              "regular": 300,
+            },
+            "letterSpacings": Object {
+              "caps": "0.025em",
+              "normal": "normal",
+            },
+            "lineHeights": Object {
+              "display": 1.25,
+              "standard": 1.5,
+            },
+            "maxContainerWidth": "1280px",
+            "mediaQueries": Array [
+              "@media screen and (min-width:32em)",
+              "@media screen and (min-width:40em)",
+              "@media screen and (min-width:48em)",
+              "@media screen and (min-width:64em)",
+            ],
+            "radii": Array [
+              0,
+              2,
+              6,
+            ],
+            "radius": "2px",
+            "regular": 300,
+            "space": Array [
+              0,
+              4,
+              8,
+              16,
+              32,
+              64,
+              128,
+            ],
+            "textStyles": Object {
+              "body0": Object {
+                "fontSize": "12px",
+                "fontWeight": 300,
+                "lineHeight": 1.5,
+              },
+              "body1": Object {
+                "fontSize": "14px",
+                "fontWeight": 300,
+                "lineHeight": 1.5,
+              },
+              "body2": Object {
+                "fontSize": "16px",
+                "fontWeight": 300,
+                "lineHeight": 1.5,
+              },
+              "display0": Object {
+                "fontSize": "12px",
+                "fontWeight": 400,
+                "letterSpacing": "0.025em",
+                "lineHeight": 1.25,
+                "textTransform": "uppercase",
+              },
+              "display1": Object {
+                "fontSize": "14px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display2": Object {
+                "fontSize": "16px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display3": Object {
+                "fontSize": "20px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display4": Object {
+                "fontSize": "24px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display5": Object {
+                "fontSize": "32px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display6": Object {
+                "fontSize": "40px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display7": Object {
+                "fontSize": "56px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+              "display8": Object {
+                "fontSize": "72px",
+                "fontWeight": 400,
+                "lineHeight": 1.25,
+              },
+            },
+            "timingFunctions": Object {
+              "easeIn": "cubic-bezier(0.5, 0, 1, 1)",
+              "easeInOut": "cubic-bezier(0.5, 0, 0.25, 1)",
+              "easeOut": "cubic-bezier(0, 0, 0.25, 1)",
+            },
+            "transitionDelays": Object {
+              "large": "260ms",
+              "medium": "160ms",
+              "small": "60ms",
+              "xLarge": "360ms",
+            },
+          }
+        }
+      >
+        <button
+          className="sc-chPdSV koOMMT"
+          color="blue"
+        >
+          Create new upload
+        </button>
+      </a>
+    </div>
+    <h2
+      className="sc-jTzLTM kaoDvc"
+      fontSize={5}
+    >
+      Upload progress
+    </h2>
+    <h5
+      className="sc-cSHVUG jOGwme"
+      fontSize={2}
+    >
+      Connected to Zenodo
+    </h5>
+    <div
+      className="sc-ifAKCX dzFYJo"
+    >
+      <div
+        className="sc-bdVaJa gtvdIr"
+      />
+      <div
+        className="sc-gipzik hYhsek"
       >
         <div
-          aria-live="polite"
-          className="text"
-          role="alert"
+          className="sc-caSCKo bEZmCg"
         >
-          25
+          <span
+            className="sc-bZQynM lphChX"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            <div
+              className="sc-ifAKCX hEFUra"
+            >
+              <div
+                className="sc-bdVaJa bQBfBb"
+              >
+                 
+                Items per page 25
+              </div>
+              <div
+                className="sc-bdVaJa bQBfBb"
+              >
+                <svg
+                  className="sc-gZMcBi fzYyKs sc-iwsKbI fSJFTj"
+                  cursor="auto"
+                  fill="currentcolor"
+                  height={24}
+                  viewBox="0 0 24 24"
+                  width={24}
+                >
+                  <path
+                    d="M7.4,8l4.6,4.6L16.6,8L18,9.4l-6,6l-6-6L7.4,8z"
+                    fill={null}
+                  />
+                </svg>
+              </div>
+            </div>
+          </span>
         </div>
         <i
-          aria-hidden="true"
-          className="dropdown icon"
+          className="fas fa-sync fa-spin"
           onClick={[Function]}
         />
-        <div
-          className="menu transition"
-        >
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              10
-            </span>
-          </div>
-          <div
-            aria-checked={true}
-            aria-selected={true}
-            className="active selected item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              25
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              50
-            </span>
-          </div>
-          <div
-            aria-checked={false}
-            aria-selected={false}
-            className="item"
-            onClick={[Function]}
-            role="option"
-            style={
-              Object {
-                "pointerEvents": "all",
-              }
-            }
-          >
-            <span
-              className="text"
-            >
-              100
-            </span>
-          </div>
-        </div>
       </div>
-    </span>
+    </div>
     <div
-      className="ui centered middle aligned one column grid"
+      className="sc-ifAKCX hEFUra"
     >
       <div
-        className="pagination-loader"
-      >
-        <i
-          aria-hidden="true"
-          className="circle notched loading icon pagination-list-loading"
-        />
-      </div>
+        className="sc-bdVaJa iHSjxn"
+        width="50%"
+      />
+      <i
+        className="fas fa-circle-notch fa-spin"
+      />
     </div>
     <div />
   </div>
   <div
-    className="three wide computer column"
+    className="sc-eNQAEJ hUvKIa"
+    width={
+      Array [
+        0,
+        0.1875,
+      ]
+    }
   >
     <a
-      className="ui blue basic fluid button"
+      className="sc-cMljjf gvnKqJ"
+      color="black"
       href="/zenodo/publish/"
       onClick={[Function]}
-      role="button"
+      theme={
+        Object {
+          "bold": 400,
+          "boxShadows": Array [
+            "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
+            "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
+            "0 0 2px 0 rgba(0,0,0,.08),0 4px 16px 0 rgba(0,0,0,.16)",
+            "0 0 2px 0 rgba(0,0,0,.08),0 8px 32px 0 rgba(0,0,0,.16)",
+          ],
+          "breakpoints": Array [
+            "32em",
+            "40em",
+            "48em",
+            "64em",
+          ],
+          "colorStyles": Object {
+            "blueOnLightBlue": Object {
+              "backgroundColor": "#cdf",
+              "color": "#0055d5",
+            },
+            "blueOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#0055d5",
+            },
+            "danger": Object {
+              "backgroundColor": "#c00",
+              "color": "#fff",
+            },
+            "grayOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#c9d3df",
+            },
+            "greenOnLightGreen": Object {
+              "backgroundColor": "#cec",
+              "color": "#0a0",
+            },
+            "greenOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#0a0",
+            },
+            "info": Object {
+              "backgroundColor": "#ebeff3",
+              "color": "#001833",
+            },
+            "purpleOnLightPurple": Object {
+              "backgroundColor": "#ecf",
+              "color": "#70b",
+            },
+            "purpleOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#70b",
+            },
+            "redOnLightRed": Object {
+              "backgroundColor": "#fcc",
+              "color": "#c00",
+            },
+            "redOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#c00",
+            },
+            "success": Object {
+              "backgroundColor": "#0a0",
+              "color": "#fff",
+            },
+            "textOnLightGray": Object {
+              "backgroundColor": "#ebeff3",
+              "color": "#001833",
+            },
+            "textOnOrange": Object {
+              "backgroundColor": "#fa0",
+              "color": "#001833",
+            },
+            "textOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#001833",
+            },
+            "warning": Object {
+              "backgroundColor": "#fa0",
+              "color": "#001833",
+            },
+            "whiteOnBlue": Object {
+              "backgroundColor": "#0055d5",
+              "color": "#fff",
+            },
+            "whiteOnDarkOrange": Object {
+              "backgroundColor": "#a50",
+              "color": "#fff",
+            },
+            "whiteOnGray": Object {
+              "backgroundColor": "#c9d3df",
+              "color": "#fff",
+            },
+            "whiteOnGreen": Object {
+              "backgroundColor": "#0a0",
+              "color": "#fff",
+            },
+            "whiteOnPurple": Object {
+              "backgroundColor": "#70b",
+              "color": "#fff",
+            },
+            "whiteOnRed": Object {
+              "backgroundColor": "#c00",
+              "color": "#fff",
+            },
+            "whiteOnText": Object {
+              "backgroundColor": "#001833",
+              "color": "#fff",
+            },
+          },
+          "colors": Object {
+            "black": "#000",
+            "blue": "#0055d5",
+            "borderGray": "#d1d6db",
+            "darkBlue": "#049",
+            "darkGray": "#53657d",
+            "darkGreen": "#060",
+            "darkOrange": "#a50",
+            "darkRed": "#800",
+            "gray": "#c9d3df",
+            "green": "#0a0",
+            "lightBlue": "#cdf",
+            "lightGray": "#ebeff3",
+            "lightGreen": "#cec",
+            "lightPurple": "#ecf",
+            "lightRed": "#fcc",
+            "midGray": "#53657d",
+            "orange": "#fa0",
+            "paginationHoverColor": "#f7f7f7",
+            "purple": "#70b",
+            "red": "#c00",
+            "text": "#001833",
+            "white": "#fff",
+          },
+          "duration": Object {
+            "fast": "150ms",
+            "normal": "300ms",
+            "slow": "450ms",
+            "slowest": "600ms",
+          },
+          "fontFamily": "'IBM Plex Sans',sans-serif",
+          "fontSizes": Array [
+            12,
+            14,
+            16,
+            20,
+            24,
+            32,
+            40,
+            56,
+            72,
+          ],
+          "fontWeights": Object {
+            "bold": 400,
+            "medium": 300,
+            "regular": 300,
+          },
+          "letterSpacings": Object {
+            "caps": "0.025em",
+            "normal": "normal",
+          },
+          "lineHeights": Object {
+            "display": 1.25,
+            "standard": 1.5,
+          },
+          "maxContainerWidth": "1280px",
+          "mediaQueries": Array [
+            "@media screen and (min-width:32em)",
+            "@media screen and (min-width:40em)",
+            "@media screen and (min-width:48em)",
+            "@media screen and (min-width:64em)",
+          ],
+          "radii": Array [
+            0,
+            2,
+            6,
+          ],
+          "radius": "2px",
+          "regular": 300,
+          "space": Array [
+            0,
+            4,
+            8,
+            16,
+            32,
+            64,
+            128,
+          ],
+          "textStyles": Object {
+            "body0": Object {
+              "fontSize": "12px",
+              "fontWeight": 300,
+              "lineHeight": 1.5,
+            },
+            "body1": Object {
+              "fontSize": "14px",
+              "fontWeight": 300,
+              "lineHeight": 1.5,
+            },
+            "body2": Object {
+              "fontSize": "16px",
+              "fontWeight": 300,
+              "lineHeight": 1.5,
+            },
+            "display0": Object {
+              "fontSize": "12px",
+              "fontWeight": 400,
+              "letterSpacing": "0.025em",
+              "lineHeight": 1.25,
+              "textTransform": "uppercase",
+            },
+            "display1": Object {
+              "fontSize": "14px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display2": Object {
+              "fontSize": "16px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display3": Object {
+              "fontSize": "20px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display4": Object {
+              "fontSize": "24px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display5": Object {
+              "fontSize": "32px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display6": Object {
+              "fontSize": "40px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display7": Object {
+              "fontSize": "56px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display8": Object {
+              "fontSize": "72px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+          },
+          "timingFunctions": Object {
+            "easeIn": "cubic-bezier(0.5, 0, 1, 1)",
+            "easeInOut": "cubic-bezier(0.5, 0, 0.25, 1)",
+            "easeOut": "cubic-bezier(0, 0, 0.25, 1)",
+          },
+          "transitionDelays": Object {
+            "large": "260ms",
+            "medium": "160ms",
+            "small": "60ms",
+            "xLarge": "360ms",
+          },
+        }
+      }
     >
-      Create new upload
+      <button
+        className="sc-jAaTju bYvlXj"
+        color="blue"
+      >
+        Create new upload
+      </button>
     </a>
-    <div
-      className="ui divider"
+    <hr
+      className="sc-jKJlTe hSavXI"
     />
+    <a
+      className="sc-cMljjf gvnKqJ"
+      color="black"
+      href="/zenodo/publish/"
+      onClick={[Function]}
+      theme={
+        Object {
+          "bold": 400,
+          "boxShadows": Array [
+            "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
+            "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
+            "0 0 2px 0 rgba(0,0,0,.08),0 4px 16px 0 rgba(0,0,0,.16)",
+            "0 0 2px 0 rgba(0,0,0,.08),0 8px 32px 0 rgba(0,0,0,.16)",
+          ],
+          "breakpoints": Array [
+            "32em",
+            "40em",
+            "48em",
+            "64em",
+          ],
+          "colorStyles": Object {
+            "blueOnLightBlue": Object {
+              "backgroundColor": "#cdf",
+              "color": "#0055d5",
+            },
+            "blueOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#0055d5",
+            },
+            "danger": Object {
+              "backgroundColor": "#c00",
+              "color": "#fff",
+            },
+            "grayOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#c9d3df",
+            },
+            "greenOnLightGreen": Object {
+              "backgroundColor": "#cec",
+              "color": "#0a0",
+            },
+            "greenOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#0a0",
+            },
+            "info": Object {
+              "backgroundColor": "#ebeff3",
+              "color": "#001833",
+            },
+            "purpleOnLightPurple": Object {
+              "backgroundColor": "#ecf",
+              "color": "#70b",
+            },
+            "purpleOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#70b",
+            },
+            "redOnLightRed": Object {
+              "backgroundColor": "#fcc",
+              "color": "#c00",
+            },
+            "redOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#c00",
+            },
+            "success": Object {
+              "backgroundColor": "#0a0",
+              "color": "#fff",
+            },
+            "textOnLightGray": Object {
+              "backgroundColor": "#ebeff3",
+              "color": "#001833",
+            },
+            "textOnOrange": Object {
+              "backgroundColor": "#fa0",
+              "color": "#001833",
+            },
+            "textOnWhite": Object {
+              "backgroundColor": "#fff",
+              "color": "#001833",
+            },
+            "warning": Object {
+              "backgroundColor": "#fa0",
+              "color": "#001833",
+            },
+            "whiteOnBlue": Object {
+              "backgroundColor": "#0055d5",
+              "color": "#fff",
+            },
+            "whiteOnDarkOrange": Object {
+              "backgroundColor": "#a50",
+              "color": "#fff",
+            },
+            "whiteOnGray": Object {
+              "backgroundColor": "#c9d3df",
+              "color": "#fff",
+            },
+            "whiteOnGreen": Object {
+              "backgroundColor": "#0a0",
+              "color": "#fff",
+            },
+            "whiteOnPurple": Object {
+              "backgroundColor": "#70b",
+              "color": "#fff",
+            },
+            "whiteOnRed": Object {
+              "backgroundColor": "#c00",
+              "color": "#fff",
+            },
+            "whiteOnText": Object {
+              "backgroundColor": "#001833",
+              "color": "#fff",
+            },
+          },
+          "colors": Object {
+            "black": "#000",
+            "blue": "#0055d5",
+            "borderGray": "#d1d6db",
+            "darkBlue": "#049",
+            "darkGray": "#53657d",
+            "darkGreen": "#060",
+            "darkOrange": "#a50",
+            "darkRed": "#800",
+            "gray": "#c9d3df",
+            "green": "#0a0",
+            "lightBlue": "#cdf",
+            "lightGray": "#ebeff3",
+            "lightGreen": "#cec",
+            "lightPurple": "#ecf",
+            "lightRed": "#fcc",
+            "midGray": "#53657d",
+            "orange": "#fa0",
+            "paginationHoverColor": "#f7f7f7",
+            "purple": "#70b",
+            "red": "#c00",
+            "text": "#001833",
+            "white": "#fff",
+          },
+          "duration": Object {
+            "fast": "150ms",
+            "normal": "300ms",
+            "slow": "450ms",
+            "slowest": "600ms",
+          },
+          "fontFamily": "'IBM Plex Sans',sans-serif",
+          "fontSizes": Array [
+            12,
+            14,
+            16,
+            20,
+            24,
+            32,
+            40,
+            56,
+            72,
+          ],
+          "fontWeights": Object {
+            "bold": 400,
+            "medium": 300,
+            "regular": 300,
+          },
+          "letterSpacings": Object {
+            "caps": "0.025em",
+            "normal": "normal",
+          },
+          "lineHeights": Object {
+            "display": 1.25,
+            "standard": 1.5,
+          },
+          "maxContainerWidth": "1280px",
+          "mediaQueries": Array [
+            "@media screen and (min-width:32em)",
+            "@media screen and (min-width:40em)",
+            "@media screen and (min-width:48em)",
+            "@media screen and (min-width:64em)",
+          ],
+          "radii": Array [
+            0,
+            2,
+            6,
+          ],
+          "radius": "2px",
+          "regular": 300,
+          "space": Array [
+            0,
+            4,
+            8,
+            16,
+            32,
+            64,
+            128,
+          ],
+          "textStyles": Object {
+            "body0": Object {
+              "fontSize": "12px",
+              "fontWeight": 300,
+              "lineHeight": 1.5,
+            },
+            "body1": Object {
+              "fontSize": "14px",
+              "fontWeight": 300,
+              "lineHeight": 1.5,
+            },
+            "body2": Object {
+              "fontSize": "16px",
+              "fontWeight": 300,
+              "lineHeight": 1.5,
+            },
+            "display0": Object {
+              "fontSize": "12px",
+              "fontWeight": 400,
+              "letterSpacing": "0.025em",
+              "lineHeight": 1.25,
+              "textTransform": "uppercase",
+            },
+            "display1": Object {
+              "fontSize": "14px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display2": Object {
+              "fontSize": "16px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display3": Object {
+              "fontSize": "20px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display4": Object {
+              "fontSize": "24px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display5": Object {
+              "fontSize": "32px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display6": Object {
+              "fontSize": "40px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display7": Object {
+              "fontSize": "56px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+            "display8": Object {
+              "fontSize": "72px",
+              "fontWeight": 400,
+              "lineHeight": 1.25,
+            },
+          },
+          "timingFunctions": Object {
+            "easeIn": "cubic-bezier(0.5, 0, 1, 1)",
+            "easeInOut": "cubic-bezier(0.5, 0, 0.25, 1)",
+            "easeOut": "cubic-bezier(0, 0, 0.25, 1)",
+          },
+          "transitionDelays": Object {
+            "large": "260ms",
+            "medium": "160ms",
+            "small": "60ms",
+            "xLarge": "360ms",
+          },
+        }
+      }
+    >
+      <button
+        className="sc-chPdSV koOMMT"
+        color="blue"
+      >
+        Create new upload
+      </button>
+    </a>
   </div>
 </div>
 `;

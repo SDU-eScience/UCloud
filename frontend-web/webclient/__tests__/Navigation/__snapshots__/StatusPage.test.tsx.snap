@@ -3,12 +3,12 @@
 exports[`Status Page Mount component with NO ISSUES 1`] = `
 Array [
   <div
-    className="ui green huge segment"
+    className="sc-bdVaJa bQBfBb"
   >
     No Issues
   </div>,
   <div
-    className="ui very padded segment"
+    className="sc-bdVaJa bQBfBb"
   >
     The system is running as intended.
   </div>,

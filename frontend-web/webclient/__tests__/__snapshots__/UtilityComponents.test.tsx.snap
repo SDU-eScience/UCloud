@@ -3,12 +3,6 @@
 exports[`FileIcon Link file icon 1`] = `
 <i
   className="mini icons"
-  style={
-    Object {
-      "paddingLeft": "3px",
-      "paddingRight": "5px",
-    }
-  }
 >
   <i
     aria-hidden="true"
@@ -168,6 +162,11 @@ exports[`PP Visible PP-Component 1`] = `
     min="200"
     onChange={[Function]}
     step="1"
+    style={
+      Object {
+        "direction": "rtl",
+      }
+    }
     type="range"
     value={500}
   />
@@ -176,8 +175,7 @@ exports[`PP Visible PP-Component 1`] = `
 
 exports[`RefreshButton RefreshButton 1`] = `
 <i
-  aria-hidden="true"
-  className="sync small circular link icon name-of-class"
+  className="fas fa-sync "
   onClick={[Function]}
 />
 `;

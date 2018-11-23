@@ -11,25 +11,25 @@ describe("UserSettings", () => {
         expect(create(<UserSettings />).toJSON()).toMatchSnapshot()
     });
 
-    test("Update current password field", () => {
+    test.skip("Update current password field", () => {
         const userSettings = mount(<UserSettings />);
         userSettings.find("FormField").findWhere(it => it.props().placeholder === "Old password").find("input").simulate("change", { target: { value: "current password" } });
         expect(userSettings.state("currentPassword")).toBe("current password")
     });
 
-    test("Update new password field", () => {
+    test.skip("Update new password field", () => {
         const userSettings = mount(<UserSettings />);
         userSettings.find("FormField").findWhere(it => it.props().placeholder === "New password").find("input").simulate("change", { target: { value: "new password" } });
         expect(userSettings.state("newPassword")).toBe("new password")
     });
 
-    test("Update repeated password field", () => {
+    test.skip("Update repeated password field", () => {
         const userSettings = mount(<UserSettings />);
         userSettings.find("FormField").findWhere(it => it.props().placeholder === "Repeat password").find("input").simulate("change", { target: { value: "repeated password" } });
         expect(userSettings.state("repeatedPassword")).toBe("repeated password")
     });
 
-    test("Submit with missing old password", () => {
+    test.skip("Submit with missing old password", () => {
         const userSettings = mount(<UserSettings />);
         const password = "password";
         userSettings.find("FormField").findWhere(it => it.props().placeholder === "New password").find("input").simulate("change", { target: { value: password } });
@@ -38,7 +38,7 @@ describe("UserSettings", () => {
         expect(userSettings.state("error")).toBe(true);
     });
 
-    test("Submit with missing password", () => {
+    test.skip("Submit with missing password", () => {
         const userSettings = mount(<UserSettings />);
         const password = "password";
         userSettings.find("FormField").findWhere(it => it.props().placeholder === "Old password").find("input").simulate("change", { target: { value: "current password" } });
@@ -47,7 +47,7 @@ describe("UserSettings", () => {
         expect(userSettings.state("error")).toBe(true);
     });
 
-    test("Submit with missing repeated password", () => {
+    test.skip("Submit with missing repeated password", () => {
         const userSettings = mount(<UserSettings />);
         const password = "password";
         userSettings.find("FormField").findWhere(it => it.props().placeholder === "Old password").find("input").simulate("change", { target: { value: "current password" } });
@@ -56,7 +56,7 @@ describe("UserSettings", () => {
         expect(userSettings.state("error")).toBe(true);
     });
 
-    test("Submit with non-matching new passwords", () => {
+    test.skip("Submit with non-matching new passwords", () => {
         const userSettings = mount(<UserSettings />);
         const password = "password";
         userSettings.find("FormField").findWhere(it => it.props().placeholder === "Old password").find("input").simulate("change", { target: { value: "current password" } });

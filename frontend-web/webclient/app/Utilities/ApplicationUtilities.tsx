@@ -30,15 +30,11 @@ export const hpcApplicationsTagSearchQuery = (tag: string, page: number, itemsPe
 * @param {Application} Application the application to be favorited
 * @param {Cloud} cloud The cloud instance for requests
 */
-export const favoriteApplicationFromPage = (name: string, version: string, page: Page<Application>, cloud: Cloud): Page<Application> => {
-    const a = page.items.find(it => it.description.info.name === name && it.description.info.version === version);
-    if (a) {
-        // FIXME better error handling. Pass as callback, call on success?
-        cloud.post(hpcFavoriteApp(name, version)).catch(() => failureNotification(`An error ocurred favoriting ${name}`));
-        a.favorite = !a.favorite;
-    } else {
-        failureNotification("Application to favorite was not found.");
-    }
+export const favoriteApplicationFromPage = async (name: string, version: string, page: Page<Application>, cloud: Cloud): Promise<Page<Application>> => {
+    const a = page.items.find(it => it.description.info.name === name && it.description.info.version === version)!;
+    // FIXME better error handling. Pass as callback, call on success?
+    await cloud.post(hpcFavoriteApp(name, version)).catch(() => failureNotification(`An error ocurred favoriting ${name}`));
+    a.favorite = !a.favorite;
     return page;
 }
 

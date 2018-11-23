@@ -12,17 +12,16 @@ const EntriesPerPageSelectorOptions = [
 
 interface PaginationButtons { totalPages: number, currentPage: number, toPage: (p: number) => void }
 export function PaginationButtons({ totalPages, currentPage, toPage }: PaginationButtons) {
-    if (totalPages === 0) return null;
+    if (totalPages <= 1) return null;
     const pages = [...new Set([0, totalPages - 1, currentPage - 1, currentPage, currentPage + 1].sort((a, b) => a - b))];
-    console.log(pages);
     const buttons = pages.filter(i => i >= 0 && i < totalPages).map((it, i, arr) =>
         it - arr[i + 1] < -1 ? ( // If the two numbers do not immediately follow each other, insert ellipses
-            <>
+            <React.Fragment key={it}>
                 <PaginationButton onClick={() => toPage(it)}>{it + 1}</PaginationButton>
                 <PaginationButton onClick={() => undefined} unclickable>{"..."}</PaginationButton>
-            </>
+            </React.Fragment>
         ) : (
-                <PaginationButton unclickable={currentPage === it}  color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
+                <PaginationButton key={it} unclickable={currentPage === it}  color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
             )
     );
     return (
