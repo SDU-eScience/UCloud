@@ -88,7 +88,8 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
  * @returns the Delete operation in an array
  */
 export const MoveFileToTrashOperation = (onMoved: () => void): Operation[] => [
-    { text: "Move to Trash", onClick: (files: File[], cloud: Cloud) => moveToTrash(files, cloud, onMoved), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "trash", color: "red" }
+    { text: "Move to Trash", onClick: (files, cloud) => moveToTrash(files, cloud, onMoved), disabled: (files: File[], cloud: Cloud) => (!allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)) || files.every(({ path }) => inTrashDir(path, cloud))), icon: "trash", color: "red" },
+    { text: "Clear Trash", onClick: (files, cloud) => clearTrash(cloud, onMoved), disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder), icon: "trash", color: "red" }
 ];
 
 /**
@@ -217,6 +218,16 @@ export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback:
         }
     });
 
+
+export const clearTrash = (cloud: Cloud, callback: () => void) =>
+    clearTrashSwal().then((result: any) => {
+        if (result.dismiss) {
+            return;
+        } else {
+            cloud.post("/files/trash/clear", {}).then(() => callback ? callback() : null);
+        }
+    });
+
 export const getParentPath = (path: string): string => {
     if (path.length === 0) return path;
     let splitPath = path.split("/");
@@ -298,6 +309,16 @@ const moveToTrashSwal = (filePaths: string[]) => {
     });
 };
 
+export const clearTrashSwal = () => {
+    return swal({
+        title: "Empty trash?",
+        confirmButtonText: "Confirm",
+        type: "warning",
+        showCancelButton: true,
+        showCloseButton: true,
+    });
+};
+
 export const moveToTrash = (files: File[], cloud: Cloud, callback: () => void) => {
     const paths = files.map(f => f.path);
     moveToTrashSwal(paths).then((result: any) => {
@@ -324,3 +345,6 @@ export const createFolder = (path: string, cloud: Cloud, onSuccess: () => void) 
             onSuccess()
         }
     }).catch(() => UF.failureNotification("An error ocurred trying to creating the file."));
+
+
+const inTrashDir = (path: string, cloud: Cloud): boolean => getParentPath(path) === cloud.trashFolder;

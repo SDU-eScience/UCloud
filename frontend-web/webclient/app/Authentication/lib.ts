@@ -244,6 +244,10 @@ export default class SDUCloud {
         return `${this.homeFolder}Jobs/`
     }
 
+    get trashFolder(): string {
+        return `${this.homeFolder}Trash/`
+    }
+
 
     /**
      * @returns {string} the userrole. Null if none available in the JWT
