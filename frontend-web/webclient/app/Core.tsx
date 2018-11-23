@@ -9,13 +9,12 @@ import Header from "Navigation/Header";
 import Sidebar from "ui-components/Sidebar";
 import ZenodoPublish from "Zenodo/Publish";
 import * as Share from "Shares";
-import * as Metadata from "Metadata";
+import * as Project from "Project";
 import Activity from "Activity/Activity";
 import Uploader from "Uploader/Uploader";
 import { Box } from "ui-components";
 
 // use `const COMPNAME = React.lazy(() => import("${path}"));` when react router is updated
-import Projects from "Projects/Projects";
 import Search from "Search/Search";
 import FileInfo from "Files/FileInfo";
 import FilePreview from "Files/FilePreview";
@@ -39,12 +38,12 @@ const Core = () => (
                 <Route exact path="/" component={Dashboard} />
                 <Route exact path="/dashboard" component={Dashboard} />
 
-                <Route exact path="/files/info/*" component={FileInfo} />
+                <Route exact path="/files/info" component={FileInfo} />
                 <Route exact path="/files/preview/*" component={FilePreview} />
-                <Route path="/files/*" component={Files} />
+                <Route exact path="/files" component={Files} />
 
-                <Route exact path="/activity/*" component={Activity} />
-                <Route exact path="/status" component={Status} />s
+                <Route exact path="/activity" component={Activity} />
+                <Route exact path="/status" component={Status} />
 
                 <Route exact path="/applications" component={Applications} />
                 <Route exact path="/applications/details/:appName/:appVersion" component={DetailedApplication} />
@@ -58,16 +57,14 @@ const Core = () => (
 
                 <Route exact path="/shares" component={Share.List} />
 
-                <Route exact path="/projects" component={Projects} />
-                <Route exact path="/metadata/edit/*" component={Metadata.CreateUpdate} />
-                <Route exact path="/metadata/search/:query?" component={Metadata.Search} />
-                <Route exact path="/metadata/*" component={Metadata.ManagedView} />
+                <Route exact path="/projects/edit" component={Project.CreateUpdate} />
+                <Route exact path="/projects/view" component={Project.ManagedView} />
 
                 <Route exact path="/admin/usercreation" component={UserCreation} />
 
-                <Route exact path="/usersettings/settings" component={UserSettings} />
+                <Route exact path="/users/settings" component={UserSettings} />
 
-                <Route exact path="/simpleSearch/:priority/*" component={Search} />
+                <Route exact path="/search/:priority" component={Search} />
 
                 <Route component={NotFound} />
             </Switch>

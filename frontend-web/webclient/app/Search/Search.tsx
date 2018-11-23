@@ -2,8 +2,8 @@ import * as React from "react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { ApplicationCard } from "Applications/Applications";
-import { ProjectMetadata } from "Metadata/api";
-import { SearchItem } from "Metadata/Search";
+import { ProjectMetadata } from "Project/api";
+import { SearchItem } from "Project/Search";
 import { AllFileOperations } from "Utilities/FileUtilities";
 import { SearchProps, SimpleSearchOperations, SimpleSearchStateProps } from ".";
 import { HeaderSearchType, ReduxObject } from "DefaultObjects";
@@ -21,6 +21,14 @@ import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSe
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import { setAppName } from "Applications/Redux/DetailedApplicationSearchActions";
 import { FilesTable } from "Files/Files";
+import { searchPage } from "Utilities/SearchUtilities";
+import { getQueryParamOrElse } from "Utilities/URIUtilities";
+
+interface SearchPane {
+    headerType: HeaderSearchType
+    menuItem: string
+    render: () => JSX.Element
+}
 
 class Search extends React.Component<SearchProps> {
     constructor(props) {
@@ -29,12 +37,19 @@ class Search extends React.Component<SearchProps> {
 
     componentDidMount() {
         this.props.toggleAdvancedSearch();
-        if (!this.props.match.params[0]) { this.props.setError("No search text provided."); }
-        else {
-            this.props.setSearch(this.props.match.params[0]);
-            this.props.setPrioritizedSearch(this.props.match.params.priority as HeaderSearchType);
-            this.fetchAll(this.props.match.params[0]);
-        }
+
+        const query = this.query;
+        this.props.setSearch(query);
+        this.props.setPrioritizedSearch(this.props.match.params.priority as HeaderSearchType);
+        this.fetchAll(query);
+    }
+
+    queryFromProps = (props: SearchProps): string => {
+        return getQueryParamOrElse(props, "query", "");
+    }
+
+    get query(): string {
+        return this.queryFromProps(this.props);
     }
 
     get fileSearchBody(): AdvancedSearchRequest {
@@ -53,7 +68,7 @@ class Search extends React.Component<SearchProps> {
         };
 
         return {
-            fileName: !!fileSearch.fileName ? fileSearch.fileName : this.props.match.params[0],
+            fileName: !!fileSearch.fileName ? fileSearch.fileName : this.query,
             extensions: [...fileSearch.extensions],
             fileTypes,
             createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
@@ -66,20 +81,25 @@ class Search extends React.Component<SearchProps> {
     componentWillUnmount = () => this.props.toggleAdvancedSearch();
 
     shouldComponentUpdate(nextProps: SearchProps): boolean {
-        if (nextProps.match.params[0] !== this.props.match.params[0]) {
-            this.props.setSearch(nextProps.match.params[0]);
-            this.fetchAll(nextProps.match.params[0]);
+        // TODO It seems like a bad idea to perform side-effects in this method!
+        // It also _always_ returns true?
+
+        const currentQuery = this.query;
+        const nextQuery = this.queryFromProps(nextProps);
+        if (nextQuery !== currentQuery) {
+            this.props.setSearch(nextQuery);
+            this.fetchAll(nextQuery);
         }
         if (nextProps.match.params.priority !== this.props.match.params.priority) {
             this.props.setPrioritizedSearch(nextProps.match.params.priority as HeaderSearchType);
-            this.fetchAll(nextProps.match.params[0]);
+            this.fetchAll(nextQuery);
         }
         return true;
     }
 
     setPath = (text: string) => {
         this.props.setPrioritizedSearch(text as HeaderSearchType);
-        this.props.history.push(`/simplesearch/${text.toLocaleLowerCase()}/${this.props.search}`);
+        this.props.history.push(searchPage(text.toLocaleLowerCase(), this.props.search));
     }
 
     fetchAll(search: string) {
@@ -92,16 +112,18 @@ class Search extends React.Component<SearchProps> {
 
     search() {
         if (!this.props.search) return;
-        this.props.history.push(`/simplesearch/${this.props.match.params.priority}/${this.props.search}`);
+        this.props.history.push(searchPage(this.props.match.params.priority, this.props.search));
     }
 
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
         const fileOperations = AllFileOperations(true, false, false, this.props.history);
-        // FIXME Following is format from Semantic we no longer use.
-        const panes = [
+
+        const panes: SearchPane[] = [
             {
-                menuItem: "Files", render: () => (
+                headerType: "files",
+                menuItem: "Files", 
+                render: () => (
                     <Pagination.List
                         loading={filesLoading}
                         pageRenderer={page => (
@@ -119,10 +141,13 @@ class Search extends React.Component<SearchProps> {
                         page={files}
                         onItemsPerPageChanged={itemsPerPage => this.props.searchFiles({ ...this.fileSearchBody, page: 0, itemsPerPage })}
                         onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
-                    />)
+                    />
+                )
             },
             {
-                menuItem: "Projects", render: () => (
+                headerType: "projects",
+                menuItem: "Projects", 
+                render: () => (
                     <Pagination.List
                         loading={projectsLoading}
                         pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
@@ -133,7 +158,9 @@ class Search extends React.Component<SearchProps> {
                 )
             },
             {
-                menuItem: "Applications", render: () => (
+                headerType: "applications",
+                menuItem: "Applications", 
+                render: () => (
                     <Pagination.List
                         loading={applicationsLoading}
                         pageRenderer={({ items }) =>
@@ -155,6 +182,20 @@ class Search extends React.Component<SearchProps> {
             }
         ];
         const activeIndex = SearchPriorityToNumber(this.props.match.params.priority);
+
+        const Tab = ({ pane, index }: { pane: SearchPane, index: number }): JSX.Element => (
+            <ToggleBadge 
+                bg="lightGray" 
+                pb="12px" 
+                pt="10px" 
+                fontSize={2} 
+                onClick={() => this.setPath(pane.headerType)} 
+                color={"black"} 
+                selected={activeIndex === index}
+            >
+                {pane.menuItem}
+            </ToggleBadge>
+        );
         return (
             <MainContainer
                 header={
@@ -167,9 +208,7 @@ class Search extends React.Component<SearchProps> {
                         </Hide>
                         <Card mt="0.5em" height="3em" width="100%">
                             <Flex>
-                                <ToggleBadge bg="lightGray" pb="12px" pt="10px" fontSize={2} onClick={() => this.setPath("files")} color={"black"} selected={activeIndex === 0}>{panes[0].menuItem}</ToggleBadge>
-                                <ToggleBadge bg="lightGray" pb="12px" pt="10px" fontSize={2} onClick={() => this.setPath("projects")} color={"black"} selected={activeIndex === 1}>{panes[1].menuItem}</ToggleBadge>
-                                <ToggleBadge bg="lightGray" pb="12px" pt="10px" fontSize={2} onClick={() => this.setPath("applications")} color={"black"} selected={activeIndex === 2}>{panes[2].menuItem}</ToggleBadge>
+                                {panes.map((pane, index) => <Tab pane={pane} index={index} key={index} />)}
                             </Flex>
                         </Card>
                     </React.Fragment>

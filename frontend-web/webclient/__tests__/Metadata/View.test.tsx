@@ -1,5 +1,5 @@
 import * as React from "react";
-import { View } from "Metadata/View";
+import { View } from "Project/View";
 import { create } from "react-test-renderer";
 import { metadata } from "../mock/Metadata";
 import { MemoryRouter } from "react-router";

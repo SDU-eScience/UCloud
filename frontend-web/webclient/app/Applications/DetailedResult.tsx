@@ -12,7 +12,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { ReduxObject, DetailedResultReduxObject } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations } from ".";
 import { File, SortBy, SortOrder } from "Files";
-import { AllFileOperations } from "Utilities/FileUtilities";
+import { AllFileOperations, fileTablePage } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
 import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 import { History } from "history";
@@ -172,8 +172,9 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 domEntries.push(
                     <List.Item key="app-info itemPadding" className="itemPadding">
                         <List.Content>
-                            Application has completed successfully. Click <Link
-                                to={`/files//home/${Cloud.username}/Jobs/${this.jobId}`}> here</Link> to go to the output.
+                            Application has completed successfully. Click 
+                            <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}> here</Link> 
+                            to go to the output.
                             </List.Content>
                     </List.Item >
                 );

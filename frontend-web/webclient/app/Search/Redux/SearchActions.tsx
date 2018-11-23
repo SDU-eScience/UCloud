@@ -3,7 +3,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { Page, PayloadAction } from "Types";
 import { File, AdvancedSearchRequest } from "Files";
 import { Application } from "Applications";
-import { ProjectMetadata, simpleSearch } from "Metadata/api";
+import { ProjectMetadata, simpleSearch } from "Project/api";
 import { hpcApplicationsSearchQuery } from "Utilities/ApplicationUtilities";
 import { advancedFileSearch } from "Utilities/FileUtilities";
 

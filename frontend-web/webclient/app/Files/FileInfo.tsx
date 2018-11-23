@@ -23,21 +23,27 @@ interface FileInfoOperations {
     updateFiles: (page: Page<File>) => void
 }
 
-
-
 class FileInfo extends React.Component<FileInfoProps & FileInfoOperations, FileInfoState> {
     constructor(props) {
         super(props);
         this.state = { activity: emptyPage };
     }
 
-    get path(): string { return this.props.match.params[0]; }
+    get queryParams(): URLSearchParams {
+        return new URLSearchParams(this.props.location.search);
+    }
+
+    get path(): string { 
+        const param = this.queryParams.get("path"); 
+        return param ? removeTrailingSlash(param) : "";
+    }
 
     componentDidMount() {
         const { filesPath, loading, page } = this.props;
         this.props.updatePageTitle();
         // FIXME: Either move to promiseKeeper, or redux store
-        Cloud.get(`/activity/stream/by-path?path=${this.path}`).then(({ response }) => this.setState({ activity: response }));
+        Cloud.get(`/activity/stream/by-path?path=${encodeURI(this.path)}`).then(({ response }) => this.setState({ activity: response }));
+
         if (!(getParentPath(this.path) === filesPath)) {
             this.props.setLoading(true);
             if (loading) return;

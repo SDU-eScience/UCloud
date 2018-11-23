@@ -10,6 +10,7 @@ import { Activity } from "Activity";
 import { IconName } from "ui-components/Icon";
 import { ComponentWithPage } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
+import { RouterLocationProps } from "Utilities/URIUtilities";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -52,8 +53,7 @@ export enum SortBy {
     SENSITIVITY = "SENSITIVITY"
 }
 
-export interface FilesProps extends FilesStateProps, FilesOperations {
-    match: match
+export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps {
     history: History
 }
 
@@ -283,7 +283,7 @@ export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconNa
 export interface FileInfoProps {
     page: Page<File>
     loading: boolean
-    match: { params: string[] }
+    location: { pathname: string, search: string }
     filesPath: string
 }
 

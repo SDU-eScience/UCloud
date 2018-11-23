@@ -11,6 +11,7 @@ import CloseButton from "ui-components/CloseButton";
 import { ReduxObject } from "DefaultObjects";
 import { Dispatch } from "redux";
 import { History } from "history";
+import { searchPage } from "Utilities/SearchUtilities";
 import * as PropTypes from "prop-types";
 
 class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
@@ -73,7 +74,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
             itemsPerPage: 25,
             page: 0
         }
-        this.props.fetchPage(request, () => this.context.router.history.push(`/simplesearch/files/${this.props.fileName}`));
+        this.props.fetchPage(request, () => this.context.router.history.push(searchPage("files", this.props.fileName)));
         this.props.setLoading(true);
     }
 

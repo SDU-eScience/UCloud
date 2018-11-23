@@ -55,7 +55,7 @@ exports[`View component Mount view 1`] = `
           role="listitem"
         >
           <a
-            href="/metadata/edit//home/jonas@hinchely.dk/The Project"
+            href="/project/edit//home/jonas@hinchely.dk/The Project"
             onClick={[Function]}
           >
             <div

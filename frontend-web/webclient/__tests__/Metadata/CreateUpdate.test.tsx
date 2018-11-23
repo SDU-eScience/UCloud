@@ -1,6 +1,6 @@
 import * as React from "react";
 import { create } from "react-test-renderer";
-import { CreateUpdate } from "Metadata/CreateUpdate";
+import { CreateUpdate } from "Project/CreateUpdate";
 import { createMemoryHistory } from "history";
 import { Provider } from "react-redux";
 import { configureStore } from "Utilities/ReduxUtilities";
@@ -12,7 +12,7 @@ describe("CreateUpdate Component", () => {
         expect(create(
             <Provider store={configureStore({ status: initStatus() }, { status })}>
                 <CreateUpdate
-                    match={{ params: { 0: "" }, isExact: true, path: "", url: "" }}
+                    location={{ search: "?" }}
                     history={createMemoryHistory()}
                 />
             </Provider>

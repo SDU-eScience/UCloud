@@ -8,7 +8,7 @@ import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { PP } from "UtilityComponents";
-
+import { fileTablePage } from "Utilities/FileUtilities";
 
 const SideBarContainer = styled(Flex)`
     position: fixed;
@@ -63,7 +63,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, auditing: Side
     general: {
         items: [
             { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
-            { icon: "files", label: "Files", to: `/files/${Cloud.homeFolder}` },
+            { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
             { icon: "shares", label: "Shares", to: "/shares/" },
             { icon: "apps", label: "Apps", to: "/applications/" },
             { icon: "information", label: "Job Results", to: "/applications/results/" },

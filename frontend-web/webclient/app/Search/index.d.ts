@@ -3,13 +3,14 @@ import PromiseKeeper from "PromiseKeeper";
 import { Page } from "Types";
 import { Application, DetailedApplicationSearchReduxState } from "Applications";
 import { File, DetailedFileSearchReduxState, AdvancedSearchRequest } from "Files";
-import { ProjectMetadata } from "Metadata/api";
+import { ProjectMetadata } from "Project/api";
 import { History } from "history";
 import { Dispatch } from "redux";
 import { HeaderSearchType } from "DefaultObjects";
+import { RouterLocationProps } from "Utilities/URIUtilities";
 
-export interface SearchProps extends SimpleSearchOperations, SimpleSearchStateProps {
-    match: match<{ 0: string, priority: string }>
+export interface SearchProps extends SimpleSearchOperations, SimpleSearchStateProps, RouterLocationProps {
+    match: match<{ priority: string }>
     history: History
 }
 

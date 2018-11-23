@@ -50,7 +50,7 @@ exports[`Sidebar Mobile Mount sidebar 1`] = `
         >
           <a
             className="sidebar-option"
-            href="/files//home/test@test.dk/"
+            href="/files?path=/home/test@test.dk/"
             onClick={[Function]}
           >
             <div

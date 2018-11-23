@@ -4,7 +4,7 @@ import { Button } from "ui-components";
 
 
 
-const zenodoRedirectPath = (returnTo: string) => `/zenodo/request?returnTo=${returnTo}`;
+const zenodoRedirectPath = (returnTo: string) => `/zenodo/request?returnTo=${encodeURI(returnTo)}`;
 
 const ZenodoRedirect = () =>
     Cloud.post(zenodoRedirectPath(window.location.href)).then(({ response }) => {

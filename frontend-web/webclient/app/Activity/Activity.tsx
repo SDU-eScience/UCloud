@@ -11,6 +11,7 @@ import { ActivityReduxObject } from "DefaultObjects";
 import { fetchActivity, setErrorMessage, setLoading } from "./Redux/ActivityActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Dispatch } from "redux";
+import { fileInfoPage } from "Utilities/FileUtilities";
 
 class Activity extends React.Component<ActivityProps> {
 
@@ -62,7 +63,7 @@ const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
         extraText={activity.entries.map((entry, i) => !!entry.path ?
             (<div key={i}>
                 <b>
-                    <Link to={`/files/info/${entry.path}`}>{getFilenameFromPath(entry.path)}</Link>
+                    <Link to={fileInfoPage(entry.path)}>{getFilenameFromPath(entry.path)}</Link>
                 </b> was <b>{operationToPastTense(activity.operation)}</b> {entry.count === 1 ? "once" : <><b>{entry.count}</b> times</>}</div>) : null
         )}
     />
@@ -76,7 +77,7 @@ const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
         extraText={activity.files.map((f, i) => !!f.path ?
             (<div key={i}>
                 <b>
-                    <Link to={`/files/info/${f.path}`}>{getFilenameFromPath(f.path)}</Link>
+                    <Link to={fileInfoPage(f.path)}>{getFilenameFromPath(f.path)}</Link>
                 </b> was <b>{operationToPastTense(activity.operation)}</b>
             </div>) : null
         )}
@@ -87,7 +88,7 @@ const operationToPastTense = (operation: TrackedOperations | CountedOperations):
     if (operation === "MOVED") return "moved";
     if (operation === "REMOVE_FAVORITE") return "unfavorited"
     if ((operation as string).endsWith("E")) return `${(operation as string).toLowerCase()}d`;
-    return `${operation}ed`;
+    return `${operation.toLowerCase()}ed`;
 }
 interface EventIconAndColor { icon: SemanticICONS, color: SemanticCOLORS }
 const eventIcon = (operation: TrackedOperations | CountedOperations): EventIconAndColor => {

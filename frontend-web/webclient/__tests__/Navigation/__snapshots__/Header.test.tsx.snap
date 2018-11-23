@@ -578,7 +578,7 @@ exports[`Header Mount header 1`] = `
         </div>
         <a
           className="item"
-          href="/usersettings/settings"
+          href="/users/settings"
           onClick={[Function]}
           role="option"
         >
