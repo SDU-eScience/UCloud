@@ -43,7 +43,7 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
         this.setState(() => ({ loading: true }));
         const { appName, appVersion } = this.props.match.params;
         const { promises } = this.state;
-        promises.makeCancelable(Cloud.get(`/hpc/apps/${appName}/${appVersion}`))
+        promises.makeCancelable(Cloud.get(`/hpc/apps/${encodeURI(appName)}/${encodeURI(appVersion)}`))
             .promise.then(({ response }: { response: ApplicationInformation }) =>
                 this.setState(() => ({
                     appInformation: response,

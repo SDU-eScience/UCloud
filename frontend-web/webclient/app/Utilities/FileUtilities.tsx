@@ -18,7 +18,7 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
         files.forEach((f) => {
             const currentPath = f.path;
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
-            cloud.post(`/files/copy?path=${currentPath}&newPath=${newPathForFile}`).then(() => i++)
+            cloud.post(`/files/copy?path=${encodeURI(currentPath)}&newPath=${encodeURI(newPathForFile)}`).then(() => i++)
                 .catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`))
                 .finally(() => {
                     if (i === files.length) {
@@ -39,7 +39,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud
         files.forEach((f) => {
             const currentPath = f.path;
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
-            cloud.post(`/files/move?path=${currentPath}&newPath=${newPathForFile}`).then(() => {
+            cloud.post(`/files/move?path=${encodeURI(currentPath)}&newPath=${encodeURI(newPathForFile)}`).then(() => {
                 const fromPath = getFilenameFromPath(currentPath);
                 const toPath = replaceHomeFolder(newPathForFile, cloud.homeFolder);
                 UF.successNotification(`${fromPath} moved to ${toPath}`);
@@ -343,7 +343,7 @@ export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => vo
 };
 
 export const moveFile = (oldPath: string, newPath: string, cloud: Cloud, onSuccess: () => void) =>
-    cloud.post(`/files/move?path=${oldPath}&newPath=${newPath}`).then(({ request }) => {
+    cloud.post(`/files/move?path=${encodeURI(oldPath)}&newPath=${encodeURI(newPath)}`).then(({ request }) => {
         if (UF.inSuccessRange(request.status)) {
             onSuccess()
         }

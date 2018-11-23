@@ -12,7 +12,7 @@ describe("CreateUpdate Component", () => {
         expect(create(
             <Provider store={configureStore({ status: initStatus() }, { status })}>
                 <CreateUpdate
-                    match={{ params: { 0: "" }, isExact: true, path: "", url: "" }}
+                    location={{ search: "?" }}
                     history={createMemoryHistory()}
                 />
             </Provider>

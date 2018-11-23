@@ -70,7 +70,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                 <ClickableDropdown left={"-100%"} trigger={<Flex><UserAvatar /></Flex>}>
                     <Box style={{ backgroundColor: "unset" }}>Welcome, {Cloud.userInfo.firstNames}</Box>
                     <Divider />
-                    <Link color="black" to={"/usersettings/settings"}>
+                    <Link color="black" to={"/users/settings"}>
                         <i className="fas fa-cogs" />
                         Settings
                     </Link>

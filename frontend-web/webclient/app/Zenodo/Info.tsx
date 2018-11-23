@@ -42,7 +42,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
 
     reload = () => {
         const { promises } = this.state;
-        promises.makeCancelable(Cloud.get(`/zenodo/publications/${this.state.publicationID}`))
+        promises.makeCancelable(Cloud.get(`/zenodo/publications/${encodeURI(this.state.publicationID)}`))
             .promise.then(({ response }) => {
                 this.setState(() => ({
                     publication: response,

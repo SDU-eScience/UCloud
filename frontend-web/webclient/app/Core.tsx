@@ -62,7 +62,7 @@ const Core = () => (
 
                 <Route exact path="/admin/usercreation" component={UserCreation} />
 
-                <Route exact path="/usersettings/settings" component={UserSettings} />
+                <Route exact path="/users/settings" component={UserSettings} />
 
                 <Route exact path="/search/:priority" component={Search} />
 
