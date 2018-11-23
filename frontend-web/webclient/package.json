@@ -14,7 +14,8 @@
       "app"
     ],
     "transform": {
-      "^.+\\.tsx?$": "ts-jest"
+      "^.+\\.tsx?$": "ts-jest",
+      "^.+\\.js$": "babel-jest"
     },
     "moduleNameMapper": {
       "^.+\\.png$": "file-loader",
@@ -28,7 +29,12 @@
       "jsx",
       "json",
       "node"
-    ]
+    ],
+    "globals": {
+      "ts-jest": {
+        "ts-config": "tsconfig.json"
+      }
+    }
   },
   "scripts": {
     "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
