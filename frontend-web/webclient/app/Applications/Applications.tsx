@@ -169,7 +169,6 @@ function hexFromAppName(name: string): string {
     const hashCode = toHashCode(name);
     const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
     const mClength = MaterialColors[color].length;
-    console.warn(MaterialColors[color][(hashCode % mClength)]);
     return MaterialColors[color][(hashCode % mClength)];
 }
 

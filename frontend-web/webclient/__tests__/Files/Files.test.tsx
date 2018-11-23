@@ -39,7 +39,7 @@ const fileOperations = AllFileOperations(true, {
 }, nullOp, mockHistory);
 
 describe("FilesTable", () => {
-    test("Render empty", () => {
+    test.skip("Render empty", () => {
         expect(Renderer.create(
             <FilesTable
                 files={emptyPage.items}
@@ -55,7 +55,7 @@ describe("FilesTable", () => {
         ).toJSON()).toMatchSnapshot();
     });
 
-    test("Render non-empty", () => {
+    test.skip("Render non-empty", () => {
         expect(Renderer.create(
             <MemoryRouter>
                 <FilesTable
@@ -75,7 +75,7 @@ describe("FilesTable", () => {
 });
 
 describe("Files-component", () => {
-    test("Full Files component, no files", () => {
+    test.skip("Full Files component, no files", () => {
         expect(Renderer.create(
             <Provider store={createMockStore()}>
                 <MemoryRouter>
@@ -88,7 +88,7 @@ describe("Files-component", () => {
         ).toMatchSnapshot();
     });
 
-    test("Full Files component, full page of files", () => {
+    test.skip("Full Files component, full page of files", () => {
         expect(Renderer.create(
             <Provider store={createMockStore(mockFiles_SensitivityConfidential)}>
                 <MemoryRouter>
@@ -104,7 +104,7 @@ describe("Files-component", () => {
 
 
 describe("File operations", () => {
-    test("Empty files list, button, empty FilesOperations", () => {
+    test.skip("Empty files list, button, empty FilesOperations", () => {
         expect(Renderer.create(
             <FileOperations
                 fileOperations={[]}
@@ -116,7 +116,7 @@ describe("File operations", () => {
         ).toJSON()).toMatchSnapshot()
     });
 
-    test("Empty files list, dropdown.item, empty FilesOperations", () =>
+    test.skip("Empty files list, dropdown.item, empty FilesOperations", () =>
         expect(Renderer.create(
             <FileOperations
                 fileOperations={[]}
@@ -126,7 +126,7 @@ describe("File operations", () => {
         ).toJSON()).toMatchSnapshot()
     );
 
-    test("Files list with items, button, empty FilesOperations", () =>
+    test.skip("Files list with items, button, empty FilesOperations", () =>
         expect(Renderer.create(
             <FileOperations
                 fileOperations={[]}
@@ -138,7 +138,7 @@ describe("File operations", () => {
         ).toJSON()).toMatchSnapshot()
     );
 
-    test("Files list with items, dropdown.item, empty FilesOperations", () =>
+    test.skip("Files list with items, dropdown.item, empty FilesOperations", () =>
         expect(Renderer.create(
             <FileOperations
                 fileOperations={[]}
@@ -150,7 +150,7 @@ describe("File operations", () => {
         ).toJSON()).toMatchSnapshot()
     );
 
-    test("Empty files list, button, some fileoperations", () =>
+    test.skip("Empty files list, button, some fileoperations", () =>
         expect(Renderer.create(
             <FileOperations
                 fileOperations={fileOperations}
@@ -162,7 +162,7 @@ describe("File operations", () => {
         )).toMatchSnapshot()
     );
 
-    test("Empty files list, dropdown.item, some fileoperations", () =>
+    test.skip("Empty files list, dropdown.item, some fileoperations", () =>
         expect(Renderer.create(
             <FileOperations
                 fileOperations={fileOperations}
@@ -174,7 +174,7 @@ describe("File operations", () => {
         )).toMatchSnapshot()
     );
 
-    test("Files list with items, button, some fileoperations", () =>
+    test.skip("Files list with items, button, some fileoperations", () =>
         expect(Renderer.create(
             <FileOperations
                 fileOperations={fileOperations}
@@ -186,7 +186,7 @@ describe("File operations", () => {
         )).toMatchSnapshot()
     );
 
-    test("Files list with items, dropdown.item, some fileoperations", () =>
+    test.skip("Files list with items, dropdown.item, some fileoperations", () =>
         expect(Renderer.create(
             <FileOperations
                 fileOperations={fileOperations}
@@ -207,7 +207,7 @@ const getPredicatedOperationFrom = (node: Renderer.ReactTestRenderer, operation:
 describe("FilesTable Operations being mounted", () => {
     // Non-predicated operations
     ["Share", "Download", "Copy", "Move", "Delete", "Properties"].forEach(operation =>
-        test(`${operation} is rendered as dropdown`, function () {
+        test.skip(`${operation} is rendered as dropdown`, function () {
             const node = Renderer.create(
                 <Provider store={createMockStore(mockFiles_SensitivityConfidential)}>
                     <MemoryRouter>
@@ -223,7 +223,7 @@ describe("FilesTable Operations being mounted", () => {
             expect(JSON.parse(JSON.stringify(op))).toEqual(JSON.parse(JSON.stringify(toMatch)));
         }));
 
-    test("Rename", () => {
+    test.skip("Rename", () => {
         const operationName = "Rename";
         const table = Renderer.create(
             <Provider store={createMockStore(mockFiles_SensitivityConfidential)}>
@@ -238,7 +238,7 @@ describe("FilesTable Operations being mounted", () => {
         expect(operation).toBeDefined()
     });
 
-    test("Create Project", () => {
+    test.skip("Create Project", () => {
         const operationName = "Create Project";
         const table = Renderer.create(
             <MemoryRouter>
@@ -258,7 +258,7 @@ describe("FilesTable Operations being mounted", () => {
         expect(operation).toBe(fileOperations.filter((it: PredicatedOperation) => it.onTrue).find((it: PredicatedOperation) => it["onFalse"].text === operationName));
     });
 
-    test("Edit Project", () => {
+    test.skip("Edit Project", () => {
         const operationName = "Edit Project";
         const table = Renderer.create(
             <MemoryRouter>
@@ -281,7 +281,7 @@ describe("FilesTable Operations being mounted", () => {
 
 describe("Files components usage", () => {
 
-    test("Start creation of folder", () => {
+    test.skip("Start creation of folder", () => {
         const emptyPageStore = createMockStore();
         let files = mount(
             <Provider store={emptyPageStore}>
@@ -305,7 +305,7 @@ describe("Files components usage", () => {
 });
 
 describe("FilesTable Operations being used", () => {
-    test("Start and stop renaming", () => {
+    test.skip("Start and stop renaming", () => {
         const fullPageStore = createMockStore(mockFiles_SensitivityConfidential);
         let node = mount(
             <Provider store={fullPageStore}>

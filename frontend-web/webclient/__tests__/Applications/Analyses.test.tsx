@@ -20,7 +20,7 @@ describe("Analyses component", () => {
             </Provider>).toJSON()).toMatchSnapshot();
     });
 
-    test("Mount component with non-empty page", () => {
+    test.skip("Mount component with non-empty page", () => {
         const store = configureStore({ analyses: initAnalyses() }, { analyses })
         store.getState().analyses.page = analysesPage;
         expect(create(

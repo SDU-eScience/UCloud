@@ -16,7 +16,7 @@ configure({ adapter: new Adapter() });
 const store = configureStore({ files: initFiles("/home/person@place.tv") }, { files });
 
 describe("DetailedFileSearch", () => {
-    test("Detailed File Search component", () => {
+    test.skip("Detailed File Search component", () => {
         expect(Renderer.create(
             <Provider store={store}>
                 <DetailedFileSearch />
@@ -24,7 +24,7 @@ describe("DetailedFileSearch", () => {
         ).toJSON()).toMatchSnapshot();
     });
 
-    test("Add filename", () => {
+    test.skip("Add filename", () => {
         const filename = "nom de file";
         const detailedFileSearchWrapper = mount(
             <Provider store={store}>
@@ -36,7 +36,7 @@ describe("DetailedFileSearch", () => {
         expect(detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).state("fileName")).toBe(filename);
     });
 
-    test("Add dates to fields", () => {
+    test.skip("Add dates to fields", () => {
         const m = moment();
         const detailedFileSearchWrapper = mount(
             <Provider store={store}>
@@ -51,7 +51,7 @@ describe("DetailedFileSearch", () => {
         expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).state("modifiedAfter"))).toEqual(m);
     });
 
-    test("Add date, causing one field to disappear, and render an error message", () => {
+    test.skip("Add date, causing one field to disappear, and render an error message", () => {
         const m1 = moment(new Date());
         const m2 = moment(new Date(new Date().getMilliseconds() - 500));
         const detailedFileSearchWrapper = mount(
@@ -67,7 +67,7 @@ describe("DetailedFileSearch", () => {
         // FIXME When error messages are better handled for detailedFileSearch, dismiss error;
     });
 
-    test("Deselect folder and file checkboxes", () => {
+    test.skip("Deselect folder and file checkboxes", () => {
         const detailedFileSearch = mount(
             <Provider store={store}>
                 <DetailedFileSearch />
@@ -90,7 +90,7 @@ describe("DetailedFileSearch", () => {
         expect((detailedFileSearch.find(DetailedFileSearch).childAt(0).state()).allowFiles).toBe(true);
     });
 
-    test("Add sensitivities, clear one, clear all", () => {
+    test.skip("Add sensitivities, clear one, clear all", () => {
         const detailedFileSearchWrapper = mount(
             <Provider store={store}>
                 <DetailedFileSearch />
@@ -112,7 +112,7 @@ describe("DetailedFileSearch", () => {
 
     });
 
-    test("Add extensions, clear one, clear all", () => {
+    test.skip("Add extensions, clear one, clear all", () => {
         const extensions = ".ext1 .ext2";
         const detailedFileSearchWrapper = mount(
             <Provider store={store}>
@@ -126,11 +126,11 @@ describe("DetailedFileSearch", () => {
 
     });
 
-    test("Add extensions from presets, clear one, clear all", () => {
+    test.skip("Add extensions from presets, clear one, clear all", () => {
         // FIXME
     });
 
-    test("Add tag filename, clear one, clear all", () => {
+    test.skip("Add tag filename, clear one, clear all", () => {
         // FIXME
     });
 });

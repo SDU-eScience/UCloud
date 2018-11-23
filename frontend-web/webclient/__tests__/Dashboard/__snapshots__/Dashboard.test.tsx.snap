@@ -329,7 +329,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               onClick={[Function]}
               style={
                 Object {
-                  "color": "blue",
+                  "color": "#0055d5",
                   "verticalAlign": "middle",
                 }
               }
@@ -631,7 +631,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               onClick={[Function]}
               style={
                 Object {
-                  "color": "blue",
+                  "color": "#0055d5",
                   "verticalAlign": "middle",
                 }
               }
@@ -933,7 +933,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               onClick={[Function]}
               style={
                 Object {
-                  "color": "blue",
+                  "color": "#0055d5",
                   "verticalAlign": "middle",
                 }
               }
@@ -1235,7 +1235,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               onClick={[Function]}
               style={
                 Object {
-                  "color": "blue",
+                  "color": "#0055d5",
                   "verticalAlign": "middle",
                 }
               }
@@ -1537,7 +1537,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               onClick={[Function]}
               style={
                 Object {
-                  "color": "blue",
+                  "color": "#0055d5",
                   "verticalAlign": "middle",
                 }
               }
@@ -1839,7 +1839,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               onClick={[Function]}
               style={
                 Object {
-                  "color": "blue",
+                  "color": "#0055d5",
                   "verticalAlign": "middle",
                 }
               }
@@ -2141,7 +2141,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               onClick={[Function]}
               style={
                 Object {
-                  "color": "blue",
+                  "color": "#0055d5",
                   "verticalAlign": "middle",
                 }
               }
@@ -2443,7 +2443,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               onClick={[Function]}
               style={
                 Object {
-                  "color": "blue",
+                  "color": "#0055d5",
                   "verticalAlign": "middle",
                 }
               }
@@ -2745,7 +2745,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               onClick={[Function]}
               style={
                 Object {
-                  "color": "blue",
+                  "color": "#0055d5",
                   "verticalAlign": "middle",
                 }
               }
@@ -3047,7 +3047,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               onClick={[Function]}
               style={
                 Object {
-                  "color": "blue",
+                  "color": "#0055d5",
                   "verticalAlign": "middle",
                 }
               }

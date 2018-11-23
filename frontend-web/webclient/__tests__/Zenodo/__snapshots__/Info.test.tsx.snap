@@ -2,7 +2,6 @@
 
 exports[`Zenodo Info Mount component 1`] = `
 <i
-  aria-hidden="true"
-  className="circle notched loading icon ui container"
+  className="fas fa-circle-notch fa-spin"
 />
 `;
