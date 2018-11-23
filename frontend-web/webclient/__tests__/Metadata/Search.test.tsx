@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Search } from "Metadata/Search";
+import { Search } from "Project/Search";
 import { MemoryRouter } from "react-router";
 import { configure, mount } from "enzyme";
 import * as PropTypes from "prop-types";

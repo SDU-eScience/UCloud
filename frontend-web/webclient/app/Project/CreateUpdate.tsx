@@ -7,6 +7,8 @@ import { blankOrUndefined } from "UtilityFunctions";
 import * as PropTypes from "prop-types";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
+import { getQueryParam } from "Utilities/URIUtilities";
+import { projectViewPage } from "Utilities/ProjectUtilities";
 
 const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -35,10 +37,14 @@ const identifierHasValue = (identifier: RelatedIdentifier): boolean => {
     );
 };
 
+const filePathFromProps = (props: CreateUpdateProps): string | null => {
+    return getQueryParam(props, "filePath");
+}
+
 export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     constructor(props, ctx) {
         super(props);
-        const path = props.match.params[0];
+        const path = filePathFromProps(props);
         this.state = {
             path,
             title: "",
@@ -93,8 +99,8 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     };
 
     shouldComponentUpdate(nextProps, _nextState) {
-        if (nextProps.match.params[0] !== this.state.path) {
-            const path = nextProps.match.params[0];
+        const path = filePathFromProps(nextProps);
+        if (!!path && path !== this.state.path) {
             getByPath(path).then(it => this.setMetadata(it, path))
         }
         return true;
@@ -126,7 +132,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
             };
 
             updateById(payload)
-                .then(it => this.props.history.push(`/metadata/${this.state.path}`))
+                .then(it => this.props.history.push(projectViewPage(this.state.path)))
                 .catch(it => console.warn("Failure!", it));
         }
     }

@@ -2,8 +2,8 @@ import * as React from "react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { ApplicationCard } from "Applications/Applications";
-import { ProjectMetadata } from "Metadata/api";
-import { SearchItem } from "Metadata/Search";
+import { ProjectMetadata } from "Project/api";
+import { SearchItem } from "Project/Search";
 import { AllFileOperations } from "Utilities/FileUtilities";
 import { SearchProps, SimpleSearchOperations, SimpleSearchStateProps } from ".";
 import { HeaderSearchType, ReduxObject } from "DefaultObjects";
@@ -118,7 +118,6 @@ class Search extends React.Component<SearchProps> {
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
         const fileOperations = AllFileOperations(true, false, false, this.props.history);
-        // FIXME Following is format from Semantic we no longer use.
 
         const panes: SearchPane[] = [
             {

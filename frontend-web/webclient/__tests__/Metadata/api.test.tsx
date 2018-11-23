@@ -1,4 +1,4 @@
-import * as API from "Metadata/api";
+import * as API from "Project/api";
 
 // Force API into code coverage without actually testing
 describe("Metadata API", () => {

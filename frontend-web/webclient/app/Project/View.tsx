@@ -14,10 +14,16 @@ import {
     Popup,
     Grid
 } from "semantic-ui-react";
+import { getQueryParam, RouterLocationProps } from "Utilities/URIUtilities";
+import { projectEditPage } from "Utilities/ProjectUtilities";
 
 interface ViewProps {
     metadata: ProjectMetadata
     canEdit?: boolean
+}
+
+const filePathFromProps = (props: RouterLocationProps): string | null => {
+    return getQueryParam(props, "filePath");
 }
 
 export const View = (props: ViewProps) => {
@@ -51,7 +57,7 @@ export const View = (props: ViewProps) => {
                         </Header>
                         <List>
                             <List.Item>
-                                <Link to={`/metadata/edit/${metadata.sduCloudRoot}`}>
+                                <Link to={projectEditPage(metadata.sduCloudRoot)}>
                                     <Label color='blue' className="metadata-detailed-tag">
                                         <Icon name='edit' />
                                         Edit
@@ -67,13 +73,6 @@ export const View = (props: ViewProps) => {
                     <Header.Content>About</Header.Content>
                 </Header>
                 <List>
-                    <List.Item>
-                        <Label color='green' className="metadata-detailed-tag">
-                            <Icon name='folder open' />
-                            Open Access
-                        </Label>
-                    </List.Item>
-
                     {license ?
                         <List.Item>
                             <a href={license.link} target="_blank">
@@ -193,11 +192,15 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
         super(props);
         this.state = {}
     }
-    
+
     // TODO This is not the correct place to do this!
     componentDidMount() {
-        const urlPath = this.props.match.params[0];
+        const urlPath = filePathFromProps(this.props as RouterLocationProps);
         if (!!this.state.metadata) return;
+        if (!urlPath) {
+            console.warn("TODO Not found");
+            return;
+        }
 
         getByPath(urlPath)
             .then(it => this.setState(() => ({ metadata: handleNullArrays(it.metadata), canEdit: it.canEdit })))

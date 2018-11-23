@@ -263,7 +263,7 @@ export const createProject = (filePath: string, cloud: Cloud, navigate: (path: s
     }).catch(() => failureNotification(`An error occurred creating project ${filePath}`));
 
 const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) => void, remainingTries: number) => {
-    cloud.get(`/metadata/by-path?path=${path}`).then(() => navigate(path)).catch(_ => {
+    cloud.get(`/metadata/by-path?path=${encodeURI(path)}`).then(() => navigate(path)).catch(_ => {
         remainingTries > 0 ?
             setTimeout(() => redirectToProject(path, cloud, navigate, remainingTries - 1), 400) :
             successNotification(`Project ${path} is being created.`)

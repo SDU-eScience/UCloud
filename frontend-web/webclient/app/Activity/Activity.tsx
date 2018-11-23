@@ -88,7 +88,7 @@ const operationToPastTense = (operation: TrackedOperations | CountedOperations):
     if (operation === "MOVED") return "moved";
     if (operation === "REMOVE_FAVORITE") return "unfavorited"
     if ((operation as string).endsWith("E")) return `${(operation as string).toLowerCase()}d`;
-    return `${operation}ed`;
+    return `${operation.toLowerCase()}ed`;
 }
 interface EventIconAndColor { icon: SemanticICONS, color: SemanticCOLORS }
 const eventIcon = (operation: TrackedOperations | CountedOperations): EventIconAndColor => {

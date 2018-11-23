@@ -4,6 +4,7 @@ import { Page } from "Types";
 import { History } from "history";
 import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
+import { projectViewPage } from "Utilities/ProjectUtilities";
 
 export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud): void {
     let i = 0;
@@ -105,7 +106,7 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
         predicate: (files: File[], cloud: Cloud) => isProject(files[0]),
         onTrue: {
             text: "Edit Project",
-            onClick: (files: File[], cloud: Cloud) => history.push(`/metadata/${files[0].path}/`),
+            onClick: (files: File[], cloud: Cloud) => history.push(projectViewPage(files[0].path)),
             disabled: (files: File[], cloud: Cloud) => !canBeProject(files, cloud.homeFolder),
             icon: "projects", color: "blue"
         },
@@ -115,7 +116,7 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
                 UF.createProject(
                     files[0].path,
                     cloud,
-                    (projectPath: string) => history.push(`/metadata/${projectPath}`)
+                    (projectPath: string) => history.push(projectViewPage(projectPath))
                 ),
             disabled: (files: File[], cloud: Cloud) =>
                 files.length !== 1 || !canBeProject(files, cloud.homeFolder),

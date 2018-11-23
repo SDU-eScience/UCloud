@@ -1,8 +1,7 @@
 import { History } from "history";
 import { Contributor, Subject, RelatedIdentifier } from "./api";
-import { match } from "react-router-dom";
+import { RouterLocationProps } from "Utilities/URIUtilities";
 export { CreateUpdate } from "./CreateUpdate";
-export { Search } from "./Search";
 export { ManagedView, View } from "./View";
 
 export interface CreateUpdateState {
@@ -28,7 +27,6 @@ export interface CreateUpdateState {
     }
 }
 
-export interface CreateUpdateProps {
-    match: match
+export interface CreateUpdateProps extends RouterLocationProps {
     history: History
 }
