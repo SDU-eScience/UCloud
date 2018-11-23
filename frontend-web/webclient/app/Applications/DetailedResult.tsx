@@ -264,7 +264,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 <h4>Output Files</h4>
                 <PaginationList
                     page={page}
-                    pageRenderer={(page) =>
+                    pageRenderer={page =>
                         <FilesTable
                             sortOrder={SortOrder.ASCENDING}
                             sortBy={SortBy.PATH}

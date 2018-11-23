@@ -57,7 +57,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
         const { searchText } = this.state;
         const { prioritizedSearch, searchFiles } = this.props;
         return (
-            <HeaderContainer color='lightGray' bg='blue'>
+            <HeaderContainer color="lightGray" bg="blue">
                 <Logo />
                 <Box ml="auto" />
                 <Search
@@ -70,14 +70,20 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                 <ClickableDropdown left={"-100%"} trigger={<Flex><UserAvatar /></Flex>}>
                     <Box style={{ backgroundColor: "unset" }}>Welcome, {Cloud.userInfo.firstNames}</Box>
                     <Divider />
-                    <Link color="black" to={"/users/settings"}>
-                        <i className="fas fa-cogs" />
-                        Settings
-                    </Link>
-                    <Box onClick={() => Cloud.logout()}>
-                        <i className="fas fa-sign-out-alt" />
-                        Logout
+                    <Box ml="-17px" mr="-17px" pl="15px">
+                        <Link color="black" to={"/users/settings"}>
+                            <Flex>
+                                <Box pr="0.5em"><i className="fas fa-cogs" /></Box>
+                                Settings
+                            </Flex>
+                        </Link>
                     </Box>
+                    <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
+                        <Box pr="0.7em">
+                            <i className="fas fa-sign-out-alt" />
+                        </Box>
+                        Logout
+                    </Flex>
                 </ClickableDropdown>
             </HeaderContainer>
         )

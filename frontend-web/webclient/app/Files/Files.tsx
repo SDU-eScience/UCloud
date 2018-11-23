@@ -344,7 +344,15 @@ const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: C
     <Box pl="5px" pr="5px">
         <Button mt="3px" color="blue" fullWidth onClick={showUploader}>Upload Files</Button>
         <OutlineButton mt="3px" color="black" fullWidth onClick={createFolder}>New folder</OutlineButton>
-        {inTrashFolder ? <Button mt="3px" fullWidth onClick={() => clearTrash(Cloud, () => toHome())} color="red">Clear trash</Button> : null}
+        {inTrashFolder ?
+            <Button mt="3px"
+                fullWidth
+                onClick={() => clearTrash(Cloud, () => toHome())}
+                color="red"
+                hoverColor="darkRed"
+            >
+                Clear trash
+            </Button> : null}
     </Box>
 );
 
