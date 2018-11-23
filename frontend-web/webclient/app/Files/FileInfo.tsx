@@ -35,7 +35,6 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations, FileI
 
     get path(): string { 
         const param = this.queryParams.get("path"); 
-        console.log(param);
         return param ? removeTrailingSlash(param) : "";
     }
 

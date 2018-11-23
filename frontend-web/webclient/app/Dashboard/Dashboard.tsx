@@ -21,7 +21,7 @@ import List from "ui-components/List";
 import { CardGroup } from "ui-components/Card";
 import { TextSpan } from "ui-components/Text";
 import { notificationRead } from "Notifications/Redux/NotificationsActions";
-import { PaginationButtons } from "Pagination/Pagination";
+import { fileTablePage } from "Utilities/FileUtilities";
 
 
 class Dashboard extends React.Component<DashboardProps> {
@@ -91,7 +91,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
 const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 117 | 200 }) =>
     <>
         <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={undefined} link={link} color="grey" />
-        <Link to={`/files/${type === "FILE" ? getParentPath(path) : path}`}>
+        <Link to={fileTablePage(type === "FILE" ? getParentPath(path) : path)}>
             <TextSpan mt="-1.5px" fontSize={2} className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(path)}</TextSpan>
         </Link>
     </>

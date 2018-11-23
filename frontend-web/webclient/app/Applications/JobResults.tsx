@@ -11,6 +11,7 @@ import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
 import { Hide } from "ui-components";
+import { fileTablePage } from "Utilities/FileUtilities";
 
 class JobResults extends React.Component<AnalysesProps, AnalysesState> {
     constructor(props) {
@@ -80,7 +81,7 @@ const Header = () => (
 
 const Analysis = ({ analysis }) => {
     const jobIdField = analysis.status === "COMPLETE" ?
-        (<Link to={`/files/${Cloud.jobFolder}/${analysis.jobId}`}>{analysis.jobId}</Link>) : analysis.jobId;
+        (<Link to={fileTablePage(`${Cloud.jobFolder}/${analysis.jobId}`)}>{analysis.jobId}</Link>) : analysis.jobId;
     return (
         <TableRow>
             <TableCell>

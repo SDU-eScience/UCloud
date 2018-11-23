@@ -41,7 +41,7 @@ const Core = () => (
 
                 <Route exact path="/files/info" component={FileInfo} />
                 <Route exact path="/files/preview/*" component={FilePreview} />
-                <Route path="/files/*" component={Files} />
+                <Route exact path="/files" component={Files} />
 
                 <Route exact path="/activity/*" component={Activity} />
                 <Route exact path="/status" component={Status} />s

@@ -81,7 +81,7 @@ describe("Files-component", () => {
                 <MemoryRouter>
                     <Files
                         history={mockHistory}
-                        match={{ params: [], isExact: false, path: "", url: "home" }}
+                        location={{ search: "" }}
                     />
                 </MemoryRouter>
             </Provider>).toJSON()
@@ -94,7 +94,7 @@ describe("Files-component", () => {
                 <MemoryRouter>
                     <Files
                         history={mockHistory}
-                        match={{ params: [], isExact: false, path: "", url: "home" }}
+                        location={{ search: "" }}
                     />
                 </MemoryRouter>
             </Provider>).toJSON()
@@ -213,7 +213,7 @@ describe("FilesTable Operations being mounted", () => {
                     <MemoryRouter>
                         <Files
                             history={mockHistory}
-                            match={{ params: [], isExact: false, path: "", url: "home" }}
+                            location={{ search: "?" }}
                         />
                     </MemoryRouter>
                 </Provider>)
@@ -230,7 +230,7 @@ describe("FilesTable Operations being mounted", () => {
                 <MemoryRouter>
                     <Files
                         history={mockHistory}
-                        match={{ params: [], isExact: false, path: "", url: "home" }}
+                        location={{ search: "?" }}
                     />
                 </MemoryRouter>
             </Provider>);
@@ -288,7 +288,7 @@ describe("Files components usage", () => {
                 <MemoryRouter>
                     <Files
                         history={mockHistory}
-                        match={{ params: ["/else/thing"], isExact: false, path: "/This/Is/A/Path", url: "home" }}
+                        location={{ search: "?path=/This/Is/A/Path" }}
                     />
                 </MemoryRouter>
             </Provider>);
@@ -312,7 +312,7 @@ describe("FilesTable Operations being used", () => {
                 <MemoryRouter>
                     <Files
                         history={mockHistory}
-                        match={{ params: [], isExact: false, path: "/This/Is/A/Path", url: "home" }}
+                        location={{ search: "?Path=/This/Is/A/Path" }}
                     />
                 </MemoryRouter>
             </Provider>);

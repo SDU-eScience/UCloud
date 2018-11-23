@@ -20,7 +20,7 @@ import {
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
     startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
-    isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension
+    isProject, toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension, fileTablePage
 } from "Utilities/FileUtilities";
 import InlinedRelative from "ui-components/InlinedRelative";
 import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex, Divider, Checkbox, Label, Input } from "ui-components";
@@ -29,9 +29,9 @@ import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } f
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import DetailedFileSearch from "./DetailedFileSearch";
 import { TextSpan } from "ui-components/Text";
+import { getQueryParamOrElse } from "Utilities/URIUtilities";
 
 class Files extends React.Component<FilesProps> {
-
     componentDidMount() {
         const { page, sortOrder, sortBy, history, prioritizeFileSearch, ...props } = this.props;
         props.setPageTitle();
@@ -39,11 +39,15 @@ class Files extends React.Component<FilesProps> {
         props.setUploaderCallback(
             (path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)
         );
-        if (!this.urlPath) { history.push(`/files/${Cloud.homeFolder}/`); }
-        else { props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy); }
+
+        props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
-    get urlPath(): string { return this.props.match.params[0]; }
+    urlPathFromProps = (props: FilesProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
+
+    get urlPath(): string {
+        return this.urlPathFromProps(this.props);
+    }
 
     onRenameFile = (key: number, file: File, name: string) => {
         const { path, fetchPageFromPath, updateFiles, page } = this.props;
@@ -66,10 +70,11 @@ class Files extends React.Component<FilesProps> {
         }
     }
 
-    shouldComponentUpdate(nextProps, _nextState): boolean {
+    shouldComponentUpdate(nextProps: FilesProps, _nextState): boolean {
         const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
-        if (nextProps.path !== nextProps.match.params[0] && !loading) {
-            fetchFiles(nextProps.match.params[0], page.itemsPerPage, 0, sortOrder, sortBy);
+        const nextPath = this.urlPathFromProps(nextProps);
+        if (nextProps.path !== nextPath && !loading) {
+            fetchFiles(nextPath, page.itemsPerPage, 0, sortOrder, sortBy);
         }
         return true;
     }
@@ -91,7 +96,7 @@ class Files extends React.Component<FilesProps> {
 
 
         const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
-        const navigate = (path: string) => history.push(`/files/${path}`); // FIXME Is this necessary?
+        const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
 
         const fetchPageFromPath = (path: string) => {
             this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
@@ -227,52 +232,73 @@ export const FilesTable = ({
         </Table>
     );
 
-const ResponsiveTableColumn = ({ asDropdown, iconName, onSelect = (_1: SortOrder, _2: SortBy) => null, isSortedBy, currentSelection, sortOrder }: ResponsiveTableColumnProps) => (
-    <TableHeaderCell width="17.5%" xs sm md textAlign="left">
-        <Flex>
-            <SortByDropdown isSortedBy={isSortedBy} onSelect={onSelect} asDropdown={asDropdown} currentSelection={currentSelection} sortOrder={sortOrder} />
-            <Box ml="auto" />
-            <Arrow name={iconName} />
-        </Flex>
-    </TableHeaderCell>
-);
+const ResponsiveTableColumn = ({
+    asDropdown,
+    iconName,
+    onSelect = (_1: SortOrder, _2: SortBy) => null,
+    isSortedBy,
+    currentSelection,
+    sortOrder
+}: ResponsiveTableColumnProps) => (
+        <TableHeaderCell width="17.5%" xs sm md textAlign="left">
+            <Flex>
+                <SortByDropdown
+                    isSortedBy={isSortedBy}
+                    onSelect={onSelect}
+                    asDropdown={asDropdown}
+                    currentSelection={currentSelection}
+                    sortOrder={sortOrder} />
+                <Box ml="auto" />
+                <Arrow name={iconName} />
+            </Flex>
+        </TableHeaderCell>
+    );
 
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
     sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
 
-const FilesTableHeader = ({ toSortingIcon = () => undefined, sortFiles = () => null, sortOrder, masterCheckbox, sortingColumns, onDropdownSelect, sortBy, customEntriesPerPage }: FilesTableHeaderProps) => (
-    <TableHeader>
-        <TableRow>
-            <TableHeaderCell width="50%" textAlign="left">
-                <Flex>
-                    <Box ml="9px">
-                        {masterCheckbox}
+const FilesTableHeader = ({
+    toSortingIcon = () => undefined,
+    sortFiles = () => null,
+    sortOrder,
+    masterCheckbox,
+    sortingColumns,
+    onDropdownSelect,
+    sortBy,
+    customEntriesPerPage
+}: FilesTableHeaderProps) => (
+        <TableHeader>
+            <TableRow>
+                <TableHeaderCell width="50%" textAlign="left">
+                    <Flex>
+                        <Box ml="9px">
+                            {masterCheckbox}
+                        </Box>
+                        <Box ml="9px" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
+                            Filename
                     </Box>
-                    <Box ml="9px" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
-                        Filename
-                    </Box>
-                    <Box ml="auto" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)} />
-                    <Arrow name={toSortingIcon(SortBy.PATH)} />
-                </Flex>
-            </TableHeaderCell>
-            {sortingColumns.map((sC, i) => (
-                <ResponsiveTableColumn
-                    key={i}
-                    isSortedBy={sC === sortBy}
-                    minWidth={768}
-                    onSelect={(sortOrder: SortOrder, sortBy: SortBy) => { if (!!onDropdownSelect) onDropdownSelect(sortOrder, sortBy, i) }}
-                    currentSelection={sC}
-                    sortOrder={sortOrder}
-                    asDropdown={!!onDropdownSelect}
-                    iconName={toSortingIcon(sC)}
-                />
-            ))}
-            <TableHeaderCell width="15%" colSpan={3} textAlign="right">
-                {customEntriesPerPage}
-            </TableHeaderCell>
-        </TableRow>
-    </TableHeader>
-);
+                        <Box ml="auto" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)} />
+                        <Arrow name={toSortingIcon(SortBy.PATH)} />
+                    </Flex>
+                </TableHeaderCell>
+                {sortingColumns.map((sC, i) => (
+                    <ResponsiveTableColumn
+                        key={i}
+                        isSortedBy={sC === sortBy}
+                        minWidth={768}
+                        onSelect={(sortOrder: SortOrder, sortBy: SortBy) => { if (!!onDropdownSelect) onDropdownSelect(sortOrder, sortBy, i) }}
+                        currentSelection={sC}
+                        sortOrder={sortOrder}
+                        asDropdown={!!onDropdownSelect}
+                        iconName={toSortingIcon(sC)}
+                    />
+                ))}
+                <TableHeaderCell width="15%" colSpan={3} textAlign="right">
+                    {customEntriesPerPage}
+                </TableHeaderCell>
+            </TableRow>
+        </TableHeader>
+    );
 
 const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isSortedBy }: SortByDropdownProps) => asDropdown ? (
     <ClickableDropdown trigger={<TextSpan>{UF.prettierString(currentSelection)}</TextSpan>} chevron>
@@ -333,7 +359,7 @@ const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<i sty
 
 const FileLink = ({ file, children }) => {
     if (isDirectory(file)) {
-        return (<Link to={`/files/${file.path}`}>{children}</Link>);
+        return (<Link to={fileTablePage(file.path)}>{children}</Link>);
     } else if (previewSupportedExtension(file.path)) {
         return (<Link to={`/files/preview/${file.path}`}>{children}</Link>);
     } else {

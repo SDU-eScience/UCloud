@@ -126,6 +126,7 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
 ];
 
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURI(path)}`;
+export const fileTablePage = (path: string): string => `/files?path=${encodeURI(path)}`;
 
 export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: (() => void) | false, history: History | false) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
