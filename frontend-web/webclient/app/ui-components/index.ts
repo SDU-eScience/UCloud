@@ -39,6 +39,6 @@ export { default as Sidebar } from './Sidebar'
 export { default as LoadingButton } from "./LoadingButton";
 
 export { default as theme } from './theme'
-export { default as ThemeProvider } from './ThemeProvider'
+export { default as UIGlobalStyle } from './GlobalStyle'
 
-export * from './theme'
+//export * from './theme'

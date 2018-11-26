@@ -101,7 +101,7 @@ const HeaderContainer = styled(Flex)`
 
 const Logo = () => (
     <Link to={"/"}>
-        <Text color="white" fontSize={4} bold ml="24px">
+        <Text color="headerText" fontSize={4} bold ml="24px">
             SDUCloud
         </Text>
     </Link>
