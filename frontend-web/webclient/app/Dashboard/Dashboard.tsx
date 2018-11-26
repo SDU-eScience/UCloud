@@ -22,9 +22,9 @@ import { CardGroup } from "ui-components/Card";
 import { TextSpan } from "ui-components/Text";
 import { fileTablePage } from "Utilities/FileUtilities";
 import { notificationRead, readAllNotifications } from "Notifications/Redux/NotificationsActions";
+import { History } from "history";
 
-
-class Dashboard extends React.Component<DashboardProps> {
+class Dashboard extends React.Component<DashboardProps & { history: History }> {
     constructor(props) {
         super(props);
         const { favoriteFiles, recentFiles, recentAnalyses } = props;
@@ -35,6 +35,21 @@ class Dashboard extends React.Component<DashboardProps> {
         props.fetchFavorites();
         props.fetchRecentFiles();
         props.fetchRecentAnalyses();
+    }
+
+    private onNotificationAction = (notification: Notification) => {
+        // FIXME: Not DRY, reused
+        switch (notification.type) {
+            case "APP_COMPLETE":
+                // TODO This is buggy! Does't update if already present on analyses page
+                // TODO Should refactor these URLs somewhere else
+                this.props.history.push(`/applications/results/${notification.meta.jobId}`);
+                break;
+            case "SHARE_REQUEST":
+                // TODO This is a bit lazy
+                this.props.history.push("/shares");
+                break;
+        }
     }
 
     render() {
@@ -57,7 +72,7 @@ class Dashboard extends React.Component<DashboardProps> {
                     />
                     <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
                     <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
-                    <DashboardNotifications notifications={notifications} readAll={() => props.readAll()} />
+                    <DashboardNotifications onNotificationAction={this.onNotificationAction} notifications={notifications} readAll={() => props.readAll()} />
                 </CardGroup>
             </React.StrictMode>
         );
@@ -146,7 +161,7 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
     </Card>
 );
 
-const DashboardNotifications = ({ notifications, readAll }: { notifications: Notification[], readAll: () => void }) => (
+const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: { onNotificationAction: (notification: Notification) => void,  notifications: Notification[], readAll: () => void }) => (
     <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3}>
             <Heading.h4>Recent notifications</Heading.h4>
@@ -158,7 +173,7 @@ const DashboardNotifications = ({ notifications, readAll }: { notifications: Not
             <List>
                 {notifications.slice(0, 7).map((n, i) =>
                     <Flex key={i}>
-                        <NotificationEntry notification={n} onAction={() => console.log("TODO")} />
+                        <NotificationEntry notification={n} onAction={onNotificationAction} />
                     </Flex>
                 )}
             </List>

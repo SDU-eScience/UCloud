@@ -39,7 +39,7 @@ export class List extends React.Component<ListProps, ListState> {
     }
 
     reload() {
-        this.state.promises.makeCancelable(retrieveShares(this.state.page, this.state.itemsPerPage))
+        this.state.promises.makeCancelable(retrieveShares(this.state.page, this.state.itemsPerPage, ShareState.REQUEST_SENT))
             .promise
             .then(e => this.setState({ shares: e.items, loading: false }))
             .catch(e => { if (!e.isCanceled) this.setState({ errorMessage: "Unable to retrieve shares!", loading: false }) });
@@ -342,7 +342,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
 
 function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
-    if (byState) url += `state=${encodeURI(byState)}`;
+    if (byState) url += `&state=${encodeURI(byState)}`;
     return Cloud.get(url).then(it => it.response);
 }
 

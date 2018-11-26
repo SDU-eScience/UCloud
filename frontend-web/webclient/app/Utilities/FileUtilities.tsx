@@ -71,16 +71,40 @@ const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => file
  * @returns Share and Download operations for files
  */
 export const StateLessOperations = (): Operation[] => [
-    { text: "Share", onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => false, icon: "shares", color: undefined },
-    { text: "Download", onClick: (files: File[], cloud: Cloud) => downloadFiles(files, cloud), disabled: (files: File[], cloud: Cloud) => !UF.downloadAllowed(files), icon: "download", color: undefined }
+    {
+        text: "Share",
+        onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud),
+        disabled: (files: File[], cloud: Cloud) => false,
+        icon: "share",
+        color: undefined
+    },
+    {
+        text: "Download",
+        onClick: (files: File[], cloud: Cloud) => downloadFiles(files, cloud),
+        disabled: (files: File[], cloud: Cloud) => !UF.downloadAllowed(files),
+        icon: "download",
+        color: undefined
+    }
 ];
 
 /**
  * @returns Move and Copy operations for files
  */
 export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): Operation[] => [
-    { text: "Copy", onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files), icon: "copy", color: undefined },
-    { text: "Move", onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud), disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)), icon: "move", color: undefined }
+    {
+        text: "Copy",
+        onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud),
+        disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files),
+        icon: "copy",
+        color: undefined
+    },
+    {
+        text: "Move",
+        onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud),
+        disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)),
+        icon: "move",
+        color: undefined
+    }
 ];
 
 /**
@@ -89,8 +113,27 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
  * @returns the Delete operation in an array
  */
 export const MoveFileToTrashOperation = (onMoved: () => void): Operation[] => [
-    { text: "Move to Trash", onClick: (files, cloud) => moveToTrash(files, cloud, onMoved), disabled: (files: File[], cloud: Cloud) => (!allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)) || files.every(({ path }) => inTrashDir(path, cloud))), icon: "trash", color: "red" },
-    { text: "Clear Trash", onClick: (files, cloud) => clearTrash(cloud, onMoved), disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder), icon: "trash", color: "red" }
+    {
+        text: "Move to Trash",
+        onClick: (files, cloud) => moveToTrash(files, cloud, onMoved),
+        disabled: (files: File[], cloud: Cloud) => (!allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)) || files.every(({ path }) => inTrashDir(path, cloud))),
+        icon: "trash",
+        color: "red"
+    },
+    {
+        text: "Clear Trash",
+        onClick: (files, cloud) => clearTrash(cloud, onMoved),
+        disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
+        icon: "trash",
+        color: "red"
+    },
+    {
+        text: "Delete Files",
+        onClick: (files, cloud) => batchDeleteFiles(files, cloud, onMoved),
+        disabled: (files, cloud) => !files.every(f => getParentPath(f.path) === cloud.trashFolder),
+        icon: "trash",
+        color: "red"
+    }
 ];
 
 /**
@@ -190,7 +233,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
         `${homeFolder}Favorites`,
         `${homeFolder}Jobs`,
         `${homeFolder}Trash`
-    ].some((it) => UF.removeTrailingSlash(it) === filePath)
+    ].some(it => UF.removeTrailingSlash(it) === filePath)
 };
 
 /**
@@ -323,11 +366,11 @@ export const shareFiles = (files: File[], cloud: Cloud) =>
     }); // FIXME Error handling
 
 const moveToTrashSwal = (filePaths: string[]) => {
-    const deletionText = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
+    const moveText = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
         `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
     return swal({
         title: "Move files to trash",
-        text: deletionText,
+        text: moveText,
         confirmButtonText: "Move files",
         type: "warning",
         showCancelButton: true,
@@ -356,6 +399,36 @@ export const moveToTrash = (files: File[], cloud: Cloud, callback: () => void) =
                 .catch(({ request }) => { UF.failureNotification("An error occurred moving to trash"); callback() });
         }
     })
+};
+
+export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => void) => {
+    const paths = files.map(f => f.path);
+    deletionSwal(paths).then((result: any) => {
+        if (result.dismiss) {
+            return;
+        } else {
+            let i = 0;
+            paths.forEach(path => {
+                cloud.delete("/files", { path }).then(() => ++i === paths.length ? callback() : null)
+                    .catch(() => i++);
+            });
+        }
+    })
+};
+
+
+const deletionSwal = (filePaths: string[]) => {
+    const deletionText = filePaths.length > 1 ? `Delete ${filePaths.length} files?` :
+        `Delete file ${getFilenameFromPath(filePaths[0])}`;
+    `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
+    return swal({
+        title: "Delete files",
+        text: deletionText,
+        confirmButtonText: "Delete files",
+        type: "warning",
+        showCancelButton: true,
+        showCloseButton: true,
+    });
 };
 
 export const moveFile = (oldPath: string, newPath: string, cloud: Cloud, onSuccess: () => void) =>

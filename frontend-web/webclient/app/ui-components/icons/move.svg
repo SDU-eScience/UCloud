@@ -1,1 +1,17 @@
-<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill-rule="evenodd" clip-rule="evenodd" stroke-linejoin="round" stroke-miterlimit="1.414"><path d="M10.498 24.001H2.244A2.27 2.27 0 0 1 0 21.743V2.258A2.244 2.244 0 0 1 2.244.001h7.884H4.5v24h5.998zm-5.998-21H3v18h1.5v-18zM0 7.501v10.5h3v-10.5H0z" fill="#8393a7"/><path d="M24 2.258v19.485a2.244 2.244 0 0 1-2.244 2.258H8.244A2.27 2.27 0 0 1 6 21.743V2.258A2.244 2.244 0 0 1 8.244.001h13.512A2.26 2.26 0 0 1 24 2.258zM9 3.001v18h12v-18H9zm-3 4.5v10.5h3v-10.5H6z" fill="#53657d"/><path d="M18.75 12.751l-5.682-5.696c-.582-.582-1.053-.39-1.053.444v3.002H3v4.5h9.015v3.001c0 .828.484 1.013 1.053.444l5.682-5.695z" fill="#53657d"/></svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+    <g transform="matrix(1,0,0,1,-396,-488)">
+        <g id="move" transform="matrix(1.5,0,0,1.5,-423.681,-58.7463)">
+            <g transform="matrix(0.666667,0,0,0.666667,202.454,132.498)">
+                <path d="M516,366L519,366L519,369L520.5,369L520.5,372L518.244,372C517.011,371.991 516.002,370.975 516,369.743L516,366ZM520.5,351L519,351L519,356L516,356L516,350.258C516,349.001 517.005,348 518.244,348L520.5,348L520.5,351Z" style="fill:rgb(131,147,167);"/>
+            </g>
+            <g transform="matrix(1,0,0,1,538.454,356.498)">
+                <path d="M24,9.505L24,22.495C24,23.333 23.33,24 22.504,24L13.496,24C12.674,23.994 12.001,23.317 12,22.495L12,9.505C12,8.667 12.67,8 13.496,8L22.504,8C23.32,8 24,8.674 24,9.505ZM14,10L14,22L22,22L22,10L14,10ZM12,13.333L12,20L14,20L14,13.333L12,13.333Z" style="fill:rgb(83,101,125);"/>
+            </g>
+            <g transform="matrix(1,0,0,1,537.954,356.418)">
+                <path d="M20.5,16.746L15.833,12.746L15.833,15.413L9.833,15.413L9.833,18.079L15.833,18.079L15.833,20.746L20.5,16.746Z" style="fill:rgb(83,101,125);"/>
+            </g>
+        </g>
+    </g>
+</svg>
