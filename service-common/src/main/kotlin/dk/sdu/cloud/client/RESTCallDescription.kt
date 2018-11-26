@@ -10,6 +10,7 @@ import io.ktor.client.response.HttpResponse
 import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
+import io.ktor.http.withCharset
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import java.net.URLEncoder
 import kotlin.reflect.KClass
@@ -191,7 +192,10 @@ internal class DescriptionPreparedRESTCall<Request : Any, Success : Any, Error :
             body = if (marshaller != null) {
                 marshaller.serializeBody(description, requestBodyDescription, value)
             } else {
-                TextContent(defaultMapper.writeValueAsString(value), ContentType.Application.Json)
+                TextContent(
+                    defaultMapper.writeValueAsString(value),
+                    ContentType.Application.Json.withCharset(Charsets.UTF_8)
+                )
             }
         }
     }
