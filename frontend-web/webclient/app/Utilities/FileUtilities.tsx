@@ -192,6 +192,8 @@ export const advancedFileSearch = "/file-search/advanced"
 
 export const recentFilesQuery = "/files/stats/recent";
 
+export const statFileQuery = (path: string) => `/files/stat?path=${encodeURIComponent(path)}`;
+
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
     fileType: "DIRECTORY",
     path,

@@ -44,12 +44,12 @@ export class List extends React.Component<ListProps, ListState> {
         const query = !!this.props.byPath ? sharesByPath(this.props.byPath) : retrieveShares(this.state.page, this.state.itemsPerPage, ShareState.REQUEST_SENT);
         this.state.promises.makeCancelable(query)
             .promise
-            .then(e => { console.log(e); this.setState({ shares: e.items, loading: false }) })
+            .then(e => this.setState({ shares: e.items, loading: false }))
             .catch(({ request }) => {
                 if (!request.isCanceled) {
-                    let errorMessage = "Unable to retrieve shares! ";
+                    let errorMessage: string | undefined = "Unable to retrieve shares!";
                     if (request.status === 404) {
-                        errorMessage += request.statusText;
+                        errorMessage = undefined;
                     }
                     this.setState(() => ({ errorMessage, loading: false }));
                 }
