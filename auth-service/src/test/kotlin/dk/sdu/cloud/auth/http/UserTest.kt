@@ -41,7 +41,7 @@ fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.
 
 class UserTest {
     private val passwordHashingService = PasswordHashingService()
-    private val personService = PersonService(passwordHashingService)
+    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
 
     private fun KtorApplicationTestSetupContext.configureAuthServer(
         userDao: UserHibernateDAO,

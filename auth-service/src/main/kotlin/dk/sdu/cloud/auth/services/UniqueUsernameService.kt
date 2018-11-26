@@ -1,8 +1,11 @@
 package dk.sdu.cloud.auth.services
 
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import org.slf4j.Logger
 import java.security.SecureRandom
+import kotlin.math.absoluteValue
 
 class UniqueUsernameService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -22,6 +25,8 @@ class UniqueUsernameService<DBSession>(
             userDAO.findByUsernamePrefix(session, normalizedUsername + SEPARATOR)
         }.map { it.id }.toSet()
 
+        log.debug("Found ${existingNames.size} existing names!")
+
         val alphabet = when (existingNames.size) {
             in 0..2500 -> SIMPLE_ALPHABET
             else -> ALPHABET
@@ -32,7 +37,7 @@ class UniqueUsernameService<DBSession>(
 
         fun generateSuffix(): String {
             return (0 until range).map {
-                alphabet[secureRandom.nextInt() % alphabet.size]
+                alphabet[secureRandom.nextInt().absoluteValue % alphabet.size]
             }.joinToString(separator = "")
         }
 
@@ -47,7 +52,8 @@ class UniqueUsernameService<DBSession>(
         throw RuntimeException("Could not generate a unique username (too many guesses)")
     }
 
-    companion object {
+    companion object : Loggable {
+        override val log: Logger = logger()
         private val secureRandom = SecureRandom()
         const val SEPARATOR: Char = '#'
         private val SIMPLE_ALPHABET = ('0'..'9').toList()

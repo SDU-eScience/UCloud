@@ -11,7 +11,8 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
 class PersonService(
-    private val passwordHashingService: PasswordHashingService
+    private val passwordHashingService: PasswordHashingService,
+    private val usernameGenerator: UniqueUsernameService<*>
 ) {
     fun createUserByPassword(
         firstNames: String,
@@ -50,7 +51,8 @@ class PersonService(
         val role = Role.USER
 
         return Person.ByWAYF(
-            id = id,
+            id = usernameGenerator.generateUniqueName("$firstNames$lastNames"),
+            wayfId = id,
             firstNames = firstNames,
             lastName = lastNames,
             role = role,

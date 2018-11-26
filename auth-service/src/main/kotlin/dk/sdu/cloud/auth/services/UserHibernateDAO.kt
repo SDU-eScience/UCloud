@@ -26,6 +26,7 @@ import javax.persistence.TemporalType
  * Updated in:
  *
  * - V1__Initial.sql
+ * - V7__WayfId.sql
  */
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
@@ -149,7 +150,8 @@ data class PersonEntityByWAYF(
     override var lastName: String,
     override var phoneNumber: String?,
     override var orcId: String?,
-    var orgId: String
+    var orgId: String,
+    var wayfId: String
 ) : PersonEntity() {
     override fun toModel(): Principal {
         return Person.ByWAYF(
@@ -162,7 +164,8 @@ data class PersonEntityByWAYF(
             orcId,
             emptyList(),
             null,
-            orgId
+            orgId,
+            wayfId
         )
     }
 }
@@ -195,6 +198,12 @@ class UserHibernateDAO(
         return session.criteria<PrincipalEntity> {
             entity[PrincipalEntity::id] like (builder.concat(prefix, literal("%")))
         }.list().map { it.toModel() }
+    }
+
+    override fun findByWayfId(session: HibernateSession, wayfId: String): Person.ByWAYF {
+        return (session.criteria<PersonEntityByWAYF> {
+            entity[PersonEntityByWAYF::wayfId] equal wayfId
+        } as? PrincipalEntity)?.toModel() as? Person.ByWAYF ?: throw UserException.NotFound()
     }
 
     override fun insert(session: HibernateSession, principal: Principal) {
@@ -246,7 +255,8 @@ fun Principal.toEntity(): PrincipalEntity {
             lastName,
             phoneNumber,
             orcId,
-            organizationId
+            organizationId,
+            wayfId
         )
 
         is Person.ByPassword -> PersonEntityByPassword(

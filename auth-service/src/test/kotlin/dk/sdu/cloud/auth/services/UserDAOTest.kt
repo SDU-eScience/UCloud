@@ -1,6 +1,7 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.Role
+import io.mockk.mockk
 import org.junit.Test
 import sun.security.util.Password
 import kotlin.test.assertEquals
@@ -9,7 +10,7 @@ import kotlin.test.assertTrue
 
 class UserDAOTest {
     private val passwordHashingService = PasswordHashingService()
-    private val personService = PersonService(passwordHashingService)
+    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
 
     @Test
     fun `create a user byPassword and check correct and wrong password`() {

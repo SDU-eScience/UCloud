@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
 
 class UserHibernateDAOTest {
     private val passwordHashingService = PasswordHashingService()
-    private val personService = PersonService(passwordHashingService)
+    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
 
     val email = "test@testmail.com"
     val person = personService.createUserByPassword(
@@ -179,7 +179,8 @@ class UserHibernateDAOTest {
             "lastname",
             "phone",
             "orcid",
-            "orgid"
+            "orgid",
+            "wayfid"
         )
         val model = entity.toModel()
         val backToEntity = model.toEntity()

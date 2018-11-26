@@ -20,6 +20,7 @@ import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
+import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.services.WSTOTPService
@@ -68,9 +69,10 @@ class Server(
     override fun start() {
         log.info("Creating core services...")
         val passwordHashingService = PasswordHashingService()
-        val personService = PersonService(passwordHashingService)
         val userDao = UserHibernateDAO(passwordHashingService)
         val refreshTokenDao = RefreshTokenHibernateDAO()
+        val usernameGenerator = UniqueUsernameService(db, userDao)
+        val personService = PersonService(passwordHashingService, usernameGenerator)
         val ottDao = OneTimeTokenHibernateDAO()
         val userCreationService = UserCreationService(
             db,

@@ -26,7 +26,7 @@ import kotlin.test.assertTrue
 
 class TokenTest {
     private val passwordHashingService = PasswordHashingService()
-    private val personService = PersonService(passwordHashingService)
+    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
 
     private val email = "test@testmail.com"
     private val token = "token"
