@@ -28,6 +28,10 @@ data class DeleteNotificationRequest(
     val bulkId: FindByNotificationIdBulk
 )
 
+data class DeleteResponse(val failures: List<Long>)
+data class MarkResponse(val failures: List<Long>)
+
+
 object NotificationDescriptions : RESTDescriptions("notifications") {
     const val baseContext = "/api/notifications"
 
@@ -51,7 +55,7 @@ object NotificationDescriptions : RESTDescriptions("notifications") {
         }
     }
 
-    val markAsRead = callDescription<MarkAsReadRequest, Unit, CommonErrorMessage> {
+    val markAsRead = callDescription<MarkAsReadRequest, MarkResponse, CommonErrorMessage> {
         name = "markAsRead"
         method = HttpMethod.Post
 
@@ -99,7 +103,7 @@ object NotificationDescriptions : RESTDescriptions("notifications") {
         }
     }
 
-    val delete = callDescription<DeleteNotificationRequest, Unit, CommonErrorMessage> {
+    val delete = callDescription<DeleteNotificationRequest, DeleteResponse, CommonErrorMessage> {
         name = "delete"
         method = HttpMethod.Delete
 

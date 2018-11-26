@@ -107,7 +107,7 @@ fun TestApplicationCall.assertStatus(httpStatusCode: HttpStatusCode) {
 
     val status = this.response.status()
     assertNotNull(status)
-    assertEquals(status, httpStatusCode)
+    assertEquals(httpStatusCode, status)
 }
 
 fun TestApplicationCall.assertSuccess() {

@@ -128,11 +128,12 @@ class KafkaHttpLoggerTest {
             test = {
                 val user = TestUsers.user
                 val token = TokenValidationMock.createTokenForPrincipal(user)
-                sendRequest(
+                val sendRequest = sendRequest(
                     HttpMethod.Get, "/logging/ott", user = null, params = mapOf(
                         "token" to token
                     )
-                ).assertSuccess()
+                )
+                sendRequest.assertSuccess()
 
                 val messages = KafkaMock.messagesForTopic(LoggingDescriptions.auditStream)
                 assertThatPropertyEquals(messages, { it.size }, 1)

@@ -1,7 +1,11 @@
 package dk.sdu.cloud.notification.http
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.notification.api.CreateNotification
+import dk.sdu.cloud.notification.api.DeleteResponse
+import dk.sdu.cloud.notification.api.MarkResponse
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationServiceDescription
 import dk.sdu.cloud.notification.services.NotificationHibernateDAO
@@ -86,6 +90,7 @@ class NotificationTest {
                     user = createdFor
                 ).assertSuccess()
 
+
                 run {
                     val resp = listPage(createdFor)
                     assertEquals(1, resp.itemsInTotal)
@@ -132,15 +137,109 @@ class NotificationTest {
     }
 
     @Test
+    fun `Delete unknown and unknown id`() {
+        withKtorTest(
+            setup,
+            test = {
+                val createdNotification = Notification(
+                    type = "type",
+                    message = "You Got MAIL!!!",
+                    meta = mapOf("foo" to 42)
+                )
+
+                val createdFor = TestUsers.user
+                createNotification(createdNotification, TestUsers.admin, createdFor.username).assertSuccess()
+
+                val id = run {
+                    val resp = listPage(createdFor)
+
+                    assertEquals(1, resp.itemsInTotal)
+                    assertEquals(1, resp.items.size)
+                    val firstNotification = resp.items.first()
+                    assert(createdNotification.contentEquals(firstNotification))
+                    assertFalse(firstNotification.read)
+
+                    firstNotification.id
+                }
+
+                val requestResponse = sendRequest(
+                    method = HttpMethod.Delete,
+                    path = "/api/notifications/123124,$id,123456",
+                    user = TestUsers.admin
+                )
+                requestResponse.assertStatus(HttpStatusCode.OK)
+
+                val responseList = defaultMapper.readValue<DeleteResponse>(requestResponse.response.content!!)
+
+                assertEquals(123124, responseList.failures.first())
+                assertEquals(123456, responseList.failures.last())
+                assertTrue(!responseList.failures.contains(id))
+
+            }
+        )
+    }
+
+    @Test
     fun `Mark unknown id`() {
         withKtorTest(
             setup,
             test = {
                 sendRequest(
                     method = HttpMethod.Post,
-                    path = "/api/notifications/read/123123",
+                    path = "/api/notifications/read/123456,1222",
                     user = TestUsers.user
                 ).assertStatus(HttpStatusCode.NotFound)
+            }
+        )
+    }
+
+    @Test
+    fun `Mark known and unknown id`() {
+        withKtorTest(
+            setup,
+            test = {
+                val createdNotification = Notification(
+                    type = "type",
+                    message = "You Got MAIL!!!",
+                    meta = mapOf("foo" to 42)
+                )
+
+                val createdFor = TestUsers.user
+                createNotification(createdNotification, TestUsers.admin, createdFor.username).assertSuccess()
+
+                val id = run {
+                    val resp = listPage(createdFor)
+
+                    assertEquals(1, resp.itemsInTotal)
+                    assertEquals(1, resp.items.size)
+                    val firstNotification = resp.items.first()
+                    assert(createdNotification.contentEquals(firstNotification))
+                    assertFalse(firstNotification.read)
+
+                    firstNotification.id
+                }
+
+                val requestResponse = sendRequest(
+                    method = HttpMethod.Post,
+                    path = "/api/notifications/read/123456,$id,1222",
+                    user = TestUsers.user
+                )
+
+                requestResponse.assertStatus(HttpStatusCode.OK)
+                val responseList = defaultMapper.readValue<MarkResponse>(requestResponse.response.content!!)
+
+                assertEquals(123456, responseList.failures.first())
+                assertEquals(1222, responseList.failures.last())
+                assertTrue(!responseList.failures.contains(id))
+
+                run {
+                    val resp = listPage(createdFor)
+                    assertEquals(1, resp.itemsInTotal)
+                    assertEquals(1, resp.items.size)
+                    val firstNotification = resp.items.first()
+                    assert(createdNotification.contentEquals(firstNotification))
+                    assertTrue(firstNotification.read)
+                }
             }
         )
     }
