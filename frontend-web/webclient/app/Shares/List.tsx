@@ -352,16 +352,16 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
 
 function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
-    if (byState) url += `&state=${encodeURI(byState)}`;
+    if (byState) url += `&state=${encodeURIComponent(byState)}`;
     return Cloud.get(url).then(it => it.response);
 }
 
 function acceptShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/accept/${encodeURI(shareId)}`).then(e => e.response); // FIXME Add error handling
+    return Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`).then(e => e.response); // FIXME Add error handling
 }
 
 function revokeShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/revoke/${encodeURI(shareId)}`).then(e => e.response); // FIXME Add error handling
+    return Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`).then(e => e.response); // FIXME Add error handling
 }
 
 function createShare(user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> {

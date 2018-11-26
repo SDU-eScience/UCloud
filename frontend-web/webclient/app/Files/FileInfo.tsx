@@ -42,7 +42,7 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations, FileI
         const { filesPath, loading, page, ...props } = this.props;
         props.updatePageTitle();
         // FIXME: Either move to promiseKeeper, or redux store
-        Cloud.get(`/activity/stream/by-path?path=${encodeURI(this.path)}`).then(({ response }) => this.setState({ activity: response }));
+        Cloud.get(`/activity/stream/by-path?path=${encodeURIComponent(this.path)}`).then(({ response }) => this.setState({ activity: response }));
 
         if (!(getParentPath(this.path) === filesPath)) {
             props.setLoading(true);

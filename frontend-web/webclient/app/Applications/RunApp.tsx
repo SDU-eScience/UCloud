@@ -164,7 +164,7 @@ class RunApp extends React.Component<RunAppProps, RunAppState> {
         this.setState(() => ({ loading: true }));
 
         this.state.promises.makeCancelable(
-            Cloud.get(`/hpc/apps/${encodeURI(this.state.appName)}/${encodeURI(this.state.appVersion)}`)
+            Cloud.get(`/hpc/apps/${encodeURIComponent(this.state.appName)}/${encodeURIComponent(this.state.appVersion)}`)
         ).promise.then((req: { response: Application }) => {
             const app = req.response.description;
             const tool = req.response.tool;

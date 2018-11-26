@@ -1,3 +1,3 @@
 export const searchPage = (priority: string, query: string): string => {
-    return `/search/${encodeURI(priority)}?query=${encodeURI(query)}`;
+    return `/search/${encodeURIComponent(priority)}?query=${encodeURIComponent(query)}`;
 };

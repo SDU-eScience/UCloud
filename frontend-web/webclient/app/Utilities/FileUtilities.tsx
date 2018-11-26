@@ -18,7 +18,7 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
         files.forEach(f => {
             const currentPath = f.path;
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
-            cloud.post(`/files/copy?path=${encodeURI(currentPath)}&newPath=${encodeURI(newPathForFile)}`).then(() => i++)
+            cloud.post(`/files/copy?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`).then(() => i++)
                 .catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`))
                 .finally(() => {
                     if (i === files.length) {
@@ -39,7 +39,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud
         files.forEach((f) => {
             const currentPath = f.path;
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
-            cloud.post(`/files/move?path=${encodeURI(currentPath)}&newPath=${encodeURI(newPathForFile)}`).then(() => {
+            cloud.post(`/files/move?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`).then(() => {
                 const fromPath = getFilenameFromPath(currentPath);
                 const toPath = replaceHomeFolder(newPathForFile, cloud.homeFolder);
                 UF.successNotification(`${fromPath} moved to ${toPath}`);
@@ -170,8 +170,8 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
     }
 ];
 
-export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURI(path)}`;
-export const fileTablePage = (path: string): string => `/files?path=${encodeURI(path)}`;
+export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(path)}`;
+export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(path)}`;
 
 export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: (() => void) | false, history: History | false) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
@@ -182,11 +182,11 @@ export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyO
 };
 
 export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): string =>
-    `files?path=${encodeURI(path)}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURI(order)}&sortBy=${encodeURI(sortBy)}`;
+    `files?path=${encodeURIComponent(path)}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}`;
 
 // FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes backend issues
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
-    `files/lookup?path=${encodeURI(UF.removeTrailingSlash(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURI(order)}&sortBy=${encodeURI(sortBy)}`;
+    `files/lookup?path=${encodeURIComponent(UF.removeTrailingSlash(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}`;
 
 export const advancedFileSearch = "/file-search/advanced"
 
@@ -259,9 +259,9 @@ export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], 
 export const favoriteFile = (file: File, cloud: Cloud): void => {
     file.favorited = !file.favorited;
     if (file.favorited)
-        cloud.post(`/files/favorite?path=${encodeURI(file.path)}`, {}); // FIXME: Error handling
+        cloud.post(`/files/favorite?path=${encodeURIComponent(file.path)}`, {}); // FIXME: Error handling
     else
-        cloud.delete(`/files/favorite?path=${encodeURI(file.path)}`, {}); // FIXME: Error handling
+        cloud.delete(`/files/favorite?path=${encodeURIComponent(file.path)}`, {}); // FIXME: Error handling
 }
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>
@@ -314,7 +314,7 @@ export const downloadFiles = (files: File[], cloud: Cloud) =>
     files.map(f => f.path).forEach(p =>
         cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
             const element = document.createElement("a");
-            element.setAttribute("href", `/api/files/download?path=${encodeURI(p)}&token=${encodeURI(token)}`);
+            element.setAttribute("href", `/api/files/download?path=${encodeURIComponent(p)}&token=${encodeURIComponent(token)}`);
             element.style.display = "none";
             document.body.appendChild(element);
             element.click();
@@ -324,7 +324,7 @@ export const downloadFiles = (files: File[], cloud: Cloud) =>
 
 export const fetchFileContent = (path: string, cloud: Cloud) =>
     cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) =>
-        fetch(`/api/files/download?path=${encodeURI(path)}&token=${encodeURI(token)}`)
+        fetch(`/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`)
     );
 
 export const fileSizeToString = (bytes: number): string => {
@@ -432,7 +432,7 @@ const deletionSwal = (filePaths: string[]) => {
 };
 
 export const moveFile = (oldPath: string, newPath: string, cloud: Cloud, onSuccess: () => void) =>
-    cloud.post(`/files/move?path=${encodeURI(oldPath)}&newPath=${encodeURI(newPath)}`).then(({ request }) => {
+    cloud.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`).then(({ request }) => {
         if (UF.inSuccessRange(request.status)) {
             onSuccess()
         }
