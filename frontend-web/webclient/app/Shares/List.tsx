@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as PropTypes from "prop-types";
-import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Button, Icon, ButtonGroup } from "semantic-ui-react";
+import { List as SemList, SemanticSIZES, SemanticFLOATS, Header, Card, Button, Icon, ButtonGroup } from "semantic-ui-react";
 import { AccessRight, Page, AccessRightValues } from "Types";
 import { shareSwal } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
@@ -9,6 +9,8 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ListContext, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
+import { Error } from "ui-components";
+import { sharesByPathQuery } from "Utilities/SharesUtilities";
 
 export class List extends React.Component<ListProps, ListState> {
     constructor(props: ListProps, ctx: ListContext) {
@@ -39,21 +41,29 @@ export class List extends React.Component<ListProps, ListState> {
     }
 
     reload() {
-        this.state.promises.makeCancelable(retrieveShares(this.state.page, this.state.itemsPerPage, ShareState.REQUEST_SENT))
+        const query = !!this.props.byPath ? sharesByPath(this.props.byPath) : retrieveShares(this.state.page, this.state.itemsPerPage, ShareState.REQUEST_SENT);
+        this.state.promises.makeCancelable(query)
             .promise
-            .then(e => this.setState({ shares: e.items, loading: false }))
-            .catch(e => { if (!e.isCanceled) this.setState({ errorMessage: "Unable to retrieve shares!", loading: false }) });
+            .then(e => { console.log(e); this.setState({ shares: e.items, loading: false }) })
+            .catch(({ request }) => {
+                if (!request.isCanceled) {
+                    let errorMessage = "Unable to retrieve shares! ";
+                    if (request.status === 404) {
+                        errorMessage += request.statusText;
+                    }
+                    this.setState(() => ({ errorMessage, loading: false }));
+                }
+            });
+
     }
 
     public render() {
         let { shares, errorMessage } = this.state;
-        // FIXME This approach will not work if # of shares exceeds 10. Needs retrieve shares by path.
-        this.props.byPath ? shares = shares.filter(it => it.path === this.props.byPath) : null;
         const noSharesWith = shares.filter(it => !it.sharedByMe).length === 0;
         const noSharesBy = shares.filter(it => it.sharedByMe).length === 0;
         return (
             <>
-                {errorMessage ? <Message color="red" onDismiss={() => this.setState({ errorMessage: undefined })}>{errorMessage}</Message> : null}
+                <Error clearError={() => this.setState({ errorMessage: undefined })} error={errorMessage} />
                 <DefaultLoading loading={this.state.loading} size="big" />
                 <Header>Shared with Me</Header>
                 {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
@@ -360,4 +370,8 @@ function createShare(user: string, path: string, rights: AccessRight[]): Promise
 
 function updateShare(id: ShareId, rights: AccessRightValues[]): Promise<any> {
     return Cloud.post(`/shares/`, { id, rights }).then(e => e.response);
+}
+
+const sharesByPath = (path: string): Promise<any> => {
+    return Cloud.get(sharesByPathQuery(path)).then(e => ({ items: [e.response] }));
 }

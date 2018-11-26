@@ -1,7 +1,7 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import { ActivityProps, Activity as ActivityType, TrackedActivity, CountedActivity, TrackedOperations, CountedOperations, ActivityDispatchProps } from "Activity";
-import { Feed, Header, SemanticICONS, SemanticCOLORS } from "semantic-ui-react";
+import { Feed as SFeed, SemanticICONS as SSemanticICONS } from "semantic-ui-react";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
 import * as moment from "moment";
@@ -12,6 +12,7 @@ import { fetchActivity, setErrorMessage, setLoading } from "./Redux/ActivityActi
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Dispatch } from "redux";
 import { fileInfoPage } from "Utilities/FileUtilities";
+import * as Heading from "ui-components/Heading"
 
 class Activity extends React.Component<ActivityProps> {
 
@@ -24,7 +25,7 @@ class Activity extends React.Component<ActivityProps> {
         const { fetchActivity, page, error, setError, loading } = this.props;
         return (
             <React.StrictMode>
-                <Header as="h1" content="File Activity" />
+                <Heading.h1>File Activity</Heading.h1>
                 <Pagination.List
                     loading={loading}
                     errorMessage={error}
@@ -41,7 +42,7 @@ class Activity extends React.Component<ActivityProps> {
 }
 
 export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => activity.length ? (
-    <Feed>
+    <SFeed>
         {activity.map((a, i) => {
             switch (a.type) {
                 case "tracked": {
@@ -52,11 +53,11 @@ export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => acti
                 }
             }
         })}
-    </Feed>
+    </SFeed>
 ) : null;
 
 const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
-    <Feed.Event
+    <SFeed.Event
         icon={eventIcon(activity.operation).icon}
         date={moment(new Date(activity.timestamp)).fromNow()}
         summary={`Files ${operationToPastTense(activity.operation)}`}
@@ -70,7 +71,7 @@ const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
 );
 
 const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
-    <Feed.Event
+    <SFeed.Event
         icon={eventIcon(activity.operation).icon}
         date={moment(new Date(activity.timestamp)).fromNow()}
         summary={`Files ${operationToPastTense(activity.operation)}`}
@@ -90,7 +91,7 @@ const operationToPastTense = (operation: TrackedOperations | CountedOperations):
     if ((operation as string).endsWith("E")) return `${(operation as string).toLowerCase()}d`;
     return `${operation.toLowerCase()}ed`;
 }
-interface EventIconAndColor { icon: SemanticICONS, color: SemanticCOLORS }
+interface EventIconAndColor { icon: SSemanticICONS, color: "blue" | "green" | "red" }
 const eventIcon = (operation: TrackedOperations | CountedOperations): EventIconAndColor => {
     switch (operation) {
         case "FAVORITE": {

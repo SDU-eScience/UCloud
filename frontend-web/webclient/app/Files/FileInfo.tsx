@@ -39,16 +39,16 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations, FileI
     }
 
     componentDidMount() {
-        const { filesPath, loading, page } = this.props;
-        this.props.updatePageTitle();
+        const { filesPath, loading, page, ...props } = this.props;
+        props.updatePageTitle();
         // FIXME: Either move to promiseKeeper, or redux store
         Cloud.get(`/activity/stream/by-path?path=${encodeURI(this.path)}`).then(({ response }) => this.setState({ activity: response }));
 
         if (!(getParentPath(this.path) === filesPath)) {
-            this.props.setLoading(true);
+            props.setLoading(true);
             if (loading) return;
-            this.props.fetchPageFromPath(this.path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH);
-            this.props.updatePath(this.path);
+            props.fetchPageFromPath(this.path, page.itemsPerPage, SortOrder.ASCENDING, SortBy.PATH);
+            props.updatePath(this.path);
         }
     }
 
@@ -65,7 +65,6 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations, FileI
                 </Header>
                 <FileView file={file} favorite={() => this.props.updateFiles(favoriteFileFromPage(page, [file], Cloud))} />
                 {this.state.activity.items.length ? (<Segment><ActivityFeed activity={this.state.activity.items} /></Segment>) : null}
-                {/* FIXME shares list by path does not work correctly, as it filters the retrieved list  */}
                 <ShareList byPath={file.path} />
                 <DefaultLoading loading={loading} />
             </Container >
