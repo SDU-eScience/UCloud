@@ -72,11 +72,11 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
                 </p>
 
                 <Image.Group size="small">
-                    <a target="_blank" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
+                    <a target="_blank" rel="noopener" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
                         <Image src={googlePlay} />
                     </a>
 
-                    <a target="_blank" href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
+                    <a target="_blank" rel="noopener" href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
                         <Image src={appStore} />
                     </a>
                 </Image.Group>
