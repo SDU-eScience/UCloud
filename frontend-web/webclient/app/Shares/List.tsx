@@ -32,13 +32,9 @@ export class List extends React.Component<ListProps, ListState> {
         store: PropTypes.object
     }
 
-    public componentDidMount() {
-        this.reload();
-    }
+    public componentDidMount = () => this.reload();
 
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
-    }
+    componentWillUnmount = () => this.state.promises.cancelPromises();
 
     reload() {
         const query = !!this.props.byPath ? sharesByPath(this.props.byPath) : retrieveShares(this.state.page, this.state.itemsPerPage, ShareState.REQUEST_SENT);
