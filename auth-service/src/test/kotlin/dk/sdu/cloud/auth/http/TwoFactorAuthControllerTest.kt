@@ -9,6 +9,8 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.api.TwoFactorStatusResponse
+import dk.sdu.cloud.auth.services.PasswordHashingService
+import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.QRService
 import dk.sdu.cloud.auth.services.TOTPService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
@@ -42,6 +44,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TwoFactorAuthControllerTest {
+    private val passwordHashingService = PasswordHashingService()
+    private val personService = PersonService(passwordHashingService)
+
     private data class TestContext(
         val cloud: AuthenticatedCloud,
         val kafka: KafkaServices,
@@ -81,7 +86,7 @@ class TwoFactorAuthControllerTest {
         loginResponder: LoginResponder<HibernateSession> = mockk(relaxed = true),
 
         twoFactorDAO: TwoFactorDAO<HibernateSession> = TwoFactorHibernateDAO(),
-        userDAO: UserDAO<HibernateSession> = UserHibernateDAO(),
+        userDAO: UserDAO<HibernateSession> = UserHibernateDAO(passwordHashingService),
         totpService: TOTPService = WSTOTPService(),
         qrService: QRService = ZXingQRService(),
 

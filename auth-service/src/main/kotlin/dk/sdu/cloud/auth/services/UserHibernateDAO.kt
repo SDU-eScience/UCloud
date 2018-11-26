@@ -11,8 +11,7 @@ import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.list
 import org.hibernate.annotations.NaturalId
-import java.util.Date
-import java.util.Arrays
+import java.util.*
 import javax.persistence.Entity
 import javax.persistence.EnumType
 import javax.persistence.Enumerated
@@ -168,7 +167,9 @@ data class PersonEntityByWAYF(
     }
 }
 
-class UserHibernateDAO : UserDAO<HibernateSession> {
+class UserHibernateDAO(
+    private val passwordHashingService: PasswordHashingService
+) : UserDAO<HibernateSession> {
     override fun findById(session: HibernateSession, id: String): Principal {
         return PrincipalEntity[session, id]?.toModel() ?: throw UserException.NotFound()
     }
@@ -190,6 +191,12 @@ class UserHibernateDAO : UserDAO<HibernateSession> {
         return usersWeFound + nullEntries
     }
 
+    override fun findByUsernamePrefix(session: HibernateSession, prefix: String): List<Principal> {
+        return session.criteria<PrincipalEntity> {
+            entity[PrincipalEntity::id] like (builder.concat(prefix, literal("%")))
+        }.list().map { it.toModel() }
+    }
+
     override fun insert(session: HibernateSession, principal: Principal) {
         session.save(principal.toEntity())
     }
@@ -206,13 +213,17 @@ class UserHibernateDAO : UserDAO<HibernateSession> {
     ) {
         val entity = PrincipalEntity[session, id] as? PersonEntityByPassword ?: throw UserException.NotFound()
         if (currentPasswordForVerification != null) {
-            val inputHashed = PersonUtils.hashPassword(currentPasswordForVerification, entity.salt)
-            if (!inputHashed.hashedPassword.contentEquals(entity.hashedPassword)) {
+            if (!passwordHashingService.checkPassword(
+                    entity.hashedPassword,
+                    entity.salt,
+                    currentPasswordForVerification
+                )
+            ) {
                 throw UserException.InvalidAuthentication()
             }
         }
 
-        val (hashedPassword, salt) = PersonUtils.hashPassword(newPassword)
+        val (hashedPassword, salt) = passwordHashingService.hashPassword(newPassword)
         entity.hashedPassword = hashedPassword
         entity.salt = salt
         session.update(entity)

@@ -9,7 +9,8 @@ import dk.sdu.cloud.auth.AuthConfiguration
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
-import dk.sdu.cloud.auth.services.PersonUtils
+import dk.sdu.cloud.auth.services.PasswordHashingService
+import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.RefreshTokenAndUser
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
 import dk.sdu.cloud.auth.services.Service
@@ -48,6 +49,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class CoreAuthTest {
+    private val passwordHashingService = PasswordHashingService()
+    private val personService = PersonService(passwordHashingService)
+
     private data class TestContext(
         val db: HibernateSessionFactory,
         val ottDao: OneTimeTokenHibernateDAO,
@@ -69,12 +73,13 @@ class CoreAuthTest {
         val validation = micro.tokenValidation as TokenValidationJWT
 
         val ottDao = OneTimeTokenHibernateDAO()
-        val userDao = UserHibernateDAO()
+        val userDao = UserHibernateDAO(passwordHashingService)
         val refreshTokenDao = RefreshTokenHibernateDAO()
         val config = mockk<AuthConfiguration>()
         val jwtFactory = JWTFactory(validation.algorithm)
         val tokenService = TokenService(
             micro.hibernateDatabase,
+            personService,
             userDao,
             refreshTokenDao,
             jwtFactory,
@@ -134,7 +139,7 @@ class CoreAuthTest {
     ) {
         userdao.insert(
             session,
-            PersonUtils.createUserByPassword(
+            personService.createUserByPassword(
                 "firstname",
                 "lastname",
                 username,
@@ -155,7 +160,7 @@ class CoreAuthTest {
         return tokenAndUser
     }
 
-    private val person = PersonUtils.createUserByPassword(
+    private val person = personService.createUserByPassword(
         "firstname",
         "lastname",
         "user",

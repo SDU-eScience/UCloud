@@ -2,7 +2,8 @@ package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.services.JWTFactory
-import dk.sdu.cloud.auth.services.PersonUtils
+import dk.sdu.cloud.auth.services.PasswordHashingService
+import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
 import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
@@ -37,6 +38,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class PasswordTest {
+    private val passwordHashingService = PasswordHashingService()
+    private val personService = PersonService(passwordHashingService)
+
     private data class TestContext(
         val userDao: UserHibernateDAO,
         val refreshTokenDao: RefreshTokenHibernateDAO,
@@ -49,7 +53,7 @@ class PasswordTest {
     private fun KtorApplicationTestSetupContext.createPasswordController(): TestContext {
         micro.install(HibernateFeature)
 
-        val userDao = UserHibernateDAO()
+        val userDao = UserHibernateDAO(passwordHashingService)
         val refreshTokenDao = RefreshTokenHibernateDAO()
 
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
@@ -57,6 +61,7 @@ class PasswordTest {
 
         val tokenService = TokenService(
             micro.hibernateDatabase,
+            personService,
             userDao,
             refreshTokenDao,
             jwtFactory,
@@ -73,6 +78,7 @@ class PasswordTest {
         val controllers = listOf(
             PasswordController(
                 micro.hibernateDatabase,
+                passwordHashingService,
                 userDao,
                 loginResponder
             )
@@ -81,7 +87,7 @@ class PasswordTest {
         return TestContext(userDao, refreshTokenDao, jwtFactory, tokenService, micro.hibernateDatabase, controllers)
     }
 
-    private val person = PersonUtils.createUserByPassword(
+    private val person = personService.createUserByPassword(
         "Firstname",
         "lastname",
         "user1",
@@ -95,7 +101,7 @@ class PasswordTest {
             setup = {
                 with(createPasswordController()) {
                     db.withTransaction {
-                        UserHibernateDAO().insert(it, person)
+                        UserHibernateDAO(passwordHashingService).insert(it, person)
                         ServiceDAO.insert(Service(name = "_service", endpoint = "http://service"))
                     }
 
@@ -119,7 +125,7 @@ class PasswordTest {
             setup = {
                 with(createPasswordController()) {
                     db.withTransaction {
-                        UserHibernateDAO().insert(it, person)
+                        UserHibernateDAO(passwordHashingService).insert(it, person)
                     }
 
                     controllers

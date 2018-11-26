@@ -23,6 +23,7 @@ import java.util.*
 
 class TokenService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
+    private val personService: PersonService,
     private val userDao: UserDAO<DBSession>,
     private val refreshTokenDao: RefreshTokenDAO<DBSession>,
     private val jwtFactory: JWTFactory,
@@ -258,15 +259,13 @@ class TokenService<DBSession>(
     }
 
     // TODO Should be moved to SAML package
-    fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
+    suspend fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
         try {
             log.debug("Processing SAML response")
             if (samlRequestProcessor.authenticated) {
                 val id =
                     samlRequestProcessor.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull()
-                        ?: throw IllegalArgumentException(
-                            "Missing EduPersonTargetedId"
-                        )
+                        ?: throw IllegalArgumentException("Missing EduPersonTargetedId")
 
                 log.debug("User is authenticated with id $id")
 
@@ -275,8 +274,10 @@ class TokenService<DBSession>(
                 } catch (ex: UserException.NotFound) {
                     log.debug("User not found. Creating new user...")
 
-                    val userCreated = PersonUtils.createUserByWAYF(samlRequestProcessor)
-                    userCreationService.blockingCreateUser(userCreated)
+                    // Expand this call to accept the username. We need the UserDAO to find a valid ID.
+                    // Alternatively, we can make PersonService a proper service (better choice?)
+                    val userCreated = personService.createUserByWAYF(samlRequestProcessor)
+                    userCreationService.createUser(userCreated)
                     userCreated
                 }
             }

@@ -1,6 +1,8 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.services.PasswordHashingService
+import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.service.HibernateFeature
@@ -36,28 +38,33 @@ fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.
     addHeader(io.ktor.http.HttpHeaders.Authorization, "Bearer ${createTokenForUser(username, role)}")
 }
 
-private fun KtorApplicationTestSetupContext.configureAuthServer(
-    userDao: UserHibernateDAO,
-    hsfactory: HibernateSessionFactory = mockk(relaxed = true),
-    userCreationService: UserCreationService<Session> = mockk(relaxed = true)
-): List<UserController<HibernateSession>> {
-    return listOf(
-        UserController(
-            hsfactory,
-            userDao,
-            userCreationService,
-            mockk(relaxed = true)
-        )
-    )
-}
 
 class UserTest {
+    private val passwordHashingService = PasswordHashingService()
+    private val personService = PersonService(passwordHashingService)
+
+    private fun KtorApplicationTestSetupContext.configureAuthServer(
+        userDao: UserHibernateDAO,
+        hsfactory: HibernateSessionFactory = mockk(relaxed = true),
+        userCreationService: UserCreationService<Session> = mockk(relaxed = true)
+    ): List<UserController<HibernateSession>> {
+        return listOf(
+            UserController(
+                hsfactory,
+                personService,
+                userDao,
+                userCreationService,
+                mockk(relaxed = true)
+            )
+        )
+    }
+
     @Test
     fun `create user and lookup`() {
         withKtorTest(
             setup = {
                 micro.install(HibernateFeature)
-                val userDao = UserHibernateDAO()
+                val userDao = UserHibernateDAO(passwordHashingService)
                 val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
@@ -110,7 +117,7 @@ class UserTest {
         withKtorTest(
             setup = {
                 micro.install(HibernateFeature)
-                val userDao = UserHibernateDAO()
+                val userDao = UserHibernateDAO(passwordHashingService)
                 val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
@@ -143,7 +150,7 @@ class UserTest {
         withKtorTest(
             setup = {
                 micro.install(HibernateFeature)
-                val userDao = UserHibernateDAO()
+                val userDao = UserHibernateDAO(passwordHashingService)
                 val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
@@ -174,7 +181,7 @@ class UserTest {
         withKtorTest(
             setup = {
                 micro.install(HibernateFeature)
-                val userDao = UserHibernateDAO()
+                val userDao = UserHibernateDAO(passwordHashingService)
                 val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
@@ -221,7 +228,7 @@ class UserTest {
         withKtorTest(
             setup = {
                 micro.install(HibernateFeature)
-                val userDao = UserHibernateDAO()
+                val userDao = UserHibernateDAO(passwordHashingService)
                 val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
@@ -268,7 +275,7 @@ class UserTest {
         withKtorTest(
             setup = {
                 micro.install(HibernateFeature)
-                val userDao = UserHibernateDAO()
+                val userDao = UserHibernateDAO(passwordHashingService)
                 val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
@@ -298,7 +305,7 @@ class UserTest {
         withKtorTest(
             setup = {
                 micro.install(HibernateFeature)
-                val userDao = UserHibernateDAO()
+                val userDao = UserHibernateDAO(passwordHashingService)
                 val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
@@ -333,7 +340,7 @@ class UserTest {
         withKtorTest(
             setup = {
                 micro.install(HibernateFeature)
-                val userDao = UserHibernateDAO()
+                val userDao = UserHibernateDAO(passwordHashingService)
                 val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
