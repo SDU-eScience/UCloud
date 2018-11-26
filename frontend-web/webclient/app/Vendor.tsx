@@ -3,7 +3,7 @@
 import "Styling/Shared.scss";
 import "loaders.css/loaders.css";
 import "LoadingIcon/colors.scss";
-//import "semantic-ui-css/semantic.min.css";
+import "semantic-ui-css/semantic.min.css";
 import "Applications/wizard.scss";
 import "Applications/Applications.scss";
 import "Dashboard/dashboard.scss";

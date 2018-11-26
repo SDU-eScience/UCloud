@@ -30,6 +30,8 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import DetailedFileSearch from "./DetailedFileSearch";
 import { TextSpan } from "ui-components/Text";
 import { getQueryParamOrElse } from "Utilities/URIUtilities";
+import { allFilesHasAccessRight } from "Utilities/FileUtilities";
+import { AccessRight } from "Types";
 
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
@@ -107,8 +109,11 @@ class Files extends React.Component<FilesProps> {
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const fileOperations: FileOperation[] = [
             {
-                text: "Rename", onClick: files => updateFiles(startRenamingFiles(files, page)),
-                disabled: () => false, icon: "rename", color: undefined
+                text: "Rename", 
+                onClick: files => updateFiles(startRenamingFiles(files, page)),
+                disabled: (files: File[]) => !allFilesHasAccessRight(AccessRight.WRITE, files), 
+                icon: "rename", 
+                color: undefined
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
