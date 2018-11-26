@@ -115,40 +115,60 @@ export const textStyles = {
 // color palette
 const black = "#000";
 const white = "#fff";
-const text = "#001833";
-const lightBlue = "#cdf";
-const blue = "#0055d5"; // primary
-const darkBlue = "#049";
+//// Gray
 const lightGray = "#ebeff3";
-const paginationHoverColor = "#f7f7f7"
-const borderGray = "#d1d6db";
-const gray = "#c9d3df"; // primary
-const midGray = "#53657d";
+const midGray = "#c9d3df";
+const gray = "#8393A7";
 const darkGray = "#53657d";
+//// Blue
+const lightBlue = "#cdf";
+const blue = "#0055d5";
+const darkBlue = "#049";
+//// Green
 const lightGreen = "#cec";
 const green = "#0a0"; // secondary
 const darkGreen = "#060";
+//// Red
 const lightRed = "#fcc";
 const red = "#c00"; // secondary
 const darkRed = "#800";
+//// Orange
 const orange = "#fa0"; // secondary
 const darkOrange = "#a50";
+//// Purple
 const lightPurple = "#ecf";
 const purple = "#70b"; // secondary
+
+// Color Themes
+// should use colors from the palette above
+//// Light color theme
+// const text = "#001833";
+const text = darkGray;
+const textHighlight = blue;
+const headerText = lightGray;
+const headerBg = blue;
+const headerIconColor = lightGray
+const headerIconColor2 = midGray;
+// const borderGray = "#d1d6db";
+const borderGray = midGray; //used for borders of cards, pagination, sidebar
+//const paginationHoverColor = "#f7f7f7"
+const paginationHoverColor = lightBlue;
+const paginationDisabled = lightGray;
+// Icons colors
+const iconColor = darkGray;
+const iconColor2 = gray;
 
 
 const colors = {
   black,
   white,
-  text,
+  lightGray,
+  midGray,
+  gray,
+  darkGray,
   blue,
   lightBlue,
   darkBlue,
-  gray,
-  lightGray,
-  midGray,
-  borderGray,
-  darkGray,
   green,
   lightGreen,
   darkGreen,
@@ -159,7 +179,17 @@ const colors = {
   darkOrange,
   purple,
   lightPurple,
-  paginationHoverColor
+  text,
+  textHighlight,
+  headerText,
+  headerBg,
+  headerIconColor,
+  headerIconColor2,
+  borderGray,
+  paginationHoverColor,
+  paginationDisabled,
+  iconColor,
+  iconColor2,
 }
 
 export type ThemeColor = keyof typeof colors;
