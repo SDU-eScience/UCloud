@@ -29,7 +29,7 @@ import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } f
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import DetailedFileSearch from "./DetailedFileSearch";
 import { TextSpan } from "ui-components/Text";
-import { getQueryParamOrElse } from "Utilities/URIUtilities";
+import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
 
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
@@ -43,7 +43,7 @@ class Files extends React.Component<FilesProps> {
         props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
-    urlPathFromProps = (props: FilesProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
+    urlPathFromProps = (props: RouterLocationProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
 
     get urlPath(): string {
         return this.urlPathFromProps(this.props);
