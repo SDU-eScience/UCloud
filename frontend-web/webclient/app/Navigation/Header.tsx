@@ -57,7 +57,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
         const { searchText } = this.state;
         const { prioritizedSearch, searchFiles } = this.props;
         return (
-            <HeaderContainer color="lightGray" bg="blue">
+            <HeaderContainer color="headerText" bg="headerBg">
                 <Logo />
                 <Box ml="auto" />
                 <Search

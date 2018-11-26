@@ -75,7 +75,7 @@ export const StateLessOperations = (): Operation[] => [
         text: "Share",
         onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud),
         disabled: (files: File[], cloud: Cloud) => false,
-        icon: "shares",
+        icon: "share",
         color: undefined
     },
     {

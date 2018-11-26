@@ -37,8 +37,8 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
 
 
 const PaginationButtonBase = styled(Button) <{ unclickable?: boolean }>`
-    color: ${props => props.theme.colors.black};
-    background-color: ${props => props.unclickable ? props.theme.colors.lightGray : "transparent"};
+    color: ${props => props.theme.colors.text};
+    background-color: ${props => props.unclickable ? props.theme.colors.paginationDisabled : "transparent"};
     border-color: ${props => props.theme.colors.borderGray};
     border-width: 1px;
     &:disabled {

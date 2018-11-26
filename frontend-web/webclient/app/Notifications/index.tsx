@@ -88,7 +88,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                 <Flex>
                     <Relative top="0" left="0">
                         <Flex justifyContent="center" width="60px">
-                            <Icon cursor="pointer" name="notification" />
+                            <Icon cursor="pointer" name="notification" color="headerIconColor" color2="headerIconColor2" />
                         </Flex>
                         {badgeCount > 0 ? <Absolute top="-12px" left="28px">
                             <Badge bg="red">{unreadLength + activeUploads}</Badge>
@@ -154,7 +154,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
     private resolveEventIcon(eventType: string): IconName {
         switch (eventType) {
             case "APP_COMPLETE": return "information";
-            case "SHARE_REQUEST": return "shares";
+            case "SHARE_REQUEST": return "share";
             default: return "warning";
         }
     }
