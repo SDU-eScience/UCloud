@@ -258,12 +258,13 @@ export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], 
  * @param {File} file The single file to be favorited
  * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
  */
-export const favoriteFile = (file: File, cloud: Cloud): void => {
+export const favoriteFile = (file: File, cloud: Cloud): File => {
     file.favorited = !file.favorited;
     if (file.favorited)
         cloud.post(`/files/favorite?path=${encodeURIComponent(file.path)}`, {}); // FIXME: Error handling
     else
         cloud.delete(`/files/favorite?path=${encodeURIComponent(file.path)}`, {}); // FIXME: Error handling
+    return file;
 }
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>

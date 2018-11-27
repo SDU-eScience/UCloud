@@ -95,8 +95,13 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     fileSelectorCallback: Function
     disallowedPaths: string[]
     invalidPath: boolean
-    fileInfoFile?: File
-    fileInfoError?: string
+}
+
+export interface FileInfoReduxObject {
+    file?: File
+    error?: string
+    activity: Page<Activity>
+    loading: boolean
 }
 
 export type AnalysisReduxObject = ComponentWithPage<Analysis>;
@@ -183,6 +188,7 @@ export interface ReduxObject {
     simpleSearch: SimpleSearchStateProps
     detailedFileSearch: DetailedFileSearchReduxState
     detailedApplicationSearch: DetailedApplicationSearchReduxState
+    fileInfo: FileInfoReduxObject
 }
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -241,7 +247,8 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     detailedResult: initDetailedResult(),
     simpleSearch: initSimpleSearch(),
     detailedApplicationSearch: initApplicationsAdvancedSearch(),
-    detailedFileSearch: initFilesDetailedSearch()
+    detailedFileSearch: initFilesDetailedSearch(),
+    fileInfo: initFileInfo()
 });
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
@@ -286,7 +293,12 @@ export const initUploads = (): UploaderReduxObject => ({
     allowMultiple: false,
     error: undefined,
     onFilesUploaded: () => null
-})
+});
+
+export const initFileInfo = (): FileInfoReduxObject => ({
+    activity: emptyPage,
+    loading: false
+});
 
 export const identifierTypes = [
     {

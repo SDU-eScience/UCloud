@@ -3,6 +3,7 @@ import * as ReactDOM from "react-dom";
 import { Provider } from "react-redux";
 import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "ui-components";
+import fileInfo from "Files/Redux/FileInfoReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { initObject } from "DefaultObjects";
 import Core from "Core";
@@ -40,7 +41,8 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     detailedResult,
     simpleSearch,
     detailedFileSearch,
-    detailedApplicationSearch
+    detailedApplicationSearch,
+    fileInfo
 });
 
 ReactDOM.render(
