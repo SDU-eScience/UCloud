@@ -12,6 +12,7 @@ import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
+import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
@@ -43,8 +44,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SAMLTest {
-    private val passwordHashingService = PasswordHashingService()
-    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
 
     private data class TestContext(
         val userDao: UserHibernateDAO,
@@ -53,14 +52,18 @@ class SAMLTest {
         val tokenService: TokenService<HibernateSession>,
         val authSettings: Saml2Settings,
         val samlRequestProcessorFactory: SAMLRequestProcessorFactory,
-        val controllers: List<Controller>
+        val controllers: List<Controller>,
+        val passwordHashingService: PasswordHashingService,
+        val personService: PersonService
     )
 
     private fun KtorApplicationTestSetupContext.createSamlController(): TestContext {
         micro.install(HibernateFeature)
 
+        val passwordHashingService = PasswordHashingService()
         val userDao = UserHibernateDAO(passwordHashingService)
         val refreshTokenDao = RefreshTokenHibernateDAO()
+        val personService = PersonService(passwordHashingService, UniqueUsernameService(micro.hibernateDatabase, userDao))
 
         val validation = micro.tokenValidation as TokenValidationJWT
         val jwtFactory = JWTFactory(validation.algorithm)
@@ -99,7 +102,9 @@ class SAMLTest {
             tokenService,
             authSettings,
             samlRequestProcessorFactory,
-            controllers
+            controllers,
+            passwordHashingService,
+            personService
         )
     }
 

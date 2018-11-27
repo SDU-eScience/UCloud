@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.service.HibernateFeature
@@ -25,24 +26,17 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class TokenTest {
-    private val passwordHashingService = PasswordHashingService()
-    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
-
     private val email = "test@testmail.com"
     private val token = "token"
-    private val person = personService.createUserByPassword(
-        "FirstName Middle",
-        "Lastname",
-        email,
-        Role.ADMIN,
-        "ThisIsMyPassword"
-    )
+    private lateinit var person: Person
 
     private data class TestContext(
         val tokenService: TokenService<HibernateSession>,
         val userDao: UserDAO<HibernateSession>,
         val refreshTokenDao: RefreshTokenDAO<HibernateSession>,
-        val db: DBSessionFactory<HibernateSession>
+        val db: DBSessionFactory<HibernateSession>,
+        val personService: PersonService,
+        val passwordHashingService: PasswordHashingService
     )
 
     private val testJwtVerifier by lazy {
@@ -55,7 +49,18 @@ class TokenTest {
 
         val db = micro.hibernateDatabase
         val testJwtFactory = JWTFactory(testJwtVerifier.algorithm)
+        val passwordHashingService = PasswordHashingService()
         val userDao = UserHibernateDAO(passwordHashingService)
+        val personService = PersonService(passwordHashingService, UniqueUsernameService(db, userDao))
+
+        person = personService.createUserByPassword(
+            "FirstName Middle",
+            "Lastname",
+            email,
+            Role.ADMIN,
+            "ThisIsMyPassword"
+        )
+
         db.withTransaction {
             try {
                 userDao.delete(it, person.id)
@@ -64,6 +69,7 @@ class TokenTest {
 
             userDao.insert(it, person)
         }
+
         val refreshTokenDao = RefreshTokenHibernateDAO()
         val tokenService = TokenService(
             db,
@@ -79,7 +85,9 @@ class TokenTest {
             tokenService,
             userDao,
             refreshTokenDao,
-            db
+            db,
+            personService,
+            passwordHashingService
         )
     }
 
