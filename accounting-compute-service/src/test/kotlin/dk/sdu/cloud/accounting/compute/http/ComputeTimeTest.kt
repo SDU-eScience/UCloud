@@ -63,7 +63,7 @@ class ComputeTimeTest {
                         val response =
                             handleRequest(
                                 HttpMethod.Get,
-                                "/api/accounting/compute/timeUsed/events"
+                                "/api/accounting/compute/timeUsed/events?user=user1"
                             ) {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser(role = Role.ADMIN)
@@ -102,7 +102,7 @@ class ComputeTimeTest {
                         val response =
                             handleRequest(
                                 HttpMethod.Get,
-                                "/api/accounting/compute/timeUsed/chart"
+                                "/api/accounting/compute/timeUsed/chart?user=user1"
                             )
                             {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
@@ -138,7 +138,7 @@ class ComputeTimeTest {
                         val response =
                             handleRequest(
                                 HttpMethod.Get,
-                                "/api/accounting/compute/timeUsed/usage"
+                                "/api/accounting/compute/timeUsed/usage?user=user1"
                             ) {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser(role = Role.ADMIN)

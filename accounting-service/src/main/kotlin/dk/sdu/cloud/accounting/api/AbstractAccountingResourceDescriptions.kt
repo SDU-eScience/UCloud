@@ -16,6 +16,7 @@ data class ListEventsRequest(
     override val since: Long?,
     override val until: Long?,
     override val context: String?,
+    val user: String,
 
     override val itemsPerPage: Int?,
     override val page: Int?
@@ -55,7 +56,8 @@ interface ContextQuery {
 data class ContextQueryImpl(
     override val since: Long? = null,
     override val until: Long? = null,
-    override val context: String? = null
+    override val context: String? = null,
+    val user: String
 ) : ContextQuery
 
 /**
@@ -237,6 +239,7 @@ abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
             +boundTo(ListEventsRequest::since)
             +boundTo(ListEventsRequest::until)
             +boundTo(ListEventsRequest::context)
+            +boundTo(ListEventsRequest::user)
 
             +boundTo(ListEventsRequest::page)
             +boundTo(ListEventsRequest::itemsPerPage)
@@ -263,6 +266,7 @@ abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
             +boundTo(ChartRequest::since)
             +boundTo(ChartRequest::until)
             +boundTo(ChartRequest::context)
+            +boundTo(ChartRequest::user)
         }
     }
 
@@ -286,6 +290,7 @@ abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
             +boundTo(CurrentUsageRequest::context)
             +boundTo(CurrentUsageRequest::since)
             +boundTo(CurrentUsageRequest::until)
+            +boundTo(CurrentUsageRequest::user)
         }
     }
 }

@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.compute.http
 
 import dk.sdu.cloud.accounting.api.ChartResponse
 import dk.sdu.cloud.accounting.api.ChartingHelpers
+import dk.sdu.cloud.accounting.api.ContextQueryImpl
 import dk.sdu.cloud.accounting.api.CurrentUsageResponse
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingTimeDescriptions
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
@@ -21,11 +22,11 @@ class ComputeTimeController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputeAccountingTimeDescriptions.listEvents) { req ->
-            ok(completedJobsService.listEvents(req.normalize(), req, call.securityPrincipal.username))
+            ok(completedJobsService.listEvents(req.normalize(), req, req.user))
         }
 
         implement(ComputeAccountingTimeDescriptions.chart) { req ->
-            val events = completedJobsService.listAllEvents(req, call.securityPrincipal.username)
+            val events = completedJobsService.listAllEvents(req, req.user)
 
             ok(
                 ChartResponse(
@@ -40,7 +41,7 @@ class ComputeTimeController<DBSession>(
         implement(ComputeAccountingTimeDescriptions.currentUsage) { req ->
             ok(
                 CurrentUsageResponse(
-                    usage = completedJobsService.computeUsage(req, call.securityPrincipal.username),
+                    usage = completedJobsService.computeUsage(req, req.user),
                     quota = null
                 )
             )

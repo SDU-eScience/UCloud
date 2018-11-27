@@ -60,7 +60,7 @@ class JobsStartedTest {
                         val response =
                             handleRequest(
                                 HttpMethod.Get,
-                                "/api/accounting/compute/jobsStarted/events"
+                                "/api/accounting/compute/jobsStarted/events?user=user1"
                             ) {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
                                 setUser(role = Role.ADMIN)
@@ -99,7 +99,7 @@ class JobsStartedTest {
                         val response =
                             handleRequest(
                                 HttpMethod.Get,
-                                "/api/accounting/compute/jobsStarted/chart"
+                                "/api/accounting/compute/jobsStarted/chart?user=user1"
                             )
                             {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
@@ -136,7 +136,7 @@ class JobsStartedTest {
                         val response =
                             handleRequest(
                                 HttpMethod.Get,
-                                "/api/accounting/compute/jobsStarted/usage"
+                                "/api/accounting/compute/jobsStarted/usage?user=user1"
                             )
                             {
                                 addHeader("Job-Id", UUID.randomUUID().toString())
