@@ -15,9 +15,11 @@ import {
     CHECK_ALL_FILES,
     CHECK_FILE,
     CREATE_FOLDER,
-    FILES_INVALID_PATH
+    FILES_INVALID_PATH,
+    RECEIVE_FILE_STAT,
+    FILE_INFO_ERROR
 } from "./FilesReducer";
-import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "Utilities/FileUtilities";
+import { getFilenameFromPath, replaceHomeFolder, getParentPath, statFileQuery } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
 import { SortOrder, SortBy, File } from "..";
 import { Action } from "redux";
@@ -29,7 +31,7 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
     SetLoadingAction<typeof SET_FILES_LOADING> | UpdatePathAction | FileSelectorShownAction |
     ReceiveFileSelectorFilesAction | Action<typeof SET_FILE_SELECTOR_LOADING> | SetFileSelectorCallbackAction |
     Error<typeof SET_FILE_SELECTOR_ERROR> | SetDisallowedPathsAction | SetSortingColumnAction | CheckAllFilesAction |
-    CheckFileAction | CreateFolderAction | InvalidPath
+    CheckFileAction | CreateFolderAction | InvalidPath | ReceiveFileStat | FileInfoError
 
 /**
 * Creates a promise to fetch files. Sorts the files based on sorting function passed,
@@ -232,6 +234,21 @@ export const checkFile = (checked: boolean, path: string): CheckFileAction => ({
 });
 
 type CreateFolderAction = Action<typeof CREATE_FOLDER>
-export const createFolder = () => ({
-    type: CREATE_FOLDER
+export const createFolder = () => ({ type: CREATE_FOLDER });
+
+export const fetchFileStat = (path: string): Promise<ReceiveFileStat | FileInfoError> =>
+    Cloud.get<File>(statFileQuery(path))
+        .then(({ response }) => receiveFileStat(response))
+        .catch(({ request }: { request: XMLHttpRequest }) => fileInfoError(request.statusText))
+
+type ReceiveFileStat = PayloadAction<typeof RECEIVE_FILE_STAT, { fileInfoFile: File }>
+const receiveFileStat = (fileInfoFile: File): ReceiveFileStat => ({
+    type: RECEIVE_FILE_STAT,
+    payload: { fileInfoFile }
 });
+
+type FileInfoError = PayloadAction<typeof FILE_INFO_ERROR, { fileInfoError?: string }>;
+const fileInfoError = (fileInfoError?: string): FileInfoError => ({
+    type: FILE_INFO_ERROR,
+    payload: { fileInfoError }
+})

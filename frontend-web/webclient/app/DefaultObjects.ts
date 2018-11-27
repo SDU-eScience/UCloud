@@ -95,6 +95,8 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     fileSelectorCallback: Function
     disallowedPaths: string[]
     invalidPath: boolean
+    fileInfoFile?: File
+    fileInfoError?: string
 }
 
 export type AnalysisReduxObject = ComponentWithPage<Analysis>;
