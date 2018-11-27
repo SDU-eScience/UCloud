@@ -1,49 +1,27 @@
 import * as React from 'react'
 import styled from 'styled-components'
-import { space, color, SpaceProps } from "styled-system"
-import { icons } from './icons.json'
+import { space, color, SpaceProps, ColorProps } from "styled-system"
+import * as icons from './icons/index'
 import theme from './theme'
 
-const getPath = (name) => icons[name];
 
-const Svg = styled.svg`
-  flex: none;
-  vertical-align: middle;
-  ${space} ${color};
-`
-
-const IconBase = ({ name, size, ...props }): JSX.Element => {
-  const icon = getPath(name)
-  if (!icon) return (<></>);
-
-  const listPath = icon.path.map((path: [string, string?], i: number) =>
-    //fill can be null, in which case it will not render 
-    <path key={i} d={path[0]} fill={props.color ? theme.colors[props.color] : path[1]} />
-  )
-
-  return (
-    <Svg
-      {...props}
-      viewBox={icon.viewBox}
-      width={size}
-      height={size}
-      fill="currentcolor"
-    >
-      {listPath}
-    </Svg>
-  )
+const IconBase = ({ name, size, theme, color, color2, ...props }): JSX.Element => {
+  const Component = icons[name]
+  if (!Component) return (<></>);
+  return <Component width={size} height={size} color2={theme.colors[color2]} {...props} />
 }
 
-export interface IconProps extends SpaceProps {
+export interface IconProps extends SpaceProps, ColorProps
+{
   name: IconName
-  size?: string | number
-  color?: string
+  color2?: string
   rotation?: number
   cursor?: string
 }
 
 const Icon = styled(IconBase) <IconProps>`
   flex: none;
+  vertical-align: middle;
   cursor: ${props => props.cursor};
   ${props => props.rotation ? `transform: rotate(${props.rotation}deg);` : ""}
   ${space} ${color};

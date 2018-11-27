@@ -1,4 +1,5 @@
-import Cloud from "Authentication/lib";
+import { Cloud } from "Authentication/SDUCloudObject";
+import SDUCloud from "Authentication/lib";
 import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType } from "Files";
 import { Page } from "Types";
 import { History } from "history";
@@ -6,7 +7,7 @@ import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
 import { projectViewPage } from "Utilities/ProjectUtilities";
 
-export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud): void {
+export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCloud): void {
     let i = 0;
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);
@@ -30,7 +31,7 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: Cloud
     }); // End Callback
 };
 
-export function move(files: File[], operations: MoveCopyOperations, cloud: Cloud): void {
+export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCloud): void {
     operations.showFileSelector(true);
     const parentPath = getParentPath(files[0].path);
     operations.setDisallowedPaths([parentPath].concat(files.map(f => f.path)));
@@ -63,9 +64,19 @@ export const startRenamingFiles = (files: File[], page: Page<File>) => {
     return page;
 }
 
-type AccessRight = "READ" | "WRITE" | "EXECUTE";
-const hasAccess = (accessRight: AccessRight, file: File) => file.acl === undefined ? false : file.acl.every(acl => acl.rights.includes(accessRight));
-const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => files.every(f => hasAccess(accessRight, f));
+export type AccessRight = "READ" | "WRITE" | "EXECUTE";
+const hasAccess = (accessRight: AccessRight, file: File) => {
+    const username = Cloud.username;
+    if (file.ownerName === username) return true;
+    if (file.acl === undefined) return false;
+
+    const relevantEntries = file.acl.filter(item => !item.group && item.entity === username);
+    return relevantEntries.some(entry => entry.rights.includes(accessRight));
+};
+
+export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => {
+    return files.every(f => hasAccess(accessRight, f));
+};
 
 /**
  * @returns Share and Download operations for files
@@ -73,15 +84,15 @@ const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => file
 export const StateLessOperations = (): Operation[] => [
     {
         text: "Share",
-        onClick: (files: File[], cloud: Cloud) => shareFiles(files, cloud),
-        disabled: (files: File[], cloud: Cloud) => false,
-        icon: "shares",
+        onClick: (files: File[], cloud: SDUCloud) => shareFiles(files, cloud),
+        disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files),
+        icon: "share",
         color: undefined
     },
     {
         text: "Download",
-        onClick: (files: File[], cloud: Cloud) => downloadFiles(files, cloud),
-        disabled: (files: File[], cloud: Cloud) => !UF.downloadAllowed(files),
+        onClick: (files: File[], cloud: SDUCloud) => downloadFiles(files, cloud),
+        disabled: (files: File[], cloud: SDUCloud) => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files),
         icon: "download",
         color: undefined
     }
@@ -93,15 +104,15 @@ export const StateLessOperations = (): Operation[] => [
 export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations): Operation[] => [
     {
         text: "Copy",
-        onClick: (files: File[], cloud: Cloud) => copy(files, fileSelectorOperations, cloud),
-        disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files),
+        onClick: (files: File[], cloud: SDUCloud) => copy(files, fileSelectorOperations, cloud),
+        disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files),
         icon: "copy",
         color: undefined
     },
     {
         text: "Move",
-        onClick: (files: File[], cloud: Cloud) => move(files, fileSelectorOperations, cloud),
-        disabled: (files: File[], cloud: Cloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)),
+        onClick: (files: File[], cloud: SDUCloud) => move(files, fileSelectorOperations, cloud),
+        disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)),
         icon: "move",
         color: undefined
     }
@@ -116,7 +127,7 @@ export const MoveFileToTrashOperation = (onMoved: () => void): Operation[] => [
     {
         text: "Move to Trash",
         onClick: (files, cloud) => moveToTrash(files, cloud, onMoved),
-        disabled: (files: File[], cloud: Cloud) => (!allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)) || files.every(({ path }) => inTrashDir(path, cloud))),
+        disabled: (files: File[], cloud: SDUCloud) => (!allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)) || files.every(({ path }) => inTrashDir(path, cloud))),
         icon: "trash",
         color: "red"
     },
@@ -142,28 +153,29 @@ export const MoveFileToTrashOperation = (onMoved: () => void): Operation[] => [
 export const HistoryFilesOperations = (history: History): [Operation, PredicatedOperation] => [
     {
         text: "Properties",
-        onClick: (files: File[], cloud: Cloud) => history.push(fileInfoPage(files[0].path)),
-        disabled: (files: File[], cloud: Cloud) => files.length !== 1,
+        onClick: (files: File[], cloud: SDUCloud) => history.push(fileInfoPage(files[0].path)),
+        disabled: (files: File[], cloud: SDUCloud) => files.length !== 1,
         icon: "properties", color: "blue"
     },
     {
-        predicate: (files: File[], cloud: Cloud) => isProject(files[0]),
+        predicate: (files: File[], cloud: SDUCloud) => isProject(files[0]),
         onTrue: {
             text: "Edit Project",
-            onClick: (files: File[], cloud: Cloud) => history.push(projectViewPage(files[0].path)),
-            disabled: (files: File[], cloud: Cloud) => !canBeProject(files, cloud.homeFolder),
+            onClick: (files: File[], cloud: SDUCloud) => history.push(projectViewPage(files[0].path)),
+            disabled: (files: File[], cloud: SDUCloud) => !canBeProject(files, cloud.homeFolder),
             icon: "projects", color: "blue"
         },
         onFalse: {
             text: "Create Project",
-            onClick: (files: File[], cloud: Cloud) =>
+            onClick: (files: File[], cloud: SDUCloud) =>
                 UF.createProject(
                     files[0].path,
                     cloud,
                     (projectPath: string) => history.push(projectViewPage(projectPath))
                 ),
-            disabled: (files: File[], cloud: Cloud) =>
-                files.length !== 1 || !canBeProject(files, cloud.homeFolder),
+            disabled: (files: File[], cloud: SDUCloud) =>
+                files.length !== 1 || !canBeProject(files, cloud.homeFolder) || 
+                !allFilesHasAccessRight("READ", files) || !allFilesHasAccessRight("WRITE", files),
             icon: "projects",
             color: "blue"
         },
@@ -245,7 +257,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
  * @param {Cloud} cloud The instance of a Cloud object used for requests
  * @returns {Page<File>} The page of files with the file favorited
  */
-export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], cloud: Cloud): Page<File> => {
+export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], cloud: SDUCloud): Page<File> => {
     filesToFavorite.forEach(f => {
         const file = page.items.find((file: File) => file.path === f.path)!;
         favoriteFile(file, cloud);
@@ -258,7 +270,8 @@ export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], 
  * @param {File} file The single file to be favorited
  * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
  */
-export const favoriteFile = (file: File, cloud: Cloud): File => {
+
+export const favoriteFile = (file: File, cloud: SDUCloud): File => {
     file.favorited = !file.favorited;
     if (file.favorited)
         cloud.post(`/files/favorite?path=${encodeURIComponent(file.path)}`, {}); // FIXME: Error handling
@@ -281,7 +294,7 @@ export const isLink = (file: File) => file.link;
 export const isDirectory = (file: { fileType: FileType }) => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string) => UF.addTrailingSlash(path).replace(homeFolder, "Home/");
 
-export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback: () => void) =>
+export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callback: () => void) =>
     moveToTrashSwal([filePath]).then((result: any) => {
         if (result.dismiss) {
             return;
@@ -291,7 +304,7 @@ export const showFileDeletionPrompt = (filePath: string, cloud: Cloud, callback:
     });
 
 
-export const clearTrash = (cloud: Cloud, callback: () => void) =>
+export const clearTrash = (cloud: SDUCloud, callback: () => void) =>
     clearTrashSwal().then((result: any) => {
         if (result.dismiss) {
             return;
@@ -313,7 +326,7 @@ export const getParentPath = (path: string): string => {
 
 export const getFilenameFromPath = (path: string): string => path.split("/").filter(p => p).pop()!;
 
-export const downloadFiles = (files: File[], cloud: Cloud) =>
+export const downloadFiles = (files: File[], cloud: SDUCloud) =>
     files.map(f => f.path).forEach(p =>
         cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
             const element = document.createElement("a");
@@ -325,7 +338,7 @@ export const downloadFiles = (files: File[], cloud: Cloud) =>
         }));
 
 
-export const fetchFileContent = (path: string, cloud: Cloud) =>
+export const fetchFileContent = (path: string, cloud: SDUCloud) =>
     cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) =>
         fetch(`/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`)
     );
@@ -349,7 +362,7 @@ export const fileSizeToString = (bytes: number): string => {
     }
 };
 
-export const shareFiles = (files: File[], cloud: Cloud) =>
+export const shareFiles = (files: File[], cloud: SDUCloud) =>
     UF.shareSwal().then((input) => {
         if (input.dismiss) return;
         const rights: string[] = [];
@@ -391,7 +404,7 @@ export const clearTrashSwal = () => {
     });
 };
 
-export const moveToTrash = (files: File[], cloud: Cloud, callback: () => void) => {
+export const moveToTrash = (files: File[], cloud: SDUCloud, callback: () => void) => {
     const paths = files.map(f => f.path);
     moveToTrashSwal(paths).then((result: any) => {
         if (result.dismiss) {
@@ -404,7 +417,7 @@ export const moveToTrash = (files: File[], cloud: Cloud, callback: () => void) =
     })
 };
 
-export const batchDeleteFiles = (files: File[], cloud: Cloud, callback: () => void) => {
+export const batchDeleteFiles = (files: File[], cloud: SDUCloud, callback: () => void) => {
     const paths = files.map(f => f.path);
     deletionSwal(paths).then((result: any) => {
         if (result.dismiss) {
@@ -434,14 +447,14 @@ const deletionSwal = (filePaths: string[]) => {
     });
 };
 
-export const moveFile = (oldPath: string, newPath: string, cloud: Cloud, onSuccess: () => void) =>
+export const moveFile = (oldPath: string, newPath: string, cloud: SDUCloud, onSuccess: () => void) =>
     cloud.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`).then(({ request }) => {
         if (UF.inSuccessRange(request.status)) {
             onSuccess()
         }
     }).catch(() => UF.failureNotification("An error ocurred trying to rename the file."));
 
-export const createFolder = (path: string, cloud: Cloud, onSuccess: () => void) =>
+export const createFolder = (path: string, cloud: SDUCloud, onSuccess: () => void) =>
     cloud.post("/files/directory", { path }).then(({ request }) => {
         if (UF.inSuccessRange(request.status)) {
             onSuccess()
@@ -449,4 +462,4 @@ export const createFolder = (path: string, cloud: Cloud, onSuccess: () => void) 
     }).catch(() => UF.failureNotification("An error ocurred trying to creating the file."));
 
 
-const inTrashDir = (path: string, cloud: Cloud): boolean => getParentPath(path) === cloud.trashFolder;
+const inTrashDir = (path: string, cloud: SDUCloud): boolean => getParentPath(path) === cloud.trashFolder;

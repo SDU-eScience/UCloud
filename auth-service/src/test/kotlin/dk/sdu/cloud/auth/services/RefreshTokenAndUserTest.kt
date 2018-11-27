@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.withDatabase
+import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -10,6 +11,9 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RefreshTokenAndUserTest {
+    private val passwordHashingService = PasswordHashingService()
+    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
+
     @Test
     fun `insert, find and delete`() {
         withDatabase { db ->
@@ -17,14 +21,14 @@ class RefreshTokenAndUserTest {
             val token = "tokenToGive"
 
             db.withTransaction { session ->
-                val person = PersonUtils.createUserByPassword(
+                val person = personService.createUserByPassword(
                     "FirstName Middle",
                     "Lastname",
                     email,
                     Role.ADMIN,
                     "ThisIsMyPassword"
                 )
-                UserHibernateDAO().insert(session, person)
+                UserHibernateDAO(passwordHashingService).insert(session, person)
                 val refreshTAU = RefreshTokenAndUser(email, token, "")
                 val refreshHibernateTAU = RefreshTokenHibernateDAO()
 

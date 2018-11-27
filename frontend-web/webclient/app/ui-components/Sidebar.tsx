@@ -17,17 +17,14 @@ const SideBarContainer = styled(Flex)`
     //margin-top: 48px;
     height: 100%;
     flex-flow: column;
-    border-right: 1px solid ${props => props.theme.colors.gray}
+    border-right: 1px solid ${props => props.theme.colors.borderGray}
 `;
 
 const SideBarElementContainer = styled(Flex)`
     justify-content: left;
     flex-flow: row;
     align-items: center;
-    clear: none;
     :hover {
-        color: ${props => props.theme.colors.blue};
-        cursor: pointer;
         svg {
             filter: saturate(500%);
         }
@@ -35,10 +32,10 @@ const SideBarElementContainer = styled(Flex)`
 `
 interface SidebarElementProps { icon: IconName, label: string, showLabel: boolean, to: string }
 const SideBarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => (
-    <Link color={"midGray"} to={to}>
+    <Link to={to}>
         <SideBarElementContainer >
             <Flex mx="22px" alignItems='center'>
-                <Icon cursor="pointer" name={icon} size="24" />
+                <Icon cursor="pointer" name={icon} color="iconColor" color2="iconColor2" size="24" />
             </Flex>
             {showLabel &&
                 <Text cursor="pointer" fontSize={3} bold>
@@ -64,7 +61,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, auditing: Side
         items: [
             { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
             { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
-            { icon: "shares", label: "Shares", to: "/shares/" },
+            { icon: "share", label: "Shares", to: "/shares/" },
             { icon: "apps", label: "Apps", to: "/applications/" },
             { icon: "information", label: "Job Results", to: "/applications/results/" },
             { icon: "publish", label: "Publish", to: "/zenodo/publish/" },
@@ -79,7 +76,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
     return (
-        <SideBarContainer color="darkGray" bg="lightGray" width={190}>
+        <SideBarContainer color="text" bg="lightGray" width={190}>
             {sidebar.map((it, iteration) =>
                 <React.Fragment key={iteration}>
                     {it.items.map(({ icon, label, to }: { icon: IconName, label: string, to: string }) => (

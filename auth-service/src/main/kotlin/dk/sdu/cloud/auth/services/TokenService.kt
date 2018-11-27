@@ -18,11 +18,14 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.toSecurityToken
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.time.delay
 import java.security.SecureRandom
 import java.util.*
 
 class TokenService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
+    private val personService: PersonService,
     private val userDao: UserDAO<DBSession>,
     private val refreshTokenDao: RefreshTokenDAO<DBSession>,
     private val jwtFactory: JWTFactory,
@@ -258,26 +261,35 @@ class TokenService<DBSession>(
     }
 
     // TODO Should be moved to SAML package
-    fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
+    suspend fun processSAMLAuthentication(samlRequestProcessor: SamlRequestProcessor): Person.ByWAYF? {
         try {
             log.debug("Processing SAML response")
             if (samlRequestProcessor.authenticated) {
                 val id =
                     samlRequestProcessor.attributes[AttributeURIs.EduPersonTargetedId]?.firstOrNull()
-                        ?: throw IllegalArgumentException(
-                            "Missing EduPersonTargetedId"
-                        )
+                        ?: throw IllegalArgumentException("Missing EduPersonTargetedId")
 
                 log.debug("User is authenticated with id $id")
 
-                return try {
+                try {
                     db.withTransaction { userDao.findById(it, id) } as Person.ByWAYF
                 } catch (ex: UserException.NotFound) {
                     log.debug("User not found. Creating new user...")
 
-                    val userCreated = PersonUtils.createUserByWAYF(samlRequestProcessor)
-                    userCreationService.blockingCreateUser(userCreated)
-                    userCreated
+                    loop@ for (i in 0..5) {
+                        try {
+                            // Expand this call to accept the username. We need the UserDAO to find a valid ID.
+                            // Alternatively, we can make PersonService a proper service (better choice?)
+                            val userCreated = personService.createUserByWAYF(samlRequestProcessor)
+                            userCreationService.createUser(userCreated)
+                            return userCreated
+                        } catch (ex: Exception) {
+                            if (i < 5) log.debug(ex.stackTraceToString())
+                            else log.warn(ex.stackTraceToString())
+
+                            delay(50)
+                        }
+                    }
                 }
             }
         } catch (ex: Exception) {

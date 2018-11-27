@@ -1,1 +1,14 @@
-<svg viewBox="0 0 23 24" xmlns="http://www.w3.org/2000/svg" fill-rule="evenodd" clip-rule="evenodd" stroke-linejoin="round" stroke-miterlimit="1.414"><path d="M19.33 15.333V8c0-4.4-3.6-8-8-8s-8 3.6-8 8v7.333L-.004 20h22.667l-3.333-4.667z" fill="#ebeff3" fill-rule="nonzero"/><path d="M11.33 24a2.666 2.666 0 0 0 2.666-2.667H8.663A2.666 2.666 0 0 0 11.33 24" fill="#c9d3df" fill-rule="nonzero"/></svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+    <g transform="matrix(1,0,0,1,-588.001,-488)">
+        <g transform="matrix(0.666667,0,0,0.666667,366,398.657)">
+            <g transform="matrix(1.05882,0,0,1,363.707,141.014)">
+                <path d="M0,16L0,5C0,-1.6 -5.4,-7 -12,-7C-18.6,-7 -24,-1.6 -24,5L-24,16L-29,23L5,23L0,16Z" style="fill:rgb(83,101,125);fill-rule:nonzero;"/>
+            </g>
+            <g transform="matrix(1.05882,0,0,1,351.001,166.014)">
+                <path d="M0,4C2.21,4 4,2.21 4,0L-4,0C-4,2.21 -2.21,4 0,4" style="fill:rgb(131,147,167);fill-rule:nonzero;"/>
+            </g>
+        </g>
+    </g>
+</svg>

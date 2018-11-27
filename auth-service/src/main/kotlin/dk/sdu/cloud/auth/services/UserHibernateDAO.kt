@@ -11,8 +11,7 @@ import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.list
 import org.hibernate.annotations.NaturalId
-import java.util.Date
-import java.util.Arrays
+import java.util.*
 import javax.persistence.Entity
 import javax.persistence.EnumType
 import javax.persistence.Enumerated
@@ -27,6 +26,7 @@ import javax.persistence.TemporalType
  * Updated in:
  *
  * - V1__Initial.sql
+ * - V7__WayfId.sql
  */
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
@@ -150,7 +150,8 @@ data class PersonEntityByWAYF(
     override var lastName: String,
     override var phoneNumber: String?,
     override var orcId: String?,
-    var orgId: String
+    var orgId: String,
+    var wayfId: String
 ) : PersonEntity() {
     override fun toModel(): Principal {
         return Person.ByWAYF(
@@ -163,12 +164,15 @@ data class PersonEntityByWAYF(
             orcId,
             emptyList(),
             null,
-            orgId
+            orgId,
+            wayfId
         )
     }
 }
 
-class UserHibernateDAO : UserDAO<HibernateSession> {
+class UserHibernateDAO(
+    private val passwordHashingService: PasswordHashingService
+) : UserDAO<HibernateSession> {
     override fun findById(session: HibernateSession, id: String): Principal {
         return PrincipalEntity[session, id]?.toModel() ?: throw UserException.NotFound()
     }
@@ -190,6 +194,18 @@ class UserHibernateDAO : UserDAO<HibernateSession> {
         return usersWeFound + nullEntries
     }
 
+    override fun findByUsernamePrefix(session: HibernateSession, prefix: String): List<Principal> {
+        return session.criteria<PrincipalEntity> {
+            entity[PrincipalEntity::id] like (builder.concat(prefix, literal("%")))
+        }.list().map { it.toModel() }
+    }
+
+    override fun findByWayfId(session: HibernateSession, wayfId: String): Person.ByWAYF {
+        return (session.criteria<PersonEntityByWAYF> {
+            entity[PersonEntityByWAYF::wayfId] equal wayfId
+        } as? PrincipalEntity)?.toModel() as? Person.ByWAYF ?: throw UserException.NotFound()
+    }
+
     override fun insert(session: HibernateSession, principal: Principal) {
         session.save(principal.toEntity())
     }
@@ -206,13 +222,17 @@ class UserHibernateDAO : UserDAO<HibernateSession> {
     ) {
         val entity = PrincipalEntity[session, id] as? PersonEntityByPassword ?: throw UserException.NotFound()
         if (currentPasswordForVerification != null) {
-            val inputHashed = PersonUtils.hashPassword(currentPasswordForVerification, entity.salt)
-            if (!inputHashed.hashedPassword.contentEquals(entity.hashedPassword)) {
+            if (!passwordHashingService.checkPassword(
+                    entity.hashedPassword,
+                    entity.salt,
+                    currentPasswordForVerification
+                )
+            ) {
                 throw UserException.InvalidAuthentication()
             }
         }
 
-        val (hashedPassword, salt) = PersonUtils.hashPassword(newPassword)
+        val (hashedPassword, salt) = passwordHashingService.hashPassword(newPassword)
         entity.hashedPassword = hashedPassword
         entity.salt = salt
         session.update(entity)
@@ -235,7 +255,8 @@ fun Principal.toEntity(): PrincipalEntity {
             lastName,
             phoneNumber,
             orcId,
-            organizationId
+            organizationId,
+            wayfId
         )
 
         is Person.ByPassword -> PersonEntityByPassword(

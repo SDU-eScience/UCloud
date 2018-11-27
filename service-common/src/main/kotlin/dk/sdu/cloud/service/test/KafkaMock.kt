@@ -57,6 +57,7 @@ import org.apache.kafka.clients.admin.RenewDelegationTokenOptions
 import org.apache.kafka.clients.admin.RenewDelegationTokenResult
 import org.apache.kafka.clients.producer.MockProducer
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.common.Cluster
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.TopicPartitionReplica
 import org.apache.kafka.common.acl.AclBinding
@@ -84,7 +85,7 @@ object KafkaMock : Loggable {
 
         // Create mocks
         log.debug("  Creating kafkaProducer")
-        val kafkaProducer = MockProducer<String, String>()
+        val kafkaProducer = MockProducer<String, String>(Cluster.empty(), true, null, null, null)
         this.mockedKafkaProducer = kafkaProducer
 
         log.debug("  Returning from initialize()")
@@ -266,6 +267,10 @@ fun <Value> KafkaMock.assertMessage(topic: StreamDescription<*, Value>, value: V
         it.topic() == topic.name &&
                 it.value() == topic.valueSerde.serializer().serialize(topic.name, value).toString(Charsets.UTF_8)
     })
+}
+
+fun <Value> KafkaMock.assertMessageThat(topic: StreamDescription<*, Value>, matcher: (Value) -> Boolean) {
+    assertCollectionHasItem(messagesForTopic(topic).map { it.second }, matcher = matcher)
 }
 
 fun <Key, Value> KafkaMock.messagesForTopic(topic: StreamDescription<Key, Value>): List<Pair<Key, Value>> {

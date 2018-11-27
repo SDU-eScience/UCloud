@@ -16,9 +16,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class UserHibernateDAOTest {
+    private val passwordHashingService = PasswordHashingService()
+    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
 
     val email = "test@testmail.com"
-    val person = PersonUtils.createUserByPassword(
+    val person = personService.createUserByPassword(
         "FirstName Middle",
         "Lastname",
         email,
@@ -26,7 +28,7 @@ class UserHibernateDAOTest {
         "ThisIsMyPassword"
     )
     val email2 = "anotherEmail@test.com"
-    val person2 = PersonUtils.createUserByPassword(
+    val person2 = personService.createUserByPassword(
         "McFirstName McMiddle",
         "McLastname",
         email2,
@@ -38,7 +40,7 @@ class UserHibernateDAOTest {
     fun `insert, find and delete`() {
         withDatabase { db ->
             db.withTransaction { session ->
-                val userHibernate = UserHibernateDAO()
+                val userHibernate = UserHibernateDAO(passwordHashingService)
                 userHibernate.insert(session, person)
                 assertEquals(email, userHibernate.findById(session, email).id)
                 userHibernate.delete(session, email)
@@ -51,7 +53,7 @@ class UserHibernateDAOTest {
     fun `insert 2 and list all`() {
         withDatabase { db ->
             db.withTransaction { session ->
-                val userHibernate = UserHibernateDAO()
+                val userHibernate = UserHibernateDAO(passwordHashingService)
                 userHibernate.insert(session, person)
                 userHibernate.insert(session, person2)
 
@@ -69,7 +71,7 @@ class UserHibernateDAOTest {
     fun `insert 2 with same email`() {
         withDatabase { db ->
             db.withTransaction { session ->
-                val userHibernate = UserHibernateDAO()
+                val userHibernate = UserHibernateDAO(passwordHashingService)
                 userHibernate.insert(session, person)
                 userHibernate.insert(session, person)
 
@@ -81,7 +83,7 @@ class UserHibernateDAOTest {
     fun `delete non existing user`() {
         withDatabase { db ->
             val session = db.openSession()
-            val userHibernate = UserHibernateDAO()
+            val userHibernate = UserHibernateDAO(passwordHashingService)
             userHibernate.delete(session, "test@testmail.com")
         }
     }
@@ -93,7 +95,7 @@ class UserHibernateDAOTest {
 
             db.withTransaction { session ->
 
-                val userDao = UserHibernateDAO()
+                val userDao = UserHibernateDAO(passwordHashingService)
                 every { auth.authenticated } returns true
                 every { auth.attributes } answers {
                     val h = HashMap<String, List<String>>(10)
@@ -104,7 +106,7 @@ class UserHibernateDAOTest {
                     h
                 }
 
-                val person = PersonUtils.createUserByWAYF(auth)
+                val person = personService.createUserByWAYF(auth)
 
                 userDao.insert(session, person)
 
@@ -177,7 +179,8 @@ class UserHibernateDAOTest {
             "lastname",
             "phone",
             "orcid",
-            "orgid"
+            "orgid",
+            "wayfid"
         )
         val model = entity.toModel()
         val backToEntity = model.toEntity()

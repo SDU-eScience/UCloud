@@ -9,28 +9,22 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.ServiceDescription
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.client.defaultMapper
-import io.ktor.application.Application
-import io.ktor.application.install
-import io.ktor.features.ContentNegotiation
+import dk.sdu.cloud.service.test.KafkaMock
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.assertMessageThat
+import dk.sdu.cloud.service.test.assertThatPropertyEquals
+import dk.sdu.cloud.service.test.messagesForTopic
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.jackson.jackson
-import io.ktor.routing.routing
+import io.ktor.routing.Route
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
-import io.ktor.server.testing.withTestApplication
-import io.mockk.every
-import io.mockk.mockk
-import org.apache.kafka.clients.producer.Callback
-import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.serialization.Serde
 import org.junit.Test
-import java.util.*
-import java.util.concurrent.FutureTask
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -79,90 +73,69 @@ object TestDescriptions : RESTDescriptions("echo") {
     }
 }
 
-val records = ArrayList<ProducerRecord<String, String>>()
-val mockedKafkaProducer = mockk<KafkaProducer<String, String>>(relaxed = true).also { mockedKafkaProducer ->
-    every {
-        mockedKafkaProducer.send(
-            capture(records),
-            any()
-        )
-    } answers {
-        val result = FutureTask { mockk<RecordMetadata>(relaxed = true) }
-        val callback = args.last() as Callback
-        callback.onCompletion(mockk(relaxed = true), null)
-        result
-    }
-}
-val kafkaService = KafkaServices(Properties(), Properties(), mockedKafkaProducer, mockk(relaxed = true))
+val simpleEchoServer: KtorApplicationTestSetupContext.() -> List<Controller> = {
+    listOf(object : Controller {
+        override val baseContext: String = "/"
+        override fun configure(routing: Route): Unit = with(routing) {
+            implement(TestDescriptions.echoId) {
+                ok(SomeData(it.id))
+            }
 
-val simpleEchoServer: Application.() -> Unit = {
-    install(KafkaHttpLogger) {
-        kafka = kafkaService
-        serverDescription = ServiceInstance(MyServiceDescription.definition(), "localhost", 8080)
-    }
-
-    install(ContentNegotiation) {
-        jackson { }
-    }
-
-    interceptJobId(false)
-
-    routing {
-        RESTServerSupport.allowMissingKafkaHttpLogger = false
-        implement(TestDescriptions.echoId) {
-            ok(SomeData(it.id))
+            implement(TestDescriptions.echoWithAudit) {
+                audit(SomeAudit(AUDIT_STRING))
+                ok(SomeData(it.id))
+            }
         }
-
-        implement(TestDescriptions.echoWithAudit) {
-            audit(SomeAudit(AUDIT_STRING))
-            ok(SomeData(it.id))
-        }
-    }
+    })
 }
 
 class ImplementFeatureTest {
     @Test
     fun testExtraJSONProperty() {
-        withTestApplication(
-            moduleFunction = simpleEchoServer,
+        withKtorTest(
+            setup = simpleEchoServer,
 
             test = {
-                val response = handleRequest(HttpMethod.Post, "/echo") {
-                    addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    setBody(
-                        """
+                with(engine) {
+                    val response = handleRequest(HttpMethod.Post, "/echo") {
+                        addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        setBody(
+                            """
                         {
                             "id": 1337,
                             "not_present": 42
                         }
                         """.trimIndent()
-                    )
-                }.response
+                        )
+                    }.response
 
-                assertEquals(HttpStatusCode.OK, response.status())
+                    assertEquals(HttpStatusCode.OK, response.status())
+                }
             }
         )
     }
 
     @Test
     fun testExtraJSONIncorrectType() {
-        withTestApplication(
-            moduleFunction = simpleEchoServer,
+        withKtorTest(
+            setup = simpleEchoServer,
 
             test = {
-                val response = handleRequest(HttpMethod.Post, "/echo") {
-                    addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    setBody(
-                        """
+                with(engine) {
+                    val response = handleRequest(HttpMethod.Post, "/echo") {
+                        addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        setBody(
+                            """
                         {
                             "id": "cannot convert to int",
                             "not_present": 42
                         }
                         """.trimIndent()
-                    )
-                }.response
+                        )
+                    }.response
 
-                assertEquals(HttpStatusCode.BadRequest, response.status())
+                    assertEquals(HttpStatusCode.BadRequest, response.status())
+                }
             }
         )
     }
@@ -170,87 +143,80 @@ class ImplementFeatureTest {
 
     @Test
     fun testValidCall() {
-        withTestApplication(
-            moduleFunction = simpleEchoServer,
+        withKtorTest(
+            setup = simpleEchoServer,
 
             test = {
-                val response = handleRequest(HttpMethod.Post, "/echo") {
-                    addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    setBody(""" { "id": 1337 } """)
-                }.response
+                with(engine) {
+                    val response = handleRequest(HttpMethod.Post, "/echo") {
+                        addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        setBody(""" { "id": 1337 } """)
+                    }.response
 
-                assertEquals(HttpStatusCode.OK, response.status())
+                    assertEquals(HttpStatusCode.OK, response.status())
+                }
             }
         )
     }
 
     @Test
     fun `test kafka audit`() {
-        withTestApplication(
-            moduleFunction = simpleEchoServer,
+        withKtorTest(
+            setup = simpleEchoServer,
             test = {
-                records.clear()
+                with(engine) {
+                    val response = handleRequest(HttpMethod.Post, "/echo") {
+                        addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        addHeader("Job-Id", "1234")
+                        setBody(""" { "id": 1337 } """)
+                    }.response
 
-                val response = handleRequest(HttpMethod.Post, "/echo") {
-                    addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    addHeader("Job-Id", "1234")
-                    setBody(""" { "id": 1337 } """)
-                }.response
+                    Thread.sleep(1000) // Audit streams are async to the request. We need to wait for them.
 
-                Thread.sleep(1000) // Audit streams are async to the request. We need to wait for them.
+                    assertEquals(HttpStatusCode.OK, response.status())
 
-                assertEquals(HttpStatusCode.OK, response.status())
-                assertEquals(2, records.size)
+                    val httpStream = KafkaHttpLogger.httpLogsStream
 
-                val httpStream = KafkaHttpLogger.httpLogsStream
-                val httpEvent =
-                    records.find { it.topic() == httpStream.name } ?: throw AssertionError("http event missing")
-                val deserializedHttpEvent = deserialize(httpStream.valueSerde, httpEvent)
+                    KafkaMock.assertMessageThat(httpStream) {
+                        @Suppress("UNCHECKED_CAST")
+                        TestDescriptions.echoId.fullName == it.requestName &&
+                                1337 == (it.requestJson as? Map<String, Any>)?.get("id")
+                    }
 
-                val auditStream = TestDescriptions.auditStream
-                val auditEvent =
-                    records.find { it.topic() == auditStream.name } ?: throw AssertionError("audit missing")
-                val deserializedAuditEvent = deserializeAudit(auditEvent, TestDescriptions.echoId)
-
-
-                assertEquals(TestDescriptions.echoId.fullName, deserializedHttpEvent.requestName)
-                assertEquals("POST", deserializedAuditEvent.http.httpMethod.toUpperCase())
-                assertEquals(FindByIntId(1337), deserializedAuditEvent.request)
+                    assertThatPropertyEquals(KafkaMock.messagesForTopic(TestDescriptions.auditStream), { it.size }, 1)
+                }
             }
         )
     }
 
     @Test
     fun `test kafka normalized audit`() {
-        withTestApplication(
-            moduleFunction = simpleEchoServer,
+        withKtorTest(
+            setup = simpleEchoServer,
             test = {
-                records.clear()
+                with(engine) {
 
-                val response = handleRequest(HttpMethod.Post, "/echo/audit") {
-                    addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    addHeader("Job-Id", "1234")
-                    setBody(""" { "id": 1337 } """)
-                }.response
+                    val response = handleRequest(HttpMethod.Post, "/echo/audit") {
+                        addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        addHeader("Job-Id", "1234")
+                        setBody(""" { "id": 1337 } """)
+                    }.response
 
-                Thread.sleep(250) // Audit streams are async to the request. We need to wait for them.
+                    Thread.sleep(250) // Audit streams are async to the request. We need to wait for them.
 
-                assertEquals(HttpStatusCode.OK, response.status())
-                assertEquals(2, records.size)
+                    assertEquals(HttpStatusCode.OK, response.status())
 
-                val httpStream = KafkaHttpLogger.httpLogsStream
-                val httpEvent =
-                    records.find { it.topic() == httpStream.name } ?: throw AssertionError("http event missing")
-                val deserializedHttpEvent = deserialize(httpStream.valueSerde, httpEvent)
+                    val httpStream = KafkaHttpLogger.httpLogsStream
 
-                val auditStream = TestDescriptions.auditStream
-                val auditEvent =
-                    records.find { it.topic() == auditStream.name } ?: throw AssertionError("audit missing")
-                val deserializedAuditEvent = deserializeAudit(auditEvent, TestDescriptions.echoWithAudit)
+                    KafkaMock.assertMessageThat(httpStream) {
+                        @Suppress("UNCHECKED_CAST")
+                        TestDescriptions.echoWithAudit.fullName == it.requestName &&
+                                "POST" == it.httpMethod
+                    }
 
-                assertEquals(TestDescriptions.echoWithAudit.fullName, deserializedHttpEvent.requestName)
-                assertEquals("POST", deserializedAuditEvent.http.httpMethod.toUpperCase())
-                assertEquals(SomeAudit(AUDIT_STRING), deserializedAuditEvent.request)
+                    assertThatPropertyEquals(KafkaMock.messagesForTopic(TestDescriptions.auditStream), { it.size }, 1)
+
+                }
             }
         )
     }
@@ -258,62 +224,63 @@ class ImplementFeatureTest {
     @Test
     fun `test audit deserialization of multiple messages`() {
         // TODO Should probably move this to another file. But just one test (for now)
-        withTestApplication(
-            moduleFunction = simpleEchoServer,
+        withKtorTest(
+            setup = simpleEchoServer,
             test = {
-                records.clear()
+                with(engine) {
+                    val requestId = 1337
 
-                val requestId = 1337
+                    // Send two different messages
+                    val response1 = handleRequest(HttpMethod.Post, "/echo") {
+                        addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        addHeader("Job-Id", "1234")
+                        setBody(""" { "id": $requestId } """)
+                    }.response
+                    assertEquals(HttpStatusCode.OK, response1.status())
 
-                // Send two different messages
-                val response1 = handleRequest(HttpMethod.Post, "/echo") {
-                    addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    addHeader("Job-Id", "1234")
-                    setBody(""" { "id": $requestId } """)
-                }.response
-                assertEquals(HttpStatusCode.OK, response1.status())
+                    val response2 = handleRequest(HttpMethod.Post, "/echo/audit") {
+                        addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+                        addHeader("Job-Id", "1234")
+                        setBody(""" { "id": $requestId } """)
+                    }.response
+                    assertEquals(HttpStatusCode.OK, response2.status())
 
-                val response2 = handleRequest(HttpMethod.Post, "/echo/audit") {
-                    addHeader(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    addHeader("Job-Id", "1234")
-                    setBody(""" { "id": $requestId } """)
-                }.response
-                assertEquals(HttpStatusCode.OK, response2.status())
+                    // Still need to wait for the messages to appear
+                    Thread.sleep(250)
 
-                // Still need to wait for the messages to appear
-                Thread.sleep(250)
+                    // Retrieve all audit messages (from mocked producer)
+                    val httpStream = KafkaHttpLogger.httpLogsStream
+                    assertThatPropertyEquals(KafkaMock.messagesForTopic(TestDescriptions.auditStream), { it.size }, 2)
 
-                // Retrieve all audit messages (from mocked producer)
-                val auditRecords = records.filter { it.topic() == TestDescriptions.auditStream.name }
-                assertEquals(2, auditRecords.size)
+                    // We track that both records have been hit
+                    var echoWithAuditRecorded = false
+                    var echoWithoutAuditRecorded = false
 
+                    // Run the parser, like an ordinary consumer would
+                    for (record in KafkaMock.messagesForTopic(TestDescriptions.auditStream)) {
 
-                // We track that both records have been hit
-                var echoWithAuditRecorded = false
-                var echoWithoutAuditRecorded = false
-
-                // Run the parser, like an ordinary consumer would
-                for (record in auditRecords) {
-                    val tree = defaultMapper.readTree(record.value())
-
-                    TestDescriptions.echoWithAudit.parseAuditMessageOrNull(tree)?.let {
-                        assertEquals(TestDescriptions.echoWithAudit.fullName, it.http.requestName)
-                        assertEquals(AUDIT_STRING, it.request.audit)
+                        KafkaMock.assertMessageThat(httpStream) {
+                            @Suppress("UNCHECKED_CAST")
+                            TestDescriptions.echoWithAudit.fullName == it.requestName &&
+                                    "POST" == it.httpMethod
+                        }
                         echoWithAuditRecorded = true
-                    }
 
-                    TestDescriptions.echoId.parseAuditMessageOrNull(tree)?.let {
-                        assertEquals(TestDescriptions.echoId.fullName, it.http.requestName)
-                        assertEquals(requestId, it.request.id)
+                        KafkaMock.assertMessageThat(httpStream) {
+                            @Suppress("UNCHECKED_CAST")
+                            TestDescriptions.echoId.fullName == it.requestName &&
+                                    1337 == (it.requestJson as? Map<String, Any>)?.get("id")
+                        }
                         echoWithoutAuditRecorded = true
                     }
-                }
 
-                assertTrue(echoWithAuditRecorded)
-                assertTrue(echoWithoutAuditRecorded)
+                    assertTrue(echoWithAuditRecorded)
+                    assertTrue(echoWithoutAuditRecorded)
+                }
             }
         )
     }
+
 
     private fun <A : Any> deserializeAudit(
         record: ProducerRecord<String, String>,

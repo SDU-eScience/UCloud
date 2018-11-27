@@ -18,15 +18,19 @@ import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.tokenValidation
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class TokenTest {
+    private val passwordHashingService = PasswordHashingService()
+    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
+
     private val email = "test@testmail.com"
     private val token = "token"
-    private val person = PersonUtils.createUserByPassword(
+    private val person = personService.createUserByPassword(
         "FirstName Middle",
         "Lastname",
         email,
@@ -51,7 +55,7 @@ class TokenTest {
 
         val db = micro.hibernateDatabase
         val testJwtFactory = JWTFactory(testJwtVerifier.algorithm)
-        val userDao = UserHibernateDAO()
+        val userDao = UserHibernateDAO(passwordHashingService)
         db.withTransaction {
             try {
                 userDao.delete(it, person.id)
@@ -63,6 +67,7 @@ class TokenTest {
         val refreshTokenDao = RefreshTokenHibernateDAO()
         val tokenService = TokenService(
             db,
+            personService,
             userDao,
             refreshTokenDao,
             testJwtFactory,
@@ -103,7 +108,7 @@ class TokenTest {
                 h
 
             }
-            val result = tokenService.processSAMLAuthentication(auth)
+            val result = runBlocking { tokenService.processSAMLAuthentication(auth) }
             assertEquals("SDU", result?.organizationId)
             assertEquals("Firstname", result?.firstNames)
             assertEquals("Lastname", result?.lastName)
@@ -116,7 +121,7 @@ class TokenTest {
             val auth = mockk<SamlRequestProcessor>()
             every { auth.authenticated } returns true
             every { auth.attributes } answers { hashMapOf() }
-            assertNull(tokenService.processSAMLAuthentication(auth))
+            runBlocking { assertNull(tokenService.processSAMLAuthentication(auth)) }
         }
     }
 
@@ -125,7 +130,7 @@ class TokenTest {
         with(createTokenService()) {
             val auth = mockk<SamlRequestProcessor>()
             every { auth.authenticated } returns false
-            assertNull(tokenService.processSAMLAuthentication(auth))
+            runBlocking { assertNull(tokenService.processSAMLAuthentication(auth)) }
         }
     }
 
