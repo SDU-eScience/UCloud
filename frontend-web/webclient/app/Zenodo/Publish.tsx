@@ -88,44 +88,46 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
             return (<NotConnectedToZenodo />);
         }
         return (
-            <>
-                <Heading.h3>
-                    File Selection
-                </Heading.h3>
-                <Error error={this.props.error} clearError={() => this.props.setErrorMessage(undefined)} />
-                <form onSubmit={(e) => this.submit(e)}>
-                    <FileSelections
-                        handleFileSelection={this.handleFileSelection}
-                        files={this.state.files}
-                        removeFile={this.removeFile}
-                    />
-                    <Label>Publication Name
+            <Flex alignItems="center" flexDirection="column">
+                <Box width={0.7}>
+                    <Heading.h3>
+                        File Selection
+                    </Heading.h3>
+                    <Error error={this.props.error} clearError={() => this.props.setErrorMessage(undefined)} />
+                    <form onSubmit={(e) => this.submit(e)}>
+                        <FileSelections
+                            handleFileSelection={this.handleFileSelection}
+                            files={this.state.files}
+                            removeFile={this.removeFile}
+                        />
+                        <Label>Publication Name
                     <Input
 
-                            required={true}
-                            value={name}
-                            type="text"
-                            onChange={({ target: { value } }) => this.setState(() => ({ name: value }))}
-                        />
-                    </Label>
-                    <Flex mt="0.5em">
-                        <Button
-                            color="green"
-                            type="button"
-                            onClick={() => this.newFile()}
-                        >Add file</Button>
-                        <Box ml="auto" />
-                        <LoadingButton
-                            disabled={!name || this.state.files.filter(p => p).length === 0}
-                            color="blue"
-                            type="submit"
-                            loading={this.state.requestSent}
-                            content="Upload files"
-                            onClick={this.submit}
-                        />
-                    </Flex>
-                </form>
-            </>
+                                required={true}
+                                value={name}
+                                type="text"
+                                onChange={({ target: { value } }) => this.setState(() => ({ name: value }))}
+                            />
+                        </Label>
+                        <Flex mt="0.5em">
+                            <Button
+                                color="green"
+                                type="button"
+                                onClick={() => this.newFile()}
+                            >Add file</Button>
+                            <Box ml="auto" />
+                            <LoadingButton
+                                disabled={!name || this.state.files.filter(p => p).length === 0}
+                                color="blue"
+                                type="submit"
+                                loading={this.state.requestSent}
+                                content="Upload files"
+                                onClick={this.submit}
+                            />
+                        </Flex>
+                    </form>
+                </Box>
+            </Flex>
         );
     }
 }
