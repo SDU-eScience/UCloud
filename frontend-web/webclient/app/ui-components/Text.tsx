@@ -1,3 +1,4 @@
+import * as React from "react";
 import styled, { ThemeProps } from "styled-components";
 import {
   textStyle,
@@ -50,10 +51,10 @@ const Text = styled("div") <TextProps>`
   ${italic}
 `;
 
-export const div = Text;
-export const TextSpan = Text.withComponent("span");
-export const TextP = Text.withComponent("p");
-export const TextS = Text.withComponent("s");
+export const TextDiv = Text;
+export const TextSpan = (props) => <Text as="span" {...props}/>;
+export const TextP = (props) => <Text as="p" {...props}/>;
+export const TextS = (props) => <Text as="s" {...props}/>;
 
 interface EllipsedTextProps extends TextProps { width: number }
 export const EllipsedText = styled(Text) <EllipsedTextProps>`
