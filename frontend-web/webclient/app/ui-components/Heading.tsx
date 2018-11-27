@@ -1,57 +1,13 @@
+import * as React from "react";
 import Text from './Text'
-import theme from './theme'
 
-const Heading = Text.withComponent('h3')
+export const h1 = (props) => <Text as="h1" bold={true} fontSize={6} m={0} {...props} />
+export const h2 = (props) => <Text as="h2" bold={true} fontSize={5} m={0} {...props} />
+export const h3 = (props) => <Text as="h3" regular={true} fontSize={4} m={0} {...props} />
+export const h4 = (props) => <Text as="h4" regular={true} fontSize={3} m={0} {...props} />
+export const h5 = (props) => <Text as="h5" bold={true} fontSize={2} m={0} {...props} />
+export const h6 = (props) => <Text as="h6" bold={true} caps={true} fontSize={0} m={0} {...props} />
 
-Heading.displayName = 'Heading'
-Heading.defaultProps = {
-  regular: true,
-  fontSize: 4,
-  m: 0,
-  theme
-};
-
-export const h1 = Heading.withComponent('h1')
-h1.defaultProps = {
-  bold: true,
-  fontSize: 6,
-  m: 0
-};
-
-export const h2 = Heading.withComponent('h2')
-h2.defaultProps = {
-  bold: true,
-  fontSize: 5,
-  m: 0
-};
-
-export const h3 = Heading.withComponent('h3')
-h3.defaultProps = {
-  regular: true,
-  fontSize: 4,
-  m: 0
-};
-
-export const h4 = Heading.withComponent('h4')
-h4.defaultProps = {
-  regular: true,
-  fontSize: 3,
-  m: 0
-};
-
-export const h5 = Heading.withComponent('h5')
-h5.defaultProps = {
-  bold: true,
-  fontSize: 2,
-  m: 0
-};
-
-export const h6 = Heading.withComponent('h6')
-h6.defaultProps = {
-  bold: true,
-  caps: true,
-  fontSize: 0,
-  m: 0
-};
+const Heading = h3
 
 export default Heading;
