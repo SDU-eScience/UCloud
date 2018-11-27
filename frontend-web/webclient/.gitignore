@@ -2,3 +2,5 @@
 /dist/*
 /coverage/*
 /.vscode/settings.json
+/app/ui-components/icons/components/
+/app/ui-components/icons/index.ts
