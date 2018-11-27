@@ -1,0 +1,16 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: accounting-storage-service-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.sdu.dk
+    http:
+      paths:
+      - path: /api/accounting-storage
+        backend:
+          serviceName: accounting-storage
+          servicePort: 8080
