@@ -47,18 +47,18 @@ const store = configureStore(initObject(Cloud.homeFolder), {
 });
 
 const GlobalStyle = createGlobalStyle`
-  ${UIGlobalStyle};
+  UIGlobalStyle
 `;
 
 ReactDOM.render(
     <Provider store={store}>
         <ThemeProvider theme={theme}>
-        <React.Fragment>
-            <GlobalStyle theme={theme}/>
+        <>
+            <GlobalStyle />
             <BrowserRouter basename="app">
                 <Core />
             </BrowserRouter>
-        </React.Fragment>
+        </>
         </ThemeProvider>
     </Provider>,
     document.getElementById("app")
