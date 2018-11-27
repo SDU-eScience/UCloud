@@ -1,11 +1,11 @@
 import * as React from "react";
-import { Container, Header, List, Table, Progress } from "semantic-ui-react";
+import { Container, Header, List, Table } from "semantic-ui-react";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
 import { dateToString } from "Utilities/DateUtilities";
 import { ZenodoInfoProps, ZenodoInfoState, ZenodoPublicationStatus } from ".";
-import { Error } from "ui-components";
+import { Error, Progress } from "ui-components";
 
 const isTerminal = (status: ZenodoPublicationStatus): boolean =>
     status === ZenodoPublicationStatus.COMPLETE || status === ZenodoPublicationStatus.FAILURE;
@@ -97,8 +97,8 @@ const ZenodoPublishingBody = ({ publication }) => {
                 </List.Item>
             </List>
             <Progress
-                color="green"
                 active={publication.status === "UPLOADING"}
+                color="green"
                 label={`${progressBarValue}%`}
                 percent={progressBarValue} />
             <FilesList files={uploads} />
