@@ -9,12 +9,14 @@ import dk.sdu.cloud.auth.AuthConfiguration
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
-import dk.sdu.cloud.auth.services.PersonUtils
+import dk.sdu.cloud.auth.services.PasswordHashingService
+import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.RefreshTokenAndUser
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
 import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.service.Controller
@@ -48,6 +50,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class CoreAuthTest {
+
     private data class TestContext(
         val db: HibernateSessionFactory,
         val ottDao: OneTimeTokenHibernateDAO,
@@ -57,7 +60,10 @@ class CoreAuthTest {
         val config: AuthConfiguration,
         val tokenService: TokenService<HibernateSession>,
         val validation: TokenValidationJWT,
-        val controllers: List<Controller>
+        val controllers: List<Controller>,
+        val passwordHashingService: PasswordHashingService,
+        val uniqueUsernameService: UniqueUsernameService<*>,
+        val personService: PersonService
     )
 
     private fun KtorApplicationTestSetupContext.createCoreAuthController(
@@ -68,13 +74,17 @@ class CoreAuthTest {
         micro.install(HibernateFeature)
         val validation = micro.tokenValidation as TokenValidationJWT
 
+        val passwordHashingService = PasswordHashingService()
         val ottDao = OneTimeTokenHibernateDAO()
-        val userDao = UserHibernateDAO()
+        val userDao = UserHibernateDAO(passwordHashingService)
         val refreshTokenDao = RefreshTokenHibernateDAO()
+        val uniqueUsernameService = UniqueUsernameService(micro.hibernateDatabase, userDao)
+        val personService = PersonService(passwordHashingService, uniqueUsernameService)
         val config = mockk<AuthConfiguration>()
         val jwtFactory = JWTFactory(validation.algorithm)
         val tokenService = TokenService(
             micro.hibernateDatabase,
+            personService,
             userDao,
             refreshTokenDao,
             jwtFactory,
@@ -103,7 +113,10 @@ class CoreAuthTest {
             config,
             tokenService,
             validation,
-            controllers
+            controllers,
+            passwordHashingService,
+            uniqueUsernameService,
+            personService
         )
     }
 
@@ -134,7 +147,7 @@ class CoreAuthTest {
     ) {
         userdao.insert(
             session,
-            PersonUtils.createUserByPassword(
+            personService.createUserByPassword(
                 "firstname",
                 "lastname",
                 username,
@@ -154,14 +167,6 @@ class CoreAuthTest {
         refreshTokenDao.insert(session, tokenAndUser)
         return tokenAndUser
     }
-
-    private val person = PersonUtils.createUserByPassword(
-        "firstname",
-        "lastname",
-        "user",
-        Role.ADMIN,
-        "password"
-    )
 
     fun TestApplicationEngine.sendRequest(
         method: HttpMethod,

@@ -5,6 +5,8 @@ import com.onelogin.saml2.settings.Saml2Settings
 import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.services.JWTFactory
+import dk.sdu.cloud.auth.services.PasswordHashingService
+import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
 import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
@@ -41,6 +43,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class SAMLTest {
+    private val passwordHashingService = PasswordHashingService()
+    private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
+
     private data class TestContext(
         val userDao: UserHibernateDAO,
         val refreshTokenDao: RefreshTokenHibernateDAO,
@@ -54,7 +59,7 @@ class SAMLTest {
     private fun KtorApplicationTestSetupContext.createSamlController(): TestContext {
         micro.install(HibernateFeature)
 
-        val userDao = UserHibernateDAO()
+        val userDao = UserHibernateDAO(passwordHashingService)
         val refreshTokenDao = RefreshTokenHibernateDAO()
 
         val validation = micro.tokenValidation as TokenValidationJWT
@@ -62,6 +67,7 @@ class SAMLTest {
 
         val tokenService = TokenService(
             micro.hibernateDatabase,
+            personService,
             userDao,
             refreshTokenDao,
             jwtFactory,

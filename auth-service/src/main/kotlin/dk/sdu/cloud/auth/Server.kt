@@ -14,11 +14,13 @@ import dk.sdu.cloud.auth.http.UserController
 import dk.sdu.cloud.auth.services.AccessTokenContents
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
-import dk.sdu.cloud.auth.services.PersonUtils
+import dk.sdu.cloud.auth.services.PasswordHashingService
+import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
+import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.services.WSTOTPService
@@ -66,8 +68,11 @@ class Server(
 
     override fun start() {
         log.info("Creating core services...")
-        val userDao = UserHibernateDAO()
+        val passwordHashingService = PasswordHashingService()
+        val userDao = UserHibernateDAO(passwordHashingService)
         val refreshTokenDao = RefreshTokenHibernateDAO()
+        val usernameGenerator = UniqueUsernameService(db, userDao)
+        val personService = PersonService(passwordHashingService, usernameGenerator)
         val ottDao = OneTimeTokenHibernateDAO()
         val userCreationService = UserCreationService(
             db,
@@ -93,8 +98,10 @@ class Server(
             service to lists.flatMap { it.parsedScopes }.toSet()
         }.toMap()
 
+        // TODO This service is accepting way too many depeendencies.
         val tokenService = TokenService(
             db,
+            personService,
             userDao,
             refreshTokenDao,
             JWTFactory(jwtAlg),
@@ -118,7 +125,7 @@ class Server(
                     random.nextBytes(passwordBytes)
                     val password = Base64.getEncoder().encodeToString(passwordBytes)
 
-                    val user = PersonUtils.createUserByPassword(
+                    val user = personService.createUserByPassword(
                         "Admin",
                         "Dev",
                         "admin@dev",
@@ -170,7 +177,7 @@ class Server(
                 loginResponder
             )
 
-            val passwordController = PasswordController(db, userDao, loginResponder)
+            val passwordController = PasswordController(db, passwordHashingService, userDao, loginResponder)
             log.info("HTTP controllers configured!")
 
             routing {
@@ -178,21 +185,24 @@ class Server(
                 if (config.enablePasswords) configureControllers(passwordController)
 
                 configureControllers(
+                    // TODO Too many dependencies
                     CoreAuthController(
-                        db,
-                        ottDao,
-                        tokenService,
-                        config.enablePasswords,
-                        config.enableWayf,
-                        tokenValidation,
-                        config.trustedOrigins.toSet()
+                        db = db,
+                        ottDao = ottDao,
+                        tokenService = tokenService,
+                        enablePasswords = config.enablePasswords,
+                        enableWayf = config.enableWayf,
+                        tokenValidation = tokenValidation,
+                        trustedOrigins = config.trustedOrigins.toSet()
                     ),
 
+                    // TODO Too many dependencies
                     UserController(
-                        db,
-                        userDao,
-                        userCreationService,
-                        tokenService
+                        db = db,
+                        personService = personService,
+                        userDAO = userDao,
+                        userCreationService = userCreationService,
+                        tokenService = tokenService
                     ),
 
                     TwoFactorAuthController(twoFactorChallengeService, loginResponder)

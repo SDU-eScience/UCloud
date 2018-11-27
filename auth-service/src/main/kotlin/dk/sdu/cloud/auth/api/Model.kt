@@ -73,9 +73,6 @@ sealed class Person : Principal() {
      * Represents a [Person] authenticated by WAYF
      */
     data class ByWAYF(
-        /**
-         * Given by WAYF in the property `eduPersonTargetedID`
-         */
         override val id: String,
         override val role: Role,
         override val title: String?,
@@ -89,7 +86,12 @@ sealed class Person : Principal() {
         /**
          * Given by WAYF in the property `schacHomeOrganization`
          */
-        val organizationId: String
+        val organizationId: String,
+
+        /**
+         * Given by WAYF in the property `eduPersonTargetedID`
+         */
+        val wayfId: String
     ) : Person() {
         init {
             validate()

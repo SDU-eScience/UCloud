@@ -7,7 +7,7 @@ import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
-import dk.sdu.cloud.auth.services.PersonUtils
+import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserDAO
@@ -16,12 +16,12 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
 
 class UserController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
+    private val personService: PersonService,
     private val userDAO: UserDAO<DBSession>,
     private val userCreationService: UserCreationService<DBSession>,
     private val tokenService: TokenService<DBSession>
@@ -33,7 +33,7 @@ class UserController<DBSession>(
             audit(CreateUserAudit(req.username, req.role))
 
             if (req.role != Role.SERVICE) {
-                val person = PersonUtils.createUserByPassword(
+                val person = personService.createUserByPassword(
                     firstNames = req.username,
                     lastName = "N/A",
                     email = req.username,

@@ -3,26 +3,24 @@ package dk.sdu.cloud.auth.http
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LoginRequest
 import dk.sdu.cloud.auth.api.Person
+import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.UserDAO
 import dk.sdu.cloud.auth.services.UserException
-import dk.sdu.cloud.auth.services.checkPassword
 import dk.sdu.cloud.auth.util.urlEncoded
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.stackTraceToString
-import io.ktor.application.call
 import io.ktor.request.receiveParameters
 import io.ktor.response.respondRedirect
 import io.ktor.routing.Route
-import io.ktor.routing.post
 import io.ktor.util.toMap
 
 class PasswordController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
+    private val passwordHashingService: PasswordHashingService,
     private val userDao: UserDAO<DBSession>,
     private val loginResponder: LoginResponder<DBSession>
 ) : Controller {
@@ -64,7 +62,7 @@ class PasswordController<DBSession>(
                 }
             }
 
-            val validPassword = user.checkPassword(password)
+            val validPassword = passwordHashingService.checkPassword(user.password, user.salt, password)
             if (!validPassword) return@implement loginResponder.handleUnsuccessfulLogin(call, service)
 
             loginResponder.handleSuccessfulLogin(call, service, user)
