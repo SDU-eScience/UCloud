@@ -35,9 +35,7 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
         }
     }
 
-    componentDidMount() {
-        this.retrieveApplication();
-    }
+    componentDidMount = () => this.retrieveApplication();
 
     retrieveApplication() {
         this.setState(() => ({ loading: true }));
@@ -69,7 +67,7 @@ class DetailedApplication extends React.Component<DetailedApplicationProps, Deta
                 main={
                     <ContainerForText>
                         {
-                            !!!appInformation ?
+                            !appInformation ?
                                 <DefaultLoading loading={this.state.loading} /> :
                                 <MainContent application={appInformation} />
                         }
@@ -160,7 +158,7 @@ const TagStyle = styled.a`
 `;
 
 function Tags({ tags }: { tags: string[] }) {
-    if (!!!tags) return null;
+    if (!tags) return null;
 
     return <div>
         {
