@@ -112,8 +112,8 @@ interface ApplicationCardProps {
 }
 
 export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCardProps) => (
-    <Card height={212} width={252}>
-        <Relative>
+    <Card width="250px">
+        <Relative height="135px">
             <Box>
                 <Box style={{ background: hexFromAppName(app.description.title) }}>
                     <Image
@@ -135,7 +135,7 @@ export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCar
                         v {app.description.info.version}
                     </Text>
                 </Absolute>
-                <Absolute top="10px" left="215px">
+                <Absolute top="10px" right="10px">
                     <Icon
                         onClick={() => !!favoriteApp ? favoriteApp(app.description.info.name, app.description.info.version) : undefined}
                         cursor="pointer"
@@ -143,25 +143,23 @@ export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCar
                         name={isFavorite ? "starFilled" : "starEmpty"}
                     />
                 </Absolute>
-                <Absolute top="112px" left="10px">
+                <Absolute bottom="10px" left="10px">
                     <EllipsedText width={180} title={`by ${app.description.authors.join(", ")}`} color="white">
                         by {app.description.authors.join(", ")}
                     </EllipsedText>
                 </Absolute>
-                <Absolute top="86px" left="200px">
+                <Absolute bottom="10px" right="10px">
                     <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
                         <PlayIcon />
                     </Link>
                 </Absolute>
             </Box>
         </Relative>
-        <Relative>
-            <Absolute left="14px" top="6px">
-                <Text>
-                    {app.description.description.slice(0, 100)}
-                </Text>
-            </Absolute>
-        </Relative>
+        <Box m="10px">
+            <Text>
+                {app.description.description.slice(0, 100)}
+            </Text>
+        </Box>
     </Card >
 );
 
