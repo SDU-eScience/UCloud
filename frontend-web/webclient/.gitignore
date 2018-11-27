@@ -1,4 +1,6 @@
 /node_modules/*
 /dist/*
 /coverage/*
+/app/ui-components/icons/components/*
+/app/ui-components/icons/index.ts
 /.vscode/settings.json
