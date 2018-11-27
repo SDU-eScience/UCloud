@@ -2,7 +2,8 @@ import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { Provider } from "react-redux";
 import { BrowserRouter } from "react-router-dom";
-import { ThemeProvider } from "ui-components";
+import { theme, UIGlobalStyle } from "ui-components";
+import { createGlobalStyle, ThemeProvider } from "styled-components";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { initObject } from "DefaultObjects";
 import Core from "Core";
@@ -43,12 +44,19 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     detailedApplicationSearch
 });
 
+const GlobalStyle = createGlobalStyle`
+  ${UIGlobalStyle};
+`;
+
 ReactDOM.render(
     <Provider store={store}>
-        <ThemeProvider>
+        <ThemeProvider theme={theme}>
+        <React.Fragment>
+            <GlobalStyle theme={theme}/>
             <BrowserRouter basename="app">
                 <Core />
             </BrowserRouter>
+        </React.Fragment>
         </ThemeProvider>
     </Provider>,
     document.getElementById("app")
