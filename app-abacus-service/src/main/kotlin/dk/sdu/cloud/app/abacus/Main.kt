@@ -13,7 +13,6 @@ import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.kafka
 import dk.sdu.cloud.service.runScriptHandler
 import dk.sdu.cloud.service.serverProvider
-import dk.sdu.cloud.service.serviceInstance
 
 data class HPCConfig(
     val ssh: SimpleSSHConfig,

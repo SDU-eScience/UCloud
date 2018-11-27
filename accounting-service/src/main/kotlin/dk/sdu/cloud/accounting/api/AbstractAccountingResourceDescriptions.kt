@@ -135,6 +135,7 @@ data class InvoiceReport(
 )
 
 data class BuildReportRequest(
+    val user: String,
     val periodStartMs: Long,
     val periodEndMs: Long
 )
