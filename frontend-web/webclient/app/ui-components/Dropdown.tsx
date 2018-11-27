@@ -33,7 +33,6 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     overflow-y: auto;
     overflow-x: hidden;
     text-align: left;
-    font-weight: 300;
 
     & > *:hover {
         background-color: rgba(0, 0, 0, 0.05);

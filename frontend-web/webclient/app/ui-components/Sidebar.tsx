@@ -38,7 +38,7 @@ const SideBarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => 
                 <Icon cursor="pointer" name={icon} color="iconColor" color2="iconColor2" size="24" />
             </Flex>
             {showLabel &&
-                <Text cursor="pointer" fontSize={3} bold>
+                <Text cursor="pointer" fontSize={3} >
                     {label}
                 </Text>
             }
