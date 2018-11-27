@@ -46,8 +46,9 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     fileInfo
 });
 
+
 const GlobalStyle = createGlobalStyle`
-  UIGlobalStyle
+  ${props => UIGlobalStyle}
 `;
 
 ReactDOM.render(
