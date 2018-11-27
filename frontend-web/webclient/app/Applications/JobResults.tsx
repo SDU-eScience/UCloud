@@ -2,7 +2,7 @@ import * as React from "react";
 import { toLowerCaseAndCapitalize, shortUUID } from "UtilityFunctions"
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Link } from "react-router-dom";
+import { Link } from "ui-components";
 import { List } from "Pagination/List";
 import { connect } from "react-redux";
 import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
@@ -10,7 +10,7 @@ import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } 
 import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
-import { Hide } from "ui-components";
+import { Hide, Heading } from "ui-components";
 import { fileTablePage } from "Utilities/FileUtilities";
 
 class JobResults extends React.Component<AnalysesProps, AnalysesState> {
@@ -45,6 +45,7 @@ class JobResults extends React.Component<AnalysesProps, AnalysesState> {
         return (
             <React.StrictMode>
                 <List
+                    customEmptyPage={<Heading>No jobs have been run on this account.</Heading>}
                     loading={loading}
                     onErrorDismiss={onErrorDismiss}
                     errorMessage={error}

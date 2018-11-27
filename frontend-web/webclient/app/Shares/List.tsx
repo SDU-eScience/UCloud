@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as PropTypes from "prop-types";
-import { List as SemList, SemanticSIZES, SemanticFLOATS, Message, Header, Card, Button, Icon, ButtonGroup } from "semantic-ui-react";
+import { List as SemList, SemanticSIZES, SemanticFLOATS, Header, Card, Button, Icon, ButtonGroup } from "semantic-ui-react";
 import { AccessRight, Page, AccessRightValues } from "Types";
 import { shareSwal } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
@@ -9,6 +9,8 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ListContext, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
+import { Error } from "ui-components";
+import { sharesByPathQuery } from "Utilities/SharesUtilities";
 
 export class List extends React.Component<ListProps, ListState> {
     constructor(props: ListProps, ctx: ListContext) {
@@ -30,30 +32,34 @@ export class List extends React.Component<ListProps, ListState> {
         store: PropTypes.object
     }
 
-    public componentDidMount() {
-        this.reload();
-    }
+    public componentDidMount = () => this.reload();
 
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
-    }
+    componentWillUnmount = () => this.state.promises.cancelPromises();
 
     reload() {
-        this.state.promises.makeCancelable(retrieveShares(this.state.page, this.state.itemsPerPage, ShareState.REQUEST_SENT))
+        const query = !!this.props.byPath ? sharesByPath(this.props.byPath) : retrieveShares(this.state.page, this.state.itemsPerPage, ShareState.REQUEST_SENT);
+        this.state.promises.makeCancelable(query)
             .promise
             .then(e => this.setState({ shares: e.items, loading: false }))
-            .catch(e => { if (!e.isCanceled) this.setState({ errorMessage: "Unable to retrieve shares!", loading: false }) });
+            .catch(({ request }) => {
+                if (!request.isCanceled) {
+                    let errorMessage: string | undefined = "Unable to retrieve shares!";
+                    if (request.status === 404) {
+                        errorMessage = undefined;
+                    }
+                    this.setState(() => ({ errorMessage, loading: false }));
+                }
+            });
+
     }
 
     public render() {
         let { shares, errorMessage } = this.state;
-        // FIXME This approach will not work if # of shares exceeds 10. Needs retrieve shares by path.
-        this.props.byPath ? shares = shares.filter(it => it.path === this.props.byPath) : null;
         const noSharesWith = shares.filter(it => !it.sharedByMe).length === 0;
         const noSharesBy = shares.filter(it => it.sharedByMe).length === 0;
         return (
             <>
-                {errorMessage ? <Message color="red" onDismiss={() => this.setState({ errorMessage: undefined })}>{errorMessage}</Message> : null}
+                <Error clearError={() => this.setState({ errorMessage: undefined })} error={errorMessage} />
                 <DefaultLoading loading={this.state.loading} size="big" />
                 <Header>Shared with Me</Header>
                 {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
@@ -342,16 +348,16 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
 
 function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
-    if (byState) url += `&state=${encodeURI(byState)}`;
+    if (byState) url += `&state=${encodeURIComponent(byState)}`;
     return Cloud.get(url).then(it => it.response);
 }
 
 function acceptShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/accept/${encodeURI(shareId)}`).then(e => e.response); // FIXME Add error handling
+    return Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`).then(e => e.response); // FIXME Add error handling
 }
 
 function revokeShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/revoke/${encodeURI(shareId)}`).then(e => e.response); // FIXME Add error handling
+    return Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`).then(e => e.response); // FIXME Add error handling
 }
 
 function createShare(user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> {
@@ -360,4 +366,8 @@ function createShare(user: string, path: string, rights: AccessRight[]): Promise
 
 function updateShare(id: ShareId, rights: AccessRightValues[]): Promise<any> {
     return Cloud.post(`/shares/`, { id, rights }).then(e => e.response);
+}
+
+const sharesByPath = (path: string): Promise<any> => {
+    return Cloud.get(sharesByPathQuery(path)).then(e => ({ items: [e.response] }));
 }

@@ -1,7 +1,6 @@
 import { Page } from "Types";
 import { History } from "history";
 import { SemanticICONS, ButtonProps, ModalProps, SemanticCOLORS, IconProps } from "semantic-ui-react";
-import { match } from "react-router-dom";
 import Cloud from "Authentication/lib";
 import { Moment } from "moment";
 import * as React from "react";
@@ -283,10 +282,10 @@ export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" |
 export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: "arrowUp" | "arrowDown", minWidth?: number }
 
 export interface FileInfoProps {
-    page: Page<File>
+    file?: File
+    activity: Page<Activity>
     loading: boolean
-    location: { pathname: string, search: string }
-    filesPath: string
+    favorite: boolean
 }
 
 export interface FileInfoState {

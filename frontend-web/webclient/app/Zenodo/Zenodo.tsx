@@ -89,7 +89,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
 
 const PublicationRow = ({ publication }) => {
     const actionButton = publication.zenodoAction ?(
-            <a href={publication.zenodoAction} target="_blank">Finish publication at Zenodo</a>
+            <a href={publication.zenodoAction} target="_blank" rel="noopener">Finish publication at Zenodo</a>
         ) : null;
     return (
         <TableRow>

@@ -75,7 +75,7 @@ export const View = (props: ViewProps) => {
                 <List>
                     {license ?
                         <List.Item>
-                            <a href={license.link} target="_blank">
+                            <a href={license.link} target="_blank" rel="noopener">
                                 <Label color='blue' className="metadata-detailed-tag">
                                     <Icon name='book' />
                                     {license.identifier}
@@ -164,7 +164,7 @@ const ContributorItem = (props: { contributor: Contributor }) => {
                         <p>
                             <b>ORCID:</b>
                             {" "}
-                            <a href={`https://orcid.org/${contributor.orcId}`} target="_blank">
+                            <a href={`https://orcid.org/${contributor.orcId}`} target="_blank" rel="noopener">
                                 {contributor.orcId}
                             </a>
                         </p>
@@ -232,7 +232,7 @@ const isIdentifierDOI = (identifier: string): boolean => {
 
 const DOIBadge = (props: { identifier: string }) => {
     const { identifier } = props;
-    return <a href={`https://doi.org/${identifier}`} target="_blank">
+    return <a href={`https://doi.org/${identifier}`} target="_blank" rel="noopener">
         <Label className="metadata-detailed-tag" color="blue">
             {identifier}
         </Label>
