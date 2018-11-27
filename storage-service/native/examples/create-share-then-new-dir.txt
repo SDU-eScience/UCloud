@@ -1,0 +1,18 @@
+make-dir
+/tmp/share
+ceof
+setfacl
+-d -R -m u:user2:r-x /tmp/share
+ceof
+setfacl
+-R -m u:user2:r-x /tmp/share
+ceof
+setfacl
+-d -R -m m::rwx /tmp/share
+ceof
+setfacl
+-R -m m::rwx /tmp/share
+ceof
+make-dir
+/tmp/share/new-dir
+ceof

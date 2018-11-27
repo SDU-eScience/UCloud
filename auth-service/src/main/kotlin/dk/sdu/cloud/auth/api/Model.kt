@@ -124,9 +124,6 @@ sealed class Person : Principal() {
     ) : Person() {
         init {
             validate()
-
-            if (password.isEmpty()) throw IllegalArgumentException("Password cannot be empty")
-            if (salt.isEmpty()) throw IllegalArgumentException("Salt cannot be empty")
         }
 
         override val displayName: String = id

@@ -527,6 +527,7 @@ int main(int argc, char **argv) {
             std::ostringstream command;
             command << "setfacl ";
             command << arguments;
+            fprintf(stderr, "Command is: %s\n", command.str().c_str());
 
             printf("EXIT:%d\n", system(command.str().c_str()));
         } else if (IS_COMMAND("chmod")) {
