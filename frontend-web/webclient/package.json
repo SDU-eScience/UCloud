@@ -39,9 +39,9 @@
   "scripts": {
     "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
     "clean": "rm -rf dist/",
-    "build": "npm run clean && webpack --config webpack.prod.js --progress --profile --bail",
+    "build": "npm run clean && npm run prepare-icons && webpack --config webpack.prod.js --progress --profile --bail",
     "install": "napa",
-    "test": "jest",
+    "test": "npm run prepare-icons && jest",
     "prepare-icons": "npm run icons-clean && npm run icons-components && npm run icons-index",
     "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
     "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components",
