@@ -3,8 +3,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { toLowerCaseAndCapitalize, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
 import { fileSizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile } from "Utilities/FileUtilities";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import { SensitivityLevel, emptyPage, ReduxObject } from "DefaultObjects";
-import { Container, Header, List, Card, Icon, Segment } from "semantic-ui-react";
+import { SensitivityLevel, ReduxObject } from "DefaultObjects";
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -13,6 +12,9 @@ import { File, FileInfoProps } from "Files";
 import { ActivityFeed } from "Activity/Activity";
 import { Dispatch } from "redux";
 import { fetchFileStat, setLoading, fetchFileActivity, receiveFileStat } from "./Redux/FileInfoActions";
+import { Flex, Box, Icon, Card } from "ui-components";
+import List from "ui-components/List";
+import * as Heading from "ui-components/Heading"
 
 interface FileInfoOperations {
     updatePageTitle: () => void
@@ -51,70 +53,69 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations & { lo
         if (!file) { return (<DefaultLoading loading={true} />) }
         const fileName = replaceHomeFolder(isDirectory(file) ? addTrailingSlash(file.path) : file.path, Cloud.homeFolder);
         return (
-            <Container className="container-margin">
-                <Header as="h2" icon textAlign="center">
-                    <Header.Content content={fileName} />
-                    <Header.Subheader content={toLowerCaseAndCapitalize(file.fileType)} />
-                </Header>
-                <FileView file={file} favorite={async () => props.receiveFileStat(favoriteFile(file, Cloud))} />
-                {activity.items.length ? (<Segment><ActivityFeed activity={activity.items} /></Segment>) : null}
-                <ShareList byPath={file.path} />
-                <DefaultLoading loading={loading} />
-            </Container >
+            <Flex alignItems="center" flexDirection="column">
+                <Box width={0.7}>
+                    <Heading.h2>{fileName}</Heading.h2>
+                    <Heading.h5 color="gray">{toLowerCaseAndCapitalize(file.fileType)}</Heading.h5>
+                    <FileView file={file} favorite={() => props.receiveFileStat(favoriteFile(file, Cloud))} />
+                    {activity.items.length ? (
+                        <Card mt="1em" mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
+                            <ActivityFeed activity={activity.items} />
+                        </Card>) : null}
+                    <ShareList byPath={file.path} />
+                    <DefaultLoading loading={loading} />
+                </Box>
+            </Flex>
         );
     };
 }
 
 const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
     !file ? null : (
-        <Card.Group itemsPerRow={3}>
-            <Card fluid>
-                <Card.Content>
-                    <List divided>
-                        <List.Item className="itemPadding">
-                            <List.Content floated="right">
-                                {dateToString(file.createdAt)}
-                            </List.Content>
-                            Created at:
-                            </List.Item>
-                        <List.Item className="itemPadding">
-                            <List.Content floated="right">
-                                {dateToString(file.modifiedAt)}
-                            </List.Content>
-                            Modified at:
-                        </List.Item>
-                        <List.Item className="itemPadding">
-                            <List.Content floated="right">
-                                <Icon
-                                    name={file.favorited ? "star" : "star outline"}
-                                    onClick={() => favorite()}
-                                    color="blue"
-                                />
-                            </List.Content>
-                            Favorite file:
-                        </List.Item>
-                    </List>
-                </Card.Content>
-            </Card>
-            <Card fluid>
-                <Card.Content>
-                    <List divided>
-                        <List.Item className="itemPadding">
-                            Sensitivity: <List.Content floated="right" content={SensitivityLevel[file.sensitivityLevel]} />
-                        </List.Item>
-                        <List.Item className="itemPadding">
-                            Size: <List.Content floated="right" content={fileSizeToString(file.size)} />
-                        </List.Item>
-                        {file.acl !== undefined ? <List.Item className="itemPadding">
+        <Flex flexDirection="row" flexWrap="wrap">
+            <Box ml="auto" />
+            <Box width="20em">
+                <List>
+                    <Flex>
+                        Created at:
+                        <Box ml="auto" />
+                        {dateToString(file.createdAt)}
+                    </Flex>
+                    <Flex>
+                        Modified at:
+                        <Box ml="auto" />
+                        {dateToString(file.modifiedAt)}
+                    </Flex>
+                    <Flex>
+                        Favorite file:
+                        <Box ml="auto" />
+                        <Icon name={file.favorited ? "star" : "star outline"}
+                            onClick={() => favorite()}
+                            color="blue"
+                        />
+                    </Flex>
+                </List>
+            </Box>
+            <Box ml="auto" />
+            <Box ml="auto" />
+            <Box width="20em">
+                <List>
+                    <Flex>
+                        Sensitivity: <Box ml="auto" />{SensitivityLevel[file.sensitivityLevel]}
+                    </Flex>
+                    <Flex>
+                        Size: <Box ml="auto" />{fileSizeToString(file.size)}
+                    </Flex>
+                    {file.acl !== undefined ?
+                        <Flex>
                             Shared with:
-                                <List.Content floated="right">
-                                {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.
-                                </List.Content>
-                        </List.Item> : null}
-                    </List>
-                </Card.Content>
-            </Card>
-        </Card.Group>
+                            <Box ml="auto" />
+                            {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.
+                        </Flex> : null}
+                </List>
+            </Box>
+            <Box ml="auto" />
+        </Flex >
     );
 
 const mapStateToProps = ({ fileInfo }: ReduxObject): FileInfoProps => ({

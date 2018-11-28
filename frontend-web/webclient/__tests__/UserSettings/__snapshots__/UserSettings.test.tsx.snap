@@ -21,7 +21,7 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-eNQAEJ dPxNMT"
+          className="sc-jKJlTe gZLhrm"
         />
         <h1
           className="sc-bZQynM ynGKB"
@@ -36,14 +36,14 @@ exports[`UserSettings Mount 1`] = `
             className="sc-gqjmRU dIxMCE"
           >
             <label
-              className="sc-cvbbAY cavXjd"
+              className="sc-eHgmQL iZInyd"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               Current Password
               <input
-                className="sc-kEYyzF efbqgH"
+                className="sc-hMqMXs fEjiDm"
                 id="default"
                 onChange={[Function]}
                 placeholder="Current password"
@@ -56,14 +56,14 @@ exports[`UserSettings Mount 1`] = `
             className="sc-gqjmRU dIxMCE"
           >
             <label
-              className="sc-cvbbAY cavXjd"
+              className="sc-eHgmQL iZInyd"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               New Password
               <input
-                className="sc-kEYyzF efbqgH"
+                className="sc-hMqMXs fEjiDm"
                 id="default"
                 onChange={[Function]}
                 placeholder="New password"
@@ -76,14 +76,14 @@ exports[`UserSettings Mount 1`] = `
             className="sc-gqjmRU dIxMCE"
           >
             <label
-              className="sc-cvbbAY cavXjd"
+              className="sc-eHgmQL iZInyd"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               Repeat new password
               <input
-                className="sc-kEYyzF efbqgH"
+                className="sc-hMqMXs fEjiDm"
                 id="default"
                 onChange={[Function]}
                 placeholder="Repeat password"
@@ -93,7 +93,7 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <button
-            className="sc-chPdSV evYfpJ"
+            className="sc-kAzzGY kSKjoQ"
             color="green"
             type="submit"
           >
@@ -109,8 +109,8 @@ exports[`UserSettings Mount 1`] = `
         <b>
           You do NOT have a 2FA device connected to your account
         </b>
-        <div
-          className="ui divider"
+        <hr
+          className="sc-ckVGcZ ioPoAa"
         />
         <div>
           <h3
@@ -123,24 +123,28 @@ exports[`UserSettings Mount 1`] = `
             In order to activate 2FA on your account you must have a device capable of issuing time-based one time passwords (TOTP). For this we recommend the "Google Authenticator" app, available for both Android and iOS.
           </p>
           <div
-            className="ui small images"
+            className="sc-jzJRlG fxUBys"
           >
             <a
               href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us"
+              rel="noopener"
               target="_blank"
             >
               <img
-                className="ui image"
+                className="sc-eNQAEJ igWSva"
                 src={[Function]}
+                width="150px"
               />
             </a>
             <a
               href="https://itunes.apple.com/us/app/google-authenticator/id388497605"
+              rel="noopener"
               target="_blank"
             >
               <img
-                className="ui image"
+                className="sc-eNQAEJ igWSva"
                 src={[Function]}
+                width="150px"
               />
             </a>
           </div>
@@ -148,27 +152,30 @@ exports[`UserSettings Mount 1`] = `
             Once you are ready click the button below to get started:
           </p>
           <button
-            className="ui loading positive button"
+            className="sc-kAzzGY zrsOo"
+            color="green"
+            disabled={true}
             onClick={[Function]}
-            role="button"
           >
             <i
-              aria-hidden="true"
-              className="qrcode icon"
+              className="fas fa-circle-notch fa-spin"
             />
-            Start setup
           </button>
         </div>
       </div>
       <div
-        className="sc-eNQAEJ lhZsvT"
+        className="sc-jKJlTe dxHpjl"
         width={
           Array [
             0,
             0,
           ]
         }
-      />
+      >
+        <div
+          className="sc-gqjmRU kGYJXK"
+        />
+      </div>
     </div>
   </div>
 </div>

@@ -55,7 +55,7 @@ exports[`View component Mount view 1`] = `
           role="listitem"
         >
           <a
-            href="/projects/edit?filePath=/home/jonas@hinchely.dk/The%20Project"
+            href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
             onClick={[Function]}
           >
             <div
@@ -95,6 +95,7 @@ exports[`View component Mount view 1`] = `
         >
           <a
             href="https://spdx.org/licenses/AML.html"
+            rel="noopener"
             target="_blank"
           >
             <div
