@@ -10,7 +10,7 @@ import { fetchFavoriteApplications, setFavoritesLoading } from "./Redux/Applicat
 import { Application } from "Applications";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
-import { Header, Pages } from "./Header";
+import { Navigation, Pages } from "./Navigation";
 import { SlimApplicationCard, ApplicationCardContainer } from "./Card";
 import { MainContainer } from "MainContainer/MainContainer";
 import { ContainerForText } from "ui-components";
@@ -56,7 +56,7 @@ class Installed extends React.Component<InstalledProps> {
 
         return (
             <MainContainer
-                header={<Header selected={Pages.INSTALLED} />}
+                header={<Navigation selected={Pages.INSTALLED} />}
                 main={main}
                 sidebar={null}
             />

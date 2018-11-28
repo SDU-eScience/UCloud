@@ -19,7 +19,7 @@ import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Header, Pages } from "./Header";
+import { Navigation, Pages } from "./Navigation";
 import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
 import styled from "styled-components";
 import { ContainerForText } from "ui-components";
@@ -116,7 +116,7 @@ class Applications extends React.Component<ApplicationsProps> {
 
         return (
             <MainContainer
-                header={<Header selected={Pages.BROWSE} />}
+                header={<Navigation selected={Pages.BROWSE} />}
                 main={main}
                 sidebar={<Sidebar />}
             />

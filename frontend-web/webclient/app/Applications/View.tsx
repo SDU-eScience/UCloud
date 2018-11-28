@@ -5,12 +5,13 @@ import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { ApplicationInformation } from "Applications";
-import { Image, OutlineButton, Button, Box, Flex, Icon } from "ui-components";
+import { Image, OutlineButton, Button, Box } from "ui-components";
 import * as Heading from "ui-components/Heading"
 import styled from "styled-components";
 import { dateToString } from "Utilities/DateUtilities";
 import { toLowerCaseAndCapitalize } from "UtilityFunctions"
 import ContainerForText from "ui-components/ContainerForText";
+import { Header } from "./Header";
 
 const circuitBoard = require("Assets/Images/circuitboard-bg.png");
 
@@ -131,23 +132,12 @@ function Content(props: MainContentProps): JSX.Element {
             </SidebarBase>
 
             <MainContentBase>
-                <HeaderStyle>
-                    {props.application.description.title}
-                    <small>v. {props.application.description.info.version}</small>
-                </HeaderStyle>
-
+                <Header name={props.application.description.title} version={props.application.description.info.version} />
                 <ReactMarkdown source={props.application.description.description} />
             </MainContentBase>
         </ContentBase>
     );
 }
-
-const HeaderStyle = styled(Heading.h1)`
-    > small {
-        padding-left: 10px;
-        font-size: 50%;
-    }
-`;
 
 function Authors({ authors }: { authors: string[] }) {
     return <div>

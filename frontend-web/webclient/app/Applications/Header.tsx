@@ -1,46 +1,17 @@
 import * as React from "react";
-import { Card } from "ui-components/Card";
-import { Flex, ToggleBadge } from "ui-components";
-import { Link } from "react-router-dom";
+import * as Heading from "ui-components/Heading"
+import styled from "styled-components";
 
-export const Tabs: React.StatelessComponent<{}> = (props) => (
-    <Card>
-        <Flex>
-            {props.children}
-        </Flex>
-    </Card>
+const HeaderStyle = styled(Heading.h1)`
+    > small {
+        padding-left: 10px;
+        font-size: 50%;
+    }
+`;
+
+export const Header: React.StatelessComponent<{ name: string, version: string }> = props => (
+    <HeaderStyle>
+        {props.name}
+        <small>v. {props.version}</small>
+    </HeaderStyle>
 );
-
-interface TabProps {
-    selected?: boolean
-    linkTo: string
-}
-
-export const Tab: React.StatelessComponent<TabProps> = (props): JSX.Element => (
-    <Link to={props.linkTo}>
-        <ToggleBadge
-            bg="lightGray"
-            pb="12px"
-            pt="10px"
-            fontSize={2}
-            color={"black"}
-            selected={props.selected}
-        >
-            {props.children}
-        </ToggleBadge>
-    </Link>
-);
-
-export const Header = (props: { selected: Pages }) => (
-    <Tabs>
-        <Tab linkTo="/applications" selected={props.selected === Pages.BROWSE}>Browse</Tab>
-        <Tab linkTo="/applications/installed" selected={props.selected === Pages.INSTALLED}>Installed <strong>(42)</strong></Tab>
-        <Tab linkTo="/applications/results" selected={props.selected === Pages.RESULTS}>Results <strong>(5 in-progress)</strong></Tab>
-    </Tabs>
-);
-
-export enum Pages {
-    INSTALLED,
-    BROWSE,
-    RESULTS
-}

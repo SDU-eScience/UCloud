@@ -3,7 +3,7 @@ import { Switch, Route } from "react-router-dom";
 import Files from "Files/Files";
 import Dashboard from "Dashboard/Dashboard";
 import Applications from "Applications/Browse";
-import RunApp from "Applications/RunApp";
+import Run from "Applications/Run";
 import JobResults from "Applications/JobResults";
 import Header from "Navigation/Header";
 import Sidebar from "ui-components/Sidebar";
@@ -51,7 +51,7 @@ const Core = () => (
                 <Route exact path="/applications/details/:appName/:appVersion" component={ApplicationView} />
                 <Route exact path="/applications/results" component={JobResults} />
                 <Route exact path="/applications/results/:jobId" component={DetailedResult} />
-                <Route exact path="/applications/:appName/:appVersion" component={RunApp} />
+                <Route exact path="/applications/:appName/:appVersion" component={Run} />
 
                 <Route exact path="/zenodo/" component={ZenodoHome} />
                 <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo} />
