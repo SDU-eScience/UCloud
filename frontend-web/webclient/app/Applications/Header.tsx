@@ -17,26 +17,30 @@ interface TabProps {
 }
 
 export const Tab: React.StatelessComponent<TabProps> = (props): JSX.Element => (
-    <ToggleBadge
-        bg="lightGray"
-        pb="12px"
-        pt="10px"
-        fontSize={2}
-        color={"black"}
-        selected={props.selected}
-    >
-        <Link to={props.linkTo}>{props.children}</Link>
-    </ToggleBadge>
+    <Link to={props.linkTo}>
+        <ToggleBadge
+            bg="lightGray"
+            pb="12px"
+            pt="10px"
+            fontSize={2}
+            color={"black"}
+            selected={props.selected}
+        >
+            {props.children}
+        </ToggleBadge>
+    </Link>
 );
 
 export const Header = (props: { selected: Pages }) => (
     <Tabs>
-        <Tab linkTo="" selected={props.selected === Pages.BROWSE}>Browse</Tab>
-        <Tab linkTo="" selected={props.selected === Pages.INSTALLED}>Installed</Tab>
+        <Tab linkTo="/applications" selected={props.selected === Pages.BROWSE}>Browse</Tab>
+        <Tab linkTo="/applications/installed" selected={props.selected === Pages.INSTALLED}>Installed <strong>(42)</strong></Tab>
+        <Tab linkTo="/applications/results" selected={props.selected === Pages.RESULTS}>Results <strong>(5 in-progress)</strong></Tab>
     </Tabs>
 );
 
 export enum Pages {
     INSTALLED,
-    BROWSE
+    BROWSE,
+    RESULTS
 }

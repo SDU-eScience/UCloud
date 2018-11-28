@@ -15,7 +15,8 @@ const circuitBoard = require("Assets/Images/circuitboard-bg.png");
 interface ApplicationCardProps {
     favoriteApp?: (name: string, version: string) => void,
     app: Application,
-    isFavorite?: boolean
+    isFavorite?: boolean,
+    linkToRun?: boolean
 }
 
 const AppCardActionsBase = styled.div``;
@@ -75,18 +76,21 @@ export const ApplicationCardContainer = styled.div`
     }
 `;
 
-export const SlimApplicationCard: React.StatelessComponent<ApplicationCardProps> = (props) => (
-    <AppCardBase to={`/applications/details/${props.app.description.info.name}/${props.app.description.info.version}`}>
-        <img src={circuitBoard} />
-        <strong>{props.app.description.title}</strong>
-        <EllipsedText>
-            <ReactMarkdown 
-                source={props.app.description.description} 
-                allowedTypes={["text", "root", "paragraph"]} />
-        </EllipsedText>
-        <AppCardActionsBase><Icon name="chevronDown" rotation={-90} /></AppCardActionsBase>
-    </AppCardBase>
-);
+export const SlimApplicationCard: React.StatelessComponent<ApplicationCardProps> = (props) => {
+    const appInfo = props.app.description.info;
+    return (
+        <AppCardBase to={props.linkToRun ? `/applications/${appInfo.name}/${appInfo.version}` : `/applications/details/${appInfo.name}/${appInfo.version}`}>
+            <img src={circuitBoard} />
+            <strong>{props.app.description.title}</strong>
+            <EllipsedText>
+                <ReactMarkdown
+                    source={props.app.description.description}
+                    allowedTypes={["text", "root", "paragraph"]} />
+            </EllipsedText>
+            <AppCardActionsBase><Icon name="chevronDown" rotation={-90} /></AppCardActionsBase>
+        </AppCardBase>
+    );
+};
 
 export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCardProps) => (
     <Card width="250px">

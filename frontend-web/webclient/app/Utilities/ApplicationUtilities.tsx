@@ -13,7 +13,7 @@ export const hpcJobsQuery = (itemsPerPage: number, page: number): string =>
 export const hpcFavoriteApp = (name: string, version: string) => `hpc/apps/favorites/${encodeURI(name)}/${encodeURI(version)}`;
 
 export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
-    `/hpc/apps/favorites?pageNumber=${itemsPerPage}&pageNumber=${pageNumber}`;
+    `/hpc/apps/favorites?itemsPerPage=${itemsPerPage}&page=${pageNumber}`;
 
 export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;

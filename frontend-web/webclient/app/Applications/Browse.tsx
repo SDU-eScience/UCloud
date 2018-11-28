@@ -17,16 +17,54 @@ import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
-import { CardGroup } from "ui-components/Card";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
-import DetailedApplicationSearch from "./DetailedApplicationSearch";
 import { Header, Pages } from "./Header";
 import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
 import styled from "styled-components";
 import { ContainerForText } from "ui-components";
 import * as Heading from "ui-components/Heading";
+import { Link } from "react-router-dom";
 
+const CategoryList = styled.ul`
+    padding: 0;
+
+    & > li {
+        list-style: none;
+    }
+`;
+
+const CategoryItem: React.StatelessComponent = props => (
+    <li><Link to="#">{props.children}</Link></li>
+);
+
+const Sidebar: React.StatelessComponent = props => (
+    <>
+        <Heading.h4>Featured</Heading.h4>
+        <CategoryList>
+            <CategoryItem>Popular</CategoryItem>
+            <CategoryItem>Staff picks</CategoryItem>
+        </CategoryList>        
+
+        <Heading.h4>Categories</Heading.h4>
+        <CategoryList>
+            <CategoryItem>Biomedicine</CategoryItem>
+            <CategoryItem>Toys</CategoryItem>
+            <CategoryItem></CategoryItem>
+        </CategoryList>        
+
+        <Heading.h4>Fields</Heading.h4>
+        <CategoryList>
+            <CategoryItem>Natural Sciences</CategoryItem>
+            <CategoryItem>Formal Sciences</CategoryItem>
+            <CategoryItem>Life Sciences</CategoryItem>
+            <CategoryItem>Social Sciences</CategoryItem>
+            <CategoryItem>Applied Sciences</CategoryItem>
+            <CategoryItem>Interdisciplinary Sciences</CategoryItem>
+            <CategoryItem>Philosophy Sciences</CategoryItem>
+        </CategoryList>        
+    </>
+);
 
 class Applications extends React.Component<ApplicationsProps> {
     componentDidMount() {
@@ -76,13 +114,11 @@ class Applications extends React.Component<ApplicationsProps> {
             />
         );
 
-        const sidebar = (<DetailedApplicationSearch />);
-
         return (
             <MainContainer
                 header={<Header selected={Pages.BROWSE} />}
                 main={main}
-                sidebar={sidebar}
+                sidebar={<Sidebar />}
             />
         );
     }
