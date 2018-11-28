@@ -6,10 +6,6 @@ mainClassName = "dk.sdu.cloud.accounting-storage.MainKt"
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.1/sdu-cloud.gradle"
 
-repositories {
-    mavenLocal()
-    jcenter()
-}
 
 dependencies {
     // Internal services
@@ -17,6 +13,7 @@ dependencies {
     compile 'dk.sdu.cloud:auth-api:1.8.0-SNAPSHOT'
     compile 'dk.sdu.cloud:accounting-api:0.1.0-SNAPSHOT'
     compile 'dk.sdu.cloud:indexing-api:1.7.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:file-api:0.14.0-SNAPSHOT'
     testCompile 'dk.sdu.cloud:service-common-test:0.21.0-SNAPSHOT'
 }
 

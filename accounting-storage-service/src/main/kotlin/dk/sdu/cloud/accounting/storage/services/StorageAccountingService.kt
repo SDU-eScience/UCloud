@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.storage.services
 import dk.sdu.cloud.accounting.api.BillableItem
 import dk.sdu.cloud.accounting.api.Currencies
 import dk.sdu.cloud.accounting.api.SerializedMoney
+import dk.sdu.cloud.accounting.storage.Configuration
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.indexing.api.AllOf
 import dk.sdu.cloud.indexing.api.FileQuery
@@ -18,9 +19,12 @@ import org.slf4j.Logger
 import java.math.BigDecimal
 import kotlin.math.roundToLong
 
-class StorageAccountingService<DBSession>(
-    private val serviceCloud: AuthenticatedCloud
+class StorageAccountingService(
+    private val serviceCloud: AuthenticatedCloud,
+    config: Configuration
 ) {
+    private val pricePerUnit = BigDecimal(config.pricePerByte)
+    private val currencyName = Currencies.DKK
 
     suspend fun calculateUsage(
         directory: String,
@@ -44,8 +48,6 @@ class StorageAccountingService<DBSession>(
             log.warn("Could not retrieve sum from file index!")
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }
-        val pricePerUnit = BigDecimal("0.0001")
-        val currencyName = Currencies.DKK
 
         return listOf(
             BillableItem("Storage Used", usedStorage, SerializedMoney(pricePerUnit,currencyName))

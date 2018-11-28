@@ -22,11 +22,11 @@ class ComputeTimeController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputeAccountingTimeDescriptions.listEvents) { req ->
-            ok(completedJobsService.listEvents(req.normalize(), req, req.user))
+            ok(completedJobsService.listEvents(req.normalize(), req, call.securityPrincipal.username))
         }
 
         implement(ComputeAccountingTimeDescriptions.chart) { req ->
-            val events = completedJobsService.listAllEvents(req, req.user)
+            val events = completedJobsService.listAllEvents(req, call.securityPrincipal.username)
 
             ok(
                 ChartResponse(
@@ -41,7 +41,7 @@ class ComputeTimeController<DBSession>(
         implement(ComputeAccountingTimeDescriptions.currentUsage) { req ->
             ok(
                 CurrentUsageResponse(
-                    usage = completedJobsService.computeUsage(req, req.user),
+                    usage = completedJobsService.computeUsage(req, call.securityPrincipal.username),
                     quota = null
                 )
             )

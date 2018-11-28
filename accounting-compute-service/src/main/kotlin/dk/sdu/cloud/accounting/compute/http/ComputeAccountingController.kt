@@ -5,7 +5,6 @@ import dk.sdu.cloud.accounting.api.AccountingResource
 import dk.sdu.cloud.accounting.api.BuildReportResponse
 import dk.sdu.cloud.accounting.api.ListResourceResponse
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingDescriptions
-import dk.sdu.cloud.accounting.compute.api.ComputeAccountingJobsDescriptions
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingTimeDescriptions
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.service.Controller
@@ -23,7 +22,7 @@ class ComputeAccountingController<DBSession>(
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputeAccountingDescriptions.buildReport) { req ->
             if (call.securityPrincipal.username != "_accounting") {
-                error(CommonErrorMessage("User Not Allowed"), HttpStatusCode.Unauthorized)
+                return@implement(error(CommonErrorMessage("User Not Allowed"), HttpStatusCode.Unauthorized))
             }
             else {
                 val computeTime = completedJobsService.computeBillableItems(
@@ -32,7 +31,7 @@ class ComputeAccountingController<DBSession>(
                     req.user
                 )
 
-                ok(BuildReportResponse(items = computeTime))
+                return@implement(ok(BuildReportResponse(items = computeTime)))
             }
         }
 
@@ -40,8 +39,7 @@ class ComputeAccountingController<DBSession>(
             ok(
                 ListResourceResponse(
                     listOf(
-                        AccountingResource(ComputeAccountingTimeDescriptions.resourceType),
-                        AccountingResource(ComputeAccountingJobsDescriptions.resourceType)
+                        AccountingResource(ComputeAccountingTimeDescriptions.resourceType)
                     )
                 )
             )

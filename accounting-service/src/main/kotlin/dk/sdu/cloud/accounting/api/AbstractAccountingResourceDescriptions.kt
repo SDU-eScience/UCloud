@@ -16,7 +16,6 @@ data class ListEventsRequest(
     override val since: Long?,
     override val until: Long?,
     override val context: String?,
-    val user: String,
 
     override val itemsPerPage: Int?,
     override val page: Int?
@@ -57,7 +56,6 @@ data class ContextQueryImpl(
     override val since: Long? = null,
     override val until: Long? = null,
     override val context: String? = null,
-    val user: String
 ) : ContextQuery
 
 /**

@@ -1,7 +1,8 @@
-package dk.sdu.cloud.accounting-storage
+package dk.sdu.cloud.accounting.storage
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.accounting-storage.http.Accounting-StorageController
+import dk.sdu.cloud.accounting.storage.http.StorageAccountingController
+import dk.sdu.cloud.accounting.storage.services.StorageAccountingService
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
@@ -13,14 +14,14 @@ import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import org.apache.http.HttpHost
 import org.apache.kafka.streams.KafkaStreams
 
 class Server(
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
     private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val micro: Micro
+    private val micro: Micro,
+    private val config: Configuration
 ) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
     override val kStreams: KafkaStreams? = null
@@ -35,7 +36,7 @@ class Server(
 
     override fun start() {
         // Initialize services here
-
+        val storageAccountingService = StorageAccountingService(cloud, config)
         // Initialize consumers here:
         // addConsumers(...)
 
@@ -45,7 +46,7 @@ class Server(
 
             routing {
                 configureControllers(
-                        Accounting-StorageController()
+                        StorageAccountingController(storageAccountingService)
                 )
             }
         }
