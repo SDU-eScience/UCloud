@@ -17,4 +17,4 @@ dependencies {
     testCompile 'dk.sdu.cloud:service-common-test:0.21.0-SNAPSHOT'
 }
 
-sduCloud.createTasksForApiJar("accounting-storage", [])
+sduCloud.createTasksForApiJar("accounting.storage", [])
