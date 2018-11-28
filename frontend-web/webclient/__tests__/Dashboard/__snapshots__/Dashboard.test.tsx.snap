@@ -2,10 +2,10 @@
 
 exports[`Dashboard Component Mount with favorites 1`] = `
 <div
-  className="sc-kpOJdX jPEfus"
+  className="sc-kGXeez bXngZo"
 >
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -19,7 +19,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Favorite files
@@ -32,7 +32,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       >
         <div
           className="sc-ifAKCX fdcbWa"
@@ -42,9 +42,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey image icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
             onClick={[Function]}
             theme={
               Object {
@@ -76,7 +77,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -88,7 +89,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -112,19 +113,19 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -135,7 +136,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -151,32 +152,40 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -344,9 +353,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/AABA"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
             onClick={[Function]}
             theme={
               Object {
@@ -378,7 +388,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -390,7 +400,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -414,19 +424,19 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -437,7 +447,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -453,32 +463,40 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -646,9 +664,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/Favorites"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
             onClick={[Function]}
             theme={
               Object {
@@ -680,7 +699,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -692,7 +711,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -716,19 +735,19 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -739,7 +758,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -755,32 +774,40 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -948,9 +975,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/Jobs"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
             onClick={[Function]}
             theme={
               Object {
@@ -982,7 +1010,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -994,7 +1022,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -1018,19 +1046,19 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -1041,7 +1069,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -1057,32 +1085,40 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -1250,9 +1286,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/A folder the sequel"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
             onClick={[Function]}
             theme={
               Object {
@@ -1284,7 +1321,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -1296,7 +1333,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -1320,19 +1357,19 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -1343,7 +1380,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -1359,32 +1396,40 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -1552,9 +1597,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/B"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
             onClick={[Function]}
             theme={
               Object {
@@ -1586,7 +1632,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -1598,7 +1644,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -1622,19 +1668,19 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -1645,7 +1691,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -1661,32 +1707,40 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -1854,9 +1908,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/rehjoerijhoerijh"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
             onClick={[Function]}
             theme={
               Object {
@@ -1888,7 +1943,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -1900,7 +1955,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -1924,19 +1979,19 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -1947,7 +2002,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -1963,32 +2018,40 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -2156,9 +2219,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/Test"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
             onClick={[Function]}
             theme={
               Object {
@@ -2190,7 +2254,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -2202,7 +2266,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -2226,19 +2290,19 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -2249,7 +2313,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -2265,32 +2329,40 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -2458,9 +2530,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
             onClick={[Function]}
             theme={
               Object {
@@ -2492,7 +2565,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -2504,7 +2577,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -2528,19 +2601,19 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -2551,7 +2624,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -2567,32 +2640,40 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -2760,9 +2841,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
             onClick={[Function]}
             theme={
               Object {
@@ -2794,7 +2876,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -2806,7 +2888,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -2830,19 +2912,19 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -2853,7 +2935,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -2869,32 +2951,40 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -3058,7 +3148,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3072,7 +3162,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recently used files
@@ -3090,12 +3180,12 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3109,7 +3199,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recent Jobs
@@ -3127,12 +3217,12 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3146,7 +3236,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recent notifications
@@ -3175,7 +3265,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         </small>
       </h3>
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
@@ -3184,10 +3274,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
 
 exports[`Dashboard Component Mount with no data 1`] = `
 <div
-  className="sc-kpOJdX jPEfus"
+  className="sc-kGXeez bXngZo"
 >
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3201,7 +3291,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Favorite files
@@ -3217,12 +3307,12 @@ exports[`Dashboard Component Mount with no data 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3236,7 +3326,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recently used files
@@ -3252,12 +3342,12 @@ exports[`Dashboard Component Mount with no data 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3271,7 +3361,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recent Jobs
@@ -3287,12 +3377,12 @@ exports[`Dashboard Component Mount with no data 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3306,7 +3396,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recent notifications
@@ -3335,7 +3425,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
         </small>
       </h3>
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
@@ -3344,10 +3434,10 @@ exports[`Dashboard Component Mount with no data 1`] = `
 
 exports[`Dashboard Component Mount with notifications 1`] = `
 <div
-  className="sc-kpOJdX jPEfus"
+  className="sc-kGXeez bXngZo"
 >
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3361,7 +3451,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Favorite files
@@ -3377,12 +3467,12 @@ exports[`Dashboard Component Mount with notifications 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3396,7 +3486,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recently used files
@@ -3412,12 +3502,12 @@ exports[`Dashboard Component Mount with notifications 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3431,7 +3521,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recent Jobs
@@ -3447,12 +3537,12 @@ exports[`Dashboard Component Mount with notifications 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3466,7 +3556,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recent notifications
@@ -3490,13 +3580,13 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       className="sc-bdVaJa fLxwjw"
     >
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       >
         <div
           className="sc-ifAKCX hEFUra"
         >
           <div
-            className="sc-kjoXOD dNZqi"
+            className="sc-kjoXOD ijwNvy"
             onClick={[Function]}
           >
             <div
@@ -3504,21 +3594,26 @@ exports[`Dashboard Component Mount with notifications 1`] = `
               width="0.20"
             >
               <svg
-                className="sc-gZMcBi fzYyKs sc-iwsKbI fSJFTj"
+                className="sc-iwsKbI biPPzJ"
+                clipRule="evenodd"
                 cursor="auto"
                 fill="currentcolor"
                 height={1}
-                viewBox="0 0 24 22"
+                viewBox="0 0 24 24"
                 width={1}
               >
-                <path
-                  d="M24 5.999l-7 6v-4h-1c-3.18 0-6.046 1.93-8 4 .207-3.97 3.715-8 8-8h1v-4l7 6z"
-                  fill="#8393a7"
-                />
-                <path
-                  d="M8.322 5.999H3v13h15v-4.86l3-2.57v8.93a1.5 1.5 0 0 1-1.5 1.5h-18a1.5 1.5 0 0 1-1.5-1.5v-16c0-.83.672-1.5 1.5-1.5h9.893c-1.248.72-2.304 1.78-3.071 3z"
-                  fill="#53657d"
-                />
+                <g>
+                  <path
+                    d="M0 19h3v2h1.5v3H2.244A2.271 2.271 0 0 1 0 21.743V19zM4.5 3H3v8H0V2.258A2.245 2.245 0 0 1 2.244 0H4.5v3z"
+                    fill={null}
+                  />
+                  <path
+                    d="M6 7V2.257A2.245 2.245 0 0 1 8.242 0h13.512A2.26 2.26 0 0 1 24 2.257v19.485c0 1.223-.95 2.203-2.244 2.258H8.243A2.271 2.271 0 0 1 6 21.742V16h3v5h12V3H9v4H6z"
+                  />
+                  <path
+                    d="M19 10.996l-7 6v-4h-1c-3.18 0-7.046 1.93-9 4 .207-3.97 4.715-8 9-8h1v-4l7 6z"
+                  />
+                </g>
               </svg>
             </div>
             <div
@@ -3556,21 +3651,26 @@ exports[`Dashboard Component Mount with notifications 1`] = `
               width="0.20"
             >
               <svg
-                className="sc-gZMcBi fzYyKs sc-iwsKbI fSJFTj"
+                className="sc-iwsKbI biPPzJ"
+                clipRule="evenodd"
                 cursor="auto"
                 fill="currentcolor"
                 height={1}
-                viewBox="0 0 24 22"
+                viewBox="0 0 24 24"
                 width={1}
               >
-                <path
-                  d="M24 5.999l-7 6v-4h-1c-3.18 0-6.046 1.93-8 4 .207-3.97 3.715-8 8-8h1v-4l7 6z"
-                  fill="#8393a7"
-                />
-                <path
-                  d="M8.322 5.999H3v13h15v-4.86l3-2.57v8.93a1.5 1.5 0 0 1-1.5 1.5h-18a1.5 1.5 0 0 1-1.5-1.5v-16c0-.83.672-1.5 1.5-1.5h9.893c-1.248.72-2.304 1.78-3.071 3z"
-                  fill="#53657d"
-                />
+                <g>
+                  <path
+                    d="M0 19h3v2h1.5v3H2.244A2.271 2.271 0 0 1 0 21.743V19zM4.5 3H3v8H0V2.258A2.245 2.245 0 0 1 2.244 0H4.5v3z"
+                    fill={null}
+                  />
+                  <path
+                    d="M6 7V2.257A2.245 2.245 0 0 1 8.242 0h13.512A2.26 2.26 0 0 1 24 2.257v19.485c0 1.223-.95 2.203-2.244 2.258H8.243A2.271 2.271 0 0 1 6 21.742V16h3v5h12V3H9v4H6z"
+                  />
+                  <path
+                    d="M19 10.996l-7 6v-4h-1c-3.18 0-7.046 1.93-9 4 .207-3.97 4.715-8 9-8h1v-4l7 6z"
+                  />
+                </g>
               </svg>
             </div>
             <div
@@ -3604,10 +3704,10 @@ exports[`Dashboard Component Mount with notifications 1`] = `
 
 exports[`Dashboard Component Mount with recent files 1`] = `
 <div
-  className="sc-kpOJdX jPEfus"
+  className="sc-kGXeez bXngZo"
 >
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3621,7 +3721,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Favorite files
@@ -3634,18 +3734,18 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <h6
-        className="sc-kAzzGY dadHbJ"
+        className="sc-cSHVUG cXEBRe"
         fontSize={0}
       >
         No favorites found
       </h6>
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -3659,7 +3759,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recently used files
@@ -3672,7 +3772,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       >
         <div
           className="sc-ifAKCX fdcbWa"
@@ -3682,9 +3782,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey image icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
             onClick={[Function]}
             theme={
               Object {
@@ -3716,7 +3817,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -3728,7 +3829,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -3752,19 +3853,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -3775,7 +3876,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -3791,32 +3892,40 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -3977,9 +4086,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/AABA"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
             onClick={[Function]}
             theme={
               Object {
@@ -4011,7 +4121,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -4023,7 +4133,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -4047,19 +4157,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -4070,7 +4180,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -4086,32 +4196,40 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -4272,9 +4390,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/Favorites"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
             onClick={[Function]}
             theme={
               Object {
@@ -4306,7 +4425,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -4318,7 +4437,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -4342,19 +4461,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -4365,7 +4484,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -4381,32 +4500,40 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -4567,9 +4694,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/Jobs"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
             onClick={[Function]}
             theme={
               Object {
@@ -4601,7 +4729,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -4613,7 +4741,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -4637,19 +4765,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -4660,7 +4788,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -4676,32 +4804,40 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -4862,9 +4998,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/A folder the sequel"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
             onClick={[Function]}
             theme={
               Object {
@@ -4896,7 +5033,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -4908,7 +5045,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -4932,19 +5069,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -4955,7 +5092,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -4971,32 +5108,40 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -5157,9 +5302,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/B"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
             onClick={[Function]}
             theme={
               Object {
@@ -5191,7 +5337,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -5203,7 +5349,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -5227,19 +5373,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -5250,7 +5396,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -5266,32 +5412,40 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -5452,9 +5606,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/rehjoerijhoerijh"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
             onClick={[Function]}
             theme={
               Object {
@@ -5486,7 +5641,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -5498,7 +5653,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -5522,19 +5677,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -5545,7 +5700,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -5561,32 +5716,40 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -5747,9 +5910,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/Test"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
             onClick={[Function]}
             theme={
               Object {
@@ -5781,7 +5945,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -5793,7 +5957,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -5817,19 +5981,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -5840,7 +6004,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -5856,32 +6020,40 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -6042,9 +6214,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
             onClick={[Function]}
             theme={
               Object {
@@ -6076,7 +6249,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -6088,7 +6261,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -6112,19 +6285,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -6135,7 +6308,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -6151,32 +6324,40 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -6337,9 +6518,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-cMljjf gvnKqJ"
-            color="black"
-            href="/files//home/user@user.telecity/somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
+            className="sc-brqgnP ccpACz"
+            color="text"
+            hoverColor="textHighlight"
+            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
             onClick={[Function]}
             theme={
               Object {
@@ -6371,7 +6553,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -6383,7 +6565,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -6407,19 +6589,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -6430,7 +6612,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -6446,32 +6628,40 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -6628,7 +6818,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -6642,7 +6832,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recent Jobs
@@ -6660,12 +6850,12 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -6679,7 +6869,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recent notifications
@@ -6708,7 +6898,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         </small>
       </h3>
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
@@ -6717,10 +6907,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
 
 exports[`Dashboard Component Mount with recent files 2`] = `
 <div
-  className="sc-kpOJdX jPEfus"
+  className="sc-kGXeez bXngZo"
 >
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -6734,7 +6924,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Favorite files
@@ -6747,18 +6937,18 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <h6
-        className="sc-kAzzGY dadHbJ"
+        className="sc-cSHVUG cXEBRe"
         fontSize={0}
       >
         No favorites found
       </h6>
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -6772,7 +6962,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recently used files
@@ -6790,12 +6980,12 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -6809,7 +6999,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recent Jobs
@@ -6822,7 +7012,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       >
         <div
           className="sc-ifAKCX leCTFT"
@@ -6841,8 +7031,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </div>
           <a
-            className="sc-cMljjf fCJqAA"
-            color="black"
+            className="sc-brqgnP eYdgDQ"
+            color="text"
+            hoverColor="textHighlight"
             href="/applications/results/bbcf5395-e78e-4fa7-a4e1-989fe5ce21ee"
             mt="-3px"
             onClick={[Function]}
@@ -6876,7 +7067,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -6888,7 +7079,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -6912,19 +7103,19 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -6935,7 +7126,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -6951,32 +7142,40 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -7145,8 +7344,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </div>
           <a
-            className="sc-cMljjf fCJqAA"
-            color="black"
+            className="sc-brqgnP eYdgDQ"
+            color="text"
+            hoverColor="textHighlight"
             href="/applications/results/15274bec-ef72-4ed2-97ff-2be1829a2db1"
             mt="-3px"
             onClick={[Function]}
@@ -7180,7 +7380,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -7192,7 +7392,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -7216,19 +7416,19 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -7239,7 +7439,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -7255,32 +7455,40 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -7449,8 +7657,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </div>
           <a
-            className="sc-cMljjf fCJqAA"
-            color="black"
+            className="sc-brqgnP eYdgDQ"
+            color="text"
+            hoverColor="textHighlight"
             href="/applications/results/3544b177-e9a7-4323-bcde-c4d6e442dc36"
             mt="-3px"
             onClick={[Function]}
@@ -7484,7 +7693,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -7496,7 +7705,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -7520,19 +7729,19 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -7543,7 +7752,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -7559,32 +7768,40 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -7753,8 +7970,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </div>
           <a
-            className="sc-cMljjf fCJqAA"
-            color="black"
+            className="sc-brqgnP eYdgDQ"
+            color="text"
+            hoverColor="textHighlight"
             href="/applications/results/e28defb0-d66c-4461-91f6-b09afd85480c"
             mt="-3px"
             onClick={[Function]}
@@ -7788,7 +8006,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "grayOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#c9d3df",
+                    "color": "#8393A7",
                   },
                   "greenOnLightGreen": Object {
                     "backgroundColor": "#cec",
@@ -7800,7 +8018,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "info": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "purpleOnLightPurple": Object {
                     "backgroundColor": "#ecf",
@@ -7824,19 +8042,19 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "textOnLightGray": Object {
                     "backgroundColor": "#ebeff3",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnOrange": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "textOnWhite": Object {
                     "backgroundColor": "#fff",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "warning": Object {
                     "backgroundColor": "#fa0",
-                    "color": "#001833",
+                    "color": "#53657d",
                   },
                   "whiteOnBlue": Object {
                     "backgroundColor": "#0055d5",
@@ -7847,7 +8065,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                     "color": "#fff",
                   },
                   "whiteOnGray": Object {
-                    "backgroundColor": "#c9d3df",
+                    "backgroundColor": "#8393A7",
                     "color": "#fff",
                   },
                   "whiteOnGreen": Object {
@@ -7863,32 +8081,40 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                     "color": "#fff",
                   },
                   "whiteOnText": Object {
-                    "backgroundColor": "#001833",
+                    "backgroundColor": "#53657d",
                     "color": "#fff",
                   },
                 },
                 "colors": Object {
                   "black": "#000",
                   "blue": "#0055d5",
-                  "borderGray": "#d1d6db",
+                  "borderGray": "#c9d3df",
                   "darkBlue": "#049",
                   "darkGray": "#53657d",
                   "darkGreen": "#060",
                   "darkOrange": "#a50",
                   "darkRed": "#800",
-                  "gray": "#c9d3df",
+                  "gray": "#8393A7",
                   "green": "#0a0",
+                  "headerBg": "#0055d5",
+                  "headerIconColor": "#ebeff3",
+                  "headerIconColor2": "#c9d3df",
+                  "headerText": "#ebeff3",
+                  "iconColor": "#53657d",
+                  "iconColor2": "#8393A7",
                   "lightBlue": "#cdf",
                   "lightGray": "#ebeff3",
                   "lightGreen": "#cec",
                   "lightPurple": "#ecf",
                   "lightRed": "#fcc",
-                  "midGray": "#53657d",
+                  "midGray": "#c9d3df",
                   "orange": "#fa0",
-                  "paginationHoverColor": "#f7f7f7",
+                  "paginationDisabled": "#ebeff3",
+                  "paginationHoverColor": "#cdf",
                   "purple": "#70b",
                   "red": "#c00",
-                  "text": "#001833",
+                  "text": "#53657d",
+                  "textHighlight": "#0055d5",
                   "white": "#fff",
                 },
                 "duration": Object {
@@ -8044,7 +8270,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
     </div>
   </div>
   <div
-    className="sc-kGXeez ikyxup"
+    className="sc-kgoBCf fCpAXJ"
     height="auto"
     style={
       Object {
@@ -8058,7 +8284,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       color="darkGray"
     >
       <h4
-        className="sc-jzJRlG dwPEfz"
+        className="sc-fjdhpX kzWlXJ"
         fontSize={3}
       >
         Recent notifications
@@ -8087,7 +8313,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         </small>
       </h3>
       <div
-        className="sc-TOsTZ ddWxrD"
+        className="sc-dVhcbM cIxcdW"
       />
     </div>
   </div>

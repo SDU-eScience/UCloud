@@ -9,7 +9,7 @@ exports[`UserCreation Mount 1`] = `
     width={0.7}
   >
     <h1
-      className="sc-VigVT dzBifV"
+      className="sc-gqjmRU cucieR"
       fontSize={6}
     >
       User Creation
@@ -21,14 +21,14 @@ exports[`UserCreation Mount 1`] = `
       onSubmit={[Function]}
     >
       <label
-        className="sc-cvbbAY cJfjRX"
+        className="sc-eHgmQL eXdvRR"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Username
         <input
-          className="sc-kEYyzF kEIwFw"
+          className="sc-hMqMXs fjyGBF"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -37,14 +37,14 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="sc-cvbbAY cJfjRX"
+        className="sc-eHgmQL eXdvRR"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Password
         <input
-          className="sc-kEYyzF kEIwFw"
+          className="sc-hMqMXs fjyGBF"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -54,14 +54,14 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="sc-cvbbAY cJfjRX"
+        className="sc-eHgmQL eXdvRR"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Repeat password
         <input
-          className="sc-kEYyzF kEIwFw"
+          className="sc-hMqMXs fjyGBF"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -71,7 +71,7 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <button
-        className="sc-chPdSV cNsmMZ"
+        className="sc-kAzzGY epsNaO"
         color="green"
         type="submit"
       >

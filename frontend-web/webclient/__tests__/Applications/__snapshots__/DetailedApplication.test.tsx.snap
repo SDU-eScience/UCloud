@@ -16,7 +16,7 @@ exports[`Detailed application Mount component 1`] = `
     }
   >
     <div
-      className="sc-eNQAEJ dPxNMT"
+      className="sc-jKJlTe gZLhrm"
     />
     <div
       className="sc-ifAKCX LORpy"
@@ -32,13 +32,17 @@ exports[`Detailed application Mount component 1`] = `
     </div>
   </div>
   <div
-    className="sc-eNQAEJ hUvKIa"
+    className="sc-jKJlTe fCxrwp"
     width={
       Array [
         0,
         0.1875,
       ]
     }
-  />
+  >
+    <div
+      className="sc-bdVaJa gvJQvB"
+    />
+  </div>
 </div>
 `;

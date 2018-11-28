@@ -246,7 +246,8 @@ exports[`Activity Feed Mount, with activity 1`] = `
 exports[`Activity Mount 1`] = `
 Array [
   <h1
-    className="ui header"
+    className="sc-jTzLTM cXsIak"
+    fontSize={6}
   >
     File Activity
   </h1>,
@@ -257,7 +258,7 @@ Array [
       className="sc-htpNat hjOqln"
     />
     <div
-      className="sc-Rmtcm idAtlS"
+      className="sc-csuQGl kaELer"
     >
       <div
         className="sc-bdVaJa hfvaUK"
@@ -280,7 +281,7 @@ Array [
               className="sc-htpNat llOEfe"
             >
               <svg
-                className="sc-VigVT hlFKbn sc-gqjmRU eNpPdi"
+                className="sc-gqjmRU ejBkCs"
                 cursor="auto"
                 fill="currentcolor"
                 height={24}
@@ -288,8 +289,7 @@ Array [
                 width={24}
               >
                 <path
-                  d="M7.4,8l4.6,4.6L16.6,8L18,9.4l-6,6l-6-6L7.4,8z"
-                  fill={null}
+                  d="M7.4 8l4.6 4.6L16.6 8 18 9.4l-6 6-6-6L7.4 8z"
                 />
               </svg>
             </div>
