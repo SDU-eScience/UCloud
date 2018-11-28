@@ -2,7 +2,6 @@ package dk.sdu.cloud.accounting.compute
 
 import dk.sdu.cloud.accounting.compute.http.ComputeAccountingController
 import dk.sdu.cloud.accounting.compute.http.ComputeTimeController
-import dk.sdu.cloud.accounting.compute.http.JobsStartedController
 import dk.sdu.cloud.accounting.compute.processor.JobCompletedProcessor
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsHibernateDao
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
@@ -49,7 +48,6 @@ class Server(
 
             routing {
                 configureControllers(
-                    JobsStartedController(),
                     ComputeTimeController(completedJobsService),
                     ComputeAccountingController(completedJobsService)
                 )

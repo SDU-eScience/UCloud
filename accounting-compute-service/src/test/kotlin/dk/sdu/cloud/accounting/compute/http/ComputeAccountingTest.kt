@@ -81,16 +81,42 @@ class ComputeAccountingTest {
                                     """
                                         {
                                     "periodStartMs": 1,
-                                    "periodEndMs": $now
+                                    "periodEndMs": $now,
+                                    "user": "user1"
                                     }
                                 """.trimIndent()
                                 )
-                                setUser(role = Role.ADMIN)
+                                setUser(username = "_accounting", role = Role.SERVICE)
                             }.response
 
                         assertEquals(HttpStatusCode.OK, report.status())
                         val items = mapper.readValue<InvoiceReport>(report.content!!)
                         assertEquals(60, items.items.first().units)
+                    }
+                    // No usage test
+                    run {
+                        val report =
+                            handleRequest(
+                                HttpMethod.Post,
+                                "/api/accounting/compute/buildReport"
+                            )
+                            {
+                                addHeader("Job-Id", UUID.randomUUID().toString())
+                                setBody(
+                                    """
+                                        {
+                                    "periodStartMs": 1,
+                                    "periodEndMs": $now,
+                                    "user": "user2"
+                                    }
+                                """.trimIndent()
+                                )
+                                setUser(username = "_accounting", role = Role.SERVICE)
+                            }.response
+
+                        assertEquals(HttpStatusCode.OK, report.status())
+                        val items = mapper.readValue<InvoiceReport>(report.content!!)
+                        assertEquals(0, items.items.first().units)
                     }
                 }
             }
@@ -125,7 +151,8 @@ class ComputeAccountingTest {
                                     """
                                         {
                                     "periodStartMs": 1,
-                                    "periodEndMs": $now
+                                    "periodEndMs": $now,
+                                    "user": "User1"
                                     }
                                 """.trimIndent()
                                 )

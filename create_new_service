@@ -44,7 +44,7 @@ for file in $(find ./service-template); do
     targetPath=$serviceName-service/$(relpath $file ./service-template)
     echo $targetPath
 
-    if [ ${file: -4} != ".jar" ]; then
+    if [ ${file: -4} != ".jar" ] && [ ${file: -9} != ".DS_Store" ]; then
         if [ -d "${file}" ]; then
             mkdir -p $targetPath
         else
@@ -59,8 +59,6 @@ unset IFS; set +f
 mv $serviceName-service/src/main/kotlin/dk/sdu/cloud/service \
     $serviceName-service/src/main/kotlin/dk/sdu/cloud/$serviceName
 
-mv $serviceName-service/src/test/kotlin/dk/sdu/cloud/service \
-    $serviceName-service/src/test/kotlin/dk/sdu/cloud/$serviceName
-
 chmod +x $serviceName-service/gradlew
 chmod +x $serviceName-service/build_production
+chmod +x $serviceName-service/*cache
