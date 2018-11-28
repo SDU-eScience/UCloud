@@ -34,6 +34,7 @@ export { default as Checkbox } from './Checkbox'
 export { default as Error } from "./Error";
 export { default as ContainerForText } from "./ContainerForText";
 export { default as Progress } from "./Progress";
+export { default as List } from './List'
 
 export { default as Sidebar } from './Sidebar'
 

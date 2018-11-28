@@ -14,8 +14,8 @@ interface ProgressBaseProps {
 const ProgressBase = styled(Box) <ProgressBaseProps>`
     border-radius: 5px;
     background-color: ${props => props.theme.colors[props.color!]};
-    width: ${props => props.width}
-    height: ${props => props.height}
+    width: ${props => props.width};
+    height: ${props => props.height};
 
     /* From semantic-ui-css */
     ${props => props.active ?
@@ -54,14 +54,14 @@ ProgressBase.defaultProps = {
 };
 
 const Progress = ({ color, percent, active, label }) => (
-    <Box>
-        <ProgressBase width="100%" color="lightGray">
-            <ProgressBase color={color} width={`${percent}% `}>
-                {active ? <ProgressBase active={true} width="100%" color="black" /> : null}
+    <>
+        <ProgressBase height="30px" width="100%" color="lightGray">
+            <ProgressBase height="30px" color={color} width={`${percent}% `}>
+                {active ? <ProgressBase height="30px" active={true} width="100%" color="black" /> : null}
             </ProgressBase>
         </ProgressBase>
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
-    </Box>
+    </>
 );
 
 export default Progress;
