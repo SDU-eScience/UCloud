@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link } from "ui-components";
+import { Link, Box } from "ui-components";
 import { toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -10,7 +10,7 @@ import { dateToString } from "Utilities/DateUtilities";
 import { List } from "Pagination/List";
 import { ZenodoHomeProps, ZenodoHomeState, ZenodoOperations } from ".";
 import { Dispatch } from "redux";
-import { OutlineButton, Divider, Button } from "ui-components";
+import { OutlineButton } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { MainContainer } from "MainContainer/MainContainer";
 import Table, { TableHeaderCell, TableRow, TableCell, TableBody, TableHeader } from "ui-components/Table";
@@ -71,15 +71,9 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                             onPageChanged={pageNumber => fetchPublications(pageNumber, page.itemsPerPage)}
                         />}
                     sidebar={
-                        <>
-                            <Link to="/zenodo/publish/">
-                                <OutlineButton fullWidth color="blue">Create new upload</OutlineButton>
-                            </Link>
-                            <Divider />
-                            <Link to="/zenodo/publish/">
-                                <Button color="blue" fullWidth>Create new upload</Button>
-                            </Link>
-                        </>
+                        <Link to="/zenodo/publish/">
+                            <OutlineButton fullWidth color="blue">Create new upload</OutlineButton>
+                        </Link>
                     }
                 />
             );
@@ -88,9 +82,9 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
 }
 
 const PublicationRow = ({ publication }) => {
-    const actionButton = publication.zenodoAction ?(
-            <a href={publication.zenodoAction} target="_blank" rel="noopener">Finish publication at Zenodo</a>
-        ) : null;
+    const actionButton = publication.zenodoAction ? (
+        <a href={publication.zenodoAction} target="_blank" rel="noopener">Finish at Zenodo</a>
+    ) : null;
     return (
         <TableRow>
             <TableCell>{publication.id}</TableCell>
@@ -98,9 +92,13 @@ const PublicationRow = ({ publication }) => {
             <TableCell>{toLowerCaseAndCapitalize(publication.status)}</TableCell>
             <TableCell>{dateToString(publication.modifiedAt)}</TableCell>
             <TableCell>
-                <ClickableDropdown trigger={<i className="fas fa-ellipsis-h" />}>
-                    <Link to={`/zenodo/info/${encodeURIComponent(publication.id)}`}>Show More</Link>
-                    {actionButton}
+                <ClickableDropdown width="145px" trigger={<i className="fas fa-ellipsis-h" />}>
+                    <Box ml="-17px" mr="-17px" pl="17px">
+                        <Link to={`/zenodo/info/${encodeURIComponent(publication.id)}`}>Show More</Link>
+                    </Box>
+                    <Box ml="-17px" mr="-17px" pl="17px">
+                        {actionButton}
+                    </Box>
                 </ClickableDropdown>
             </TableCell>
         </TableRow>);

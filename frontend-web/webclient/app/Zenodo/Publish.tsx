@@ -13,8 +13,9 @@ import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { File } from "Files";
 import { SET_ZENODO_ERROR } from "Zenodo/Redux/ZenodoReducer";
 import { Dispatch } from "redux";
-import { Button, Error, Input, Label, Flex, LoadingButton, Box } from "ui-components";
+import { Button, Error, Input, Label, Flex, LoadingButton, Box, Link } from "ui-components";
 import * as Heading from "ui-components/Heading";
+import { MainContainer } from "MainContainer/MainContainer";
 
 interface ZenodoPublishState {
     files: string[]
@@ -87,48 +88,57 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
         } else if (!this.props.connected) {
             return (<NotConnectedToZenodo />);
         }
-        return (
-            <Flex alignItems="center" flexDirection="column">
-                <Box width={0.7}>
-                    <Heading.h3>
-                        File Selection
-                    </Heading.h3>
-                    <Error error={this.props.error} clearError={() => this.props.setErrorMessage(undefined)} />
-                    <form onSubmit={(e) => this.submit(e)}>
-                        <FileSelections
-                            handleFileSelection={this.handleFileSelection}
-                            files={this.state.files}
-                            removeFile={this.removeFile}
-                        />
-                        <Label>Publication Name
-                    <Input
 
-                                required={true}
-                                value={name}
-                                type="text"
-                                onChange={({ target: { value } }) => this.setState(() => ({ name: value }))}
-                            />
-                        </Label>
-                        <Flex mt="0.5em">
-                            <Button
-                                color="green"
-                                type="button"
-                                onClick={() => this.newFile()}
-                            >Add file</Button>
-                            <Box ml="auto" />
-                            <LoadingButton
-                                disabled={!name || this.state.files.filter(p => p).length === 0}
-                                color="blue"
-                                type="submit"
-                                loading={this.state.requestSent}
-                                content="Upload files"
-                                onClick={this.submit}
-                            />
-                        </Flex>
-                    </form>
-                </Box>
-            </Flex>
-        );
+
+        const header = (
+            <>
+                <Heading.h3>
+                    File Selection
+                </Heading.h3>
+                <Error error={this.props.error} clearError={() => this.props.setErrorMessage(undefined)} />
+            </>)
+
+        const main = (
+            <form onSubmit={(e) => this.submit(e)}>
+                <FileSelections
+                    handleFileSelection={this.handleFileSelection}
+                    files={this.state.files}
+                    removeFile={this.removeFile}
+                />
+                <Label>Publication Name
+                    <Input
+                        required={true}
+                        value={name}
+                        type="text"
+                        onChange={({ target: { value } }) => this.setState(() => ({ name: value }))}
+                    />
+                </Label>
+                <Flex mt="0.5em">
+                    <Button
+                        color="green"
+                        type="button"
+                        onClick={() => this.newFile()}
+                    >Add file</Button>
+                    <Box ml="auto" />
+                    <LoadingButton
+                        disabled={!name || this.state.files.filter(p => p).length === 0}
+                        color="blue"
+                        type="submit"
+                        loading={this.state.requestSent}
+                        content="Upload files"
+                        onClick={this.submit}
+                    />
+                </Flex>
+            </form>);
+
+        const sidebar = (<Link to="/zenodo/"><Button fullWidth hoverColor="darkGreen" color="green">Publications</Button></Link>)
+
+        return (
+            <MainContainer
+                header={header}
+                main={main}
+                sidebar={sidebar}
+            />)
     }
 }
 
