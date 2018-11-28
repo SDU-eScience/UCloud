@@ -246,7 +246,8 @@ exports[`Activity Feed Mount, with activity 1`] = `
 exports[`Activity Mount 1`] = `
 Array [
   <h1
-    className="sc-jTzLTM cXsIak"
+    className="sc-gzVnrw icdHnu"
+    cursor="inherit"
     fontSize={6}
   >
     File Activity
@@ -258,13 +259,13 @@ Array [
       className="sc-htpNat hjOqln"
     />
     <div
-      className="sc-csuQGl kaELer"
+      className="sc-cvbbAY iiWipZ"
     >
       <div
         className="sc-bdVaJa hfvaUK"
       >
         <span
-          className="sc-htoDjs bChhWZ"
+          className="sc-gzVnrw hNFoCO"
           cursor="pointer"
           onClick={[Function]}
         >
@@ -281,7 +282,7 @@ Array [
               className="sc-htpNat llOEfe"
             >
               <svg
-                className="sc-gqjmRU ejBkCs"
+                className="sc-dnqmqq fuFxzC"
                 cursor="auto"
                 fill="currentcolor"
                 height={24}

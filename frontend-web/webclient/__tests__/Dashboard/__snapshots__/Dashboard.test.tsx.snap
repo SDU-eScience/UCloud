@@ -2,10 +2,10 @@
 
 exports[`Dashboard Component Mount with favorites 1`] = `
 <div
-  className="sc-kGXeez bXngZo"
+  className="sc-gZMcBi fNCCZY"
 >
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -19,7 +19,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Favorite files
@@ -32,7 +33,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       >
         <div
           className="sc-ifAKCX fdcbWa"
@@ -42,14 +43,14 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey image icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -194,7 +195,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -207,9 +208,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -232,7 +233,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -260,49 +261,49 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -321,7 +322,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             }
           >
             <span
-              className="limited-width-string-200px sc-bZQynM eeUTdf"
+              className="limited-width-string-200px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
@@ -353,14 +355,14 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -505,7 +507,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -518,9 +520,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -543,7 +545,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -571,49 +573,49 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -632,7 +634,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             }
           >
             <span
-              className="limited-width-string-200px sc-bZQynM eeUTdf"
+              className="limited-width-string-200px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               AABA
@@ -664,14 +667,14 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -816,7 +819,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -829,9 +832,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -854,7 +857,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -882,49 +885,49 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -943,7 +946,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             }
           >
             <span
-              className="limited-width-string-200px sc-bZQynM eeUTdf"
+              className="limited-width-string-200px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               Favorites
@@ -975,14 +979,14 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -1127,7 +1131,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -1140,9 +1144,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -1165,7 +1169,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -1193,49 +1197,49 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -1254,7 +1258,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             }
           >
             <span
-              className="limited-width-string-200px sc-bZQynM eeUTdf"
+              className="limited-width-string-200px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               Jobs
@@ -1286,14 +1291,14 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -1438,7 +1443,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -1451,9 +1456,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -1476,7 +1481,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -1504,49 +1509,49 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -1565,7 +1570,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             }
           >
             <span
-              className="limited-width-string-200px sc-bZQynM eeUTdf"
+              className="limited-width-string-200px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               A folder the sequel
@@ -1597,14 +1603,14 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -1749,7 +1755,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -1762,9 +1768,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -1787,7 +1793,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -1815,49 +1821,49 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -1876,7 +1882,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             }
           >
             <span
-              className="limited-width-string-200px sc-bZQynM eeUTdf"
+              className="limited-width-string-200px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               B
@@ -1908,14 +1915,14 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -2060,7 +2067,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -2073,9 +2080,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -2098,7 +2105,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -2126,49 +2133,49 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -2187,7 +2194,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             }
           >
             <span
-              className="limited-width-string-200px sc-bZQynM eeUTdf"
+              className="limited-width-string-200px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               rehjoerijhoerijh
@@ -2219,14 +2227,14 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -2371,7 +2379,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -2384,9 +2392,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -2409,7 +2417,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -2437,49 +2445,49 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -2498,7 +2506,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             }
           >
             <span
-              className="limited-width-string-200px sc-bZQynM eeUTdf"
+              className="limited-width-string-200px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               Test
@@ -2530,14 +2539,14 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -2682,7 +2691,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -2695,9 +2704,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -2720,7 +2729,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -2748,49 +2757,49 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -2809,7 +2818,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             }
           >
             <span
-              className="limited-width-string-200px sc-bZQynM eeUTdf"
+              className="limited-width-string-200px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
@@ -2841,14 +2851,14 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -2993,7 +3003,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -3006,9 +3016,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -3031,7 +3041,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -3059,49 +3069,49 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -3120,7 +3130,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             }
           >
             <span
-              className="limited-width-string-200px sc-bZQynM eeUTdf"
+              className="limited-width-string-200px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
@@ -3148,7 +3159,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3162,7 +3173,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recently used files
@@ -3180,12 +3192,12 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3199,7 +3211,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recent Jobs
@@ -3217,12 +3230,12 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3236,7 +3249,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recent notifications
@@ -3265,7 +3279,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         </small>
       </h3>
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
@@ -3274,10 +3288,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
 
 exports[`Dashboard Component Mount with no data 1`] = `
 <div
-  className="sc-kGXeez bXngZo"
+  className="sc-gZMcBi fNCCZY"
 >
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3291,7 +3305,8 @@ exports[`Dashboard Component Mount with no data 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Favorite files
@@ -3307,12 +3322,12 @@ exports[`Dashboard Component Mount with no data 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3326,7 +3341,8 @@ exports[`Dashboard Component Mount with no data 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recently used files
@@ -3342,12 +3358,12 @@ exports[`Dashboard Component Mount with no data 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3361,7 +3377,8 @@ exports[`Dashboard Component Mount with no data 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recent Jobs
@@ -3377,12 +3394,12 @@ exports[`Dashboard Component Mount with no data 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3396,7 +3413,8 @@ exports[`Dashboard Component Mount with no data 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recent notifications
@@ -3425,7 +3443,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
         </small>
       </h3>
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
@@ -3434,10 +3452,10 @@ exports[`Dashboard Component Mount with no data 1`] = `
 
 exports[`Dashboard Component Mount with notifications 1`] = `
 <div
-  className="sc-kGXeez bXngZo"
+  className="sc-gZMcBi fNCCZY"
 >
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3451,7 +3469,8 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Favorite files
@@ -3467,12 +3486,12 @@ exports[`Dashboard Component Mount with notifications 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3486,7 +3505,8 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recently used files
@@ -3502,12 +3522,12 @@ exports[`Dashboard Component Mount with notifications 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3521,7 +3541,8 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recent Jobs
@@ -3537,12 +3558,12 @@ exports[`Dashboard Component Mount with notifications 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3556,7 +3577,8 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recent notifications
@@ -3580,13 +3602,13 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       className="sc-bdVaJa fLxwjw"
     >
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       >
         <div
           className="sc-ifAKCX hEFUra"
         >
           <div
-            className="sc-kjoXOD ijwNvy"
+            className="sc-bRBYWo hKQdgP"
             onClick={[Function]}
           >
             <div
@@ -3594,7 +3616,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
               width="0.20"
             >
               <svg
-                className="sc-iwsKbI biPPzJ"
+                className="sc-gzVnrw dXwGzW"
                 clipRule="evenodd"
                 cursor="auto"
                 fill="currentcolor"
@@ -3624,14 +3646,16 @@ exports[`Dashboard Component Mount with notifications 1`] = `
                 className="sc-ifAKCX hyyJhN"
               >
                 <span
-                  className="sc-bZQynM ifJfAG"
+                  className="sc-EHOje kmIRlQ"
                   color="grey"
+                  cursor="inherit"
                   fontSize={1}
                 >
                   49 years ago
                 </span>
                 <span
-                  className="sc-bZQynM ThocP"
+                  className="sc-EHOje kvayUm"
+                  cursor="inherit"
                 >
                   jonas@hinchely.dk has shared a file with you
                 </span>
@@ -3643,7 +3667,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
           className="sc-ifAKCX hEFUra"
         >
           <div
-            className="sc-kjoXOD jomqQR"
+            className="sc-bRBYWo bZNqoO"
             onClick={[Function]}
           >
             <div
@@ -3651,7 +3675,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
               width="0.20"
             >
               <svg
-                className="sc-iwsKbI biPPzJ"
+                className="sc-gzVnrw dXwGzW"
                 clipRule="evenodd"
                 cursor="auto"
                 fill="currentcolor"
@@ -3681,14 +3705,16 @@ exports[`Dashboard Component Mount with notifications 1`] = `
                 className="sc-ifAKCX hyyJhN"
               >
                 <span
-                  className="sc-bZQynM ifJfAG"
+                  className="sc-EHOje kmIRlQ"
                   color="grey"
+                  cursor="inherit"
                   fontSize={1}
                 >
                   49 years ago
                 </span>
                 <span
-                  className="sc-bZQynM ThocP"
+                  className="sc-EHOje kvayUm"
+                  cursor="inherit"
                 >
                   jonas@hinchely.dk has shared a file with you
                 </span>
@@ -3704,10 +3730,10 @@ exports[`Dashboard Component Mount with notifications 1`] = `
 
 exports[`Dashboard Component Mount with recent files 1`] = `
 <div
-  className="sc-kGXeez bXngZo"
+  className="sc-gZMcBi fNCCZY"
 >
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3721,7 +3747,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Favorite files
@@ -3734,18 +3761,19 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <h6
-        className="sc-cSHVUG cXEBRe"
+        className="sc-EHOje dbohYS"
+        cursor="inherit"
         fontSize={0}
       >
         No favorites found
       </h6>
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -3759,7 +3787,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recently used files
@@ -3772,7 +3801,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       >
         <div
           className="sc-ifAKCX fdcbWa"
@@ -3782,14 +3811,14 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey image icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -3934,7 +3963,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -3947,9 +3976,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -3972,7 +4001,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -4000,49 +4029,49 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -4061,7 +4090,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             }
           >
             <span
-              className="limited-width-string-117px sc-bZQynM eeUTdf"
+              className="limited-width-string-117px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
@@ -4086,14 +4116,14 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -4238,7 +4268,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -4251,9 +4281,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -4276,7 +4306,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -4304,49 +4334,49 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -4365,7 +4395,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             }
           >
             <span
-              className="limited-width-string-117px sc-bZQynM eeUTdf"
+              className="limited-width-string-117px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               AABA
@@ -4390,14 +4421,14 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -4542,7 +4573,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -4555,9 +4586,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -4580,7 +4611,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -4608,49 +4639,49 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -4669,7 +4700,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             }
           >
             <span
-              className="limited-width-string-117px sc-bZQynM eeUTdf"
+              className="limited-width-string-117px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               Favorites
@@ -4694,14 +4726,14 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -4846,7 +4878,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -4859,9 +4891,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -4884,7 +4916,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -4912,49 +4944,49 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -4973,7 +5005,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             }
           >
             <span
-              className="limited-width-string-117px sc-bZQynM eeUTdf"
+              className="limited-width-string-117px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               Jobs
@@ -4998,14 +5031,14 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -5150,7 +5183,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -5163,9 +5196,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -5188,7 +5221,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -5216,49 +5249,49 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -5277,7 +5310,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             }
           >
             <span
-              className="limited-width-string-117px sc-bZQynM eeUTdf"
+              className="limited-width-string-117px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               A folder the sequel
@@ -5302,14 +5336,14 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -5454,7 +5488,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -5467,9 +5501,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -5492,7 +5526,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -5520,49 +5554,49 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -5581,7 +5615,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             }
           >
             <span
-              className="limited-width-string-117px sc-bZQynM eeUTdf"
+              className="limited-width-string-117px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               B
@@ -5606,14 +5641,14 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -5758,7 +5793,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -5771,9 +5806,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -5796,7 +5831,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -5824,49 +5859,49 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -5885,7 +5920,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             }
           >
             <span
-              className="limited-width-string-117px sc-bZQynM eeUTdf"
+              className="limited-width-string-117px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               rehjoerijhoerijh
@@ -5910,14 +5946,14 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -6062,7 +6098,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -6075,9 +6111,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -6100,7 +6136,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -6128,49 +6164,49 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -6189,7 +6225,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             }
           >
             <span
-              className="limited-width-string-117px sc-bZQynM eeUTdf"
+              className="limited-width-string-117px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               Test
@@ -6214,14 +6251,14 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -6366,7 +6403,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -6379,9 +6416,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -6404,7 +6441,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -6432,49 +6469,49 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -6493,7 +6530,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             }
           >
             <span
-              className="limited-width-string-117px sc-bZQynM eeUTdf"
+              className="limited-width-string-117px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
@@ -6518,14 +6556,14 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             className="grey folder icon"
           />
           <a
-            className="sc-brqgnP ccpACz"
+            className="sc-jKJlTe cboMKF"
             color="text"
             hoverColor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -6670,7 +6708,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -6683,9 +6721,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -6708,7 +6746,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -6736,49 +6774,49 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -6797,7 +6835,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             }
           >
             <span
-              className="limited-width-string-117px sc-bZQynM eeUTdf"
+              className="limited-width-string-117px sc-EHOje goSKiO"
+              cursor="inherit"
               fontSize={2}
             >
               somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
@@ -6818,7 +6857,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -6832,7 +6871,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recent Jobs
@@ -6850,12 +6890,12 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -6869,7 +6909,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recent notifications
@@ -6898,7 +6939,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         </small>
       </h3>
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
@@ -6907,10 +6948,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
 
 exports[`Dashboard Component Mount with recent files 2`] = `
 <div
-  className="sc-kGXeez bXngZo"
+  className="sc-gZMcBi fNCCZY"
 >
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -6924,7 +6965,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Favorite files
@@ -6937,18 +6979,19 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <h6
-        className="sc-cSHVUG cXEBRe"
+        className="sc-EHOje dbohYS"
+        cursor="inherit"
         fontSize={0}
       >
         No favorites found
       </h6>
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -6962,7 +7005,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recently used files
@@ -6980,12 +7024,12 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -6999,7 +7043,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recent Jobs
@@ -7012,7 +7057,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         className="sc-bdVaJa iyWrjl"
       />
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       >
         <div
           className="sc-ifAKCX leCTFT"
@@ -7031,7 +7076,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </div>
           <a
-            className="sc-brqgnP eYdgDQ"
+            className="sc-jKJlTe jCXkbu"
             color="text"
             hoverColor="textHighlight"
             href="/applications/results/bbcf5395-e78e-4fa7-a4e1-989fe5ce21ee"
@@ -7039,7 +7084,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -7184,7 +7229,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -7197,9 +7242,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -7222,7 +7267,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -7250,49 +7295,49 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -7311,7 +7356,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             }
           >
             <span
-              className="sc-bZQynM kFprVH"
+              className="sc-EHOje cKKZzB"
+              cursor="inherit"
               fontSize={2}
             >
               figlet-count
@@ -7321,7 +7367,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             className="sc-bdVaJa gtvdIr"
           />
           <span
-            className="sc-bZQynM fWmoNb"
+            className="sc-EHOje gQqeOL"
+            cursor="inherit"
             fontSize={2}
           >
             Failure
@@ -7344,7 +7391,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </div>
           <a
-            className="sc-brqgnP eYdgDQ"
+            className="sc-jKJlTe jCXkbu"
             color="text"
             hoverColor="textHighlight"
             href="/applications/results/15274bec-ef72-4ed2-97ff-2be1829a2db1"
@@ -7352,7 +7399,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -7497,7 +7544,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -7510,9 +7557,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -7535,7 +7582,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -7563,49 +7610,49 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -7624,7 +7671,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             }
           >
             <span
-              className="sc-bZQynM kFprVH"
+              className="sc-EHOje cKKZzB"
+              cursor="inherit"
               fontSize={2}
             >
               figlet
@@ -7634,7 +7682,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             className="sc-bdVaJa gtvdIr"
           />
           <span
-            className="sc-bZQynM fWmoNb"
+            className="sc-EHOje gQqeOL"
+            cursor="inherit"
             fontSize={2}
           >
             Failure
@@ -7657,7 +7706,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </div>
           <a
-            className="sc-brqgnP eYdgDQ"
+            className="sc-jKJlTe jCXkbu"
             color="text"
             hoverColor="textHighlight"
             href="/applications/results/3544b177-e9a7-4323-bcde-c4d6e442dc36"
@@ -7665,7 +7714,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -7810,7 +7859,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -7823,9 +7872,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -7848,7 +7897,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -7876,49 +7925,49 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -7937,7 +7986,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             }
           >
             <span
-              className="sc-bZQynM kFprVH"
+              className="sc-EHOje cKKZzB"
+              cursor="inherit"
               fontSize={2}
             >
               figlet
@@ -7947,7 +7997,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             className="sc-bdVaJa gtvdIr"
           />
           <span
-            className="sc-bZQynM fWmoNb"
+            className="sc-EHOje gQqeOL"
+            cursor="inherit"
             fontSize={2}
           >
             Failure
@@ -7970,7 +8021,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </div>
           <a
-            className="sc-brqgnP eYdgDQ"
+            className="sc-jKJlTe jCXkbu"
             color="text"
             hoverColor="textHighlight"
             href="/applications/results/e28defb0-d66c-4461-91f6-b09afd85480c"
@@ -7978,7 +8029,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             onClick={[Function]}
             theme={
               Object {
-                "bold": 400,
+                "bold": 700,
                 "boxShadows": Array [
                   "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
                   "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -8123,7 +8174,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   "slow": "450ms",
                   "slowest": "600ms",
                 },
-                "fontFamily": "'IBM Plex Sans',sans-serif",
+                "fontFamily": "'IBM Plex Sans', sans-serif",
                 "fontSizes": Array [
                   12,
                   14,
@@ -8136,9 +8187,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   72,
                 ],
                 "fontWeights": Object {
-                  "bold": 400,
+                  "bold": 700,
                   "medium": 300,
-                  "regular": 300,
+                  "regular": 400,
                 },
                 "letterSpacings": Object {
                   "caps": "0.025em",
@@ -8161,7 +8212,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   6,
                 ],
                 "radius": "2px",
-                "regular": 300,
+                "regular": 400,
                 "space": Array [
                   0,
                   4,
@@ -8189,49 +8240,49 @@ exports[`Dashboard Component Mount with recent files 2`] = `
                   },
                   "display0": Object {
                     "fontSize": "12px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "letterSpacing": "0.025em",
                     "lineHeight": 1.25,
                     "textTransform": "uppercase",
                   },
                   "display1": Object {
                     "fontSize": "14px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display2": Object {
                     "fontSize": "16px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display3": Object {
                     "fontSize": "20px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display4": Object {
                     "fontSize": "24px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display5": Object {
                     "fontSize": "32px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display6": Object {
                     "fontSize": "40px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display7": Object {
                     "fontSize": "56px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                   "display8": Object {
                     "fontSize": "72px",
-                    "fontWeight": 400,
+                    "fontWeight": 700,
                     "lineHeight": 1.25,
                   },
                 },
@@ -8250,7 +8301,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             }
           >
             <span
-              className="sc-bZQynM kFprVH"
+              className="sc-EHOje cKKZzB"
+              cursor="inherit"
               fontSize={2}
             >
               figlet-count
@@ -8260,7 +8312,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             className="sc-bdVaJa gtvdIr"
           />
           <span
-            className="sc-bZQynM fWmoNb"
+            className="sc-EHOje gQqeOL"
+            cursor="inherit"
             fontSize={2}
           >
             Success
@@ -8270,7 +8323,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
     </div>
   </div>
   <div
-    className="sc-kgoBCf fCpAXJ"
+    className="sc-iwsKbI lnBfZg"
     height="auto"
     style={
       Object {
@@ -8284,7 +8337,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       color="darkGray"
     >
       <h4
-        className="sc-fjdhpX kzWlXJ"
+        className="sc-EHOje kUYKmR"
+        cursor="inherit"
         fontSize={3}
       >
         Recent notifications
@@ -8313,7 +8367,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         </small>
       </h3>
       <div
-        className="sc-dVhcbM cIxcdW"
+        className="sc-iRbamj hPXkfC"
       />
     </div>
   </div>

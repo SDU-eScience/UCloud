@@ -6,7 +6,7 @@ exports[`Status Mount component 1`] = `
   onClick={[Function]}
 >
   <button
-    className="sc-kAzzGY byIkBl"
+    className="sc-htoDjs iLxDxR"
     color="green"
     title="The system is running as intended."
   >

@@ -14,17 +14,17 @@ exports[`Zenodo Mount Zenodo component 1`] = `
     }
   >
     <div
-      className="sc-jKJlTe gZLhrm"
+      className="sc-fjdhpX eIwIdU"
     >
       <a
-        className="sc-brqgnP ccpACz"
+        className="sc-jKJlTe cboMKF"
         color="text"
         hoverColor="textHighlight"
         href="/zenodo/publish/"
         onClick={[Function]}
         theme={
           Object {
-            "bold": 400,
+            "bold": 700,
             "boxShadows": Array [
               "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
               "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -169,7 +169,7 @@ exports[`Zenodo Mount Zenodo component 1`] = `
               "slow": "450ms",
               "slowest": "600ms",
             },
-            "fontFamily": "'IBM Plex Sans',sans-serif",
+            "fontFamily": "'IBM Plex Sans', sans-serif",
             "fontSizes": Array [
               12,
               14,
@@ -182,9 +182,9 @@ exports[`Zenodo Mount Zenodo component 1`] = `
               72,
             ],
             "fontWeights": Object {
-              "bold": 400,
+              "bold": 700,
               "medium": 300,
-              "regular": 300,
+              "regular": 400,
             },
             "letterSpacings": Object {
               "caps": "0.025em",
@@ -207,7 +207,7 @@ exports[`Zenodo Mount Zenodo component 1`] = `
               6,
             ],
             "radius": "2px",
-            "regular": 300,
+            "regular": 400,
             "space": Array [
               0,
               4,
@@ -235,49 +235,49 @@ exports[`Zenodo Mount Zenodo component 1`] = `
               },
               "display0": Object {
                 "fontSize": "12px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "letterSpacing": "0.025em",
                 "lineHeight": 1.25,
                 "textTransform": "uppercase",
               },
               "display1": Object {
                 "fontSize": "14px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display2": Object {
                 "fontSize": "16px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display3": Object {
                 "fontSize": "20px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display4": Object {
                 "fontSize": "24px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display5": Object {
                 "fontSize": "32px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display6": Object {
                 "fontSize": "40px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display7": Object {
                 "fontSize": "56px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display8": Object {
                 "fontSize": "72px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
             },
@@ -296,7 +296,7 @@ exports[`Zenodo Mount Zenodo component 1`] = `
         }
       >
         <button
-          className="sc-cMljjf bsTxEH"
+          className="sc-eNQAEJ fQogFc"
           color="blue"
         >
           Create new upload
@@ -304,13 +304,15 @@ exports[`Zenodo Mount Zenodo component 1`] = `
       </a>
     </div>
     <h2
-      className="sc-VigVT gjFje"
+      className="sc-EHOje cMXCEK"
+      cursor="inherit"
       fontSize={5}
     >
       Upload progress
     </h2>
     <h5
-      className="sc-jzJRlG cxoBIs"
+      className="sc-EHOje hviljP"
+      cursor="inherit"
       fontSize={2}
     >
       Connected to Zenodo
@@ -322,13 +324,13 @@ exports[`Zenodo Mount Zenodo component 1`] = `
         className="sc-bdVaJa gtvdIr"
       />
       <div
-        className="sc-jlyJG iQCuLS"
+        className="sc-hSdWYo WjgYB"
       >
         <div
-          className="sc-caSCKo bEZmCg"
+          className="sc-csuQGl hyIdkc"
         >
           <span
-            className="sc-bZQynM lphChX"
+            className="sc-EHOje gynpeM"
             cursor="pointer"
             onClick={[Function]}
           >
@@ -345,7 +347,7 @@ exports[`Zenodo Mount Zenodo component 1`] = `
                 className="sc-bdVaJa bQBfBb"
               >
                 <svg
-                  className="sc-iwsKbI biPPzJ"
+                  className="sc-gzVnrw dXwGzW"
                   cursor="auto"
                   fill="currentcolor"
                   height={24}
@@ -380,7 +382,7 @@ exports[`Zenodo Mount Zenodo component 1`] = `
     <div />
   </div>
   <div
-    className="sc-jKJlTe fCxrwp"
+    className="sc-fjdhpX jrxGCm"
     width={
       Array [
         0,
@@ -392,14 +394,14 @@ exports[`Zenodo Mount Zenodo component 1`] = `
       className="sc-bdVaJa gvJQvB"
     >
       <a
-        className="sc-brqgnP ccpACz"
+        className="sc-jKJlTe cboMKF"
         color="text"
         hoverColor="textHighlight"
         href="/zenodo/publish/"
         onClick={[Function]}
         theme={
           Object {
-            "bold": 400,
+            "bold": 700,
             "boxShadows": Array [
               "0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)",
               "0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)",
@@ -544,7 +546,7 @@ exports[`Zenodo Mount Zenodo component 1`] = `
               "slow": "450ms",
               "slowest": "600ms",
             },
-            "fontFamily": "'IBM Plex Sans',sans-serif",
+            "fontFamily": "'IBM Plex Sans', sans-serif",
             "fontSizes": Array [
               12,
               14,
@@ -557,9 +559,9 @@ exports[`Zenodo Mount Zenodo component 1`] = `
               72,
             ],
             "fontWeights": Object {
-              "bold": 400,
+              "bold": 700,
               "medium": 300,
-              "regular": 300,
+              "regular": 400,
             },
             "letterSpacings": Object {
               "caps": "0.025em",
@@ -582,7 +584,7 @@ exports[`Zenodo Mount Zenodo component 1`] = `
               6,
             ],
             "radius": "2px",
-            "regular": 300,
+            "regular": 400,
             "space": Array [
               0,
               4,
@@ -610,49 +612,49 @@ exports[`Zenodo Mount Zenodo component 1`] = `
               },
               "display0": Object {
                 "fontSize": "12px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "letterSpacing": "0.025em",
                 "lineHeight": 1.25,
                 "textTransform": "uppercase",
               },
               "display1": Object {
                 "fontSize": "14px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display2": Object {
                 "fontSize": "16px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display3": Object {
                 "fontSize": "20px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display4": Object {
                 "fontSize": "24px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display5": Object {
                 "fontSize": "32px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display6": Object {
                 "fontSize": "40px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display7": Object {
                 "fontSize": "56px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
               "display8": Object {
                 "fontSize": "72px",
-                "fontWeight": 400,
+                "fontWeight": 700,
                 "lineHeight": 1.25,
               },
             },
@@ -671,7 +673,7 @@ exports[`Zenodo Mount Zenodo component 1`] = `
         }
       >
         <button
-          className="sc-cMljjf bsTxEH"
+          className="sc-eNQAEJ fQogFc"
           color="blue"
         >
           Create new upload
