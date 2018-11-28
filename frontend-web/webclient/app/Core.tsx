@@ -2,7 +2,7 @@ import * as React from "react";
 import { Switch, Route } from "react-router-dom";
 import Files from "Files/Files";
 import Dashboard from "Dashboard/Dashboard";
-import Applications from "Applications/Applications";
+import Applications from "Applications/Browse";
 import RunApp from "Applications/RunApp";
 import JobResults from "Applications/JobResults";
 import Header from "Navigation/Header";
@@ -23,7 +23,7 @@ import UserSettings from "UserSettings/UserSettings";
 import ZenodoHome from "Zenodo/Zenodo";
 import ZenodoInfo from "Zenodo/Info";
 import DetailedResult from "Applications/DetailedResult";
-import DetailedApplication from "Applications/DetailedApplication";
+import { View as ApplicationView } from "Applications/View";
 import Status from "Navigation/StatusPage";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
@@ -46,7 +46,7 @@ const Core = () => (
                 <Route exact path="/status" component={Status} />
 
                 <Route exact path="/applications" component={Applications} />
-                <Route exact path="/applications/details/:appName/:appVersion" component={DetailedApplication} />
+                <Route exact path="/applications/details/:appName/:appVersion" component={ApplicationView} />
                 <Route exact path="/applications/results" component={JobResults} />
                 <Route exact path="/applications/results/:jobId" component={DetailedResult} />
                 <Route exact path="/applications/:appName/:appVersion" component={RunApp} />

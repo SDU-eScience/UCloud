@@ -1,10 +1,9 @@
 import * as React from "react";
 import * as Renderer from "react-test-renderer";
-import Applications, { ApplicationCard } from "Applications/Applications";
+import { ApplicationCard } from "Applications/Card";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initApplications } from "DefaultObjects";
 import applicationsReducer from "Applications/Redux/ApplicationsReducer";
-import { Provider } from "react-redux";
 import { applicationsPage } from "../mock/Applications";
 import { MemoryRouter } from "react-router";
 import { shallow } from "enzyme";

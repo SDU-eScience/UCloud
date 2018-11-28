@@ -7,7 +7,12 @@ import {
   lineHeight,
   space,
   color,
-  SpaceProps, TextAlignProps, FontSizeProps, ColorProps
+  SpaceProps, 
+  TextAlignProps, 
+  FontSizeProps, 
+  ColorProps, 
+  WidthProps, 
+  width
 } from 'styled-system'
 import theme, { Theme } from "./theme";
 
@@ -55,12 +60,12 @@ export const TextSpan = Text.withComponent("span");
 export const TextP = Text.withComponent("p");
 export const TextS = Text.withComponent("s");
 
-interface EllipsedTextProps extends TextProps { width: number }
+interface EllipsedTextProps extends TextProps, WidthProps {}
 export const EllipsedText = styled(Text) <EllipsedTextProps>`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  width: ${props => props.width}px;
+  ${width}
   display: inline-block;
 `;
 
