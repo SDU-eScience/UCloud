@@ -109,10 +109,10 @@ class Files extends React.Component<FilesProps> {
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const fileOperations: FileOperation[] = [
             {
-                text: "Rename", 
+                text: "Rename",
                 onClick: files => updateFiles(startRenamingFiles(files, page)),
-                disabled: (files: File[]) => !allFilesHasAccessRight(AccessRight.WRITE, files), 
-                icon: "rename", 
+                disabled: (files: File[]) => !allFilesHasAccessRight(AccessRight.WRITE, files),
+                icon: "rename",
                 color: undefined
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)

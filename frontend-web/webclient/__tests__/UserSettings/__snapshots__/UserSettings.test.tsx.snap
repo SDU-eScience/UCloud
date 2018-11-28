@@ -2,17 +2,17 @@
 
 exports[`UserSettings Mount 1`] = `
 <div
-  className="sc-jzJRlG btgqKG"
+  className="sc-bZQynM Ygzij"
 >
   <div
-    className="sc-gqjmRU gancRw"
+    className="sc-htpNat hIINSb"
     width={0.7}
   >
     <div
-      className="sc-jzJRlG wOIhZ"
+      className="sc-bZQynM bTpYSl"
     >
       <div
-        className="sc-gqjmRU dyPuak"
+        className="sc-htpNat ixeqWe"
         width={
           Array [
             1,
@@ -21,10 +21,11 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-eNQAEJ dPxNMT"
+          className="sc-fjdhpX eIwIdU"
         />
         <h1
-          className="sc-bZQynM ynGKB"
+          className="sc-bdVaJa fEtJUa"
+          cursor="inherit"
           fontSize={6}
         >
           Change Password
@@ -33,17 +34,17 @@ exports[`UserSettings Mount 1`] = `
           onSubmit={[Function]}
         >
           <div
-            className="sc-gqjmRU dIxMCE"
+            className="sc-htpNat eePbhe"
           >
             <label
-              className="sc-cvbbAY cavXjd"
+              className="sc-kpOJdX kaSAoa"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               Current Password
               <input
-                className="sc-kEYyzF efbqgH"
+                className="sc-cSHVUG cjUtlX"
                 id="default"
                 onChange={[Function]}
                 placeholder="Current password"
@@ -53,17 +54,17 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <div
-            className="sc-gqjmRU dIxMCE"
+            className="sc-htpNat eePbhe"
           >
             <label
-              className="sc-cvbbAY cavXjd"
+              className="sc-kpOJdX kaSAoa"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               New Password
               <input
-                className="sc-kEYyzF efbqgH"
+                className="sc-cSHVUG cjUtlX"
                 id="default"
                 onChange={[Function]}
                 placeholder="New password"
@@ -73,17 +74,17 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <div
-            className="sc-gqjmRU dIxMCE"
+            className="sc-htpNat eePbhe"
           >
             <label
-              className="sc-cvbbAY cavXjd"
+              className="sc-kpOJdX kaSAoa"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               Repeat new password
               <input
-                className="sc-kEYyzF efbqgH"
+                className="sc-cSHVUG cjUtlX"
                 id="default"
                 onChange={[Function]}
                 placeholder="Repeat password"
@@ -93,7 +94,7 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <button
-            className="sc-chPdSV evYfpJ"
+            className="sc-htoDjs GrhCv"
             color="green"
             type="submit"
           >
@@ -101,7 +102,8 @@ exports[`UserSettings Mount 1`] = `
           </button>
         </form>
         <h1
-          className="sc-bZQynM ynGKB"
+          className="sc-bdVaJa fEtJUa"
+          cursor="inherit"
           fontSize={6}
         >
           Two Factor Authentication
@@ -109,12 +111,13 @@ exports[`UserSettings Mount 1`] = `
         <b>
           You do NOT have a 2FA device connected to your account
         </b>
-        <div
-          className="ui divider"
+        <hr
+          className="sc-jTzLTM eodfCV"
         />
         <div>
           <h3
-            className="sc-htoDjs fRPTcT"
+            className="sc-bdVaJa inHAPv"
+            cursor="inherit"
             fontSize={4}
           >
             2FA Setup
@@ -123,24 +126,28 @@ exports[`UserSettings Mount 1`] = `
             In order to activate 2FA on your account you must have a device capable of issuing time-based one time passwords (TOTP). For this we recommend the "Google Authenticator" app, available for both Android and iOS.
           </p>
           <div
-            className="ui small images"
+            className="sc-bZQynM bqIUrb"
           >
             <a
               href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us"
+              rel="noopener"
               target="_blank"
             >
               <img
-                className="ui image"
+                className="sc-jzJRlG dpgqIF"
                 src={[Function]}
+                width="150px"
               />
             </a>
             <a
               href="https://itunes.apple.com/us/app/google-authenticator/id388497605"
+              rel="noopener"
               target="_blank"
             >
               <img
-                className="ui image"
+                className="sc-jzJRlG dpgqIF"
                 src={[Function]}
+                width="150px"
               />
             </a>
           </div>
@@ -148,27 +155,30 @@ exports[`UserSettings Mount 1`] = `
             Once you are ready click the button below to get started:
           </p>
           <button
-            className="ui loading positive button"
+            className="sc-htoDjs ekVhyU"
+            color="green"
+            disabled={true}
             onClick={[Function]}
-            role="button"
           >
             <i
-              aria-hidden="true"
-              className="qrcode icon"
+              className="fas fa-circle-notch fa-spin"
             />
-            Start setup
           </button>
         </div>
       </div>
       <div
-        className="sc-eNQAEJ lhZsvT"
+        className="sc-fjdhpX hzdgKR"
         width={
           Array [
             0,
             0,
           ]
         }
-      />
+      >
+        <div
+          className="sc-htpNat khgAEN"
+        />
+      </div>
     </div>
   </div>
 </div>
