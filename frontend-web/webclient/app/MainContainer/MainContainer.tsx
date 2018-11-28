@@ -13,7 +13,7 @@ export const MainContainer = ({ sidebar, main, additional, header }: MainContain
                 {main}
             </Box>
             <Hide xs sm md width={[0, sidebar != null ? 3 / 16 : 0]}>
-                <Box ml="0.4em" mr="0.4em">
+                <Box ml="1em" mr="1em">
                     {sidebar}
                 </Box>
             </Hide>

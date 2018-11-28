@@ -4,7 +4,6 @@ import { toLowerCaseAndCapitalize, removeTrailingSlash, addTrailingSlash } from 
 import { fileSizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile } from "Utilities/FileUtilities";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel, ReduxObject } from "DefaultObjects";
-import { Segment as SSegment } from "semantic-ui-react";
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
