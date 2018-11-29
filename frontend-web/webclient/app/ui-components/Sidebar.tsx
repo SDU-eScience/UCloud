@@ -10,17 +10,17 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { PP } from "UtilityComponents";
 import { fileTablePage } from "Utilities/FileUtilities";
 
-const SideBarContainer = styled(Flex)`
+const SidebarContainer = styled(Flex)`
     position: fixed;
     top:48px;
     //width: 190px;
     //margin-top: 48px;
-    height: 100%;
+    height: calc(100% - 48px);
     flex-flow: column;
     border-right: 1px solid ${props => props.theme.colors.borderGray}
 `;
 
-const SideBarElementContainer = styled(Flex)`
+const SidebarElementContainer = styled(Flex)`
     justify-content: left;
     flex-flow: row;
     align-items: center;
@@ -31,9 +31,9 @@ const SideBarElementContainer = styled(Flex)`
     }
 `
 interface SidebarElementProps { icon: IconName, label: string, showLabel: boolean, to: string }
-const SideBarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => (
+const SidebarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => (
     <Link to={to}>
-        <SideBarElementContainer >
+        <SidebarElementContainer >
             <Flex mx="22px" alignItems='center'>
                 <Icon cursor="pointer" name={icon} color="iconColor" color2="iconColor2" size="24" />
             </Flex>
@@ -42,13 +42,35 @@ const SideBarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => 
                     {label}
                 </Text>
             }
-        </SideBarElementContainer>
+        </SidebarElementContainer>
     </Link>
 );
 
-const SideBarSpacer = () => (
+const SidebarSpacer = () => (
     <Box mt="20px" />
 );
+
+const SidebarPushToBottom = styled.div`
+    flex-grow: 1;
+`;
+
+const SidebarInfoBox = styled.div`
+    flex-shrink: 0;
+    margin: 22px;
+    color: ${props => props.theme.colors.iconColor};
+
+    & div {
+        width: 100%;
+    }
+
+    & a {
+        color: ${props => props.theme.colors.iconColor};
+    }
+
+    & a:hover {
+        color: ${props => props.theme.colors.blue};
+    }
+`;
 
 type MenuElement = { icon: IconName, label: string, to: string };
 type SidebarMenuElements = {
@@ -76,19 +98,28 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
     return (
-        <SideBarContainer color="text" bg="lightGray" width={190}>
-            {sidebar.map((it, iteration) =>
-                <React.Fragment key={iteration}>
-                    {it.items.map(({ icon, label, to }: { icon: IconName, label: string, to: string }) => (
+        <SidebarContainer color="text" bg="lightGray" width={190}>
+            {sidebar.map((category, categoryIdx) =>
+                <React.Fragment key={categoryIdx}>
+                    {category.items.map(({ icon, label, to }: MenuElement) => (
                         <React.Fragment key={label}>
-                            {iteration === 0 ? <SideBarSpacer /> : null}
-                            <SideBarElement icon={icon} label={label} showLabel={showLabel} to={to} />
+                            {categoryIdx === 0 ? <SidebarSpacer /> : null}
+                            <SidebarElement icon={icon} label={label} showLabel={showLabel} to={to} />
                         </React.Fragment>))}
-                    {iteration !== sidebar.length - 1 ? (<Divider mt="10px" mb="10px" />) : null}
+                    {categoryIdx !== sidebar.length - 1 ? (<Divider mt="10px" mb="10px" />) : null}
                 </React.Fragment>
             )}
+            <SidebarPushToBottom />
+
+            <SidebarInfoBox>
+                <div>ID: {Cloud.username}</div>
+                <div>
+                    <a href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse" target="_blank" rel="noopener">Data Protection at SDU</a>
+                </div>
+            </SidebarInfoBox>
             <PP visible={false} />
-        </SideBarContainer>
+
+        </SidebarContainer>
     );
 };
 
