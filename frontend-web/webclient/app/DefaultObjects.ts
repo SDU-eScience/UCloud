@@ -136,6 +136,10 @@ export interface ApplicationReduxObject extends ComponentWithPage<Application> {
     favoritesLoading: boolean
 };
 
+export interface RunApplicationReduxObject {
+
+}
+
 export type ActivityReduxObject = ComponentWithPage<Activity>
 
 export type HeaderSearchType = "files" | "applications" | "projects";
