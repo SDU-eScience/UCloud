@@ -9,6 +9,10 @@ import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { PP } from "UtilityComponents";
 import { fileTablePage } from "Utilities/FileUtilities";
+import * as Heading from "ui-components/Heading";
+import { Input, Button } from "ui-components";
+import { inSuccessRange, successNotification, failureNotification } from "UtilityFunctions";
+import Relative from "./Relative";
 
 const SidebarContainer = styled(Flex)`
     position: fixed;
@@ -78,6 +82,106 @@ type SidebarMenuElements = {
     predicate: () => boolean
 }
 
+const SupportBox = styled.div<{ visible: boolean }>`
+    display: ${props => props.visible ? "block" : "none"}
+    position: absolute;
+    left: 150px;
+    top: -282px;
+    border: 1px solid ${props => props.theme.colors.borderGray};
+    background: ${props => props.theme.colors.white};
+
+    &&&&&&&&&&& {
+        width: 600px;
+        height: 300px;
+    }
+
+    &:before {
+        display: block;
+        width: 16px;
+        height: 16px;
+        content: '';
+        transform: rotate(45deg);
+        position: relative;
+        top: 265px;
+        left: -9px;
+        background: ${props => props.theme.colors.white};
+        border-left: 1px solid ${props => props.theme.colors.borderGray};
+        border-bottom: 1px solid ${props => props.theme.colors.borderGray};
+    }
+
+    & textarea {
+        width: 100%;
+        border: 1px solid ${props => props.theme.colors.borderGray};
+    }
+
+    & ${Box} {
+        margin: 16px;
+        overflow-y: auto;
+        height: calc(100% - 32px);
+        width: calc(100% - 32px);
+    }
+`;
+
+interface SupportState {
+    visible: boolean
+    loading: boolean
+}
+
+class Support extends React.Component<{}, SupportState> {
+    private textArea = React.createRef<HTMLTextAreaElement>();
+
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            visible: false,
+            loading: false
+        };
+    }
+
+    onSupportClick(event: React.SyntheticEvent) {
+        event.preventDefault();
+        this.setState(() => ({ visible: !this.state.visible }));
+    }
+
+    onSubmit(event: React.FormEvent) {
+        event.preventDefault();
+        const text = this.textArea.current;
+        if (!!text) {
+            this.setState(() => ({ loading: true }));
+            Cloud.post("/support/ticket", { message: text.value }).then(e => {
+                text.value = "";
+                this.setState(({ visible: false, loading: false }));
+                successNotification("Support ticket submitted!");
+            }).catch(e => {
+                if (!!e.response.why) {
+                    failureNotification(e.response.why);
+                } else {
+                    failureNotification("An error occured");
+                }
+            });
+        }
+    }
+
+    render() {
+        return <div>
+            <a href="#support" onClick={e => this.onSupportClick(e)}>Support</a>
+            <Relative>
+                <SupportBox visible={this.state.visible}>
+                    <Box>
+                        <Heading.h3>Support Form</Heading.h3>
+                        <p>Describe your problem below and we will investigate it.</p>
+                        <form onSubmit={e => this.onSubmit(e)}>
+                            <textarea ref={this.textArea} rows={6}></textarea>
+                            <Button fullWidth type="submit" disabled={this.state.loading}>Submit</Button>
+                        </form>
+                    </Box>
+                </SupportBox>
+            </Relative>
+        </div>;
+    }
+}
+
 export const sideBarMenuElements: { general: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements } = {
     general: {
         items: [
@@ -113,6 +217,8 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
 
             <SidebarInfoBox>
                 <div>ID: {Cloud.username}</div>
+                <SidebarSpacer />
+                <Support />
                 <div>
                     <a href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse" target="_blank" rel="noopener">Data Protection at SDU</a>
                 </div>
