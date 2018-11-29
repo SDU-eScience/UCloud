@@ -225,7 +225,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                             <Heading.h5 pb="0.3em" pt="0.5em">Sensitivity</Heading.h5>
                             <SearchStamps stamps={sensitivities} onStampRemove={l => this.props.removeSensitivity([l])} clearAll={() => this.props.removeSensitivity([...sensitivities])} />
                             {sensitivityDropdown}
-                            <LoadingButton type="submit" loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
+                            <LoadingButton type="submit" fullWidth loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
                         </form>
                     </Box>
                 </Flex>
@@ -237,7 +237,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
 const SearchStamps = ({ stamps, onStampRemove, clearAll }) => (
     <Box pb="5px">
         {[...stamps].map(l => (<Stamp ml="2px" mt="2px" bg="white" key={l}>{l}<CloseButton onClick={() => onStampRemove(l)} size={12} /></Stamp>))}
-        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" bg="blue" borderColor="white" color="white" onClick={clearAll}>Clear all<CloseButton size={12} /></Stamp>) : null}
+        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" bg="blue" borderColor="blue" color="white" onClick={clearAll}>Clear all<CloseButton size={12} /></Stamp>) : null}
     </Box>
 );
 

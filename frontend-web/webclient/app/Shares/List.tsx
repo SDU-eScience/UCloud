@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as PropTypes from "prop-types";
-import { List as SemList, SemanticSIZES, SemanticFLOATS, Header, Card, Button, Icon, ButtonGroup } from "semantic-ui-react";
+import { List as SemList, SemanticSIZES, SemanticFLOATS, Card as SCard, Button as SButton, Icon as SIcon, ButtonGroup as SButtonGroup } from "semantic-ui-react";
 import { AccessRight, Page, AccessRightValues } from "Types";
 import { shareSwal } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
@@ -9,8 +9,9 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ListContext, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
-import { Error } from "ui-components";
+import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider } from "ui-components";
 import { sharesByPathQuery } from "Utilities/SharesUtilities";
+import * as Heading from "ui-components/Heading";
 
 export class List extends React.Component<ListProps, ListState> {
     constructor(props: ListProps, ctx: ListContext) {
@@ -34,7 +35,7 @@ export class List extends React.Component<ListProps, ListState> {
 
     public componentDidMount = () => this.reload();
 
-    componentWillUnmount = () => this.state.promises.cancelPromises();
+    public componentWillUnmount = () => this.state.promises.cancelPromises();
 
     reload() {
         const query = !!this.props.byPath ? sharesByPath(this.props.byPath) : retrieveShares(this.state.page, this.state.itemsPerPage, ShareState.REQUEST_SENT);
@@ -61,7 +62,7 @@ export class List extends React.Component<ListProps, ListState> {
             <>
                 <Error clearError={() => this.setState({ errorMessage: undefined })} error={errorMessage} />
                 <DefaultLoading loading={this.state.loading} size="big" />
-                <Header>Shared with Me</Header>
+                <Heading.h3>Shared with Me</Heading.h3>
                 {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
                     <ListEntry
                         groupedShare={it}
@@ -73,7 +74,7 @@ export class List extends React.Component<ListProps, ListState> {
                         onRights={e => this.onEntryAction(e)}
                         onError={it => this.setState({ errorMessage: it })} />
                 )}
-                <Header>Shared by Me</Header>
+                <Heading.h2>Shared by Me</Heading.h2>
                 {noSharesBy ? <NoShares /> : shares.filter(it => it.sharedByMe).map(it =>
                     <ListEntry
                         groupedShare={it}
@@ -94,7 +95,7 @@ export class List extends React.Component<ListProps, ListState> {
     }
 }
 
-const NoShares = () => <Header textAlign="center"><Header.Subheader content="No shares" /></Header>
+const NoShares = () => <Heading.h3 textAlign="center"><small>No shares</small></Heading.h3>
 
 interface ListEntryProperties {
     groupedShare: SharesByPath
@@ -141,30 +142,31 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
             `${groupedShare.sharedBy} wishes to share ${groupedShare.path} with you.`
 
         return (
-            <Card fluid>
-                <Card.Content>
-                    <Card.Header>
-                        <Icon name='folder' /> {getFilenameFromPath(groupedShare.path)}
-                        <AccessRightsDisplay size='tiny' floated='right' disabled rights={actualShare.rights} />
-                    </Card.Header>
-                    <Card.Meta>Shared by {groupedShare.sharedBy}</Card.Meta>
-                    <Card.Description>
-                        {message}
-                        <Button.Group floated="right">
-                            {groupedShare.shares[0].state !== ShareState.REQUEST_SENT ?
-                                <Button negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" size='mini' onClick={() => this.onRevoke(actualShare)} /> : null}
-                        </Button.Group>
-                    </Card.Description>
-                </Card.Content>
-
-                {!hasBeenShared ?
-                    <Card.Content extra>
-                        <Button.Group floated='right'>
-                            <Button positive loading={isLoading} disabled={isLoading} onClick={() => this.onAccept(actualShare)}>Accept</Button>
-                            <Button.Or />
-                            <Button negative loading={isLoading} disabled={isLoading} onClick={() => this.onReject(actualShare)}>Reject</Button>
-                        </Button.Group>
-                    </Card.Content>
+            <Card width="100%" height="auto" p="10px 10px 10px 10px">
+                <Heading.h4>
+                    <SIcon name='folder' /> {getFilenameFromPath(groupedShare.path)}
+                    <AccessRightsDisplay size='tiny' floated='right' disabled rights={actualShare.rights} />
+                </Heading.h4>
+                <Text color="text">Shared by {groupedShare.sharedBy}</Text>
+                <Text>{message}</Text>
+                <Flex>
+                    <Box ml="auto" />
+                    <SButton.Group floated="right">
+                        {groupedShare.shares[0].state !== ShareState.REQUEST_SENT ?
+                            <SButton negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" size='mini' onClick={() => this.onRevoke(actualShare)} /> : null}
+                    </SButton.Group>
+                </Flex>
+                {!hasBeenShared ? (
+                    <>
+                        <Divider />
+                        <Flex>
+                            <Box ml="auto" />
+                            <ButtonGroup width="200px">
+                                <LoadingButton loading={isLoading} disabled={isLoading} color="green" onClick={() => this.onAccept(actualShare)} hoverColor="darkGreen" content="Accept" />
+                                <LoadingButton loading={isLoading} disabled={isLoading} color="red" onClick={() => this.onReject(actualShare)} hoverColor="darkRed" content="Reject" />
+                            </ButtonGroup>
+                        </Flex>
+                    </>)
                     : null
                 }
             </Card>
@@ -177,7 +179,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
         let shareComponents: JSX.Element[] = groupedShare.shares.map(e => (
             <SemList.Item key={e.id}>
-                <Button negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" floated="right" size="mini" onClick={() => this.onRevoke(e)} />
+                <SButton negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" floated="right" size="mini" onClick={() => this.onRevoke(e)} />
                 <SemList.Icon name='user circle' size="large" verticalAlign='top' />
                 <SemList.Content>
                     <SemList.Header>
@@ -191,28 +193,26 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         ));
 
         return (
-            <Card fluid>
-                <Card.Content>
-                    <Card.Header>
-                        <Icon name='folder' /> {getFilenameFromPath(groupedShare.path)}
-                    </Card.Header>
-                    <Card.Meta>Shared with {groupedShare.shares.length} collaborators</Card.Meta>
-                    <Card.Description className='ar-list-padding'>
+            <Card width="100%" p="10px 10px 10px 10px" height="auto">
+                    <Heading.h4>
+                        <SIcon name='folder' /> {getFilenameFromPath(groupedShare.path)}
+                    </Heading.h4>
+                    <Text color="text">Shared with {groupedShare.shares.length} collaborators</Text>
+                    <SCard.Description className='ar-list-padding'>
                         <SemList relaxed divided>
                             {shareComponents}
                             <SemList.Item>
                                 <SemList.Icon name='add' size='large' verticalAlign='middle' />
                                 <SemList.Content>
                                     <SemList.Header>
-                                        <Button color='green' disabled={isLoading} loading={isLoading} onClick={() => this.onCreateShare(groupedShare.path)}>
+                                        <SButton color='green' disabled={isLoading} loading={isLoading} onClick={() => this.onCreateShare(groupedShare.path)}>
                                             Share this with another user
-                                        </Button>
+                                        </SButton>
                                     </SemList.Header>
                                 </SemList.Content>
                             </SemList.Item>
                         </SemList>
-                    </Card.Description>
-                </Card.Content>
+                    </SCard.Description>
             </Card>
         );
     }
@@ -315,8 +315,8 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
     }
 
     return (
-        <ButtonGroup floated={floated} labeled icon size={size} className={className}>
-            <Button
+        <SButtonGroup floated={floated} labeled icon size={size} className={className}>
+            <SButton
                 disabled={props.disabled}
                 positive={read}
                 toggle
@@ -325,7 +325,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                 onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.READ) : 0}
             />
 
-            <Button
+            <SButton
                 disabled={props.disabled}
                 positive={write}
                 toggle
@@ -334,7 +334,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                 onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.WRITE) : 0}
             />
 
-            <Button
+            <SButton
                 disabled={props.disabled}
                 positive={execute}
                 toggle
@@ -342,7 +342,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                 content='Execute'
                 onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.EXECUTE) : 0}
             />
-        </ButtonGroup>
+        </SButtonGroup>
     );
 }
 

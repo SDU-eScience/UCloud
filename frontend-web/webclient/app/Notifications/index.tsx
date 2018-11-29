@@ -79,7 +79,8 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             </>
         ) : null;
         const readAllButton = unreadLength ? (
-            <><Button onClick={() => this.props.readAll()} fullWidth>Mark all as read</Button>
+            <>
+                <Button onClick={() => this.props.readAll()} fullWidth>Mark all as read</Button>
                 <Divider />
             </>) : null;
         const badgeCount = unreadLength + activeUploads;
