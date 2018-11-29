@@ -20,11 +20,12 @@ import { Dispatch } from "redux";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Navigation, Pages } from "./Navigation";
-import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
+import { ApplicationCardContainer, SlimApplicationCard, ApplicationCard } from "./Card";
 import styled from "styled-components";
 import { ContainerForText } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { Link } from "react-router-dom";
+import { CardGroup } from "ui-components/Card";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -44,14 +45,14 @@ const Sidebar: React.StatelessComponent = props => (
         <CategoryList>
             <CategoryItem>Popular</CategoryItem>
             <CategoryItem>Staff picks</CategoryItem>
-        </CategoryList>        
+        </CategoryList>
 
         <Heading.h4>Categories</Heading.h4>
         <CategoryList>
             <CategoryItem>Biomedicine</CategoryItem>
             <CategoryItem>Toys</CategoryItem>
             <CategoryItem></CategoryItem>
-        </CategoryList>        
+        </CategoryList>
 
         <Heading.h4>Fields</Heading.h4>
         <CategoryList>
@@ -62,7 +63,7 @@ const Sidebar: React.StatelessComponent = props => (
             <CategoryItem>Applied Sciences</CategoryItem>
             <CategoryItem>Interdisciplinary Sciences</CategoryItem>
             <CategoryItem>Philosophy Sciences</CategoryItem>
-        </CategoryList>        
+        </CategoryList>
     </>
 );
 
@@ -92,21 +93,16 @@ class Applications extends React.Component<ApplicationsProps> {
                 errorMessage={props.error}
                 onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
                 pageRenderer={({ items }: Page<Application>) =>
-                    <ContainerForText>
-                        <Heading.h2>Featured Applications</Heading.h2>
-                        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris ut lacinia lorem, tincidunt efficitur tellus. Integer suscipit auctor orci, sit amet consectetur nibh vehicula sed. Curabitur nec metus eu massa efficitur auctor. Nullam porta bibendum mauris vitae ultricies. Aliquam eget dolor magna. Suspendisse a turpis erat. Aliquam pretium purus non felis porta interdum. Sed tempus faucibus urna pulvinar egestas. Cras id lectus sed elit fermentum interdum. Suspendisse ullamcorper nisl eu ultricies faucibus. Integer a odio neque. Vestibulum justo eros, vulputate ut nisl vitae, rutrum ornare lectus. Integer quam ex, vehicula in convallis nec, pretium eget neque. Pellentesque a justo a augue euismod aliquet. Proin pretium purus nec ligula finibus dignissim. </p>
-
-                        <ApplicationCardContainer>
-                            {items.map((app, index) =>
-                                <SlimApplicationCard
-                                    key={index}
-                                    favoriteApp={favoriteApp}
-                                    app={app}
-                                    isFavorite={app.favorite}
-                                />
-                            )}
-                        </ApplicationCardContainer>
-                    </ContainerForText>
+                    <CardGroup>
+                        {items.map((app, index) =>
+                            <ApplicationCard
+                                key={index}
+                                favoriteApp={favoriteApp}
+                                app={app}
+                                isFavorite={app.favorite}
+                            />
+                        )}
+                    </CardGroup>
                 }
                 page={page}
                 onItemsPerPageChanged={size => fetchApplications(0, size)}

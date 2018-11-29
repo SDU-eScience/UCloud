@@ -2,7 +2,6 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import * as Heading from "ui-components/Heading";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import { setErrorMessage } from "./Redux/ApplicationsActions";
@@ -11,9 +10,9 @@ import { Application } from "Applications";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
 import { Navigation, Pages } from "./Navigation";
-import { SlimApplicationCard, ApplicationCardContainer } from "./Card";
+import { ApplicationCard } from "./Card";
 import { MainContainer } from "MainContainer/MainContainer";
-import { ContainerForText } from "ui-components";
+import { CardGroup } from "ui-components/Card";
 
 interface InstalledOperations {
     onComponentDidMount: () => void
@@ -65,16 +64,11 @@ class Installed extends React.Component<InstalledProps> {
 }
 
 const InstalledPage: React.StatelessComponent<{ page: Page<Application> }> = props => (
-    <ContainerForText>
-        <Heading.h2>Installed Applications</Heading.h2>
-        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Mauris ut lacinia lorem, tincidunt efficitur tellus. Integer suscipit auctor orci, sit amet consectetur nibh vehicula sed. Curabitur nec metus eu massa efficitur auctor. Nullam porta bibendum mauris vitae ultricies. Aliquam eget dolor magna. Suspendisse a turpis erat. Aliquam pretium purus non felis porta interdum. Sed tempus faucibus urna pulvinar egestas. Cras id lectus sed elit fermentum interdum. Suspendisse ullamcorper nisl eu ultricies faucibus. Integer a odio neque. Vestibulum justo eros, vulputate ut nisl vitae, rutrum ornare lectus. Integer quam ex, vehicula in convallis nec, pretium eget neque. Pellentesque a justo a augue euismod aliquet. Proin pretium purus nec ligula finibus dignissim. </p>
-
-        <ApplicationCardContainer>
-            {props.page.items.map((it, idx) => (
-                <SlimApplicationCard app={it} key={idx} linkToRun />)
-            )}
-        </ApplicationCardContainer>
-    </ContainerForText>
+    <CardGroup>
+        {props.page.items.map((it, idx) => (
+            <ApplicationCard app={it} key={idx} linkToRun />)
+        )}
+    </CardGroup>
 );
 
 const mapDispatchToProps = (dispatch: Dispatch): InstalledOperations => ({

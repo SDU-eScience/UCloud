@@ -4,23 +4,32 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import { ApplicationInformation } from "Applications";
+import { ApplicationInformation, Application } from "Applications";
 import { Image, OutlineButton, Button, Box } from "ui-components";
 import * as Heading from "ui-components/Heading"
 import styled from "styled-components";
 import { dateToString } from "Utilities/DateUtilities";
 import { toLowerCaseAndCapitalize } from "UtilityFunctions"
 import ContainerForText from "ui-components/ContainerForText";
-import { Header } from "./Header";
+import { MainContainer } from "MainContainer/MainContainer";
+import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
+import { Page } from "Types";
+import { promises } from "fs";
 
 const circuitBoard = require("Assets/Images/circuitboard-bg.png");
 
 type DetailedApplicationProps = any
 type DetailedApplicationState = {
     appInformation?: ApplicationInformation
+    previousVersions?: Page<Application>
     promises: PromiseKeeper
     loading: boolean
     error?: string
+}
+
+interface MainContentProps {
+    onFavorite?: () => void
+    application: ApplicationInformation
 }
 
 export class View extends React.Component<DetailedApplicationProps, DetailedApplicationState> {
@@ -36,6 +45,7 @@ export class View extends React.Component<DetailedApplicationProps, DetailedAppl
 
     componentDidMount() {
         this.retrieveApplication();
+        this.retrievePreviousVersions();
     }
 
     retrieveApplication() {
@@ -54,34 +64,130 @@ export class View extends React.Component<DetailedApplicationProps, DetailedAppl
             }));
     }
 
+    retrievePreviousVersions() {
+        const { appName } = this.props.match.params;
+        const { promises } = this.state;
+        promises.makeCancelable(Cloud.get(`/hpc/apps/${encodeURI(appName)}`))
+            .promise.then(({ response }: { response: Page<Application> }) =>
+                this.setState(() => ({
+                    previousVersions: response,
+                }))
+            ).catch(_ => this.setState({
+                error: `An error occurred fetching versions of ${appName}`,
+            }));
+    }
+
     render() {
         const { appInformation } = this.state;
         return (
-            !appInformation ?
-                <DefaultLoading loading={this.state.loading} /> :
-                <ContainerForText><Content application={appInformation} /></ContainerForText>
+            <MainContainer
+                header={
+                    !appInformation ? null :
+                        <AppHeader application={appInformation} />
+                }
+
+                main={!appInformation ?
+                    <DefaultLoading loading={this.state.loading} /> :
+                    <ContainerForText>
+                        <Content
+                            application={appInformation}
+                            previousVersions={this.state.previousVersions} />
+                    </ContainerForText>
+                }
+
+                sidebar={
+                    !appInformation ? null : <Sidebar application={appInformation} />
+                }
+            />
         );
     }
 }
 
-const HeaderSeparator = styled.div`
+const AppHeaderBase = styled.div`
+    display: flex;
+    flex-direction: row;
+
+    & > ${Image} {
+        width: 128px;
+        height: 128px;
+        border-radius: 8px;
+        object-fit: cover;
+        margin-right: 16px;
+    }
+`;
+
+const AppHeaderDetails = styled.div`
+    display: flex;
+    flex-direction: column;
+
+    & > h1, h2 {
+        margin: 0;
+    }
+`;
+
+const AppSection = styled(Box)`
     margin-bottom: 16px;
 `;
 
-interface MainContentProps {
-    onFavorite?: () => void
-    application: ApplicationInformation
+const AppHeader: React.StatelessComponent<MainContentProps> = props => (
+    <AppHeaderBase>
+        <Image src={circuitBoard} />
+        <AppHeaderDetails>
+            <h1>{props.application.description.title}</h1>
+            <h2>v{props.application.description.info.version}</h2>
+            <span>{props.application.description.authors.join(", ")}</span>
+            <Tags tags={["Test Tag 1", "Test Tag 2", "Test Tag 3"]} />
+        </AppHeaderDetails>
+    </AppHeaderBase>
+);
+
+const Sidebar: React.StatelessComponent<MainContentProps> = props => (
+    <>
+        <ButtonGroup>
+            <Button color={"blue"}>Add to My Applications</Button>
+            <Link to={`/applications/${props.application.description.info.name}/${props.application.description.info.version}`}><OutlineButton color={"blue"}>Run Application</OutlineButton></Link>
+            <a target="_blank" href="https://duckduckgo.com" rel="noopener"><OutlineButton color={"blue"}>Website</OutlineButton></a>
+        </ButtonGroup>
+    </>
+);
+
+function Content(props: MainContentProps & { previousVersions?: Page<Application> }): JSX.Element {
+    return (
+        <>
+            <AppSection>
+                <ReactMarkdown
+                    unwrapDisallowed
+                    source={props.application.description.description}
+                    disallowedTypes={[
+                        "image",
+                        "heading"
+                    ]}
+                />
+            </AppSection>
+
+            <AppSection>
+                <PreviousVersions previousVersions={props.previousVersions} />
+            </AppSection>
+
+            <AppSection>
+                <Information application={props.application} />
+            </AppSection>
+        </>
+    );
 }
 
-const SidebarBase = styled.div`
-    & > ${Image} {
-        width: 256px;
-        height: 256px;
-        border-radius: 16px;
-        object-fit: cover;
-        margin-bottom: 16px;
-    }
-`;
+const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<Application> }> = props => (
+    <>
+        <Heading.h4>Previous Versions</Heading.h4>
+        {!props.previousVersions ? null :
+            <ApplicationCardContainer>
+                {props.previousVersions.items.map((it, idx) => (
+                    <SlimApplicationCard app={it} key={idx} />
+                ))}
+            </ApplicationCardContainer>
+        }
+    </>
+);
 
 const ButtonGroup = styled.div`
     display: flex;
@@ -93,82 +199,26 @@ const ButtonGroup = styled.div`
     }
 `;
 
-const MainContentBase = styled.div`
-    flex-grow: 1;
-`;
-
-const ContentBase = styled.div`
-    display: flex;
-
-    & > ${SidebarBase} {
-        flex-shrink: 0;
-        width: 256px;
-        margin-right: 32px;
-    }
-
-    & > ${MainContentBase} {
-        flex-grow: 1;
-    }
-`;
-
-function Content(props: MainContentProps): JSX.Element {
-    return (
-        <ContentBase>
-            <SidebarBase>
-                <Image src={circuitBoard} />
-                <ButtonGroup>
-                    <Button color={"blue"}>Install Application</Button>
-                    <Link to={`/applications/${props.application.description.info.name}/${props.application.description.info.version}`}><OutlineButton color={"blue"}>Run Application</OutlineButton></Link>
-                    <a target="_blank" href="https://duckduckgo.com" rel="noopener"><OutlineButton color={"blue"}>Website</OutlineButton></a>
-                </ButtonGroup>
-                <HeaderSeparator />
-                <Authors authors={props.application.description.authors} />
-                <HeaderSeparator />
-                {/* <Tags tags={props.application.description.tags} /> */}
-                <Tags tags={["Test Tag 1", "Test Tag 2", "Test Tag 3"]} />
-                <HeaderSeparator />
-                <Technical application={props.application} />
-                <HeaderSeparator />
-            </SidebarBase>
-
-            <MainContentBase>
-                <Header name={props.application.description.title} version={props.application.description.info.version} />
-                <ReactMarkdown source={props.application.description.description} />
-            </MainContentBase>
-        </ContentBase>
-    );
-}
-
-function Authors({ authors }: { authors: string[] }) {
-    return <div>
-        <Heading.h4>Submitted By</Heading.h4>
-        <ul>
-            {authors.map((it, idx) => <li key={idx}>{it}</li>)}
-        </ul>
-    </div>;
-}
-
 const TagStyle = styled.a`
     text-decoration: none;
     padding: 6px;
-    margin: 3px 0 3px 0;
+    margin-right: 3px;
     border: 1px solid ${props => props.theme.colors.gray};
     border-radius: 5px;
 `;
 
 const TagBase = styled.div`
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
 `;
 
 function Tags({ tags }: { tags: string[] }) {
     if (!tags) return null;
 
     return <div>
-        <Heading.h4>Categories</Heading.h4>
         <TagBase>
             {
-                tags.map(tag => (
+                tags.slice(0, 5).map(tag => (
                     <TagStyle href={`foo/${tag}`}>{tag}</TagStyle>
                 ))
             }
@@ -176,12 +226,12 @@ function Tags({ tags }: { tags: string[] }) {
     </div>;
 }
 
-function TechnicalAttribute(props: {
+function InfoAttribute(props: {
     name: string,
     value?: string,
     children?: JSX.Element
 }) {
-    return <Box mb={8}>
+    return <Box mb={8} mr={32}>
         <Heading.h5>{props.name}</Heading.h5>
         {props.value}
         {props.children}
@@ -191,27 +241,34 @@ function TechnicalAttribute(props: {
 const pad = (value, length) =>
     (value.toString().length < length) ? pad("0" + value, length) : value;
 
-function Technical({ application }: { application: ApplicationInformation }) {
+const InfoAttributes = styled.div`
+    display: flex;
+    flex-direction: row;
+`;
+
+function Information({ application }: { application: ApplicationInformation }) {
     const time = application.tool.description.defaultMaxTime;
     const timeString = `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}`;
 
     return <>
-        <Heading.h4>Technical Information</Heading.h4>
+        <Heading.h4>Information</Heading.h4>
 
-        <TechnicalAttribute
-            name="Release Date"
-            value={dateToString(application.createdAt)} />
+        <InfoAttributes>
+            <InfoAttribute
+                name="Release Date"
+                value={dateToString(application.createdAt)} />
 
-        <TechnicalAttribute
-            name="Default Time Allocation"
-            value={timeString} />
+            <InfoAttribute
+                name="Default Time Allocation"
+                value={timeString} />
 
-        <TechnicalAttribute
-            name="Default Nodes"
-            value={`${application.tool.description.defaultNumberOfNodes}`} />
+            <InfoAttribute
+                name="Default Nodes"
+                value={`${application.tool.description.defaultNumberOfNodes}`} />
 
-        <TechnicalAttribute
-            name="Container Type"
-            value={toLowerCaseAndCapitalize(application.tool.description.backend)} />
+            <InfoAttribute
+                name="Container Type"
+                value={toLowerCaseAndCapitalize(application.tool.description.backend)} />
+        </InfoAttributes>
     </>;
 }

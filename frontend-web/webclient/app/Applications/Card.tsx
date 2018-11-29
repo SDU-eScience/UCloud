@@ -56,8 +56,6 @@ const AppCardBase = styled(Link)`
 export const ApplicationCardContainer = styled.div`
     display: flex;
     flex-direction: column;
-    margin-left: 16px;
-    margin-right: 16px;
 
     & > ${AppCardBase}:first-child {
         border: 1px solid ${props => props.theme.colors.borderGray};
@@ -81,7 +79,7 @@ export const SlimApplicationCard: React.StatelessComponent<ApplicationCardProps>
     return (
         <AppCardBase to={props.linkToRun ? `/applications/${appInfo.name}/${appInfo.version}` : `/applications/details/${appInfo.name}/${appInfo.version}`}>
             <img src={circuitBoard} />
-            <strong>{props.app.description.title}</strong>
+            <strong>{props.app.description.title} v{props.app.description.info.version}</strong>
             <EllipsedText>
                 <ReactMarkdown
                     source={props.app.description.description}
@@ -92,7 +90,7 @@ export const SlimApplicationCard: React.StatelessComponent<ApplicationCardProps>
     );
 };
 
-export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCardProps) => (
+export const ApplicationCard = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => (
     <Card width="250px">
         <Relative height="135px">
             <Box>
@@ -130,7 +128,7 @@ export const ApplicationCard = ({ app, favoriteApp, isFavorite }: ApplicationCar
                     </EllipsedText>
                 </Absolute>
                 <Absolute bottom="10px" right="10px">
-                    <Link to={`/applications/${app.description.info.name}/${app.description.info.version}/`}>
+                    <Link to={linkToRun ? `/applications/${app.description.info.name}/${app.description.info.version}` : `/applications/details/${app.description.info.name}/${app.description.info.version}`}>
                         <PlayIcon />
                     </Link>
                 </Absolute>
