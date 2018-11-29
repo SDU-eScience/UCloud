@@ -3,46 +3,42 @@
 exports[`Detailed application Component with application 1`] = `"<div class=\\"sc-ifAKCX iCcktw\\"><div width=\\"1,0.8125\\" class=\\"sc-bdVaJa iAxnNK\\"><div class=\\"sc-eNQAEJ dPxNMT\\"><a href=\\"/applications/figlet-count/1.0.0/\\"><button color=\\"blue\\" class=\\"sc-chPdSV koOMMT\\">Run Application</button></a></div><h1 font-size=\\"6\\" class=\\"sc-VigVT dzBifV\\">Figlet Counter<span class=\\"app-favorite-padding\\"><svg style=\\"vertical-align: center;\\" cursor=\\"auto\\" class=\\"sc-gZMcBi cRLIbN sc-iwsKbI dwZotm\\" viewBox=\\"0 0 23 22\\" width=\\"24\\" height=\\"24\\" fill=\\"currentcolor\\"><path d=\\"M14.939 7.146l7.886 1.146-5.707 5.562 1.347 7.854L11.412 18 4.36 21.708l1.347-7.854L0 8.292l7.886-1.146L11.412 0l3.527 7.146zM9.878 9.888l-3.432.498 2.483 2.42-.586 3.418 3.07-1.614 3.068 1.614-.586-3.417 2.483-2.42-3.431-.499-1.535-3.11-1.534 3.11z\\" fill=\\"red\\"></path></svg></span><h4>1.0.0</h4><h4>Author: Dan Sebastian Thrane &lt;dthrane@imada.sdu.dk&gt;</h4><h5 font-size=\\"2\\" class=\\"sc-cSHVUG jOGwme\\"><p>Count with Figlet!</p></h5></h1><h3 font-size=\\"4\\" class=\\"sc-fjdhpX gjFQeq\\">Tags</h3><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">nanomachines</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">medication</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">megamachines</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">hyper light simulation</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">teleportation research</div><h3 font-size=\\"4\\" class=\\"sc-fjdhpX gjFQeq\\">Tools</h3><div class=\\"sc-ifAKCX hEFUra\\"><div color=\\"white\\" font-size=\\"0\\" class=\\"sc-csuQGl cIWzZI\\"><div class=\\"sc-bdVaJa guxnrH\\"><i class=\\"fas fa-wrench\\"></i></div>Container: SINGULARITY</div><div color=\\"white\\" font-size=\\"0\\" class=\\"sc-csuQGl hcRoGT\\"><div class=\\"sc-bdVaJa guxnrH\\"><i class=\\"far fa-file\\"></i></div>Output files: stdout.txt, stderr.txt</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">1 parameters</div><div class=\\"sc-bdVaJa gtvdIr\\"></div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\"><i class=\\"far fa-clock\\"></i>Default job time: 00:01:00</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">Default number of nodes: 1</div><div color=\\"black\\" font-size=\\"0\\" class=\\"sc-csuQGl jbfBdG\\">Default tasks per node: 1</div></div></div><div width=\\"0,0.1875\\" class=\\"sc-eNQAEJ hUvKIa\\"><a href=\\"/applications/figlet-count/1.0.0/\\"><button color=\\"blue\\" class=\\"sc-chPdSV koOMMT\\">Run Application</button></a></div></div>"`;
 
 exports[`Detailed application Mount component 1`] = `
-<div
-  className="sc-ifAKCX iCcktw"
->
+Array [
   <div
-    className="sc-bdVaJa iAxnNK"
-    width={
-      Array [
-        1,
-        0.8125,
-      ]
-    }
+    className="sc-bdVaJa guSZfy"
+  />,
+  <div
+    className="sc-ifAKCX iCcktw"
   >
     <div
-      className="sc-fjdhpX eIwIdU"
-    />
-    <div
-      className="sc-ifAKCX LORpy"
+      className="sc-bdVaJa eriBUh"
+      width={
+        Array [
+          1,
+          1,
+        ]
+      }
     >
       <div
-        className="sc-bdVaJa jqyTwv"
-        width={0.7}
-      >
-        <i
-          className="fas fa-circle-notch fa-spin"
-        />
-      </div>
+        className="sc-fjdhpX llNXsf"
+      />
+      <i
+        className="fas fa-circle-notch fa-spin"
+      />
     </div>
-  </div>
-  <div
-    className="sc-fjdhpX jrxGCm"
-    width={
-      Array [
-        0,
-        0.1875,
-      ]
-    }
-  >
     <div
-      className="sc-bdVaJa gvJQvB"
-    />
-  </div>
-</div>
+      className="sc-fjdhpX fGTFZv"
+      width={
+        Array [
+          0,
+          0,
+        ]
+      }
+    >
+      <div
+        className="sc-bdVaJa hdnbQo"
+      />
+    </div>
+  </div>,
+]
 `;

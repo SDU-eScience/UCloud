@@ -2,18 +2,18 @@
 
 exports[`Single Application Component Render Single Application 1`] = `
 <div
-  className="sc-iwsKbI dTSEla"
-  height={212}
-  width={252}
+  className="sc-iwsKbI iaifwE"
+  width="250px"
 >
   <div
-    className="sc-hSdWYo WjgYB"
+    className="sc-hSdWYo gcKbgM"
+    height="135px"
   >
     <div
-      className="sc-bdVaJa bQBfBb"
+      className="sc-bdVaJa kCeIih"
     >
       <div
-        className="sc-bdVaJa bQBfBb"
+        className="sc-bdVaJa kCeIih"
         style={
           Object {
             "background": "#E91E63",
@@ -31,7 +31,7 @@ exports[`Single Application Component Render Single Application 1`] = `
         />
       </div>
       <div
-        className="sc-bwzfXH hDECRi"
+        className="sc-bwzfXH gjsIJz"
       >
         <div
           className="sc-EHOje jjZauP"
@@ -43,7 +43,7 @@ exports[`Single Application Component Render Single Application 1`] = `
         </div>
       </div>
       <div
-        className="sc-bwzfXH iLsITc"
+        className="sc-bwzfXH iFoVEC"
       >
         <div
           className="sc-EHOje irgxuc"
@@ -56,7 +56,7 @@ exports[`Single Application Component Render Single Application 1`] = `
         </div>
       </div>
       <div
-        className="sc-bwzfXH hTtHjt"
+        className="sc-bwzfXH dqwQaw"
       >
         <svg
           className="sc-gzVnrw bCXrSM"
@@ -74,7 +74,7 @@ exports[`Single Application Component Render Single Application 1`] = `
         </svg>
       </div>
       <div
-        className="sc-bwzfXH biWzgY"
+        className="sc-bwzfXH bnuHiE"
       >
         <div
           className="sc-bZQynM jxwYbI"
@@ -87,13 +87,13 @@ exports[`Single Application Component Render Single Application 1`] = `
         </div>
       </div>
       <div
-        className="sc-bwzfXH cebrxn"
+        className="sc-bwzfXH ioQfkz"
       >
         <a
           className="sc-jKJlTe cboMKF"
           color="text"
           hoverColor="textHighlight"
-          href="/applications/palms/1.0.0/"
+          href="/applications/details/palms/1.0.0"
           onClick={[Function]}
           theme={
             Object {
@@ -390,17 +390,13 @@ exports[`Single Application Component Render Single Application 1`] = `
     </div>
   </div>
   <div
-    className="sc-hSdWYo WjgYB"
+    className="sc-bdVaJa eOasMr"
   >
     <div
-      className="sc-bwzfXH bVqAki"
+      className="sc-EHOje kvayUm"
+      cursor="inherit"
     >
-      <div
-        className="sc-EHOje kvayUm"
-        cursor="inherit"
-      >
-        The central role of places in which physical activity (PA) is done is now widely recognized, so it i
-      </div>
+      The central role of places in which physical activity (PA) is done is now widely recognized, so it i
     </div>
   </div>
 </div>

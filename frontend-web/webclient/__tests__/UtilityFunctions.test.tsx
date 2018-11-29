@@ -227,11 +227,11 @@ test("Directory icon", () =>
 );
 
 test("Jobs icon", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}Jobs`, "DIRECTORY", HOME_FOLDER)).toBe("tasks")
+    expect(UF.iconFromFilePath(`${HOME_FOLDER}Jobs/`, "DIRECTORY", HOME_FOLDER)).toBe("tasks")
 );
 
 test("Favorites icon", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}Favorites`, "DIRECTORY", HOME_FOLDER)).toBe("star")
+    expect(UF.iconFromFilePath(`${HOME_FOLDER}Favorites/`, "DIRECTORY", HOME_FOLDER)).toBe("star")
 );
 
 test("File outline icon, fallback", () =>
@@ -430,11 +430,11 @@ describe("iconFromFilePath", () => {
     const file = "FILE";
 
     test("tasks", () =>
-        expect(UF.iconFromFilePath(`${homeFolder}Jobs`, file, homeFolder)).toBe("tasks")
+        expect(UF.iconFromFilePath(`${homeFolder}Jobs/`, file, homeFolder)).toBe("tasks")
     );
 
     test("star", () =>
-        expect(UF.iconFromFilePath(`${homeFolder}Favorites`, file, homeFolder)).toBe("star")
+        expect(UF.iconFromFilePath(`${homeFolder}Favorites/`, file, homeFolder)).toBe("star")
     );
 
     test("folder", () =>
