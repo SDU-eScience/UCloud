@@ -161,7 +161,7 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
     </Card>
 );
 
-const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: { onNotificationAction: (notification: Notification) => void,  notifications: Notification[], readAll: () => void }) => (
+const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: { onNotificationAction: (notification: Notification) => void, notifications: Notification[], readAll: () => void }) => (
     <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3}>
             <Heading.h4>Recent notifications</Heading.h4>
