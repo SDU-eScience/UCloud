@@ -11,8 +11,7 @@ const IconBase = ({ name, size, theme, color, color2, ...props }): JSX.Element =
   return <Component width={size} height={size} color2={theme.colors[color2]} {...props} />
 }
 
-export interface IconProps extends SpaceProps, ColorProps
-{
+export interface IconProps extends SpaceProps, ColorProps {
   name: IconName
   color2?: string
   rotation?: number

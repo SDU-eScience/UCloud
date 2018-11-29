@@ -130,7 +130,7 @@ export type MaxTime = {
     seconds: number | null
 } | null
 
-export interface JobInfo {
+export interface JobSchedulingOptions {
     maxTime: MaxTime
     numberOfNodes: number | null
     tasksPerNode: number | null
@@ -138,20 +138,14 @@ export interface JobInfo {
 
 export interface RunAppState {
     promises: PromiseKeeper
+    jobSubmitted: boolean
+
     error?: string
     loading: boolean
-    appName: string
-    favorite: boolean
-    displayAppName: string
-    appVersion: string
-    appDescription: string
-    appAuthor: string[]
-    parameters: ApplicationParameter[]
+
+    application?: Application
     parameterValues: {}
-    jobInfo: JobInfo
-    tool: {} // ???
-    comment: string
-    jobSubmitted: boolean
+    schedulingOptions: JobSchedulingOptions
 }
 
 export interface RunAppProps {

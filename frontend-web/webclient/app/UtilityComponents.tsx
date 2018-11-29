@@ -1,6 +1,30 @@
 import * as React from "react";
 import { Icon as SIcon, IconProps, Popup } from "semantic-ui-react";
-import { Icon, Heading } from "ui-components";
+import { Icon, Heading, Box, Flex, Relative, Absolute } from "ui-components";
+import styled from "styled-components";
+import { DropdownContent, Dropdown } from "ui-components/Dropdown";
+
+const IconGroup = styled(Box)`
+    position: relative;
+    display: inline-block;
+`
+
+const _FileIcon = ({ name, shared = false, link = false, color }: FileIconProps) => 
+    link || shared ?
+        <Relative>
+            <IconGroup>
+                <Icon name={"files"} color="blue"/>
+                <Absolute top={"40%"} right={"-10%"}>
+                    <Dropdown>
+                        <Icon size={"10px"} name={"share"} color={"gray"}/>
+                        <DropdownContent color="white" colorOnHover={false} backgroundColor={"black"}>
+                            {shared ? "This file is shared" : "This is a link to a file"}
+                        </DropdownContent>
+                    </Dropdown>
+                </Absolute>
+            </IconGroup>
+        </Relative> : null
+
 
 interface FileIconProps extends IconProps { link?: boolean, shared?: boolean }
 export const FileIcon = ({ name, size, shared = false, link = false, color }: FileIconProps) =>

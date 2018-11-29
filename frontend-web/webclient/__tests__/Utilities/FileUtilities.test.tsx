@@ -92,7 +92,7 @@ describe("Replace homefolder", () => {
     );
 
     test("Replace homefolder subfolder", () =>
-        expect(FileUtils.replaceHomeFolder("/home/user@mail.co.uk/subFolder/withSomething", mockHomeFolder)).toBe("Home/subFolder/withSomething/")
+        expect(FileUtils.replaceHomeFolder("/home/user@mail.co.uk/subFolder/withSomething", mockHomeFolder)).toBe("Home/subFolder/withSomething")
     );
 
     const noHomeFolder = "NotHomeFolder/subfolder/";

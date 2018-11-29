@@ -5,14 +5,25 @@ exports[`UserSettings Mount 1`] = `
   className="sc-bZQynM Ygzij"
 >
   <div
-    className="sc-htpNat hIINSb"
+    className="sc-htpNat dRpDjV"
     width={0.7}
   >
+    <div
+      className="sc-htpNat bPPcnA"
+    >
+      <h1
+        className="sc-bdVaJa fEtJUa"
+        cursor="inherit"
+        fontSize={6}
+      >
+        Change Password
+      </h1>
+    </div>
     <div
       className="sc-bZQynM bTpYSl"
     >
       <div
-        className="sc-htpNat ixeqWe"
+        className="sc-htpNat hwFUka"
         width={
           Array [
             1,
@@ -21,20 +32,13 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-fjdhpX eIwIdU"
+          className="sc-fjdhpX llNXsf"
         />
-        <h1
-          className="sc-bdVaJa fEtJUa"
-          cursor="inherit"
-          fontSize={6}
-        >
-          Change Password
-        </h1>
         <form
           onSubmit={[Function]}
         >
           <div
-            className="sc-htpNat eePbhe"
+            className="sc-htpNat jiarCv"
           >
             <label
               className="sc-kpOJdX kaSAoa"
@@ -54,7 +58,7 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <div
-            className="sc-htpNat eePbhe"
+            className="sc-htpNat jiarCv"
           >
             <label
               className="sc-kpOJdX kaSAoa"
@@ -74,7 +78,7 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <div
-            className="sc-htpNat eePbhe"
+            className="sc-htpNat jiarCv"
           >
             <label
               className="sc-kpOJdX kaSAoa"
@@ -167,7 +171,7 @@ exports[`UserSettings Mount 1`] = `
         </div>
       </div>
       <div
-        className="sc-fjdhpX hzdgKR"
+        className="sc-fjdhpX fGTFZv"
         width={
           Array [
             0,
@@ -176,7 +180,7 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-htpNat khgAEN"
+          className="sc-htpNat jLddIv"
         />
       </div>
     </div>

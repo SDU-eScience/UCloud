@@ -40,8 +40,7 @@ Card.defaultProps = {
   borderColor: "borderGray",
   borderRadius: 1,
   borderWidth: 1,
-  theme: theme,
-  height: 336.8 // "auto"
+  theme: theme
 };
 
 export const CardGroup = styled.div`

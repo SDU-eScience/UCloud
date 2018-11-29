@@ -5,34 +5,38 @@ Array [
   <i
     className="fas fa-circle-notch fa-spin"
   />,
-  <div
-    className="ui header"
+  <h3
+    className="sc-EHOje gqTxsK"
+    cursor="inherit"
+    fontSize={4}
   >
     Shared with Me
-  </div>,
-  <div
-    className="ui center aligned header"
+  </h3>,
+  <h3
+    className="sc-EHOje fFSuFj"
+    cursor="inherit"
+    fontSize={4}
   >
-    <div
-      className="sub header"
-    >
+    <small>
       No shares
-    </div>
-  </div>,
-  <div
-    className="ui header"
+    </small>
+  </h3>,
+  <h2
+    className="sc-EHOje cMXCEK"
+    cursor="inherit"
+    fontSize={5}
   >
     Shared by Me
-  </div>,
-  <div
-    className="ui center aligned header"
+  </h2>,
+  <h3
+    className="sc-EHOje fFSuFj"
+    cursor="inherit"
+    fontSize={4}
   >
-    <div
-      className="sub header"
-    >
+    <small>
       No shares
-    </div>
-  </div>,
+    </small>
+  </h3>,
 ]
 `;
 

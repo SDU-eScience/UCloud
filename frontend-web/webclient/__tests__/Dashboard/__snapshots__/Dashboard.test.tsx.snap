@@ -5,7 +5,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
   className="sc-gZMcBi fNCCZY"
 >
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -27,13 +27,13 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       >
         <div
           className="sc-ifAKCX fdcbWa"
@@ -330,10 +330,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
-            className="sc-bdVaJa bQBfBb"
+            className="sc-bdVaJa kCeIih"
           >
             <i
               className="fas fa-star"
@@ -642,10 +642,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
-            className="sc-bdVaJa bQBfBb"
+            className="sc-bdVaJa kCeIih"
           >
             <i
               className="fas fa-star"
@@ -954,10 +954,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
-            className="sc-bdVaJa bQBfBb"
+            className="sc-bdVaJa kCeIih"
           >
             <i
               className="fas fa-star"
@@ -1266,10 +1266,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
-            className="sc-bdVaJa bQBfBb"
+            className="sc-bdVaJa kCeIih"
           >
             <i
               className="fas fa-star"
@@ -1578,10 +1578,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
-            className="sc-bdVaJa bQBfBb"
+            className="sc-bdVaJa kCeIih"
           >
             <i
               className="fas fa-star"
@@ -1890,10 +1890,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
-            className="sc-bdVaJa bQBfBb"
+            className="sc-bdVaJa kCeIih"
           >
             <i
               className="fas fa-star"
@@ -2202,10 +2202,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
-            className="sc-bdVaJa bQBfBb"
+            className="sc-bdVaJa kCeIih"
           >
             <i
               className="fas fa-star"
@@ -2514,10 +2514,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
-            className="sc-bdVaJa bQBfBb"
+            className="sc-bdVaJa kCeIih"
           >
             <i
               className="fas fa-star"
@@ -2826,10 +2826,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
-            className="sc-bdVaJa bQBfBb"
+            className="sc-bdVaJa kCeIih"
           >
             <i
               className="fas fa-star"
@@ -3138,10 +3138,10 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
-            className="sc-bdVaJa bQBfBb"
+            className="sc-bdVaJa kCeIih"
           >
             <i
               className="fas fa-star"
@@ -3159,7 +3159,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3181,7 +3181,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <h3>
         <small>
@@ -3189,15 +3189,15 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         </small>
       </h3>
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3219,7 +3219,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <h3>
         <small>
@@ -3227,15 +3227,15 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         </small>
       </h3>
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3256,7 +3256,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         Recent notifications
       </h4>
       <div
-        className="sc-bdVaJa gtvdIr"
+        className="sc-bdVaJa KmLFy"
       />
       <i
         className="fas fa-check-double"
@@ -3271,7 +3271,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       />
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <h3>
         <small>
@@ -3279,7 +3279,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         </small>
       </h3>
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
@@ -3291,7 +3291,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
   className="sc-gZMcBi fNCCZY"
 >
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3313,21 +3313,21 @@ exports[`Dashboard Component Mount with no data 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <i
         className="fas fa-circle-notch fa-spin"
       />
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3349,21 +3349,21 @@ exports[`Dashboard Component Mount with no data 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <i
         className="fas fa-circle-notch fa-spin"
       />
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3385,21 +3385,21 @@ exports[`Dashboard Component Mount with no data 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <i
         className="fas fa-circle-notch fa-spin"
       />
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3420,7 +3420,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
         Recent notifications
       </h4>
       <div
-        className="sc-bdVaJa gtvdIr"
+        className="sc-bdVaJa KmLFy"
       />
       <i
         className="fas fa-check-double"
@@ -3435,7 +3435,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
       />
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <h3>
         <small>
@@ -3443,7 +3443,7 @@ exports[`Dashboard Component Mount with no data 1`] = `
         </small>
       </h3>
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
@@ -3455,7 +3455,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
   className="sc-gZMcBi fNCCZY"
 >
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3477,21 +3477,21 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <i
         className="fas fa-circle-notch fa-spin"
       />
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3513,21 +3513,21 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <i
         className="fas fa-circle-notch fa-spin"
       />
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3549,21 +3549,21 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <i
         className="fas fa-circle-notch fa-spin"
       />
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3584,7 +3584,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
         Recent notifications
       </h4>
       <div
-        className="sc-bdVaJa gtvdIr"
+        className="sc-bdVaJa KmLFy"
       />
       <i
         className="fas fa-check-double"
@@ -3599,20 +3599,20 @@ exports[`Dashboard Component Mount with notifications 1`] = `
       />
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       >
         <div
           className="sc-ifAKCX hEFUra"
         >
           <div
-            className="sc-bRBYWo hKQdgP"
+            className="sc-dVhcbM kntBtJ"
             onClick={[Function]}
           >
             <div
-              className="sc-bdVaJa hEPlcF"
+              className="sc-bdVaJa lmYjTC"
               width="0.20"
             >
               <svg
@@ -3639,7 +3639,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
               </svg>
             </div>
             <div
-              className="sc-bdVaJa gizWgB"
+              className="sc-bdVaJa eFesZX"
               width="0.80"
             >
               <div
@@ -3667,11 +3667,11 @@ exports[`Dashboard Component Mount with notifications 1`] = `
           className="sc-ifAKCX hEFUra"
         >
           <div
-            className="sc-bRBYWo bZNqoO"
+            className="sc-dVhcbM eeAjdb"
             onClick={[Function]}
           >
             <div
-              className="sc-bdVaJa hEPlcF"
+              className="sc-bdVaJa lmYjTC"
               width="0.20"
             >
               <svg
@@ -3698,7 +3698,7 @@ exports[`Dashboard Component Mount with notifications 1`] = `
               </svg>
             </div>
             <div
-              className="sc-bdVaJa gizWgB"
+              className="sc-bdVaJa eFesZX"
               width="0.80"
             >
               <div
@@ -3733,7 +3733,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
   className="sc-gZMcBi fNCCZY"
 >
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3755,10 +3755,10 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <h6
         className="sc-EHOje dbohYS"
@@ -3768,12 +3768,12 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         No favorites found
       </h6>
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -3795,13 +3795,13 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       >
         <div
           className="sc-ifAKCX fdcbWa"
@@ -4098,7 +4098,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
             className="sc-EHOje gBjOGi"
@@ -4403,7 +4403,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
             className="sc-EHOje gBjOGi"
@@ -4708,7 +4708,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
             className="sc-EHOje gBjOGi"
@@ -5013,7 +5013,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
             className="sc-EHOje gBjOGi"
@@ -5318,7 +5318,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
             className="sc-EHOje gBjOGi"
@@ -5623,7 +5623,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
             className="sc-EHOje gBjOGi"
@@ -5928,7 +5928,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
             className="sc-EHOje gBjOGi"
@@ -6233,7 +6233,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
             className="sc-EHOje gBjOGi"
@@ -6538,7 +6538,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
             className="sc-EHOje gBjOGi"
@@ -6843,7 +6843,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <div
             className="sc-EHOje gBjOGi"
@@ -6857,7 +6857,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -6879,7 +6879,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <h3>
         <small>
@@ -6887,15 +6887,15 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         </small>
       </h3>
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -6916,7 +6916,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         Recent notifications
       </h4>
       <div
-        className="sc-bdVaJa gtvdIr"
+        className="sc-bdVaJa KmLFy"
       />
       <i
         className="fas fa-check-double"
@@ -6931,7 +6931,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       />
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <h3>
         <small>
@@ -6939,7 +6939,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         </small>
       </h3>
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
@@ -6951,7 +6951,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
   className="sc-gZMcBi fNCCZY"
 >
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -6973,10 +6973,10 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <h6
         className="sc-EHOje dbohYS"
@@ -6986,12 +6986,12 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         No favorites found
       </h6>
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -7013,7 +7013,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <h3>
         <small>
@@ -7021,15 +7021,15 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         </small>
       </h3>
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -7051,19 +7051,19 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <div
-        className="sc-bdVaJa iyWrjl"
+        className="sc-bdVaJa ewviSH"
       />
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       >
         <div
           className="sc-ifAKCX leCTFT"
         >
           <div
-            className="sc-bdVaJa kmICmA"
+            className="sc-bdVaJa epeTCN"
           >
             <i
               className="fa fa-times"
@@ -7364,7 +7364,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <span
             className="sc-EHOje gQqeOL"
@@ -7378,7 +7378,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
           className="sc-ifAKCX leCTFT"
         >
           <div
-            className="sc-bdVaJa kmICmA"
+            className="sc-bdVaJa epeTCN"
           >
             <i
               className="fa fa-times"
@@ -7679,7 +7679,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <span
             className="sc-EHOje gQqeOL"
@@ -7693,7 +7693,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
           className="sc-ifAKCX leCTFT"
         >
           <div
-            className="sc-bdVaJa kmICmA"
+            className="sc-bdVaJa epeTCN"
           >
             <i
               className="fa fa-times"
@@ -7994,7 +7994,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <span
             className="sc-EHOje gQqeOL"
@@ -8008,7 +8008,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
           className="sc-ifAKCX leCTFT"
         >
           <div
-            className="sc-bdVaJa kmICmA"
+            className="sc-bdVaJa epeTCN"
           >
             <i
               className="fa fa-check"
@@ -8309,7 +8309,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa gtvdIr"
+            className="sc-bdVaJa KmLFy"
           />
           <span
             className="sc-EHOje gQqeOL"
@@ -8323,7 +8323,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
     </div>
   </div>
   <div
-    className="sc-iwsKbI lnBfZg"
+    className="sc-iwsKbI kJbctq"
     height="auto"
     style={
       Object {
@@ -8344,7 +8344,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         Recent notifications
       </h4>
       <div
-        className="sc-bdVaJa gtvdIr"
+        className="sc-bdVaJa KmLFy"
       />
       <i
         className="fas fa-check-double"
@@ -8359,7 +8359,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       />
     </div>
     <div
-      className="sc-bdVaJa fLxwjw"
+      className="sc-bdVaJa kwVlew"
     >
       <h3>
         <small>
@@ -8367,7 +8367,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         </small>
       </h3>
       <div
-        className="sc-iRbamj hPXkfC"
+        className="sc-iRbamj eYYfXl"
       />
     </div>
   </div>

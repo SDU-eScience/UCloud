@@ -5,7 +5,7 @@ import Box from "./Box";
 export default class ContainerForText extends React.Component {
     render() {
         return <Flex alignItems={"center"} flexDirection={"column"}>
-            <Box width={0.7}>
+            <Box width={0.7} maxWidth={1024}>
                 {this.props.children}
             </Box>
         </Flex>;
