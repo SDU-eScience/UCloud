@@ -32,7 +32,7 @@ class CompletedJobsHibernateDaoTest {
 
             val listedEvents = service.listEvents(
                 NormalizedPaginationRequest(null, null),
-                ContextQueryImpl(user="user1"),
+                ContextQueryImpl(),
                 dummyEvent.startedBy
             )
 
@@ -42,7 +42,7 @@ class CompletedJobsHibernateDaoTest {
             val event = listedEvents.items.single()
             assertEquals(dummyEvent, event)
 
-            val usage = service.computeUsage(ContextQueryImpl(user = "user1"), dummyEvent.startedBy)
+            val usage = service.computeUsage(ContextQueryImpl(), dummyEvent.startedBy)
             assertEquals(dummyEvent.totalDuration.toMillis(), usage)
         }
     }
@@ -58,7 +58,7 @@ class CompletedJobsHibernateDaoTest {
 
             val listedEvents = service.listEvents(
                 NormalizedPaginationRequest(null, null),
-                ContextQueryImpl(user = "user1"),
+                ContextQueryImpl(),
                 dummyEvent.startedBy
             )
 
@@ -85,7 +85,7 @@ class CompletedJobsHibernateDaoTest {
 
             val listedEvents = service.listEvents(
                 NormalizedPaginationRequest(null, null),
-                ContextQueryImpl(user = "user1"),
+                ContextQueryImpl(),
                 dummyEvent.startedBy
             )
 
@@ -100,12 +100,12 @@ class CompletedJobsHibernateDaoTest {
 
             run {
                 val expectedUsage = dummyEvent.totalDuration.toMillis() * 10
-                val actualUsage = service.computeUsage(ContextQueryImpl(user = "user1"), dummyEvent.startedBy)
+                val actualUsage = service.computeUsage(ContextQueryImpl(), dummyEvent.startedBy)
                 assertEquals(expectedUsage, actualUsage)
             }
 
             run {
-                val allevents = service.listAllEvents(ContextQueryImpl(since = 1, user = "user1"), dummyEvent.startedBy)
+                val allevents = service.listAllEvents(ContextQueryImpl(since = 1), dummyEvent.startedBy)
                 assertEquals(count, allevents.size)
             }
         }
@@ -136,7 +136,7 @@ class CompletedJobsHibernateDaoTest {
             (0 until userCount).forEach { userId ->
                 val events = service.listEvents(
                     NormalizedPaginationRequest(null, null),
-                    ContextQueryImpl(user = "user1"),
+                    ContextQueryImpl(),
                     username(userId)
                 )
 
@@ -167,7 +167,7 @@ class CompletedJobsHibernateDaoTest {
             (0 until eventCount).forEach { id ->
                 val events = service.listEvents(
                     NormalizedPaginationRequest(null, null),
-                    ContextQueryImpl(since = id.toLong(), user = "user1"),
+                    ContextQueryImpl(since = id.toLong()),
                     dummyEvent.startedBy
                 )
 
@@ -197,7 +197,7 @@ class CompletedJobsHibernateDaoTest {
             (0 until eventCount).forEach { id ->
                 val events = service.listEvents(
                     NormalizedPaginationRequest(null, null),
-                    ContextQueryImpl(until = id.toLong(), user = "user1"),
+                    ContextQueryImpl(until = id.toLong()),
                     dummyEvent.startedBy
                 )
 
@@ -226,7 +226,7 @@ class CompletedJobsHibernateDaoTest {
 
             val events = service.listEvents(
                 NormalizedPaginationRequest(null, null),
-                ContextQueryImpl(since = 1, until = 3, user = "user1"),
+                ContextQueryImpl(since = 1, until = 3),
                 dummyEvent.startedBy
             )
 
