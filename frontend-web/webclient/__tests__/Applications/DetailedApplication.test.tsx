@@ -1,5 +1,5 @@
 import * as React from "react";
-import DetailedApplication from "Applications/DetailedApplication";
+import { View } from "Applications/View";
 import { create } from "react-test-renderer";
 import { mount, shallow } from "enzyme";
 import { configure } from "enzyme";
@@ -12,13 +12,13 @@ configure({ adapter: new Adapter() });
 describe("Detailed application", () => {
     test("Mount component", () => {
         expect(create(
-            <DetailedApplication match={{ params: { appName: "someName", appVersion: "someVersion" } }} />
+            <View match={{ params: { appName: "someName", appVersion: "someVersion" } }} />
         ).toJSON()).toMatchSnapshot();
     });
 
     test.skip("Set error message", () => {
         const error = "Error Message!";
-        const detailedApp = mount(<DetailedApplication match={{ params: { appName: "someName", appVersion: "someVersion" } }} />);
+        const detailedApp = mount(<View match={{ params: { appName: "someName", appVersion: "someVersion" } }} />);
         detailedApp.setState(() => ({ error }));
         expect(detailedApp.state("error")).toBe(error);
         expect(detailedApp.find("Message").props().content).toBe(error);
@@ -27,8 +27,8 @@ describe("Detailed application", () => {
     });
 
     test.skip("Component with application", () => {
-        let detailedAppWrapper = mount(<MemoryRouter><DetailedApplication match={{ params: { appName: "someName", appVersion: "someVersion" } }} /></MemoryRouter>);
-        detailedAppWrapper.find(DetailedApplication).instance().setState({ appInformation: detailedApplication, loading: false, complete: true });
+        let detailedAppWrapper = mount(<MemoryRouter><View match={{ params: { appName: "someName", appVersion: "someVersion" } }} /></MemoryRouter>);
+        detailedAppWrapper.find(View).instance().setState({ appInformation: detailedApplication, loading: false, complete: true });
         detailedAppWrapper = detailedAppWrapper.update();
         expect(detailedAppWrapper.html()).toMatchSnapshot();
     });
