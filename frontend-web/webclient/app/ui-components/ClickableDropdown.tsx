@@ -17,7 +17,7 @@ type ClickableDropdownProps = {
 }
 
 class ClickableDropdown extends React.Component<ClickableDropdownProps, ClickableDropdownState> {
-    private ref;
+    private ref = React.createRef<HTMLDivElement>();;
 
     constructor(props) {
         super(props);
@@ -27,7 +27,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
         if (!!props.children) neither = false;
         if (!!props.onChange && !!props.options) neither = false;
         if (neither) throw Error("Clickable dropdown must have either children prop or options and onChange");
-        this.ref = React.createRef();
+        
     }
 
     componentWillUnmount = () => document.removeEventListener("mousedown", this.handleClickOutside);

@@ -13,7 +13,6 @@ const ButtonGroup = styled(Flex)`
 
     & > ${Button}:last-child {
         border-radius: 0 3px 3px 0;
-        border-right-width: 1px;
     }
 
     & > ${Button}:first-child {

@@ -18,7 +18,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
 
     constructor(props) {
         super(props);
-        this.extensionsInput = React.createRef();
     }
 
     context: { router: { history: History } }
@@ -27,7 +26,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
         router: PropTypes.object
     }
 
-    private extensionsInput;
+    private extensionsInput = React.createRef<HTMLInputElement>();
 
     componentWillUnmount() {
         if (!this.props.hidden)
@@ -35,10 +34,11 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
     }
 
     onAddExtension() {
-        if (!this.extensionsInput.current.value) return;
-        const newExtensions = this.extensionsInput.current.value.trim().split(" ").filter(it => it);
+        const extensions = this.extensionsInput.current;
+        if (!extensions || !extensions.value) return;
+        const newExtensions = extensions.value.trim().split(" ").filter(it => it);
         this.props.addExtensions(newExtensions);
-        this.extensionsInput.current.value = "";
+        extensions.value = "";
     }
 
     onAddPresets(presetExtensions: string) {

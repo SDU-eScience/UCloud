@@ -10,8 +10,8 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { PP } from "UtilityComponents";
 import { fileTablePage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading";
-import { Input, Button } from "ui-components";
-import { inSuccessRange, successNotification, failureNotification } from "UtilityFunctions";
+import { Button } from "ui-components";
+import { successNotification, failureNotification } from "UtilityFunctions";
 import Relative from "./Relative";
 
 const SidebarContainer = styled(Flex)`
@@ -80,6 +80,8 @@ type SidebarMenuElements = {
     predicate: () => boolean
 }
 
+
+// FIXME, move to own file
 const SupportBox = styled.div<{ visible: boolean }>`
     display: ${props => props.visible ? "block" : "none"}
     position: absolute;
@@ -189,7 +191,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, auditing: Side
             { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
             { icon: "share", label: "Shares", to: "/shares/" },
             { icon: "apps", label: "Apps", to: "/applications/" },
-            { icon: "information", label: "Job Results", to: "/applications/results/" },
+            { icon: "information", label: "App Results", to: "/applications/results/" },
             { icon: "publish", label: "Publish", to: "/zenodo/publish/" },
         ], predicate: () => true
     },

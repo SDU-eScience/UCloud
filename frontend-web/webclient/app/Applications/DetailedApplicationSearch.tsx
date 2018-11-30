@@ -22,10 +22,11 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
         router: object
     }
 
-    private inputField: any = React.createRef();
+    private inputField = React.createRef<HTMLInputElement>();
 
     onSearch(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        if (!this.inputField.current) return;
         const inputFieldValue = this.inputField.current.value;
         this.props.setAppName(inputFieldValue);
         this.props.fetchApplicationsFromName(
