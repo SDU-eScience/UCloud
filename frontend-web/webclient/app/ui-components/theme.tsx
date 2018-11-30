@@ -125,9 +125,9 @@ const lightBlue = "#cdf";
 const blue = "#0055d5";
 const darkBlue = "#049";
 //// Green
-const lightGreen = "#cec";
-const green = "#0a0"; // secondary
-const darkGreen = "#060";
+const lightGreen = "#00ff77";
+const green = "#00C05A"; // secondary
+const darkGreen = "#00823c";
 //// Red
 const lightRed = "#fcc";
 const red = "#c00"; // secondary

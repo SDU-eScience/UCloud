@@ -35,7 +35,6 @@ module.exports = {
     replaceAttrValues: {
         "#001833": "{undefined}",
         "#53657d": "{undefined}",
-        "red": "{undefined}", //star icon is red: change it
         "#8393a7": "{props.color2 ? props.color2 : null }"
     },
 // do not write width and height in svg

@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { ApplicationInformation, Application } from "Applications";
-import { Image, OutlineButton, Button, Box } from "ui-components";
+import { Image, OutlineButton, Button, Box, VerticalButtonGroup} from "ui-components";
 import * as Heading from "ui-components/Heading"
 import styled from "styled-components";
 import { dateToString } from "Utilities/DateUtilities";
@@ -143,11 +143,11 @@ const AppHeader: React.StatelessComponent<MainContentProps> = props => (
 
 const Sidebar: React.StatelessComponent<MainContentProps> = props => (
     <>
-        <ButtonGroup>
+        <VerticalButtonGroup>
             <Button color={"blue"}>Add to My Applications</Button>
             <Link to={`/applications/${props.application.description.info.name}/${props.application.description.info.version}`}><OutlineButton color={"blue"}>Run Application</OutlineButton></Link>
             <a target="_blank" href="https://duckduckgo.com" rel="noopener"><OutlineButton color={"blue"}>Website</OutlineButton></a>
-        </ButtonGroup>
+        </VerticalButtonGroup>
     </>
 );
 
@@ -189,15 +189,6 @@ const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<Appli
     </>
 );
 
-const ButtonGroup = styled.div`
-    display: flex;
-    flex-direction: column;
-
-    & button {
-        width: 100%;
-        margin-bottom: 8px;
-    }
-`;
 
 const TagStyle = styled.a`
     text-decoration: none;

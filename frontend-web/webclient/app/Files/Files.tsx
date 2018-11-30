@@ -23,7 +23,8 @@ import {
     toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension, clearTrash, fileTablePage
 } from "Utilities/FileUtilities";
 import InlinedRelative from "ui-components/InlinedRelative";
-import { Button, OutlineButton, Icon, Box, Heading, Hide, Flex, Divider, Checkbox, Label, Input } from "ui-components";
+import { Button, OutlineButton, Icon, Box, Hide, Flex, Divider, Checkbox, Label, Input, VerticalButtonGroup } from "ui-components";
+import * as Heading from "ui-components/Heading";
 import { Dispatch } from "redux";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -145,7 +146,7 @@ class Files extends React.Component<FilesProps> {
                         loading={loading}
                         errorMessage={props.error}
                         onErrorDismiss={props.dismissError}
-                        customEmptyPage={(<Heading>No files in current folder</Heading>)}
+                        customEmptyPage={(<Heading.h3>No files in current folder</Heading.h3>)}
                         pageRenderer={page => (
                             <FilesTable
                                 onFavoriteFile={favoriteFile}
@@ -172,7 +173,7 @@ class Files extends React.Component<FilesProps> {
                 </Box>
                 <Hide xs sm md width={3 / 16}>
                     {!props.invalidPath ?
-                        <>
+                         <Box pl="5px" pr="5px">
                             <ContextBar
                                 invalidPath={props.invalidPath}
                                 showUploader={props.showUploader}
@@ -182,10 +183,8 @@ class Files extends React.Component<FilesProps> {
                                 createFolder={() => props.createFolder()}
                                 toHome={() => navigate(Cloud.homeFolder)}
                             />
-                            <Box pl="5px" pr="5px" pt="3px">
-                                <DetailedFileSearch />
-                            </Box>
-                        </> : null
+                            <DetailedFileSearch />
+                        </Box> : null
                     }
                 </Hide>
                 <FileSelectorModal
@@ -346,18 +345,16 @@ const ContextBar = ({ files, ...props }: ContextBarProps) => (
 );
 
 const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
-    <Box pl="5px" pr="5px">
-        <Button mt="3px" color="blue" fullWidth onClick={showUploader}>Upload Files</Button>
-        <OutlineButton mt="3px" color="black" fullWidth onClick={createFolder}>New folder</OutlineButton>
-        {inTrashFolder ?
-            <Button mt="3px"
-                fullWidth
-                onClick={() => clearTrash(Cloud, () => toHome())}
-                color="red"
-            >
-                Clear trash
-            </Button> : null}
-    </Box>
+        <VerticalButtonGroup>
+            <Button color="blue" onClick={showUploader}>Upload Files</Button>
+            <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton>
+            {inTrashFolder ?
+                <Button color="red" 
+                    onClick={() => clearTrash(Cloud, () => toHome())}
+                >
+                    Clear trash
+                </Button> : null}
+        </VerticalButtonGroup>
 );
 
 const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
@@ -441,7 +438,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
 
 const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
     <Box>
-        <Heading pl="5px" pt="5px">{toFileText(files)}</Heading>
+        <Heading.h5 pl="5px" pt="5px">{toFileText(files)}</Heading.h5>
         <FileOperations files={files} fileOperations={fileOperations} As={Box} pl="30px" />
     </Box>
 ) : null;

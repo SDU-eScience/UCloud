@@ -43,7 +43,7 @@ const Button = styled.button<ButtonProps>`
   text-align: center;
   text-decoration: none;
   font-family: inherit;
-  font-weight: 600;
+  font-weight: ${props => props.theme.bold};
   line-height: 1.5;
   cursor: pointer;
   border-radius: ${props => props.theme.radius};
@@ -51,14 +51,16 @@ const Button = styled.button<ButtonProps>`
   color: ${props => props.theme.colors[props.textColor!]};
   border-width: 0;
   border-style: solid;
+  transition: ease 0.2s;
 
   &:disabled {
     opacity: 0.25;
   }
 
   &:hover {
-    transition: ease 0.3s;
-    filter: ${props => props.disabled ? null : "brightness(85%)"};
+    transition: ease 0.15s;
+    filter: ${props => props.disabled ? null : "brightness(125%)"};
+    transform: ${props => props.disabled ? null : "scale(1.03)"};
   }
 
   ${fullWidth} ${size} ${space};

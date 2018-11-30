@@ -9,7 +9,7 @@ import { RunAppProps, RunAppState, JobSchedulingOptions, MaxTime, ApplicationPar
 import { Application } from ".";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Box, Flex, Button, Label, Error, OutlineButton, ContainerForText } from "ui-components";
+import { Box, Flex, Button, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter } from "./ParameterWidgets";
@@ -220,23 +220,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         );
 
         const sidebar = (
-            <>
+            <VerticalButtonGroup>
                 <OutlineButton 
                     fullWidth 
-                    color="green" 
+                    color="darkGreen" 
                     onClick={() => this.exportParameters()}>
                     Export parameters
                 </OutlineButton>
 
-                <Box pt="0.2em" />
-
-                <OutlineButton fullWidth color="green" as={"label"}>
+                <OutlineButton fullWidth color="darkGreen" as={"label"}>
                     Import parameters
                     <HiddenInputField 
                         type="file" 
                         onChange={(e) => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
                 </OutlineButton>
-            </>
+            </VerticalButtonGroup>
         );
 
         return (
