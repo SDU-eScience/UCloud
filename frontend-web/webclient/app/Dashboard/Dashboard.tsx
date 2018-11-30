@@ -1,5 +1,4 @@
 import * as React from "react";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { iconFromFilePath, toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
@@ -15,7 +14,8 @@ import { Analysis } from "Applications";
 import { File, FileType } from "Files";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Error, Box, Flex, Card, Text, Link, theme } from "ui-components";
+import { Error, Box, Flex, Card, Text, Link, theme, Icon } from "ui-components";
+import { EllipsedText } from "ui-components/Text"
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import { CardGroup } from "ui-components/Card";
@@ -23,6 +23,7 @@ import { TextSpan } from "ui-components/Text";
 import { fileTablePage } from "Utilities/FileUtilities";
 import { notificationRead, readAllNotifications } from "Notifications/Redux/NotificationsActions";
 import { History } from "history";
+import { default as Spinner } from "LoadingIcon/LoadingIcon_new";
 
 class Dashboard extends React.Component<DashboardProps & { history: History }> {
     constructor(props) {
@@ -79,97 +80,90 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
     }
 }
 
-const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: (file: File) => void }) => {
-    const noFavorites = files.length || isLoading ? null : (<Heading.h6>No favorites found</Heading.h6>);
-    return (
-        <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-            <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
-                <Heading.h4>Favorite files</Heading.h4>
-            </Flex>
-            <Box px={3} py={1}>
-                <DefaultLoading loading={isLoading} />
-                <Box pb="0.5em" />
-                {noFavorites}
-                <List>
-                    {files.map((file, i) => (
-                        <Flex key={i} pt="0.8em" pb="6px">
-                            <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={200} />
-                            <Box ml="auto" />
-                            <Box><i className="fas fa-star" style={{ color: theme.colors.blue, verticalAlign: "middle" }} onClick={() => favorite(file)} /></Box>
-                        </Flex>)
-                    )}
-                </List>
-            </Box>
-        </Card>)
-};
+const DashBoardCard = ({title, isLoading, children}: {title: string, isLoading:boolean, children?: any}) => (
+    <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+    <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+        <Heading.h4>{title}</Heading.h4>
+    </Flex>
+    <Box px={3} py={1}>
+        {/* <DefaultLoading loading={isLoading} /> */}
+        {isLoading && <Spinner size={24} />} 
+        <Box pb="0.5em" />
+        {children}
+    </Box>
+</Card>
+)
 
-const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: 117 | 200 }) => (
+const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: (file: File) => void }) => (
+    <DashBoardCard title="Favorite Files" isLoading={isLoading}>
+        {files.length || isLoading ? null : (<Heading.h6>No favorites found</Heading.h6>)}
+        <List>
+            {files.map((file, i) => (
+                <Flex key={i} pt="0.8em" pb="6px">
+                    <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={220} />
+                    <Box ml="auto" />
+                    <Box><i className="fas fa-star" style={{ color: theme.colors.blue, verticalAlign: "middle" }} onClick={() => favorite(file)} /></Box>
+                </Flex>)
+            )}
+        </List>
+    </DashBoardCard>
+);
+
+const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: number }) => (
     <>
         <FileIcon name={iconFromFilePath(path, type, Cloud.homeFolder)} size={undefined} link={link} color="grey" />
         <Link to={fileTablePage(isDirectory({ fileType: type }) ? path : getParentPath(path))}>
-            <TextSpan mt="-1.5px" fontSize={2} className={`limited-width-string-${pixelsWide}px`}>{getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}</TextSpan>
+            <EllipsedText fontSize={2} width={pixelsWide}>
+                {getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}
+            </EllipsedText>
         </Link>
-    </>);
+    </>
+);
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
-    <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
-            <Heading.h4>Recently used files</Heading.h4>
-        </Flex>
-        <Box px={3} py={1}>
-            {isLoading || files.length ? null : (<h3><small>No recently used files</small></h3>)}
-            <DefaultLoading loading={isLoading} />
-            <Box pb="0.5em" />
-            <List>
-                {files.map((file, i) => (
-                    <Flex key={i} pt="0.8em" pb="6px">
-                        <ListFileContent path={file.path} type={file.fileType} link={file.link} pixelsWide={117} />
-                        <Box ml="auto" />
-                        <Text color="grey">{moment(new Date(file.modifiedAt)).fromNow()}</Text>
-                    </Flex>
-                ))}
-            </List>
-        </Box>
-    </Card>
+    <DashBoardCard title="Recently used files" isLoading={isLoading}>
+        <List>
+            {files.map((file, i) => (
+                <Flex key={i} pt="0.8em" pb="6px">
+                    <ListFileContent path={file.path} type={file.fileType} link={file.link} pixelsWide={150} />
+                    <Box ml="auto" />
+                    <Text color="grey">{moment(new Date(file.modifiedAt)).fromNow()}</Text>
+                </Flex>
+            ))}
+        </List>
+    </DashBoardCard> 
 );
 
 const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLoading: boolean }) => (
-    <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
-            <Heading.h4>Recent Jobs</Heading.h4>
-        </Flex>
-        <Box px={3} py={1}>
-            <DefaultLoading loading={isLoading} />
-            {isLoading || analyses.length ? null : (<h3><small>No results found</small></h3>)}
-            <Box pb="0.5em" />
-            <List>
-                {analyses.map((analysis: Analysis, index: number) =>
-                    <Flex key={index} pt="0.9em" pb="9.85px">
-                        <Box pr="0.3em">
-                            <i className={`fa ${statusToIconName(analysis.state)}`} style={{
-                                color: statusToColor(analysis.state),
-                                alignSelf: "center"
-                            }} />
-                        </Box>
-                        <Link mt="-3px" to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.appName}</TextSpan></Link>
-                        <Box ml="auto" />
-                        <TextSpan mt="-3px" fontSize={2}>{toLowerCaseAndCapitalize(analysis.state)}</TextSpan>
-                    </Flex>
-                )}
-            </List>
-        </Box>
-    </Card>
+    <DashBoardCard title="Recent Jobs" isLoading={isLoading}>
+        {isLoading || analyses.length ? null : (<Heading.h6>No results found</Heading.h6>)}
+        <List>
+            {analyses.map((analysis: Analysis, index: number) =>
+                <Flex key={index} pt="0.8em" pb="6px">
+                    <Icon name={statusToIconName(analysis.state)} 
+                            color={statusToColor(analysis.state)} 
+                            size="1.5em"
+                            pr="0.3em"
+                            />
+                    <Link to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.appName}</TextSpan></Link>
+                    <Box ml="auto" />
+                    <TextSpan fontSize={2}>{toLowerCaseAndCapitalize(analysis.state)}</TextSpan>
+                </Flex>
+            )}
+        </List>
+    </DashBoardCard>
 );
 
-const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: { onNotificationAction: (notification: Notification) => void, notifications: Notification[], readAll: () => void }) => (
-    <Card height="auto" width={290} boxShadowSize='md' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: { onNotificationAction: (notification: Notification) => void,  notifications: Notification[], readAll: () => void }) => (
+ //   <DashBoardCard title="Recent notifications" isLoading={isLoading}>
+    <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3}>
             <Heading.h4>Recent notifications</Heading.h4>
             <Box ml="auto" />
             <i style={{ margin: "5px", cursor: "pointer" }} title="Mark all as read" onClick={readAll} className="fas fa-check-double"></i>
         </Flex>
         <Box px={3} py={1}>
-            {notifications.length === 0 ? <h3><small>No notifications</small></h3> : null}
+            {notifications.length === 0 ? <Heading.h6>No notifications</Heading.h6> : null}
             <List>
                 {notifications.slice(0, 7).map((n, i) =>
                     <Flex key={i}>
@@ -181,7 +175,7 @@ const DashboardNotifications = ({ notifications, readAll, onNotificationAction }
     </Card>
 );
 
-const statusToIconName = (status: string) => status === "SUCCESS" ? "fa-check" : "fa-times";
+const statusToIconName = (status: string) => status === "SUCCESS" ? "check" : "close";
 const statusToColor = (status: string) => status === "SUCCESS" ? "green" : "red";
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({

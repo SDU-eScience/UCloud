@@ -10,13 +10,12 @@ export interface OutlineButtonProps extends ButtonStyleProps { hoverColor?: stri
 const OutlineButton = styled(Button) <OutlineButtonProps>`
   color: ${props => props.color ? props.theme.colors[props.color] : props.theme.colors.blue};
   border: 1px solid ${props => props.color ? props.theme.colors[props.color] : props.theme.colors.blue};
-  border-radius: 3px;
+  border-radius: ${props => props.theme.radius};
   background-color: transparent;
 
   &:hover {
     color: ${props => (props.disabled ? null : (props.hoverColor ? props.theme.colors[props.hoverColor] : null))};
     border: 1px solid ${props => props.hoverColor ? props.theme.colors[props.hoverColor] : null};
-    border-radius: 3px;
     background-color: transparent;
     transition: ease 0.1s;
   }

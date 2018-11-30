@@ -157,6 +157,7 @@ const paginationDisabled = lightGray;
 // Icons colors
 const iconColor = darkGray;
 const iconColor2 = gray;
+const spinnerColor = blue;
 
 
 const colors = {
@@ -190,6 +191,7 @@ const colors = {
   paginationDisabled,
   iconColor,
   iconColor2,
+  spinnerColor,
 }
 
 export type ThemeColor = keyof typeof colors;
@@ -298,7 +300,7 @@ export const colorStyles = {
 
 // styled-system's `borderRadius` function can hook into the `radii` object/array
 export const radii = [0, 2, 6]
-export const radius = '2px'
+export const radius = '5px'
 
 export const maxContainerWidth = '1280px'
 

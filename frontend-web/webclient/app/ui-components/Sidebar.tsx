@@ -17,8 +17,6 @@ import Relative from "./Relative";
 const SidebarContainer = styled(Flex)`
     position: fixed;
     top:48px;
-    //width: 190px;
-    //margin-top: 48px;
     height: calc(100% - 48px);
     flex-flow: column;
     border-right: 1px solid ${props => props.theme.colors.borderGray}
@@ -88,7 +86,9 @@ const SupportBox = styled.div<{ visible: boolean }>`
     left: 150px;
     top: -282px;
     border: 1px solid ${props => props.theme.colors.borderGray};
-    background: ${props => props.theme.colors.white};
+    background-color: ${props => props.theme.colors.white};
+
+    z-index: 100;
 
     &&&&&&&&&&& {
         width: 600px;

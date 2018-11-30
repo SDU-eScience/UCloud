@@ -1,11 +1,11 @@
 import * as React from "react";
 import { Page } from "Types";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import * as Self from ".";
 import { ifPresent } from "UtilityFunctions";
 import { RefreshButton } from "UtilityComponents";
 import * as Heading from "ui-components/Heading";
 import { Box, Flex, Relative, Error } from "ui-components";
+import { default as Spinner } from "LoadingIcon/LoadingIcon_new";
 
 interface ListProps {
     pageRenderer: (page: Page<any>) => React.ReactNode
@@ -81,7 +81,8 @@ export class List extends React.PureComponent<ListProps> {
     private renderBody(): React.ReactNode {
         const { props } = this;
         if (props.loading) {
-            return (<Flex><Box width="50%" /><DefaultLoading loading/></Flex>)
+//            return (<Flex><Box width="50%" /><DefaultLoading loading/></Flex>)
+            return (<Spinner size={24}/>)
         } else {
             if (props.page == null || props.page.items.length == 0) {
                 if (!props.customEmptyPage) {

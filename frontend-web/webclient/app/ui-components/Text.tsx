@@ -15,7 +15,7 @@ import {
   WidthProps, 
   width
 } from 'styled-system'
-import theme, { Theme } from "./theme";
+import { Theme } from "./theme";
 
 export const caps = (props: { caps?: boolean }) =>
   props.caps
@@ -72,8 +72,7 @@ export const EllipsedText = styled(Text) <EllipsedTextProps>`
 
 
 Text.defaultProps = {
-  cursor: "inherit",
-  theme: theme
+  cursor: "inherit"
 };
 
 export default Text;

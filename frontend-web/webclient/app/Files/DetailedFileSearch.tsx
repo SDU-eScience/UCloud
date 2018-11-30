@@ -99,7 +99,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                 <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                     <Box mt="0.5em">
                         <form onSubmit={e => { e.preventDefault(); this.onSearch() }}>
-                            <Heading.h3>Search</Heading.h3>
                             <Error error={this.props.error} clearError={() => this.props.setError()} />
                             <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
                             <Input
