@@ -20,9 +20,8 @@ import { Dispatch } from "redux";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Navigation, Pages } from "./Navigation";
-import { ApplicationCardContainer, SlimApplicationCard, ApplicationCard } from "./Card";
+import { ApplicationCard } from "./Card";
 import styled from "styled-components";
-import { ContainerForText } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { Link } from "react-router-dom";
 import { CardGroup } from "ui-components/Card";
@@ -39,33 +38,31 @@ const CategoryItem: React.StatelessComponent = props => (
     <li><Link to="#">{props.children}</Link></li>
 );
 
-const Sidebar: React.StatelessComponent = props => (
-    <>
-        <Heading.h4>Featured</Heading.h4>
-        <CategoryList>
-            <CategoryItem>Popular</CategoryItem>
-            <CategoryItem>Staff picks</CategoryItem>
-        </CategoryList>
+const Sidebar: React.StatelessComponent = () => (<>
+    <Heading.h4>Featured</Heading.h4>
+    <CategoryList>
+        <CategoryItem>Popular</CategoryItem>
+        <CategoryItem>Staff picks</CategoryItem>
+    </CategoryList>
 
-        <Heading.h4>Categories</Heading.h4>
-        <CategoryList>
-            <CategoryItem>Biomedicine</CategoryItem>
-            <CategoryItem>Toys</CategoryItem>
-            <CategoryItem></CategoryItem>
-        </CategoryList>
+    <Heading.h4>Categories</Heading.h4>
+    <CategoryList>
+        <CategoryItem>Biomedicine</CategoryItem>
+        <CategoryItem>Toys</CategoryItem>
+        <CategoryItem></CategoryItem>
+    </CategoryList>
 
-        <Heading.h4>Fields</Heading.h4>
-        <CategoryList>
-            <CategoryItem>Natural Sciences</CategoryItem>
-            <CategoryItem>Formal Sciences</CategoryItem>
-            <CategoryItem>Life Sciences</CategoryItem>
-            <CategoryItem>Social Sciences</CategoryItem>
-            <CategoryItem>Applied Sciences</CategoryItem>
-            <CategoryItem>Interdisciplinary Sciences</CategoryItem>
-            <CategoryItem>Philosophy Sciences</CategoryItem>
-        </CategoryList>
-    </>
-);
+    <Heading.h4>Fields</Heading.h4>
+    <CategoryList>
+        <CategoryItem>Natural Sciences</CategoryItem>
+        <CategoryItem>Formal Sciences</CategoryItem>
+        <CategoryItem>Life Sciences</CategoryItem>
+        <CategoryItem>Social Sciences</CategoryItem>
+        <CategoryItem>Applied Sciences</CategoryItem>
+        <CategoryItem>Interdisciplinary Sciences</CategoryItem>
+        <CategoryItem>Philosophy Sciences</CategoryItem>
+    </CategoryList>
+</>);
 
 class Applications extends React.Component<ApplicationsProps> {
     componentDidMount() {

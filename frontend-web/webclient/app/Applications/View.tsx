@@ -4,7 +4,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import { ApplicationInformation, Application } from "Applications";
+import { Application } from "Applications";
 import { Image, OutlineButton, Button, Box } from "ui-components";
 import * as Heading from "ui-components/Heading"
 import styled from "styled-components";
@@ -14,13 +14,10 @@ import ContainerForText from "ui-components/ContainerForText";
 import { MainContainer } from "MainContainer/MainContainer";
 import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
 import { Page } from "Types";
-import { promises } from "fs";
-
-const circuitBoard = require("Assets/Images/circuitboard-bg.png");
 
 type DetailedApplicationProps = any
 type DetailedApplicationState = {
-    appInformation?: ApplicationInformation
+    appInformation?: Application
     previousVersions?: Page<Application>
     promises: PromiseKeeper
     loading: boolean
@@ -29,7 +26,7 @@ type DetailedApplicationState = {
 
 interface MainContentProps {
     onFavorite?: () => void
-    application: ApplicationInformation
+    application: Application
 }
 
 export class View extends React.Component<DetailedApplicationProps, DetailedApplicationState> {
@@ -53,7 +50,7 @@ export class View extends React.Component<DetailedApplicationProps, DetailedAppl
         const { appName, appVersion } = this.props.match.params;
         const { promises } = this.state;
         promises.makeCancelable(Cloud.get(`/hpc/apps/${encodeURI(appName)}/${encodeURI(appVersion)}`))
-            .promise.then(({ response }: { response: ApplicationInformation }) =>
+            .promise.then(({ response }: { response: Application }) =>
                 this.setState(() => ({
                     appInformation: response,
                     loading: false,
@@ -131,7 +128,7 @@ const AppSection = styled(Box)`
 
 const AppHeader: React.StatelessComponent<MainContentProps> = props => (
     <AppHeaderBase>
-        <Image src={circuitBoard} />
+        <Image src={props.application.imageUrl} />
         <AppHeaderDetails>
             <h1>{props.application.description.title}</h1>
             <h2>v{props.application.description.info.version}</h2>
@@ -246,9 +243,9 @@ const InfoAttributes = styled.div`
     flex-direction: row;
 `;
 
-function Information({ application }: { application: ApplicationInformation }) {
+function Information({ application }: { application: Application }) {
     const time = application.tool.description.defaultMaxTime;
-    const timeString = `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}`;
+    const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
 
     return <>
         <Heading.h4>Information</Heading.h4>

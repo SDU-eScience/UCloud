@@ -83,7 +83,7 @@ class AppController<DBSession>(
 
         implement(ApplicationDescriptions.findByNameAndVersion) { req ->
             val app = db.withTransaction {
-                source.findByNameAndVersion(
+                source.findByNameAndVersionForUser(
                     it,
                     call.securityPrincipal.username,
                     req.name,

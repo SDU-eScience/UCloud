@@ -11,7 +11,9 @@ export const applicationsPage: Page<Application> = {
             owner: "jonas@hinchely.dk",
             createdAt: 1531306829400,
             modifiedAt: 1531306829400,
+            imageUrl: "",
             description: {
+                resources: { multiNodeSupport: false },
                 info: { name: "palms", version: "1.0.0" },
                 tool: { name: "palms", version: "1.0.0" },
                 authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
@@ -149,15 +151,19 @@ export const applicationsPage: Page<Application> = {
                 }
             }
         }, {
+            imageUrl: "",
             favorite: false,
             owner: "jonas@hinchely.dk", createdAt: 1531308013745, modifiedAt: 1531308013745, description: {
+                resources: { multiNodeSupport: false },
                 info: { name: "bwa-mem", version: "1.0.0" }, tool: { name: "bwa-sambamba", version: "3.3.0" },
                 authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
                 title: "BWA-MEM", description: "BWA-MEM", invocation: [{ type: "word", word: "bwa-mem" }, { type: "var", variableNames: ["index_base_main"], prefixGlobal: "", "suffixGlobal": "", "prefixVariable": "", "suffixVariable": "", "variableSeparator": " " }, { "type": "var", "variableNames": ["R1"], "prefixGlobal": "", "suffixGlobal": "", "prefixVariable": "", "suffixVariable": "", "variableSeparator": " " }, { "type": "var", "variableNames": ["R2"], "prefixGlobal": "", "suffixGlobal": "", "prefixVariable": "", "suffixVariable": "", "variableSeparator": " " }], "parameters": [{ "name": "index_base_main", "optional": false, "defaultValue": null, "title": "Index Resources", "description": "", "type": "input_file" }, { "name": "base_dict", "optional": false, "defaultValue": null, "title": ".fasta.dict", "description": "", "type": "input_file" }, { "name": "base_amb", "optional": false, "defaultValue": null, "title": ".fasta.amb", "description": "", "type": "input_file" }, { "name": "base_ann", "optional": false, "defaultValue": null, "title": ".fasta.ann", "description": "", "type": "input_file" }, { "name": "base_bwt", "optional": false, "defaultValue": null, "title": ".fasta.bwt", "description": "", "type": "input_file" }, { "name": "base_fai", "optional": false, "defaultValue": null, "title": ".fasta.fai", "description": "", "type": "input_file" }, { "name": "base_pac", "optional": false, "defaultValue": null, "title": ".fasta.pac", "description": "", "type": "input_file" }, { "name": "base_sa", "optional": false, "defaultValue": null, "title": ".fasta.sa", "description": "", "type": "input_file" }, { "name": "R1", "optional": false, "defaultValue": null, "title": "R1", "description": "", "type": "input_file" }, { "name": "R2", "optional": false, "defaultValue": null, "title": "R2", "description": "", "type": "input_file" }], "outputFileGlobs": ["sample.bam*", "stdout.txt", "stderr.txt"]
             }, tool: { owner: "jonas@hinchely.dk", createdAt: 1531304635371, modifiedAt: 1531304635371, description: { info: { name: "bwa-sambamba", version: "3.3.0" }, container: "bwa-sambamba", defaultNumberOfNodes: 1, defaultTasksPerNode: 1, defaultMaxTime: { hours: 1, minutes: 0, seconds: 0 }, requiredModules: [], authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"], title: "bwa-sambamba", description: "Tools for running bwa-sambamba", backend: "UDOCKER" } }
         }, {
+            imageUrl: "",
             favorite: false,
             owner: "jonas@hinchely.dk", createdAt: 1531305600165, modifiedAt: 1531305600165, description: {
+                resources: { multiNodeSupport: false },
                 info: { name: "figlet-count", version: "1.0.0" },
                 tool: { name: "figlet", version: "1.0.0" },
                 authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
@@ -184,17 +190,21 @@ export const applicationsPage: Page<Application> = {
             }
         }, {
             favorite: false,
+            imageUrl: "",
             owner: "jonas@hinchely.dk", createdAt: 1531307297437, modifiedAt: 1531307297437, description: {
+                resources: { multiNodeSupport: false },
                 info: { "name": "tqdist_triplet", "version": "1.0.0" },
                 tool: { "name": "tqdist", "version": "1.0.0" },
                 authors: ["Andreas Sand", "Morten K. Holt", "Jens Johansen", "Gerth StÃ¸lting Brodal", "Thomas Mailund", "Christian N.S. Pedersen"], "title": "tqDist: Triplet Distance", "description": "Distance measures between trees are useful for comparing trees in a systematic manner and several different distance measures have been proposed. The triplet and quartet distances, for rooted and unrooted trees, are defined as the number of subsets of three or four leaves, respectively, where the topologies of the induced sub-trees differ. These distances can trivially be computed by explicitly enumerating all sets of three or four leaves and testing if the topologies are different, but this leads to time complexities at least of the order n^3 or n^4 just for enumerating the sets. The different topologies can be counted implicitly, however, and using this tqDist computes the triplet distance between rooted trees in O(n log n) time and the quartet distance between unrooted trees in O(dn log n) time, where d degree of the tree with the smallest degree.\n", "invocation": [{ "type": "word", "word": "triplet_dist" }, { "type": "bool_flag", "variableName": "verbose", "flag": "-v" }, { "type": "var", "variableNames": ["tree_one", "tree_two"], "prefixGlobal": "", "suffixGlobal": "", "prefixVariable": "", "suffixVariable": "", "variableSeparator": " " }], "parameters": [{ "name": "verbose", "optional": false, "defaultValue": null, "title": "Verbose", "description": "If the -v option is used, the following numbers will be reported  (in this order):\n- The number of leaves in the trees (should be the same for both). - The number of triplets in the two trees (n choose 3). - The triplet distance between the two trees. - The normalized triplet distance between the two trees. - The number of resolved triplets that agree in the two trees. - The normalized number of resolved triplets that agree in the two trees. - The number triplets that are unresolved in both trees. - The normalized number triplets that are unresolved in both trees.\n", "trueValue": "true", "falseValue": "false", "type": "boolean" }, { "name": "tree_one", "optional": false, "defaultValue": null, "title": "Tree One", "description": "", "type": "input_file" }, { "name": "tree_two", "optional": false, "defaultValue": null, "title": "Tree Two", "description": "", "type": "input_file" }], "outputFileGlobs": ["stdout.txt", "stderr.txt"]
             }, tool: { owner: "jonas@hinchely.dk", createdAt: 1531304469178, modifiedAt: 1531304469178, description: { info: { "name": "tqdist", "version": "1.0.0" }, "container": "tqdist.simg", defaultNumberOfNodes: 1, defaultTasksPerNode: 1, defaultMaxTime: { hours: 0, minutes: 10, seconds: 0 }, requiredModules: [], authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"], "title": "tqDist", "description": "Tools for running tqDist", "backend": "SINGULARITY" } }
         }, {
             favorite: false,
+            imageUrl: "",
             owner: "jonas@hinchely.dk",
             createdAt: 1531305389134,
             modifiedAt: 1531305389134,
             description: {
+                resources: { multiNodeSupport: false },
                 info: { name: "figlet", version: "1.0.0" },
                 tool: { name: "figlet", version: "1.0.0" },
                 authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
@@ -229,7 +239,9 @@ export const applicationsPage: Page<Application> = {
             }
         }, {
             favorite: false,
+            imageUrl: "",
             owner: "jonas@hinchely.dk", createdAt: 1531307717715, modifiedAt: 1531307717715, description: {
+                resources: { multiNodeSupport: false },
                 info: { name: "rapidnj", version: "2.3.2" },
                 tool: { name: "rapidnj", version: "2.3.2" },
                 authors: ["Martin Simonsen", "Thomas Mailund", "Christian N. S. Pedersen"],
@@ -242,10 +254,12 @@ export const applicationsPage: Page<Application> = {
             }, tool: { owner: "jonas@hinchely.dk", createdAt: 1531304528792, modifiedAt: 1531304528792, description: { info: { name: "rapidnj", version: "2.3.2" }, container: "rapidnj.simg", defaultNumberOfNodes: 1, defaultTasksPerNode: 1, defaultMaxTime: { hours: 0, minutes: 10, seconds: 0 }, requiredModules: [], authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"], title: "RapidNJ", description: "Tools for running rapidnj", "backend": "SINGULARITY" } }
         }, {
             favorite: false,
+            imageUrl: "",
             owner: "jonas@hinchely.dk",
             createdAt: 1531304975016,
             modifiedAt: 1531304975016,
             description: {
+                resources: { multiNodeSupport: false },
                 info: { name: "searchgui_msgf", version: "3.3.0" },
                 tool: { name: "searchgui", version: "3.3.0" },
                 authors: ["Vaudel M", "Barsnes H", "Berven FS", "Sickmann A", "Martens L."],
@@ -273,7 +287,9 @@ export const applicationsPage: Page<Application> = {
             }
         }, {
             favorite: false,
+            imageUrl: "",
             owner: "jonas@hinchely.dk", createdAt: 1531307353519, modifiedAt: 1531307353519, description: {
+                resources: { multiNodeSupport: false },
                 info: { name: "tqdist_quartet", version: "1.0.0" },
                 tool: { name: "tqdist", version: "1.0.0" },
                 authors: ["Andreas Sand", "Morten K. Holt", "Jens Johansen", "Gerth StÃ¸lting Brodal", "Thomas Mailund", "Christian N.S. Pedersen"],

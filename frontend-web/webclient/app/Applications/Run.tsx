@@ -5,7 +5,7 @@ import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, JobSchedulingOptions, MaxTime, ApplicationParameter, ParameterTypes } from "."
+import { RunAppProps, RunAppState, JobSchedulingOptions, MaxTime, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput } from "."
 import { Application } from ".";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
@@ -69,7 +69,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         event.preventDefault();
         if (!this.state.application) return;
 
-        let maxTime: MaxTime = this.extractJobInfo(this.state.schedulingOptions).maxTime;
+        let maxTime: MaxTimeForInput | null = this.extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime && maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
 
         let job = {
@@ -95,7 +95,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     onInputChange = (parameterName, value) =>
         this.setState(() => ({ parameterValues: { ...this.state.parameterValues, [parameterName]: value } }));
 
-    extractJobInfo(jobInfo): JobSchedulingOptions {
+    extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
         let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
         const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
         if (maxTime != null && (maxTime.hours != null || maxTime.minutes != null || maxTime.seconds != null)) {
@@ -182,7 +182,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);
-}
+    }
 
     render() {
         if (!this.state.application) return (
@@ -212,7 +212,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     onSubmit={this.onSubmit}
                     onChange={this.onInputChange}
                     schedulingOptions={this.state.schedulingOptions}
-                    tool={this.state.application.tool}
+                    app={this.state.application}
                     onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
                     disableSubmit={this.state.jobSubmitted}
                 />
@@ -221,9 +221,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const sidebar = (
             <>
-                <OutlineButton 
-                    fullWidth 
-                    color="green" 
+                <OutlineButton
+                    fullWidth
+                    color="green"
                     onClick={() => this.exportParameters()}>
                     Export parameters
                 </OutlineButton>
@@ -232,8 +232,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 <OutlineButton fullWidth color="green" as={"label"}>
                     Import parameters
-                    <HiddenInputField 
-                        type="file" 
+                    <HiddenInputField
+                        type="file"
                         onChange={(e) => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
                 </OutlineButton>
             </>
@@ -256,8 +256,8 @@ interface ParameterValues {
 const Parameters = (props: {
     values: ParameterValues,
     parameters: ApplicationParameter[],
-    schedulingOptions: JobSchedulingOptions,
-    tool: Tool,
+    schedulingOptions: JobSchedulingOptionsForInput,
+    app: Application,
     disableSubmit: boolean,
     onChange: (name, value) => void,
     onSubmit: (e: React.FormEvent) => void,
@@ -283,7 +283,7 @@ const Parameters = (props: {
             <JobSchedulingOptions
                 onChange={props.onJobSchedulingParamsChange}
                 options={props.schedulingOptions}
-                tool={props.tool.description}
+                app={props.app}
             />
 
             <Button color="blue" disabled={props.disableSubmit}>Submit</Button>
@@ -324,25 +324,31 @@ const SchedulingField: React.StatelessComponent<SchedulingFieldProps> = props =>
     );
 };
 
-const JobSchedulingOptions = (props: { onChange: (a, b, c) => void, options: any, tool: Tool }) => {
-    if (!props.tool) return null;
+const JobSchedulingOptions = (props: { onChange: (a, b, c) => void, options: any, app: Application }) => {
+    if (!props.app) return null;
+    const tool = props.app.tool.description;
     const { maxTime, numberOfNodes, tasksPerNode } = props.options;
+    const defaultMaxTime = tool.defaultMaxTime;
 
     return (
         <>
             <Flex mb="1em">
-                <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" defaultValue={props.tool.defaultNumberOfNodes} value={numberOfNodes} onChange={props.onChange} />
-                <Box ml="5px" />
-                <SchedulingField min={1} field="tasksPerNode" text="Tasks per Node" defaultValue={props.tool.defaultTasksPerNode} value={tasksPerNode} onChange={props.onChange} />
+                {!props.app.description.resources.multiNodeSupport ? null :
+                    <>
+                        <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" defaultValue={tool.defaultNumberOfNodes} value={numberOfNodes} onChange={props.onChange} />
+                        <Box ml="5px" />
+                        <SchedulingField min={1} field="tasksPerNode" text="Tasks per Node" defaultValue={tool.defaultTasksPerNode} value={tasksPerNode} onChange={props.onChange} />
+                    </>
+                }
             </Flex>
 
             <Label>Maximum time allowed</Label>
             <Flex mb="1em">
-                <SchedulingField min={0} field="maxTime" subField="hours" text="Hours" defaultValue={props.tool.defaultMaxTime.hours} value={maxTime.hours} onChange={props.onChange} />
+                <SchedulingField min={0} field="maxTime" subField="hours" text="Hours" defaultValue={defaultMaxTime.hours} value={maxTime.hours} onChange={props.onChange} />
                 <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="minutes" text="Hours" defaultValue={props.tool.defaultMaxTime.minutes} value={maxTime.minutes} onChange={props.onChange} />
+                <SchedulingField min={0} field="maxTime" subField="minutes" text="Hours" defaultValue={defaultMaxTime.minutes} value={maxTime.minutes} onChange={props.onChange} />
                 <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="seconds" text="Seconds" defaultValue={props.tool.defaultMaxTime.seconds} value={maxTime.seconds} onChange={props.onChange} />
+                <SchedulingField min={0} field="maxTime" subField="seconds" text="Seconds" defaultValue={defaultMaxTime.seconds} value={maxTime.seconds} onChange={props.onChange} />
             </Flex>
         </>)
 };

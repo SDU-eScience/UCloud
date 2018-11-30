@@ -1,6 +1,6 @@
 import * as React from "react";
 import { MaterialColors } from "Assets/materialcolors.json";
-import { Link, Image, Button } from "ui-components";
+import { Link, Image } from "ui-components";
 import { Relative, Box, Absolute, Text, Icon } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import { PlayIcon } from "ui-components/Card";
@@ -10,7 +10,6 @@ import styled from "styled-components";
 import * as ReactMarkdown from "react-markdown";
 
 const COLORS_KEYS = Object.keys(MaterialColors);
-const circuitBoard = require("Assets/Images/circuitboard-bg.png");
 
 interface ApplicationCardProps {
     favoriteApp?: (name: string, version: string) => void,
@@ -78,7 +77,7 @@ export const SlimApplicationCard: React.StatelessComponent<ApplicationCardProps>
     const appInfo = props.app.description.info;
     return (
         <AppCardBase to={props.linkToRun ? `/applications/${appInfo.name}/${appInfo.version}` : `/applications/details/${appInfo.name}/${appInfo.version}`}>
-            <img src={circuitBoard} />
+            <img src={props.app.imageUrl} />
             <strong>{props.app.description.title} v{props.app.description.info.version}</strong>
             <EllipsedText>
                 <ReactMarkdown
@@ -94,12 +93,7 @@ export const ApplicationCard = ({ app, favoriteApp, isFavorite, linkToRun }: App
     <Card width="250px">
         <Relative height="135px">
             <Box>
-                <Box style={{ background: hexFromAppName(app.description.title) }}>
-                    <Image
-                        src={circuitBoard}
-                        style={{ opacity: 0.4 }}
-                    />
-                </Box>
+                <Image src={app.imageUrl} />
                 <Absolute top="6px" left="10px">
                     <Text
                         fontSize={2}
@@ -141,23 +135,3 @@ export const ApplicationCard = ({ app, favoriteApp, isFavorite, linkToRun }: App
         </Box>
     </Card >
 );
-
-function hexFromAppName(name: string): string {
-    const hashCode = toHashCode(name);
-    const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
-    const mClength = MaterialColors[color].length;
-    return MaterialColors[color][(hashCode % mClength)];
-}
-
-function toHashCode(name: string): number {
-    let hash = 0;
-    if (name.length == 0) { // FIXME can this ever happen?
-        return hash;
-    }
-    for (let i = 0; i < name.length; i++) {
-        let char = name.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash);
-}
