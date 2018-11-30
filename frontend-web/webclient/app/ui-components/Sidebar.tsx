@@ -82,6 +82,8 @@ type SidebarMenuElements = {
     predicate: () => boolean
 }
 
+
+// FIXME, move to own file
 const SupportBox = styled.div<{ visible: boolean }>`
     display: ${props => props.visible ? "block" : "none"}
     position: absolute;
