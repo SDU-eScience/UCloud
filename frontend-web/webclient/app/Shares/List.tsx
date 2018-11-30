@@ -9,7 +9,7 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ListContext, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
-import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider } from "ui-components";
+import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Button } from "ui-components";
 import { sharesByPathQuery } from "Utilities/SharesUtilities";
 import * as Heading from "ui-components/Heading";
 
@@ -74,7 +74,7 @@ export class List extends React.Component<ListProps, ListState> {
                         onRights={e => this.onEntryAction(e)}
                         onError={it => this.setState({ errorMessage: it })} />
                 )}
-                <Heading.h2>Shared by Me</Heading.h2>
+                <Heading.h3>Shared by Me</Heading.h3>
                 {noSharesBy ? <NoShares /> : shares.filter(it => it.sharedByMe).map(it =>
                     <ListEntry
                         groupedShare={it}
@@ -144,11 +144,14 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         return (
             <Card width="100%" height="auto" p="10px 10px 10px 10px">
                 <Heading.h4>
-                    <SIcon name='folder' /> {getFilenameFromPath(groupedShare.path)}
-                    <AccessRightsDisplay size='tiny' floated='right' disabled rights={actualShare.rights} />
+                    <Flex>
+                        <SIcon name='folder' /> {getFilenameFromPath(groupedShare.path)}
+                        <Box ml="auto" />
+                        <AccessRightsDisplay size='tiny' floated='right' disabled rights={actualShare.rights} />
+                    </Flex>
                 </Heading.h4>
                 <Text color="text">Shared by {groupedShare.sharedBy}</Text>
-                <Text>{message}</Text>
+                <Text mt="4px" mb="4px">{message}</Text>
                 <Flex>
                     <Box ml="auto" />
                     <SButton.Group floated="right">
@@ -178,41 +181,48 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         let { isLoading } = this.state;
 
         let shareComponents: JSX.Element[] = groupedShare.shares.map(e => (
-            <SemList.Item key={e.id}>
-                <SButton negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" floated="right" size="mini" onClick={() => this.onRevoke(e)} />
-                <SemList.Icon name='user circle' size="large" verticalAlign='top' />
-                <SemList.Content>
-                    <SemList.Header>
-                        {e.sharedWith}
-                    </SemList.Header>
-                    <SemList.Description>
-                        <AccessRightsDisplay className='ar-display-padding' size='mini' rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />
-                    </SemList.Description>
-                </SemList.Content>
-            </SemList.Item>
+            <Box key={e.id}>
+                <Flex>
+                    <i className="fas fa-user-circle" /> {e.sharedWith}
+                    <Box ml="auto" />
+                    <LoadingButton
+                        color="red"
+                        disabled={isLoading}
+                        loading={isLoading}
+                        size="mini"
+                        onClick={() => this.onRevoke(e)}
+                    >
+                        <Flex justifyContent="center" alignItems="center">
+                            <i className="fas fa-times" />
+                            <Text ml="3px">Revoke</Text>
+                        </Flex>
+                    </LoadingButton>
+                </Flex>
+                <AccessRightsDisplay className='ar-display-padding' size='mini' rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />
+            </Box>
         ));
 
         return (
             <Card width="100%" p="10px 10px 10px 10px" height="auto">
-                    <Heading.h4>
-                        <SIcon name='folder' /> {getFilenameFromPath(groupedShare.path)}
-                    </Heading.h4>
-                    <Text color="text">Shared with {groupedShare.shares.length} collaborators</Text>
-                    <SCard.Description className='ar-list-padding'>
-                        <SemList relaxed divided>
-                            {shareComponents}
-                            <SemList.Item>
-                                <SemList.Icon name='add' size='large' verticalAlign='middle' />
-                                <SemList.Content>
-                                    <SemList.Header>
-                                        <SButton color='green' disabled={isLoading} loading={isLoading} onClick={() => this.onCreateShare(groupedShare.path)}>
-                                            Share this with another user
+                <Heading.h4>
+                    <i className="fas fa-folder" /> {getFilenameFromPath(groupedShare.path)}
+                </Heading.h4>
+                <Text color="text">Shared with {groupedShare.shares.length} collaborators</Text>
+                <SCard.Description className='ar-list-padding'>
+                    <SemList relaxed divided>
+                        {shareComponents}
+                        <SemList.Item>
+                            <SemList.Icon name='add' size='large' verticalAlign='middle' />
+                            <SemList.Content>
+                                <SemList.Header>
+                                    <SButton color='green' disabled={isLoading} loading={isLoading} onClick={() => this.onCreateShare(groupedShare.path)}>
+                                        Share this with another user
                                         </SButton>
-                                    </SemList.Header>
-                                </SemList.Content>
-                            </SemList.Item>
-                        </SemList>
-                    </SCard.Description>
+                                </SemList.Header>
+                            </SemList.Content>
+                        </SemList.Item>
+                    </SemList>
+                </SCard.Description>
             </Card>
         );
     }
@@ -315,34 +325,44 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
     }
 
     return (
-        <SButtonGroup floated={floated} labeled icon size={size} className={className}>
-            <SButton
-                disabled={props.disabled}
-                positive={read}
-                toggle
-                icon="search"
-                content="Read"
-                onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.READ) : 0}
-            />
-
-            <SButton
-                disabled={props.disabled}
-                positive={write}
-                toggle
-                icon="edit"
-                content="Write"
-                onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.WRITE) : 0}
-            />
-
-            <SButton
-                disabled={props.disabled}
-                positive={execute}
-                toggle
-                icon='settings'
-                content='Execute'
-                onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.EXECUTE) : 0}
-            />
-        </SButtonGroup>
+        <Flex>
+            {floated ? <Box ml="auto" /> : null}
+            <ButtonGroup width="280px">
+                <Button
+                    disabled={props.disabled}
+                    color={read ? "green" : "lightGray"}
+                    textColor={read ? "white" : "gray"}
+                    onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.READ) : 0}
+                >
+                    <Flex alignItems="center" justifyContent="center">
+                        <i className="fas fa-search" />
+                        <Text ml="5px">Read</Text>
+                    </Flex>
+                </Button>
+                <Button
+                    disabled={props.disabled}
+                    color={write ? "green" : "lightGray"}
+                    textColor={write ? "white" : "gray"}
+                    onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.WRITE) : 0}
+                >
+                    <Flex alignItems="center" justifyContent="center">
+                        <i className="far fa-edit" />
+                        <Text ml="5px">Write</Text>
+                    </Flex>
+                </Button>
+                <Button
+                    disabled={props.disabled}
+                    color={execute ? "green" : "lightGray"}
+                    textColor={execute ? "white" : "gray"}
+                    onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.EXECUTE) : 0}
+                >
+                    <Flex alignItems="center" justifyContent="center">
+                        <i className="fas fa-cogs" />
+                        <Text ml="5px">Execute</Text>
+                    </Flex>
+                </Button>
+            </ButtonGroup>
+        </Flex>
     );
 }
 

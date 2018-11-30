@@ -354,7 +354,6 @@ const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: C
                 fullWidth
                 onClick={() => clearTrash(Cloud, () => toHome())}
                 color="red"
-                hoverColor="darkRed"
             >
                 Clear trash
             </Button> : null}

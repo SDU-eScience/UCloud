@@ -131,7 +131,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
                 </Flex>
             </form>);
 
-        const sidebar = (<Link to="/zenodo/"><Button fullWidth hoverColor="darkGreen" color="green">Publications</Button></Link>)
+        const sidebar = (<Link to="/zenodo/"><Button fullWidth color="green">Publications</Button></Link>)
 
         return (
             <MainContainer

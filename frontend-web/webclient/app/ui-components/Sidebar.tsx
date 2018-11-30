@@ -10,8 +10,8 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { PP } from "UtilityComponents";
 import { fileTablePage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading";
-import { Input, Button } from "ui-components";
-import { inSuccessRange, successNotification, failureNotification } from "UtilityFunctions";
+import { Button } from "ui-components";
+import { successNotification, failureNotification } from "UtilityFunctions";
 import Relative from "./Relative";
 
 const SidebarContainer = styled(Flex)`

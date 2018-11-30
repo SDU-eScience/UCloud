@@ -34,7 +34,7 @@ const size = ({ size, theme }: { size: string, theme: Theme }) => {
 
 export const fullWidth = (props: { fullWidth?: boolean }) => (props.fullWidth ? { width: "100%" } : null)
 
-export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean, hoverColor?: ThemeColor } & SpaceProps & SizeProps & { title?: string }
+export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean, textColor?: ThemeColor } & SpaceProps & SizeProps & { title?: string }
 
 const Button = styled.button<ButtonProps>` 
   -webkit-font-smoothing: antialiased;
@@ -48,7 +48,7 @@ const Button = styled.button<ButtonProps>`
   cursor: pointer;
   border-radius: ${props => props.theme.radius};
   background-color: ${props => props.theme.colors[props.color!]};
-  color: ${props => props.theme.colors.white};
+  color: ${props => props.theme.colors[props.textColor!]};
   border-width: 0;
   border-style: solid;
 
@@ -58,7 +58,7 @@ const Button = styled.button<ButtonProps>`
 
   &:hover {
     transition: ease 0.3s;
-    background-color: ${props => props.disabled ? null : props.theme.colors[props.hoverColor!]};
+    filter: ${props => props.disabled ? null : "brightness(85%)"};
   }
 
   ${fullWidth} ${size} ${space};
@@ -66,7 +66,7 @@ const Button = styled.button<ButtonProps>`
 
 Button.defaultProps = {
   theme,
-  hoverColor: "darkBlue",
+  textColor: "white",
   color: "blue"
 };
 
