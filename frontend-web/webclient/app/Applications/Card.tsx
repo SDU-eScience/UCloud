@@ -9,8 +9,6 @@ import { Application } from ".";
 import styled from "styled-components";
 import * as ReactMarkdown from "react-markdown";
 
-const COLORS_KEYS = Object.keys(MaterialColors);
-
 interface ApplicationCardProps {
     favoriteApp?: (name: string, version: string) => void,
     app: Application,
@@ -90,48 +88,41 @@ export const SlimApplicationCard: React.StatelessComponent<ApplicationCardProps>
 };
 
 export const ApplicationCard = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => (
-    <Card width="250px">
-        <Relative height="135px">
-            <Box>
-                <Image src={app.imageUrl} />
-                <Absolute top="6px" left="10px">
-                    <Text
-                        fontSize={2}
-                        align="left"
-                        color="white"
-                    >
-                        {app.description.title}
-                    </Text>
-                </Absolute>
-                <Absolute top={"26px"} left={"14px"}>
-                    <Text fontSize={"xxs-small"} align="left" color="white">
-                        v {app.description.info.version}
-                    </Text>
-                </Absolute>
-                <Absolute top="10px" right="10px">
-                    <Icon
-                        onClick={() => !!favoriteApp ? favoriteApp(app.description.info.name, app.description.info.version) : undefined}
-                        cursor="pointer"
-                        color="red"
-                        name={isFavorite ? "starFilled" : "starEmpty"}
-                    />
-                </Absolute>
-                <Absolute bottom="10px" left="10px">
-                    <EllipsedText width={180} title={`by ${app.description.authors.join(", ")}`} color="white">
-                        by {app.description.authors.join(", ")}
-                    </EllipsedText>
-                </Absolute>
-                <Absolute bottom="10px" right="10px">
-                    <Link to={linkToRun ? `/applications/${app.description.info.name}/${app.description.info.version}` : `/applications/details/${app.description.info.name}/${app.description.info.version}`}>
-                        <PlayIcon />
-                    </Link>
-                </Absolute>
+    <Link to={linkToRun ?
+        `/applications/${app.description.info.name}/${app.description.info.version}` :
+        `/applications/details/${app.description.info.name}/${app.description.info.version}`
+    }>
+        <Card width="250px">
+
+            <Relative height="135px">
+                <Box>
+                    <Image src={app.imageUrl} />
+                    <Absolute top="6px" left="10px">
+                        <Text
+                            fontSize={2}
+                            align="left"
+                            color="white"
+                        >
+                            {app.description.title}
+                        </Text>
+                    </Absolute>
+                    <Absolute top={"26px"} left={"14px"}>
+                        <Text fontSize={"xxs-small"} align="left" color="white">
+                            v{app.description.info.version}
+                        </Text>
+                    </Absolute>
+                    <Absolute bottom="10px" left="10px">
+                        <EllipsedText width={220} title={`by ${app.description.authors.join(", ")}`} color="white">
+                            by {app.description.authors.join(", ")}
+                        </EllipsedText>
+                    </Absolute>
+                </Box>
+            </Relative>
+            <Box m="10px">
+                <Text>
+                    {app.description.description.slice(0, 100)}
+                </Text>
             </Box>
-        </Relative>
-        <Box m="10px">
-            <Text>
-                {app.description.description.slice(0, 100)}
-            </Text>
-        </Box>
-    </Card >
+        </Card >
+    </Link >
 );
