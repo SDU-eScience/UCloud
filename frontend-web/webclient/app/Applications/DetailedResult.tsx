@@ -3,7 +3,6 @@ import { Spinner } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { shortUUID, failureNotification } from "UtilityFunctions";
-import { Container, List, Card, Icon, Popup, Step, SemanticICONS, Grid } from "semantic-ui-react";
 import { Link } from "react-router-dom";
 import { FilesTable } from "Files/Files";
 import { List as PaginationList, EntriesPerPageSelector } from "Pagination";
@@ -20,6 +19,11 @@ import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Page } from "Types";
 import { RefreshButton } from "UtilityComponents";
+import { Dropdown, DropdownContent } from "ui-components/Dropdown";
+import { Flex, Box, List, Card } from "ui-components";
+import { Step, StepGroup } from "ui-components/Step";
+import styled from "styled-components";
+import { TextSpan } from "ui-components/Text";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -133,28 +137,28 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     renderProgressPanel = () => (
         <div className="job-result-box">
             <h4>Progress</h4>
-            <ProgressTracker>
-                <ProgressTrackerItem
-                    icon="check"
+            <StepGroup>
+                <StepTrackerItem
+                    icon="fas fa-check"
                     active={this.isStateActive("VALIDATED")}
                     complete={this.isStateComplete("VALIDATED")}
                     title={"Validated"} />
-                <ProgressTrackerItem
-                    icon="hourglass half"
+                <StepTrackerItem
+                    icon="fas fa-hourglass-half"
                     active={this.isStateActive("PENDING")}
                     complete={this.isStateComplete("PENDING")}
                     title={"Pending"} />
-                <ProgressTrackerItem
-                    icon="calendar"
+                <StepTrackerItem
+                    icon="fas fa-calendar"
                     active={this.isStateActive("SCHEDULED")}
                     complete={this.isStateComplete("SCHEDULED")}
                     title={"Scheduled"} />
-                <ProgressTrackerItem
-                    icon="stopwatch"
+                <StepTrackerItem
+                    icon="fas fa-stopwatch"
                     active={this.isStateActive("RUNNING")}
                     complete={this.isStateComplete("RUNNING")}
                     title={"Running"} />
-            </ProgressTracker>
+            </StepGroup>
         </div>
     );
 
@@ -165,94 +169,78 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             { key: "Status", value: this.state.status },
         ];
 
-        let domEntries = entries.map((it, idx) => <List.Item className="itemPadding" key={idx}><b>{it.key}</b>: {it.value}</List.Item>);
+        let domEntries = entries.map((it, idx) => <Box pt="0.8em" pb="0.8em" key={idx}><b>{it.key}</b>: {it.value}</Box>);
 
         switch (this.state.appState) {
             case "SUCCESS":
                 domEntries.push(
-                    <List.Item key="app-info itemPadding" className="itemPadding">
-                        <List.Content>
-                            Application has completed successfully. Click 
-                            <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}> here</Link> 
-                            to go to the output.
-                            </List.Content>
-                    </List.Item >
+                    <Box>
+                        Application has completed successfully. Click
+                            <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}> here</Link>
+                        to go to the output.
+                    </Box>
                 );
                 break;
             case "SCHEDULED":
                 domEntries.push(
-                    <List.Item key="app-info" className="itemPadding">
-                        <List.Content>
-                            Your application is currently in the Slurm queue on ABC2 <Spinner loading color="primary" />
-                        </List.Content>
-                    </List.Item>
+                    <Box>
+                        Your application is currently in the Slurm queue on ABC2 <Spinner loading color="primary" />
+                    </Box>
                 );
                 break;
             case "PENDING":
                 domEntries.push(
-                    <List.Item key="app-info" className="itemPadding">
-                        <List.Content>
-                            We are currently transferring your job from SDUCloud to ABC2 <Spinner loading color="primary" />
-                        </List.Content>
-                    </List.Item>
+                    <Box>
+                        We are currently transferring your job from SDUCloud to ABC2 <Spinner loading color="primary" />
+                    </Box>
                 );
                 break;
             case "RUNNING":
                 domEntries.push(
-                    <List.Item key="app-info" className="itemPadding">
-                        <List.Content>
-                            Your job is currently being executed on ABC2 <Spinner loading color="primary" />
-                        </List.Content>
-                    </List.Item>
+                    <Box>
+                        Your job is currently being executed on ABC2 <Spinner loading color="primary" />
+                    </Box>
                 );
                 break;
         }
 
         return (
-            <div className="job-result-box">
+            <Box mb="0.5em">
                 <h4>Job Information</h4>
-                <Card fluid size="large">
-                    <Card.Content>
-                        <List divided>
-                            {domEntries}
-                        </List>
-                    </Card.Content>
+                <Card height="auto" p="14px 14px 14px 14px">
+                    <List>
+                        {domEntries}
+                    </List>
                 </Card>
-            </div >
+            </Box>
         );
     }
 
     renderStreamPanel() {
         if (this.state.complete && this.state.stdout === "" && this.state.stderr === "") return null;
         return (
-            <div className="job-result-box">
+            <Box width="100%">
                 <h4>
                     Standard Streams
                     &nbsp;
-                    <Popup
-                        inverted
-                        trigger={<Icon name="info circle" />}
-                        content={<span>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</span>}
-                        on="hover"
-                    />
+                    <Dropdown>
+                        <i className="fas fa-info-circle" />
+                        <DropdownContent colorOnHover={false} color="white" backgroundColor="black">
+                            <span>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</span>
+                        </DropdownContent>
+                    </Dropdown>
                 </h4>
-                <div className="card">
-                    <div className={"card-body"}>
-                        <Grid columns={2}>
-                            <Grid.Column>
-                                <h4>Output</h4>
-                                <pre className="stream"
-                                    ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></pre>
-                            </Grid.Column>
-                            <Grid.Column>
-                                <h4>Information</h4>
-                                <pre className="stream"
-                                    ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></pre>
-                            </Grid.Column>
-                        </Grid>
-                    </div>
-                </div>
-            </div>
+                <Flex flexDirection="row">
+                    <Box width={1 / 2}>
+                        <h4>Output</h4>
+                        <Stream ref={el => this.stdoutEl = el}><code>{this.state.stdout}</code></Stream>
+                    </Box>
+                    <Box width={1 / 2}>
+                        <h4>Information</h4>
+                        <Stream ref={el => this.stderrEl = el}><code>{this.state.stderr}</code></Stream>
+                    </Box>
+                </Flex>
+            </Box>
         );
     }
 
@@ -298,16 +286,16 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         );
     }
 
-    render() {
-        return (
-            <Container className="container-margin">
-                <div className="row">{this.renderProgressPanel()}</div>
-                <div className="row">{this.renderInfoPanel()}</div>
-                <div className="row">{this.renderFilePanel()}</div>
-                <div className="row">{this.renderStreamPanel()}</div>
-            </Container>
-        );
-    }
+    render = () => (
+        <Flex alignItems="center" flexDirection="column">
+            <Box width={0.7}>
+                <Box>{this.renderProgressPanel()}</Box>
+                <Box>{this.renderInfoPanel()}</Box>
+                <Box>{this.renderFilePanel()}</Box>
+                <Box>{this.renderStreamPanel()}</Box>
+            </Box>
+        </Flex>
+    );
 
     static stateToOrder(state) {
         switch (state) {
@@ -337,21 +325,23 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 }
 
-const ProgressTracker = ({ children }) => (
-    <Step.Group size="tiny" fluid>{children}</Step.Group>
-);
+type ProgressTrackerIcon = "fas fa-check" |
+    "fas fa-hourglass-half" |
+    "fas fa-calendar" |
+    "fas fa-stopwatch"
 
-const ProgressTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: SemanticICONS }) => (
-    <Step
-        completed={props.complete}
-        active={props.active}
-    >
-        <Icon name={props.icon} />
-        <Step.Content>
-            <Step.Title>{props.title}</Step.Title>
-        </Step.Content>
+const StepTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: ProgressTrackerIcon }) => (
+    <Step active={props.active}>
+        <span><TextSpan fontSize={4} mr="0.7em"><i className={props.icon} /></TextSpan><TextSpan fontSize={3}>{props.title}</TextSpan></span>
     </Step>
 );
+
+
+const Stream = styled.pre`
+    height: 500px;
+    overflow: auto;
+`;
+
 
 const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxObject => detailedResult;
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({

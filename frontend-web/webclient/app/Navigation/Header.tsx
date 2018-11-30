@@ -101,7 +101,7 @@ const HeaderContainer = styled(Flex)`
 
 const Logo = () => (
     <Link to={"/"}>
-        <Text color="headerText" fontSize={4} bold ml="24px">
+        <Text color="headerText" fontSize={4} ml="24px">
             SDUCloud
         </Text>
     </Link>
@@ -155,7 +155,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles }) => (
                 color="blue"
                 onChange={e => onChange(e.target.value)}
                 onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) { searchFiles(searchText); navigate(); } }}
-                placeholder="Do search..."
+                placeholder=""
             />
             <Absolute left="6px" top="7px">
                 <Label htmlFor="search_input">

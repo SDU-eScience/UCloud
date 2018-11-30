@@ -1,9 +1,9 @@
 import * as React from "react";
-import { Image, Form, Input, Button, Divider } from "semantic-ui-react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { TwoFactorSetupState } from ".";
 import * as UF from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
+import { Image, Flex, Divider, Input, LoadingButton, Button } from "ui-components";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
@@ -71,22 +71,22 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
                     app, available for both Android and iOS.
                 </p>
 
-                <Image.Group size="small">
-                    <a target="_blank" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
-                        <Image src={googlePlay} />
+                <Flex>
+                    <a target="_blank" rel="noopener" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
+                        <Image width="150px" src={googlePlay} />
                     </a>
 
-                    <a target="_blank" href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
-                        <Image src={appStore} />
+                    <a target="_blank" rel="noopener" href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
+                        <Image width="150px" src={appStore} />
                     </a>
-                </Image.Group>
+                </Flex>
 
                 {this.state.challengeId === undefined ?
                     <React.Fragment>
                         <p>Once you are ready click the button below to get started:</p>
 
-                        <Button
-                            icon="qrcode"
+                        <LoadingButton
+                            color="green"
                             content="Start setup"
                             loading={this.state.isLoading}
                             positive onClick={() => this.onSetupStart()}
@@ -128,29 +128,25 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
                 <h4>Step Five</h4>
                 <p>Enter the verification code from your app in the field below.</p>
 
-                <Form onSubmit={() => this.onVerificationSubmit()}>
-                    <Form.Field
+                <form onSubmit={() => this.onVerificationSubmit()}>
+                    <Input
                         placeholder="6-digit verification code"
-                        icon="lock"
-                        control={Input}
-                        fluid
-                        iconPosition="left"
                         value={this.state.verificationCode}
                         type="text"
-                        onChange={(e, { value }) => {
+                        onChange={({ target }) => {
                             this.setState(() => ({
-                                verificationCode: value
+                                verificationCode: target.value
                             }))
                         }}
                     />
 
-                    <Button
+                    <LoadingButton
+                        color="blue"
                         type="submit"
+                        content="Submit code"
                         loading={this.state.isLoading}
-                    >
-                        Submit code
-                    </Button>
-                </Form>
+                    />
+                </form>
             </div>
         );
     }

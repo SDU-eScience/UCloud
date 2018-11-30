@@ -1,11 +1,13 @@
 import * as React from "react";
-import { Container, Header, List, Table, Progress } from "semantic-ui-react";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
 import { dateToString } from "Utilities/DateUtilities";
 import { ZenodoInfoProps, ZenodoInfoState, ZenodoPublicationStatus } from ".";
-import { Error } from "ui-components";
+import { Error, Progress, List, Box, Flex } from "ui-components";
+import * as Table from "ui-components/Table";
+import * as Heading from "ui-components/Heading";
+import { replaceHomeFolder } from "Utilities/FileUtilities";
 
 const isTerminal = (status: ZenodoPublicationStatus): boolean =>
     status === ZenodoPublicationStatus.COMPLETE || status === ZenodoPublicationStatus.FAILURE;
@@ -23,16 +25,14 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
         };
     }
 
-    onErrorDismiss = (): void => {
-        this.setState(() => ({ error: undefined }));
-    }
+    onErrorDismiss = (): void => this.setState(() => ({ error: undefined }));
 
-    setErrorMessage = (jobID: string): void => {
+
+    setErrorMessage = (jobID: string): void =>
         this.setState(() => ({
             error: `An error occured fetching publication ${jobID}`,
             loading: false
         }));
-    }
 
     componentWillMount() {
         this.setState(() => ({ loading: true }));
@@ -42,7 +42,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
 
     reload = () => {
         const { promises } = this.state;
-        promises.makeCancelable(Cloud.get(`/zenodo/publications/${encodeURI(this.state.publicationID)}`))
+        promises.makeCancelable(Cloud.get(`/zenodo/publications/${encodeURIComponent(this.state.publicationID)}`))
             .promise.then(({ response }) => {
                 this.setState(() => ({
                     publication: response,
@@ -61,13 +61,16 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
 
     render() {
         if (this.state.loading) {
-            return (<Container as={DefaultLoading} loading={this.state.loading} />)
+            return (<Box><DefaultLoading loading={this.state.loading} /> </Box>)
         } else {
             return (
-                <Container className="container-margin">
-                    {this.state.error ? <Error error={this.state.error} clearError={this.onErrorDismiss} /> : null}
-                    <ZenodoPublishingBody publication={this.state.publication} />
-                </Container>
+                <Flex alignItems="center" flexDirection="column">
+                    <Box width={0.7}>
+                        <Error error={this.state.error} clearError={this.onErrorDismiss} />
+                        <ZenodoPublishingBody publication={this.state.publication} />
+                    </Box>
+                </Flex>
+
             );
         }
     }
@@ -78,50 +81,49 @@ const ZenodoPublishingBody = ({ publication }) => {
     const { uploads } = publication;
     let progressBarValue = Math.ceil((uploads.filter(uploads => uploads.hasBeenTransmitted).length / uploads.length) * 100);
     return (
-        <div>
-            <Header as="h2">
+        <>
+            <Heading.h2>
                 Publication name: {publication.name}
-            </Header>
-            <List>
-                <List.Item>
-                    Started:
-                    <List.Content floated="right">
-                        {dateToString(publication.createdAt)}
-                    </List.Content>
-                </List.Item>
-                <List.Item>
-                    Last update:
-                    <List.Content floated="right">
-                        {dateToString(publication.modifiedAt)}
-                    </List.Content>
-                </List.Item>
-            </List>
+            </Heading.h2>
+            <Box pt="1em" pb="1em" />
+            <Flex>
+                Started:
+                <Box ml="auto" />
+                {dateToString(publication.createdAt)}
+            </Flex>
+            <Flex>
+                Last update:
+                <Box ml="auto" />
+                {dateToString(publication.modifiedAt)}
+            </Flex>
+            <Box pt="1em" pb="1em" />
             <Progress
-                color="green"
                 active={publication.status === "UPLOADING"}
+                color="green"
                 label={`${progressBarValue}%`}
-                percent={progressBarValue} />
+                percent={progressBarValue}
+            />
             <FilesList files={uploads} />
-        </div>)
+        </>)
 };
 
 const FilesList = ({ files }) =>
     files === null ? null :
-        (<Table>
-            <Table.Header>
-                <Table.Row>
-                    <th>File name</th>
-                    <th>Status</th>
-                </Table.Row>
-            </Table.Header>
-            <Table.Body>
+        (<Table.Table>
+            <Table.TableHeader>
+                <Table.TableRow>
+                    <Table.TableHeaderCell width="75%" textAlign="left">File name</Table.TableHeaderCell>
+                    <Table.TableHeaderCell textAlign="left">Status</Table.TableHeaderCell>
+                </Table.TableRow>
+            </Table.TableHeader>
+            <Table.TableBody>
                 {files.map((file, index) =>
-                    <Table.Row key={index}>
-                        <Table.Cell>{file.dataObject}</Table.Cell>
-                        <Table.Cell>{file.hasBeenTransmitted ? "Uploaded" : "Pending"}</Table.Cell>
-                    </Table.Row>
+                    <Table.TableRow key={index}>
+                        <Table.TableCell width="75%">{replaceHomeFolder(file.dataObject, Cloud.homeFolder)}</Table.TableCell>
+                        <Table.TableCell>{file.hasBeenTransmitted ? "Uploaded" : "Pending"}</Table.TableCell>
+                    </Table.TableRow>
                 )}
-            </Table.Body>
-        </Table>);
+            </Table.TableBody>
+        </Table.Table>);
 
 export default ZenodoInfo;

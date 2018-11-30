@@ -1,6 +1,6 @@
 import { css } from "styled-components";
 
-const UIGlobalStyle = ({ theme }) => css`
+const UIGlobalStyle = css`
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
 
 /* Document
@@ -42,7 +42,7 @@ const UIGlobalStyle = ({ theme }) => css`
 html {
   cursor: default; /* 1 */
   font-family:
-    ${theme.fontFamily},
+    ${props => props.theme.fontFamily},
     system-ui,
     /* macOS 10.11-10.12 */ -apple-system,
     /* Windows 6+ */ Segoe UI,
@@ -56,8 +56,8 @@ html {
     /* Windows emoji */ "Segoe UI Symbol",
     /* Linux emoji */ "Noto Color Emoji"; /* 2 */
 
-  line-height: ${theme.lineHeights.standard}; /* 3 */
-  font-weight: ${theme.fontWeights.regular};
+  line-height: ${props => props.theme.lineHeights.standard}; /* 3 */
+  font-weight: ${props => props.theme.fontWeights.regular};
   -moz-tab-size: 4; /* 4 */
   tab-size: 4; /* 4 */
   -ms-text-size-adjust: 100%; /* 5 */

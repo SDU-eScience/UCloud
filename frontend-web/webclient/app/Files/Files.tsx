@@ -29,7 +29,7 @@ import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } f
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import DetailedFileSearch from "./DetailedFileSearch";
 import { TextSpan } from "ui-components/Text";
-import { getQueryParamOrElse } from "Utilities/URIUtilities";
+import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
 import { allFilesHasAccessRight } from "Utilities/FileUtilities";
 import { AccessRight } from "Types";
 
@@ -45,7 +45,7 @@ class Files extends React.Component<FilesProps> {
         props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
-    urlPathFromProps = (props: FilesProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
+    urlPathFromProps = (props: RouterLocationProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
 
     get urlPath(): string {
         return this.urlPathFromProps(this.props);
@@ -109,10 +109,10 @@ class Files extends React.Component<FilesProps> {
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const fileOperations: FileOperation[] = [
             {
-                text: "Rename", 
+                text: "Rename",
                 onClick: files => updateFiles(startRenamingFiles(files, page)),
-                disabled: (files: File[]) => !allFilesHasAccessRight(AccessRight.WRITE, files), 
-                icon: "rename", 
+                disabled: (files: File[]) => !allFilesHasAccessRight(AccessRight.WRITE, files),
+                icon: "rename",
                 color: undefined
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)

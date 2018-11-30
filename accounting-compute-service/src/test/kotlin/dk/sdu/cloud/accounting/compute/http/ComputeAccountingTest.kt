@@ -2,7 +2,7 @@ package dk.sdu.cloud.accounting.compute.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.Role
+import dk.sdu.cloud.accounting.api.BuildReportRequest
 import dk.sdu.cloud.accounting.api.InvoiceReport
 import dk.sdu.cloud.accounting.api.ListResourceResponse
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
@@ -16,34 +16,39 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
-import dk.sdu.cloud.service.test.TokenValidationMock
-import dk.sdu.cloud.service.test.createTokenForUser
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.assertStatus
+import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.TestApplicationRequest
-import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.setBody
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-fun TestApplicationRequest.setUser(username: String = "user1", role: Role = Role.USER) {
-    addHeader(HttpHeaders.Authorization, "Bearer ${TokenValidationMock.createTokenForUser(username, role)}")
+
+private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
+    micro.install(HibernateFeature)
+    val completeJobsDao = CompletedJobsHibernateDao()
+    val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
+
+    val events = (0 until 10).map { dummyEvent }
+    completeJobsService.insertBatch(events)
+    configureComputeAccountingServer(completeJobsService)
 }
 
 private val dummyEvent = AccountingJobCompletedEvent(
     NameAndVersion("foo", "1.0.0"),
     1,
     SimpleDuration(1, 0, 0),
-    "user1",
+    TestUsers.user.username,
     "job-id",
     System.currentTimeMillis()
 )
 
-private fun KtorApplicationTestSetupContext.configureComputeAccoutingServer(
+private fun KtorApplicationTestSetupContext.configureComputeAccountingServer(
     completeJobService: CompletedJobsService<HibernateSession>
 ): List<Controller> {
     return listOf(ComputeAccountingController(completeJobService))
@@ -52,45 +57,46 @@ private fun KtorApplicationTestSetupContext.configureComputeAccoutingServer(
 class ComputeAccountingTest {
 
     private val mapper = jacksonObjectMapper()
+    private val now = System.currentTimeMillis()
+    private val buildReportRequest = BuildReportRequest( TestUsers.user.username, 1, now)
 
     @Test
     fun `Testing accounting`() {
         withKtorTest(
-            setup = {
-                micro.install(HibernateFeature)
-                val completeJobsDao = CompletedJobsHibernateDao()
-                val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
-
-                val events = (0 until 10).map { dummyEvent }
-                completeJobsService.insertBatch(events)
-                configureComputeAccoutingServer(completeJobsService)
-            },
+            setup,
 
             test = {
                 with(engine) {
-                    val now = System.currentTimeMillis()
                     run {
-                        val report =
-                            handleRequest(
-                                HttpMethod.Post,
-                                "/api/accounting/compute/buildReport"
-                            )
-                            {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setBody(
-                                    """
-                                        {
-                                    "periodStartMs": 1,
-                                    "periodEndMs": $now
-                                    }
-                                """.trimIndent()
-                                )
-                                setUser(role = Role.ADMIN)
-                            }.response
+                        val request = sendJson(
+                            method = HttpMethod.Post,
+                            path = "api/accounting/compute/buildReport",
+                            user = TestUsers.service.copy(username = "_accounting"),
+                            request = buildReportRequest
+                        )
+                        request.assertSuccess()
 
-                        assertEquals(HttpStatusCode.OK, report.status())
-                        val items = mapper.readValue<InvoiceReport>(report.content!!)
-                        assertEquals(60, items.items.first().units)
+                        val response = mapper.readValue<InvoiceReport>(request.response.content!!)
+                        assertEquals(60, response.items.first().units)
+                        val totalPrice =
+                            response.items.first().unitPrice.amountAsDecimal.multiply(
+                                    response.items.first().units.toBigDecimal()
+                                )
+
+                        assertEquals(0.006, totalPrice.toDouble())
+                    }
+
+                    // No usage test
+                    run {
+                        val request = sendJson(
+                            method = HttpMethod.Post,
+                            path = "/api/accounting/compute/buildReport",
+                            user = TestUsers.service.copy(username = "_accounting"),
+                            request = buildReportRequest.copy(user = "user2")
+                        )
+                        request.assertSuccess()
+                        val response = mapper.readValue<InvoiceReport>(request.response.content!!)
+                        assertEquals(0, response.items.first().units)
                     }
                 }
             }
@@ -100,39 +106,17 @@ class ComputeAccountingTest {
     @Test
     fun `Testing accounting - Unauthorized`() {
         withKtorTest(
-            setup = {
-                micro.install(HibernateFeature)
-                val completeJobsDao = CompletedJobsHibernateDao()
-                val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
-
-                val events = (0 until 10).map { dummyEvent }
-                completeJobsService.insertBatch(events)
-                configureComputeAccoutingServer(completeJobsService)
-            },
+            setup,
 
             test = {
                 with(engine) {
-                    val now = System.currentTimeMillis()
                     run {
-                        val report =
-                            handleRequest(
-                                HttpMethod.Post,
-                                "/api/accounting/compute/buildReport"
-                            )
-                            {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setBody(
-                                    """
-                                        {
-                                    "periodStartMs": 1,
-                                    "periodEndMs": $now
-                                    }
-                                """.trimIndent()
-                                )
-                                setUser()
-                            }.response
-
-                        assertEquals(HttpStatusCode.Unauthorized, report.status())
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/api/accounting/compute/buildReport",
+                            user = TestUsers.user,
+                            request = buildReportRequest
+                        ).assertStatus(HttpStatusCode.Unauthorized)
                     }
                 }
             }
@@ -142,31 +126,19 @@ class ComputeAccountingTest {
     @Test
     fun `Testing list resources`() {
         withKtorTest(
-            setup = {
-                micro.install(HibernateFeature)
-                val completeJobsDao = CompletedJobsHibernateDao()
-                val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
-
-                val events = (0 until 10).map { dummyEvent }
-                completeJobsService.insertBatch(events)
-                configureComputeAccoutingServer(completeJobsService)
-            },
+            setup,
 
             test = {
                 with(engine) {
                     run {
-                        val result =
-                            handleRequest(
-                                HttpMethod.Get,
-                                "/api/accounting/compute/list"
-                            )
-                            {
-                                addHeader("Job-Id", UUID.randomUUID().toString())
-                                setUser()
-                            }.response
+                        val request = sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/accounting/compute/list",
+                            user = TestUsers.user
+                        )
+                        request.assertSuccess()
 
-                        assertEquals(HttpStatusCode.OK, result.status())
-                        val items = mapper.readValue<ListResourceResponse>(result.content!!)
+                        val items = mapper.readValue<ListResourceResponse>(request.response.content!!)
                         var counter = 0
                         items.resources.forEach { resource ->
                             if (counter == 0) assertEquals("timeUsed", resource.name)

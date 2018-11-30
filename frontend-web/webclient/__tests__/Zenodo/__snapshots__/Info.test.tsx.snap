@@ -1,7 +1,12 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Zenodo Info Mount component 1`] = `
-<i
-  className="fas fa-circle-notch fa-spin"
-/>
+<div
+  className="sc-bdVaJa kCeIih"
+>
+  <i
+    className="fas fa-circle-notch fa-spin"
+  />
+   
+</div>
 `;

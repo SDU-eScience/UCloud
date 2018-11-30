@@ -17,7 +17,7 @@ import {
     CREATE_FOLDER,
     FILES_INVALID_PATH
 } from "./FilesReducer";
-import { getFilenameFromPath, replaceHomeFolder, getParentPath } from "Utilities/FileUtilities";
+import { getFilenameFromPath, replaceHomeFolder, getParentPath, statFileQuery } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
 import { SortOrder, SortBy, File } from "..";
 import { Action } from "redux";
@@ -232,6 +232,4 @@ export const checkFile = (checked: boolean, path: string): CheckFileAction => ({
 });
 
 type CreateFolderAction = Action<typeof CREATE_FOLDER>
-export const createFolder = () => ({
-    type: CREATE_FOLDER
-});
+export const createFolder = () => ({ type: CREATE_FOLDER });

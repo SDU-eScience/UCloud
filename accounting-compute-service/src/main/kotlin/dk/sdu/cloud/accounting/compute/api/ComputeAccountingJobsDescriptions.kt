@@ -21,8 +21,5 @@ data class AccountingJobCompletedEvent(
                 "across $nodes node${if (nodes != 1) "s" else ""}."
 }
 
-object ComputeAccountingJobsDescriptions :
-    AbstractAccountingResourceDescriptions<AccountingJobCompletedEvent>("compute", "jobsStarted")
-
 object ComputeAccountingTimeDescriptions :
     AbstractAccountingResourceDescriptions<AccountingJobCompletedEvent>("compute", "timeUsed")

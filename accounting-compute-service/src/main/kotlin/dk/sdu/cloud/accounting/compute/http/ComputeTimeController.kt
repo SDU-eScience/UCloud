@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.compute.http
 
 import dk.sdu.cloud.accounting.api.ChartResponse
 import dk.sdu.cloud.accounting.api.ChartingHelpers
+import dk.sdu.cloud.accounting.api.ContextQueryImpl
 import dk.sdu.cloud.accounting.api.CurrentUsageResponse
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingTimeDescriptions
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService

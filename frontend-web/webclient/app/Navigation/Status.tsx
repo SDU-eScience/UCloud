@@ -1,23 +1,17 @@
 import * as React from "react";
 import { Link } from "react-router-dom";
-import { Button, SemanticCOLORS } from "semantic-ui-react";
 import { connect } from "react-redux";
 import { Status, StatusLevel } from ".";
+import { Button } from "ui-components";
 
 interface StatusProps { status: Status }
 const Status = ({ status }: StatusProps) => (
-    <Button
-        className="center-text"
-        fluid
-        color={statusToColor(status.level)}
-        as={Link}
-        to={"/status"}
-        content={status.title}
-        title={status.body}
-    />
+    <Link to={"/status"}>
+        <Button color={statusToColor(status.level)} title={status.body}>{status.title}</Button>
+    </Link>
 );
 
-export const statusToColor = (level: StatusLevel): SemanticCOLORS => {
+export const statusToColor = (level: StatusLevel): "green" | "yellow" | "red" => {
     switch (level) {
         case "NO ISSUES":
             return "green";
