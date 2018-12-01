@@ -288,7 +288,7 @@ export const previewSupportedExtension = (path: string) => false;
 export const isProject = (file: File) => file.fileType === "DIRECTORY" && file.annotations.some(it => it === "P");
 
 export const toFileText = (selectedFiles: File[]): string =>
-    `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected.`
+    `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`
 
 export const isLink = (file: File) => file.link;
 export const isDirectory = (file: { fileType: FileType }) => file.fileType === "DIRECTORY";
