@@ -51,6 +51,10 @@ const Input = styled("input") <InputProps>`
     display: none;
   }
 
+  &:focus {
+    outline: none;
+  }
+
   ${borders} ${space};
 `;
 
