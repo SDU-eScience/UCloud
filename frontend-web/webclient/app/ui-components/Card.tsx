@@ -2,8 +2,15 @@ import * as React from "react";
 import styled from "styled-components";
 import Box, { BoxProps } from "./Box";
 import theme from "./theme";
-import { borderRadius, BoxShadowProps, BorderProps, BorderRadiusProps, BorderColorProps, HeightProps, height } from "styled-system";
+import { borderRadius, 
+         BoxShadowProps, 
+         BorderProps, 
+         BorderRadiusProps, 
+         BorderColorProps, 
+         HeightProps, 
+         height } from "styled-system";
 import Icon from "./Icon";
+
 
 const boxShadow = props => {
   const boxShadows = {
@@ -46,7 +53,9 @@ Card.defaultProps = {
 export const CardGroup = styled.div`
   display: flex;
   flex-wrap: wrap;
-  & > div {
+  margin: -5px -5px -5px -5px;
+
+  & > * {
     margin: 5px 5px 5px 5px;
     flex-shrink: 0;
   }

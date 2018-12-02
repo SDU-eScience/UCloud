@@ -22,7 +22,7 @@ RatingBadge.defaultProps = {
   fontWeight: 'bold',
   px: 2,
   color: 'white',
-  bg: 'orange',
+  bg: 'blue',
   borderRadius: 1,
   theme: theme
 };

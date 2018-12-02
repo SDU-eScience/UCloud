@@ -1,13 +1,13 @@
 import * as React from "react";
 import { MaterialColors } from "Assets/materialcolors.json";
 import { Link, Image, Button } from "ui-components";
-import { Relative, Box, Absolute, Text, Icon } from "ui-components";
+import { Relative, Box, Absolute, Text, Icon, Flex, RatingBadge, Card } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import { PlayIcon } from "ui-components/Card";
-import { Card } from "ui-components";
 import { Application } from ".";
 import styled from "styled-components";
 import * as ReactMarkdown from "react-markdown";
+import * as Heading from "ui-components/Heading"
 
 const COLORS_KEYS = Object.keys(MaterialColors);
 const circuitBoard = require("Assets/Images/circuitboard-bg.png");
@@ -74,7 +74,7 @@ export const ApplicationCardContainer = styled.div`
     }
 `;
 
-export const SlimApplicationCard: React.StatelessComponent<ApplicationCardProps> = (props) => {
+export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
     const appInfo = props.app.description.info;
     return (
         <AppCardBase to={props.linkToRun ? `/applications/${appInfo.name}/${appInfo.version}` : `/applications/details/${appInfo.name}/${appInfo.version}`}>
@@ -161,3 +161,89 @@ function toHashCode(name: string): number {
     }
     return Math.abs(hash);
 }
+
+
+const NewAppCard = styled(Link)`
+    padding: 10px;
+    width: 30%;
+    min-width: 350px;
+    height: 128px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    // border: 2px solid ${(props) => props.theme.colors.midGray};
+    border-radius: ${props => props.theme.radius};
+    // background-color: ${(props) => props.theme.colors.lightGray};
+    background-color: #ebeff3;
+    position: relative;
+    flex: 1 0 auto;
+    overflow: hidden;
+`;
+
+const Tag = ( {label}: {label: string} ) => (
+    <RatingBadge mr={"3px"} bg={"darkGray"}><Heading.h6>{label}</Heading.h6></RatingBadge>
+)
+
+const AppBg= (props) => (
+    <svg height={"128px"} viewBox="0 0 100 128" >
+        <path d="M 25,0 h 75 v 128 h -100 z" fill="url(#appbg_svg___Linear1)" />
+        <defs>
+            <linearGradient
+                id="appbg_svg___Linear1"
+                x1={25} x2={100} y1={0} y2={128}
+                gradientUnits="userSpaceOnUse"
+            >
+                <stop offset={0} stopColor="#0096ff" />
+                <stop offset={1} stopColor="#043eff" />
+            </linearGradient>
+        </defs>
+    </svg>
+);
+
+const AppLogo = ({size, ...props}) => (
+    <svg width={size} height={size} viewBox="-1000 -1000 2000 2000" >
+        <clipPath id="myClip">
+            <rect x="-1000" y="-1000" width="2000" height="2000" rx="500" ry="500" />
+        </clipPath>
+        <g clip-path="url(#myClip)" >
+            <g transform="rotate(15 0 0)">
+                <ellipse cx="0" cy="0" rx="1600" ry="400" fill="#0096ff" fill-opacity=".85" transform="translate(0 800)" />
+                <ellipse cx="0" cy="0" rx="400" ry="1600" fill="#ff2600" fill-opacity=".85" transform="translate(-800 0)" />
+                <ellipse cx="0" cy="0" rx="400" ry="1600" fill="#008f00" fill-opacity=".85" transform="translate(800 0)" />
+                <ellipse cx="0" cy="0" rx="1600" ry="400" fill="#ff9300" fill-opacity=".85" transform="translate(0 -800)" />
+            </g></g>
+    </svg>
+);
+
+export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => {
+    const appDesc = app.description;
+    return (
+        <NewAppCard to={linkToRun ? `/applications/${appDesc.info.name}/${appDesc.info.version}` : `/applications/details/${appDesc.info.name}/${appDesc.info.version}`}>
+            <Absolute right={0} top={0}>
+                <AppBg />
+            </Absolute>
+            <Absolute right={0} 
+                      top={isFavorite ? 0 : -30}
+                      onClick={(e) => !!favoriteApp ? (e.preventDefault(), favoriteApp(app.description.info.name, app.description.info.version)) : undefined}
+                      >
+                <Icon name={"appFav"} color="red" size={48}/>
+            </Absolute>
+            <Flex flexDirection={"row"} alignItems={"flex-start"}>
+                <AppLogo size={"48px"} />
+                <Flex flexDirection={"column"} ml="10px">
+                    <Heading.h4>{app.description.title}</Heading.h4>
+                    <EllipsedText width={200} title={`by ${appDesc.authors.join(", ")}`} color="gray">
+                        by {appDesc.authors.join(", ")}
+                    </EllipsedText>
+                </Flex>
+            </Flex>
+            <Box mt="auto" />
+            <Flex flexDirection={"row"} alignItems={"flex-start"}>
+                <Tag label="Singularity" />
+                <Tag label="Biocontainers" />
+                <Tag label="Toys" />
+                <Tag label="Health Science " />
+            </Flex>
+        </NewAppCard>
+    );
+};

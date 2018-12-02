@@ -32,7 +32,7 @@ export const bold = (props: { bold?: boolean, theme: Theme }) =>
 
 export const italic = (props: { italic?: boolean }) => (props.italic ? { fontStyle: "italic" } : null)
 
-interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps {
+export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, ColorProps {
   align?: "left" | "right"
   caps?: boolean
   regular?: boolean

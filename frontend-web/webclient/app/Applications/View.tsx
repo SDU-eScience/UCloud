@@ -182,7 +182,7 @@ const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<Appli
         {!props.previousVersions ? null :
             <ApplicationCardContainer>
                 {props.previousVersions.items.map((it, idx) => (
-                    <SlimApplicationCard app={it} key={idx} />
+                    <SlimApplicationCard linkToRun app={it} key={idx} />
                 ))}
             </ApplicationCardContainer>
         }

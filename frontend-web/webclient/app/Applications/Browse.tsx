@@ -20,7 +20,7 @@ import { Dispatch } from "redux";
 import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Navigation, Pages } from "./Navigation";
-import { ApplicationCardContainer, SlimApplicationCard, ApplicationCard } from "./Card";
+import { ApplicationCardContainer, SlimApplicationCard, ApplicationCard, NewApplicationCard } from "./Card";
 import styled from "styled-components";
 import { ContainerForText } from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -95,7 +95,7 @@ class Applications extends React.Component<ApplicationsProps> {
                 pageRenderer={({ items }: Page<Application>) =>
                     <CardGroup>
                         {items.map((app, index) =>
-                            <ApplicationCard
+                            <NewApplicationCard
                                 key={index}
                                 favoriteApp={favoriteApp}
                                 app={app}

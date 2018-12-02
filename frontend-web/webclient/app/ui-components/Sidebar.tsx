@@ -90,8 +90,6 @@ const SupportBox = styled.div<{ visible: boolean }>`
     border: 1px solid ${props => props.theme.colors.borderGray};
     background-color: ${props => props.theme.colors.white};
 
-    z-index: 100;
-
     &&&&&&&&&&& {
         width: 600px;
         height: 300px;

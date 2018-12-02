@@ -13,7 +13,7 @@ import {
 import theme from "./theme"
 
 
-interface FlexProps extends SpaceProps, 
+export interface FlexProps extends SpaceProps, 
                             WidthProps, 
                             ColorProps, 
                             AlignItemsProps, 
