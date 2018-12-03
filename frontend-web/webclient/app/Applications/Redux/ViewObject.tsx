@@ -1,15 +1,11 @@
 import { Application } from "Applications";
-import { ErrorMessage } from "Utilities/XHRUtils";
 import { Page } from "Types";
+import { emptyLoadableContent, LoadableContent } from "LoadableContent";
 
 export interface Type {
-    loading: boolean
-    previousLoading: boolean
-
-    application?: Application
-    error?: ErrorMessage
-    previous?: Page<Application>
-    previousError?: ErrorMessage
+    application: LoadableContent<Application>
+    previous: LoadableContent<Page<Application>>
+    favorite: LoadableContent<void>
 }
 
 export interface Wrapper {
@@ -18,6 +14,10 @@ export interface Wrapper {
 
 export function init(): Wrapper {
     return {
-        applicationView: { loading: false, previousLoading: false }
+        applicationView: { 
+            application: emptyLoadableContent(), 
+            previous: emptyLoadableContent(),
+            favorite: emptyLoadableContent()
+        }
     };
 }

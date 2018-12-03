@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { Application } from "Applications";
-import { Image, OutlineButton, Button, Box } from "ui-components";
+import { Text, Image, OutlineButton, Button, Box, LoadingButton } from "ui-components";
 import { TextSpan } from "ui-components/Text";
 import * as Heading from "ui-components/Heading"
 import styled from "styled-components";
@@ -17,17 +17,21 @@ import { connect } from "react-redux";
 import { ReduxObject } from "DefaultObjects";
 import { Dispatch } from "redux";
 import * as ViewObject from "./Redux/ViewObject";
+import { loadingEvent, LoadableContent } from "LoadableContent";
 
 import * as Actions from "./Redux/ViewActions";
 import { updatePageTitle, UpdatePageTitleAction } from "Navigation/Redux/StatusActions";
+import { ButtonProps } from "ui-components/Button";
 
 interface MainContentProps {
     onFavorite?: () => void
     application: Application
+    favorite?: LoadableContent<void>
 }
 
 interface OperationProps {
     onInit: (name: string, version: string) => void
+    onFavorite: (name: string, version: string) => void
 }
 
 type StateProps = ViewObject.Type;
@@ -49,21 +53,26 @@ class View extends React.Component<ViewProps> {
     }
 
     render() {
-        const { application } = this.props;
+        const { appName, appVersion } = this.props.match.params;
+        const application = this.props.application.content;
         return (
             <MainContainer
                 header={!application ? null : <AppHeader application={application} />}
 
                 main={!application ?
-                    <DefaultLoading loading={this.props.loading} /> :
+                    <DefaultLoading loading={this.props.application.loading} /> :
                     <ContainerForText>
                         <Content
                             application={application}
-                            previousVersions={this.props.previous} />
+                            previousVersions={this.props.previous.content} />
                     </ContainerForText>
                 }
 
-                sidebar={!application ? null : <Sidebar application={application} />}
+                sidebar={!application ? null :
+                    <Sidebar
+                        application={application}
+                        onFavorite={() => this.props.onFavorite(appName, appVersion)}
+                        favorite={this.props.favorite} />}
             />
         );
     }
@@ -103,12 +112,31 @@ const AppHeader: React.StatelessComponent<MainContentProps> = props => (
     </AppHeaderBase>
 );
 
+const ActionButton: React.StatelessComponent<{ loadable: LoadableContent } & ButtonProps & React.ButtonHTMLAttributes<HTMLButtonElement>> = props => {
+    return <Box>
+        <LoadingButton m={0} {...props} loading={props.loadable.loading}>{props.children}</LoadingButton>
+        {props.loadable.error ? <Text color="red" m={0}>{props.loadable.error.errorMessage}</Text> : null}
+    </Box>;
+}
+
 const Sidebar: React.StatelessComponent<MainContentProps> = props => (
     <>
         <ButtonGroup>
-            <Button color={"blue"}>Add to My Applications</Button>
-            <Link to={`/applications/${props.application.description.info.name}/${props.application.description.info.version}`}><OutlineButton color={"blue"}>Run Application</OutlineButton></Link>
-            <a target="_blank" href="https://duckduckgo.com" rel="noopener"><OutlineButton color={"blue"}>Website</OutlineButton></a>
+            <ActionButton
+                fullWidth
+                onClick={e => { if (!!props.onFavorite) props.onFavorite() }}
+                loadable={props.favorite as LoadableContent}
+                color={"blue"}>
+                { props.application.favorite ? "Remove from My Applications" : "Add to My Applications" } 
+            </ActionButton>
+
+            <Link to={`/applications/${props.application.description.info.name}/${props.application.description.info.version}`}>
+                <OutlineButton fullWidth color={"blue"}>Run Application</OutlineButton>
+            </Link>
+
+            <a target="_blank" href="https://duckduckgo.com" rel="noopener">
+                <OutlineButton fullWidth color={"blue"}>Website</OutlineButton>
+            </a>
         </ButtonGroup>
     </>
 );
@@ -159,7 +187,7 @@ const ButtonGroup = styled.div`
     display: flex;
     flex-direction: column;
 
-    & button {
+    & > * {
         width: 100%;
         margin-bottom: 8px;
     }
@@ -244,16 +272,21 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | UpdatePageTitleAct
         dispatch(updatePageTitle(`${name} v${version}`));
 
         const loadApplications = async () => {
-            dispatch({ type: Actions.Tag.SET_LOADING, payload: { loading: true } });
+            dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
             dispatch(await Actions.fetchApplication(name, version));
         };
 
         const loadPrevious = async () => {
-            dispatch({ type: Actions.Tag.SET_PREV_LOADING, payload: { previousLoading: true } });
+            dispatch({ type: Actions.Tag.RECEIVE_PREVIOUS, payload: loadingEvent(true) });
             dispatch(await Actions.fetchPreviousVersions(name));
         };
 
         await Promise.all([loadApplications(), loadPrevious()]);
+    },
+
+    onFavorite: async (name: string, version: string) => {
+        dispatch({ type: Actions.Tag.RECEIVE_FAVORITE, payload: loadingEvent(true) });
+        dispatch(await Actions.favoriteApplication(name, version));
     }
 })
 
