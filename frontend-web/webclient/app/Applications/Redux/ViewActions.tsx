@@ -15,29 +15,24 @@ type ReceiveApp = PayloadAction<typeof Tag.RECEIVE_APP, LoadableEvent<Applicatio
 type ReceivePrevious = PayloadAction<typeof Tag.RECEIVE_PREVIOUS, LoadableEvent<Page<Application>>>;
 type ReceiveFavorite = PayloadAction<typeof Tag.RECEIVE_FAVORITE, LoadableEvent<void>>;
 
-export async function fetchApplication(name: string, version: string): Promise<ReceiveApp> {
-    return { 
-        type: Tag.RECEIVE_APP, 
-        payload: await unwrapCall(
-            Cloud.get<Application>(`/hpc/apps/${encodeURIComponent(name)}/${encodeURIComponent(version)}`)
-       )
-    };
-}
+export const fetchApplication = async (name: string, version: string): Promise<ReceiveApp> => ({
+    type: Tag.RECEIVE_APP,
+    payload: await unwrapCall(
+        Cloud.get<Application>(`/hpc/apps/${encodeURIComponent(name)}/${encodeURIComponent(version)}`)
+    )
+});
 
-export async function fetchPreviousVersions(name: string): Promise<ReceivePrevious> {
-    return { 
-        type: Tag.RECEIVE_PREVIOUS, 
-        payload: await unwrapCall(
-            Cloud.get<Page<Application>>(`/hpc/apps/${encodeURIComponent(name)}`)
-        )
-    };
-}
+export const fetchPreviousVersions = async (name: string): Promise<ReceivePrevious> => ({
+    type: Tag.RECEIVE_PREVIOUS,
+    payload: await unwrapCall(
+        Cloud.get<Page<Application>>(`/hpc/apps/${encodeURIComponent(name)}`)
+    )
+});
 
-export async function favoriteApplication(name: string, version: string): Promise<ReceiveFavorite> {
-    return {
-        type: Tag.RECEIVE_FAVORITE,
-        payload: await unwrapCall(
-            Cloud.post(`/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`)
-        )
-    }
-}
+
+export const favoriteApplication = async (name: string, version: string): Promise<ReceiveFavorite> => ({
+    type: Tag.RECEIVE_FAVORITE,
+    payload: await unwrapCall(
+        Cloud.post(`/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`)
+    )
+});

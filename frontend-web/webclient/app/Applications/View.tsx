@@ -1,27 +1,31 @@
 import * as React from "react";
-import { Link } from "react-router-dom";
-import * as ReactMarkdown from "react-markdown";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import { Application } from "Applications";
-import { Text, Image, OutlineButton, Button, Box, LoadingButton } from "ui-components";
-import { TextSpan } from "ui-components/Text";
-import * as Heading from "ui-components/Heading"
 import styled from "styled-components";
-import { dateToString } from "Utilities/DateUtilities";
-import { toLowerCaseAndCapitalize } from "UtilityFunctions"
-import ContainerForText from "ui-components/ContainerForText";
-import { MainContainer } from "MainContainer/MainContainer";
-import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
+
+import { Application } from "Applications";
 import { Page } from "Types";
-import { connect } from "react-redux";
-import { ReduxObject } from "DefaultObjects";
-import { Dispatch } from "redux";
-import * as ViewObject from "./Redux/ViewObject";
 import { loadingEvent, LoadableContent } from "LoadableContent";
 
+import { ReduxObject } from "DefaultObjects";
+import { Dispatch } from "redux";
+import { connect } from "react-redux";
 import * as Actions from "./Redux/ViewActions";
+import * as ViewObject from "./Redux/ViewObject";
 import { updatePageTitle, UpdatePageTitleAction } from "Navigation/Redux/StatusActions";
-import { ButtonProps } from "ui-components/Button";
+
+import { Link } from "react-router-dom";
+import * as ReactMarkdown from "react-markdown";
+import { Image, OutlineButton, Box, ActionButton } from "ui-components";
+import { TextSpan } from "ui-components/Text";
+import * as Heading from "ui-components/Heading"
+import ContainerForText from "ui-components/ContainerForText";
+
+import { dateToString } from "Utilities/DateUtilities";
+import { toLowerCaseAndCapitalize } from "UtilityFunctions"
+import { LoadingMainContainer } from "MainContainer/MainContainer";
+import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
+
+import * as Pages from "./Pages";
+import { Navigation } from "./Navigation";
 
 interface MainContentProps {
     onFavorite?: () => void
@@ -56,23 +60,33 @@ class View extends React.Component<ViewProps> {
         const { appName, appVersion } = this.props.match.params;
         const application = this.props.application.content;
         return (
-            <MainContainer
-                header={!application ? null : <AppHeader application={application} />}
+            <LoadingMainContainer
+                loadable={this.props.application}
 
-                main={!application ?
-                    <DefaultLoading loading={this.props.application.loading} /> :
+                fallbackHeader={<Navigation />}
+
+                header={
+                    <>
+                        <Navigation />
+                        <Box m={16} />
+                        <AppHeader application={application as Application} />
+                    </>
+                }
+
+                main={
                     <ContainerForText>
                         <Content
-                            application={application}
+                            application={application as Application}
                             previousVersions={this.props.previous.content} />
                     </ContainerForText>
                 }
 
-                sidebar={!application ? null :
+                sidebar={
                     <Sidebar
-                        application={application}
+                        application={application as Application}
                         onFavorite={() => this.props.onFavorite(appName, appVersion)}
-                        favorite={this.props.favorite} />}
+                        favorite={this.props.favorite} />
+                }
             />
         );
     }
@@ -107,36 +121,31 @@ const AppHeader: React.StatelessComponent<MainContentProps> = props => (
             <Heading.h2>{props.application.description.title}</Heading.h2>
             <Heading.h3>v{props.application.description.info.version}</Heading.h3>
             <TextSpan>{props.application.description.authors.join(", ")}</TextSpan>
-            <Tags tags={["Test Tag 1", "Test Tag 2", "Test Tag 3"]} />
+            <Tags tags={props.application.description.tags} />
         </AppHeaderDetails>
     </AppHeaderBase>
 );
-
-const ActionButton: React.StatelessComponent<{ loadable: LoadableContent } & ButtonProps & React.ButtonHTMLAttributes<HTMLButtonElement>> = props => {
-    return <Box>
-        <LoadingButton m={0} {...props} loading={props.loadable.loading}>{props.children}</LoadingButton>
-        {props.loadable.error ? <Text color="red" m={0}>{props.loadable.error.errorMessage}</Text> : null}
-    </Box>;
-}
 
 const Sidebar: React.StatelessComponent<MainContentProps> = props => (
     <>
         <ButtonGroup>
             <ActionButton
                 fullWidth
-                onClick={e => { if (!!props.onFavorite) props.onFavorite() }}
+                onClick={() => { if (!!props.onFavorite) props.onFavorite() }}
                 loadable={props.favorite as LoadableContent}
                 color={"blue"}>
-                { props.application.favorite ? "Remove from My Applications" : "Add to My Applications" } 
+                {props.application.favorite ? "Remove from My Applications" : "Add to My Applications"}
             </ActionButton>
 
-            <Link to={`/applications/${props.application.description.info.name}/${props.application.description.info.version}`}>
+            <Link to={Pages.runApplication(props.application)}>
                 <OutlineButton fullWidth color={"blue"}>Run Application</OutlineButton>
             </Link>
 
-            <a target="_blank" href="https://duckduckgo.com" rel="noopener">
-                <OutlineButton fullWidth color={"blue"}>Website</OutlineButton>
-            </a>
+            {!props.application.description.website ? null :
+                <a target="_blank" href={props.application.description.website} rel="noopener">
+                    <OutlineButton fullWidth color={"blue"}>Website</OutlineButton>
+                </a>
+            }
         </ButtonGroup>
     </>
 );

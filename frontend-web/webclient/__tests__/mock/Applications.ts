@@ -13,6 +13,7 @@ export const applicationsPage: Page<Application> = {
             modifiedAt: 1531306829400,
             imageUrl: "",
             description: {
+                tags: [],
                 resources: { multiNodeSupport: false },
                 info: { name: "palms", version: "1.0.0" },
                 tool: { name: "palms", version: "1.0.0" },
@@ -154,6 +155,7 @@ export const applicationsPage: Page<Application> = {
             imageUrl: "",
             favorite: false,
             owner: "jonas@hinchely.dk", createdAt: 1531308013745, modifiedAt: 1531308013745, description: {
+                tags: [],
                 resources: { multiNodeSupport: false },
                 info: { name: "bwa-mem", version: "1.0.0" }, tool: { name: "bwa-sambamba", version: "3.3.0" },
                 authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
@@ -163,6 +165,7 @@ export const applicationsPage: Page<Application> = {
             imageUrl: "",
             favorite: false,
             owner: "jonas@hinchely.dk", createdAt: 1531305600165, modifiedAt: 1531305600165, description: {
+                tags: [],
                 resources: { multiNodeSupport: false },
                 info: { name: "figlet-count", version: "1.0.0" },
                 tool: { name: "figlet", version: "1.0.0" },
@@ -192,6 +195,7 @@ export const applicationsPage: Page<Application> = {
             favorite: false,
             imageUrl: "",
             owner: "jonas@hinchely.dk", createdAt: 1531307297437, modifiedAt: 1531307297437, description: {
+                tags: [],
                 resources: { multiNodeSupport: false },
                 info: { "name": "tqdist_triplet", "version": "1.0.0" },
                 tool: { "name": "tqdist", "version": "1.0.0" },
@@ -204,6 +208,7 @@ export const applicationsPage: Page<Application> = {
             createdAt: 1531305389134,
             modifiedAt: 1531305389134,
             description: {
+                tags: [],
                 resources: { multiNodeSupport: false },
                 info: { name: "figlet", version: "1.0.0" },
                 tool: { name: "figlet", version: "1.0.0" },
@@ -241,6 +246,7 @@ export const applicationsPage: Page<Application> = {
             favorite: false,
             imageUrl: "",
             owner: "jonas@hinchely.dk", createdAt: 1531307717715, modifiedAt: 1531307717715, description: {
+                tags: [],
                 resources: { multiNodeSupport: false },
                 info: { name: "rapidnj", version: "2.3.2" },
                 tool: { name: "rapidnj", version: "2.3.2" },
@@ -259,6 +265,7 @@ export const applicationsPage: Page<Application> = {
             createdAt: 1531304975016,
             modifiedAt: 1531304975016,
             description: {
+                tags: [],
                 resources: { multiNodeSupport: false },
                 info: { name: "searchgui_msgf", version: "3.3.0" },
                 tool: { name: "searchgui", version: "3.3.0" },
@@ -289,6 +296,7 @@ export const applicationsPage: Page<Application> = {
             favorite: false,
             imageUrl: "",
             owner: "jonas@hinchely.dk", createdAt: 1531307353519, modifiedAt: 1531307353519, description: {
+                tags: [],
                 resources: { multiNodeSupport: false },
                 info: { name: "tqdist_quartet", version: "1.0.0" },
                 tool: { name: "tqdist", version: "1.0.0" },

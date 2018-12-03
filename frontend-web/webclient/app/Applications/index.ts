@@ -105,6 +105,7 @@ export interface ApplicationDescription {
     outputFileGlobs: string[]
     website?: string
     resources: { multiNodeSupport: boolean }
+    tags: string[]
 }
 
 export interface DetailedResultState {
