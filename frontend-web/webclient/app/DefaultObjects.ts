@@ -10,6 +10,7 @@ import { Upload } from "Uploader";
 import { Activity } from "Activity";
 import { Reducer } from "redux";
 import { SimpleSearchStateProps } from "Search";
+import * as ApplicationRedux from "Applications/Redux";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -153,7 +154,7 @@ export interface UploaderReduxObject {
     error?: string
 }
 
-export interface Reducers {
+interface LegacyReducers {
     dashboard?: Reducer<DashboardStateProps>
     files?: Reducer<FilesReduxObject>
     uploader?: Reducer<UploaderReduxObject>
@@ -168,6 +169,8 @@ export interface Reducers {
     detailedResult?: Reducer<DetailedResultReduxObject>
 }
 
+export type Reducers = LegacyReducers & ApplicationRedux.Reducers;
+
 export type DetailedResultReduxObject = ComponentWithPage<File>
 
 export const initDetailedResult = (): DetailedResultReduxObject => ({
@@ -176,7 +179,7 @@ export const initDetailedResult = (): DetailedResultReduxObject => ({
     error: undefined
 });
 
-export interface ReduxObject {
+interface LegacyReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
     uploader: UploaderReduxObject
@@ -194,6 +197,8 @@ export interface ReduxObject {
     detailedApplicationSearch: DetailedApplicationSearchReduxState
     fileInfo: FileInfoReduxObject
 }
+
+export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects;
 
 export const initActivity = (): ActivityReduxObject => ({
     page: emptyPage,
@@ -252,7 +257,8 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     simpleSearch: initSimpleSearch(),
     detailedApplicationSearch: initApplicationsAdvancedSearch(),
     detailedFileSearch: initFilesDetailedSearch(),
-    fileInfo: initFileInfo()
+    fileInfo: initFileInfo(),
+    ...ApplicationRedux.init()
 });
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({

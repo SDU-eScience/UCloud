@@ -16,11 +16,12 @@ import dk.sdu.cloud.service.db.paginatedList
 import dk.sdu.cloud.service.db.typedQuery
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
-import java.util.Date
+import java.util.*
 
-@Suppress("TooManyFunctions") //Does not make sense to split
+@Suppress("TooManyFunctions") // Does not make sense to split
 class ApplicationHibernateDAO(
-    private val toolDAO: ToolHibernateDAO
+    private val toolDAO: ToolHibernateDAO,
+    private val defaultImageGenerator: DefaultImageGenerator
 ) : ApplicationDAO<HibernateSession> {
 
     override fun toggleFavorite(
@@ -86,7 +87,7 @@ class ApplicationHibernateDAO(
             """.trimIndent()
         ).setParameter("user", user)
             .paginatedList(paging)
-            .map { it.toModel() }
+            .map { it.toModel(defaultImageGenerator) }
 
         val preparedForUserPageItems = mutableListOf<ApplicationForUser>()
         items.forEach {
@@ -121,7 +122,7 @@ class ApplicationHibernateDAO(
             """.trimIndent()
         ).setParameter("query", query)
             .paginatedList(paging)
-            .map { it.toModel() }
+            .map { it.toModel(defaultImageGenerator) }
 
         return preparePageForUser(
             session,
@@ -168,7 +169,7 @@ class ApplicationHibernateDAO(
                 """.trimIndent()
         ).setParameter("query", normalizedQuery)
             .paginatedList(paging)
-            .map { it.toModel() }
+            .map { it.toModel(defaultImageGenerator) }
 
         return preparePageForUser(
             session,
@@ -190,7 +191,7 @@ class ApplicationHibernateDAO(
     ): Page<Application> {
         return session.paginatedCriteria<ApplicationEntity>(paging) {
             entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
-        }.mapItems { it.toModel() }
+        }.mapItems { it.toModel(defaultImageGenerator) }
 
     }
 
@@ -201,7 +202,18 @@ class ApplicationHibernateDAO(
         version: String
     ): Application {
         return internalByNameAndVersion(session, name, version)
-            ?.toModel() ?: throw ApplicationException.NotFound()
+            ?.toModel(defaultImageGenerator) ?: throw ApplicationException.NotFound()
+    }
+
+    override fun findByNameAndVersionForUser(
+        session: HibernateSession,
+        user: String,
+        name: String,
+        version: String
+    ): ApplicationForUser {
+        val entity = internalByNameAndVersion(session, name, version)?.toModel(defaultImageGenerator)
+            ?: throw ApplicationException.NotFound()
+        return preparePageForUser(session, user, Page(1, 1, 0, listOf(entity))).items.first()
     }
 
     override fun listLatestVersion(
@@ -233,7 +245,7 @@ class ApplicationHibernateDAO(
             order by A.id.name
         """.trimIndent()
         ).paginatedList(paging)
-            .map { it.toModel() }
+            .map { it.toModel(defaultImageGenerator) }
 
         return preparePageForUser(
             session,
@@ -262,7 +274,7 @@ class ApplicationHibernateDAO(
         if (existing != null) throw ApplicationException.AlreadyExists()
 
         val existingTool = toolDAO.internalByNameAndVersion(session, description.tool.name, description.tool.version)
-                ?: throw ApplicationException.BadToolReference()
+            ?: throw ApplicationException.BadToolReference()
 
         val entity = ApplicationEntity(
             user,
@@ -355,14 +367,14 @@ class ApplicationHibernateDAO(
     }
 }
 
-internal fun ApplicationEntity.toModel(): Application {
+internal fun ApplicationEntity.toModel(imageGen: DefaultImageGenerator? = null): Application {
     return Application(
         owner,
         createdAt.time,
         modifiedAt.time,
         application,
         tool.toModel()
-    )
+    ).let { imageGen?.processApplication(it) ?: it }
 }
 
 sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {

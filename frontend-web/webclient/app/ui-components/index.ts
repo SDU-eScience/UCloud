@@ -44,5 +44,6 @@ export { default as LoadingButton } from "./LoadingButton";
 
 export { default as theme } from './theme'
 export { default as UIGlobalStyle } from './GlobalStyle'
+export { default as ActionButton } from "./ActionButton";
 
 //export * from './theme'

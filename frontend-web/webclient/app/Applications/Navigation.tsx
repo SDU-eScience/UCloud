@@ -31,7 +31,7 @@ export const Tab: React.StatelessComponent<TabProps> = (props): JSX.Element => (
     </Link>
 );
 
-export const Navigation = (props: { selected: Pages }) => (
+export const Navigation = (props: { selected?: Pages }) => (
     <Tabs>
         <Tab linkTo="/applications" selected={props.selected === Pages.BROWSE}>Browse</Tab>
         <Tab linkTo="/applications/installed" selected={props.selected === Pages.INSTALLED}>My Applications</Tab>

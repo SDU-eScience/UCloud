@@ -39,33 +39,31 @@ const CategoryItem: React.StatelessComponent = props => (
     <li><Link to="#">{props.children}</Link></li>
 );
 
-const Sidebar: React.StatelessComponent = props => (
-    <>
-        <Heading.h4>Featured</Heading.h4>
-        <CategoryList>
-            <CategoryItem>Popular</CategoryItem>
-            <CategoryItem>Staff picks</CategoryItem>
-        </CategoryList>
+const Sidebar: React.StatelessComponent = () => (<>
+    <Heading.h4>Featured</Heading.h4>
+    <CategoryList>
+        <CategoryItem>Popular</CategoryItem>
+        <CategoryItem>Staff picks</CategoryItem>
+    </CategoryList>
 
-        <Heading.h4>Categories</Heading.h4>
-        <CategoryList>
-            <CategoryItem>Biomedicine</CategoryItem>
-            <CategoryItem>Toys</CategoryItem>
-            <CategoryItem></CategoryItem>
-        </CategoryList>
+    <Heading.h4>Categories</Heading.h4>
+    <CategoryList>
+        <CategoryItem>Biomedicine</CategoryItem>
+        <CategoryItem>Toys</CategoryItem>
+        <CategoryItem></CategoryItem>
+    </CategoryList>
 
-        <Heading.h4>Fields</Heading.h4>
-        <CategoryList>
-            <CategoryItem>Natural Sciences</CategoryItem>
-            <CategoryItem>Formal Sciences</CategoryItem>
-            <CategoryItem>Life Sciences</CategoryItem>
-            <CategoryItem>Social Sciences</CategoryItem>
-            <CategoryItem>Applied Sciences</CategoryItem>
-            <CategoryItem>Interdisciplinary Sciences</CategoryItem>
-            <CategoryItem>Philosophy Sciences</CategoryItem>
-        </CategoryList>
-    </>
-);
+    <Heading.h4>Fields</Heading.h4>
+    <CategoryList>
+        <CategoryItem>Natural Sciences</CategoryItem>
+        <CategoryItem>Formal Sciences</CategoryItem>
+        <CategoryItem>Life Sciences</CategoryItem>
+        <CategoryItem>Social Sciences</CategoryItem>
+        <CategoryItem>Applied Sciences</CategoryItem>
+        <CategoryItem>Interdisciplinary Sciences</CategoryItem>
+        <CategoryItem>Philosophy Sciences</CategoryItem>
+    </CategoryList>
+</>);
 
 class Applications extends React.Component<ApplicationsProps> {
     componentDidMount() {

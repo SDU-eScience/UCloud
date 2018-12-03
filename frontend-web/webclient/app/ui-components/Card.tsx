@@ -10,6 +10,7 @@ import { borderRadius,
          HeightProps, 
          height } from "styled-system";
 import Icon from "./Icon";
+import { Link } from "ui-components";
 
 
 const boxShadow = props => {
@@ -58,6 +59,14 @@ export const CardGroup = styled.div`
   & > * {
     margin: 5px 5px 5px 5px;
     flex-shrink: 0;
+  }
+
+  & > a {
+    margin: 5px 5px 5px 5px;
+  }
+
+  & > a > div {
+    height: 100%;
   }
 `;
 

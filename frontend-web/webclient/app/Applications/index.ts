@@ -68,6 +68,7 @@ export interface Application {
     modifiedAt: number
     description: ApplicationDescription
     tool: ApplicationTool
+    imageUrl: string
 }
 
 interface ApplicationTool {
@@ -102,6 +103,9 @@ export interface ApplicationDescription {
     invocation: any[]
     parameters: ApplicationParameter[]
     outputFileGlobs: string[]
+    website?: string
+    resources: { multiNodeSupport: boolean }
+    tags: string[]
 }
 
 export interface DetailedResultState {
@@ -125,13 +129,26 @@ export interface DetailedResultState {
 export type StdElement = { scrollTop: number, scrollHeight: number } | null
 
 export type MaxTime = {
-    hours: number | null
-    minutes: number | null
-    seconds: number | null
-} | null
+    hours: number
+    minutes: number
+    seconds: number
+}
 
 export interface JobSchedulingOptions {
     maxTime: MaxTime
+    numberOfNodes: number | null
+    tasksPerNode: number | null
+}
+
+export interface MaxTimeForInput {
+    hours: number | null,
+    minutes: number | null,
+    seconds: number | null
+
+}
+
+export interface JobSchedulingOptionsForInput {
+    maxTime: MaxTimeForInput | null
     numberOfNodes: number | null
     tasksPerNode: number | null
 }
@@ -145,7 +162,7 @@ export interface RunAppState {
 
     application?: Application
     parameterValues: {}
-    schedulingOptions: JobSchedulingOptions
+    schedulingOptions: JobSchedulingOptionsForInput
 }
 
 export interface RunAppProps {
@@ -245,15 +262,6 @@ interface ToolDescription {
     title: string,
     description: string
     backend: string
-}
-
-
-export interface ApplicationInformation {
-    owner: string
-    favorite?: boolean
-    createdAt, modifiedAt: number
-    description: Description
-    tool: Tool
 }
 
 export enum ParameterTypes {

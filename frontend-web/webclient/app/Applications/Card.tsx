@@ -9,9 +9,6 @@ import styled from "styled-components";
 import * as ReactMarkdown from "react-markdown";
 import * as Heading from "ui-components/Heading"
 
-const COLORS_KEYS = Object.keys(MaterialColors);
-const circuitBoard = require("Assets/Images/circuitboard-bg.png");
-
 interface ApplicationCardProps {
     favoriteApp?: (name: string, version: string) => void,
     app: Application,
@@ -78,7 +75,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
     const appInfo = props.app.description.info;
     return (
         <AppCardBase to={props.linkToRun ? `/applications/${appInfo.name}/${appInfo.version}` : `/applications/details/${appInfo.name}/${appInfo.version}`}>
-            <img src={circuitBoard} />
+            <img src={props.app.imageUrl} />
             <strong>{props.app.description.title} v{props.app.description.info.version}</strong>
             <EllipsedText>
                 <ReactMarkdown
@@ -91,77 +88,44 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
 };
 
 export const ApplicationCard = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => (
-    <Card width="250px">
-        <Relative height="135px">
-            <Box>
-                <Box style={{ background: hexFromAppName(app.description.title) }}>
-                    <Image
-                        src={circuitBoard}
-                        style={{ opacity: 0.4 }}
-                    />
+    <Link to={linkToRun ?
+        `/applications/${app.description.info.name}/${app.description.info.version}` :
+        `/applications/details/${app.description.info.name}/${app.description.info.version}`
+    }>
+        <Card width="250px">
+
+            <Relative height="135px">
+                <Box>
+                    <Image src={app.imageUrl} />
+                    <Absolute top="6px" left="10px">
+                        <Text
+                            fontSize={2}
+                            align="left"
+                            color="white"
+                        >
+                            {app.description.title}
+                        </Text>
+                    </Absolute>
+                    <Absolute top={"26px"} left={"14px"}>
+                        <Text fontSize={"xxs-small"} align="left" color="white">
+                            v{app.description.info.version}
+                        </Text>
+                    </Absolute>
+                    <Absolute bottom="10px" left="10px">
+                        <EllipsedText width={220} title={`by ${app.description.authors.join(", ")}`} color="white">
+                            by {app.description.authors.join(", ")}
+                        </EllipsedText>
+                    </Absolute>
                 </Box>
-                <Absolute top="6px" left="10px">
-                    <Text
-                        fontSize={2}
-                        align="left"
-                        color="white"
-                    >
-                        {app.description.title}
-                    </Text>
-                </Absolute>
-                <Absolute top={"26px"} left={"14px"}>
-                    <Text fontSize={"xxs-small"} align="left" color="white">
-                        v {app.description.info.version}
-                    </Text>
-                </Absolute>
-                <Absolute top="10px" right="10px">
-                    <Icon
-                        onClick={() => !!favoriteApp ? favoriteApp(app.description.info.name, app.description.info.version) : undefined}
-                        cursor="pointer"
-                        color="red"
-                        name={isFavorite ? "starFilled" : "starEmpty"}
-                    />
-                </Absolute>
-                <Absolute bottom="10px" left="10px">
-                    <EllipsedText width={180} title={`by ${app.description.authors.join(", ")}`} color="white">
-                        by {app.description.authors.join(", ")}
-                    </EllipsedText>
-                </Absolute>
-                <Absolute bottom="10px" right="10px">
-                    <Link to={linkToRun ? `/applications/${app.description.info.name}/${app.description.info.version}` : `/applications/details/${app.description.info.name}/${app.description.info.version}`}>
-                        <PlayIcon />
-                    </Link>
-                </Absolute>
+            </Relative>
+            <Box m="10px">
+                <Text>
+                    {app.description.description.slice(0, 100)}
+                </Text>
             </Box>
-        </Relative>
-        <Box m="10px">
-            <Text>
-                {app.description.description.slice(0, 100)}
-            </Text>
-        </Box>
-    </Card >
+        </Card >
+    </Link >
 );
-
-function hexFromAppName(name: string): string {
-    const hashCode = toHashCode(name);
-    const color = COLORS_KEYS[(hashCode % COLORS_KEYS.length)];
-    const mClength = MaterialColors[color].length;
-    return MaterialColors[color][(hashCode % mClength)];
-}
-
-function toHashCode(name: string): number {
-    let hash = 0;
-    if (name.length == 0) { // FIXME can this ever happen?
-        return hash;
-    }
-    for (let i = 0; i < name.length; i++) {
-        let char = name.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return Math.abs(hash);
-}
-
 
 const NewAppCard = styled(Link)`
     padding: 10px;
