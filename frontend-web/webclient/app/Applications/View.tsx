@@ -1,11 +1,10 @@
 import * as React from "react";
-import PromiseKeeper from "PromiseKeeper";
-import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { Application } from "Applications";
 import { Image, OutlineButton, Button, Box } from "ui-components";
+import { TextSpan } from "ui-components/Text";
 import * as Heading from "ui-components/Heading"
 import styled from "styled-components";
 import { dateToString } from "Utilities/DateUtilities";
@@ -14,87 +13,57 @@ import ContainerForText from "ui-components/ContainerForText";
 import { MainContainer } from "MainContainer/MainContainer";
 import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
 import { Page } from "Types";
+import { connect } from "react-redux";
+import { ReduxObject } from "DefaultObjects";
+import { Dispatch } from "redux";
+import * as ViewObject from "./Redux/ViewObject";
 
-type DetailedApplicationProps = any
-type DetailedApplicationState = {
-    appInformation?: Application
-    previousVersions?: Page<Application>
-    promises: PromiseKeeper
-    loading: boolean
-    error?: string
-}
+import * as Actions from "./Redux/ViewActions";
+import { updatePageTitle, UpdatePageTitleAction } from "Navigation/Redux/StatusActions";
 
 interface MainContentProps {
     onFavorite?: () => void
     application: Application
 }
 
-export class View extends React.Component<DetailedApplicationProps, DetailedApplicationState> {
+interface OperationProps {
+    onInit: (name: string, version: string) => void
+}
+
+type StateProps = ViewObject.Type;
+
+interface OwnProps {
+    match: any;
+}
+
+type ViewProps = OperationProps & StateProps & OwnProps;
+
+class View extends React.Component<ViewProps> {
     constructor(props) {
         super(props);
-        this.state = {
-            promises: new PromiseKeeper,
-            loading: false,
-            appInformation: undefined,
-            error: undefined
-        }
     }
 
     componentDidMount() {
-        this.retrieveApplication();
-        this.retrievePreviousVersions();
-    }
-
-    retrieveApplication() {
-        this.setState(() => ({ loading: true }));
         const { appName, appVersion } = this.props.match.params;
-        const { promises } = this.state;
-        promises.makeCancelable(Cloud.get(`/hpc/apps/${encodeURI(appName)}/${encodeURI(appVersion)}`))
-            .promise.then(({ response }: { response: Application }) =>
-                this.setState(() => ({
-                    appInformation: response,
-                    loading: false,
-                }))
-            ).catch(_ => this.setState({
-                error: `An error occurred fetching ${appName}`,
-                loading: false
-            }));
-    }
-
-    retrievePreviousVersions() {
-        const { appName } = this.props.match.params;
-        const { promises } = this.state;
-        promises.makeCancelable(Cloud.get(`/hpc/apps/${encodeURI(appName)}`))
-            .promise.then(({ response }: { response: Page<Application> }) =>
-                this.setState(() => ({
-                    previousVersions: response,
-                }))
-            ).catch(_ => this.setState({
-                error: `An error occurred fetching versions of ${appName}`,
-            }));
+        this.props.onInit(appName, appVersion);
     }
 
     render() {
-        const { appInformation } = this.state;
+        const { application } = this.props;
         return (
             <MainContainer
-                header={
-                    !appInformation ? null :
-                        <AppHeader application={appInformation} />
-                }
+                header={!application ? null : <AppHeader application={application} />}
 
-                main={!appInformation ?
-                    <DefaultLoading loading={this.state.loading} /> :
+                main={!application ?
+                    <DefaultLoading loading={this.props.loading} /> :
                     <ContainerForText>
                         <Content
-                            application={appInformation}
-                            previousVersions={this.state.previousVersions} />
+                            application={application}
+                            previousVersions={this.props.previous} />
                     </ContainerForText>
                 }
 
-                sidebar={
-                    !appInformation ? null : <Sidebar application={appInformation} />
-                }
+                sidebar={!application ? null : <Sidebar application={application} />}
             />
         );
     }
@@ -122,17 +91,13 @@ const AppHeaderDetails = styled.div`
     }
 `;
 
-const AppSection = styled(Box)`
-    margin-bottom: 16px;
-`;
-
 const AppHeader: React.StatelessComponent<MainContentProps> = props => (
     <AppHeaderBase>
         <Image src={props.application.imageUrl} />
         <AppHeaderDetails>
-            <h1>{props.application.description.title}</h1>
-            <h2>v{props.application.description.info.version}</h2>
-            <span>{props.application.description.authors.join(", ")}</span>
+            <Heading.h2>{props.application.description.title}</Heading.h2>
+            <Heading.h3>v{props.application.description.info.version}</Heading.h3>
+            <TextSpan>{props.application.description.authors.join(", ")}</TextSpan>
             <Tags tags={["Test Tag 1", "Test Tag 2", "Test Tag 3"]} />
         </AppHeaderDetails>
     </AppHeaderBase>
@@ -147,6 +112,10 @@ const Sidebar: React.StatelessComponent<MainContentProps> = props => (
         </ButtonGroup>
     </>
 );
+
+const AppSection = styled(Box)`
+    margin-bottom: 16px;
+`;
 
 function Content(props: MainContentProps & { previousVersions?: Page<Application> }): JSX.Element {
     return (
@@ -269,3 +238,27 @@ function Information({ application }: { application: Application }) {
         </InfoAttributes>
     </>;
 }
+
+const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | UpdatePageTitleAction>): OperationProps => ({
+    onInit: async (name: string, version: string) => {
+        dispatch(updatePageTitle(`${name} v${version}`));
+
+        const loadApplications = async () => {
+            dispatch({ type: Actions.Tag.SET_LOADING, payload: { loading: true } });
+            dispatch(await Actions.fetchApplication(name, version));
+        };
+
+        const loadPrevious = async () => {
+            dispatch({ type: Actions.Tag.SET_PREV_LOADING, payload: { previousLoading: true } });
+            dispatch(await Actions.fetchPreviousVersions(name));
+        };
+
+        await Promise.all([loadApplications(), loadPrevious()]);
+    }
+})
+
+const mapStateToProps = (state: ReduxObject): StateProps => {
+    return { ...state.applicationView };
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(View);

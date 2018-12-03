@@ -1,9 +1,7 @@
 import * as React from "react";
-import { MaterialColors } from "Assets/materialcolors.json";
 import { Link, Image } from "ui-components";
 import { Relative, Box, Absolute, Text, Icon } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
-import { PlayIcon } from "ui-components/Card";
 import { Card } from "ui-components";
 import { Application } from ".";
 import styled from "styled-components";
