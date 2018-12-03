@@ -226,7 +226,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
                       top={isFavorite ? 0 : -30}
                       onClick={(e) => !!favoriteApp ? (e.preventDefault(), favoriteApp(app.description.info.name, app.description.info.version)) : undefined}
                       >
-                <Icon name={"appFav"} color="red" size={48}/>
+                <Icon name={"starRibbon"} color="red" size={48}/>
             </Absolute>
             <Flex flexDirection={"row"} alignItems={"flex-start"}>
                 <AppLogo size={"48px"} />

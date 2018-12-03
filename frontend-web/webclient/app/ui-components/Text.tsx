@@ -41,7 +41,7 @@ export interface TextProps extends SpaceProps, TextAlignProps, FontSizeProps, Co
   cursor?: string
 }
 
-const Text = styled("div") <TextProps>`
+const Text = styled.div<TextProps>`
   cursor: ${props => props.cursor};
   ${textStyle}
   ${fontSize}

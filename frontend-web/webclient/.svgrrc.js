@@ -20,7 +20,7 @@ module.exports = {
                     '@svgr/babel-plugin-remove-jsx-attribute',
                     {
                         elements: ['svg', 'path', 'g'],
-                        attributes: ['xmlns:serif', 'serif:id', 'strokeLinejoin', 'strokeMiterlimit', 'fillRule'],
+                        attributes: ['xmlns:serif', 'serif:id', 'strokeLinejoin', 'strokeMiterlimit'],
                     },
                 ],
             ],
