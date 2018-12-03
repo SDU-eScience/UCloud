@@ -1,7 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as PropTypes from "prop-types";
-import { List as SemList, SemanticSIZES, SemanticFLOATS, Card as SCard, Button as SButton, Icon as SIcon, ButtonGroup as SButtonGroup } from "semantic-ui-react";
 import { AccessRight, Page, AccessRightValues } from "Types";
 import { shareSwal } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
@@ -9,7 +8,7 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ListContext, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
-import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Button } from "ui-components";
+import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Button, theme } from "ui-components";
 import { sharesByPathQuery } from "Utilities/SharesUtilities";
 import * as Heading from "ui-components/Heading";
 
@@ -145,19 +144,18 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
             <Card width="100%" height="auto" p="10px 10px 10px 10px">
                 <Heading.h4>
                     <Flex>
-                        <SIcon name='folder' /> {getFilenameFromPath(groupedShare.path)}
+                        <i style={{ marginLeft: "3px", marginRight: "3px", fontSize: "24px" }} className="fas fa-folder" /> {getFilenameFromPath(groupedShare.path)}
                         <Box ml="auto" />
-                        <AccessRightsDisplay size='tiny' floated='right' disabled rights={actualShare.rights} />
+                        <AccessRightsDisplay floated disabled rights={actualShare.rights} />
                     </Flex>
                 </Heading.h4>
                 <Text color="text">Shared by {groupedShare.sharedBy}</Text>
                 <Text mt="4px" mb="4px">{message}</Text>
                 <Flex>
                     <Box ml="auto" />
-                    <SButton.Group floated="right">
-                        {groupedShare.shares[0].state !== ShareState.REQUEST_SENT ?
-                            <SButton negative icon='delete' disabled={isLoading} loading={isLoading} content="Revoke" size='mini' onClick={() => this.onRevoke(actualShare)} /> : null}
-                    </SButton.Group>
+                    {groupedShare.shares[0].state !== ShareState.REQUEST_SENT ?
+                        <LoadingButton color="red" disabled={isLoading} loading={isLoading} content="Revoke" onClick={() => this.onRevoke(actualShare)} />
+                        : null}
                 </Flex>
                 {!hasBeenShared ? (
                     <>
@@ -177,53 +175,53 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     }
 
     renderSharedByMe(): JSX.Element {
-        let { groupedShare } = this.props;
-        let { isLoading } = this.state;
+        const { groupedShare } = this.props;
+        const { isLoading } = this.state;
 
-        let shareComponents: JSX.Element[] = groupedShare.shares.map(e => (
+        const shareComponents: JSX.Element[] = groupedShare.shares.map(e => (
             <Box key={e.id}>
-                <Flex>
-                    <i className="fas fa-user-circle" /> {e.sharedWith}
-                    <Box ml="auto" />
-                    <LoadingButton
-                        color="red"
-                        disabled={isLoading}
-                        loading={isLoading}
-                        size="mini"
-                        onClick={() => this.onRevoke(e)}
-                    >
-                        <Flex justifyContent="center" alignItems="center">
-                            <i className="fas fa-times" />
-                            <Text ml="3px">Revoke</Text>
-                        </Flex>
-                    </LoadingButton>
+                <Flex m="5px 5px 5px 5px">
+                    <Box width="5%">
+                        <i style={{ fontSize: 20, margin: "5px 5px" }} className="fas fa-user-circle" />
+                    </Box>
+                    <Box width="80%">
+                        {e.sharedWith}
+                        <AccessRightsDisplay rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />
+                    </Box>
+                    <Box width="10%">
+                        <LoadingButton
+                            color="red"
+                            disabled={isLoading}
+                            loading={isLoading}
+                            size="mini"
+                            onClick={() => this.onRevoke(e)}
+                        >
+                            <Flex justifyContent="center" alignItems="center">
+                                <i className="fas fa-times" />
+                                <Text ml="3px">Revoke</Text>
+                            </Flex>
+                        </LoadingButton>
+                    </Box>
                 </Flex>
-                <AccessRightsDisplay className='ar-display-padding' size='mini' rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />
+                <Divider />
             </Box>
         ));
 
         return (
             <Card width="100%" p="10px 10px 10px 10px" height="auto">
                 <Heading.h4>
-                    <i className="fas fa-folder" /> {getFilenameFromPath(groupedShare.path)}
+                    <i style={{ marginLeft: "3px", marginRight: "3px", fontSize: "24px" }} className="fas fa-folder" /> {getFilenameFromPath(groupedShare.path)}
                 </Heading.h4>
                 <Text color="text">Shared with {groupedShare.shares.length} collaborators</Text>
-                <SCard.Description className='ar-list-padding'>
-                    <SemList relaxed divided>
-                        {shareComponents}
-                        <SemList.Item>
-                            <SemList.Icon name='add' size='large' verticalAlign='middle' />
-                            <SemList.Content>
-                                <SemList.Header>
-                                    <SButton color='green' disabled={isLoading} loading={isLoading} onClick={() => this.onCreateShare(groupedShare.path)}>
-                                        Share this with another user
-                                        </SButton>
-                                </SemList.Header>
-                            </SemList.Content>
-                        </SemList.Item>
-                    </SemList>
-                </SCard.Description>
-            </Card>
+                {shareComponents}
+                <LoadingButton
+                    content="Share this with another user"
+                    color="green"
+                    disabled={isLoading}
+                    loading={isLoading}
+                    onClick={() => this.onCreateShare(groupedShare.path)}
+                />
+            </Card >
         );
     }
 
@@ -307,9 +305,7 @@ interface AccessRightsDisplayProps {
     read?: boolean
     write?: boolean
     execute?: boolean
-
-    size?: SemanticSIZES
-    floated?: SemanticFLOATS
+    floated?: boolean
 
     className?: string
 
@@ -317,7 +313,7 @@ interface AccessRightsDisplayProps {
 }
 
 const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
-    let { read, write, execute, floated, size, className } = props;
+    let { read, write, execute, floated } = props;
     if (props.rights != null) {
         read = props.rights.indexOf(AccessRight.READ) != -1;
         write = props.rights.indexOf(AccessRight.WRITE) != -1;
@@ -368,7 +364,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
 
 function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
-    if (byState) url += `&state=${encodeURIComponent(byState)}`;
+    //if (byState) url += `&state=${encodeURIComponent(byState)}`;
     return Cloud.get(url).then(it => it.response);
 }
 
