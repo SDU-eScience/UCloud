@@ -7,35 +7,6 @@ import * as Adapter from "enzyme-adapter-react-16";
 configure({ adapter: new Adapter() });
 
 
-describe("FileIcon", () => {
-    test("Non-link file icon", () => {
-        expect(create(
-            <FileIcon
-                name="add circle"
-                size="mini"
-                link={false}
-                className=""
-            />).toJSON()).toMatchSnapshot();
-    });
-
-    test("Non-link file icon, using defaults", () => {
-        expect(create(
-            <FileIcon
-                name="add circle"
-                size="mini"
-            />).toJSON()).toMatchSnapshot();
-    });
-
-    test("Link file icon", () => {
-        expect(create(
-            <FileIcon
-                link={true}
-                name="add circle"
-                size="mini"
-            />).toJSON()).toMatchSnapshot();
-    });
-});
-
 describe("RefreshButton", () => {
     test("RefreshButton", () => {
         expect(create(

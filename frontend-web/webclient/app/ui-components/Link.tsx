@@ -16,6 +16,7 @@ const hoverColor = style({
 const Link = styled(ReactRouterLink) <LinkProps>`
   cursor: pointer;
   text-decoration: none;
+  display: inherit;
   ${space}
   ${color}
 

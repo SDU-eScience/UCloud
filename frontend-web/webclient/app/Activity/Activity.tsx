@@ -1,7 +1,7 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import { ActivityProps, Activity as ActivityType, TrackedActivity, CountedActivity, TrackedOperations, CountedOperations, ActivityDispatchProps } from "Activity";
-import { Feed as SFeed, SemanticICONS as SSemanticICONS } from "semantic-ui-react";
+import { Feed as SFeed } from "semantic-ui-react";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
 import * as moment from "moment";
@@ -13,6 +13,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Dispatch } from "redux";
 import { fileInfoPage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading"
+import { IconName } from "ui-components/Icon";
 
 class Activity extends React.Component<ActivityProps> {
 
@@ -30,11 +31,11 @@ class Activity extends React.Component<ActivityProps> {
                     loading={loading}
                     errorMessage={error}
                     onErrorDismiss={setError}
-                    pageRenderer={(page: Page<ActivityType>) => <ActivityFeed activity={page.items} />}
+                    pageRenderer={page => <ActivityFeed activity={page.items} />}
                     page={page}
                     onRefresh={() => fetchActivity(page.pageNumber, page.itemsPerPage)}
-                    onItemsPerPageChanged={(itemsPerPage) => fetchActivity(page.pageNumber, itemsPerPage)}
-                    onPageChanged={(pageNumber) => fetchActivity(pageNumber, page.itemsPerPage)}
+                    onItemsPerPageChanged={itemsPerPage => fetchActivity(page.pageNumber, itemsPerPage)}
+                    onPageChanged={pageNumber => fetchActivity(pageNumber, page.itemsPerPage)}
                 />
             </React.StrictMode>
         );
@@ -91,26 +92,26 @@ const operationToPastTense = (operation: TrackedOperations | CountedOperations):
     if ((operation as string).endsWith("E")) return `${(operation as string).toLowerCase()}d`;
     return `${operation.toLowerCase()}ed`;
 }
-interface EventIconAndColor { icon: SSemanticICONS, color: "blue" | "green" | "red" }
+interface EventIconAndColor { icon: IconName, color: "blue" | "green" | "red", rotation?: 45 }
 const eventIcon = (operation: TrackedOperations | CountedOperations): EventIconAndColor => {
     switch (operation) {
         case "FAVORITE": {
-            return { icon: "star", color: "blue" };
+            return { icon: "starFilled", color: "blue" };
         }
         case "REMOVE_FAVORITE": {
-            return { icon: "star outline", color: "blue" };
+            return { icon: "starEmpty", color: "blue" };
         }
         case "DOWNLOAD": {
             return { icon: "download", color: "blue" };
         }
         case "CREATE": {
-            return { icon: "plus", color: "green" };
+            return { icon: "close", rotation: 45, color: "green" };
         }
         case "UPDATE": {
             return { icon: "refresh", color: "green" };
         }
         case "DELETE": {
-            return { icon: "delete", color: "red" };
+            return { icon: "close", color: "red" };
         }
         case "MOVED": {
             return { icon: "move", color: "green" };
@@ -120,11 +121,11 @@ const eventIcon = (operation: TrackedOperations | CountedOperations): EventIconA
 
 const mapStateToProps = ({ activity }): ActivityReduxObject => activity;
 const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
-    fetchActivity: async (pageNumber: number, pageSize: number) => {
+    fetchActivity: async (pageNumber, pageSize) => {
         dispatch(setLoading(true));
         dispatch(await fetchActivity(pageNumber, pageSize))
     },
-    setError: (error?: string) => dispatch(setErrorMessage(error)),
+    setError: error => dispatch(setErrorMessage(error)),
     setPageTitle: () => dispatch(updatePageTitle("Activity"))
 });
 

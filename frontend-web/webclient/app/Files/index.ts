@@ -1,6 +1,5 @@
 import { Page } from "Types";
 import { History } from "history";
-import { SemanticICONS, ButtonProps, ModalProps, SemanticCOLORS, IconProps } from "semantic-ui-react";
 import Cloud from "Authentication/lib";
 import { Moment } from "moment";
 import * as React from "react";
@@ -10,6 +9,7 @@ import { IconName } from "ui-components/Icon";
 import { ComponentWithPage } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 import { RouterLocationProps } from "Utilities/URIUtilities";
+import { ThemeColor } from "ui-components/theme";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -157,7 +157,8 @@ export interface FilesTableHeaderProps {
     customEntriesPerPage?: React.ReactNode
 }
 
-export interface FilenameAndIconsProps extends IconProps {
+export interface FilenameAndIconsProps {
+    size?: number | string
     file: File
     hasCheckbox: boolean
     onRenameFile?: (key: number, file: File, name: string) => void
@@ -169,7 +170,7 @@ export interface FileSelectorModalProps {
     show: boolean
     loading: boolean
     path: string
-    onHide: (event: any, data?: ButtonProps | ModalProps) => void
+    onHide: () => void
     page: Page<File>
     setSelectedFile: Function
     fetchFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
@@ -229,7 +230,7 @@ export interface MobileButtonsProps {
 }
 
 export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
-export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: SemanticICONS | IconName, color?: SemanticCOLORS }
+export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: IconName, color?: ThemeColor }
 export type FileOperation = Operation | PredicatedOperation
 
 export interface ContextButtonsProps {

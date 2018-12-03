@@ -1,12 +1,13 @@
 import * as React from "react";
-import { Checkbox as SCheckbox, Progress, Grid, Card, Button, Icon, Modal } from "semantic-ui-react";
+import { Checkbox as SCheckbox, Progress, Grid, Card, Button, Modal } from "semantic-ui-react";
+import { Icon } from "ui-components";
 import * as Dropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString } from "UtilityFunctions";
 import { fileSizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
-import { ReduxObject, Sensitivity, SensitivityLevel } from "DefaultObjects";
+import { ReduxObject, Sensitivity } from "DefaultObjects";
 import { Upload, UploaderProps } from ".";
 import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";

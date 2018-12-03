@@ -173,7 +173,7 @@ class Files extends React.Component<FilesProps> {
                 </Box>
                 <Hide xs sm md width={3 / 16}>
                     {!props.invalidPath ?
-                         <Box pl="5px" pr="5px">
+                        <Box pl="5px" pr="5px">
                             <ContextBar
                                 invalidPath={props.invalidPath}
                                 showUploader={props.showUploader}
@@ -225,6 +225,7 @@ export const FilesTable = ({
                     // FIXME Use :has() or parent selector when available
                     <TableRow style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
                         <FilenameAndIcons
+
                             file={file}
                             onFavoriteFile={onFavoriteFile}
                             hasCheckbox={masterCheckbox != null}
@@ -345,16 +346,16 @@ const ContextBar = ({ files, ...props }: ContextBarProps) => (
 );
 
 const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
-        <VerticalButtonGroup>
-            <Button color="blue" onClick={showUploader}>Upload Files</Button>
-            <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton>
-            {inTrashFolder ?
-                <Button color="red" 
-                    onClick={() => clearTrash(Cloud, () => toHome())}
-                >
-                    Clear trash
+    <VerticalButtonGroup>
+        <Button color="blue" onClick={showUploader}>Upload Files</Button>
+        <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton>
+        {inTrashFolder ?
+            <Button color="red"
+                onClick={() => clearTrash(Cloud, () => toHome())}
+            >
+                Clear trash
                 </Button> : null}
-        </VerticalButtonGroup>
+    </VerticalButtonGroup>
 );
 
 const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
@@ -389,20 +390,21 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} /></Box>
     const icon = (
-        <FileIcon
-            color={isDirectory(file) ? "blue" : "grey"}
-            name={UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)}
-            size={size} link={file.link} shared={(file.acl !== undefined ? file.acl.length : 0) > 0}
-        />
+        <Box mr="5px">
+            <FileIcon
+                color={isDirectory(file) ? "blue" : "gray"}
+                name={UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)}
+                size={size} link={file.link} shared={(file.acl !== undefined ? file.acl.length : 0) > 0}
+            />
+        </Box>
     );
-    const nameLink = <FileLink file={file}>{icon}{fileName}</FileLink>;
+    const nameLink = (<FileLink file={file}>{icon}{fileName}</FileLink>);
     return file.beingRenamed ?
         <TableCell width="50%">
             <Flex>
                 {checkbox}
-                <Box ml="9px">
-                    {icon}
-                </Box>
+                <Box ml="5px" pr="5px" />
+                {icon}
                 <Input
                     placeholder={getFilenameFromPath(file.path)}
                     pb="6px"
@@ -420,18 +422,15 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                 </Box>
             </Flex>
         </TableCell > :
-        <TableCell>
-            <Flex>
+        <TableCell width="50%">
+            <Flex flexDirection="row">
                 {checkbox}
-                <Box ml="9px">
-                    {nameLink}
-                </Box>
-                <Box>
-                    <GroupIcon isProject={isProject(file)} />
-                    <InlinedRelative pl="7px">
-                        <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={onFavoriteFile} />
-                    </InlinedRelative>
-                </Box>
+                <Box ml="5px" pr="5px" />
+                {nameLink}
+                <GroupIcon isProject={isProject(file)} />
+                <InlinedRelative pl="7px">
+                    <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={onFavoriteFile} />
+                </InlinedRelative>
             </Flex>
         </TableCell>
 };
@@ -439,7 +438,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
 const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
     <Box mb="13px">
         <Heading.h5 pl="20px" pt="5px" pb="8px">{toFileText(files)}</Heading.h5>
-        <FileOperations files={files} fileOperations={fileOperations} As={Box} pl="20px"/>
+        <FileOperations files={files} fileOperations={fileOperations} As={Box} pl="20px" />
     </Box>
 ) : null;
 

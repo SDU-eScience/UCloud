@@ -1,19 +1,22 @@
 import * as React from "react";
-import { Icon as SIcon, IconProps, Popup } from "semantic-ui-react";
-import { Icon, Heading, Box, Flex, Relative, Absolute } from "ui-components";
+import { Icon, Heading, Box, Relative, Absolute, Flex } from "ui-components";
 import styled from "styled-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
+import { IconName } from "ui-components/Icon";
+import { ThemeColor } from "ui-components/theme";
 
 const IconGroup = styled(Box)`
     position: relative;
     display: inline-block;
-`
+`;
 
-const _FileIcon = ({ name, shared = false, link = false, color }: FileIconProps) => 
+interface FileIconProps { link?: boolean, shared?: boolean, name: IconName, color: ThemeColor, size?: string | number  }
+export const FileIcon = ({ name, shared = false, link = false, color }: FileIconProps) => 
     link || shared ?
+    <Flex>
         <Relative>
             <IconGroup>
-                <Icon name={"files"} color="blue"/>
+                <Icon name={name} color={color}/>
                 <Absolute top={"40%"} right={"-10%"}>
                     <Dropdown>
                         <Icon size={"10px"} name={"share"} color={"gray"}/>
@@ -23,21 +26,20 @@ const _FileIcon = ({ name, shared = false, link = false, color }: FileIconProps)
                     </Dropdown>
                 </Absolute>
             </IconGroup>
-        </Relative> : null
+        </Relative>
+    </Flex> : <Icon name={name} color={color} />
 
-
-interface FileIconProps extends IconProps { link?: boolean, shared?: boolean }
-export const FileIcon = ({ name, size, shared = false, link = false, color }: FileIconProps) =>
+/* export const FileIcon = ({ name, size, shared = false, link = false, color }: FileIconProps) =>
     link || shared ?
-        <SIcon.Group size={size}>
-            <SIcon name={name} color={color} />
+        <SIcon.Group size={size as any}>
+            <SIcon name={name as any} color={color as any} />
             <Popup
                 content={shared ? "This file is shared" : "This is a link to a file"}
                 position="right center"
                 trigger={<SIcon corner color="grey" name={shared ? "users" : "share"}/>}
             />
         </SIcon.Group> :
-        <SIcon name={name} size={size} color={color} />
+        <SIcon name={name as any} size={size as any} color={color as any} /> */
 
 export function Arrow({ name }: { name: "arrowUp" | "arrowDown" | undefined}) {
     if (name === "arrowUp") return (<Icon name="arrowUp" />);

@@ -181,8 +181,8 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         const shareComponents: JSX.Element[] = groupedShare.shares.map(e => (
             <Box key={e.id}>
                 <Flex m="5px 5px 5px 5px">
-                    <Box width="5%">
-                        <i style={{ fontSize: 20, margin: "5px 5px" }} className="fas fa-user-circle" />
+                    <Box>
+                        <i style={{ fontSize: 20, marginRight: "5px" }} className="fas fa-user-circle" />
                     </Box>
                     <Box width="80%">
                         {e.sharedWith}

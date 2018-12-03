@@ -227,10 +227,14 @@ export const extensionType = (ext: string): ExtensionType => {
     }
 }
 
-type FileIcons = "tasks" | "star" | "trash alternate outline" | "folder" | "file outline" |
-    "file code outline" | "image" | "file outline" | "volume up" | "file archive outline";
-export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FileIcons => {
-    const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
+/* type FileIcons = "tasks" | "star" | "trash alternate outline" | "folder" | "file outline" |
+    "file code outline" | "image" | "file outline" | "volume up" | "file archive outline"; */
+export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): "ftImage" | "ftFolder" /* FileIcons */ => {
+    if (isDirectory({ fileType: type })) return "ftFolder";
+    return "ftImage";
+
+
+/*         const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
     if (homeFolderReplaced === "Home/Jobs/") return "tasks";
     if (homeFolderReplaced === "Home/Favorites/") return "star";
     if (homeFolderReplaced === "Home/Trash/") return "trash alternate outline";
@@ -253,7 +257,7 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
         case "text":
         default:
             return "file outline";
-    }
+    } */
 };
 
 // FIXME Remove navigation when backend support comes.

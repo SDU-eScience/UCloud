@@ -7,14 +7,14 @@ import * as Heading from "ui-components/Heading";
 import { Box, Flex, Relative, Error } from "ui-components";
 import { default as Spinner } from "LoadingIcon/LoadingIcon_new";
 
-interface ListProps {
-    pageRenderer: (page: Page<any>) => React.ReactNode
+interface ListProps<T> {
+    pageRenderer: (page: Page<T>) => React.ReactNode
 
     // List state
     loading?: boolean
 
     // Page results
-    page: Page<any>
+    page: Page<T>
     customEntriesPerPage?: boolean
 
     // Error properties  
@@ -28,8 +28,8 @@ interface ListProps {
     onErrorDismiss?: () => void
 }
 
-export class List extends React.PureComponent<ListProps> {
-    constructor(props: ListProps) {
+export class List<T> extends React.PureComponent<ListProps<T>> {
+    constructor(props: ListProps<T>) {
         super(props);
     }
 
