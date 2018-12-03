@@ -22,8 +22,7 @@ import {
     startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath, isProject,
     toFileText, getParentPath, isDirectory, moveFile, createFolder, previewSupportedExtension, clearTrash, fileTablePage
 } from "Utilities/FileUtilities";
-import InlinedRelative from "ui-components/InlinedRelative";
-import { Button, OutlineButton, Icon, Box, Hide, Flex, Divider, Checkbox, Label, Input, VerticalButtonGroup } from "ui-components";
+import { Button, OutlineButton, Icon, Box, Hide, Flex, Divider, Checkbox, Label, Input, VerticalButtonGroup, Text } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { Dispatch } from "redux";
 import Table, { TableRow, TableCell, TableBody, TableHeaderCell, TableHeader } from "ui-components/Table";
@@ -365,7 +364,7 @@ const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
 const PredicatedFavorite = ({ predicate, item, onClick }) =>
     predicate ? (
         <Icon
-            size={15}
+            size={15} ml="5px"
             color="blue"
             name={item.favorited ? "starFilled" : "starEmpty"}
             className={`${item.favorited ? "" : "file-data"}`}
@@ -374,7 +373,7 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
     ) : null;
 
 // FIXME Use own icons when available
-const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<i style={{ paddingLeft: "10px", verticalAlign: "middle" }} className="fas fa-users" />) : null;
+const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<i style={{ marginLeft: "5px" }} className="fas fa-users" />) : null;
 
 const FileLink = ({ file, children }) => {
     if (isDirectory(file)) {
@@ -390,7 +389,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} /></Box>
     const icon = (
-        <Box mr="5px">
+        <Box mr="10px">
             <FileIcon
                 color={isDirectory(file) ? "blue" : "gray"}
                 name={UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)}
@@ -398,39 +397,33 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             />
         </Box>
     );
-    const nameLink = (<FileLink file={file}>{icon}{fileName}</FileLink>);
+    const nameLink = (<FileLink file={file}><Flex alignItems="center">{icon}<Text mr="5px">{fileName}</Text></Flex></FileLink>);
     return file.beingRenamed ?
         <TableCell width="50%">
-            <Flex>
+            <Flex flexDirection="row" alignItems="center">
                 {checkbox}
                 <Box ml="5px" pr="5px" />
                 {icon}
                 <Input
                     placeholder={getFilenameFromPath(file.path)}
-                    pb="6px"
-                    pt="8px"
-                    mt="-2px"
-                    pl="0"
+                    p="0"
                     noBorder
                     type="text"
                     width="100%"
                     autoFocus
                     onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
                 />
-                <Box>
-                    <OutlineButton size="tiny" color="red" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton>
-                </Box>
+                {/* <OutlineButton size="tiny" color="red" mr="10px" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton> */}
+                <Icon size={24} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")}/>
             </Flex>
         </TableCell > :
         <TableCell width="50%">
-            <Flex flexDirection="row">
+            <Flex flexDirection="row" alignItems="center">
                 {checkbox}
                 <Box ml="5px" pr="5px" />
                 {nameLink}
                 <GroupIcon isProject={isProject(file)} />
-                <InlinedRelative pl="7px">
-                    <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={onFavoriteFile} />
-                </InlinedRelative>
+                <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={onFavoriteFile} />
             </Flex>
         </TableCell>
 };

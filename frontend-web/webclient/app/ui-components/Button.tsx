@@ -7,7 +7,7 @@ const size = ({ size, theme }: { size: string, theme: Theme }) => {
     case "tiny":
       return {
         fontSize: `${theme.fontSizes[0]}px`,
-        padding: "6.5px 12px"
+        padding: "5px 10px"
       }
     case "small":
       return {
