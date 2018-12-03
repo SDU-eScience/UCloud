@@ -175,9 +175,17 @@ const AppLogo = ({size, ...props}) => (
                 <ellipse cx="0" cy="0" rx="400" ry="1600" fill="#ff2600" fill-opacity=".85" transform="translate(-800 0)" />
                 <ellipse cx="0" cy="0" rx="400" ry="1600" fill="#008f00" fill-opacity=".85" transform="translate(800 0)" />
                 <ellipse cx="0" cy="0" rx="1600" ry="400" fill="#ff9300" fill-opacity=".85" transform="translate(0 -800)" />
-            </g></g>
+            </g>
+        </g>
     </svg>
 );
+
+const AppRibbonContainer = styled(Absolute)`
+    transition: ease 0.2s;
+    :hover {
+        top: 0
+    }
+` 
 
 export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
@@ -186,12 +194,12 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             <Absolute right={0} top={0}>
                 <AppBg />
             </Absolute>
-            <Absolute right={0} 
+            <AppRibbonContainer right={0} 
                       top={isFavorite ? 0 : -30}
                       onClick={(e) => !!favoriteApp ? (e.preventDefault(), favoriteApp(app.description.info.name, app.description.info.version)) : undefined}
                       >
                 <Icon name={"starRibbon"} color="red" size={48}/>
-            </Absolute>
+            </AppRibbonContainer>
             <Flex flexDirection={"row"} alignItems={"flex-start"}>
                 <AppLogo size={"48px"} />
                 <Flex flexDirection={"column"} ml="10px">

@@ -61,13 +61,9 @@ export const CardGroup = styled.div`
     flex-shrink: 0;
   }
 
-  & > a {
-    margin: 5px 5px 5px 5px;
-  }
-
-  & > a > div {
-    height: 100%;
-  }
+  // & > a > div {
+  //   height: 100%;
+  // }
 `;
 
 export const PlayIconBase = styled(Icon)`
