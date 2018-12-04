@@ -49,10 +49,19 @@ class SlurmJobTracker<DBSession>(
     private suspend fun processEvent(systemId: String, event: SlurmEvent) {
         when (event) {
             is SlurmEventRunning -> {
-                ComputationCallbackDescriptions.requestStateChange.call(
-                    StateChangeRequest(systemId, JobState.RUNNING, "Job is now running."),
+                val job = ComputationCallbackDescriptions.lookup.call(
+                    FindByStringId(systemId),
                     cloud
                 ).orThrow()
+
+                if (job.currentState in setOf(JobState.PREPARED, JobState.VALIDATED, JobState.SCHEDULED)) {
+                    ComputationCallbackDescriptions.requestStateChange.call(
+                        StateChangeRequest(systemId, JobState.RUNNING, "Job is now running."),
+                        cloud
+                    ).orThrow()
+                } else {
+                    log.info("Ignoring event: $event. We are already in state ${job.currentState}.")
+                }
             }
 
             is SlurmEventEnded -> {
