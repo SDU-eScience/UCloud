@@ -70,51 +70,39 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations & { lo
     };
 }
 
+const Attribute: React.FunctionComponent<{ name: string, value?: string }> = props => (
+    <Flex>
+        <Box flexGrow={1}>{props.name}</Box>
+        {props.value}{props.children}
+    </Flex>
+);
+
+const AttributeBox: React.FunctionComponent = props => (
+    <Box width="20em" m={16}>
+        <List>
+            {props.children}
+        </List>
+    </Box>
+);
+
 const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
     !file ? null : (
-        <Flex flexDirection="row" flexWrap="wrap">
-            <Box ml="auto" />
-            <Box width="20em">
-                <List>
-                    <Flex>
-                        Created at:
-                        <Box ml="auto" />
-                        {dateToString(file.createdAt)}
-                    </Flex>
-                    <Flex>
-                        Modified at:
-                        <Box ml="auto" />
-                        {dateToString(file.modifiedAt)}
-                    </Flex>
-                    <Flex>
-                        Favorite file:
-                        <Box ml="auto" />
-                        <Icon name={file.favorited ? "star" : "star outline"}
-                            onClick={() => favorite()}
-                            color="blue"
-                        />
-                    </Flex>
-                </List>
-            </Box>
-            <Box ml="auto" />
-            <Box ml="auto" />
-            <Box width="20em">
-                <List>
-                    <Flex>
-                        Sensitivity: <Box ml="auto" />{SensitivityLevel[file.sensitivityLevel]}
-                    </Flex>
-                    <Flex>
-                        Size: <Box ml="auto" />{fileSizeToString(file.size)}
-                    </Flex>
-                    {file.acl !== undefined ?
-                        <Flex>
-                            Shared with:
-                            <Box ml="auto" />
-                            {file.acl.length} {file.acl.length === 1 ? "person" : "people"}.
-                        </Flex> : null}
-                </List>
-            </Box>
-            <Box ml="auto" />
+        <Flex flexDirection="row" justifyContent="center" flexWrap="wrap">
+            <AttributeBox>
+                <Attribute name="Created at" value={dateToString(file.createdAt)} />
+                <Attribute name="Modified at" value={dateToString(file.modifiedAt)} />
+                <Attribute name="Favorite">
+                    <Icon name={file.favorited ? "star" : "star outline"}
+                        onClick={() => favorite()}
+                        color="blue"
+                    />
+                </Attribute>
+            </AttributeBox>
+            <AttributeBox>
+                <Attribute name="Sensitivity" value={SensitivityLevel[file.sensitivityLevel]} />
+                <Attribute name="Size" value={fileSizeToString(file.size)} />
+                <Attribute name="Shared with" value={`${file.acl !== undefined ? file.acl.length : 0} people`} />
+            </AttributeBox>
         </Flex >
     );
 
