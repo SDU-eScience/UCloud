@@ -179,7 +179,7 @@ const AppRibbonContainer = styled(Absolute)`
     }
 ` 
 
-export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => {
+export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
     return (
         <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
@@ -189,7 +189,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             { !onFavorite ? null :
 	            <AppRibbonContainer right={0} 
 	                      top={isFavorite ? 0 : -30}
-	                      onClick={(e) => !!favoriteApp ? (e.preventDefault(), favoriteApp(app.description.info.name, app.description.info.version)) : undefined}
+	                      onClick={(e) => !!onFavorite ? (e.preventDefault(), onFavorite(app.description.info.name, app.description.info.version)) : undefined}
 	            >
 	                <Icon name={"starRibbon"} color="red" size={48}/>
 	            </AppRibbonContainer>
