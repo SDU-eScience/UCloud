@@ -4,7 +4,7 @@ import { Action } from "redux";
 export type StatusActions = UpdatePageTitleAction | UpdateStatusAction;
 
 
-interface UpdatePageTitleAction extends Action<typeof UPDATE_PAGE_TITLE> { payload: { title: string } }
+export interface UpdatePageTitleAction extends Action<typeof UPDATE_PAGE_TITLE> { payload: { title: string } }
 /**
  * Sets the title of the window. Stores in the redux store as well
  * @param {string} title the title to be set

@@ -50,6 +50,13 @@ interface ApplicationDAO<Session> {
         version: String
     ): Application
 
+    fun findByNameAndVersionForUser(
+        session: Session,
+        user: String,
+        name: String,
+        version: String
+    ): ApplicationForUser
+
     fun listLatestVersion(
         session: Session,
         user: String?,

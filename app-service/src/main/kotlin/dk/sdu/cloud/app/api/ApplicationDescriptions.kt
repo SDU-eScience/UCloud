@@ -134,7 +134,7 @@ object ApplicationDescriptions : RESTDescriptions("hpc.apps") {
 
     val findByNameAndVersion = callDescription<
             FindApplicationAndOptionalDependencies,
-            Application,
+            ApplicationForUser,
             CommonErrorMessage> {
         name = "appsFindByNameAndVersion"
 

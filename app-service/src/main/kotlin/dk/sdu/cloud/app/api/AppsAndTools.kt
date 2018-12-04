@@ -13,7 +13,8 @@ data class Application(
     val createdAt: Long,
     val modifiedAt: Long,
     val description: NormalizedApplicationDescription,
-    val tool: Tool
+    val tool: Tool,
+    val imageUrl: String = ""
 )
 
 data class ApplicationForUser(
@@ -33,7 +34,24 @@ data class NormalizedApplicationDescription(
     val invocation: List<InvocationParameter>,
     val parameters: List<ApplicationParameter<*>>,
     val outputFileGlobs: List<String>,
-    val tags: List<String> = emptyList()
+    val tags: List<String> = emptyList(),
+
+    val applicationType: ApplicationType = ApplicationType.BATCH,
+    val website: String? = null,
+    val resources: ResourceRequirements = ResourceRequirements()
+)
+
+enum class ApplicationType {
+    BATCH
+}
+
+data class ResourceRequirements(
+    val multiNodeSupport: Boolean = false,
+    val coreRequirements: Int = -1,
+    val memoryRequirementsMb: Int = -1,
+    val gpuRequirements: Int = -1,
+    val tempStorageRequiremenstGb: Int = -1,
+    val persistentStorageRequirementsGb: Int = -1
 )
 
 @JsonTypeInfo(

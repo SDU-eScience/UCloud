@@ -1,5 +1,5 @@
 import { infoNotification, failureNotification } from "UtilityFunctions";
-import { Application, ParameterTypes, ApplicationInformation } from "Applications";
+import { Application, ParameterTypes } from "Applications";
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
 
