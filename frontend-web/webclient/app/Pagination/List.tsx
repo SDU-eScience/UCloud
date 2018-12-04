@@ -66,13 +66,13 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
                     </Relative>
                 </Flex>
                 {body}
-                <div>
+                <Box pb="2em">
                     <Self.PaginationButtons
                         currentPage={props.page.pageNumber}
                         toPage={(page) => ifPresent(props.onPageChanged, c => c(page))}
                         totalPages={props.page.pagesInTotal}
                     />
-                </div>
+                </Box>
             </>
         );
     }

@@ -185,6 +185,7 @@ export interface FileSelectorModalProps {
 }
 
 export interface FileSelectorBodyProps {
+    entriesPerPageSelector?: React.ReactNode
     disallowedPaths?: string[]
     onlyAllowFolders?: boolean
     creatingFolder?: boolean
