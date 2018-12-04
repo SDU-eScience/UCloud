@@ -80,18 +80,17 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
     }
 }
 
-const DashBoardCard = ({title, isLoading, children}: {title: string, isLoading:boolean, children?: any}) => (
+const DashBoardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: any }) => (
     <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-    <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
-        <Heading.h4>{title}</Heading.h4>
-    </Flex>
-    <Box px={3} py={1}>
-        {/* <DefaultLoading loading={isLoading} /> */}
-        {isLoading && <Spinner size={24} />} 
-        <Box pb="0.5em" />
-        {children}
-    </Box>
-</Card>
+        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+            <Heading.h4>{title}</Heading.h4>
+        </Flex>
+        <Box px={3} py={1}>
+            {isLoading && <Spinner size={24} />}
+            <Box pb="0.5em" />
+            {children}
+        </Box>
+    </Card>
 )
 
 const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: (file: File) => void }) => (
@@ -131,7 +130,7 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
                 </Flex>
             ))}
         </List>
-    </DashBoardCard> 
+    </DashBoardCard>
 );
 
 const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLoading: boolean }) => (
@@ -140,11 +139,11 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
         <List>
             {analyses.map((analysis: Analysis, index: number) =>
                 <Flex key={index} pt="0.8em" pb="6px">
-                    <Icon name={statusToIconName(analysis.state)} 
-                            color={statusToColor(analysis.state)} 
-                            size="1.5em"
-                            pr="0.3em"
-                            />
+                    <Icon name={statusToIconName(analysis.state)}
+                        color={statusToColor(analysis.state)}
+                        size="1.5em"
+                        pr="0.3em"
+                    />
                     <Link to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.appName}</TextSpan></Link>
                     <Box ml="auto" />
                     <TextSpan fontSize={2}>{toLowerCaseAndCapitalize(analysis.state)}</TextSpan>
@@ -154,8 +153,8 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
     </DashBoardCard>
 );
 
-const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: { onNotificationAction: (notification: Notification) => void,  notifications: Notification[], readAll: () => void }) => (
- //   <DashBoardCard title="Recent notifications" isLoading={isLoading}>
+const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: { onNotificationAction: (notification: Notification) => void, notifications: Notification[], readAll: () => void }) => (
+    //   <DashBoardCard title="Recent notifications" isLoading={isLoading}>
     <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3}>
             <Heading.h4>Recent notifications</Heading.h4>

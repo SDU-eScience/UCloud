@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Search, Form, Button } from "semantic-ui-react";
+import { Search as SSearch, Form as SForm, Button as SButton } from "semantic-ui-react";
 import { identifierTypes } from "DefaultObjects";
 import { allLicenses } from "./licenses";
 import { Contributor, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
@@ -9,6 +9,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 import { getQueryParam } from "Utilities/URIUtilities";
 import { projectViewPage } from "Utilities/ProjectUtilities";
+import { Input } from "ui-components";
 
 const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -223,20 +224,20 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
 
     render() {
         return (
-            <Form onSubmit={this.onSubmit}>
-                <Form.Field required>
+            <SForm onSubmit={this.onSubmit}>
+                <SForm.Field required>
                     <label>Title</label>
-                    <Form.Input
+                    <SForm.Input
                         placeholder="Title"
                         value={this.state.title}
                         error={this.state.errors.title}
                         onChange={this.setStateEv("title")}
                         required
                     />
-                </Form.Field>
-                <Form.Field required>
+                </SForm.Field>
+                <SForm.Field required>
                     <label>Description</label>
-                    <Form.TextArea
+                    <SForm.TextArea
                         value={this.state.description}
                         error={this.state.errors.description}
                         rows={15}
@@ -244,8 +245,8 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                         onChange={this.setStateEv("description")}
                         required
                     />
-                </Form.Field>
-                <Form.Field>
+                </SForm.Field>
+                <SForm.Field>
                     <label>License</label>
                     <p>
                         {this.state.license ?
@@ -256,7 +257,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                                     {this.state.license.title}
                                 </a>
 
-                                <Button
+                                <SButton
                                     type="button"
                                     basic
                                     onClick={() => this.setState({ license: null })}
@@ -274,98 +275,98 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                         }
                     </p>
                     <LicenseDropdown onChange={this.setStateEv("license")} />
-                </Form.Field>
+                </SForm.Field>
 
-                <Form.Field>
+                <SForm.Field>
                     <label>Keywords</label>
                     <FormFieldList
                         items={this.state.keywords}
                         name="keyword"
                         onChange={this.setStateEvList("keywords")}
                     />
-                    <Button
+                    <SButton
                         type="button"
                         content="New keyword"
                         onClick={(e) => this.addRow(e, "keywords")}
                     />
-                </Form.Field>
+                </SForm.Field>
 
-                <Form.Field>
+                <SForm.Field>
                     <label>Notes</label>
-                    <Form.TextArea
+                    <SForm.TextArea
                         value={this.state.notes}
                         placeholder="Notes..."
                         onChange={this.setStateEv("notes")}
                     />
-                </Form.Field>
+                </SForm.Field>
 
-                <Form.Field>
+                <SForm.Field>
                     <label>Data Management Plan</label>
-                    <Form.TextArea
+                    <SForm.TextArea
                         value={this.state.dataManagementPlan}
                         placeholder="Data Management Plan..."
                         onChange={this.setStateEv("dataManagementPlan")}
                     />
-                </Form.Field>
+                </SForm.Field>
 
-                <Form.Field>
+                <SForm.Field>
                     <label>Contributors</label>
                     <Contributors
                         contributors={this.state.contributors}
                         errors={this.state.errors.contributors}
                         onChange={this.setStateEvList("contributors")}
                     />
-                    <Button
+                    <SButton
                         type="button"
                         content="Add collaborator"
                         onClick={(e) => this.addCollaborator(e)}
                     />
-                </Form.Field>
+                </SForm.Field>
 
-                <Form.Field>
+                <SForm.Field>
                     <label>References</label>
                     <FormFieldList
                         name="reference"
                         items={this.state.references}
                         onChange={this.setStateEvList("references")}
                     />
-                    <Button
+                    <SButton
                         type="button"
                         content="Add reference"
                         onClick={(e) => this.addRow(e, "references")}
                     />
-                </Form.Field>
+                </SForm.Field>
 
-                <Form.Field>
+                <SForm.Field>
                     <label>Grants</label>
                     <FormFieldList
                         name="grant"
                         items={this.state.grants}
                         onChange={this.setStateEvList("grants")}
                     />
-                    <Button
+                    <SButton
                         type="button"
                         content="Add grant"
                         onClick={(e) => this.addRow(e, "grants")}
                     />
-                </Form.Field>
+                </SForm.Field>
 
 
-                <Form.Field>
+                <SForm.Field>
                     <label>Subjects</label>
                     <Subjects
                         subjects={this.state.subjects}
                         onChange={this.setStateEvList("subjects")}
                         errors={this.state.errors.subjects}
                     />
-                    <Button
+                    <SButton
                         type="button"
                         content="Add subject"
                         onClick={(e) => this.addSubject(e)}
                     />
-                </Form.Field>
+                </SForm.Field>
 
-                <Form.Field>
+                <SForm.Field>
                     <label>Related identifiers</label>
 
                     <RelatedIdentifiers
@@ -373,14 +374,14 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                         onChange={this.setStateEvList("relatedIdentifiers")}
                         errors={this.state.errors.relatedIdentifiers}
                     />
-                    <Button
+                    <SButton
                         type="button"
                         content="Add identifier"
                         onClick={(e) => this.addIdentifier(e)}
                     />
-                </Form.Field>
+                </SForm.Field>
 
-                <Button
+                <SButton
                     positive
                     type="button"
                     content="Submit"
@@ -389,7 +390,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                     onClick={(e) => this.onSubmit(e)}
                 />
                 <div className="clear"></div>
-            </Form>
+            </SForm>
         )
     }
 }
@@ -424,7 +425,7 @@ class LicenseDropdown extends React.Component<LicenseDropdownProps, LicenseDropd
 
     render() {
         return (
-            <Search
+            <SSearch
                 placeholder="Search for a license..."
                 loading={false}
                 onResultSelect={(e, { result }) => this.props.onChange(e, { value: result })}
@@ -445,11 +446,11 @@ interface SubjectsProps {
 const Subjects = ({ subjects, errors, onChange }: SubjectsProps) => {
     const elements = subjects.map((value, index) => {
         const sharedProps = { value, onChange, index };
-        return <Form.Group key={index} widths="equal">
+        return <SForm.Group key={index} widths="equal">
             <InputInList name="term" displayName="Term" error={errors[index]}
                 {...sharedProps} />
             <InputInList name="identifier" displayName="Identifier" {...sharedProps} />
-        </Form.Group>;
+        </SForm.Group>;
     });
     return <>{elements}</>;
 };
@@ -463,11 +464,11 @@ interface RelatedIdentifiersProps {
 const RelatedIdentifiers = ({ relatedIdentifiers, errors, onChange }: RelatedIdentifiersProps) => {
     const elements = relatedIdentifiers.map((value, index) => {
         const sharedProps = { value, onChange, index };
-        return <Form.Group key={index} widths="equal">
+        return <SForm.Group key={index} widths="equal">
             <InputInList name="identifier" displayName="Identifier" error={errors[index]}
                 {...sharedProps} />
 
-            <Form.Dropdown label="Type"
+            <SForm.Dropdown label="Type"
                 search
                 searchInput={{ type: "string" }}
                 selection
@@ -476,7 +477,7 @@ const RelatedIdentifiers = ({ relatedIdentifiers, errors, onChange }: RelatedIde
                 placeholder="Select type"
                 onChange={(e, { value }) => onChange(value, index, "relation")}
             />
-        </Form.Group>;
+        </SForm.Group>;
     });
 
     return <>{elements}</>;
@@ -494,13 +495,13 @@ const Contributors = ({ contributors, errors, onChange }: CollaboratorsProps) =>
             contributors.map((value, index) => {
                 const sharedProps = { value, onChange, index };
 
-                return <Form.Group key={index} widths="equal">
+                return <SForm.Group key={index} widths="equal">
                     <InputInList name="name" displayName="Name" {...sharedProps}
                         error={errors[index]} />
                     <InputInList name="affiliation" displayName="Affiliation" {...sharedProps} />
                     <InputInList name="orcId" displayName="ORCID" {...sharedProps} />
                     <InputInList name="gnd" displayName="GND" {...sharedProps} />
-                </Form.Group>
+                </SForm.Group>
             })
         }
     </>
@@ -513,7 +514,7 @@ const InputInList = (p: {
     onChange: (value, i: number, name: string) => void,
     error?: any
 }) => (
-        <Form.Input
+        <SForm.Input
             fluid
             label={p.displayName}
             placeholder={`${p.displayName}...`}
@@ -527,11 +528,13 @@ const FormFieldList = ({ items, name, onChange }) =>
     <>
         {
             items.map((c, i) =>
-                <Form.Input
+                <Input
+                    mt="0.4em"
+                    mb="0.4em"
                     key={i}
                     value={c}
                     placeholder={`Enter ${name}`}
-                    onChange={(e, { value }) => onChange(value, i)}
+                    onChange={({ target }) => onChange(target.value, i)}
                 />)
         }
     </>;
