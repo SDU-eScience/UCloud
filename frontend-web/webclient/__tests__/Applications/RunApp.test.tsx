@@ -1,8 +1,8 @@
 import * as React from "react";
 import { create } from "react-test-renderer";
 import { configureStore } from "Utilities/ReduxUtilities";
-import { init } from "Applications/Redux/ApplicationsObject";
-import applications from "Applications/Redux/ApplicationsReducer";
+import { init } from "Applications/Redux/BrowseObject";
+import applications from "Applications/Redux/BrowseReducer";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
 
