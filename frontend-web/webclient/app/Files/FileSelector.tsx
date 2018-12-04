@@ -7,7 +7,7 @@ import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory, cre
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
-import { FileIcon } from "UtilityComponents";
+import { FileIcon, RefreshButton } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileListProps, FileSelectorModalProps, FileSelectorBodyProps, File } from ".";
 import { filepathQuery, isInvalidPathName } from "Utilities/FileUtilities";
@@ -16,6 +16,7 @@ import * as ReactModal from "react-modal";
 import * as Heading from "ui-components/Heading";
 import { TextSpan } from "ui-components/Text";
 import { Spacer } from "ui-components/Spacer";
+import { EntriesPerPageSelector } from "Pagination";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props, context) {
@@ -136,7 +137,6 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
                 <>
                     <CreateFolderButton createFolder={props.createFolder} />
                     <Box mr="5px" />
-                    <Icon name="refresh" />
                     <Icon name="close" onClick={props.onHide} />
                 </>
             }
@@ -153,6 +153,15 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             onErrorDismiss={props.onErrorDismiss}
             pageRenderer={page =>
                 <FileSelectorBody
+                    entriesPerPageSelector={
+                        <>
+                            <EntriesPerPageSelector
+                                entriesPerPage={page.itemsPerPage}
+                                content="Files per page"
+                                onChange={itemsPerPage => props.fetchFiles(props.path, page.pageNumber, itemsPerPage)}
+                            />
+                            <RefreshButton loading={props.loading} onClick={() => props.fetchFiles(props.path, page.pageNumber, page.itemsPerPage)} />
+                        </>}
                     canSelectFolders={!!canSelectFolders}
                     {...props}
                     page={page}
@@ -176,7 +185,7 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
             <Flex>
                 Filename
                 <Box ml="auto" />
-                I'm supposed to be an itemsPerPage thingy
+                {props.entriesPerPageSelector}
             </Flex>
             <CreatingFolder
                 creatingFolder={props.creatingFolder}

@@ -4,7 +4,6 @@ import { PayloadAction, Error, SetLoadingAction, Page } from "Types";
 import { Sensitivity } from "DefaultObjects";
 import { File, AdvancedSearchRequest, SensitivityLevel } from "Files";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { Moment } from "moment";
 import { advancedFileSearch } from "Utilities/FileUtilities";
 
 export type DetailedFileSearchActions = ToggleFilesSearchHiddenAction | ToggleFoldersAllowedAction | SetTime |
@@ -83,8 +82,8 @@ export const setTime = (times: Times): SetTime => ({
 });
 
 export interface Times {
-    createdAfter?: Moment
-    modifiedAfter?: Moment
-    createdBefore?: Moment
-    modifiedBefore?: Moment
+    createdAfter?: Date
+    modifiedAfter?: Date
+    createdBefore?: Date
+    modifiedBefore?: Date
 }

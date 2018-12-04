@@ -1,7 +1,6 @@
 import { Page } from "Types";
 import { History } from "history";
 import Cloud from "Authentication/lib";
-import { Moment } from "moment";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
@@ -186,6 +185,7 @@ export interface FileSelectorModalProps {
 }
 
 export interface FileSelectorBodyProps {
+    entriesPerPageSelector?: React.ReactNode
     disallowedPaths?: string[]
     onlyAllowFolders?: boolean
     creatingFolder?: boolean
@@ -270,10 +270,10 @@ export interface DetailedFileSearchReduxState extends ComponentWithPage<File> {
     extensions: Set<string>
     tags: Set<string>
     sensitivities: Set<SensitivityLevel>
-    createdBefore?: Moment
-    createdAfter?: Moment
-    modifiedBefore?: Moment
-    modifiedAfter?: Moment
+    createdBefore?: Date
+    createdAfter?: Date
+    modifiedBefore?: Date
+    modifiedAfter?: Date
 }
 
 export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalidPath: boolean }
