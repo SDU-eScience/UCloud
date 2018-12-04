@@ -53,13 +53,12 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     componentDidMount() {
-        this.retrieveStdStreams();
-        let reloadIntervalId = window.setInterval(() => this.retrieveStdStreams(), 1_000);
+        let reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
         this.setState(() => ({ reloadIntervalId: reloadIntervalId }));
     }
 
     componentWillUnmount() {
-        if (this.state.reloadIntervalId) window.clearInterval(this.state.reloadIntervalId);
+        if (this.state.reloadIntervalId) window.clearTimeout(this.state.reloadIntervalId);
         this.state.promises.cancelPromises();
     }
 
@@ -109,6 +108,10 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
                 this.scrollIfNeeded();
                 if (response.complete) this.retrieveStateWhenCompleted();
+                else {
+                    let reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
+                    this.setState(() => ({ reloadIntervalId: reloadIntervalId }));
+                }
             },
 
             failure => {
@@ -129,7 +132,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
         this.props.fetchPage(this.jobId, pageNumber, itemsPerPage);
-        window.clearInterval(this.state.reloadIntervalId);
+        window.clearTimeout(this.state.reloadIntervalId);
     }
 
     favoriteFile = (file: File) => this.props.receivePage(favoriteFileFromPage(this.props.page, [file], Cloud));
@@ -176,7 +179,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 domEntries.push(
                     <Box>
                         Application has completed successfully. Click
-                            <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}> here</Link>
+                            <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}> here </Link>
                         to go to the output.
                     </Box>
                 );
