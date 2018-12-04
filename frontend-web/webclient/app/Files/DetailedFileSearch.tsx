@@ -2,7 +2,6 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { DetailedFileSearchProps, DetailedFileSearchReduxState, SensitivityLevel, PossibleTime, FileType, AdvancedSearchRequest, DetailedFileSearchOperations } from ".";
 import { DatePicker } from "ui-components/DatePicker";
-import { Moment } from "moment";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Flex, Input, Label, InputGroup, Stamp, Checkbox, Error, OutlineButton, LoadingButton } from "ui-components";
@@ -47,7 +46,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
     }
 
     // FIXME, should show errors in fields instead, the upper corner error is not very noticeable;
-    validateAndSetDate(m: Moment | null, property: PossibleTime) {
+    validateAndSetDate(m: Date | null, property: PossibleTime) {
         const { setTimes } = this.props;
         setTimes({ [property]: m === null ? undefined : m });
     }
@@ -128,7 +127,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     isClearable
                                     selectsStart
                                     timeFormat="HH:mm"
-                                    dateFormat="DD/MM/YY HH:mm"
+                                    dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
                                 />
                                 <DatePicker
@@ -147,7 +146,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     timeIntervals={15}
                                     isClearable
                                     timeFormat="HH:mm"
-                                    dateFormat="DD/MM/YY HH:mm"
+                                    dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
                                 />
                             </InputGroup>
@@ -168,9 +167,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     showTimeSelect
                                     timeIntervals={15}
                                     isClearable
-                                    locale="da"
                                     timeFormat="HH:mm"
-                                    dateFormat="DD/MM/YY HH:mm"
+                                    dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
                                 />
                                 <DatePicker
@@ -183,13 +181,12 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     selectsEnd
                                     startDate={this.props.modifiedAfter}
                                     endDate={this.props.modifiedBefore}
-                                    locale="da"
                                     onChange={d => this.validateAndSetDate(d, "modifiedBefore")}
                                     showTimeSelect
                                     timeIntervals={15}
                                     isClearable
                                     timeFormat="HH:mm"
-                                    dateFormat="DD/MM/YY HH:mm"
+                                    dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
                                 />
                             </InputGroup>
@@ -203,13 +200,13 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     />
                                     Folders
                             </Label>
-                            <Label fontSize={1} color="black">
-                                <Checkbox
-                                    checked={allowFiles}
-                                    onChange={e => e.stopPropagation()}
-                                    onClick={_ => this.props.toggleFilesAllowed()}
-                                />
-                                Files
+                                <Label fontSize={1} color="black">
+                                    <Checkbox
+                                        checked={allowFiles}
+                                        onChange={e => e.stopPropagation()}
+                                        onClick={_ => this.props.toggleFilesAllowed()}
+                                    />
+                                    Files
                             </Label>
                             </Flex>
                             <Heading.h5 pb="0.3em" pt="0.5em">File extensions</Heading.h5>
