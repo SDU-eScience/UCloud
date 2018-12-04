@@ -1,62 +1,40 @@
 import { Cloud } from "Authentication/SDUCloudObject";
-import {
-    RECEIVE_APPLICATIONS,
-    SET_APPLICATIONS_LOADING,
-    APPLICATIONS_ERROR,
-    RECEIVE_FAVORITE_APPLICATIONS,
-    SET_FAVORITE_APPLICATIONS_LOADING
-} from "./ApplicationsReducer";
-import {
-    SetLoadingAction,
-    Page,
-    Error,
-    ReceivePage,
-    PayloadAction
-} from "Types";
-import { Application } from ".."
-import { hpcApplicationsQuery, hpcFavorites } from "Utilities/ApplicationUtilities";
+import { PayloadAction, Page } from "Types";
+import { Application } from "Applications";
+import { LoadableEvent, unwrapCall } from "LoadableContent";
+import { buildQueryString } from "Utilities/URIUtilities";
 
-export type ApplicationActions = ReceiveApplicationsAction | Error<typeof APPLICATIONS_ERROR> |
-    SetLoadingAction<typeof SET_APPLICATIONS_LOADING> | ReceiveFavoritesAction | FavoritesLoading;
+export enum Tag {
+    RECEIVE_APP = "BROWSE_APP_RECEIVE_APP"
+}
 
-interface ReceiveApplicationsAction extends ReceivePage<typeof RECEIVE_APPLICATIONS, Application> { }
-export const receiveApplications = (page: Page<Application>): ReceiveApplicationsAction => ({
-    type: RECEIVE_APPLICATIONS,
-    payload: { page }
-});
+export type Type = ReceiveApp;
 
-type ReceiveFavoritesAction = PayloadAction<typeof RECEIVE_FAVORITE_APPLICATIONS, { favorites: Page<Application> }>
-export const receiveFavoriteApplications = (favorites: Page<Application>): ReceiveFavoritesAction => ({
-    type: RECEIVE_FAVORITE_APPLICATIONS,
-    payload: { favorites }
-});
+type ReceiveApp = PayloadAction<typeof Tag.RECEIVE_APP, LoadableEvent<Page<Application>>>;
 
-export const setErrorMessage = (error?: string): Error<typeof APPLICATIONS_ERROR> => ({
-    type: APPLICATIONS_ERROR,
-    payload: { error }
-});
+export const fetchByTag = async (tag: string, itemsPerPage: number, page: number): Promise<ReceiveApp> => ({
+    type: Tag.RECEIVE_APP,
+    payload: await unwrapCall(
+        Cloud.get<Page<Application>>(buildQueryString(
+            "/hpc/apps/searchTags",
+            {
+                query: tag,
+                itemsPerPage,
+                page
+            }
+        ))
+    )
+})
 
-export const fetchApplications = (page: number, itemsPerPage: number): Promise<ReceiveApplicationsAction | Error<typeof APPLICATIONS_ERROR>> =>
-    Cloud.get<Page<Application>>(hpcApplicationsQuery(page, itemsPerPage)).then(({ response }: { response: Page<Application> }) =>
-        receiveApplications(response)
-    ).catch(() => setErrorMessage("An error occurred while retrieving applications."));
-
-export const fetchFavoriteApplications = (page: number, itemsPerPage: number): Promise<ReceiveFavoritesAction | Error<typeof APPLICATIONS_ERROR>> =>
-    Cloud.get<Page<Application>>(hpcFavorites(itemsPerPage, page)).then(({ response }) =>
-        receiveFavoriteApplications(response)
-    ).catch(() => setErrorMessage("An error occurred while retrieving applications."));
-
-/**
- * Sets the loading state for the applications component
- * @param {boolean} loading loading state for the applications component
- */
-export const setLoading = (loading: boolean): SetLoadingAction<typeof SET_APPLICATIONS_LOADING> => ({
-    type: SET_APPLICATIONS_LOADING,
-    payload: { loading }
-});
-
-type FavoritesLoading = PayloadAction<typeof SET_FAVORITE_APPLICATIONS_LOADING, { favoritesLoading: boolean }>
-export const setFavoritesLoading = (favoritesLoading: boolean): FavoritesLoading => ({
-    type: SET_FAVORITE_APPLICATIONS_LOADING,
-    payload: { favoritesLoading }
+export const fetch = async (itemsPerPage: number, page: number): Promise<ReceiveApp> => ({
+    type: Tag.RECEIVE_APP,
+    payload: await unwrapCall(
+        Cloud.get<Page<Application>>(buildQueryString(
+            "/hpc/apps",
+            {
+                itemsPerPage,
+                page
+            }
+        ))
+    )
 });

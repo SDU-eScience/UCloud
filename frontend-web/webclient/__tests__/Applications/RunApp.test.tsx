@@ -1,7 +1,7 @@
 import * as React from "react";
 import { create } from "react-test-renderer";
 import { configureStore } from "Utilities/ReduxUtilities";
-import { initApplications } from "DefaultObjects";
+import { init } from "Applications/Redux/ApplicationsObject";
 import applications from "Applications/Redux/ApplicationsReducer";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
@@ -10,7 +10,7 @@ describe("RunApp component", () => {
 
     // FIXME Requires match props, but for some reason isn't allowed
     test.skip("Mount", () => {
-        const store = configureStore({ applications: initApplications() }, { applications })
+        const store = configureStore({ applications: init() }, { applications })
         expect(create(
             <Provider store={store}>
                 <MemoryRouter>

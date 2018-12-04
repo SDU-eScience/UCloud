@@ -52,9 +52,7 @@ export enum SortBy {
     SENSITIVITY = "SENSITIVITY"
 }
 
-export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps {
-    history: History
-}
+export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps {}
 
 export interface MockedTableProps {
     onCreateFolder: (a: number, c: number) => void

@@ -1,9 +1,8 @@
 import * as React from "react";
-import { MaterialColors } from "Assets/materialcolors.json";
-import { Link, Image, Button } from "ui-components";
+import { Link, Image } from "ui-components";
 import { Relative, Box, Absolute, Text, Icon, Flex, RatingBadge, Card } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
-import { PlayIcon } from "ui-components/Card";
+import * as Pages from "./Pages";
 import { Application } from ".";
 import styled from "styled-components";
 import * as ReactMarkdown from "react-markdown";
@@ -72,9 +71,8 @@ export const ApplicationCardContainer = styled.div`
 `;
 
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    const appInfo = props.app.description.info;
     return (
-        <AppCardBase to={props.linkToRun ? `/applications/${appInfo.name}/${appInfo.version}` : `/applications/details/${appInfo.name}/${appInfo.version}`}>
+        <AppCardBase to={props.linkToRun ? Pages.runApplication(props.app) : Pages.viewApplication(props.app)}>
             <img src={props.app.imageUrl} />
             <strong>{props.app.description.title} v{props.app.description.info.version}</strong>
             <EllipsedText>
@@ -88,12 +86,8 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
 };
 
 export const ApplicationCard = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => (
-    <Link to={linkToRun ?
-        `/applications/${app.description.info.name}/${app.description.info.version}` :
-        `/applications/details/${app.description.info.name}/${app.description.info.version}`
-    }>
+    <Link to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
         <Card width="250px">
-
             <Relative height="135px">
                 <Box>
                     <Image src={app.imageUrl} />
@@ -135,9 +129,7 @@ const NewAppCard = styled(Link)`
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    // border: 2px solid ${(props) => props.theme.colors.midGray};
     border-radius: ${props => props.theme.radius};
-    // background-color: ${(props) => props.theme.colors.lightGray};
     background-color: #ebeff3;
     position: relative;
     flex: 1 0 auto;
@@ -182,7 +174,7 @@ const AppLogo = ({size, ...props}) => (
 export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
     return (
-        <NewAppCard to={linkToRun ? `/applications/${appDesc.info.name}/${appDesc.info.version}` : `/applications/details/${appDesc.info.name}/${appDesc.info.version}`}>
+        <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
             <Absolute right={0} top={0}>
                 <AppBg />
             </Absolute>
@@ -203,10 +195,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             </Flex>
             <Box mt="auto" />
             <Flex flexDirection={"row"} alignItems={"flex-start"}>
-                <Tag label="Singularity" />
-                <Tag label="Biocontainers" />
-                <Tag label="Toys" />
-                <Tag label="Health Science " />
+                { appDesc.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
         </NewAppCard>
     );

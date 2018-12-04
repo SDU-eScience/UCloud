@@ -132,11 +132,6 @@ export interface HeaderSearchReduxObject {
     prioritizedSearch: HeaderSearchType
 }
 
-export interface ApplicationReduxObject extends ComponentWithPage<Application> {
-    favorites: Page<Application>
-    favoritesLoading: boolean
-};
-
 export interface RunApplicationReduxObject {
 
 }
@@ -159,7 +154,6 @@ interface LegacyReducers {
     files?: Reducer<FilesReduxObject>
     uploader?: Reducer<UploaderReduxObject>
     status?: Reducer<StatusReduxObject>
-    applications?: Reducer<ApplicationReduxObject>
     notifications?: Reducer<NotificationsReduxObject>
     analyses?: Reducer<AnalysisReduxObject>
     zenodo?: Reducer<ZenodoReduxObject>
@@ -184,7 +178,6 @@ interface LegacyReduxObject {
     files: FilesReduxObject,
     uploader: UploaderReduxObject
     status: StatusReduxObject,
-    applications: ApplicationReduxObject
     notifications: NotificationsReduxObject
     analyses: AnalysisReduxObject
     zenodo: ZenodoReduxObject
@@ -217,14 +210,6 @@ export const initHeader = (): HeaderSearchReduxObject => ({
     prioritizedSearch: "files"
 });
 
-export const initApplications = (): ApplicationReduxObject => ({
-    page: emptyPage,
-    favorites: emptyPage,
-    favoritesLoading: false,
-    loading: false,
-    error: undefined
-});
-
 export const initStatus = (): StatusReduxObject => ({
     status: DefaultStatus,
     title: ""
@@ -245,7 +230,6 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     dashboard: initDashboard(),
     files: initFiles(homeFolder),
     status: initStatus(),
-    applications: initApplications(),
     header: initHeader(),
     notifications: initNotifications(),
     analyses: initAnalyses(),

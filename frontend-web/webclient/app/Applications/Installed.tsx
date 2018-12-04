@@ -4,8 +4,6 @@ import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
-import { setErrorMessage } from "./Redux/ApplicationsActions";
-import { fetchFavoriteApplications, setFavoritesLoading } from "./Redux/ApplicationsActions";
 import { Application } from "Applications";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
@@ -73,25 +71,29 @@ const InstalledPage: React.StatelessComponent<{ page: Page<Application> }> = pro
 
 const mapDispatchToProps = (dispatch: Dispatch): InstalledOperations => ({
     onComponentDidMount: () => {
+        /*
         dispatch(setPrioritizedSearch("applications"))
         dispatch(updatePageTitle("Installed Applications"))
         dispatch(setErrorMessage());
+        */
     },
 
     onErrorDismiss: () => {
-        dispatch(setErrorMessage())
+        // dispatch(setErrorMessage())
     },
 
     fetchItems: async (pageNumber: number, itemsPerPage: number) => {
-        dispatch(setFavoritesLoading(true));
-        dispatch(await fetchFavoriteApplications(pageNumber, itemsPerPage));
+        // dispatch(setFavoritesLoading(true));
+        // dispatch(await fetchFavoriteApplications(pageNumber, itemsPerPage));
     }
 });
 
+/*
 const mapStateToProps = ({ applications }: ReduxObject): InstalledStateProps => ({
     page: applications.favorites,
     loading: applications.favoritesLoading,
     error: applications.error
 });
+*/
 
-export default connect(mapStateToProps, mapDispatchToProps)(Installed);
+export default connect(/*mapStateToProps, mapDispatchToProps*/)(Installed);

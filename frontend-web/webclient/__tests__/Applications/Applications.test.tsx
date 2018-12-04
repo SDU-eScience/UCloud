@@ -2,18 +2,18 @@ import * as React from "react";
 import * as Renderer from "react-test-renderer";
 import { ApplicationCard } from "Applications/Card";
 import { configureStore } from "Utilities/ReduxUtilities";
-import { initApplications } from "DefaultObjects";
+import { init } from "Applications/Redux/ApplicationsObject";
 import applicationsReducer from "Applications/Redux/ApplicationsReducer";
 import { applicationsPage } from "../mock/Applications";
 import { MemoryRouter } from "react-router";
 import { shallow } from "enzyme";
 
-const emptyPageStore = configureStore({ applications: initApplications() }, { applications: applicationsReducer });
+const emptyPageStore = configureStore({ applications: init() }, { applications: applicationsReducer });
 const fullPageStore = {
     ...emptyPageStore
 };
 
-fullPageStore.getState().applications.page = applicationsPage;
+fullPageStore.getState().applicationsBrowse.applications.content = applicationsPage;
 
 
 describe("Single Application Component", () => {

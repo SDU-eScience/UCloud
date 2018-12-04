@@ -1,13 +1,13 @@
-import { Reducer } from "redux";
+import { Reducer as ReduxReducer } from "redux";
 import { Type, init } from "./ViewObject";
 import {loadableEventToContent, LoadableEventTag } from "LoadableContent";
 import * as Actions from "./ViewActions";
 
 export interface Reducer {
-    applicationView: Reducer<Type>
+    applicationView: ReduxReducer<Type>
 }
 
-const reducer: Reducer<Type> = (state: Type = init().applicationView, action: Actions.Type): Type => {
+const reducer: ReduxReducer<Type> = (state: Type = init().applicationView, action: Actions.Type): Type => {
     switch (action.type) {
         case Actions.Tag.RECEIVE_APP: {
             return { ...state, application: loadableEventToContent(action.payload) };
