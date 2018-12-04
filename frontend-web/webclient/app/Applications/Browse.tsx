@@ -19,6 +19,8 @@ import * as Pages from "./Pages";
 import { Type as ReduxType } from "./Redux/ApplicationsObject";
 import * as Actions from "./Redux/ApplicationsActions";
 import { loadingEvent } from "LoadableContent";
+import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -123,12 +125,15 @@ class Applications extends React.Component<ApplicationsProps> {
         const main = (
             <Pagination.List
                 onRefresh={() => this.fetch(this.props)}
-                pageRenderer={({ items }: Page<Application>) =>
+                pageRenderer={(page: Page<Application>) =>
                     <CardGroup>
-                        {items.map((app, index) =>
+                        {page.items.map((app, index) =>
                             <NewApplicationCard
                                 key={index}
-                                favoriteApp={undefined}
+                                onFavorite={async () => {
+                                    await favoriteApplicationFromPage(app.description.info.name, app.description.info.version, page, Cloud);
+                                    this.fetch(this.props);
+                                }}
                                 app={app}
                                 isFavorite={app.favorite}
                             />

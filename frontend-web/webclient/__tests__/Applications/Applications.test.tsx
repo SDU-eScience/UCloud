@@ -22,7 +22,7 @@ describe("Single Application Component", () => {
             <MemoryRouter>
                 <ApplicationCard
                     app={applicationsPage.items[0]}
-                    favoriteApp={() => null}
+                    onFavorite={() => null}
                 />
             </MemoryRouter>).toJSON()).toMatchSnapshot();
     });
@@ -35,7 +35,7 @@ describe("Single Applications", () => {
         const application = applicationsPage.items[0];
         const singleApp = shallow(<ApplicationCard
             app={application}
-            favoriteApp={func}
+            onFavorite={func}
         />);
         singleApp.simulate("click");
         expect(func).toHaveBeenCalled();

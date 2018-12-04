@@ -9,7 +9,7 @@ import * as ReactMarkdown from "react-markdown";
 import * as Heading from "ui-components/Heading"
 
 interface ApplicationCardProps {
-    favoriteApp?: (name: string, version: string) => void,
+    onFavorite?: (name: string, version: string) => void,
     app: Application,
     isFavorite?: boolean,
     linkToRun?: boolean
@@ -85,7 +85,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
     );
 };
 
-export const ApplicationCard = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => (
+export const ApplicationCard = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => (
     <Link to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
         <Card width="250px">
             <Relative height="135px">
@@ -171,7 +171,7 @@ const AppLogo = ({size, ...props}) => (
     </svg>
 );
 
-export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => {
+export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
     return (
         <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
@@ -180,7 +180,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             </Absolute>
             <Absolute right={0} 
                       top={isFavorite ? 0 : -30}
-                      onClick={(e) => !!favoriteApp ? (e.preventDefault(), favoriteApp(app.description.info.name, app.description.info.version)) : undefined}
+                      onClick={(e) => !!onFavorite ? (e.preventDefault(), onFavorite(app.description.info.name, app.description.info.version)) : undefined}
                       >
                 <Icon name={"starRibbon"} color="red" size={48}/>
             </Absolute>

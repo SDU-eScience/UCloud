@@ -1,5 +1,4 @@
 import { Page } from "Types";
-import { History } from "history";
 import Cloud from "Authentication/lib";
 import { Moment } from "moment";
 import * as React from "react";
