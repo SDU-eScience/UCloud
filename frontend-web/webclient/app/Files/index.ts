@@ -1,5 +1,4 @@
 import { Page } from "Types";
-import { History } from "history";
 import Cloud from "Authentication/lib";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
@@ -51,9 +50,7 @@ export enum SortBy {
     SENSITIVITY = "SENSITIVITY"
 }
 
-export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps {
-    history: History
-}
+export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps {}
 
 export interface MockedTableProps {
     onCreateFolder: (a: number, c: number) => void

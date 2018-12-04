@@ -344,7 +344,7 @@ const JobSchedulingOptions = (props: { onChange: (a, b, c) => void, options: any
             <Flex mb="1em">
                 <SchedulingField min={0} field="maxTime" subField="hours" text="Hours" defaultValue={defaultMaxTime.hours} value={maxTime.hours} onChange={props.onChange} />
                 <Box ml="4px" />
-                <SchedulingField min={0} field="maxTime" subField="minutes" text="Hours" defaultValue={defaultMaxTime.minutes} value={maxTime.minutes} onChange={props.onChange} />
+                <SchedulingField min={0} field="maxTime" subField="minutes" text="Minutes" defaultValue={defaultMaxTime.minutes} value={maxTime.minutes} onChange={props.onChange} />
                 <Box ml="4px" />
                 <SchedulingField min={0} field="maxTime" subField="seconds" text="Seconds" defaultValue={defaultMaxTime.seconds} value={maxTime.seconds} onChange={props.onChange} />
             </Flex>

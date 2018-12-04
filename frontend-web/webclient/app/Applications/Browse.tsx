@@ -1,31 +1,26 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
-import {
-    fetchApplications,
-    setLoading,
-    receiveApplications,
-    fetchFavoriteApplications,
-    setFavoritesLoading
-} from "./Redux/ApplicationsActions";
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, StatusActions } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
 import { Application } from ".";
-import { ApplicationsProps, ApplicationsOperations } from ".";
-import { setErrorMessage } from "./Redux/ApplicationsActions";
-import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
+import { setPrioritizedSearch, HeaderActions } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
-import { ReduxObject, ApplicationReduxObject } from "DefaultObjects";
-import { MainContainer } from "MainContainer/MainContainer";
-import { Navigation, Pages } from "./Navigation";
-import { ApplicationCardContainer, SlimApplicationCard, ApplicationCard, NewApplicationCard } from "./Card";
+import { ReduxObject } from "DefaultObjects";
+import { LoadingMainContainer } from "MainContainer/MainContainer";
+import { Navigation, Pages as NavPages } from "./Navigation";
+import { NewApplicationCard } from "./Card";
 import styled from "styled-components";
-import { ContainerForText } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { Link } from "react-router-dom";
 import { CardGroup } from "ui-components/Card";
+import { getQueryParam, RouterLocationProps, getQueryParamOrElse } from "Utilities/URIUtilities";
+import * as Pages from "./Pages";
+import { Type as ReduxType } from "./Redux/BrowseObject";
+import * as Actions from "./Redux/BrowseActions";
+import { loadingEvent } from "LoadableContent";
+import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -35,103 +30,154 @@ const CategoryList = styled.ul`
     }
 `;
 
-const CategoryItem: React.StatelessComponent = props => (
-    <li><Link to="#">{props.children}</Link></li>
+const CategoryItem: React.StatelessComponent<{ tag?: string }> = props => (
+    <li><Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link></li>
 );
 
 const Sidebar: React.StatelessComponent = () => (<>
     <Heading.h4>Featured</Heading.h4>
     <CategoryList>
         <CategoryItem>Popular</CategoryItem>
-        <CategoryItem>Staff picks</CategoryItem>
     </CategoryList>
 
     <Heading.h4>Categories</Heading.h4>
     <CategoryList>
-        <CategoryItem>Biomedicine</CategoryItem>
-        <CategoryItem>Toys</CategoryItem>
-        <CategoryItem></CategoryItem>
+        <CategoryItem tag="Toy">Toys</CategoryItem>
     </CategoryList>
 
     <Heading.h4>Fields</Heading.h4>
     <CategoryList>
-        <CategoryItem>Natural Sciences</CategoryItem>
-        <CategoryItem>Formal Sciences</CategoryItem>
-        <CategoryItem>Life Sciences</CategoryItem>
-        <CategoryItem>Social Sciences</CategoryItem>
-        <CategoryItem>Applied Sciences</CategoryItem>
-        <CategoryItem>Interdisciplinary Sciences</CategoryItem>
-        <CategoryItem>Philosophy Sciences</CategoryItem>
+        <CategoryItem tag="Natural Science">Natural Sciences</CategoryItem>
+        <CategoryItem tag="Formal Science">Formal Sciences</CategoryItem>
+        <CategoryItem tag="Life Science">Life Sciences</CategoryItem>
+        <CategoryItem tag="Social Science">Social Sciences</CategoryItem>
+        <CategoryItem tag="Applied Science">Applied Sciences</CategoryItem>
+        <CategoryItem tag="Interdisciplinary Sciencs">Interdisciplinary Sciences</CategoryItem>
+        <CategoryItem tag="Philosophy Science">Philosophy Sciences</CategoryItem>
     </CategoryList>
 </>);
+
+export interface ApplicationsOperations {
+    onInit: () => void
+    fetchDefault: (itemsPerPage: number, page: number) => void
+    fetchByTag: (tag: string, itemsPerPage: number, page: number) => void
+}
+
+export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocationProps;
 
 class Applications extends React.Component<ApplicationsProps> {
     componentDidMount() {
         const { props } = this;
-        props.updatePageTitle();
-        props.prioritizeApplicationSearch();
-        if (this.props.page.items.length === 0) {
-            props.setLoading(true);
-            props.fetchApplications(props.page.pageNumber, props.page.itemsPerPage);
-            props.fetchFavorites(props.page.pageNumber, props.page.itemsPerPage);
+        props.onInit();
+
+        this.fetch(props);
+    }
+
+    componentWillReceiveProps(nextProps: ApplicationsProps) {
+        if (nextProps.location !== this.props.location) {
+            this.fetch(nextProps);
+        }
+    }
+
+    pageNumber(props: ApplicationsProps = this.props): number {
+        return parseInt(getQueryParamOrElse(props, "page", "0"));
+    }
+
+    itemsPerPage(props: ApplicationsProps = this.props): number {
+        return parseInt(getQueryParamOrElse(props, "itemsPerPage", "25"));
+    }
+
+    tag(props: ApplicationsProps = this.props): string | null {
+        return getQueryParam(props, "tag");
+    }
+
+    updateItemsPerPage(newItemsPerPage: number): string {
+        const tag = this.tag();
+        if (tag === null) {
+            return Pages.browse(newItemsPerPage, this.pageNumber());
+        } else {
+            return Pages.browseByTag(tag, newItemsPerPage, this.pageNumber());
+        }
+    }
+
+    updatePage(newPage: number): string {
+        const tag = this.tag();
+        if (tag === null) {
+            return Pages.browse(this.itemsPerPage(), newPage);
+        } else {
+            return Pages.browseByTag(tag, this.itemsPerPage(), newPage);
+        }
+    }
+
+    fetch(props: ApplicationsProps) {
+        const itemsPerPage = this.itemsPerPage(props);
+        const pageNumber = this.pageNumber(props);
+        const tag = this.tag(props);
+
+        if (tag === null) {
+            props.fetchDefault(itemsPerPage, pageNumber);
+        } else {
+            props.fetchByTag(tag, itemsPerPage, pageNumber);
         }
     }
 
     render() {
-        const { page, loading, fetchApplications, favorites, onErrorDismiss, receiveApplications, ...props } = this.props;
-        const favoriteApp = async (name: string, version: string) => {
-            receiveApplications(await favoriteApplicationFromPage(name, version, page, Cloud));
-            props.fetchFavorites(0, favorites.itemsPerPage);
-        }
-
         const main = (
             <Pagination.List
-                loading={loading}
-                onErrorDismiss={onErrorDismiss}
-                errorMessage={props.error}
-                onRefresh={() => fetchApplications(page.pageNumber, page.itemsPerPage)}
-                pageRenderer={({ items }: Page<Application>) =>
+                onRefresh={() => this.fetch(this.props)}
+                pageRenderer={(page: Page<Application>) =>
                     <CardGroup>
-                        {items.map((app, index) =>
+                        {page.items.map((app, index) =>
                             <NewApplicationCard
                                 key={index}
-                                favoriteApp={favoriteApp}
+                                onFavorite={async () => {
+                                    await favoriteApplicationFromPage(app.description.info.name, app.description.info.version, page, Cloud);
+                                    this.fetch(this.props);
+                                }}
                                 app={app}
                                 isFavorite={app.favorite}
                             />
                         )}
                     </CardGroup>
                 }
-                page={page}
-                onItemsPerPageChanged={size => fetchApplications(0, size)}
-                onPageChanged={pageNumber => fetchApplications(pageNumber, page.itemsPerPage)}
+                page={this.props.applications.content as Page<Application>}
+                onItemsPerPageChanged={size => this.props.history.push(this.updateItemsPerPage(size))}
+                onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
             />
         );
 
         return (
-            <MainContainer
-                header={<Navigation selected={Pages.BROWSE} />}
+            <LoadingMainContainer
+                loadable={this.props.applications}
+                fallbackHeader={<Navigation selected={NavPages.BROWSE} />}
+                header={<Navigation selected={NavPages.BROWSE} />}
                 main={main}
+                fallbackSidebar={<Sidebar />}
                 sidebar={<Sidebar />}
             />
         );
     }
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): ApplicationsOperations => ({
-    prioritizeApplicationSearch: () => dispatch(setPrioritizedSearch("applications")),
-    onErrorDismiss: () => dispatch(setErrorMessage()),
-    updatePageTitle: () => dispatch(updatePageTitle("Applications")),
-    setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    setFavoritesLoading: (loading: boolean) => dispatch(setFavoritesLoading(loading)),
-    fetchApplications: async (pageNumber: number, itemsPerPage: number) => dispatch(await fetchApplications(pageNumber, itemsPerPage)),
-    receiveApplications: (applications: Page<Application>) => dispatch(receiveApplications(applications)),
-    fetchFavorites: async (pageNumber: number, itemsPerPage: number) => dispatch(await fetchFavoriteApplications(pageNumber, itemsPerPage))
+const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>): ApplicationsOperations => ({
+    onInit: () => {
+        dispatch(updatePageTitle("Applications"))
+        dispatch(setPrioritizedSearch("applications"))
+    },
+
+    fetchByTag: async (tag: string, itemsPerPage: number, page: number) => {
+        dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
+        dispatch(await Actions.fetchByTag(tag, itemsPerPage, page));
+    },
+
+    fetchDefault: async (itemsPerPage: number, page: number) => {
+        dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
+        dispatch(await Actions.fetch(itemsPerPage, page));
+    }
 });
 
-const mapStateToProps = ({ applications }: ReduxObject): ApplicationReduxObject & { favCount: number } => ({
-    ...applications,
-    favCount: applications.page.items.filter(it => it.favorite).length
-});
+const mapStateToProps = (state: ReduxObject): ReduxType  => {
+    return state.applicationsBrowse;
+}
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

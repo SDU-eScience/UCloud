@@ -2,18 +2,18 @@ import * as React from "react";
 import * as Renderer from "react-test-renderer";
 import { ApplicationCard } from "Applications/Card";
 import { configureStore } from "Utilities/ReduxUtilities";
-import { initApplications } from "DefaultObjects";
-import applicationsReducer from "Applications/Redux/ApplicationsReducer";
+import { init } from "Applications/Redux/BrowseObject";
+import applicationsReducer from "Applications/Redux/BrowseReducer";
 import { applicationsPage } from "../mock/Applications";
 import { MemoryRouter } from "react-router";
 import { shallow } from "enzyme";
 
-const emptyPageStore = configureStore({ applications: initApplications() }, { applications: applicationsReducer });
+const emptyPageStore = configureStore({ applications: init() }, { applications: applicationsReducer });
 const fullPageStore = {
     ...emptyPageStore
 };
 
-fullPageStore.getState().applications.page = applicationsPage;
+fullPageStore.getState().applicationsBrowse.applications.content = applicationsPage;
 
 
 describe("Single Application Component", () => {
@@ -22,7 +22,7 @@ describe("Single Application Component", () => {
             <MemoryRouter>
                 <ApplicationCard
                     app={applicationsPage.items[0]}
-                    favoriteApp={() => null}
+                    onFavorite={() => null}
                 />
             </MemoryRouter>).toJSON()).toMatchSnapshot();
     });
@@ -35,7 +35,7 @@ describe("Single Applications", () => {
         const application = applicationsPage.items[0];
         const singleApp = shallow(<ApplicationCard
             app={application}
-            favoriteApp={func}
+            onFavorite={func}
         />);
         singleApp.simulate("click");
         expect(func).toHaveBeenCalled();

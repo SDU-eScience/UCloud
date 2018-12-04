@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.3.2'
+version '0.3.3'
 
 apply plugin: 'application'
 mainClassName = 'dk.sdu.cloud.app.abacus.MainKt'

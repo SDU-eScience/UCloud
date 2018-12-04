@@ -11,7 +11,7 @@ import Core from "Core";
 import header from "Navigation/Redux/HeaderReducer";
 import files from "Files/Redux/FilesReducer";
 import status from "Navigation/Redux/StatusReducer";
-import applications from "Applications/Redux/ApplicationsReducer";
+import applications from "Applications/Redux/BrowseReducer";
 import dashboard from "Dashboard/Redux/DashboardReducer";
 import zenodo from "Zenodo/Redux/ZenodoReducer";
 import sidebar from "Navigation/Redux/SidebarReducer";
