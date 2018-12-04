@@ -1,8 +1,8 @@
 import styled from 'styled-components'
-import { space, themeGet, BorderProps, SpaceProps, ColorValue, lineHeight } from 'styled-system'
+import { space, themeGet, BorderProps, SpaceProps } from 'styled-system'
 import defaultTheme from './theme'
 
-const borders = ({ color, theme, noBorder }: { color?: ColorValue, theme?: any, noBorder?: boolean }) => {
+const borders = ({ color, theme, noBorder }: { color?: string, theme?: any, noBorder?: boolean }) => {
   if (noBorder) return "";
   const borderColor = color ? theme.colors[color] : theme.colors.borderGray
   const focusColor = color ? borderColor : theme.colors.blue
