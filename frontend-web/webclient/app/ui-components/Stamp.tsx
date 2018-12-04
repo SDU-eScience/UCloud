@@ -2,11 +2,14 @@ import styled from "styled-components"
 import { themeGet, space, fontSize, color, SpaceProps } from 'styled-system'
 import theme, { ThemeColor } from "./theme"
 
+const fullWidth = ({ fullWidth }: { fullWidth?: boolean }) => fullWidth ? { width: "100%" } : null;
+
 const Stamp = styled("div") <StampProps>`
   display: inline-flex;
   align-items: center;
   vertical-align: top;
   min-height: 24px;
+  ${fullWidth}
   font-weight: 600;
   letter-spacing: ${themeGet('letterSpacings.caps')};
   border-radius: 4px;
@@ -22,7 +25,8 @@ interface StampProps extends SpaceProps {
   bg?: string
   theme?: any
   fontSize?: number | string
-  borderColor?: ThemeColor
+  borderColor?: ThemeColor,
+  fullWidth?: boolean
 }
 
 Stamp.defaultProps = {
@@ -33,7 +37,8 @@ Stamp.defaultProps = {
   color: "black",
   bg: "lightGray",
   borderColor: "black",
-  fontSize: 0
+  fontSize: 0,
+  fullWidth: false
 }
 
 export default Stamp;

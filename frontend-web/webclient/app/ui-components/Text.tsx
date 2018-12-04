@@ -1,5 +1,5 @@
 import * as React from "react";
-import styled, { ThemeProps } from "styled-components";
+import styled from "styled-components";
 import {
   textStyle,
   fontSize,
@@ -8,21 +8,17 @@ import {
   lineHeight,
   space,
   color,
-  SpaceProps, 
-  TextAlignProps, 
-  FontSizeProps, 
-  ColorProps, 
-  WidthProps, 
+  SpaceProps,
+  TextAlignProps,
+  FontSizeProps,
+  ColorProps,
+  WidthProps,
   width
-} from 'styled-system'
+} from "styled-system";
 import { Theme } from "./theme";
 
 export const caps = (props: { caps?: boolean }) =>
-  props.caps
-    ? {
-      textTransform: "uppercase"
-    }
-    : null
+  props.caps ? { textTransform: "uppercase" } : null;
 
 export const regular = (props: { regular?: boolean, theme: Theme }) =>
   props.regular ? { fontWeight: props.theme.regular } : null
@@ -57,16 +53,16 @@ const Text = styled.div<TextProps>`
 `;
 
 export const TextDiv = Text;
-export const TextSpan = (props) => <Text as="span" {...props}/>;
-export const TextP = (props) => <Text as="p" {...props}/>;
-export const TextS = (props) => <Text as="s" {...props}/>;
+export const TextSpan = (props) => <Text as="span" {...props} />;
+export const TextP = (props) => <Text as="p" {...props} />;
+export const TextS = (props) => <Text as="s" {...props} />;
 
-interface EllipsedTextProps extends TextProps, WidthProps {}
+interface EllipsedTextProps extends TextProps, WidthProps { }
 export const EllipsedText = styled(Text) <EllipsedTextProps>`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  ${width}
+  ${width};
   display: inline-block;
 `;
 

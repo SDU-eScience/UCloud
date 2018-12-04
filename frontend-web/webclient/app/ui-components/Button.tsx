@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { space, ButtonStyleProps, SpaceProps, SizeProps } from "styled-system";
+import { space, ButtonStyleProps, SpaceProps, SizeProps, lineHeight } from "styled-system";
 import theme, { Theme, ThemeColor } from "./theme";
 
 const size = ({ size, theme }: { size: string, theme: Theme }) => {
@@ -34,7 +34,7 @@ const size = ({ size, theme }: { size: string, theme: Theme }) => {
 
 export const fullWidth = (props: { fullWidth?: boolean }) => (props.fullWidth ? { width: "100%" } : null)
 
-export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean, textColor?: ThemeColor } & SpaceProps & SizeProps & { title?: string }
+export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean, textColor?: ThemeColor, lineHeight?: number | string } & SpaceProps & SizeProps & { title?: string }
 
 const Button = styled.button<ButtonProps>` 
   -webkit-font-smoothing: antialiased;
@@ -44,7 +44,7 @@ const Button = styled.button<ButtonProps>`
   text-decoration: none;
   font-family: inherit;
   font-weight: ${props => props.theme.bold};
-  line-height: 1.5;
+  line-height: ${props => props.lineHeight};
   cursor: pointer;
   border-radius: ${props => props.theme.radius};
   background-color: ${props => props.theme.colors[props.color!]};
@@ -73,7 +73,8 @@ const Button = styled.button<ButtonProps>`
 Button.defaultProps = {
   theme,
   textColor: "white",
-  color: "blue"
+  color: "blue",
+  lineHeight: 1.5
 };
 
 Button.displayName = "Button";

@@ -261,23 +261,23 @@ import { DETAILED_FILES_ADD_EXTENSIONS, DETAILED_FILES_REMOVE_EXTENSIONS, DETAIL
 import { searchFiles } from "Search/Redux/SearchActions";
 const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations => ({
     toggleHidden: () => dispatch(DFSActions.toggleFilesSearchHidden()),
-    addExtensions: (ext) => dispatch(DFSActions.extensionAction(DETAILED_FILES_ADD_EXTENSIONS, ext)),
-    removeExtensions: (ext) => dispatch(DFSActions.extensionAction(DETAILED_FILES_REMOVE_EXTENSIONS, ext)),
+    addExtensions: ext => dispatch(DFSActions.extensionAction(DETAILED_FILES_ADD_EXTENSIONS, ext)),
+    removeExtensions: ext => dispatch(DFSActions.extensionAction(DETAILED_FILES_REMOVE_EXTENSIONS, ext)),
     toggleFolderAllowed: () => dispatch(DFSActions.toggleFoldersAllowed()),
     toggleFilesAllowed: () => dispatch(DFSActions.toggleFilesAllowed()),
-    addSensitivity: (sens) => dispatch(DFSActions.sensitivityAction(DETAILED_FILES_ADD_SENSITIVITIES, [sens])),
-    removeSensitivity: (sens) => dispatch(DFSActions.sensitivityAction(DETAILED_FILES_REMOVE_SENSITIVITIES, sens)),
-    addTags: (tags) => dispatch(DFSActions.tagAction(DETAILED_FILES_ADD_TAGS, tags)),
-    removeTags: (tags) => dispatch(DFSActions.tagAction(DETAILED_FILES_REMOVE_TAGS, tags)),
-    setFilename: (filename) => dispatch(DFSActions.setFilename(filename)),
+    addSensitivity: sens => dispatch(DFSActions.sensitivityAction(DETAILED_FILES_ADD_SENSITIVITIES, [sens])),
+    removeSensitivity: sens => dispatch(DFSActions.sensitivityAction(DETAILED_FILES_REMOVE_SENSITIVITIES, sens)),
+    addTags: tags => dispatch(DFSActions.tagAction(DETAILED_FILES_ADD_TAGS, tags)),
+    removeTags: tags => dispatch(DFSActions.tagAction(DETAILED_FILES_REMOVE_TAGS, tags)),
+    setFilename: filename => dispatch(DFSActions.setFilename(filename)),
     fetchPage: async (req, callback) => {
         dispatch(await searchFiles(req));
         dispatch(DFSActions.setFilesSearchLoading(false));
         if (typeof callback === "function") callback();
     },
-    setLoading: (loading) => dispatch(DFSActions.setFilesSearchLoading(loading)),
-    setTimes: (times) => dispatch(DFSActions.setTime(times)),
-    setError: (error) => dispatch(DFSActions.setErrorMessage(error))
+    setLoading: loading => dispatch(DFSActions.setFilesSearchLoading(loading)),
+    setTimes: times => dispatch(DFSActions.setTime(times)),
+    setError: error => dispatch(DFSActions.setErrorMessage(error))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(DetailedFileSearch);
