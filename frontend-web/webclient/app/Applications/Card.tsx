@@ -1,16 +1,15 @@
 import * as React from "react";
-import { MaterialColors } from "Assets/materialcolors.json";
-import { Link, Image, Button } from "ui-components";
+import { Link, Image } from "ui-components";
 import { Relative, Box, Absolute, Text, Icon, Flex, RatingBadge, Card } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
-import { PlayIcon } from "ui-components/Card";
+import * as Pages from "./Pages";
 import { Application } from ".";
 import styled from "styled-components";
 import * as ReactMarkdown from "react-markdown";
 import * as Heading from "ui-components/Heading"
 
 interface ApplicationCardProps {
-    favoriteApp?: (name: string, version: string) => void,
+    onFavorite?: (name: string, version: string) => void,
     app: Application,
     isFavorite?: boolean,
     linkToRun?: boolean
@@ -72,9 +71,8 @@ export const ApplicationCardContainer = styled.div`
 `;
 
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
-    const appInfo = props.app.description.info;
     return (
-        <AppCardBase to={props.linkToRun ? `/applications/${appInfo.name}/${appInfo.version}` : `/applications/details/${appInfo.name}/${appInfo.version}`}>
+        <AppCardBase to={props.linkToRun ? Pages.runApplication(props.app) : Pages.viewApplication(props.app)}>
             <img src={props.app.imageUrl} />
             <strong>{props.app.description.title} v{props.app.description.info.version}</strong>
             <EllipsedText>
@@ -87,13 +85,9 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
     );
 };
 
-export const ApplicationCard = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => (
-    <Link to={linkToRun ?
-        `/applications/${app.description.info.name}/${app.description.info.version}` :
-        `/applications/details/${app.description.info.name}/${app.description.info.version}`
-    }>
+export const ApplicationCard = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => (
+    <Link to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
         <Card width="250px">
-
             <Relative height="135px">
                 <Box>
                     <Image src={app.imageUrl} />
@@ -135,20 +129,18 @@ const NewAppCard = styled(Link)`
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    // border: 2px solid ${(props) => props.theme.colors.midGray};
     border-radius: ${props => props.theme.radius};
-    // background-color: ${(props) => props.theme.colors.lightGray};
     background-color: #ebeff3;
     position: relative;
     flex: 1 0 auto;
     overflow: hidden;
 `;
 
-const Tag = ( {label}: {label: string} ) => (
+const Tag = ({ label }: { label: string }) => (
     <RatingBadge mr={"3px"} bg={"darkGray"}><Heading.h6>{label}</Heading.h6></RatingBadge>
 )
 
-const AppBg= (props) => (
+const AppBg = (props) => (
     <svg height={"128px"} viewBox="0 0 100 128" >
         <path d="M 25,0 h 75 v 128 h -100 z" fill="url(#appbg_svg___Linear1)" />
         <defs>
@@ -164,7 +156,7 @@ const AppBg= (props) => (
     </svg>
 );
 
-const AppLogo = ({size, ...props}) => (
+const AppLogo = ({ size, ...props }) => (
     <svg width={size} height={size} viewBox="-1000 -1000 2000 2000" >
         <clipPath id="myClip">
             <rect x="-1000" y="-1000" width="2000" height="2000" rx="500" ry="500" />
@@ -187,19 +179,21 @@ const AppRibbonContainer = styled(Absolute)`
     }
 ` 
 
-export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, favoriteApp, isFavorite, linkToRun }: ApplicationCardProps) => {
+export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
     return (
-        <NewAppCard to={linkToRun ? `/applications/${appDesc.info.name}/${appDesc.info.version}` : `/applications/details/${appDesc.info.name}/${appDesc.info.version}`}>
+        <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
             <Absolute right={0} top={0}>
                 <AppBg />
             </Absolute>
-            <AppRibbonContainer right={0} 
-                      top={isFavorite ? 0 : -30}
-                      onClick={(e) => !!favoriteApp ? (e.preventDefault(), favoriteApp(app.description.info.name, app.description.info.version)) : undefined}
-                      >
-                <Icon name={"starRibbon"} color="red" size={48}/>
-            </AppRibbonContainer>
+            { !onFavorite ? null :
+	            <AppRibbonContainer right={0} 
+	                      top={isFavorite ? 0 : -30}
+	                      onClick={(e) => !!onFavorite ? (e.preventDefault(), onFavorite(app.description.info.name, app.description.info.version)) : undefined}
+	            >
+	                <Icon name={"starRibbon"} color="red" size={48}/>
+	            </AppRibbonContainer>
+	        }
             <Flex flexDirection={"row"} alignItems={"flex-start"}>
                 <AppLogo size={"48px"} />
                 <Flex flexDirection={"column"} ml="10px">
@@ -211,10 +205,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             </Flex>
             <Box mt="auto" />
             <Flex flexDirection={"row"} alignItems={"flex-start"}>
-                <Tag label="Singularity" />
-                <Tag label="Biocontainers" />
-                <Tag label="Toys" />
-                <Tag label="Health Science " />
+                {appDesc.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
         </NewAppCard>
     );

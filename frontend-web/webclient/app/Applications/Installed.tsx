@@ -2,51 +2,42 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
-import { setErrorMessage } from "./Redux/ApplicationsActions";
-import { fetchFavoriteApplications, setFavoritesLoading } from "./Redux/ApplicationsActions";
+import { updatePageTitle, StatusActions } from "Navigation/Redux/StatusActions";
+import { setPrioritizedSearch, HeaderActions } from "Navigation/Redux/HeaderActions";
 import { Application } from "Applications";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
 import { Navigation, Pages } from "./Navigation";
-import { ApplicationCard } from "./Card";
-import { MainContainer } from "MainContainer/MainContainer";
+import { ApplicationCard, NewApplicationCard } from "./Card";
+import { MainContainer, LoadingMainContainer } from "MainContainer/MainContainer";
 import { CardGroup } from "ui-components/Card";
+import * as Actions from "./Redux/FavoriteActions";
+import { Type as ReduxType } from "./Redux/FavoriteObject";
+import { loadingEvent } from "LoadableContent";
 
 interface InstalledOperations {
-    onComponentDidMount: () => void
-    onErrorDismiss: () => void
+    onInit: () => void
     fetchItems: (pageNumber: number, itemsPerPage: number) => void
 }
 
-interface InstalledStateProps {
-    page: Page<Application>
-    loading: boolean
-    error?: string
-}
+type InstalledStateProps = ReduxType;
 
 type InstalledProps = InstalledOperations & InstalledStateProps;
 
 class Installed extends React.Component<InstalledProps> {
     componentDidMount() {
         const { props } = this;
-        props.onComponentDidMount()
 
-        if (props.page.items.length === 0) {
-            props.fetchItems(0, 25);
-        }
+        props.onInit();
+        props.fetchItems(0, 25);
     }
 
     render() {
-        const { page } = this.props;
+        const page = this.props.applications.content as Page<Application>;
         const main = (
             <Pagination.List
-                loading={this.props.loading}
-                onErrorDismiss={this.props.onErrorDismiss}
-                errorMessage={this.props.error}
                 onRefresh={() => this.props.fetchItems(page.pageNumber, page.itemsPerPage)}
-                page={this.props.page}
+                page={page}
                 onItemsPerPageChanged={size => this.props.fetchItems(0, size)}
                 onPageChanged={pageNumber => this.props.fetchItems(pageNumber, page.itemsPerPage)}
                 pageRenderer={page => <InstalledPage page={page} />}
@@ -54,7 +45,9 @@ class Installed extends React.Component<InstalledProps> {
         );
 
         return (
-            <MainContainer
+            <LoadingMainContainer
+                loadable={this.props.applications}
+                fallbackHeader={<Navigation selected={Pages.INSTALLED} />}
                 header={<Navigation selected={Pages.INSTALLED} />}
                 main={main}
                 sidebar={null}
@@ -66,32 +59,23 @@ class Installed extends React.Component<InstalledProps> {
 const InstalledPage: React.StatelessComponent<{ page: Page<Application> }> = props => (
     <CardGroup>
         {props.page.items.map((it, idx) => (
-            <ApplicationCard app={it} key={idx} linkToRun />)
+            <NewApplicationCard app={it} key={idx} linkToRun />)
         )}
     </CardGroup>
 );
 
-const mapDispatchToProps = (dispatch: Dispatch): InstalledOperations => ({
-    onComponentDidMount: () => {
+const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>): InstalledOperations => ({
+    onInit: () => {
+        dispatch(updatePageTitle("Applications"))
         dispatch(setPrioritizedSearch("applications"))
-        dispatch(updatePageTitle("Installed Applications"))
-        dispatch(setErrorMessage());
-    },
-
-    onErrorDismiss: () => {
-        dispatch(setErrorMessage())
     },
 
     fetchItems: async (pageNumber: number, itemsPerPage: number) => {
-        dispatch(setFavoritesLoading(true));
-        dispatch(await fetchFavoriteApplications(pageNumber, itemsPerPage));
+        dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
+        dispatch(await Actions.fetch(itemsPerPage, pageNumber))
     }
 });
 
-const mapStateToProps = ({ applications }: ReduxObject): InstalledStateProps => ({
-    page: applications.favorites,
-    loading: applications.favoritesLoading,
-    error: applications.error
-});
+const mapStateToProps = (state: ReduxObject): InstalledStateProps => state.applicationsFavorite;
 
 export default connect(mapStateToProps, mapDispatchToProps)(Installed);
