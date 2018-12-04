@@ -15,7 +15,7 @@ import { updatePageTitle, UpdatePageTitleAction } from "Navigation/Redux/StatusA
 import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 
-import { VerticalButtonGroup, Box, Image, Button, OutlineButton, ActionButton } from "ui-components"
+import { VerticalButtonGroup, Box, Image, OutlineButton, ActionButton } from "ui-components"
 import { TextSpan } from "ui-components/Text";
 import * as Heading from "ui-components/Heading"
 import ContainerForText from "ui-components/ContainerForText";
@@ -203,7 +203,7 @@ const ButtonGroup = styled.div`
     }
 `;
 
-const TagStyle = styled.a`
+const TagStyle = styled(Link)`
     text-decoration: none;
     padding: 6px;
     margin-right: 3px;
@@ -223,7 +223,7 @@ function Tags({ tags }: { tags: string[] }) {
         <TagBase>
             {
                 tags.slice(0, 5).map(tag => (
-                    <TagStyle href={`foo/${tag}`}>{tag}</TagStyle>
+                    <TagStyle to={Pages.browseByTag(tag)}>{tag}</TagStyle>
                 ))
             }
         </TagBase>

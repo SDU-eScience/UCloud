@@ -3,9 +3,7 @@ import { Page } from "Types";
 import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
-import { DetailedResultReduxObject, ApplicationReduxObject, ComponentWithPage } from "DefaultObjects";
-
-export type ApplicationsProps = ApplicationReduxObject & ApplicationsOperations;
+import { DetailedResultReduxObject, ComponentWithPage } from "DefaultObjects";
 
 export interface Analysis {
     status: string
@@ -16,17 +14,6 @@ export interface Analysis {
     createdAt: number
     modifiedAt: number
     owner: string
-}
-
-export interface ApplicationsOperations {
-    prioritizeApplicationSearch: () => void
-    onErrorDismiss: () => void
-    updatePageTitle: () => void
-    setLoading: (loading: boolean) => void
-    setFavoritesLoading: (loading: boolean) => void
-    fetchApplications: (a: number, b: number) => void
-    fetchFavorites: (a: number, b: number) => void
-    receiveApplications: (applications: Page<Application>) => void
 }
 
 export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { }

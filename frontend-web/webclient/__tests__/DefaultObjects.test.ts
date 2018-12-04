@@ -44,22 +44,6 @@ describe("Initialize Redux Objects", () => {
         })
     );
 
-    test("Applications", () =>
-        expect(Defaults.initApplications()).toEqual({
-            page: Defaults.emptyPage,
-            loading: false,
-            favorites: {
-                items: [],
-                itemsInTotal: 0,
-                itemsPerPage: 25,
-                pageNumber: 0,
-                pagesInTotal: 0
-            },
-            favoritesLoading: false,
-            error: undefined
-        })
-    );
-
     test("Header", () =>
         expect(Defaults.initHeader()).toEqual({
             prioritizedSearch: "files"
