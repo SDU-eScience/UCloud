@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
-import { ApplicationCard } from "Applications/Card";
+import { ApplicationCard, NewApplicationCard } from "Applications/Card";
 import { ProjectMetadata } from "Project/api";
 import { SearchItem } from "Project/Search";
 import { AllFileOperations } from "Utilities/FileUtilities";
@@ -166,7 +166,7 @@ class Search extends React.Component<SearchProps> {
                         pageRenderer={({ items }) =>
                             <CardGroup>
                                 {items.map(app =>
-                                    <ApplicationCard
+                                    <NewApplicationCard
                                         key={`${app.description.info.name}${app.description.info.version}`}
                                         /* favoriteApp={favoriteApp} */
                                         app={app}

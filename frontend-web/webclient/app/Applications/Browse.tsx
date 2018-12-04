@@ -152,6 +152,7 @@ class Applications extends React.Component<ApplicationsProps> {
                 fallbackHeader={<Navigation selected={NavPages.BROWSE} />}
                 header={<Navigation selected={NavPages.BROWSE} />}
                 main={main}
+                fallbackSidebar={<Sidebar />}
                 sidebar={<Sidebar />}
             />
         );
