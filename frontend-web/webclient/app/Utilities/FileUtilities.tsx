@@ -6,6 +6,8 @@ import { History } from "history";
 import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
 import { projectViewPage } from "Utilities/ProjectUtilities";
+import { SensitivityLevel, SensitivityLevelMap } from "DefaultObjects";
+import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 
 export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCloud): void {
     let i = 0;
@@ -270,7 +272,6 @@ export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], 
  * @param {File} file The single file to be favorited
  * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
  */
-
 export const favoriteFile = (file: File, cloud: SDUCloud): File => {
     file.favorited = !file.favorited;
     if (file.favorited)
@@ -278,6 +279,16 @@ export const favoriteFile = (file: File, cloud: SDUCloud): File => {
     else
         cloud.delete(`/files/favorite?path=${encodeURIComponent(file.path)}`, {}); // FIXME: Error handling
     return file;
+}
+
+export const reclassifyFile = async (file: File, sensitivity: SensitivityLevelMap, cloud: SDUCloud): Promise<File> => {
+    const callResult = await unwrap(cloud.post<void>("/files/reclassify", { path: file.path, sensitivity }));
+    if (isError(callResult)) {
+        UF.failureNotification((callResult as ErrorMessage).errorMessage)
+        return file;
+    }
+
+    return { ...file, sensitivityLevel: sensitivity };
 }
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>

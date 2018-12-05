@@ -1,9 +1,9 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { toLowerCaseAndCapitalize, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
-import { fileSizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile } from "Utilities/FileUtilities";
+import { fileSizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile, reclassifyFile } from "Utilities/FileUtilities";
 import { DefaultLoading } from "LoadingIcon/LoadingIcon";
-import { SensitivityLevel, ReduxObject } from "DefaultObjects";
+import { SensitivityLevel, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -12,9 +12,10 @@ import { File, FileInfoProps } from "Files";
 import { ActivityFeed } from "Activity/Activity";
 import { Dispatch } from "redux";
 import { fetchFileStat, setLoading, fetchFileActivity, receiveFileStat } from "./Redux/FileInfoActions";
-import { Flex, Box, Icon, Card } from "ui-components";
+import { Flex, Box, Icon, Card, Button } from "ui-components";
 import List from "ui-components/List";
 import * as Heading from "ui-components/Heading"
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
 interface FileInfoOperations {
     updatePageTitle: () => void
@@ -57,7 +58,10 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations & { lo
                 <Box width={0.7}>
                     <Heading.h2>{fileName}</Heading.h2>
                     <Heading.h5 color="gray">{toLowerCaseAndCapitalize(file.fileType)}</Heading.h5>
-                    <FileView file={file} favorite={() => props.receiveFileStat(favoriteFile(file, Cloud))} />
+                    <FileView 
+                        file={file} 
+                        onFavorite={() => props.receiveFileStat(favoriteFile(file, Cloud))} 
+                        onReclassify={async level => props.receiveFileStat(await reclassifyFile(file, level, Cloud))} />
                     {activity.items.length ? (
                         <Card mt="1em" mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
                             <ActivityFeed activity={activity.items} />
@@ -85,21 +89,37 @@ const AttributeBox: React.FunctionComponent = props => (
     </Box>
 );
 
-const FileView = ({ file, favorite }: { file: File, favorite: () => void }) =>
+interface FileViewProps {
+    file: File
+    onFavorite: () => void
+    onReclassify: (level: SensitivityLevelMap) => void
+}
+const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
     !file ? null : (
         <Flex flexDirection="row" justifyContent="center" flexWrap="wrap">
             <AttributeBox>
                 <Attribute name="Created at" value={dateToString(file.createdAt)} />
                 <Attribute name="Modified at" value={dateToString(file.modifiedAt)} />
                 <Attribute name="Favorite">
-                    <Icon name={file.favorited ? "star" : "star outline"}
-                        onClick={() => favorite()}
+                    <Icon name={file.favorited ? "starFilled" : "starEmpty"}
+                        onClick={() => onFavorite()}
                         color="blue"
                     />
                 </Attribute>
             </AttributeBox>
             <AttributeBox>
-                <Attribute name="Sensitivity" value={SensitivityLevel[file.sensitivityLevel]} />
+                <Attribute name="Sensitivity">
+                    <ClickableDropdown
+                        chevron
+                        trigger={SensitivityLevel[file.sensitivityLevel]}
+                        onChange={(e) => onReclassify(e as SensitivityLevelMap)}
+                        options={
+                            Object.keys(SensitivityLevel).map(key => ({
+                                text: SensitivityLevel[key],
+                                value: key
+                            }))
+                        } />
+                </Attribute>
                 <Attribute name="Size" value={fileSizeToString(file.size)} />
                 <Attribute name="Shared with" value={`${file.acl !== undefined ? file.acl.length : 0} people`} />
             </AttributeBox>
