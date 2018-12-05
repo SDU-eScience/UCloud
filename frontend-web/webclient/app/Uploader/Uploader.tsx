@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Checkbox as SCheckbox, Progress, Grid, Card, Button, Modal } from "semantic-ui-react";
-import { Icon } from "ui-components";
+import * as Modal from "react-modal";
+import { Progress, Icon, Button, ButtonGroup, Heading, Divider } from "ui-components";
 import * as Dropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString } from "UtilityFunctions";
@@ -13,6 +13,8 @@ import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux
 import { removeEntry } from "Utilities/CollectionUtilities";
 import { Box, Flex, Error } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import CloseButton from "ui-components/CloseButton";
+import { Toggle } from "ui-components/Toggle";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -116,51 +118,57 @@ class Uploader extends React.Component<UploaderProps> {
 
     render() {
         return (
-            <Modal open={this.props.visible} onClose={() => this.props.dispatch(setUploaderVisible(false))}>
-                <Modal.Header content="Upload Files" />
+            <Modal isOpen={this.props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={() => this.props.dispatch(setUploaderVisible(false))}
+                style={{
+                    content: {
+                        top: "80px",
+                        left: "10%",
+                        right: "10%",
+                        height: "auto"
+                    }
+                }}
+            >
+                <Heading>Upload Files</Heading>
+                <Divider />
                 {this.props.error ?
                     <Box pt="0.5em" pr="0.5em" pl="0.5em">
                         <Error error={this.props.error} clearError={() => this.props.dispatch(setUploaderError())} />
                     </Box> : null}
-                <Modal.Content scrolling>
-                    <Modal.Description>
-                        <div>
-                            {this.props.uploads.map((upload, index) => (
-                                <UploaderRow
-                                    key={index}
-                                    {...upload}
-                                    setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
-                                    onExtractChange={value => this.onExtractChange(index, value)}
-                                    onUpload={() => this.startUpload(index)}
-                                    onDelete={it => { it.preventDefault(); this.removeUpload(index) }}
-                                    onAbort={it => { it.preventDefault(); this.abort(index) }}
-                                />
-                            ))}
+                <Box>
+                    <div>
+                        {this.props.uploads.map((upload, index) => (
+                            <UploaderRow
+                                key={index}
+                                {...upload}
+                                setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
+                                onExtractChange={value => this.onExtractChange(index, value)}
+                                onUpload={() => this.startUpload(index)}
+                                onDelete={it => { it.preventDefault(); this.removeUpload(index) }}
+                                onAbort={it => { it.preventDefault(); this.abort(index) }}
+                            />
+                        ))}
 
-                            {this.props.uploads.filter(it => !it.isUploading).length > 1 ?
-                                <Button
-                                    fluid
-                                    positive
-                                    icon="cloud upload"
-                                    content="Start all!"
-                                    className="start-all-btn"
-                                    onClick={this.startAllUploads}
-                                />
-                                : null}
+                        {this.props.uploads.filter(it => !it.isUploading).length > 1 ?
+                            <Button
+                                fullWidth
 
-                            <Dropzone className="dropzone" onDrop={this.onFilesAdded}>
-                                <p>
-                                    <Icon name="cloud upload" />
-                                    Drop files here or <a href="#">browse</a>
-                                </p>
-                                <p>
-                                    <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
-                                </p>
-                            </Dropzone>
-                        </div>
-                    </Modal.Description>
-                </Modal.Content>
-            </Modal >
+                                color={"green"}
+                                onClick={this.startAllUploads}
+                            ><Icon name={"upload"} />Start all!</Button>
+                            : null}
+
+                        <Dropzone className="dropzone" onDrop={this.onFilesAdded}>
+                            <p>
+                                <Icon name="cloud upload" />
+                                Drop files here or <a href="#">browse</a>
+                            </p>
+                            <p>
+                                <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
+                            </p>
+                        </Dropzone>
+                    </div>
+                </Box>
+            </Modal>
 
         );
     }
@@ -185,33 +193,29 @@ const UploaderRow = (p: {
 
     if (!p.isUploading) {
         body = <>
-            <Grid.Column width={11}>
+            <Box width={0.7}>
                 {fileTitle}
                 <br />
                 {
                     isArchiveExtension(p.file.name) ?
-                        <SCheckbox
-                            toggle
-                            label="Extract archive"
-                            checked={p.extractArchive}
-                            onChange={() => ifPresent(p.onExtractChange, c => c(!p.extractArchive))}
-                        />
-                        : null
+                        <Flex>
+                            <label>Extract archive?</label>
+                            <Box ml="0.5em" />
+                            <Toggle
+                                checked={p.extractArchive}
+                                onChange={() => ifPresent(p.onExtractChange, c => c(!p.extractArchive))}
+                            />
+                        </Flex> : null
                 }
-            </Grid.Column>
-            <Grid.Column width={4}>
-                <Button.Group fluid>
+            </Box>
+            <Box width={0.3}>
+                <ButtonGroup width="100%">
                     <Button
-                        positive
-                        icon="cloud upload"
-                        content="Upload"
+                        color="green"
                         onClick={e => ifPresent(p.onUpload, c => c(e))}
-                    />
-                    <Button
-                        icon="close"
-                        onClick={e => ifPresent(p.onDelete, c => c(e))}
-                    />
-                </Button.Group>
+                    ><Icon name="cloud upload" />Upload</Button>
+                    <Button color="lightGray" onClick={e => ifPresent(p.onDelete, c => c(e))}><Icon name="close" /></Button>
+                </ButtonGroup>
                 <Flex justifyContent="center" pt="0.3em">
                     <ClickableDropdown
                         chevron
@@ -220,11 +224,11 @@ const UploaderRow = (p: {
                         options={[{ text: "Private", value: "PRIVATE" }, { text: "Confidential", value: "CONFIDENTIAL" }, { text: "Sensitive", value: "SENSITIVE" }]}
                     />
                 </Flex>
-            </Grid.Column>
+            </Box>
         </>;
     } else {
         body = <>
-            <Grid.Column width={4}>
+            <Box width={0.25}>
                 {fileTitle}
                 <br />
                 {
@@ -234,35 +238,36 @@ const UploaderRow = (p: {
                             <span><Icon name="close" color="red" /> <i>Not</i> extracting archive</span>)
                         : null
                 }
-            </Grid.Column>
+            </Box>
 
-            <Grid.Column width={8}>
+            <Box width={0.45} ml="0.5em" mr="0.5em" pl="0.5" pr="0.5">
                 <Progress
+                    active={p.progressPercentage !== 100}
                     color="green"
-                    indicating
-                    total={100}
-                    success={p.progressPercentage === 100}
-                    value={p.progressPercentage}
-                    content={`${p.progressPercentage.toFixed(2)}%`}
+                    label={`${p.progressPercentage.toFixed(2)}%`}
+                    percent={p.progressPercentage}
                 />
-            </Grid.Column>
+            </Box>
 
-            <Grid.Column width={3}>
-                <Button icon="close" content="Cancel" disabled={isFinishedUploading(p.uploadXHR)} fluid negative onClick={(e) => ifPresent(p.onAbort, c => c(e))} />
-            </Grid.Column>
+            <Box width={0.22}>
+                <Button
+                    fullWidth
+                    disabled={isFinishedUploading(p.uploadXHR)}
+                    color="red"
+                    onClick={e => ifPresent(p.onAbort, c => c(e))}
+                >Cancel</Button>
+            </Box>
         </>;
     }
 
-    return <Card fluid>
-        <Card.Content>
-            <Grid divided stackable>
-                <Grid.Column width={1}>
-                    <Icon size="large" name={iconFromFilePath(p.file.name, "FILE", Cloud.homeFolder)} />
-                </Grid.Column>
-                {body}
-            </Grid>
-        </Card.Content>
-    </Card>;
+    return (
+        <Flex flexDirection="row">
+            <Box width={0.08} textAlign="center">
+                <Icon name={iconFromFilePath(p.file.name, "FILE", Cloud.homeFolder)} />
+            </Box>
+            <Flex width={0.92}>{body}</Flex>
+        </Flex>
+    );
 }
 
 const archiveExtensions: string[] = [".tar.gz"]

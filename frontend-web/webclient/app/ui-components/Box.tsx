@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { space, width, minWidth, color, textAlign, SpaceProps, WidthProps, MinWidthProps, ColorProps, AlignItemsProps, TopProps, minHeight, MinHeightProps, HeightProps, height, MaxHeightProps, MaxWidthProps, maxWidth, maxHeight } from "styled-system";
+import { space, width, minWidth, color, textAlign, SpaceProps, WidthProps, MinWidthProps, ColorProps, AlignItemsProps, TopProps, minHeight, MinHeightProps, HeightProps, height, MaxHeightProps, MaxWidthProps, maxWidth, maxHeight, TextAlignProps } from "styled-system";
 import theme from "./theme";
 
 export type BoxProps =
@@ -14,7 +14,8 @@ export type BoxProps =
   MaxHeightProps &
   MaxWidthProps &
   FlexGrowProps &
-  FlexShrinkProps;
+  FlexShrinkProps &
+  TextAlignProps;
 
 interface FlexGrowProps {
   flexGrow?: number
@@ -27,7 +28,7 @@ interface FlexShrinkProps {
 const flexGrow = ({ flexGrow }: FlexGrowProps) => flexGrow ? { flexGrow } : null;
 const flexShrink = ({ flexShrink }: FlexShrinkProps) => flexShrink ? { flexShrink } : null;
 
-const Box = styled("div") <BoxProps>`
+const Box = styled.div<BoxProps>`
   ${flexGrow}
   ${flexShrink}
   ${space} 
