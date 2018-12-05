@@ -56,10 +56,10 @@ export enum SensitivityLevel {
 export type Sensitivity = keyof typeof SensitivityLevel;
 
 export enum SensitivityLevelMap {
-    "OPEN_ACCESS",
-    "PRIVATE",
-    "CONFIDENTIAL",
-    "SENSITIVE"
+    OPEN_ACCESS = "OPEN_ACCESS",
+    PRIVATE = "PRIVATE",
+    CONFIDENTIAL = "CONFIDENTIAL",
+    SENSITIVE = "SENSITIVE"
 };
 
 const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
