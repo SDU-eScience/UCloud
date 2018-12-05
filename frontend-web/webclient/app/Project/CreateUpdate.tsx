@@ -9,7 +9,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 import { getQueryParam } from "Utilities/URIUtilities";
 import { projectViewPage } from "Utilities/ProjectUtilities";
-import { Input, DataList } from "ui-components";
+import { Input, DataList, Box } from "ui-components";
 import { contentValuePairLicenses } from "ui-components/DataList";
 
 const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
@@ -247,7 +247,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                         required
                     />
                 </SForm.Field>
-                <SForm.Field>
+                <Box width="100%">
                     <label>License</label>
                     <p>
                         {this.state.license ?
@@ -276,7 +276,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                         }
                     </p>
                     <LicenseDropdown onChange={this.setStateEv("license")} />
-                </SForm.Field>
+                </Box>
 
                 <SForm.Field>
                     <label>Keywords</label>
