@@ -1,7 +1,5 @@
 import * as React from "react";
-import { Box, Input, Divider } from "ui-components";
-import { Dropdown, DropdownContent } from "./Dropdown";
-import List from "./List";
+import { Box, Input } from "ui-components";
 import ClickableDropdown from "./ClickableDropdown";
 import { allLicenses } from "Project/licenses";
 
@@ -12,26 +10,40 @@ type ContentValuePair = { content: string, value: string };
 interface DataListProps {
     options: ContentValuePair[];
     onSelect: (value: string) => void
+    placeholder: string
+    width?: number | string
 }
-export class DataList extends React.Component<DataListProps> {
+export class DataList extends React.PureComponent<DataListProps, { text: string }> {
+    constructor(props) {
+        super(props);
+        this.state = {
+            text: ""
+        }
+    }
 
-    private ref = React.createRef<HTMLInputElement>();
     private totalShown: 8 = 8;
-
-    private onSelect(content: string, value: string) {
+    
+    private onSelect(value: string) {
         this.props.onSelect(value);
-        if (this.ref.current) this.ref.current.value = content;
+        if (this.state.text) this.setState(() => ({ text: "" }));
     }
 
     render() {
-        const trimmedInput = this.ref.current && this.ref.current.value || "";
-        const hidden = trimmedInput.length < 2 || !!this.props.options.find(it => it.value === trimmedInput)
-        const filtered = this.props.options.filter(it => it.value.includes(trimmedInput));
+        const lowerCasedInput = this.state.text.toLowerCase();
+        const filtered = this.props.options.filter(it => it.content.toLowerCase().includes(lowerCasedInput));
         const subsetFiltered = filtered.slice(0, this.totalShown);
         return (
-            <ClickableDropdown width="auto" trigger={<Input autoComplete="off" type="text" ref={this.ref} />}>
+            <ClickableDropdown width={this.props.width || "auto"} trigger={
+                <Input
+                    width="auto"
+                    placeholder={this.props.placeholder}
+                    autoComplete="off"
+                    type="text"
+                    value={this.state.text}
+                    onChange={({ target }) => this.setState(() => ({ text: target.value }))}
+                />}>
                 {subsetFiltered.map(({ content, value }) => (
-                    <Box onClick={() => this.onSelect(content, value)} mb="0.5em">
+                    <Box key={content} onClick={() => this.onSelect(value)} mb="0.5em">
                         {content}
                     </Box>
                 ))}

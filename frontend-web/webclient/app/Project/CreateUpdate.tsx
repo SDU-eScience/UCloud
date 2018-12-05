@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Search as SSearch, Form as SForm, Button as SButton } from "semantic-ui-react";
+import { Form as SForm, Button as SButton } from "semantic-ui-react";
 import { identifierTypes } from "DefaultObjects";
 import { allLicenses } from "./licenses";
 import { Contributor, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
@@ -9,7 +9,8 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 import { getQueryParam } from "Utilities/URIUtilities";
 import { projectViewPage } from "Utilities/ProjectUtilities";
-import { Input } from "ui-components";
+import { Input, DataList } from "ui-components";
+import { contentValuePairLicenses } from "ui-components/DataList";
 
 const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -396,42 +397,21 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
 }
 
 interface LicenseDropdownProps {
-    onChange: (ev, details) => void
+    onChange: (e: any, details: any) => void
 }
 
-interface LicenseDropdownState {
-    isLoading: boolean
-    value: string
-    results: { title: string, identifier: string, link: string }[]
-}
-
-class LicenseDropdown extends React.Component<LicenseDropdownProps, LicenseDropdownState> {
-    constructor(props: any) {
-        super(props)
-
-        this.state = { isLoading: false, value: "", results: [] };
-    }
-
-    handleSearchChange(value) {
-        this.setState({ isLoading: true, value });
-        setTimeout(() => {
-            const results = allLicenses
-                .filter(e => e.name.toLowerCase().indexOf(value.toLowerCase()) !== -1)
-                .map(e => ({ title: e.name, identifier: e.identifier, link: e.link }));
-
-            this.setState({ isLoading: false, results });
-        }, 0);
-    }
+class LicenseDropdown extends React.Component<LicenseDropdownProps> {
 
     render() {
         return (
-            <SSearch
+            <DataList
                 placeholder="Search for a license..."
-                loading={false}
-                onResultSelect={(e, { result }) => this.props.onChange(e, { value: result })}
-                onSearchChange={(e, { value }) => this.handleSearchChange(value)}
-                results={this.state.results}
-                value={this.state.value}
+                onSelect={identifier => {
+                    const license = allLicenses.find(it => it.identifier === identifier)!;
+                    const value = { ...license, title: license.name }
+                    this.props.onChange({}, { value });
+                }}
+                options={contentValuePairLicenses}
             />
         );
     }

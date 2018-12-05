@@ -65,7 +65,7 @@ DropdownContent.defaultProps = {
 interface DropdownContentProps {
     left?: number | string
     hover?: boolean
-    width?: string
+    width?: string | number
     disabled?: boolean
     minWidth?: string
     maxHeight?: number | string

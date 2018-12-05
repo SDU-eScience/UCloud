@@ -8,7 +8,7 @@ type ClickableDropdownState = { open: boolean }
 type ClickableDropdownProps = {
     children?: any,
     trigger: React.ReactNode,
-    width?: string,
+    width?: string | number,
     minWidth?: string
     left?: string
     options?: { text: string, value: string }[]
@@ -54,7 +54,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" /> : null}
                 </Text.TextSpan>
                 {this.state.open ?
-                    <DropdownContent cursor="pointer" left={props.left} minWidth={this.props.minWidth} width={this.props.width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
+                    <DropdownContent cursor="pointer" left={props.left} minWidth={this.props.minWidth} width={this.props.width || "auto"} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
                         {children}
                     </DropdownContent> : null}
             </Dropdown>
