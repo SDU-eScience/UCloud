@@ -13,6 +13,7 @@ import * as Heading from "ui-components/Heading";
 import { Button } from "ui-components";
 import { successNotification, failureNotification } from "UtilityFunctions";
 import Relative from "./Relative";
+import TextArea from "./TextArea";
 
 const SidebarContainer = styled(Flex)`
     position: fixed;
@@ -109,7 +110,7 @@ const SupportBox = styled.div<{ visible: boolean }>`
         border-bottom: 1px solid ${props => props.theme.colors.borderGray};
     }
 
-    & textarea {
+    & ${TextArea} {
         width: 100%;
         border: 1px solid ${props => props.theme.colors.borderGray};
     }
@@ -165,14 +166,14 @@ class Support extends React.Component<{}, SupportState> {
 
     render() {
         return <div>
-            <a href="#support" onClick={e => this.onSupportClick(e)}>Support</a>
+            <a href="#support" onClick={e => this.onSupportClick(e)}><Text fontSize={1}>Support</Text></a>
             <Relative>
                 <SupportBox visible={this.state.visible}>
                     <Box>
                         <Heading.h3>Support Form</Heading.h3>
                         <p>Describe your problem below and we will investigate it.</p>
                         <form onSubmit={e => this.onSubmit(e)}>
-                            <textarea ref={this.textArea} rows={6}></textarea>
+                            <TextArea ref={this.textArea} rows={6}/>
                             <Button fullWidth type="submit" disabled={this.state.loading}>Submit</Button>
                         </form>
                     </Box>
@@ -216,11 +217,11 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
             <SidebarPushToBottom />
 
             <SidebarInfoBox>
-                <div>ID: {Cloud.username}</div>
+                <Text fontSize={1}>ID: {Cloud.username}</Text>
                 <SidebarSpacer />
                 <Support />
                 <div>
-                    <a href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse" target="_blank" rel="noopener">Data Protection at SDU</a>
+                    <a href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse" target="_blank" rel="noopener"><Text fontSize={1}>Data Protection at SDU</Text></a>
                 </div>
             </SidebarInfoBox>
             <PP visible={false} />
