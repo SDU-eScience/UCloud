@@ -2,7 +2,7 @@ import styled from 'styled-components'
 import { space, themeGet, BorderProps, SpaceProps } from 'styled-system'
 import defaultTheme from './theme'
 
-const borders = ({ color, theme, noBorder }: { color?: string, theme?: any, noBorder?: boolean }) => {
+export const borders = ({ color, theme, noBorder }: { color?: string, theme?: any, noBorder?: boolean }) => {
   if (noBorder) return "";
   const borderColor = color ? theme.colors[color] : theme.colors.borderGray
   const focusColor = color ? borderColor : theme.colors.blue
@@ -21,14 +21,15 @@ export interface InputProps extends BorderProps, SpaceProps {
   id?: string
   color?: string
   noBorder?: boolean
+  error?: boolean
 }
 
-const Input = styled("input") <InputProps>`
+const Input = styled.input<InputProps>`
   appearance: none;
   display: block;
   width: 100%;
   font-family: inherit;
-  color: inherit;
+  color: ${props => props.error ? "red" : "inherit"};
   font-size: ${themeGet("fontSizes.1")}px;
   background-color: transparent;
   border-radius: ${themeGet("radius")};

@@ -11,7 +11,7 @@ import { ReduxObject, Sensitivity } from "DefaultObjects";
 import { Upload, UploaderProps } from ".";
 import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
-import { Box, Text, Flex, Error } from "ui-components";
+import { Box, Flex, Error } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));

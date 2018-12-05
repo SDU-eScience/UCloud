@@ -38,6 +38,7 @@ export { default as List } from './List'
 export { default as ButtonGroup } from "./ButtonGroup";
 export { default as VerticalButtonGroup } from "./VerticalButtonGroup";
 export { default as DataList } from "./DataList";
+export { default as TextArea } from "./TextArea";
 
 export { default as Sidebar } from './Sidebar'
 
