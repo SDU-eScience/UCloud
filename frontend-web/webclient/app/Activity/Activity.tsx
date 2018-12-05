@@ -1,19 +1,18 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import { ActivityProps, Activity as ActivityType, TrackedActivity, CountedActivity, TrackedOperations, CountedOperations, ActivityDispatchProps } from "Activity";
-import { Feed as SFeed } from "semantic-ui-react";
-import { Page } from "Types";
 import * as Pagination from "Pagination";
 import * as moment from "moment";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
-import { Link } from "react-router-dom";
 import { ActivityReduxObject } from "DefaultObjects";
 import { fetchActivity, setErrorMessage, setLoading } from "./Redux/ActivityActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Dispatch } from "redux";
 import { fileInfoPage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading"
-import { IconName } from "ui-components/Icon";
+import Icon, { IconName } from "ui-components/Icon";
+import List from "ui-components/List";
+import { Box, Flex, Text, Link } from "ui-components";
 
 class Activity extends React.Component<ActivityProps> {
 
@@ -43,7 +42,7 @@ class Activity extends React.Component<ActivityProps> {
 }
 
 export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => activity.length ? (
-    <SFeed>
+    <List bordered={false} childPadding="1em">
         {activity.map((a, i) => {
             switch (a.type) {
                 case "tracked": {
@@ -54,36 +53,41 @@ export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => acti
                 }
             }
         })}
-    </SFeed>
+    </List>
 ) : null;
 
 const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
-    <SFeed.Event
-        icon={eventIcon(activity.operation).icon}
-        date={moment(new Date(activity.timestamp)).fromNow()}
-        summary={`Files ${operationToPastTense(activity.operation)}`}
-        extraText={activity.entries.map((entry, i) => !!entry.path ?
-            (<div key={i}>
-                <b>
-                    <Link to={fileInfoPage(entry.path)}>{getFilenameFromPath(entry.path)}</Link>
-                </b> was <b>{operationToPastTense(activity.operation)}</b> {entry.count === 1 ? "once" : <><b>{entry.count}</b> times</>}</div>) : null
-        )}
-    />
+    <Flex>
+        <Icon name={eventIcon(activity.operation).icon} />
+        <Box ml="1em">
+            <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
+            <Text fontSize={2}>{`Files ${operationToPastTense(activity.operation)}`}</Text>
+            {activity.entries.map((entry, i) => !!entry.path ?
+                (<Text fontSize={1} key={i}>
+                    <b>
+                        <Link to={fileInfoPage(entry.path)}>{getFilenameFromPath(entry.path)}</Link>
+                    </b> was <b>{operationToPastTense(activity.operation)}</b> {entry.count === 1 ? "once" : <><b>{entry.count}</b> times</>}</Text>) : null
+            )}
+        </Box>
+    </Flex>
 );
 
 const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
-    <SFeed.Event
-        icon={eventIcon(activity.operation).icon}
-        date={moment(new Date(activity.timestamp)).fromNow()}
-        summary={`Files ${operationToPastTense(activity.operation)}`}
-        extraText={activity.files.map((f, i) => !!f.path ?
-            (<div key={i}>
-                <b>
-                    <Link to={fileInfoPage(f.path)}>{getFilenameFromPath(f.path)}</Link>
-                </b> was <b>{operationToPastTense(activity.operation)}</b>
-            </div>) : null
-        )}
-    />
+    <Flex>
+        <Icon name={eventIcon(activity.operation).icon} />
+        <Box ml="1em">
+            <Box>
+                <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
+                <Text fontSize={2}>{`Files ${operationToPastTense(activity.operation)}`}</Text>
+                {activity.files.map((f, i) => !!f.path ?
+                    (<Text fontSize={1} key={i}>
+                        <b>
+                            <Link to={fileInfoPage(f.path)}>{getFilenameFromPath(f.path)}</Link>
+                        </b> was <b>{operationToPastTense(activity.operation)}</b></Text>) : null
+                )}
+            </Box>
+        </Box>
+    </Flex>
 );
 
 const operationToPastTense = (operation: TrackedOperations | CountedOperations): string => {
