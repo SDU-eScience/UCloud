@@ -24,8 +24,8 @@ const CubeGrid = ({ size }: {size: number}) => {
         }
     `
     const Cube = styled.div`
-		width: 33%;
-		height: 33%;
+		width: 33.3333%;
+		height: 33.3333%;
 		background-color: ${props => props.theme.colors.spinnerColor};
 		float: left;
 		animation: ${grid} 1.3s infinite ease-in-out;
