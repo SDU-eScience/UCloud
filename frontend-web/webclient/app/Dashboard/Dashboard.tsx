@@ -99,9 +99,9 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
         <List>
             {files.map((file, i) => (
                 <Flex key={i} pt="0.8em" pb="6px">
-                    <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={220} />
+                    <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={200} />
                     <Box ml="auto" />
-                    <Box><i className="fas fa-star" style={{ color: theme.colors.blue, verticalAlign: "middle" }} onClick={() => favorite(file)} /></Box>
+                    <Box><i className="fas fa-star" style={{ color: theme.colors.blue }} onClick={() => favorite(file)} /></Box>
                 </Flex>)
             )}
         </List>
@@ -110,8 +110,8 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
 
 const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: number }) => (
     <>
-        <FileIcon name={"ftImage"/* iconFromFilePath(path, type, Cloud.homeFolder) */} size={undefined} link={link} color="gray" />
-        <Link to={fileTablePage(isDirectory({ fileType: type }) ? path : getParentPath(path))}>
+        <FileIcon  name={"ftImage"/* iconFromFilePath(path, type, Cloud.homeFolder) */} size={undefined} link={link} color="gray" />
+        <Link ml="0.5em" to={fileTablePage(isDirectory({ fileType: type }) ? path : getParentPath(path))}>
             <EllipsedText fontSize={2} width={pixelsWide}>
                 {getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}
             </EllipsedText>
@@ -124,9 +124,9 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
         <List>
             {files.map((file, i) => (
                 <Flex key={i} pt="0.8em" pb="6px">
-                    <ListFileContent path={file.path} type={file.fileType} link={file.link} pixelsWide={150} />
+                    <ListFileContent path={file.path} type={file.fileType} link={file.link} pixelsWide={130} />
                     <Box ml="auto" />
-                    <Text color="grey">{moment(new Date(file.modifiedAt)).fromNow()}</Text>
+                    <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt)).fromNow()}</Text>
                 </Flex>
             ))}
         </List>
@@ -153,8 +153,13 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
     </DashBoardCard>
 );
 
-const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: { onNotificationAction: (notification: Notification) => void, notifications: Notification[], readAll: () => void }) => (
-    //   <DashBoardCard title="Recent notifications" isLoading={isLoading}>
+interface DashboardNotificationProps {
+    onNotificationAction: (notification: Notification) => void
+    notifications: Notification[]
+    readAll: () => void
+}
+
+const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: DashboardNotificationProps) => (
     <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3}>
             <Heading.h4>Recent notifications</Heading.h4>

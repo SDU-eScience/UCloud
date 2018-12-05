@@ -11,9 +11,13 @@ import PromiseKeeper from "PromiseKeeper";
 import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Button, theme } from "ui-components";
 import { sharesByPathQuery } from "Utilities/SharesUtilities";
 import * as Heading from "ui-components/Heading";
+import { Provider, connect } from "react-redux";
+import { Dispatch } from "redux";
 
-export class List extends React.Component<ListProps, ListState> {
-    constructor(props: ListProps, ctx: ListContext) {
+
+
+class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState> {
+    constructor(props) {
         super(props);
         this.state = {
             promises: new PromiseKeeper(),
@@ -25,12 +29,10 @@ export class List extends React.Component<ListProps, ListState> {
         };
         // FIXME potentially move following to a parent component
         if (!props.keepTitle)
-            ctx.store.dispatch(updatePageTitle("Shares"))
+            props.dispatch(updatePageTitle("Shares"))
     }
 
-    static contextTypes = {
-        store: PropTypes.object
-    }
+    static contextType = Provider.contextType;
 
     public componentDidMount = () => this.reload();
 
@@ -387,3 +389,5 @@ function updateShare(id: ShareId, rights: AccessRightValues[]): Promise<any> {
 const sharesByPath = (path: string): Promise<any> => {
     return Cloud.get(sharesByPathQuery(path)).then(e => ({ items: [e.response] }));
 }
+
+export default connect()(List);

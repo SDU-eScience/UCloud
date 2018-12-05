@@ -1,5 +1,5 @@
 import * as React from "react";
-import { List } from "Shares/List";
+import List from "Shares/List";
 import { create } from "react-test-renderer";
 import { Provider } from "react-redux";
 import { configureStore } from "Utilities/ReduxUtilities";

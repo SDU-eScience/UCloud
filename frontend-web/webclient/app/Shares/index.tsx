@@ -1,4 +1,4 @@
-export { List } from "./List";
+export { default as List } from "./List";
 import { Store } from "redux";
 import { AccessRightValues } from "Types";
 import PromiseKeeper from "PromiseKeeper";

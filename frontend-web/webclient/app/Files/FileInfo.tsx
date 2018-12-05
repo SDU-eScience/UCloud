@@ -7,7 +7,7 @@ import { SensitivityLevel, ReduxObject, SensitivityLevelMap } from "DefaultObjec
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { List as ShareList } from "Shares/List";
+import ShareList from "Shares/List";
 import { File, FileInfoProps } from "Files";
 import { ActivityFeed } from "Activity/Activity";
 import { Dispatch } from "redux";
