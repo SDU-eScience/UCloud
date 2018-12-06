@@ -63,19 +63,10 @@ class View extends React.Component<ViewProps> {
         return (
             <LoadingMainContainer
                 loadable={this.props.application}
-
-                fallbackHeader={<Navigation />}
-
-                header={
-                    <>
-                        <Navigation />
-                        <Box m={16} />
-                        <AppHeader application={application as Application} />
-                    </>
-                }
-
                 main={
                     <ContainerForText>
+                        <Box m={16} />
+                        <AppHeader application={application!} />
                         <Content
                             application={application as Application}
                             previousVersions={this.props.previous.content} />
