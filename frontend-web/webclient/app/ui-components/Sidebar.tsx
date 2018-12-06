@@ -198,6 +198,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, auditing: Side
             { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
             { icon: "share", label: "Shares", to: "/shares/" },
             { icon: "apps", label: "Apps", to: "/applications/" },
+            { icon: "appFav", label: "My Apps" , to: "/applications/installed/"},
             { icon: "information", label: "App Results", to: "/applications/results/" },
             { icon: "publish", label: "Publish", to: "/zenodo/publish/" },
         ], predicate: () => true

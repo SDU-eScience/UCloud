@@ -7,9 +7,8 @@ import { setPrioritizedSearch, HeaderActions } from "Navigation/Redux/HeaderActi
 import { Application } from "Applications";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
-import { Navigation, Pages } from "./Navigation";
-import { ApplicationCard, NewApplicationCard } from "./Card";
-import { MainContainer, LoadingMainContainer } from "MainContainer/MainContainer";
+import { NewApplicationCard } from "./Card";
+import { LoadingMainContainer } from "MainContainer/MainContainer";
 import { CardGroup } from "ui-components/Card";
 import * as Actions from "./Redux/FavoriteActions";
 import { Type as ReduxType } from "./Redux/FavoriteObject";
@@ -47,8 +46,6 @@ class Installed extends React.Component<InstalledProps> {
         return (
             <LoadingMainContainer
                 loadable={this.props.applications}
-                fallbackHeader={<Navigation selected={Pages.INSTALLED} />}
-                header={<Navigation selected={Pages.INSTALLED} />}
                 main={main}
                 sidebar={null}
             />
