@@ -58,6 +58,7 @@ html {
 
   line-height: ${props => props.theme.lineHeights.standard}; /* 3 */
   font-weight: ${props => props.theme.fontWeights.regular};
+  color: ${props => props.theme.colors.text};
   -moz-tab-size: 4; /* 4 */
   tab-size: 4; /* 4 */
   -ms-text-size-adjust: 100%; /* 5 */

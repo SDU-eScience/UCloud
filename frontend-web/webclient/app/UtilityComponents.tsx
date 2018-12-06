@@ -1,33 +1,24 @@
 import * as React from "react";
-import { Icon, Heading, Box, Relative, Absolute, Flex } from "ui-components";
-import styled from "styled-components";
+import { Icon, Heading, Absolute, Flex, Text } from "ui-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
 import { IconName } from "ui-components/Icon";
 import { ThemeColor } from "ui-components/theme";
 
-const IconGroup = styled(Box)`
-    position: relative;
-    display: inline-block;
-`;
 
-interface FileIconProps { link?: boolean, shared?: boolean, name: IconName, color: ThemeColor, size?: string | number  }
+interface FileIconProps { link?: boolean, shared?: boolean, name: IconName, color?: ThemeColor, size?: string | number  }
 export const FileIcon = ({ name, shared = false, link = false, color }: FileIconProps) => 
     link || shared ?
-    <Flex>
-        <Relative>
-            <IconGroup>
-                <Icon name={name} color={color}/>
-                <Absolute top={"40%"} right={"-10%"}>
-                    <Dropdown>
-                        <Icon size={"10px"} name={"share"} color={"gray"}/>
-                        <DropdownContent color="white" colorOnHover={false} backgroundColor={"black"}>
-                            {shared ? "This file is shared" : "This is a link to a file"}
-                        </DropdownContent>
-                    </Dropdown>
-                </Absolute>
-            </IconGroup>
-        </Relative>
-    </Flex> : <Icon name={name} color={color} />
+    <Flex style={{position: "relative"}}>
+        <Icon size={30} name={name} color={color} />
+        <Absolute bottom={"-6px"} right={"-2px"}>
+            <Dropdown>
+                <Icon size={"15px"} name={"link"} color2={"white"}/>
+                <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
+                    <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
+                </DropdownContent>
+            </Dropdown>
+        </Absolute>
+    </Flex> : <Icon size={30} name={name} color={color} />
 
 /* export const FileIcon = ({ name, size, shared = false, link = false, color }: FileIconProps) =>
     link || shared ?

@@ -264,7 +264,7 @@ const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: File
             {files.map((file, index) =>
                 file.fileType === "FILE" ? (
                     <Flex key={index} onClick={() => setSelectedFile(file)}>
-                        <Icon name="ftImage" color="blue" />{getFilenameFromPath(file.path)}
+                        <Icon name="ftFile" color="blue" />{getFilenameFromPath(file.path)}
                         {/* <SList.Icon name={uf.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)} /> */}
                     </Flex>
                 ) : (

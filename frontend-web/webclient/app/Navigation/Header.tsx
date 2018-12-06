@@ -112,8 +112,8 @@ const SearchInput = styled(Flex)`
     height: 36px;
     align-items: center;
     color: white;
-    background-color: rgba(236, 239, 244, 0.247);
-    border-color: rgba(201, 201, 233, 1);
+    background-color: rgba(236, 239, 244, 0.25);
+    border-radius: 5px;
 
     input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input:-moz-placeholder {
         color: white;
@@ -137,9 +137,8 @@ const SearchInput = styled(Flex)`
     }
 
     input {
-        border-radius: 5px;
-        background-color: rgba(1, 1, 1, 0.1);
-        padding: 10px;
+        height: 36px;
+        padding-right: 10px;
         padding-left: 30px;
     }
 `;
@@ -152,7 +151,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles }) => (
                 id="search_input"
                 value={searchText}
                 type="text"
-                color="blue"
+                noBorder
                 onChange={e => onChange(e.target.value)}
                 onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) { searchFiles(searchText); navigate(); } }}
                 placeholder=""

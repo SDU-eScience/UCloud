@@ -391,7 +391,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     const icon = (
         <Box mr="10px">
             <FileIcon
-                color={isDirectory(file) ? "blue" : "gray"}
+                color={isDirectory(file) ? "gray" : "gray"}
                 name={UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)}
                 size={size} link={file.link} shared={(file.acl !== undefined ? file.acl.length : 0) > 0}
             />

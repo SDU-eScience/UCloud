@@ -229,9 +229,9 @@ export const extensionType = (ext: string): ExtensionType => {
 
 /* type FileIcons = "tasks" | "star" | "trash alternate outline" | "folder" | "file outline" |
     "file code outline" | "image" | "file outline" | "volume up" | "file archive outline"; */
-export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): "ftImage" | "ftFolder" /* FileIcons */ => {
+export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): "ftImage" | "ftFolder" | "ftFile" /* FileIcons */ => {
     if (isDirectory({ fileType: type })) return "ftFolder";
-    return "ftImage";
+    return "ftFile";
 
 
 /*         const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);

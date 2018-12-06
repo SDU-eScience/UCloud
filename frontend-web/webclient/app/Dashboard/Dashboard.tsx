@@ -110,7 +110,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
 
 const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: number }) => (
     <>
-        <FileIcon  name={"ftImage"/* iconFromFilePath(path, type, Cloud.homeFolder) */} size={undefined} link={link} color="gray" />
+        <FileIcon  name={"ftFile"/* iconFromFilePath(path, type, Cloud.homeFolder) */} size={undefined} link={link} color="gray" />
         <Link ml="0.5em" to={fileTablePage(isDirectory({ fileType: type }) ? path : getParentPath(path))}>
             <EllipsedText fontSize={2} width={pixelsWide}>
                 {getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}
