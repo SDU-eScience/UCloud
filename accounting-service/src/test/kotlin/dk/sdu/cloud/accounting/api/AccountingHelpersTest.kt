@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.api
 
+import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
