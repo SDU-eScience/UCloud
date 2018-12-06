@@ -221,8 +221,7 @@ export const FilesTable = ({
             />
             <TableBody>
                 {files.map((file, i) => (
-                    // FIXME Use :has() or parent selector when available
-                    <TableRow style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
+                    <TableRow highlighted={file.isChecked} key={i}>
                         <FilenameAndIcons
 
                             file={file}
@@ -260,7 +259,6 @@ const ResponsiveTableColumn = ({
                     asDropdown={asDropdown}
                     currentSelection={currentSelection}
                     sortOrder={sortOrder} />
-                <Box ml="auto" />
                 <Arrow name={iconName} />
             </Flex>
         </TableHeaderCell>
@@ -282,14 +280,13 @@ const FilesTableHeader = ({
         <TableHeader>
             <TableRow>
                 <TableHeaderCell width="50%" textAlign="left">
-                    <Flex>
-                        <Box ml="9px">
+                    <Flex onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
+                        <Box ml="9px" onClick={e => e.stopPropagation()}>
                             {masterCheckbox}
                         </Box>
-                        <Box ml="9px" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
+                        <Box ml="9px">
                             Filename
-                    </Box>
-                        <Box ml="auto" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)} />
+                        </Box>
                         <Arrow name={toSortingIcon(SortBy.PATH)} />
                     </Flex>
                 </TableHeaderCell>
@@ -414,7 +411,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                     onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
                 />
                 {/* <OutlineButton size="tiny" color="red" mr="10px" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton> */}
-                <Icon size={24} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")}/>
+                <Icon size={24} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
             </Flex>
         </TableCell > :
         <TableCell width="50%">
