@@ -5,11 +5,11 @@ exports[`UserCreation Mount 1`] = `
   className="sc-ifAKCX LORpy"
 >
   <div
-    className="sc-bdVaJa fawVyn"
+    className="sc-bdVaJa hkLEBL"
     width={0.7}
   >
     <h1
-      className="sc-EHOje fItrCR"
+      className="sc-EHOje dGldvs"
       cursor="inherit"
       fontSize={6}
     >
@@ -29,7 +29,7 @@ exports[`UserCreation Mount 1`] = `
       >
         Username
         <input
-          className="sc-cSHVUG eooYyR"
+          className="sc-cSHVUG bHctJw"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -45,7 +45,7 @@ exports[`UserCreation Mount 1`] = `
       >
         Password
         <input
-          className="sc-cSHVUG eooYyR"
+          className="sc-cSHVUG bHctJw"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -62,7 +62,7 @@ exports[`UserCreation Mount 1`] = `
       >
         Repeat password
         <input
-          className="sc-cSHVUG eooYyR"
+          className="sc-cSHVUG bHctJw"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -72,8 +72,9 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <button
-        className="sc-htoDjs jEemVo"
+        className="sc-htoDjs kVAoke"
         color="green"
+        content="Create user"
         type="submit"
       >
         Create user

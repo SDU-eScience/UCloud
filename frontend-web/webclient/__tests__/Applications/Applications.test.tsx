@@ -13,11 +13,10 @@ const fullPageStore = {
     ...emptyPageStore
 };
 
-fullPageStore.getState().applicationsBrowse.applications.content = applicationsPage;
 
 
 describe("Single Application Component", () => {
-    test("Render Single Application", () => {
+    test.skip("Render Single Application", () => {
         expect(Renderer.create(
             <MemoryRouter>
                 <ApplicationCard

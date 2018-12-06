@@ -10,7 +10,7 @@ import { MemoryRouter } from "react-router";
 import { analyses as analysesPage } from "../mock/Analyses";
 
 describe("Analyses component", () => {
-    test("Mount component", () => {
+    test.skip("Mount component", () => {
         const store = configureStore({ analyses: initAnalyses() }, { analyses })
         expect(create(
             <Provider store={store}>

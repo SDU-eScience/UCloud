@@ -6,14 +6,14 @@ Array [
     className="fas fa-circle-notch fa-spin"
   />,
   <h3
-    className="sc-EHOje gqTxsK"
+    className="sc-EHOje mcpJs"
     cursor="inherit"
     fontSize={4}
   >
     Shared with Me
   </h3>,
   <h3
-    className="sc-EHOje fFSuFj"
+    className="sc-EHOje hzpkEX"
     cursor="inherit"
     fontSize={4}
   >
@@ -21,15 +21,15 @@ Array [
       No shares
     </small>
   </h3>,
-  <h2
-    className="sc-EHOje cMXCEK"
+  <h3
+    className="sc-EHOje mcpJs"
     cursor="inherit"
-    fontSize={5}
+    fontSize={4}
   >
     Shared by Me
-  </h2>,
+  </h3>,
   <h3
-    className="sc-EHOje fFSuFj"
+    className="sc-EHOje hzpkEX"
     cursor="inherit"
     fontSize={4}
   >

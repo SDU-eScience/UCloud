@@ -5,14 +5,14 @@ exports[`UserSettings Mount 1`] = `
   className="sc-bZQynM Ygzij"
 >
   <div
-    className="sc-htpNat dRpDjV"
+    className="sc-htpNat gbNhWf"
     width={0.7}
   >
     <div
-      className="sc-htpNat bPPcnA"
+      className="sc-htpNat ffMeME"
     >
       <h1
-        className="sc-bdVaJa fEtJUa"
+        className="sc-bdVaJa jOPwGr"
         cursor="inherit"
         fontSize={6}
       >
@@ -23,7 +23,7 @@ exports[`UserSettings Mount 1`] = `
       className="sc-bZQynM bTpYSl"
     >
       <div
-        className="sc-htpNat hwFUka"
+        className="sc-htpNat hVaCaW"
         width={
           Array [
             1,
@@ -32,13 +32,13 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-fjdhpX llNXsf"
+          className="sc-htpNat sc-fjdhpX lajvgC"
         />
         <form
           onSubmit={[Function]}
         >
           <div
-            className="sc-htpNat jiarCv"
+            className="sc-htpNat dosJSB"
           >
             <label
               className="sc-kpOJdX kaSAoa"
@@ -48,7 +48,7 @@ exports[`UserSettings Mount 1`] = `
             >
               Current Password
               <input
-                className="sc-cSHVUG cjUtlX"
+                className="sc-cSHVUG iVhAow"
                 id="default"
                 onChange={[Function]}
                 placeholder="Current password"
@@ -58,7 +58,7 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <div
-            className="sc-htpNat jiarCv"
+            className="sc-htpNat dosJSB"
           >
             <label
               className="sc-kpOJdX kaSAoa"
@@ -68,7 +68,7 @@ exports[`UserSettings Mount 1`] = `
             >
               New Password
               <input
-                className="sc-cSHVUG cjUtlX"
+                className="sc-cSHVUG iVhAow"
                 id="default"
                 onChange={[Function]}
                 placeholder="New password"
@@ -78,7 +78,7 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <div
-            className="sc-htpNat jiarCv"
+            className="sc-htpNat dosJSB"
           >
             <label
               className="sc-kpOJdX kaSAoa"
@@ -88,7 +88,7 @@ exports[`UserSettings Mount 1`] = `
             >
               Repeat new password
               <input
-                className="sc-cSHVUG cjUtlX"
+                className="sc-cSHVUG iVhAow"
                 id="default"
                 onChange={[Function]}
                 placeholder="Repeat password"
@@ -98,7 +98,7 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <button
-            className="sc-htoDjs GrhCv"
+            className="sc-htoDjs bEJjtz"
             color="green"
             type="submit"
           >
@@ -106,7 +106,7 @@ exports[`UserSettings Mount 1`] = `
           </button>
         </form>
         <h1
-          className="sc-bdVaJa fEtJUa"
+          className="sc-bdVaJa jOPwGr"
           cursor="inherit"
           fontSize={6}
         >
@@ -120,7 +120,7 @@ exports[`UserSettings Mount 1`] = `
         />
         <div>
           <h3
-            className="sc-bdVaJa inHAPv"
+            className="sc-bdVaJa bNfRTK"
             cursor="inherit"
             fontSize={4}
           >
@@ -159,8 +159,9 @@ exports[`UserSettings Mount 1`] = `
             Once you are ready click the button below to get started:
           </p>
           <button
-            className="sc-htoDjs ekVhyU"
+            className="sc-htoDjs cYgazJ"
             color="green"
+            content="Start setup"
             disabled={true}
             onClick={[Function]}
           >
@@ -171,7 +172,7 @@ exports[`UserSettings Mount 1`] = `
         </div>
       </div>
       <div
-        className="sc-fjdhpX fGTFZv"
+        className="sc-htpNat sc-fjdhpX dTjuTr"
         width={
           Array [
             0,
@@ -180,7 +181,7 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-htpNat jLddIv"
+          className="sc-htpNat jaqxvr"
         />
       </div>
     </div>

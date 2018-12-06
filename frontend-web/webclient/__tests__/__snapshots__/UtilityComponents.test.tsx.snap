@@ -1,39 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`FileIcon Link file icon 1`] = `
-<i
-  className="mini icons"
->
-  <i
-    aria-hidden="true"
-    className="add circle icon"
-  />
-  <i
-    aria-hidden="true"
-    className="grey share corner icon"
-    onBlur={[Function]}
-    onClick={[Function]}
-    onFocus={[Function]}
-    onMouseEnter={[Function]}
-    onMouseLeave={[Function]}
-  />
-</i>
-`;
-
-exports[`FileIcon Non-link file icon 1`] = `
-<i
-  aria-hidden="true"
-  className="add circle mini icon"
-/>
-`;
-
-exports[`FileIcon Non-link file icon, using defaults 1`] = `
-<i
-  aria-hidden="true"
-  className="add circle mini icon"
-/>
-`;
-
 exports[`PP Non-visible PP-Component 1`] = `null`;
 
 exports[`PP Visible PP-Component 1`] = `
