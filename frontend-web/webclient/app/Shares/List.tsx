@@ -163,8 +163,8 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         <AccessRightsDisplay floated disabled rights={actualShare.rights} />
                     </Flex>
                 </Heading.h4>
-                <Text color="text">Shared by {groupedShare.sharedBy}</Text>
-                <Text mt="4px" mb="4px">{message}</Text>
+                <TextSpan color="text">Shared by {groupedShare.sharedBy}</TextSpan>
+                <TextSpan mt="4px" mb="4px">{message}</TextSpan>
                 <Flex>
                     <Box ml="auto" />
                     {groupedShare.shares[0].state !== ShareState.REQUEST_SENT ?
@@ -192,7 +192,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         const { groupedShare } = this.props;
         const { isLoading } = this.state;
 
-        const shareComponents: JSX.Element[] = groupedShare.shares.map(e => (
+        const shareComponents: JSX.Element[] = groupedShare.shares.map((e, i, { length }) => (
             <Box key={e.id}>
                 <Flex m="5px 5px 5px 5px">
                     <Box>
@@ -204,6 +204,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                     </Box>
                     <Box width="10%">
                         <LoadingButton
+                            fullWidth
                             color="red"
                             disabled={isLoading}
                             loading={isLoading}
@@ -217,7 +218,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         </LoadingButton>
                     </Box>
                 </Flex>
-                <Divider />
+                {i !== length - 1 ? <Divider /> : null}
             </Box>
         ));
 
@@ -225,16 +226,17 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
             <Card width="100%" p="10px 10px 10px 10px" height="auto">
                 <Heading.h4>
                     <i style={{ marginLeft: "3px", marginRight: "3px", fontSize: "24px" }} className="fas fa-folder" /> {getFilenameFromPath(groupedShare.path)}
+                    <TextSpan fontSize={1} ml="0.8em" mr="0.8em" color="text">Shared with {groupedShare.shares.length} collaborators</TextSpan>
+                    <LoadingButton
+                        size={"small"}
+                        content="Share this with another user"
+                        color="green"
+                        disabled={isLoading}
+                        loading={isLoading}
+                        onClick={() => this.onCreateShare(groupedShare.path)}
+                    />
                 </Heading.h4>
-                <Text color="text">Shared with {groupedShare.shares.length} collaborators</Text>
                 {shareComponents}
-                <LoadingButton
-                    content="Share this with another user"
-                    color="green"
-                    disabled={isLoading}
-                    loading={isLoading}
-                    onClick={() => this.onCreateShare(groupedShare.path)}
-                />
             </Card >
         );
     }
@@ -265,7 +267,6 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
             // FIXME Fix immediately when SweetAlert allows forms
             (document.getElementById("read-swal") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
             (document.getElementById("write-swal") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
-            (document.getElementById("execute-swal") as HTMLInputElement).checked ? rights.push(AccessRight.EXECUTE) : null;
             createShare(value, path, rights)
                 .then(it => {
                     this.maybeInvoke(it.id, this.props.onShared);
@@ -317,8 +318,7 @@ interface AccessRightsDisplayProps {
     rights?: AccessRightValues[]
 
     read?: boolean
-    write?: boolean
-    execute?: boolean
+    write?: boolean 
     floated?: boolean
 
     className?: string
@@ -327,11 +327,10 @@ interface AccessRightsDisplayProps {
 }
 
 const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
-    let { read, write, execute, floated } = props;
+    let { read, write, floated } = props;
     if (props.rights != null) {
         read = props.rights.indexOf(AccessRight.READ) != -1;
         write = props.rights.indexOf(AccessRight.WRITE) != -1;
-        execute = props.rights.indexOf(AccessRight.EXECUTE) != -1;
     }
 
     return (
@@ -358,17 +357,6 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                     <Flex alignItems="center" justifyContent="center">
                         <i className="far fa-edit" />
                         <Text ml="5px">Write</Text>
-                    </Flex>
-                </Button>
-                <Button
-                    disabled={props.disabled}
-                    color={execute ? "green" : "lightGray"}
-                    textColor={execute ? "white" : "gray"}
-                    onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.EXECUTE) : 0}
-                >
-                    <Flex alignItems="center" justifyContent="center">
-                        <i className="fas fa-cogs" />
-                        <Text ml="5px">Execute</Text>
                     </Flex>
                 </Button>
             </ButtonGroup>
