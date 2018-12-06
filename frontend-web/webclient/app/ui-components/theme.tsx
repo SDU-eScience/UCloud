@@ -115,6 +115,7 @@ export const textStyles = {
 // color palette
 const black = "#000";
 const white = "#fff";
+const textBlack = "#1e252e"
 //// Gray
 const lightGray = "#ebeff3";
 const midGray = "#c9d3df";
@@ -143,7 +144,7 @@ const purple = "#70b"; // secondary
 // should use colors from the palette above
 //// Light color theme
 // const text = "#001833";
-const text = darkGray;
+const text = textBlack;
 const textHighlight = blue;
 const headerText = lightGray;
 const headerBg = blue;
