@@ -168,7 +168,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                 <Flex>
                     <Box ml="auto" />
                     {groupedShare.shares[0].state !== ShareState.REQUEST_SENT ?
-                        <LoadingButton color="red" disabled={isLoading} loading={isLoading} content="Revoke" onClick={() => this.onRevoke(actualShare)} />
+                        <LoadingButton color="red" disabled={isLoading} loading={isLoading} content="Remove" onClick={() => this.onRevoke(actualShare)} />
                         : null}
                 </Flex>
                 {!hasBeenShared ? (
