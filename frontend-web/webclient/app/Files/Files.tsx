@@ -352,7 +352,7 @@ const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: C
             <Button color="red"
                 onClick={() => clearTrash(Cloud, () => toHome())}
             >
-                Clear trash
+                Empty trash
                 </Button> : null}
     </VerticalButtonGroup>
 );
@@ -391,7 +391,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     const icon = (
         <Box mr="10px">
             <FileIcon
-                color={isDirectory(file) ? "gray" : "gray"}
+                color={"gray"}
                 name={UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)}
                 size={size} link={file.link} shared={(file.acl !== undefined ? file.acl.length : 0) > 0}
             />
