@@ -83,7 +83,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO)
+                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
                 appDAO.create(it, user, normAppDesc)
 
                 run {
@@ -130,7 +130,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO)
+                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
                 appDAO.create(it, user, normAppDesc2)
                 Thread.sleep(1000)
                 appDAO.create(it, user, normAppDesc)
@@ -163,7 +163,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO)
+                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
                 appDAO.create(it, user, normAppDesc2)
                 Thread.sleep(1000)
                 appDAO.create(it, user, normAppDesc)
@@ -224,7 +224,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO)
+                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
 
                 val tool = toolDAO.internalByNameAndVersion(it, normAppDesc.tool.name, normAppDesc.tool.version)
 
@@ -275,7 +275,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO)
+                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
                 appDAO.create(it, user, normAppDesc)
                 appDAO.create(it, user, normAppDesc)
 
@@ -291,7 +291,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO)
+                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
                 appDAO.create(it, user, normAppDesc)
                 appDAO.create(it, "Not the user", normAppDesc)
 
@@ -304,7 +304,7 @@ class ApplicationHibernateDaoTest {
         withDatabase { db ->
             db.withTransaction {
 
-                val appDAO = ApplicationHibernateDAO(ToolHibernateDAO())
+                val appDAO = ApplicationHibernateDAO(ToolHibernateDAO(), DefaultImageGenerator())
                 appDAO.create(it, user, normAppDesc)
             }
         }
@@ -315,7 +315,7 @@ class ApplicationHibernateDaoTest {
         withDatabase { db ->
             db.withTransaction {
 
-                val appDAO = ApplicationHibernateDAO(ToolHibernateDAO())
+                val appDAO = ApplicationHibernateDAO(ToolHibernateDAO(), DefaultImageGenerator())
                 appDAO.findByNameAndVersion(it, user, "name", "version")
             }
         }
@@ -329,7 +329,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO)
+                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
                 appDAO.create(it, user, normAppDesc)
                 appDAO.create(it, user, normAppDesc3)
                 appDAO.create(
@@ -406,7 +406,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO)
+                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
                 appDAO.create(it, user, normAppDesc)
                 appDAO.create(it, user, normAppDesc3)
                 appDAO.create(
@@ -466,7 +466,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO)
+                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
 
                 appDAO.toggleFavorite(it, user, "App1", "1.4")
             }

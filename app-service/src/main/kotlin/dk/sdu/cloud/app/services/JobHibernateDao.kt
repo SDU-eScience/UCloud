@@ -7,6 +7,7 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateEntity
@@ -16,16 +17,16 @@ import dk.sdu.cloud.service.db.JSONB_LIST_TYPE
 import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_KEY_TYPE
 import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
 import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
-import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.updateCriteria
 import dk.sdu.cloud.service.mapItems
 import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Parameter
 import org.hibernate.annotations.Type
-import org.hibernate.usertype.DynamicParameterizedType
+import org.slf4j.Logger
 import java.util.*
 import javax.persistence.AttributeOverride
 import javax.persistence.AttributeOverrides
@@ -103,6 +104,7 @@ data class JobInformationEntity(
 
     override var modifiedAt: Date
 ) : WithTimestamps {
+
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
 }
 
@@ -135,18 +137,24 @@ class JobHibernateDao(
     }
 
     override fun updateStatus(session: HibernateSession, systemId: String, status: String) {
-        val entity = JobInformationEntity[session, systemId] ?: throw JobException.NotFound("job: $systemId")
-        entity.status = status
-        session.save(entity)
+        session.updateCriteria<JobInformationEntity>(
+            where = { entity[JobInformationEntity::systemId] equal systemId },
+            setProperties = {
+                criteria.set(entity[JobInformationEntity::status], status)
+            }
+        ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
 
     override fun updateStateAndStatus(session: HibernateSession, systemId: String, state: JobState, status: String?) {
-        val entity = JobInformationEntity[session, systemId] ?: throw JobException.NotFound("job: $systemId")
-        entity.state = state
-        if (status != null) {
-            entity.status = status
-        }
-        session.save(entity)
+        session.updateCriteria<JobInformationEntity>(
+            where = { entity[JobInformationEntity::systemId] equal systemId },
+            setProperties = {
+                criteria.set(entity[JobInformationEntity::state], state)
+                if (status != null) {
+                    criteria.set(entity[JobInformationEntity::status], status)
+                }
+            }
+        ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
 
     override fun findOrNull(
@@ -194,4 +202,8 @@ class JobHibernateDao(
         )
 
     private fun NameAndVersion.toEmbedded(): EmbeddedNameAndVersion = EmbeddedNameAndVersion(name, version)
+
+    companion object : Loggable {
+        override val log: Logger = logger()
+    }
 }

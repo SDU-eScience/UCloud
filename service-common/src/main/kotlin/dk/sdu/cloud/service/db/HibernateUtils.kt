@@ -13,6 +13,7 @@ import javax.persistence.PreUpdate
 import javax.persistence.criteria.CriteriaBuilder
 import javax.persistence.criteria.CriteriaDelete
 import javax.persistence.criteria.CriteriaQuery
+import javax.persistence.criteria.CriteriaUpdate
 import javax.persistence.criteria.Expression
 import javax.persistence.criteria.Order
 import javax.persistence.criteria.ParameterExpression
@@ -364,6 +365,19 @@ class DeleteCriteriaBuilderContext<R>(
     val entity: Root<R>
 ) : CriteriaBuilderGeneralContext()
 
+class UpdateCriteriaBuilderContext<R>(
+    override val builder: CriteriaBuilder,
+    val criteria: CriteriaUpdate<R>,
+    val entity: Root<R>
+) : CriteriaBuilderGeneralContext()
+
+inline fun <reified Root> Session.createCriteriaUpdate(): UpdateCriteriaBuilderContext<Root> {
+    val criteriaBuilder = criteriaBuilder
+    val criteria = criteriaBuilder.createCriteriaUpdate(Root::class.java)
+    val root = criteria.from(Root::class.java)
+    return UpdateCriteriaBuilderContext(criteriaBuilder, criteria, root)
+}
+
 inline fun <reified Root> Session.createCriteriaDelete(): DeleteCriteriaBuilderContext<Root> {
     val criteriaBuilder = criteriaBuilder
     val criteria = criteriaBuilder.createCriteriaDelete(Root::class.java)
@@ -376,6 +390,16 @@ inline fun <reified Result, reified Root> Session.createCriteriaBuilder(): Crite
     val criteria = criteriaBuilder.createQuery(Result::class.java)
     val root = criteria.from(Root::class.java)
     return CriteriaBuilderContext<Result, Root>(criteriaBuilder, criteria, root)
+}
+
+inline fun <reified T> Session.updateCriteria(
+    noinline setProperties: UpdateCriteriaBuilderContext<T>.() -> Unit,
+    noinline where: UpdateCriteriaBuilderContext<T>.() -> Predicate
+): Query<*> {
+    return createCriteriaUpdate<T>().apply {
+        setProperties()
+        criteria.where(where())
+    }.criteria.createQuery(this)
 }
 
 inline fun <reified T> Session.deleteCriteria(
@@ -440,6 +464,10 @@ fun <T> CriteriaQuery<T>.createQuery(session: Session): Query<T> {
 }
 
 fun <T> CriteriaDelete<T>.createQuery(session: Session): Query<*> {
+    return session.createQuery(this)
+}
+
+fun <T> CriteriaUpdate<T>.createQuery(session: Session): Query<*> {
     return session.createQuery(this)
 }
 

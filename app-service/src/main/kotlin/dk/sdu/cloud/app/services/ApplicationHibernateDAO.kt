@@ -152,21 +152,25 @@ class ApplicationHibernateDAO(
                     where A.id.name = B.id.name
                     group by id.name
                 ) and lower(A.id.name) like '%' || :query || '%'
-                """.trimIndent()
+            """.trimIndent()
         ).setParameter("query", normalizedQuery)
             .uniqueResult()
             .toInt()
 
         val items = session.typedQuery<ApplicationEntity>(
             """
-                    from ApplicationEntity as A where (A.createdAt) in (
+                from
+                    ApplicationEntity as A left join fetch A.tool
+                where
+                    (A.createdAt) in (
                         select max(createdAt)
                         from ApplicationEntity as B
                         where A.id.name = B.id.name
                         group by id.name
-                    ) and lower(A.id.name) like '%' || :query || '%'
-                    order by A.id.name
-                """.trimIndent()
+                    ) and
+                    lower(A.id.name) like '%' || :query || '%'
+                order by A.id.name
+            """.trimIndent()
         ).setParameter("query", normalizedQuery)
             .paginatedList(paging)
             .map { it.toModel(defaultImageGenerator) }
@@ -236,7 +240,7 @@ class ApplicationHibernateDAO(
 
         val items = session.typedQuery<ApplicationEntity>(
             """
-            from ApplicationEntity as A where (A.createdAt) in (
+            from ApplicationEntity as A left join fetch A.tool where (A.createdAt) in (
                 select max(createdAt)
                 from ApplicationEntity as B
                 where A.id.name = B.id.name
@@ -246,7 +250,6 @@ class ApplicationHibernateDAO(
         """.trimIndent()
         ).paginatedList(paging)
             .map { it.toModel(defaultImageGenerator) }
-
         return preparePageForUser(
             session,
             user,
