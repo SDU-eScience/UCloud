@@ -14,6 +14,7 @@ import { Button } from "ui-components";
 import { successNotification, failureNotification } from "UtilityFunctions";
 import Relative from "./Relative";
 import TextArea from "./TextArea";
+import { KeyCode } from "DefaultObjects";
 
 const SidebarContainer = styled(Flex)`
     position: fixed;
@@ -138,6 +139,13 @@ class Support extends React.Component<{}, SupportState> {
             visible: false,
             loading: false
         };
+        document.addEventListener("keypress", this.handleESC);
+    }
+
+    componentWillUnmount = () =>  document.removeEventListener("keypress", this.handleESC);
+
+    private handleESC = (e) => {
+        if (e.keyCode == KeyCode.ESC) this.setState(() => ({ visible: false }))
     }
 
     onSupportClick(event: React.SyntheticEvent) {
@@ -173,7 +181,7 @@ class Support extends React.Component<{}, SupportState> {
                         <Heading.h3>Support Form</Heading.h3>
                         <p>Describe your problem below and we will investigate it.</p>
                         <form onSubmit={e => this.onSubmit(e)}>
-                            <TextArea ref={this.textArea} rows={6}/>
+                            <TextArea ref={this.textArea} rows={6} />
                             <Button fullWidth type="submit" disabled={this.state.loading}>Submit</Button>
                         </form>
                     </Box>

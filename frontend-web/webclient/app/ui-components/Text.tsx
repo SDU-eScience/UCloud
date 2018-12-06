@@ -17,7 +17,7 @@ import {
 } from "styled-system";
 import { Theme } from "./theme";
 
-export const caps = (props: { caps?: boolean }) =>
+export const caps = (props: { caps?: boolean }): { textTransform: "uppercase" } | null =>
   props.caps ? { textTransform: "uppercase" } : null;
 
 export const regular = (props: { regular?: boolean, theme: Theme }) =>
