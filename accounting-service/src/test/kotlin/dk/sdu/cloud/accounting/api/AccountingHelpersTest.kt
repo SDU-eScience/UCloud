@@ -4,7 +4,8 @@ import org.junit.Test
 import kotlin.test.assertEquals
 
 class AccoutningHelpersTest{
-
+    
+    @Ignore
     @Test
     fun `test start and end of period`() {
         val acc = AccountingHelpers
