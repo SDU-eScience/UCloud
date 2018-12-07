@@ -537,6 +537,7 @@ fun <R : Any> RESTQueryParameter<R>.bindValuesFromCall(call: ApplicationCall): P
 
 open class RPCException(val why: String, val httpStatusCode: HttpStatusCode) : RuntimeException(why) {
     companion object {
-        fun fromStatusCode(httpStatusCode: HttpStatusCode) = RPCException(httpStatusCode.description, httpStatusCode)
+        fun fromStatusCode(httpStatusCode: HttpStatusCode, message: String? = null) =
+            RPCException(message ?: httpStatusCode.description, httpStatusCode)
     }
 }

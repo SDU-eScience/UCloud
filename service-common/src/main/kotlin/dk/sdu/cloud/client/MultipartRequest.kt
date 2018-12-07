@@ -6,22 +6,23 @@ import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import dk.sdu.cloud.service.InputParsingResponse
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.StreamingMultipart
+import dk.sdu.cloud.service.StreamingPart
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.ApplicationCall
-import io.ktor.application.call
-import io.ktor.http.BadContentTypeFormatException
+import io.ktor.http.ContentDisposition
 import io.ktor.http.ContentType
 import io.ktor.http.Headers
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.MultiPartData
-import io.ktor.http.content.PartData
-import io.ktor.http.content.forEachPart
 import io.ktor.http.defaultForFile
-import io.ktor.request.receiveOrNull
-import io.ktor.util.asStream
+import io.ktor.util.KtorExperimentalAPI
+import io.ktor.util.cio.readChannel
 import io.ktor.util.pipeline.PipelineContext
+import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.jvm.javaio.copyTo
+import kotlinx.coroutines.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.io.readRemaining
 import java.io.File
 import java.io.InputStream
 import java.lang.reflect.ParameterizedType
@@ -36,14 +37,17 @@ class StreamingFile(
     val contentType: ContentType,
     val length: Long?,
     val fileName: String?,
-    val payload: InputStream
+    val channel: ByteReadChannel
 ) {
+    val payload: InputStream get() = channel.toInputStream()
+
     companion object {
+        @UseExperimental(KtorExperimentalAPI::class)
         fun fromFile(file: File): StreamingFile = StreamingFile(
             ContentType.defaultForFile(file),
             file.length(),
             file.name,
-            file.inputStream()
+            file.readChannel()
         )
     }
 }
@@ -51,7 +55,7 @@ class StreamingFile(
 private data class IngoingMultipart(
     val description: RESTCallDescription<*, *, *, *>,
     val context: PipelineContext<*, ApplicationCall>,
-    val multipart: MultiPartData
+    val multipart: StreamingMultipart
 )
 
 /**
@@ -179,20 +183,15 @@ class MultipartRequest<Request : Any> private constructor() {
             consumer(block)
         }
 
-        var caughtException: Exception? = null
-        ingoing.multipart.forEachPart { part ->
-            if (caughtException != null) {
-                part.dispose()
-                return@forEachPart
-            }
-
+        while (true) {
+            val nextPart = ingoing.multipart.readPart() ?: break
             try {
-                val name = part.name ?: run { part.dispose(); return@forEachPart }
-                val prop = knownProps[name] ?: run { part.dispose(); return@forEachPart }
+                val name = nextPart.partHeaders.contentDisposition.name ?: continue
+                val prop = knownProps[name] ?: continue
                 hasUnsentData = true
 
                 partsSeen.add(prop.name)
-                val parsedPart = parsePart(prop, part)
+                val parsedPart = parsePart(prop, nextPart)
                 builder[name] = parsedPart
 
                 if (parsedPart is StreamingFile) {
@@ -200,18 +199,9 @@ class MultipartRequest<Request : Any> private constructor() {
                     builder.remove(name) // We need to remove StreamingFiles from the builder.
                 }
 
-            } catch (ex: Exception) {
-                caughtException = ex
             } finally {
-                part.dispose()
+                nextPart.dispose()
             }
-        }
-
-        val capturedException = caughtException
-        if (capturedException != null) {
-            log.debug("Caught exception in MultipartRequest")
-            log.debug(capturedException.stackTraceToString())
-            throw capturedException
         }
 
         if (!partsSeen.containsAll(requiredProperties)) {
@@ -222,93 +212,75 @@ class MultipartRequest<Request : Any> private constructor() {
         if (hasUnsentData) send()
     }
 
-    private fun parsePart(prop: KProperty1<Request, *>, part: PartData): Any? {
+    private suspend fun parsePart(prop: KProperty1<Request, *>, part: StreamingPart): Any? {
         val propType = prop.returnType.classifier as? KClass<*>
             ?: throw IllegalStateException("Cannot find type of ${prop.name}")
 
-        val contentType = part.headers[HttpHeaders.ContentType]
-            ?.let {
-                try {
-                    ContentType.parse(it)
-                } catch (ex: BadContentTypeFormatException) {
-                    null
+        val contentType = part.partHeaders.contentType ?: ContentType.Application.OctetStream
+        val isJson = contentType.match(ContentType.Application.Json)
+
+        suspend fun StreamingPart.value(): String {
+            val packet = channel.readRemaining(1024 * 64)
+            try {
+                if (!channel.isClosedForRead) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.PayloadTooLarge, "Entity too large")
                 }
-            } ?: ContentType.Any
 
+                return packet.readText()
+            } finally {
+                packet.release()
+            }
+        }
 
-        when (part) {
-            is PartData.FormItem -> {
-                val isJson = contentType.match(ContentType.Application.Json)
-
-                return if (isJson) {
-                    try {
-                        defaultMapper.readValue(part.value, propType.java)
-                    } catch (ex: Exception) {
-                        when (ex) {
-                            is JsonMappingException, is JsonParseException -> {
-                                log.debug(ex.stackTraceToString())
-                                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                            }
-
-                            else -> {
-                                log.warn(ex.stackTraceToString())
-                                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-                            }
-                        }
+        return if (isJson) {
+            try {
+                defaultMapper.readValue(part.value(), propType.java)
+            } catch (ex: Exception) {
+                when (ex) {
+                    is JsonMappingException, is JsonParseException -> {
+                        log.debug(ex.stackTraceToString())
+                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
-                } else {
-                    when {
-                        propType == String::class -> part.value
-                        propType == Byte::class -> part.value.toByteOrNull()
-                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        propType == Short::class -> part.value.toShortOrNull()
-                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        propType == Int::class -> part.value.toIntOrNull()
-                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        propType == Long::class -> part.value.toLongOrNull()
-                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        propType == Short::class -> part.value.toShortOrNull()
-                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        propType == Double::class -> part.value.toDoubleOrNull()
-                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        propType == Boolean::class -> part.value.toBoolean()
-                        propType.java.isEnum -> {
-                            propType.java.enumConstants.find { (it as Enum<*>).name == part.value }
-                                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        }
-                        propType == StreamingFile::class -> {
-                            log.info("For some reason we have parsed $prop as a normal form item.")
-                            StreamingFile(
-                                contentType,
-                                part.headers[HttpHeaders.ContentLength]?.toLongOrNull(),
-                                (part as? PartData.FileItem)?.originalFileName,
-                                part.value.byteInputStream()
-                            )
-                        }
-                        else -> {
-                            log.info("Could not convert item $prop from value ${part.value}")
-                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                        }
+
+                    else -> {
+                        log.warn(ex.stackTraceToString())
+                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
                     }
                 }
             }
-
-            is PartData.BinaryItem, is PartData.FileItem -> {
-                if (propType != StreamingFile::class) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-
-                val provider = when (part) {
-                    is PartData.FileItem -> part.provider
-                    is PartData.BinaryItem -> part.provider
-                    else -> throw IllegalStateException()
+        } else {
+            when {
+                propType == String::class -> part.value()
+                propType == Byte::class -> part.value().toByteOrNull()
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                propType == Short::class -> part.value().toShortOrNull()
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                propType == Int::class -> part.value().toIntOrNull()
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                propType == Long::class -> part.value().toLongOrNull()
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                propType == Short::class -> part.value().toShortOrNull()
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                propType == Double::class -> part.value().toDoubleOrNull()
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                propType == Boolean::class -> part.value().toBoolean()
+                propType.java.isEnum -> {
+                    val value = part.value()
+                    propType.java.enumConstants.find { (it as Enum<*>).name == value }
+                        ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                 }
-
-                @Suppress("EXPERIMENTAL_API_USAGE")
-                return StreamingFile(
-                    contentType,
-                    part.headers[HttpHeaders.ContentLength]?.toLongOrNull(),
-                    (part as? PartData.FileItem)?.originalFileName,
-                    provider().asStream()
-                )
+                propType == StreamingFile::class -> {
+                    StreamingFile(
+                        contentType,
+                        part.partHeaders.contentLength,
+                        part.partHeaders.contentDisposition.parameter(ContentDisposition.Parameters.FileName),
+                        part.channel
+                    )
+                }
+                else -> {
+                    log.info("Could not convert item $prop from value ${part.value()}")
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                }
             }
         }
     }
@@ -339,16 +311,20 @@ class MultipartRequest<Request : Any> private constructor() {
             description: RESTCallDescription<*, *, *, *>,
             context: PipelineContext<*, ApplicationCall>
         ): InputParsingResponse {
-            with(context) {
-                val multipart: MultiPartData = call.receiveOrNull() ?: return InputParsingResponse.MissingAndRequired
-                val result = MultipartRequest<Any>().apply {
-                    ingoing = IngoingMultipart(description, context, multipart)
-                }
-
-                // We could eagerly parse as much as possible here.
-
-                return InputParsingResponse.Parsed(result)
+            val multipart = try {
+                // Should this ever break we should go back to using call.receiveOrNull() with a MultiPartData type
+                StreamingMultipart.construct(context)
+            } catch (ex: Exception) {
+                log.debug(ex.stackTraceToString())
+                return InputParsingResponse.MissingAndRequired
             }
+
+            val result = MultipartRequest<Any>().apply {
+                ingoing = IngoingMultipart(description, context, multipart)
+            }
+
+            // We could eagerly parse as much as possible here.
+            return InputParsingResponse.Parsed(result)
         }
 
         override fun serializeBody(
