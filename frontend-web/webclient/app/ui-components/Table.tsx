@@ -21,8 +21,12 @@ export const TableCell = styled.td<TextAlignProps & HideProps & WidthProps>`
 
 const highlighted = ({ highlighted }: { highlighted?: boolean }) => highlighted ? { backgroundColor: theme.colors.lightBlue } : null;
 
-export const TableRow = styled.tr<{ highlighted?: boolean }>`
-    ${highlighted}
+
+const contentAlign = props => props.aligned ? { verticalAlign: props.aligned } : null;
+
+export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string }>`
+    ${highlighted};
+    ${contentAlign};
 
     & > ${TableCell} {
         border-spacing: 0;
