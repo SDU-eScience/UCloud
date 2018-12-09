@@ -2,6 +2,7 @@ import * as React from "react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Icon, Box, Text, Flex, Button, theme } from "ui-components";
 import styled from "styled-components";
+import { TextSpan } from "ui-components/Text";
 
 const EntriesPerPageSelectorOptions = [
     { key: 1, text: "10", value: 10 },
@@ -90,10 +91,10 @@ export const EntriesPerPageSelector = ({
     onChange,
     content
 }: EntriesPerPageSelector) => (
-        <ClickableDropdown left={"85px"} minWidth={"80px"} width={"80px"}
-            trigger={<Flex><Box> {`${content} ${entriesPerPage}`}</Box><Box><Icon name="chevronDown" /></Box></Flex>}>
+        <ClickableDropdown left={"85px"} minWidth={"80px"} width={"80px"} chevron
+            trigger={<TextSpan> {`${content} ${entriesPerPage}`}</TextSpan>}>
             {EntriesPerPageSelectorOptions.map((opt, i) =>
-                <Box ml="-17px" mr="-17px" key={i} onClick={() => entriesPerPage === opt.value ? undefined : onChange(opt.value)}>
+                <Box key={i} onClick={() => entriesPerPage === opt.value ? undefined : onChange(opt.value)}>
                     <Text textAlign="center">{opt.text}</Text>
                 </Box>
             )}

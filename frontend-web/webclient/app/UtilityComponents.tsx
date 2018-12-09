@@ -23,8 +23,8 @@ export const FileIcon = ({ ext, shared = false, link = false, fileIcon, color }:
 
 
 export function Arrow({ name }: { name: "arrowUp" | "arrowDown" | undefined}) {
-    if (name === "arrowUp") return (<Icon name="arrowUp" />);
-    else if (name === "arrowDown") return (<Icon name="arrowDown" />);
+    if (name === "arrowUp") return (<Icon name="arrowDown" rotation="180" size=".7em" mr=".4em" />);
+    else if (name === "arrowDown") return (<Icon name="arrowDown" size=".7em" mr=".4em" />);
     return null;
 }
 

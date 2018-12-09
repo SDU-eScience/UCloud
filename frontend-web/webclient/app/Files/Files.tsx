@@ -251,15 +251,15 @@ const ResponsiveTableColumn = ({
     currentSelection,
     sortOrder
 }: ResponsiveTableColumnProps) => (
-        <TableHeaderCell width="17.5%" xs sm md textAlign="left">
-            <Flex>
+        <TableHeaderCell width="20%" xs sm md >
+            <Flex alignItems="center" justifyContent="left">
+                <Arrow name={iconName} />
                 <SortByDropdown
                     isSortedBy={isSortedBy}
                     onSelect={onSelect}
                     asDropdown={asDropdown}
                     currentSelection={currentSelection}
                     sortOrder={sortOrder} />
-                <Arrow name={iconName} />
             </Flex>
         </TableHeaderCell>
     );
@@ -280,14 +280,16 @@ const FilesTableHeader = ({
         <TableHeader>
             <TableRow>
                 <TableHeaderCell width="50%" textAlign="left">
-                    <Flex onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
-                        <Box ml="9px" onClick={e => e.stopPropagation()}>
+                    <Flex
+                        alignItems="center" 
+                        onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
+                        <Box mx="9px" onClick={e => e.stopPropagation()}>
                             {masterCheckbox}
                         </Box>
-                        <Box ml="9px">
+                        <Arrow name={toSortingIcon(SortBy.PATH)} />
+                        <Box>
                             Filename
                         </Box>
-                        <Arrow name={toSortingIcon(SortBy.PATH)} />
                     </Flex>
                 </TableHeaderCell>
                 {sortingColumns.map((sC, i) => (
@@ -302,7 +304,7 @@ const FilesTableHeader = ({
                         iconName={toSortingIcon(sC)}
                     />
                 ))}
-                <TableHeaderCell width="15%" colSpan={3} textAlign="right">
+                <TableHeaderCell width="20%" textAlign="right">
                     {customEntriesPerPage}
                 </TableHeaderCell>
             </TableRow>
