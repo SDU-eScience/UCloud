@@ -6,7 +6,7 @@ import Icon from "./Icon"
 import theme from "./theme"
 import { FtIconProps as UFFtIconProps, extensionType } from "UtilityFunctions";
 
-
+// Label for file type icons
 const SvgFtLabel = ({hasExt, ext}) => {
   if (!hasExt) {
     return null;
@@ -21,12 +21,20 @@ const SvgFtLabel = ({hasExt, ext}) => {
         fill={color3}
       // fillRule="nonzero"
       />
-      <text text-anchor="middle"
-        x="21.5" y="53">{ext}</text>
+      <text text-anchor="middle" x="21.5" y="53" fill="#fff"
+        style={{ fontSize: "15px", 
+                 textTransform: "uppercase",
+                 fontWeight: "bold",
+                 letterSpacing: "1px"
+              }}
+      >
+        {ext}
+      </text>
     </>
   )
 }
 
+// Decoration for file type icons
 const SvgFtType = ({type}) => {
   switch(type) {
     case "image":
@@ -106,7 +114,7 @@ const SvgFtType = ({type}) => {
     case "code":
       return (
         <>
-          <text text-anchor="middle" x="21.5" y="27" style={{fontSize:"24px", color:"#3d4d65"}}>{'{ }'}</text>
+          <text text-anchor="middle" x="21.5" y="27" style={{ fontSize:"24px" }} fill="#3d4d65" >{'{ }'}</text>
         </>
       );
     case "pdf":
@@ -123,8 +131,8 @@ const SvgFtType = ({type}) => {
     case "binary":
       return (
         <>
-          <text text-anchor="middle" x="21.5" y="17" style={{ fontSize: "14px", color: "#3d4d65" }}>{'0101'}</text>
-          <text text-anchor="middle" x="21.5" y="31" style={{ fontSize: "14px", color: "#3d4d65" }}>{'1110'}</text>
+          <text text-anchor="middle" x="21.5" y="17" style={{ fontSize: "14px" }} fill="#3d4d65" >{'0101'}</text>
+          <text text-anchor="middle" x="21.5" y="31" style={{ fontSize: "14px" }} fill="#3d4d65" >{'1110'}</text>
         </>
       );
   }
@@ -132,7 +140,7 @@ const SvgFtType = ({type}) => {
   return null;
 }
 
-
+// File type icon component
 const SvgFt = ({color, color2, hasExt, ext, type, ...props}) => (
   <svg
     viewBox="0 0 43 56"
@@ -155,6 +163,21 @@ const SvgFt = ({color, color2, hasExt, ext, type, ...props}) => (
   </svg>
 );
 
+//Folder type icon component
+const SvgFtFolder = ({color, color2, ...props}) => (
+  <svg
+    viewBox="0 0 24 22"
+    fillRule="evenodd"
+    clipRule="evenodd"
+    {...props}
+  >
+    <path
+      d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+      fill= { color ? color : "currentcolor" }
+      fillRule="nonzero"
+    />
+  </svg>
+);
 
 type FtLabelProps = WidthProps;
 const FtLabel = styled(Text)<FtLabelProps>`
@@ -167,7 +190,7 @@ const FtLabel = styled(Text)<FtLabelProps>`
 
 const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
   const hasExt = fileIcon.ext ? true : false;
-  const ext3 = hasExt ? fileIcon.ext.substring(0, 3) : undefined;
+  const ext4 = hasExt ? fileIcon.ext.substring(0, 4) : undefined;
   const type = hasExt ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
 
   switch (fileIcon.type) {
@@ -178,13 +201,14 @@ const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
     case "RESULTFOLDER":
       return (<Icon name={"ftResultsFolder"} size={size} color={"FtIconColor2"} color2={"lightGray"} />);
     case "DIRECTORY":
-      return (<Icon name={"ftFolder"} size={size} color={"FtIconColor2"} />);
+      // return (<Icon name={"ftFolder"} size={size} color={"FtIconColor2"} />);
+      return (<SvgFtFolder width={size} height={size} color={theme.colors["FtIconColor2"]} color2={theme.colors["lightGray"]}/>);
   }
   /* fileIcon.type should be "FILE" at this point */
   return (
     <SvgFt width={size} height={size}
       color={theme.colors["FtIconColor"]} color2={theme.colors["FtIconColor2"]}
-      hasExt={hasExt} ext={ext3} type={type} {...props} />
+      hasExt={hasExt} ext={ext4} type={type} {...props} />
   );
 }
 
@@ -198,15 +222,6 @@ const FtIcon = styled(FtIconBase) <FtIconProps>`
   vertical-align: middle;
   cursor: ${props => props.cursor};
   ${space} ${color};
-
-  & text {
-    color: white;
-    font-size: 16px;
-    text-transform: uppercase;
-    font-weight: bold;
-    letter-spacing: 1px;
-  }
-
 `;
 
 FtIcon.displayName = "FtIcon"
