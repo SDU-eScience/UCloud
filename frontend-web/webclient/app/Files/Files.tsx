@@ -363,7 +363,7 @@ const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
 const PredicatedFavorite = ({ predicate, item, onClick }) =>
     predicate ? (
         <Icon
-            size={15} ml="5px"
+            size="1em" ml=".7em"
             color="blue"
             name={item.favorited ? "starFilled" : "starEmpty"}
             className={`${item.favorited ? "" : "file-data"}`}
@@ -371,8 +371,7 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
         />
     ) : null;
 
-// FIXME Use own icons when available
-const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<i style={{ marginLeft: "5px" }} className="fas fa-users" />) : null;
+const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
 
 const FileLink = ({ file, children }) => {
     if (isDirectory(file)) {
