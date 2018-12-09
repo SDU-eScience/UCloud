@@ -238,13 +238,13 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
     if (isDirectory({ fileType: type })) {
         const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
         switch(homeFolderReplaced) {
-            case "Home/Jobs/":
+            case "Home/Jobs":
                 icon.type="RESULTFOLDER";
                 break;
-            case "Home/Favourites/":
+            case "Home/Favorites":
                 icon.type="FAVFOLDER";
                 break;
-            case "Home/Trash/":
+            case "Home/Trash":
                 icon.type="TRASHFOLDER";
                 break;
             default:

@@ -1,10 +1,10 @@
 import * as React from 'react'
-import styled from 'styled-components'
+import styled, { ThemeConsumer } from 'styled-components'
 import { space, color, width, SpaceProps, ColorProps, WidthProps } from "styled-system"
 import Text from "./Text"
 import Icon from "./Icon"
 import theme from "./theme"
-import { FtIconProps } from "UtilityFunctions";
+import { FtIconProps as UFFtIconProps } from "UtilityFunctions";
 
 
 const SvgFtLabel = ({hasExt, ext}) => {
@@ -49,7 +49,7 @@ const SvgFt = ({color, color2, hasExt, ext, ...props}) => (
 );
 
 
-type FtLabelProps = WidthProps | FtIconProps;
+type FtLabelProps = WidthProps;
 const FtLabel = styled(Text)<FtLabelProps>`
     position: absolute;
     bottom: 1px;
@@ -60,26 +60,31 @@ const FtLabel = styled(Text)<FtLabelProps>`
 
 const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
   const hasExt = fileIcon.ext ? true : false;
-  const ext3 = hasExt ? fileIcon.ext.substring(0,3) : undefined ;
+  const ext3 = hasExt ? fileIcon.ext.substring(0, 3) : undefined;
   switch (fileIcon.type) {
-    case "DIRECTORY":
     case "FAVFOLDER":
+      return (<Icon name={"ftFavFolder"} size={size} color={"FtIconColor2"} color2={"lightGray"} />);
+      break;
     case "TRASHFOLDER":
+      return (<Icon name={"trash"} size={size} color={"red"} color2={"lightRed"} />);
+      break;
     case "RESULTFOLDER":
-      return (<Icon name={"ftFolder"} size={size} color={theme.colors.FtIconColor2}/>);
+      return (<Icon name={"ftFolder"} size={size} color={"FtIconColor2"} />);
+      break;
+    case "DIRECTORY":
+      return (<Icon name={"ftFolder"} size={size} color={"FtIconColor2"} />);
   }
   /* fileIcon.type should be "FILE" at this point */
   return (
-    <SvgFt width={size} height={size} 
-      color={theme.colors.FtIconColor} color2={theme.colors.FtIconColor2} 
+    <SvgFt width={size} height={size}
+      color={theme.colors["FtIconColor"]} color2={theme.colors["FtIconColor2"]}
       hasExt={hasExt} ext={ext3} {...props} />
   );
 }
 
 export interface FtIconProps extends SpaceProps, ColorProps {
-  ext?: string
+  fileIcon: UFFtIconProps,
   cursor?: string
-  icon?: string
 }
 
 const FtIcon = styled(FtIconBase) <FtIconProps>`
