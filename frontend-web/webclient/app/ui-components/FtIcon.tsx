@@ -69,7 +69,7 @@ const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
       return (<Icon name={"trash"} size={size} color={"red"} color2={"lightRed"} />);
       break;
     case "RESULTFOLDER":
-      return (<Icon name={"ftFolder"} size={size} color={"FtIconColor2"} />);
+      return (<Icon name={"ftResultsFolder"} size={size} color={"FtIconColor2"} color2={"lightGray"} />);
       break;
     case "DIRECTORY":
       return (<Icon name={"ftFolder"} size={size} color={"FtIconColor2"} />);
