@@ -1,5 +1,5 @@
 import * as React from "react";
-import { iconFromFilePath, toLowerCaseAndCapitalize } from "UtilityFunctions";
+import { toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -11,10 +11,10 @@ import { DASHBOARD_FAVORITE_ERROR } from "./Redux/DashboardReducer";
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 import { Notification, NotificationEntry } from "Notifications";
 import { Analysis } from "Applications";
-import { File, FileType } from "Files";
+import { File } from "Files";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Error, Box, Flex, Card, Text, Link, theme, Icon, FtIcon } from "ui-components";
+import { Error, Box, Flex, Card, Text, Link, Icon } from "ui-components";
 import { EllipsedText } from "ui-components/Text"
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
@@ -102,7 +102,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
                 <Flex key={i} pt="0.8em" pb="6px">
                     <ListFileContent file={file} link={false} pixelsWide={200} />
                     <Box ml="auto" />
-                    <Icon name="starFilled" color="blue" onClick={() => favorite(file)} />
+                    <Icon name="starFilled" color="blue" cursor="pointer" onClick={() => favorite(file)} />
                 </Flex>)
             )}
         </List>
@@ -168,7 +168,7 @@ const DashboardNotifications = ({ notifications, readAll, onNotificationAction }
         <Flex bg="lightGray" color="darkGray" p={3}>
             <Heading.h4>Recent notifications</Heading.h4>
             <Box ml="auto" />
-            <i style={{ margin: "5px", cursor: "pointer" }} title="Mark all as read" onClick={readAll} className="fas fa-check-double"></i>
+            <Icon name="checkDouble" m="5px" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />
         </Flex>
         <Box px={3} py={1}>
             {notifications.length === 0 ? <Heading.h6>No notifications</Heading.h6> : null}
