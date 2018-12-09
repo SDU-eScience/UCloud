@@ -164,7 +164,7 @@ export const extensionFromPath = (path: string): string => {
     return splitString[splitString.length - 1];
 };
 
-type ExtensionType = null | "code" | "image" | "text" | "sound" | "archive"
+type ExtensionType = null | "code" | "image" | "text" | "audio" | "video" | "archive" | "pdf" | "binary"
 export const extensionType = (ext: string): ExtensionType => {
     switch (ext) {
         case "md":
@@ -208,20 +208,30 @@ export const extensionType = (ext: string): ExtensionType => {
         case "jpg":
             return "image";
         case "txt":
-        case "pdf":
         case "xml":
         case "json":
         case "csv":
         case "yml":
         case "plist":
             return "text";
+        case "pdf":
+            return "pdf";
         case "wav":
         case "mp3":
-            return "sound";
+            return "audio";
+        case "mpg":
+        case "mp4":
+        case "avi":
+            return "video";
         case "gz":
         case "zip":
         case "tar":
+        case "tgz":
+        case "tbz":
+        case "bz2":
             return "archive";
+        case "dat":
+            return "binary";
         default:
             return null;
     }
@@ -230,7 +240,6 @@ export const extensionType = (ext: string): ExtensionType => {
 export interface FtIconProps {
     type: FileType;
     ext?: string;
-    extType?: string | null;
 }
 
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FtIconProps => {
@@ -258,7 +267,6 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
         return icon;
     }
     icon.ext = extensionFromPath(filePath);
-    icon.extType = extensionType(icon.ext);
 
     return icon;
 };
