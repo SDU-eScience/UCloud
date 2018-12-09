@@ -197,9 +197,9 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
             { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
             { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
             { icon: "share", label: "Shares", to: "/shares/" },
-            { icon: "apps", label: "Apps", to: "/applications/" },
-            { icon: "appFav", label: "My Apps", to: "/applications/installed/" },
-            { icon: "information", label: "App Results", to: "/applications/results/" }
+            { icon: "apps", label: "My Apps", to: "/applications/installed/" },
+            { icon: "appStore", label: "App Store", to: "/applications/" },
+            { icon: "information", label: "My Results", to: "/applications/results/" }
         ], predicate: () => true
     },
     dev: { items: [{ icon: "publish", label: "Publish", to: "/zenodo/publish/" }], predicate: () => process.env.NODE_ENV === "development" },
