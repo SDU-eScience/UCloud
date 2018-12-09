@@ -201,8 +201,8 @@ const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
     case "RESULTFOLDER":
       return (<Icon name={"ftResultsFolder"} size={size} color={"FtIconColor2"} color2={"lightGray"} />);
     case "DIRECTORY":
-      // return (<Icon name={"ftFolder"} size={size} color={"FtIconColor2"} />);
-      return (<SvgFtFolder width={size} height={size} color={theme.colors["FtIconColor2"]} color2={theme.colors["lightGray"]}/>);
+      //return (<Icon name={"ftFolder"} size={size} color={"FtIconColor2"} />);
+      return (<SvgFtFolder width={size} height={size} color={theme.colors["FtIconColor2"]} color2={theme.colors["lightGray"]} {...props}/>);
   }
   /* fileIcon.type should be "FILE" at this point */
   return (
