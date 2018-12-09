@@ -164,7 +164,7 @@ export const extensionFromPath = (path: string): string => {
     return splitString[splitString.length - 1];
 };
 
-type ExtensionType = "" | "code" | "image" | "text" | "sound" | "archive"
+type ExtensionType = null | "code" | "image" | "text" | "sound" | "archive"
 export const extensionType = (ext: string): ExtensionType => {
     switch (ext) {
         case "md":
@@ -223,41 +223,44 @@ export const extensionType = (ext: string): ExtensionType => {
         case "tar":
             return "archive";
         default:
-            return "";
+            return null;
     }
 }
 
-/* type FileIcons = "tasks" | "star" | "trash alternate outline" | "folder" | "file outline" |
-    "file code outline" | "image" | "file outline" | "volume up" | "file archive outline"; */
-export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): "ftImage" | "ftFolder" | "ft" /* FileIcons */ => {
-    if (isDirectory({ fileType: type })) return "ftFolder";
-    return "ft";
+export interface FtIconProps {
+    type: FileType;
+    ext?: string;
+    extType?: string | null;
+}
 
+export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FtIconProps => {
+    let icon:FtIconProps = { type:"FILE" };
+    if (isDirectory({ fileType: type })) {
+        const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
+        switch(homeFolderReplaced) {
+            case "Home/Jobs/":
+                icon.type="RESULTFOLDER";
+                break;
+            case "Home/Favourites/":
+                icon.type="FAVFOLDER";
+                break;
+            case "Home/Trash/":
+                icon.type="TRASHFOLDER";
+                break;
+            default:
+                icon.type="DIRECTORY";
+        }
+        return icon;
+    }
 
-/*         const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
-    if (homeFolderReplaced === "Home/Jobs/") return "tasks";
-    if (homeFolderReplaced === "Home/Favorites/") return "star";
-    if (homeFolderReplaced === "Home/Trash/") return "trash alternate outline";
-    if (isDirectory({ fileType: type })) return "folder";
     const filename = getFilenameFromPath(filePath);
     if (!filename.includes(".")) {
-        return "file outline";
+        return icon;
     }
-    const extension = extensionFromPath(filePath);
-    const fileExtensionType = extensionType(extension);
-    switch (fileExtensionType) {
-        case "code":
-            return "file code outline";
-        case "image":
-            return "image";
-        case "sound":
-            return "volume up";
-        case "archive":
-            return "file archive outline";
-        case "text":
-        default:
-            return "file outline";
-    } */
+    icon.ext = extensionFromPath(filePath);
+    icon.extType = extensionType(icon.ext);
+
+    return icon;
 };
 
 // FIXME Remove navigation when backend support comes.

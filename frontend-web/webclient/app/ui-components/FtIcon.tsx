@@ -3,7 +3,8 @@ import styled from 'styled-components'
 import { space, color, width, SpaceProps, ColorProps, WidthProps } from "styled-system"
 import Text from "./Text"
 import Icon from "./Icon"
-import theme from './theme'
+import theme from "./theme"
+import { FtIconProps } from "UtilityFunctions";
 
 
 const SvgFtLabel = ({hasExt, ext}) => {
@@ -47,7 +48,8 @@ const SvgFt = ({color, color2, hasExt, ext, ...props}) => (
   </svg>
 );
 
-type FtLabelProps = WidthProps ;
+
+type FtLabelProps = WidthProps | FtIconProps;
 const FtLabel = styled(Text)<FtLabelProps>`
     position: absolute;
     bottom: 1px;
@@ -56,21 +58,22 @@ const FtLabel = styled(Text)<FtLabelProps>`
     ${width}
 `;
 
-const FtIconBase = ({ ext, size, theme, icon, ...props }): JSX.Element => {
-  const hasExt = ext ? true : false;
+const FtIconBase = ({ fileIcon, size, theme, ...props }): JSX.Element => {
+  const hasExt = fileIcon.ext ? true : false;
+  const ext3 = hasExt ? fileIcon.ext.substring(0,3) : undefined ;
+  switch (fileIcon.type) {
+    case "DIRECTORY":
+    case "FAVFOLDER":
+    case "TRASHFOLDER":
+    case "RESULTFOLDER":
+      return (<Icon name={"ftFolder"} size={size} color={theme.colors.FtIconColor2}/>);
+  }
+  /* fileIcon.type should be "FILE" at this point */
   return (
-    <>
-      {
-        icon ? (
-          <Icon name={icon} size={size} color={theme.colors.FtIconColor2}/>
-        ) : (
-            <>
-              <SvgFt width={size} height={size} color={theme.colors.FtIconColor} color2={theme.colors.FtIconColor2} hasExt={hasExt} ext={ext} {...props} />
-            </>
-          )
-      }
-    </>
-  )
+    <SvgFt width={size} height={size} 
+      color={theme.colors.FtIconColor} color2={theme.colors.FtIconColor2} 
+      hasExt={hasExt} ext={ext3} {...props} />
+  );
 }
 
 export interface FtIconProps extends SpaceProps, ColorProps {

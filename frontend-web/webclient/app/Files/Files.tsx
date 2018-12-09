@@ -385,13 +385,12 @@ const FileLink = ({ file, children }) => {
 function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} /></Box>
+    const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     const icon = (
         <Box mr="10px">
             <FileIcon
-                ext="txt"
-                // ext={UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)}
+                fileIcon={iconType}
                 size={size} link={file.link} shared={(file.acl !== undefined ? file.acl.length : 0) > 0}
-                icon={isDirectory(file)?"ftFolder":undefined}
             />
         </Box>
     );

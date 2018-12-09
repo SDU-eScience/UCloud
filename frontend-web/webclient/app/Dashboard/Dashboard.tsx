@@ -24,6 +24,7 @@ import { fileTablePage } from "Utilities/FileUtilities";
 import { notificationRead, readAllNotifications } from "Notifications/Redux/NotificationsActions";
 import { History } from "history";
 import { default as Spinner } from "LoadingIcon/LoadingIcon_new";
+import * as UF from "UtilityFunctions";
 
 class Dashboard extends React.Component<DashboardProps & { history: History }> {
     constructor(props) {
@@ -99,32 +100,35 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
         <List>
             {files.map((file, i) => (
                 <Flex key={i} pt="0.8em" pb="6px">
-                    <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={200} />
+                    <ListFileContent file={file} link={false} pixelsWide={200} />
                     <Box ml="auto" />
-                    <Box><i className="fas fa-star" style={{ color: theme.colors.blue }} onClick={() => favorite(file)} /></Box>
+                    <Icon name="starFilled" color="blue" onClick={() => favorite(file)} />
                 </Flex>)
             )}
         </List>
     </DashBoardCard>
 );
 
-const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: number }) => (
-    <>
-        <FileIcon  ext={"..."/* iconFromFilePath(path, type, Cloud.homeFolder) */} link={link} icon={isDirectory({ fileType: type })?"ftFolder":undefined} />
-        <Link ml="0.5em" to={fileTablePage(isDirectory({ fileType: type }) ? path : getParentPath(path))}>
-            <EllipsedText fontSize={2} width={pixelsWide}>
-                {getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}
-            </EllipsedText>
-        </Link>
-    </>
-);
+const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean, pixelsWide: number }) => {
+    const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
+    return (
+        <>
+            <FileIcon fileIcon={iconType} link={link} />
+            <Link ml="0.5em" to={fileTablePage(isDirectory(file) ? file.path : getParentPath(file.path))}>
+                <EllipsedText fontSize={2} width={pixelsWide}>
+                    {getFilenameFromPath(replaceHomeFolder(file.path, Cloud.homeFolder))}
+                </EllipsedText>
+            </Link>
+        </>
+    );
+}
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
     <DashBoardCard title="Recently used files" isLoading={isLoading}>
         <List>
             {files.map((file, i) => (
                 <Flex key={i} pt="0.8em" pb="6px">
-                    <ListFileContent path={file.path} type={file.fileType} link={file.link} pixelsWide={130} />
+                    <ListFileContent file={file} link={file.link} pixelsWide={130} />
                     <Box ml="auto" />
                     <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt)).fromNow()}</Text>
                 </Flex>

@@ -3,13 +3,14 @@ import { Icon, FtIcon, Heading, Absolute, Flex, Text } from "ui-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
 import { IconName } from "ui-components/Icon";
 import { ThemeColor } from "ui-components/theme";
+import { FtIconProps } from "UtilityFunctions";
 
 
-interface FileIconProps { link?: boolean, shared?: boolean, icon?: string, ext?: string, color?: ThemeColor, size?: string | number  }
-export const FileIcon = ({ ext, shared = false, link = false, icon, color }: FileIconProps) => 
+interface FileIconProps { link?: boolean, shared?: boolean, fileIcon: FtIconProps, ext?: string, color?: ThemeColor, size?: string | number  }
+export const FileIcon = ({ ext, shared = false, link = false, fileIcon, color }: FileIconProps) => 
     link || shared ?
     <Flex style={{position: "relative"}}>
-        <FtIcon size={30} ext={ext} icon={icon}/>
+        <FtIcon size={30} fileIcon={fileIcon}/>
         <Absolute bottom={"-6px"} right={"-2px"}>
             <Dropdown>
                 <Icon size={"15px"} name={"link"} color2={"white"}/>
@@ -18,19 +19,8 @@ export const FileIcon = ({ ext, shared = false, link = false, icon, color }: Fil
                 </DropdownContent>
             </Dropdown>
         </Absolute>
-    </Flex> : <FtIcon size={30} ext={ext} icon={icon}/>
+    </Flex> : <FtIcon size={30} fileIcon={fileIcon}/>
 
-/* export const FileIcon = ({ name, size, shared = false, link = false, color }: FileIconProps) =>
-    link || shared ?
-        <SIcon.Group size={size as any}>
-            <SIcon name={name as any} color={color as any} />
-            <Popup
-                content={shared ? "This file is shared" : "This is a link to a file"}
-                position="right center"
-                trigger={<SIcon corner color="grey" name={shared ? "users" : "share"}/>}
-            />
-        </SIcon.Group> :
-        <SIcon name={name as any} size={size as any} color={color as any} /> */
 
 export function Arrow({ name }: { name: "arrowUp" | "arrowDown" | undefined}) {
     if (name === "arrowUp") return (<Icon name="arrowUp" />);
