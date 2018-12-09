@@ -388,9 +388,10 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     const icon = (
         <Box mr="10px">
             <FileIcon
-                color={"gray"}
-                name={UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)}
+                ext="txt"
+                // ext={UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)}
                 size={size} link={file.link} shared={(file.acl !== undefined ? file.acl.length : 0) > 0}
+                icon={isDirectory(file)?"ftFolder":undefined}
             />
         </Box>
     );

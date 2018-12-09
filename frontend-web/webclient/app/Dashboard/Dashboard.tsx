@@ -14,7 +14,7 @@ import { Analysis } from "Applications";
 import { File, FileType } from "Files";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Error, Box, Flex, Card, Text, Link, theme, Icon } from "ui-components";
+import { Error, Box, Flex, Card, Text, Link, theme, Icon, FtIcon } from "ui-components";
 import { EllipsedText } from "ui-components/Text"
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
@@ -110,7 +110,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
 
 const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: number }) => (
     <>
-        <FileIcon  name={"ftFile"/* iconFromFilePath(path, type, Cloud.homeFolder) */} size={undefined} link={link} color="gray" />
+        <FileIcon  ext={"..."/* iconFromFilePath(path, type, Cloud.homeFolder) */} link={link} icon={isDirectory({ fileType: type })?"ftFolder":undefined} />
         <Link ml="0.5em" to={fileTablePage(isDirectory({ fileType: type }) ? path : getParentPath(path))}>
             <EllipsedText fontSize={2} width={pixelsWide}>
                 {getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}

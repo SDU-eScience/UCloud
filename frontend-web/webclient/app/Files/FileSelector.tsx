@@ -270,7 +270,7 @@ const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: File
                 ) : (
                         <Flex key={index}>
                             <TextSpan onClick={() => fetchFiles(file.path)}>
-                                <FileIcon name="ftFolder" link={file.link} color="blue" />
+                                <FileIcon ext="..." link={file.link} icon={isDirectory(file)?"ftFolder":undefined}/>
                                 {getFilenameFromPath(file.path)}
                             </TextSpan>
                             <Box ml="auto" />

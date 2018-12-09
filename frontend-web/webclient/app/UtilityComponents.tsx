@@ -1,15 +1,15 @@
 import * as React from "react";
-import { Icon, Heading, Absolute, Flex, Text } from "ui-components";
+import { Icon, FtIcon, Heading, Absolute, Flex, Text } from "ui-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
 import { IconName } from "ui-components/Icon";
 import { ThemeColor } from "ui-components/theme";
 
 
-interface FileIconProps { link?: boolean, shared?: boolean, name: IconName, color?: ThemeColor, size?: string | number  }
-export const FileIcon = ({ name, shared = false, link = false, color }: FileIconProps) => 
+interface FileIconProps { link?: boolean, shared?: boolean, icon?: string, ext?: string, color?: ThemeColor, size?: string | number  }
+export const FileIcon = ({ ext, shared = false, link = false, icon, color }: FileIconProps) => 
     link || shared ?
     <Flex style={{position: "relative"}}>
-        <Icon size={30} name={name} color={color} />
+        <FtIcon size={30} ext={ext} icon={icon}/>
         <Absolute bottom={"-6px"} right={"-2px"}>
             <Dropdown>
                 <Icon size={"15px"} name={"link"} color2={"white"}/>
@@ -18,7 +18,7 @@ export const FileIcon = ({ name, shared = false, link = false, color }: FileIcon
                 </DropdownContent>
             </Dropdown>
         </Absolute>
-    </Flex> : <Icon size={30} name={name} color={color} />
+    </Flex> : <FtIcon size={30} ext={ext} icon={icon}/>
 
 /* export const FileIcon = ({ name, size, shared = false, link = false, color }: FileIconProps) =>
     link || shared ?
