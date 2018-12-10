@@ -13,7 +13,6 @@ import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux
 import { removeEntry } from "Utilities/CollectionUtilities";
 import { Box, Flex, Error } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import CloseButton from "ui-components/CloseButton";
 import { Toggle } from "ui-components/Toggle";
 import styled from "styled-components";
 
