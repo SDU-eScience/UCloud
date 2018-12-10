@@ -233,7 +233,7 @@ export const FilesTable = ({
                         <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</TableCell>
                         <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</TableCell>
                         <TableCell textAlign="center">
-                            <ClickableDropdown width="175px" trigger={<i className="fas fa-ellipsis-h" />}>
+                            <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" />}>
                                 <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
                             </ClickableDropdown>
                         </TableCell>

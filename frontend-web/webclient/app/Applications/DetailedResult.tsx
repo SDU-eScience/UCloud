@@ -228,7 +228,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     Standard Streams
                     &nbsp;
                     <Dropdown>
-                        <i className="fas fa-info-circle" />
+                        <Icon name="information" />
                         <DropdownContent colorOnHover={false} color="white" backgroundColor="black">
                             <span>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</span>
                         </DropdownContent>
