@@ -58,6 +58,8 @@ import org.apache.kafka.clients.admin.RenewDelegationTokenResult
 import org.apache.kafka.clients.producer.MockProducer
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.Cluster
+import org.apache.kafka.common.Metric
+import org.apache.kafka.common.MetricName
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.TopicPartitionReplica
 import org.apache.kafka.common.acl.AclBinding
@@ -111,6 +113,10 @@ object KafkaMock : Loggable {
  * This class will skip the initial mock (because we rarely need an admin client in tests) and then mock all calls.
  */
 class MockedAdminClient : AdminClient() {
+    override fun metrics(): MutableMap<MetricName, out Metric> {
+        return mockk(relaxed = true)
+    }
+
     override fun describeTopics(
         topicNames: MutableCollection<String>?,
         options: DescribeTopicsOptions?

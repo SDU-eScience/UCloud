@@ -16,7 +16,6 @@ internal class ClassDiscovery(
     private val handler: (KClass<*>) -> Unit
 ) {
     suspend fun detect() {
-        coroutineScope {  }
         val classPath = classPath()
         if (log.isDebugEnabled) {
             log.debug("Class path:")
