@@ -149,8 +149,6 @@ class Applications extends React.Component<ApplicationsProps> {
         return (
             <LoadingMainContainer
                 loadable={this.props.applications}
-                fallbackHeader={<Navigation selected={NavPages.BROWSE} />}
-                header={<Navigation selected={NavPages.BROWSE} />}
                 main={main}
                 fallbackSidebar={<Sidebar />}
                 sidebar={<Sidebar />}

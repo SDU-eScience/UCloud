@@ -1,7 +1,6 @@
 import * as DFSReducer from "./DetailedFileSearchReducer";
 import { Action } from "redux";
 import { PayloadAction, Error, SetLoadingAction, Page } from "Types";
-import { Sensitivity } from "DefaultObjects";
 import { File, AdvancedSearchRequest, SensitivityLevel } from "Files";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { advancedFileSearch } from "Utilities/FileUtilities";

@@ -142,7 +142,7 @@ class Support extends React.Component<{}, SupportState> {
         document.addEventListener("keypress", this.handleESC);
     }
 
-    componentWillUnmount = () =>  document.removeEventListener("keypress", this.handleESC);
+    componentWillUnmount = () => document.removeEventListener("keypress", this.handleESC);
 
     private handleESC = (e) => {
         if (e.keyCode == KeyCode.ESC) this.setState(() => ({ visible: false }))
@@ -191,17 +191,18 @@ class Support extends React.Component<{}, SupportState> {
     }
 }
 
-export const sideBarMenuElements: { general: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements } = {
+export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements } = {
     general: {
         items: [
             { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
             { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
             { icon: "share", label: "Shares", to: "/shares/" },
-            { icon: "apps", label: "Apps", to: "/applications/" },
-            { icon: "information", label: "App Results", to: "/applications/results/" },
-            { icon: "publish", label: "Publish", to: "/zenodo/publish/" },
+            { icon: "apps", label: "My Apps", to: "/applications/installed/" },
+            { icon: "appStore", label: "App Store", to: "/applications/" },
+            { icon: "information", label: "My Results", to: "/applications/results/" }
         ], predicate: () => true
     },
+    dev: { items: [{ icon: "publish", label: "Publish", to: "/zenodo/publish/" }], predicate: () => process.env.NODE_ENV === "development" },
     auditing: { items: [{ icon: "activity", label: "Activity", to: "/activity/" }], predicate: () => true },
     admin: { items: [{ icon: "admin", label: "Admin", to: "/admin/userCreation/" }], predicate: () => Cloud.userIsAdmin }
 };

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+    <g transform="matrix(1,0,0,1,-363.993,-436)">
+        <g id="app-Store" serif:id="app Store" transform="matrix(0.5,0,0,0.5,154.732,315.032)">
+            <g id="apps" transform="matrix(0.0999792,0,0,0.115914,416.922,236.256)">
+                <path d="M460.9,161L51.1,161C31.8,161 16,176.8 16,196.1L16,428C16,447.3 31.8,463.1 51.1,463.1L461,463.1C480.3,463.1 496.1,447.3 496.1,428L496.1,196.1C496,176.8 480.2,161 460.9,161ZM434,133L78,133C70.3,133 64,126.7 64,119C64,111.3 70.3,105 78,105L434,105C441.7,105 448,111.3 448,119C448,126.7 441.7,133 434,133ZM403.2,77L108.8,77C101.8,77 96,71.2 96,64.2L96,61.8C96,54.8 101.8,49 108.8,49L403.2,49C410.2,49 416,54.8 416,61.8L416,64.2C416,71.2 410.2,77 403.2,77Z" style="fill:rgb(83,101,125);fill-rule:nonzero;"/>
+            </g>
+            <g id="Play-Icon" serif:id="Play Icon" transform="matrix(0.952577,0,0,0.833077,154.464,-2550.53)">
+                <path d="M294,3377.36C294,3376.86 294.249,3376.43 294.685,3376.18C295.122,3375.93 295.617,3375.93 296.051,3376.19L314.322,3386.83C314.752,3387.08 314.996,3387.5 314.996,3388C314.996,3388.49 314.752,3388.92 314.322,3389.17L296.051,3399.81C295.617,3400.06 295.122,3400.07 294.685,3399.82C294.249,3399.57 294,3399.14 294,3398.64L294,3377.36Z" style="fill:rgb(131,147,167);"/>
+            </g>
+        </g>
+    </g>
+</svg>

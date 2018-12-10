@@ -63,28 +63,19 @@ class View extends React.Component<ViewProps> {
         return (
             <LoadingMainContainer
                 loadable={this.props.application}
-
-                fallbackHeader={<Navigation />}
-
-                header={
-                    <>
-                        <Navigation />
-                        <Box m={16} />
-                        <AppHeader application={application as Application} />
-                    </>
-                }
-
                 main={
                     <ContainerForText>
+                        <Box m={16} />
+                        <AppHeader application={application!} />
                         <Content
-                            application={application as Application}
+                            application={application!}
                             previousVersions={this.props.previous.content} />
                     </ContainerForText>
                 }
 
                 sidebar={
                     <Sidebar
-                        application={application as Application}
+                        application={application!}
                         onFavorite={() => this.props.onFavorite(appName, appVersion)}
                         favorite={this.props.favorite} />
                 }

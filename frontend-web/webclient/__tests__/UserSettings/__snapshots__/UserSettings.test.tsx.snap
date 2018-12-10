@@ -32,7 +32,7 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-htpNat sc-fjdhpX lajvgC"
+          className="sc-htpNat sc-jTzLTM dtQBbz"
         />
         <form
           onSubmit={[Function]}
@@ -41,14 +41,14 @@ exports[`UserSettings Mount 1`] = `
             className="sc-htpNat dosJSB"
           >
             <label
-              className="sc-kpOJdX kaSAoa"
+              className="sc-ckVGcZ gXhFce"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               Current Password
               <input
-                className="sc-cSHVUG iVhAow"
+                className="sc-chPdSV ktXeRQ"
                 id="default"
                 onChange={[Function]}
                 placeholder="Current password"
@@ -61,14 +61,14 @@ exports[`UserSettings Mount 1`] = `
             className="sc-htpNat dosJSB"
           >
             <label
-              className="sc-kpOJdX kaSAoa"
+              className="sc-ckVGcZ gXhFce"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               New Password
               <input
-                className="sc-cSHVUG iVhAow"
+                className="sc-chPdSV ktXeRQ"
                 id="default"
                 onChange={[Function]}
                 placeholder="New password"
@@ -81,14 +81,14 @@ exports[`UserSettings Mount 1`] = `
             className="sc-htpNat dosJSB"
           >
             <label
-              className="sc-kpOJdX kaSAoa"
+              className="sc-ckVGcZ gXhFce"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               Repeat new password
               <input
-                className="sc-cSHVUG iVhAow"
+                className="sc-chPdSV ktXeRQ"
                 id="default"
                 onChange={[Function]}
                 placeholder="Repeat password"
@@ -116,7 +116,7 @@ exports[`UserSettings Mount 1`] = `
           You do NOT have a 2FA device connected to your account
         </b>
         <hr
-          className="sc-jTzLTM eodfCV"
+          className="sc-VigVT kXJjWb"
         />
         <div>
           <h3
@@ -138,7 +138,7 @@ exports[`UserSettings Mount 1`] = `
               target="_blank"
             >
               <img
-                className="sc-jzJRlG dpgqIF"
+                className="sc-kAzzGY kHvfeN"
                 src={[Function]}
                 width="150px"
               />
@@ -149,7 +149,7 @@ exports[`UserSettings Mount 1`] = `
               target="_blank"
             >
               <img
-                className="sc-jzJRlG dpgqIF"
+                className="sc-kAzzGY kHvfeN"
                 src={[Function]}
                 width="150px"
               />
@@ -172,7 +172,7 @@ exports[`UserSettings Mount 1`] = `
         </div>
       </div>
       <div
-        className="sc-htpNat sc-fjdhpX dTjuTr"
+        className="sc-htpNat sc-jTzLTM YxtQX"
         width={
           Array [
             0,

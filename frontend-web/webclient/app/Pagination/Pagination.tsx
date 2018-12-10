@@ -2,6 +2,7 @@ import * as React from "react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Icon, Box, Text, Flex, Button, theme } from "ui-components";
 import styled from "styled-components";
+import { TextSpan } from "ui-components/Text";
 
 const EntriesPerPageSelectorOptions = [
     { key: 1, text: "10", value: 10 },
@@ -21,7 +22,7 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
                 <PaginationButton onClick={() => undefined} unclickable>{"..."}</PaginationButton>
             </React.Fragment>
         ) : (
-                <PaginationButton key={it} unclickable={currentPage === it}  color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
+                <PaginationButton key={it} unclickable={currentPage === it} color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
             )
     );
     return (
@@ -46,7 +47,8 @@ const PaginationButtonBase = styled(Button) <{ unclickable?: boolean }>`
     }
     border-right-width: 0px;
     &:hover {
-        background-color: ${props => props.unclickable ? null : props.theme.colors.paginationHoverColor };
+        filter: brightness(100%);
+        background-color: ${props => props.unclickable ? null : props.theme.colors.paginationHoverColor};
         cursor: ${props => props.unclickable ? "default" : null};
     }
 `;
@@ -89,10 +91,10 @@ export const EntriesPerPageSelector = ({
     onChange,
     content
 }: EntriesPerPageSelector) => (
-        <ClickableDropdown left={"85px"} minWidth={"80px"} width={"80px"}
-            trigger={<Flex><Box> {`${content} ${entriesPerPage}`}</Box><Box><Icon name="chevronDown" /></Box></Flex>}>
+        <ClickableDropdown left={"85px"} minWidth={"80px"} width={"80px"} chevron
+            trigger={<TextSpan> {`${content} ${entriesPerPage}`}</TextSpan>}>
             {EntriesPerPageSelectorOptions.map((opt, i) =>
-                <Box ml="-17px" mr="-17px" key={i} onClick={() => entriesPerPage === opt.value ? undefined : onChange(opt.value)}>
+                <Box key={i} onClick={() => entriesPerPage === opt.value ? undefined : onChange(opt.value)}>
                     <Text textAlign="center">{opt.text}</Text>
                 </Box>
             )}

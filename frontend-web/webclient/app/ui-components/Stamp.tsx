@@ -4,7 +4,7 @@ import theme, { ThemeColor } from "./theme"
 
 const fullWidth = ({ fullWidth }: { fullWidth?: boolean }) => fullWidth ? { width: "100%" } : null;
 
-const Stamp = styled("div") <StampProps>`
+const Stamp = styled.div<StampProps>`
   display: inline-flex;
   align-items: center;
   vertical-align: top;

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 16 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+    <g transform="matrix(1,0,0,1,-752,-516)">
+        <g id="hourglass" transform="matrix(1,0,0,1,59.9994,0)">
+            <g transform="matrix(0.0625,0,0,0.0576923,684.001,513.231)">
+                <path d="M128,48L128,170.8L128.2,170.8L128,171L213.3,256L128,341.2L128.2,341.4L128,341.4L128,464L384,464L384,341.4L383.8,341.4L384,341.2L298.7,256L384,171L383.8,170.8L384,170.8L384,48L128,48ZM341.3,351.9L341.3,423.4L170.7,423.4L170.7,351.9L256,266.7L341.3,351.9ZM256,245.4L170.7,160.2L170.7,87.6L341.4,87.6L341.4,160.1L256,245.4Z" style="fill:rgb(83,101,125);fill-rule:nonzero;"/>
+            </g>
+            <g transform="matrix(1,0,0,1,-59.9994,0)">
+                <path d="M754.669,522.473L765.338,522.467L760,527.388L754.669,522.473Z" style="fill:rgb(131,147,167);"/>
+            </g>
+            <g transform="matrix(1,0,0,1,-59.9994,0)">
+                <rect x="754.669" y="534.533" width="10.662" height="3.125" style="fill:rgb(131,147,167);"/>
+            </g>
+            <g transform="matrix(1,0,0,1,-59.9994,0)">
+                <path d="M759.999,528.618L761,535.533L759,535.533L759.999,528.618Z" style="fill:rgb(131,147,167);"/>
+            </g>
+        </g>
+    </g>
+</svg>

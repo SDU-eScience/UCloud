@@ -8,9 +8,8 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 import { getQueryParam } from "Utilities/URIUtilities";
 import { projectViewPage } from "Utilities/ProjectUtilities";
-import { Input, DataList, Box, Button, Flex, TextArea, Text, Label, Icon } from "ui-components";
+import { Input, DataList, Box, Button, Flex, TextArea, Text, Label } from "ui-components";
 import { contentValuePairLicenses, contentValuePairIdentifierTypes } from "ui-components/DataList";
-import CloseButton from "ui-components/CloseButton";
 import { TextSpan } from "ui-components/Text";
 
 // FIXME: MISSING TYPESAFETY THROUGHOUT

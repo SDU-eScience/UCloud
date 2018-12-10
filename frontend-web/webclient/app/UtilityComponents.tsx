@@ -1,15 +1,16 @@
 import * as React from "react";
-import { Icon, Heading, Absolute, Flex, Text } from "ui-components";
+import { Icon, FtIcon, Heading, Absolute, Flex, Text } from "ui-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
 import { IconName } from "ui-components/Icon";
 import { ThemeColor } from "ui-components/theme";
+import { FtIconProps } from "UtilityFunctions";
 
 
-interface FileIconProps { link?: boolean, shared?: boolean, name: IconName, color?: ThemeColor, size?: string | number  }
-export const FileIcon = ({ name, shared = false, link = false, color }: FileIconProps) => 
+interface FileIconProps { link?: boolean, shared?: boolean, fileIcon: FtIconProps, ext?: string, color?: ThemeColor, size?: string | number  }
+export const FileIcon = ({ ext, shared = false, link = false, fileIcon, color }: FileIconProps) => 
     link || shared ?
     <Flex style={{position: "relative"}}>
-        <Icon size={30} name={name} color={color} />
+        <FtIcon size={30} fileIcon={fileIcon}/>
         <Absolute bottom={"-6px"} right={"-2px"}>
             <Dropdown>
                 <Icon size={"15px"} name={"link"} color2={"white"}/>
@@ -18,23 +19,12 @@ export const FileIcon = ({ name, shared = false, link = false, color }: FileIcon
                 </DropdownContent>
             </Dropdown>
         </Absolute>
-    </Flex> : <Icon size={30} name={name} color={color} />
+    </Flex> : <FtIcon size={30} fileIcon={fileIcon}/>
 
-/* export const FileIcon = ({ name, size, shared = false, link = false, color }: FileIconProps) =>
-    link || shared ?
-        <SIcon.Group size={size as any}>
-            <SIcon name={name as any} color={color as any} />
-            <Popup
-                content={shared ? "This file is shared" : "This is a link to a file"}
-                position="right center"
-                trigger={<SIcon corner color="grey" name={shared ? "users" : "share"}/>}
-            />
-        </SIcon.Group> :
-        <SIcon name={name as any} size={size as any} color={color as any} /> */
 
 export function Arrow({ name }: { name: "arrowUp" | "arrowDown" | undefined}) {
-    if (name === "arrowUp") return (<Icon name="arrowUp" />);
-    else if (name === "arrowDown") return (<Icon name="arrowDown" />);
+    if (name === "arrowUp") return (<Icon name="arrowDown" rotation="180" size=".7em" mr=".4em" />);
+    else if (name === "arrowDown") return (<Icon name="arrowDown" size=".7em" mr=".4em" />);
     return null;
 }
 

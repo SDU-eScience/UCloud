@@ -22,14 +22,14 @@ exports[`UserCreation Mount 1`] = `
       onSubmit={[Function]}
     >
       <label
-        className="sc-kpOJdX dyIway"
+        className="sc-ckVGcZ dcNvEi"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Username
         <input
-          className="sc-cSHVUG bHctJw"
+          className="sc-chPdSV bDEuVj"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -38,14 +38,14 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="sc-kpOJdX dyIway"
+        className="sc-ckVGcZ dcNvEi"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Password
         <input
-          className="sc-cSHVUG bHctJw"
+          className="sc-chPdSV bDEuVj"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -55,14 +55,14 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="sc-kpOJdX dyIway"
+        className="sc-ckVGcZ dcNvEi"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Repeat password
         <input
-          className="sc-cSHVUG bHctJw"
+          className="sc-chPdSV bDEuVj"
           color="gray"
           id="default"
           onChange={[Function]}

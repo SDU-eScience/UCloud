@@ -4,10 +4,9 @@ import { DetailedFileSearchProps, DetailedFileSearchReduxState, SensitivityLevel
 import { DatePicker } from "ui-components/DatePicker";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Flex, Input, Label, InputGroup, Stamp, Checkbox, Error, OutlineButton, LoadingButton } from "ui-components";
-import * as Heading from "ui-components/Heading"
-import CloseButton from "ui-components/CloseButton";
-import { ReduxObject } from "DefaultObjects";
+import { Flex, Input, Label, InputGroup, Stamp, Checkbox, Error, OutlineButton, LoadingButton, Icon } from "ui-components";
+import * as Heading from "ui-components/Heading";
+import { ReduxObject, KeyCode } from "DefaultObjects";
 import { Dispatch } from "redux";
 import { History } from "history";
 import { searchPage } from "Utilities/SearchUtilities";
@@ -47,8 +46,47 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
 
     // FIXME, should show errors in fields instead, the upper corner error is not very noticeable;
     validateAndSetDate(m: Date | null, property: PossibleTime) {
-        const { setTimes } = this.props;
-        setTimes({ [property]: m === null ? undefined : m });
+        const { setTimes, setError, createdBefore, modifiedBefore, createdAfter, modifiedAfter } = this.props;
+        if (m == null) { setTimes({ [property]: undefined }); return }
+        const before = property.includes("Before");
+        if (property.includes("created")) {
+            if (before && createdAfter) {
+                if (m.getTime() > createdAfter.getTime()) {
+                    setTimes({ createdBefore: m });
+                    return;
+                } else {
+                    setError("Before can't be before After");
+                    return;
+                }
+            } else if (!before && createdBefore) {
+                if (m.getTime() < createdBefore.getTime()) {
+                    setTimes({ createdAfter: m })
+                    return;
+                } else {
+                    setError("After can't be after Before");
+                    return;
+                }
+            }
+        } else { // includes Modified
+            if (before && modifiedAfter) {
+                if (m.getTime() > modifiedAfter.getTime()) {
+                    setTimes({ modifiedBefore: m })
+                    return;
+                } else {
+                    setError("After can't be after Before");
+                    return;
+                }
+            } else if (!before && modifiedBefore) {
+                if (m.getTime() < modifiedBefore.getTime()) {
+                    setTimes({ modifiedAfter: m })
+                    return;
+                } else {
+                    setError("After can't be after Before");
+                    return;
+                }
+            }
+        }
+        setTimes({ [property]: m });
     }
 
     onSearch = () => {
@@ -122,7 +160,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     endDate={this.props.createdBefore}
                                     onChange={d => this.validateAndSetDate(d, "createdAfter")}
                                     showTimeSelect
-                                    locale="da"
                                     timeIntervals={15}
                                     isClearable
                                     selectsStart
@@ -135,7 +172,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
-                                    locale="da"
                                     selectsEnd
                                     placeholderText="Created before..."
                                     selected={this.props.createdBefore}
@@ -151,7 +187,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 />
                             </InputGroup>
                             <Heading.h5 pb="0.3em" pt="0.5em">Modified at</Heading.h5>
-                            <Error error={undefined} />
                             <InputGroup>
                                 <DatePicker
                                     popperPlacement="left"
@@ -203,15 +238,25 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 <Label fontSize={1} color="black">
                                     <Checkbox
                                         checked={allowFiles}
-                                        onChange={e => e.stopPropagation()}
-                                        onClick={_ => this.props.toggleFilesAllowed()}
+                                        onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
+                                        onClick={(_: any) => this.props.toggleFilesAllowed()}
                                     />
                                     Files
                             </Label>
                             </Flex>
                             <Heading.h5 pb="0.3em" pt="0.5em">File extensions</Heading.h5>
                             <SearchStamps stamps={extensions} onStampRemove={l => this.props.removeExtensions([l])} clearAll={() => this.props.removeExtensions([...extensions])} />
-                            <Input pb="6px" pt="8px" mt="-2px" ref={this.extensionsInput} placeholder={"Add extensions..."} />
+                            <Input
+                                type="text"
+                                pb="6px"
+                                pt="8px"
+                                mt="-2px"
+                                onKeyDown={e => {
+                                    if (e.keyCode === KeyCode.ENTER) {e.preventDefault(); this.onAddExtension()}
+                                }}
+                                ref={this.extensionsInput}
+                                placeholder={"Add extensions..."}
+                            />
                             <ClickableDropdown
                                 chevron
                                 trigger={"Add extension preset"}
@@ -219,7 +264,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 options={extensionPresets}
                             />
                             <Heading.h5 pb="0.3em" pt="0.5em">Sensitivity</Heading.h5>
-                            <SearchStamps stamps={sensitivities} onStampRemove={l => this.props.removeSensitivity([l])} clearAll={() => this.props.removeSensitivity([...sensitivities])} />
+                            <SearchStamps stamps={sensitivities} onStampRemove={l => this.props.removeSensitivity([l as SensitivityLevel])} clearAll={() => this.props.removeSensitivity([...sensitivities])} />
                             {sensitivityDropdown}
                             <LoadingButton type="submit" fullWidth loading={this.props.loading} mt="1em" mb={"1.5em"} color={"blue"} onClick={() => this.onSearch()} content="Search" />
                         </form>
@@ -230,11 +275,16 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
     }
 }
 
-const SearchStamps = ({ stamps, onStampRemove, clearAll }) => (
+interface SearchStampsProps {
+    stamps: Set<string>
+    onStampRemove: (stamp: string) => void
+    clearAll: () => void
+}
+const SearchStamps = ({ stamps, onStampRemove, clearAll }: SearchStampsProps) => (
     <Box pb="5px">
-        {[...stamps].map(l => (<Stamp ml="2px" mt="2px" bg="white" key={l}>{l}<CloseButton onClick={() => onStampRemove(l)} size={12} /></Stamp>))}
-        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" bg="blue" borderColor="blue" color="white" onClick={clearAll}>Clear all<CloseButton size={12} /></Stamp>) : null}
-    </Box>
+        {[...stamps].map((l) => (<Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" bg="white" key={l}>{l}<Icon size="12" name="close" /></Stamp>))}
+        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" bg="blue" borderColor="blue" color="white" onClick={() => clearAll()}>Clear all<Icon name="close" size={12} /></Stamp>) : null}
+    </Box >
 );
 
 const extensionPresets = [

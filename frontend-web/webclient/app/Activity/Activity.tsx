@@ -13,6 +13,8 @@ import * as Heading from "ui-components/Heading"
 import Icon, { IconName } from "ui-components/Icon";
 import List from "ui-components/List";
 import { Box, Flex, Text, Link } from "ui-components";
+import Table, { TableRow, TableCell } from "ui-components/Table";
+import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 
 class Activity extends React.Component<ActivityProps> {
 
@@ -42,7 +44,7 @@ class Activity extends React.Component<ActivityProps> {
 }
 
 export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => activity.length ? (
-    <List bordered={false} childPadding="1em">
+    <Table>
         {activity.map((a, i) => {
             switch (a.type) {
                 case "tracked": {
@@ -53,41 +55,55 @@ export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => acti
                 }
             }
         })}
-    </List>
+    </Table>
 ) : null;
 
 const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
-    <Flex>
-        <Icon name={eventIcon(activity.operation).icon} />
-        <Box ml="1em">
-            <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
-            <Text fontSize={2}>{`Files ${operationToPastTense(activity.operation)}`}</Text>
-            {activity.entries.map((entry, i) => !!entry.path ?
+    <TableRow contentAlign={"top"}>
+        <TableCell>
+            <Dropdown>
+                <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
+                <DropdownContent>
+                    {new Date(activity.timestamp).toLocaleString()}
+                </DropdownContent>
+            </Dropdown>
+        </TableCell>
+        <TableCell>
+            <Flex><Icon mr="0.5em" name={eventIcon(activity.operation).icon} /><Text fontSize={2}>{`Files ${operationToPastTense(activity.operation)}`}</Text></Flex>
+        </TableCell>
+        <TableCell>
+            {activity.entries.map((entry, i) => entry.path != null ?
                 (<Text fontSize={1} key={i}>
                     <b>
                         <Link to={fileInfoPage(entry.path)}>{getFilenameFromPath(entry.path)}</Link>
                     </b> was <b>{operationToPastTense(activity.operation)}</b> {entry.count === 1 ? "once" : <><b>{entry.count}</b> times</>}</Text>) : null
             )}
-        </Box>
-    </Flex>
+        </TableCell>
+    </TableRow >
 );
 
 const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
-    <Flex>
-        <Icon name={eventIcon(activity.operation).icon} />
-        <Box ml="1em">
-            <Box>
+    <TableRow style={{ verticalAlign: "top" }}>
+        <TableCell>
+            <Dropdown>
                 <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
-                <Text fontSize={2}>{`Files ${operationToPastTense(activity.operation)}`}</Text>
-                {activity.files.map((f, i) => !!f.path ?
-                    (<Text fontSize={1} key={i}>
-                        <b>
-                            <Link to={fileInfoPage(f.path)}>{getFilenameFromPath(f.path)}</Link>
-                        </b> was <b>{operationToPastTense(activity.operation)}</b></Text>) : null
-                )}
-            </Box>
-        </Box>
-    </Flex>
+                <DropdownContent>
+                    {new Date(activity.timestamp).toLocaleString()}
+                </DropdownContent>
+            </Dropdown>
+        </TableCell>
+        <TableCell>
+            <Flex><Icon mr="0.5em" name={eventIcon(activity.operation).icon} /><Text fontSize={2}>{`Files ${operationToPastTense(activity.operation)}`}</Text></Flex>
+        </TableCell>
+        <TableCell>
+            {activity.files.map((f, i) => f.path != null ?
+                (<Text fontSize={1} key={i}>
+                    <b>
+                        <Link to={fileInfoPage(f.path)}>{getFilenameFromPath(f.path)}</Link>
+                    </b> was <b>{operationToPastTense(activity.operation)}</b></Text>) : null
+            )}
+        </TableCell>
+    </TableRow>
 );
 
 const operationToPastTense = (operation: TrackedOperations | CountedOperations): string => {

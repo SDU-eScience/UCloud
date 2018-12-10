@@ -2,6 +2,46 @@
 
 exports[`Shares List Shares component 1`] = `
 Array [
+  <div
+    className="sc-ifAKCX hEFUra"
+  >
+    <div
+      className="sc-bdVaJa bFsHEP"
+    />
+    <div
+      className="sc-bRBYWo itNIrS"
+    >
+      <span
+        className="sc-EHOje gynpeM"
+        cursor="pointer"
+        onClick={[Function]}
+      >
+        <span
+          className="sc-EHOje kvayUm"
+          cursor="inherit"
+        >
+          Shares where: 
+          Request sent
+        </span>
+        <svg
+          className="sc-gzVnrw cntcIG"
+          clipRule="evenodd"
+          cursor="inherit"
+          fill="currentcolor"
+          fillRule="evenodd"
+          height=".7em"
+          ml=".7em"
+          viewBox="0 0 24 12"
+          width=".7em"
+        >
+          <path
+            d="M0 0l11.959 12 12-12H0z"
+            fill="#3d4d65"
+          />
+        </svg>
+      </span>
+    </div>
+  </div>,
   <i
     className="fas fa-circle-notch fa-spin"
   />,

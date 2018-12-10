@@ -173,7 +173,7 @@ test("Text extension", () =>
 );
 
 test("Sound extension", () =>
-    expect(UF.extensionType("wav")).toBe("sound")
+    expect(UF.extensionType("wav")).toBe("audio")
 );
 
 test("Archive extension", () =>
@@ -181,7 +181,7 @@ test("Archive extension", () =>
 );
 
 test("No extension", () =>
-    expect(UF.extensionType(".exe")).toBe("")
+    expect(UF.extensionType(".exe")).toBeNull()
 );
 
 // Extension type from path
@@ -191,11 +191,11 @@ test("Extract code type from path", () =>
 );
 
 test("Extract sound type from path", () =>
-    expect(UF.extensionTypeFromPath("/Home/user@user.dk/startupsound.mp3")).toBe("sound")
+    expect(UF.extensionTypeFromPath("/Home/user@user.dk/startupsound.mp3")).toBe("audio")
 );
 
 test("Extract no type from path", () =>
-    expect(UF.extensionTypeFromPath("/Home/user@user.dk/theme_hospital")).toBe("")
+    expect(UF.extensionTypeFromPath("/Home/user@user.dk/theme_hospital")).toBeNull()
 );
 
 // Icon from file path
