@@ -332,7 +332,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 const StepTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: IconName }) => (
     <Step active={props.active}>
         <span>
-            {/* <TextSpan fontSize={4} mr="0.7em"><i className={props.icon} /></TextSpan> */}
             <Icon name={props.icon} mr="0.7em" size="30px" color="iconColor" color2="iconColor2" />
             <TextSpan fontSize={3}>{props.title}</TextSpan>
         </span>

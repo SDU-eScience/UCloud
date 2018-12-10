@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, Box } from "ui-components";
+import { Link, Box, Icon } from "ui-components";
 import { toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -92,7 +92,7 @@ const PublicationRow = ({ publication }) => {
             <TableCell>{toLowerCaseAndCapitalize(publication.status)}</TableCell>
             <TableCell>{dateToString(publication.modifiedAt)}</TableCell>
             <TableCell>
-                <ClickableDropdown width="145px" trigger={<i className="fas fa-ellipsis-h" />}>
+                <ClickableDropdown width="145px" trigger={<Icon name="ellipsis" />}>
                     <Box ml="-17px" mr="-17px" pl="17px">
                         <Link to={`/zenodo/info/${encodeURIComponent(publication.id)}`}>Show More</Link>
                     </Box>
