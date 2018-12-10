@@ -3,21 +3,21 @@ import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import * as PropTypes from "prop-types";
-import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory, createFolder } from "Utilities/FileUtilities";
-import * as uf from "UtilityFunctions";
+import { replaceHomeFolder, getFilenameFromPath, isDirectory, createFolder } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
 import { FileIcon, RefreshButton } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
-import { FileSelectorProps, FileSelectorState, FileListProps, FileSelectorModalProps, FileSelectorBodyProps, File } from ".";
+import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
 import { filepathQuery, isInvalidPathName } from "Utilities/FileUtilities";
-import { Input, Flex, Icon, Box, Button, Divider, List, OutlineButton } from "ui-components";
+import { Input, Icon, Box, Button, Divider } from "ui-components";
 import * as ReactModal from "react-modal";
 import * as Heading from "ui-components/Heading";
-import { TextSpan } from "ui-components/Text";
 import { Spacer } from "ui-components/Spacer";
 import { EntriesPerPageSelector } from "Pagination";
 import * as UF from "UtilityFunctions";
+import { FilesTable } from "./Files";
+import SDUCloud from "Authentication/lib";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props, context) {
@@ -179,113 +179,41 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
 
 const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
-    const files = f.filter((it) => !disallowedPaths.some((d) => d === it.path));
-    const { path } = props;
+    const files = f.filter(({ path }) => !disallowedPaths.some((d) => d === path));
+    const ops: FileOperation[] = [];
+    if (canSelectFolders) {
+        ops.push(
+            {
+                text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
+                disabled: (files: File[], cloud: SDUCloud) => false, icon: "check", color: "green"
+            })
+    }
+    else {
+        ops.push(
+            {
+                text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
+                disabled: (files: File[], cloud: SDUCloud) => isDirectory(files[0]), icon: "check", color: "green"
+            })
+    }
     return (
-        <List childPadding="10px">
-            <Flex>
-                Filename
-                <Box ml="auto" />
-                {props.entriesPerPageSelector}
-            </Flex>
-            <CreatingFolder
-                creatingFolder={props.creatingFolder}
-                handleKeyDown={props.handleKeyDown}
-            />
-            <MockFolder // Return folder
-                predicate={uf.removeTrailingSlash(path) !== uf.removeTrailingSlash(Cloud.homeFolder) && !(disallowedPaths.some(it => it === getParentPath(path)))}
-                folderName=".."
-                path={getParentPath(path)}
-                canSelectFolders={canSelectFolders}
-                setSelectedFile={props.setSelectedFile}
-                fetchFiles={props.fetchFiles}
-            />
-            <MockFolder // Current folder
-                predicate={onlyAllowFolders && !disallowedPaths.some(dP => uf.addTrailingSlash(dP) === uf.addTrailingSlash(path))}
-                path={path}
-                setSelectedFile={props.setSelectedFile}
-                canSelectFolders
-                folderName={`${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))} (Current folder)`}
-                fetchFiles={() => null}
-            />
-            <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={canSelectFolders} />
-        </List>)
+        <FilesTable
+            onNavigationClick={props.fetchFiles}
+            files={files}
+            sortOrder={SortOrder.ASCENDING}
+            sortingColumns={[]}
+            sortFiles={() => undefined}
+            onCheckFile={() => undefined}
+            refetchFiles={() => undefined}
+            sortBy={SortBy.PATH}
+            fileOperations={ops}
+        />);
 };
 
 type CreateFolderButton = { createFolder?: () => void }
 const CreateFolderButton = ({ createFolder }: CreateFolderButton) =>
     !!createFolder ? (<Button onClick={() => createFolder()}>Create new folder</Button>) : null;
 
-interface MockFolderProps {
-    predicate: boolean
-    path: string
-    folderName: string
-    canSelectFolders: boolean
-    setSelectedFile: Function
-    fetchFiles: (p: string) => void
-}
-
-function MockFolder({ predicate, path, folderName, fetchFiles, setSelectedFile, canSelectFolders }: MockFolderProps) {
-    const folderSelection = canSelectFolders ? (
-        <>
-            <Box ml="auto" />
-            <Button onClick={() => setSelectedFile({ path })}>Select</Button>
-        </>
-    ) : null;
-    return predicate ? (
-        <Flex onClick={() => fetchFiles(path)}>
-            <Icon name="folder" color="blue" />
-            {folderName}
-            {folderSelection}
-        </Flex>
-    ) : null;
-}
-
-const CreatingFolder = ({ creatingFolder, handleKeyDown }) =>
-    !creatingFolder ? null : (
-        <Flex>
-            <Input
-                onKeyDown={(e: any) => handleKeyDown(e.keyCode, e.target.value)}
-                placeholder="Folder name..."
-                autoFocus
-            />
-            <Icon name="folder" color="blue" />
-            <OutlineButton color="red" onClick={() => handleKeyDown(KeyCode.ESC)}>Cancel</OutlineButton>
-        </Flex>
-    );
-
 const UploadButton = ({ onClick }) => (<Button type="button" onClick={onClick}>Upload File</Button>);
 const RemoveButton = ({ onClick }) => (<Button type="button" onClick={onClick}>✗</Button>);
-const FolderSelection = ({ canSelectFolders, setSelectedFile }) => canSelectFolders ?
-    (<Button onClick={setSelectedFile}>Select</Button>) : null;
-
-const FileListIcon = ({ file, link }: { file: File, link: boolean }) => {
-    const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
-    return ( <FileIcon fileIcon={iconType} link={link} /> );
-}
-
-const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: FileListProps): JSX.Element => {
-    if (files.length == 0) return (<></>);
-
-    return (
-        <>
-            {files.map((file, index) =>
-                file.fileType === "FILE" ? (
-                    <Flex key={index} onClick={() => setSelectedFile(file)}>
-                        <FileListIcon file={file} link={file.link}/>{getFilenameFromPath(file.path)}
-                    </Flex>
-                ) : (
-                        <Flex key={index}>
-                            <TextSpan onClick={() => fetchFiles(file.path)}>
-                            <FileListIcon file={file} link={file.link}/>
-                                {getFilenameFromPath(file.path)}
-                            </TextSpan>
-                            <Box ml="auto" />
-                            <FolderSelection canSelectFolders={canSelectFolders} setSelectedFile={() => setSelectedFile(file)} />
-                        </Flex>
-                    ))}
-        </>
-    );
-}
 
 export default FileSelector;
