@@ -59,6 +59,7 @@ class UserTest {
                 personService,
                 userDao,
                 userCreationService,
+                mockk(relaxed = true),
                 mockk(relaxed = true)
             )
         )

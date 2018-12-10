@@ -79,7 +79,7 @@ class UserController<DBSession>(
             )
         }
 
-        implement(UserDescriptions.openUserIterator) { req ->
+        implement(UserDescriptions.openUserIterator) {
             checkUserAccessToIterator(call.securityPrincipal)
             ok(FindByStringId(userIterationService.create()))
         }
@@ -96,11 +96,12 @@ class UserController<DBSession>(
     }
 
     private fun checkUserAccessToIterator(principal: SecurityPrincipal) {
-        val allowed = principal.role == Role.SERVICE && principal.username in allowedUsernames
+        val allowed = principal.role in allowedRoles && principal.username in allowedUsernames
         if (!allowed) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
     }
 
-    private val allowedUsernames = setOf("_auth", "_accounting")
+    private val allowedRoles = setOf(Role.SERVICE, Role.ADMIN)
+    private val allowedUsernames = setOf("_auth", "_accounting", "admin@dev")
 
     companion object : Loggable {
         override val log = logger()

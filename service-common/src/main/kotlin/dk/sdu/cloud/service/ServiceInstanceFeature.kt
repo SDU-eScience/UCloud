@@ -11,7 +11,8 @@ class ServiceInstanceFeature : MicroFeature {
         ctx.serviceInstance = ServiceInstance(
             serviceDescription.definition(),
             queryHostname(),
-            port
+            port,
+            System.getenv("POD_IP") ?: "localhost"
         )
     }
 

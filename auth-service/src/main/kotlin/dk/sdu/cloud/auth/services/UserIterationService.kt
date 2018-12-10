@@ -1,6 +1,11 @@
 package dk.sdu.cloud.auth.services
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.client.SDUCloud
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.HibernateEntity
@@ -8,15 +13,19 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.updateCriteria
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.orThrow
 import io.ktor.http.HttpStatusCode
 import org.hibernate.ScrollMode
 import org.hibernate.ScrollableResults
 import org.hibernate.StatelessSession
 import org.hibernate.annotations.NaturalId
 import org.slf4j.Logger
-import java.awt.Cursor
 import java.util.*
+import java.util.concurrent.Executors
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import javax.persistence.Entity
 import javax.persistence.Id
 import javax.persistence.Table
@@ -34,8 +43,12 @@ class UserIterationService(
     private val localPort: Int,
 
     private val db: HibernateSessionFactory,
-    private val cursorStateDao: CursorStateDao<HibernateSession>
+    private val cursorStateDao: CursorStateDao<HibernateSession>,
+
+    private val serviceCloud: RefreshingJWTAuthenticatedCloud
 ) {
+    private lateinit var cleaner: ScheduledExecutorService
+
     private data class OpenIterator(
         val state: CursorState,
         val session: StatelessSession,
@@ -43,6 +56,38 @@ class UserIterationService(
     )
 
     private val openIterators: MutableMap<String, OpenIterator> = HashMap()
+
+    fun start() {
+        if (this::cleaner.isInitialized) throw IllegalStateException()
+        cleaner = Executors.newSingleThreadScheduledExecutor()
+        cleaner.scheduleAtFixedRate({
+            log.debug("Running clean up script")
+            synchronized(this) {
+                val iterator = openIterators.iterator()
+                while (iterator.hasNext()) {
+                    val next = iterator.next()
+                    val state = db.withTransaction {
+                        cursorStateDao.findByIdOrNull(it, next.key)
+                    }
+
+                    if (state == null) {
+                        log.debug("Removing ${next.key} (could not find in db)")
+                        iterator.remove()
+                    } else {
+                        if (System.currentTimeMillis() > state.expiresAt) {
+                            log.debug("Removing ${next.key} (expired)")
+                            iterator.remove()
+                        }
+                    }
+                }
+            }
+        }, 1, 1, TimeUnit.MINUTES)
+    }
+
+    fun stop() {
+        if (!this::cleaner.isInitialized) throw IllegalStateException()
+        cleaner.shutdown()
+    }
 
     fun create(): String {
         val id = UUID.randomUUID().toString()
@@ -68,6 +113,8 @@ class UserIterationService(
             val open = openIterators[id] ?: return
             runCatching { open.iterator.close() }
             runCatching { open.session.close() }.getOrThrow()
+
+            openIterators.remove(id)
         }
     }
 
@@ -79,17 +126,19 @@ class UserIterationService(
         val state = openIterators[id] ?: throw UserIterationException.BadIterator()
         val result = ArrayList<Principal>()
         val it = state.iterator
-        while (it.next() || result.size >= PAGE_SIZE) {
-            result.add((it.get(0) as PrincipalEntity).toModel())
+        while (result.size < PAGE_SIZE && it.next()) {
+            val nextRow = it.get(0) as? PrincipalEntity ?: break
+            result.add(nextRow.toModel())
         }
         return result
     }
 
     suspend fun fetchNext(id: String): List<Principal> {
-        if (id in openIterators) {
-            return fetchLocal(id)
+        return if (id in openIterators) {
+            fetchLocal(id)
         } else {
-            TODO()
+            val targetedCloud = findRemoteCloud(id)
+            UserDescriptions.fetchNextIterator.call(FindByStringId(id), targetedCloud).orThrow()
         }
     }
 
@@ -97,14 +146,33 @@ class UserIterationService(
         if (id in openIterators) {
             return closeLocal(id)
         } else {
-            TODO()
+            val targetedCloud = findRemoteCloud(id)
+            UserDescriptions.closeIterator.call(FindByStringId(id), targetedCloud).orThrow()
         }
+    }
+
+    private fun findRemoteCloud(id: String): AuthenticatedCloud {
+        val state = db.withTransaction {
+            cursorStateDao.findByIdOrNull(it, id)
+        } ?: throw UserIterationException.BadIterator()
+
+        if (state.hostname == localhostName && state.port == localPort) {
+            throw UserIterationException.BadIterator()
+        }
+
+        return cloudForHostname(state.hostname, state.port)
+    }
+
+    private fun cloudForHostname(hostname: String, port: Int): AuthenticatedCloud {
+        val refresher = serviceCloud.tokenRefresher
+        val cloudContext = SDUCloud("http://$hostname:$port")
+        return RefreshingJWTAuthenticatedCloud(cloudContext, refresher)
     }
 
     companion object : Loggable {
         override val log: Logger = logger()
 
-        const val PAGE_SIZE = 1000
+        const val PAGE_SIZE = 10
     }
 }
 
@@ -151,7 +219,15 @@ class CursorStateHibernateDao : CursorStateDao<HibernateSession> {
     }
 
     override fun updateExpiresAt(session: HibernateSession, id: String, newExpiry: Long) {
+        session.updateCriteria<CursorStateEntity>(
+            setProperties = {
+                criteria.set(entity[CursorStateEntity::expiresAt], Date(newExpiry))
+            },
 
+            where = {
+                entity[CursorStateEntity::id] equal id
+            }
+        ).executeUpdate().takeIf { it == 1 } ?: throw UserIterationException.BadIterator()
     }
 
     private fun CursorState.toEntity(): CursorStateEntity {

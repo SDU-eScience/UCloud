@@ -25,7 +25,5 @@ interface UserDAO<Session> {
     fun delete(session: Session, id: String)
 
     fun listAll(session: Session): List<Principal>
-
-    fun listAllPage(session: Session, pagination: NormalizedPaginationRequest): Page<Principal>
 }
 

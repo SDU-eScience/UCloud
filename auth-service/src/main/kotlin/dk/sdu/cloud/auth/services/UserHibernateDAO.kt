@@ -247,14 +247,6 @@ class UserHibernateDAO(
     override fun listAll(session: HibernateSession): List<Principal> {
         return PrincipalEntity.list(session).map { it.toModel() }
     }
-
-    override fun listAllPage(session: HibernateSession, pagination: NormalizedPaginationRequest): Page<Principal> {
-        return  session.paginatedCriteria<PrincipalEntity>(
-            pagination
-        ) { allOf() }.mapItems {
-            it.toModel()
-        }
-    }
 }
 
 fun Principal.toEntity(): PrincipalEntity {

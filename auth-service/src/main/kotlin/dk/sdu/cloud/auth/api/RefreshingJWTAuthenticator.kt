@@ -93,10 +93,13 @@ class RefreshingJWTAuthenticator(
 
 class RefreshingJWTAuthenticatedCloud(
     override val parent: CloudContext,
-    refreshToken: String,
-    tokenValidation: TokenValidation<DecodedJWT>
+    val tokenRefresher: RefreshingJWTAuthenticator
 ) : AuthenticatedCloud {
-    val tokenRefresher = RefreshingJWTAuthenticator(parent, refreshToken, tokenValidation)
+    constructor(
+        parent: CloudContext,
+        refreshToken: String,
+        tokenValidation: TokenValidation<DecodedJWT>
+    ) : this(parent, RefreshingJWTAuthenticator(parent, refreshToken, tokenValidation))
 
     override fun HttpRequestBuilder.configureCall() {
         val actualToken = tokenRefresher.retrieveTokenRefreshIfNeeded()
