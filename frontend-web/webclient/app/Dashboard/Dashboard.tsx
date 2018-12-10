@@ -10,7 +10,7 @@ import { FileIcon } from "UtilityComponents";
 import { DASHBOARD_FAVORITE_ERROR } from "./Redux/DashboardReducer";
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 import { Notification, NotificationEntry } from "Notifications";
-import { Analysis } from "Applications";
+import { Analysis, AppState } from "Applications";
 import { File } from "Files";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
@@ -43,12 +43,9 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         // FIXME: Not DRY, reused
         switch (notification.type) {
             case "APP_COMPLETE":
-                // TODO This is buggy! Does't update if already present on analyses page
-                // TODO Should refactor these URLs somewhere else
                 this.props.history.push(`/applications/results/${notification.meta.jobId}`);
                 break;
             case "SHARE_REQUEST":
-                // TODO This is a bit lazy
                 this.props.history.push("/shares");
                 break;
         }
@@ -150,7 +147,7 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
                     />
                     <Link to={`/applications/results/${analysis.jobId}`}><TextSpan fontSize={2}>{analysis.appName}</TextSpan></Link>
                     <Box ml="auto" />
-                    <TextSpan fontSize={2}>{toLowerCaseAndCapitalize(analysis.state)}</TextSpan>
+                    <TextSpan fontSize={2}>{UF.prettierString(analysis.state)}</TextSpan>
                 </Flex>
             )}
         </List>
@@ -183,8 +180,20 @@ const DashboardNotifications = ({ notifications, readAll, onNotificationAction }
     </Card>
 );
 
-const statusToIconName = (status: string) => status === "SUCCESS" ? "check" : "close";
-const statusToColor = (status: string) => status === "SUCCESS" ? "green" : "red";
+const statusToIconName = (status: AppState) => {
+    switch (status) {
+        case AppState.SUCCESS:
+            return "check";
+        case AppState.FAILURE:
+            return "close";
+        default:
+            return "ellipsis";
+    }
+}
+const statusToColor = (status: AppState) => status === AppState.FAILURE ? "red" : "green";
+
+
+status === "FAILURE" ? "red" : "green";
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     errorDismiss: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, undefined)),

@@ -1,4 +1,4 @@
-import { Analysis } from "Applications";
+import { Analysis, AppState } from "Applications";
 import { Page } from "Types";
 
 export const analyses: Page<Analysis> = {
@@ -8,7 +8,7 @@ export const analyses: Page<Analysis> = {
     items: [{
         jobId: "bbcf5395-e78e-4fa7-a4e1-989fe5ce21ee",
         owner: "jonas@hinchely.dk",
-        state: "FAILURE",
+        state: AppState.FAILURE,
         status: "Internal error",
         appName: "figlet-count",
         appVersion: "1.0.0",
@@ -17,7 +17,7 @@ export const analyses: Page<Analysis> = {
     }, {
         jobId: "15274bec-ef72-4ed2-97ff-2be1829a2db1",
         owner: "jonas@hinchely.dk",
-        state: "FAILURE",
+        state: AppState.FAILURE,
         status: "Failure in Slurm or non-zero exit code",
         appName: "figlet",
         appVersion: "1.0.0",
@@ -26,7 +26,7 @@ export const analyses: Page<Analysis> = {
     }, {
         jobId: "3544b177-e9a7-4323-bcde-c4d6e442dc36",
         owner: "jonas@hinchely.dk",
-        state: "FAILURE",
+        state: AppState.FAILURE,
         status: "Failure in Slurm or non-zero exit code",
         appName: "figlet",
         appVersion: "1.0.0",
@@ -35,7 +35,7 @@ export const analyses: Page<Analysis> = {
     }, {
         jobId: "e28defb0-d66c-4461-91f6-b09afd85480c",
         owner: "jonas@hinchely.dk",
-        state: "SUCCESS",
+        state: AppState.SUCCESS,
         status: "OK",
         appName: "figlet-count",
         appVersion: "1.0.0",

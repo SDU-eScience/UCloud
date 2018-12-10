@@ -7,7 +7,7 @@ import { DetailedResultReduxObject, ComponentWithPage } from "DefaultObjects";
 
 export interface Analysis {
     status: string
-    state: string
+    state: AppState
     jobId: string
     appName: string
     appVersion: string

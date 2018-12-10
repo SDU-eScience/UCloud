@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Redirect } from "react-router";
+import { Redirect, Router } from "react-router";
 import * as moment from "moment";
 import { connect } from "react-redux";
 import { withRouter } from "react-router";
@@ -45,7 +45,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
                 this.props.history.push(`/applications/results/${notification.meta.jobId}`);
                 break;
             case "SHARE_REQUEST":
-                // TODO This is a bit lazy
+                this.reload();
                 this.props.history.push("/shares");
                 break;
         }
