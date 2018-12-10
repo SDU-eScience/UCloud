@@ -2,6 +2,7 @@ package dk.sdu.cloud.auth.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
@@ -77,6 +78,58 @@ object UserDescriptions : RESTDescriptions("auth.users") {
         path {
             using(baseContext)
             +"lookup"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val openUserIterator = callDescription<Unit, FindByStringId, CommonErrorMessage> {
+        method = HttpMethod.Post
+        name = "openUserIterator"
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"iterator"
+            +"open"
+        }
+    }
+
+    val fetchNextIterator = callDescription<FindByStringId, List<Principal>, CommonErrorMessage> {
+        method = HttpMethod.Post
+        name = "fetchNextIterator"
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"iterator"
+            +"next"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val closeIterator = callDescription<FindByStringId, Unit, CommonErrorMessage> {
+        method = HttpMethod.Post
+        name = "closeIterator"
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"iterator"
+            +"close"
         }
 
         body { bindEntireRequestFromBody() }

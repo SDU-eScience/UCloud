@@ -2,6 +2,9 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
 
 data class HashedPasswordAndSalt(val hashedPassword: ByteArray, val salt: ByteArray)
 
@@ -22,5 +25,7 @@ interface UserDAO<Session> {
     fun delete(session: Session, id: String)
 
     fun listAll(session: Session): List<Principal>
+
+    fun listAllPage(session: Session, pagination: NormalizedPaginationRequest): Page<Principal>
 }
 

@@ -1,6 +1,8 @@
 package dk.sdu.cloud.auth.http
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.ChangePasswordAudit
 import dk.sdu.cloud.auth.api.CreateUserAudit
 import dk.sdu.cloud.auth.api.LookupUsersResponse
@@ -11,12 +13,15 @@ import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserDAO
+import dk.sdu.cloud.auth.services.UserIterationService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.securityPrincipal
+import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 
 class UserController<DBSession>(
@@ -24,6 +29,7 @@ class UserController<DBSession>(
     private val personService: PersonService,
     private val userDAO: UserDAO<DBSession>,
     private val userCreationService: UserCreationService<DBSession>,
+    private val userIterationService: UserIterationService,
     private val tokenService: TokenService<DBSession>
 ) : Controller {
     override val baseContext = UserDescriptions.baseContext
@@ -72,7 +78,29 @@ class UserController<DBSession>(
                 )
             )
         }
+
+        implement(UserDescriptions.openUserIterator) { req ->
+            checkUserAccessToIterator(call.securityPrincipal)
+            ok(FindByStringId(userIterationService.create()))
+        }
+
+        implement(UserDescriptions.fetchNextIterator) { req ->
+            checkUserAccessToIterator(call.securityPrincipal)
+            ok(userIterationService.fetchNext(req.id))
+        }
+
+        implement(UserDescriptions.closeIterator) { req ->
+            checkUserAccessToIterator(call.securityPrincipal)
+            ok(userIterationService.close(req.id))
+        }
     }
+
+    private fun checkUserAccessToIterator(principal: SecurityPrincipal) {
+        val allowed = principal.role == Role.SERVICE && principal.username in allowedUsernames
+        if (!allowed) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+    }
+
+    private val allowedUsernames = setOf("_auth", "_accounting")
 
     companion object : Loggable {
         override val log = logger()

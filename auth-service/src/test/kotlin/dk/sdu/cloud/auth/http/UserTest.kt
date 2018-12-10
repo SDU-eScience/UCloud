@@ -1,6 +1,7 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.CreateUserRequest
 import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.UserCreationService
@@ -11,9 +12,13 @@ import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.TokenValidationMock
+import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.createTokenForService
 import dk.sdu.cloud.service.test.createTokenForUser
+import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -363,6 +368,40 @@ class UserTest {
                         }.response
 
                     assertEquals(HttpStatusCode.BadRequest, response.status())
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `get all users test`() {
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                val userDao = UserHibernateDAO(passwordHashingService)
+                val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
+                configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
+            },
+            test = {
+                with(engine) {
+                    for (i in 1..20) {
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/register",
+                            user = TestUsers.admin,
+                            request = CreateUserRequest("user$i", "pass", Role.USER)
+                        ).assertSuccess()
+
+                    }
+
+                    val request = sendRequest(
+                        method = HttpMethod.Get,
+                        path = "/auth/users/all",
+                        user = TestUsers.service.copy(username = "_accounting")
+                    )
+
+                    request.assertSuccess()
+                    println(request.response.content)
                 }
             }
         )

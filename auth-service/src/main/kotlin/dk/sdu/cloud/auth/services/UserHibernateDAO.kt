@@ -4,12 +4,18 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.list
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.mapItems
+import javafx.scene.control.Pagination
 import org.hibernate.annotations.NaturalId
 import java.util.*
 import javax.persistence.Entity
@@ -240,6 +246,14 @@ class UserHibernateDAO(
 
     override fun listAll(session: HibernateSession): List<Principal> {
         return PrincipalEntity.list(session).map { it.toModel() }
+    }
+
+    override fun listAllPage(session: HibernateSession, pagination: NormalizedPaginationRequest): Page<Principal> {
+        return  session.paginatedCriteria<PrincipalEntity>(
+            pagination
+        ) { allOf() }.mapItems {
+            it.toModel()
+        }
     }
 }
 

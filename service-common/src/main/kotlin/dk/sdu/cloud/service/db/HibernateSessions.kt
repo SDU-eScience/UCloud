@@ -2,6 +2,7 @@ package dk.sdu.cloud.service.db
 
 import eu.infomas.annotation.AnnotationDetector
 import org.hibernate.SessionFactory
+import org.hibernate.StatelessSession
 import org.hibernate.boot.Metadata
 import org.hibernate.boot.MetadataSources
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder
@@ -44,6 +45,10 @@ class HibernateSessionFactory(
 
     override fun flush(session: HibernateSession) {
         session.flush()
+    }
+
+    fun openStatelessSession(): StatelessSession {
+        return factory.openStatelessSession()
     }
 
     companion object {

@@ -23,6 +23,7 @@ import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
 import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
+import dk.sdu.cloud.auth.services.UserIterationService
 import dk.sdu.cloud.auth.services.WSTOTPService
 import dk.sdu.cloud.auth.services.ZXingQRService
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
@@ -82,6 +83,7 @@ class Server(
 
         val totpService = WSTOTPService()
         val qrService = ZXingQRService()
+        val userIterator = UserIterationService("localhost", 8080, db, )
 
         val twoFactorDao = TwoFactorHibernateDAO()
 

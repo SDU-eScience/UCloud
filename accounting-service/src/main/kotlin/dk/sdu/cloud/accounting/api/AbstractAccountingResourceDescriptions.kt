@@ -140,6 +140,16 @@ data class BuildReportRequest(
     val periodEndMs: Long
 )
 
+/*data class BuildMultipleReportRequest(
+    val periodStartMs: Long,
+    val periodEndMs: Long
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest {
+    val pagination = normalize()
+}*/
+
+
 typealias BuildReportResponse = InvoiceReport
 
 /**

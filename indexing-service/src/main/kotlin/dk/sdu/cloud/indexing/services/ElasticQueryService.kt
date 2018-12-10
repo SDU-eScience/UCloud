@@ -28,6 +28,10 @@ import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.range
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.action.get.GetRequest
+import org.elasticsearch.action.search.MultiSearchRequest
+import org.elasticsearch.action.search.SearchRequest
+import org.elasticsearch.action.search.SearchRequestBuilder
+import org.elasticsearch.client.ElasticsearchClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.search.aggregations.AggregationBuilders
@@ -39,6 +43,7 @@ import org.elasticsearch.search.aggregations.metrics.percentiles.Percentiles
 import org.elasticsearch.search.aggregations.metrics.sum.Sum
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
+import java.security.Principal
 
 /**
  * An implementation of [IndexQueryService] and [ReverseLookupService] using an Elasticsearch backend.
@@ -105,6 +110,14 @@ class ElasticQueryService(
                 log.debug(it.toString())
             }
         }.mapItems { it.toMaterializedFile() }
+    }
+
+    private fun multiSearch(users: List<Principal>) {
+        val multiSearchRequest = MultiSearchRequest()
+        users.forEach {
+            multiSearchRequest.add(SearchRequest())
+        }
+
     }
 
     private fun searchBasedOnQuery(fileQuery: FileQuery): QueryBuilder {
