@@ -47,8 +47,47 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
 
     // FIXME, should show errors in fields instead, the upper corner error is not very noticeable;
     validateAndSetDate(m: Date | null, property: PossibleTime) {
-        const { setTimes } = this.props;
-        setTimes({ [property]: m === null ? undefined : m });
+        const { setTimes, setError, createdBefore, modifiedBefore, createdAfter, modifiedAfter } = this.props;
+        if (m == null) { setTimes({ [property]: undefined }); return }
+        const before = property.includes("Before");
+        if (property.includes("created")) {
+            if (before && createdAfter) {
+                if (m.getTime() > createdAfter.getTime()) {
+                    setTimes({ createdBefore: m });
+                    return;
+                } else {
+                    setError("Before can't be before After");
+                    return;
+                }
+            } else if (!before && createdBefore) {
+                if (m.getTime() < createdBefore.getTime()) {
+                    setTimes({ createdAfter: m })
+                    return;
+                } else {
+                    setError("After can't be after Before");
+                    return;
+                }
+            }
+        } else { // includes Modified
+            if (before && modifiedAfter) {
+                if (m.getTime() > modifiedAfter.getTime()) {
+                    setTimes({ modifiedBefore: m })
+                    return;
+                } else {
+                    setError("After can't be after Before");
+                    return;
+                }
+            } else if (!before && modifiedBefore) {
+                if (m.getTime() < modifiedBefore.getTime()) {
+                    setTimes({ modifiedAfter: m })
+                    return;
+                } else {
+                    setError("After can't be after Before");
+                    return;
+                }
+            }
+        }
+        setTimes({ [property]: m });
     }
 
     onSearch = () => {
@@ -111,6 +150,28 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                             />
                             <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
                             <InputGroup>
+
+
+                                {/* 
+                                    <DatePicker
+                                        selected={this.state.startDate}
+                                        selectsStart
+                                        startDate={this.state.startDate}
+                                        endDate={this.state.endDate}
+                                        onChange={this.handleChangeStart}
+                                    />
+
+                                    <DatePicker
+                                        selected={this.state.endDate}
+                                        selectsEnd
+                                        startDate={this.state.startDate}
+                                        endDate={this.state.endDate}
+                                        onChange={this.handleChangeEnd}
+                                    />
+                            */}
+
+
+
                                 <DatePicker
                                     popperPlacement="left"
                                     pb="6px"
@@ -122,7 +183,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     endDate={this.props.createdBefore}
                                     onChange={d => this.validateAndSetDate(d, "createdAfter")}
                                     showTimeSelect
-                                    locale="da"
                                     timeIntervals={15}
                                     isClearable
                                     selectsStart
@@ -135,7 +195,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
-                                    locale="da"
                                     selectsEnd
                                     placeholderText="Created before..."
                                     selected={this.props.createdBefore}
@@ -259,6 +318,7 @@ const mapStateToProps = ({ detailedFileSearch }: ReduxObject): DetailedFileSearc
 import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import { DETAILED_FILES_ADD_EXTENSIONS, DETAILED_FILES_REMOVE_EXTENSIONS, DETAILED_FILES_ADD_SENSITIVITIES, DETAILED_FILES_REMOVE_SENSITIVITIES, DETAILED_FILES_ADD_TAGS, DETAILED_FILES_REMOVE_TAGS } from "./Redux/DetailedFileSearchReducer";
 import { searchFiles } from "Search/Redux/SearchActions";
+import { Moment } from "moment";
 const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations => ({
     toggleHidden: () => dispatch(DFSActions.toggleFilesSearchHidden()),
     addExtensions: ext => dispatch(DFSActions.extensionAction(DETAILED_FILES_ADD_EXTENSIONS, ext)),
