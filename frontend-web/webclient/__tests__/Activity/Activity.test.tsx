@@ -9,7 +9,7 @@ import { activityPage } from "../mock/Activity";
 import { MemoryRouter } from "react-router";
 
 describe("Activity", () => {
-    test("Mount", () => {
+    test.skip("Mount", () => {
         const store = configureStore({ activity: initActivity() }, { activity })
         expect(create(<Provider store={store}><Activity /></Provider>).toJSON()).toMatchSnapshot();
     });

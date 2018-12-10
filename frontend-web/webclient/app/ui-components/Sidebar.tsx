@@ -10,15 +10,15 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { PP } from "UtilityComponents";
 import { fileTablePage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading";
-import { Input, Button } from "ui-components";
-import { inSuccessRange, successNotification, failureNotification } from "UtilityFunctions";
+import { Button } from "ui-components";
+import { successNotification, failureNotification } from "UtilityFunctions";
 import Relative from "./Relative";
+import TextArea from "./TextArea";
+import { KeyCode } from "DefaultObjects";
 
 const SidebarContainer = styled(Flex)`
     position: fixed;
     top:48px;
-    //width: 190px;
-    //margin-top: 48px;
     height: calc(100% - 48px);
     flex-flow: column;
     border-right: 1px solid ${props => props.theme.colors.borderGray}
@@ -82,13 +82,15 @@ type SidebarMenuElements = {
     predicate: () => boolean
 }
 
+
+// FIXME, move to own file
 const SupportBox = styled.div<{ visible: boolean }>`
     display: ${props => props.visible ? "block" : "none"}
     position: absolute;
     left: 150px;
     top: -282px;
     border: 1px solid ${props => props.theme.colors.borderGray};
-    background: ${props => props.theme.colors.white};
+    background-color: ${props => props.theme.colors.white};
 
     &&&&&&&&&&& {
         width: 600px;
@@ -109,7 +111,7 @@ const SupportBox = styled.div<{ visible: boolean }>`
         border-bottom: 1px solid ${props => props.theme.colors.borderGray};
     }
 
-    & textarea {
+    & ${TextArea} {
         width: 100%;
         border: 1px solid ${props => props.theme.colors.borderGray};
     }
@@ -137,6 +139,13 @@ class Support extends React.Component<{}, SupportState> {
             visible: false,
             loading: false
         };
+        document.addEventListener("keypress", this.handleESC);
+    }
+
+    componentWillUnmount = () => document.removeEventListener("keypress", this.handleESC);
+
+    private handleESC = (e) => {
+        if (e.keyCode == KeyCode.ESC) this.setState(() => ({ visible: false }))
     }
 
     onSupportClick(event: React.SyntheticEvent) {
@@ -165,14 +174,14 @@ class Support extends React.Component<{}, SupportState> {
 
     render() {
         return <div>
-            <a href="#support" onClick={e => this.onSupportClick(e)}>Support</a>
+            <a href="#support" onClick={e => this.onSupportClick(e)}><Text fontSize={1}>Support</Text></a>
             <Relative>
                 <SupportBox visible={this.state.visible}>
                     <Box>
                         <Heading.h3>Support Form</Heading.h3>
                         <p>Describe your problem below and we will investigate it.</p>
                         <form onSubmit={e => this.onSubmit(e)}>
-                            <textarea ref={this.textArea} rows={6}></textarea>
+                            <TextArea ref={this.textArea} rows={6} />
                             <Button fullWidth type="submit" disabled={this.state.loading}>Submit</Button>
                         </form>
                     </Box>
@@ -182,17 +191,18 @@ class Support extends React.Component<{}, SupportState> {
     }
 }
 
-export const sideBarMenuElements: { general: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements } = {
+export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements } = {
     general: {
         items: [
             { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
             { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
             { icon: "share", label: "Shares", to: "/shares/" },
-            { icon: "apps", label: "Apps", to: "/applications/" },
-            { icon: "information", label: "Job Results", to: "/applications/results/" },
-            { icon: "publish", label: "Publish", to: "/zenodo/publish/" },
+            { icon: "apps", label: "My Apps", to: "/applications/installed/" },
+            { icon: "appStore", label: "App Store", to: "/applications/" },
+            { icon: "information", label: "My Results", to: "/applications/results/" }
         ], predicate: () => true
     },
+    dev: { items: [{ icon: "publish", label: "Publish", to: "/zenodo/publish/" }], predicate: () => process.env.NODE_ENV === "development" },
     auditing: { items: [{ icon: "activity", label: "Activity", to: "/activity/" }], predicate: () => true },
     admin: { items: [{ icon: "admin", label: "Admin", to: "/admin/userCreation/" }], predicate: () => Cloud.userIsAdmin }
 };
@@ -216,11 +226,11 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
             <SidebarPushToBottom />
 
             <SidebarInfoBox>
-                <div>ID: {Cloud.username}</div>
+                <Text fontSize={1}>ID: {Cloud.username}</Text>
                 <SidebarSpacer />
                 <Support />
                 <div>
-                    <a href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse" target="_blank" rel="noopener">Data Protection at SDU</a>
+                    <a href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse" target="_blank" rel="noopener"><Text fontSize={1}>Data Protection at SDU</Text></a>
                 </div>
             </SidebarInfoBox>
             <PP visible={false} />

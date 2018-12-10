@@ -10,6 +10,7 @@ import { Upload } from "Uploader";
 import { Activity } from "Activity";
 import { Reducer } from "redux";
 import { SimpleSearchStateProps } from "Search";
+import * as ApplicationRedux from "Applications/Redux";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -55,10 +56,10 @@ export enum SensitivityLevel {
 export type Sensitivity = keyof typeof SensitivityLevel;
 
 export enum SensitivityLevelMap {
-    "OPEN_ACCESS",
-    "PRIVATE",
-    "CONFIDENTIAL",
-    "SENSITIVE"
+    OPEN_ACCESS = "OPEN_ACCESS",
+    PRIVATE = "PRIVATE",
+    CONFIDENTIAL = "CONFIDENTIAL",
+    SENSITIVE = "SENSITIVE"
 };
 
 const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
@@ -131,11 +132,6 @@ export interface HeaderSearchReduxObject {
     prioritizedSearch: HeaderSearchType
 }
 
-export interface ApplicationReduxObject extends ComponentWithPage<Application> {
-    favorites: Page<Application>
-    favoritesLoading: boolean
-};
-
 export interface RunApplicationReduxObject {
 
 }
@@ -153,12 +149,11 @@ export interface UploaderReduxObject {
     error?: string
 }
 
-export interface Reducers {
+interface LegacyReducers {
     dashboard?: Reducer<DashboardStateProps>
     files?: Reducer<FilesReduxObject>
     uploader?: Reducer<UploaderReduxObject>
     status?: Reducer<StatusReduxObject>
-    applications?: Reducer<ApplicationReduxObject>
     notifications?: Reducer<NotificationsReduxObject>
     analyses?: Reducer<AnalysisReduxObject>
     zenodo?: Reducer<ZenodoReduxObject>
@@ -168,6 +163,8 @@ export interface Reducers {
     detailedResult?: Reducer<DetailedResultReduxObject>
 }
 
+export type Reducers = LegacyReducers & ApplicationRedux.Reducers;
+
 export type DetailedResultReduxObject = ComponentWithPage<File>
 
 export const initDetailedResult = (): DetailedResultReduxObject => ({
@@ -176,12 +173,11 @@ export const initDetailedResult = (): DetailedResultReduxObject => ({
     error: undefined
 });
 
-export interface ReduxObject {
+interface LegacyReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
     uploader: UploaderReduxObject
     status: StatusReduxObject,
-    applications: ApplicationReduxObject
     notifications: NotificationsReduxObject
     analyses: AnalysisReduxObject
     zenodo: ZenodoReduxObject
@@ -194,6 +190,8 @@ export interface ReduxObject {
     detailedApplicationSearch: DetailedApplicationSearchReduxState
     fileInfo: FileInfoReduxObject
 }
+
+export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects;
 
 export const initActivity = (): ActivityReduxObject => ({
     page: emptyPage,
@@ -210,14 +208,6 @@ export const initNotifications = (): NotificationsReduxObject => ({
 
 export const initHeader = (): HeaderSearchReduxObject => ({
     prioritizedSearch: "files"
-});
-
-export const initApplications = (): ApplicationReduxObject => ({
-    page: emptyPage,
-    favorites: emptyPage,
-    favoritesLoading: false,
-    loading: false,
-    error: undefined
 });
 
 export const initStatus = (): StatusReduxObject => ({
@@ -240,7 +230,6 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     dashboard: initDashboard(),
     files: initFiles(homeFolder),
     status: initStatus(),
-    applications: initApplications(),
     header: initHeader(),
     notifications: initNotifications(),
     analyses: initAnalyses(),
@@ -252,7 +241,8 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     simpleSearch: initSimpleSearch(),
     detailedApplicationSearch: initApplicationsAdvancedSearch(),
     detailedFileSearch: initFilesDetailedSearch(),
-    fileInfo: initFileInfo()
+    fileInfo: initFileInfo(),
+    ...ApplicationRedux.init()
 });
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({

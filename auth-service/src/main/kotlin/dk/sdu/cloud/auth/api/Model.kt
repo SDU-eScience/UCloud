@@ -161,21 +161,29 @@ interface WithOptionalRefreshToken {
     val refreshToken: String?
 }
 
-data class AccessToken(override val accessToken: String) : WithAccessToken
+data class AccessToken(override val accessToken: String) : WithAccessToken {
+    override fun toString(): String = "AccessToken()"
+}
 
 data class AccessTokenAndCsrf(
     override val accessToken: String,
     override val csrfToken: String
-) : WithAccessToken, WithOptionalCsrfToken
+) : WithAccessToken, WithOptionalCsrfToken {
+    override fun toString(): String = "AccessTokenAndCsrf()"
+}
 
 data class AuthenticationTokens(
     override val accessToken: String,
     override val refreshToken: String,
     override val csrfToken: String
-) : WithAccessToken, WithOptionalCsrfToken, WithOptionalRefreshToken
+) : WithAccessToken, WithOptionalCsrfToken, WithOptionalRefreshToken {
+    override fun toString() = "AuthenticationTokens()"
+}
 
 data class OptionalAuthenticationTokens(
     override val accessToken: String,
     override val csrfToken: String?,
     override val refreshToken: String?
-) : WithAccessToken, WithOptionalCsrfToken, WithOptionalRefreshToken
+) : WithAccessToken, WithOptionalCsrfToken, WithOptionalRefreshToken {
+    override fun toString() = "OptionalAuthenticationTokens()"
+}

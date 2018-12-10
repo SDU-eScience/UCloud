@@ -2,11 +2,12 @@ import styled from "styled-components";
 import { left } from "styled-system";
 import { min } from "moment";
 
+const fullWidth = (props) => props.fullWidth ? { width: "100%" } : null; 
 
-export const Dropdown = styled.div<{ hover?: boolean }>`
+export const Dropdown = styled.div<{ hover?: boolean, fullWidth?: boolean }>`
     position: relative;
     display: inline-block;
-
+    ${fullWidth};
     ${props => props.hover ?
         `&:hover > div {
             display: block;
@@ -65,7 +66,7 @@ DropdownContent.defaultProps = {
 interface DropdownContentProps {
     left?: number | string
     hover?: boolean
-    width?: string
+    width?: string | number
     disabled?: boolean
     minWidth?: string
     maxHeight?: number | string

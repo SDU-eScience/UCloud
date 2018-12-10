@@ -8,7 +8,7 @@ export interface IconButtonProps extends ButtonProps {
   name: IconName
   size?: number | string
   color?: string
-  onClick?: () => void
+  onClick?: (e?: React.SyntheticEvent<HTMLButtonElement>) => void
 }
 
 const TransparentButton = styled(Button)`
@@ -22,9 +22,9 @@ const TransparentButton = styled(Button)`
   }
 `;
 
-const IconButton = ({ name, size, color, ...props }: IconButtonProps) => (
+const IconButton = ({ name, size, ...props }: IconButtonProps) => (
   <TransparentButton {...props}>
-    <Icon name={name} size={size} color={color} />
+    <Icon name={name} size={size} />
   </TransparentButton>
 );
 

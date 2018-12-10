@@ -1,14 +1,24 @@
 import styled from "styled-components";
 import Box from "./Box";
 
-const List = styled(Box)`
+const childPadding = ({ childPadding }: { childPadding?: string | number }) =>
+    childPadding ? { marginBottom: childPadding, marginTop: childPadding } : null;
+
+const List = styled(Box) <{ fontSize?: string, childPadding?: string | number, bordered?: boolean }>`
+    font-size: ${props => props.fontSize};
     & > * {
-        border-bottom: 1px solid lightGrey;
+        ${props => props.bordered ? "border-bottom: 1px solid lightGrey;" : null }
+        ${childPadding};
     }
 
     & > *:last-child {
-        border-bottom: 0px;
+        ${props => props.bordered ? "border-bottom: 0px;" : null}
     }
-`
+`;
+
+List.defaultProps = {
+    fontSize: "large",
+    bordered: true
+}
 
 export default List;

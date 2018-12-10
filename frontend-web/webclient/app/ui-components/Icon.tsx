@@ -30,7 +30,7 @@ Icon.displayName = "Icon"
 
 Icon.defaultProps = {
   theme,
-  cursor: "auto",
+  cursor: "inherit",
   name: "notification",
   size: 24
 }

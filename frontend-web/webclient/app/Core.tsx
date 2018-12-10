@@ -23,7 +23,7 @@ import UserSettings from "UserSettings/UserSettings";
 import ZenodoHome from "Zenodo/Zenodo";
 import ZenodoInfo from "Zenodo/Info";
 import DetailedResult from "Applications/DetailedResult";
-import { View as ApplicationView } from "Applications/View";
+import ApplicationView from "Applications/View";
 import * as ApplicationsInstalled from "Applications/Installed";
 import Status from "Navigation/StatusPage";
 

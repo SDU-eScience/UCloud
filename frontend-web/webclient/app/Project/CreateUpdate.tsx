@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Search, Form, Button } from "semantic-ui-react";
 import { identifierTypes } from "DefaultObjects";
 import { allLicenses } from "./licenses";
 import { Contributor, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
@@ -9,6 +8,11 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 import { getQueryParam } from "Utilities/URIUtilities";
 import { projectViewPage } from "Utilities/ProjectUtilities";
+import { Input, DataList, Box, Button, Flex, TextArea, Text, Label } from "ui-components";
+import { contentValuePairLicenses, contentValuePairIdentifierTypes } from "ui-components/DataList";
+import { TextSpan } from "ui-components/Text";
+
+// FIXME: MISSING TYPESAFETY THROUGHOUT
 
 const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
@@ -30,16 +34,13 @@ const subjectHasValue = (subject: Subject): boolean => {
     );
 }
 
-const identifierHasValue = (identifier: RelatedIdentifier): boolean => {
-    return (
-        !blankOrUndefined(identifier.identifier) ||
-        !blankOrUndefined(identifier.relation)
-    );
-};
+const identifierHasValue = (identifier: RelatedIdentifier): boolean =>
+    !blankOrUndefined(identifier.identifier) ||
+    !blankOrUndefined(identifier.relation);
 
-const filePathFromProps = (props: CreateUpdateProps): string | null => {
-    return getQueryParam(props, "filePath");
-}
+const filePathFromProps = (props: CreateUpdateProps): string | null =>
+    getQueryParam(props, "filePath");
+
 
 export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     constructor(props, ctx) {
@@ -88,17 +89,17 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
             title: md.title,
             description: md.description,
             license: mappedLicense,
-            keywords: md.keywords ? md.keywords : [""],
-            notes: md.notes ? md.notes : "",
-            contributors: md.contributors ? md.contributors : [newContributor()],
-            references: md.references ? md.references : [""],
+            keywords: md.keywords || [""],
+            notes: md.notes || "",
+            contributors: md.contributors || [newContributor()],
+            references: md.references || [""],
             grants: md.grants ? md.grants.map(it => it ? it.id : "") : [""],
-            subjects: md.subjects ? md.subjects : [newSubject()],
-            relatedIdentifiers: md.relatedIdentifiers ? md.relatedIdentifiers : [newIdentifier()]
+            subjects: md.subjects || [newSubject()],
+            relatedIdentifiers: md.relatedIdentifiers || [newIdentifier()]
         }));
     };
 
-    shouldComponentUpdate(nextProps, _nextState) {
+    shouldComponentUpdate(nextProps: CreateUpdateProps, _nextState) {
         const path = filePathFromProps(nextProps);
         if (!!path && path !== this.state.path) {
             getByPath(path).then(it => this.setMetadata(it, path))
@@ -207,8 +208,8 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     }
 
     setStateEv(key) {
-        return (e, { value }) => {
-            this.setState(() => ({ [key]: value }));
+        return ({ target }) => {
+            this.setState(() => ({ [key]: target.value }));
         };
     }
 
@@ -223,214 +224,196 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
 
     render() {
         return (
-            <Form onSubmit={this.onSubmit}>
-                <Form.Field required>
-                    <label>Title</label>
-                    <Form.Input
-                        placeholder="Title"
-                        value={this.state.title}
-                        error={this.state.errors.title}
-                        onChange={this.setStateEv("title")}
-                        required
-                    />
-                </Form.Field>
-                <Form.Field required>
-                    <label>Description</label>
-                    <Form.TextArea
-                        value={this.state.description}
-                        error={this.state.errors.description}
-                        rows={15}
-                        placeholder="Description"
-                        onChange={this.setStateEv("description")}
-                        required
-                    />
-                </Form.Field>
-                <Form.Field>
-                    <label>License</label>
-                    <p>
+            <form onSubmit={this.onSubmit}>
+                <Box mb="1em">
+                    <Label><TextSpan bold>Title</TextSpan><Required />
+                        <Input
+                            placeholder="Title"
+                            type="text"
+                            value={this.state.title}
+                            error={this.state.errors.title}
+                            onChange={this.setStateEv("title")}
+                            required
+                        />
+                    </Label>
+                </Box>
+                <Box mb="1em">
+                    <Label>
+                        <TextSpan bold>Description</TextSpan><Required />
+                        <TextArea
+                            width={1}
+                            rows={6}
+                            value={this.state.description}
+                            placeholder="Description"
+                            onChange={this.setStateEv("description")}
+                            required
+                        />
+                    </Label>
+                </Box>
+                <Box mb="1em">
+                    <label>
+                        <Text bold>License</Text>
                         {this.state.license ?
-                            <span>
-                                Selected
-                                {" "}
+                            <Flex>
+                                <TextSpan mr="0.4em">Selected</TextSpan>
                                 <a href={this.state.license.link}>
                                     {this.state.license.title}
                                 </a>
-
-                                <Button
-                                    type="button"
-                                    basic
-                                    onClick={() => this.setState({ license: null })}
-                                    icon="remove"
-                                    size="tiny"
-                                    floated="right"
-                                />
-                            </span>
+                                <Box ml="auto" />
+                                {/* <Button onClick={() => this.setState({ license: null })}><Icon name="close"/></Button> */}
+                            </Flex>
 
                             :
 
-                            <span>
+                            <Box>
                                 No license selected
-                            </span>
+                            </Box>
                         }
-                    </p>
-                    <LicenseDropdown onChange={this.setStateEv("license")} />
-                </Form.Field>
+                        <LicenseDropdown onChange={this.setStateEv("license")} />
+                    </label>
+                </Box>
+                <Box mb="1em">
+                    <label>
+                        <TextSpan bold>Keywords</TextSpan>
+                        <FormFieldList
+                            items={this.state.keywords}
+                            name="keyword"
+                            onChange={this.setStateEvList("keywords")}
+                        />
+                    </label>
 
-                <Form.Field>
-                    <label>Keywords</label>
-                    <FormFieldList
-                        items={this.state.keywords}
-                        name="keyword"
-                        onChange={this.setStateEvList("keywords")}
-                    />
+                    <Button type="button" onClick={e => this.addRow(e, "keywords")}>
+                        New keyword
+                </Button>
+                </Box>
+
+                <Box mb="1em">
+                    <label>Notes
+                    <TextArea
+                            width={1}
+                            value={this.state.notes}
+                            placeholder="Notes..."
+                            onChange={this.setStateEv("notes")}
+                        />
+                    </label>
+                </Box>
+
+                <Box mb="1em">
+
+                    <label>Data Management Plan
+                    <TextArea
+                            width={1}
+                            value={this.state.dataManagementPlan}
+                            placeholder="Data Management Plan..."
+                            onChange={this.setStateEv("dataManagementPlan")}
+                        />
+                    </label>
+                </Box>
+
+                <Box mb="1em">
+                    <label><TextSpan bold>Contributors</TextSpan>
+                        <Contributors
+                            contributors={this.state.contributors}
+                            errors={this.state.errors.contributors}
+                            onChange={this.setStateEvList("contributors")}
+                        />
+                    </label>
+                    <Button mt="0.5em"
+                        type="button"
+                        onClick={e => this.addCollaborator(e)}
+                    >Add collaborator</Button>
+                </Box>
+
+                <Box mb="1em">
+                    <label><TextSpan bold>References</TextSpan>
+                        <FormFieldList
+                            name="reference"
+                            items={this.state.references}
+                            onChange={this.setStateEvList("references")}
+                        />
+                    </label>
                     <Button
                         type="button"
-                        content="New keyword"
-                        onClick={(e) => this.addRow(e, "keywords")}
-                    />
-                </Form.Field>
+                        onClick={e => this.addRow(e, "references")}
+                    >Add reference</Button>
+                </Box>
 
-                <Form.Field>
-                    <label>Notes</label>
-                    <Form.TextArea
-                        value={this.state.notes}
-                        placeholder="Notes..."
-                        onChange={this.setStateEv("notes")}
-                    />
-                </Form.Field>
-
-                <Form.Field>
-                    <label>Data Management Plan</label>
-                    <Form.TextArea
-                        value={this.state.dataManagementPlan}
-                        placeholder="Data Management Plan..."
-                        onChange={this.setStateEv("dataManagementPlan")}
-                    />
-                </Form.Field>
-
-                <Form.Field>
-                    <label>Contributors</label>
-                    <Contributors
-                        contributors={this.state.contributors}
-                        errors={this.state.errors.contributors}
-                        onChange={this.setStateEvList("contributors")}
-                    />
+                <Box mb="1em">
+                    <label><TextSpan bold>Grants</TextSpan>
+                        <FormFieldList
+                            name="grant"
+                            items={this.state.grants}
+                            onChange={this.setStateEvList("grants")}
+                        />
+                    </label>
                     <Button
                         type="button"
-                        content="Add collaborator"
-                        onClick={(e) => this.addCollaborator(e)}
-                    />
-                </Form.Field>
-
-                <Form.Field>
-                    <label>References</label>
-                    <FormFieldList
-                        name="reference"
-                        items={this.state.references}
-                        onChange={this.setStateEvList("references")}
-                    />
-                    <Button
-                        type="button"
-                        content="Add reference"
-                        onClick={(e) => this.addRow(e, "references")}
-                    />
-                </Form.Field>
-
-                <Form.Field>
-                    <label>Grants</label>
-                    <FormFieldList
-                        name="grant"
-                        items={this.state.grants}
-                        onChange={this.setStateEvList("grants")}
-                    />
-                    <Button
-                        type="button"
-                        content="Add grant"
-                        onClick={(e) => this.addRow(e, "grants")}
-                    />
-                </Form.Field>
+                        onClick={e => this.addRow(e, "grants")}
+                    >Add grant</Button>
+                </Box>
 
 
-                <Form.Field>
-                    <label>Subjects</label>
-                    <Subjects
-                        subjects={this.state.subjects}
-                        onChange={this.setStateEvList("subjects")}
-                        errors={this.state.errors.subjects}
-                    />
-                    <Button
-                        type="button"
-                        content="Add subject"
-                        onClick={(e) => this.addSubject(e)}
-                    />
-                </Form.Field>
+                <Box mb="1em">
+                    <label><TextSpan bold>Subjects</TextSpan>
+                        <Subjects
+                            subjects={this.state.subjects}
+                            onChange={this.setStateEvList("subjects")}
+                            errors={this.state.errors.subjects}
+                        />
+                    </label>
+                </Box>
+                <Button mb="1em" type="button" onClick={e => this.addSubject(e)} >
+                    Add subject
+                </Button>
 
-                <Form.Field>
-                    <label>Related identifiers</label>
 
-                    <RelatedIdentifiers
-                        relatedIdentifiers={this.state.relatedIdentifiers}
-                        onChange={this.setStateEvList("relatedIdentifiers")}
-                        errors={this.state.errors.relatedIdentifiers}
-                    />
-                    <Button
-                        type="button"
-                        content="Add identifier"
-                        onClick={(e) => this.addIdentifier(e)}
-                    />
-                </Form.Field>
-
+                <Box mb="1em">
+                    <label><TextSpan bold>Related identifiers</TextSpan>
+                        <RelatedIdentifiers
+                            relatedIdentifiers={this.state.relatedIdentifiers}
+                            onChange={this.setStateEvList("relatedIdentifiers")}
+                            errors={this.state.errors.relatedIdentifiers}
+                        />
+                    </label>
+                </Box>
                 <Button
-                    positive
                     type="button"
-                    content="Submit"
-                    floated="right"
-                    icon="checkmark"
-                    onClick={(e) => this.onSubmit(e)}
-                />
-                <div className="clear"></div>
-            </Form>
+                    onClick={e => this.addIdentifier(e)}
+                >Add identifier</Button>
+
+                <Flex>
+                    <Box ml="auto" />
+                    <Box mb="1em" mt="1em">
+                        <Button
+                            color="green"
+                            type="button"
+                            onClick={(e) => this.onSubmit(e)}
+                        >Submit</Button>
+                    </Box>
+                </Flex>
+            </form >
         )
     }
 }
 
 interface LicenseDropdownProps {
-    onChange: (ev, details) => void
+    onChange: (details: any) => void
 }
 
-interface LicenseDropdownState {
-    isLoading: boolean
-    value: string
-    results: { title: string, identifier: string, link: string }[]
-}
-
-class LicenseDropdown extends React.Component<LicenseDropdownProps, LicenseDropdownState> {
-    constructor(props: any) {
-        super(props)
-
-        this.state = { isLoading: false, value: "", results: [] };
-    }
-
-    handleSearchChange(value) {
-        this.setState({ isLoading: true, value });
-        setTimeout(() => {
-            const results = allLicenses
-                .filter(e => e.name.toLowerCase().indexOf(value.toLowerCase()) !== -1)
-                .map(e => ({ title: e.name, identifier: e.identifier, link: e.link }));
-
-            this.setState({ isLoading: false, results });
-        }, 0);
-    }
+class LicenseDropdown extends React.Component<LicenseDropdownProps> {
 
     render() {
         return (
-            <Search
+            <DataList
+                clearOnSelect
+                width={"100%"}
                 placeholder="Search for a license..."
-                loading={false}
-                onResultSelect={(e, { result }) => this.props.onChange(e, { value: result })}
-                onSearchChange={(e, { value }) => this.handleSearchChange(value)}
-                results={this.state.results}
-                value={this.state.value}
+                onSelect={identifier => {
+                    const license = allLicenses.find(it => it.identifier === identifier)!;
+                    const value = { title: license.name, link: license.link, identifier: license.identifier }
+                    this.props.onChange({ target: { value } });
+                }}
+                options={contentValuePairLicenses}
             />
         );
     }
@@ -445,11 +428,12 @@ interface SubjectsProps {
 const Subjects = ({ subjects, errors, onChange }: SubjectsProps) => {
     const elements = subjects.map((value, index) => {
         const sharedProps = { value, onChange, index };
-        return <Form.Group key={index} widths="equal">
-            <InputInList name="term" displayName="Term" error={errors[index]}
-                {...sharedProps} />
-            <InputInList name="identifier" displayName="Identifier" {...sharedProps} />
-        </Form.Group>;
+        return (
+            <Flex key={index}>
+                <Box mr="0.5em" width={1 / 2}><InputInList name="term" displayName="Term" error={errors[index]}
+                    {...sharedProps} /></Box>
+                <Box width={1 / 2}><InputInList name="identifier" displayName="Identifier" {...sharedProps} /></Box>
+            </Flex>);
     });
     return <>{elements}</>;
 };
@@ -463,20 +447,21 @@ interface RelatedIdentifiersProps {
 const RelatedIdentifiers = ({ relatedIdentifiers, errors, onChange }: RelatedIdentifiersProps) => {
     const elements = relatedIdentifiers.map((value, index) => {
         const sharedProps = { value, onChange, index };
-        return <Form.Group key={index} widths="equal">
-            <InputInList name="identifier" displayName="Identifier" error={errors[index]}
-                {...sharedProps} />
-
-            <Form.Dropdown label="Type"
-                search
-                searchInput={{ type: "string" }}
-                selection
-                options={identifierTypes}
-                value={value.relation}
-                placeholder="Select type"
-                onChange={(e, { value }) => onChange(value, index, "relation")}
-            />
-        </Form.Group>;
+        return <Flex key={index}>
+            <Box width={1 / 2} mr="0.5em">
+                <InputInList name="identifier" displayName="Identifier" error={errors[index]}
+                    {...sharedProps} />
+            </Box>
+            <Box width={1 / 2}>
+                <label><TextSpan bold>Type</TextSpan>
+                    <DataList
+                        options={contentValuePairIdentifierTypes}
+                        placeholder="Select type"
+                        onSelect={value => onChange(value, index, "relation")}
+                    />
+                </label>
+            </Box>
+        </Flex>;
     });
 
     return <>{elements}</>;
@@ -494,13 +479,14 @@ const Contributors = ({ contributors, errors, onChange }: CollaboratorsProps) =>
             contributors.map((value, index) => {
                 const sharedProps = { value, onChange, index };
 
-                return <Form.Group key={index} widths="equal">
-                    <InputInList name="name" displayName="Name" {...sharedProps}
-                        error={errors[index]} />
-                    <InputInList name="affiliation" displayName="Affiliation" {...sharedProps} />
-                    <InputInList name="orcId" displayName="ORCID" {...sharedProps} />
-                    <InputInList name="gnd" displayName="GND" {...sharedProps} />
-                </Form.Group>
+                return (
+                    <Flex key={index}>
+                        <Box mr="0.5em" width={1 / 4}><InputInList name="name" displayName="Name" {...sharedProps}
+                            error={errors[index]} /></Box>
+                        <Box mr="0.5em" width={1 / 4}><InputInList name="affiliation" displayName="Affiliation" {...sharedProps} /></Box>
+                        <Box mr="0.5em" width={1 / 4}><InputInList name="orcId" displayName="ORCID" {...sharedProps} /></Box>
+                        <Box mr="0.5em" width={1 / 4}><InputInList name="gnd" displayName="GND" {...sharedProps} /></Box>
+                    </Flex>)
             })
         }
     </>
@@ -513,25 +499,30 @@ const InputInList = (p: {
     onChange: (value, i: number, name: string) => void,
     error?: any
 }) => (
-        <Form.Input
-            fluid
-            label={p.displayName}
-            placeholder={`${p.displayName}...`}
-            value={p.value[p.name]}
-            onChange={(e, { value }) => p.onChange(value, p.index, p.name)}
-            error={p.error}
-        />
+        <label><TextSpan bold>{p.displayName}</TextSpan>
+            <Input
+                placeholder={`${p.displayName}...`}
+                value={p.value[p.name]}
+                onChange={({ target: { value } }) => p.onChange(value, p.index, p.name)}
+                error={p.error}
+            />
+        </label>
     );
 
 const FormFieldList = ({ items, name, onChange }) =>
     <>
         {
             items.map((c, i) =>
-                <Form.Input
+                <Input
+                    mt="0.4em"
+                    mb="0.4em"
                     key={i}
                     value={c}
                     placeholder={`Enter ${name}`}
-                    onChange={(e, { value }) => onChange(value, i)}
+                    onChange={({ target }) => onChange(target.value, i)}
                 />)
         }
     </>;
+
+
+const Required = () => <TextSpan color="red">{" *"}</TextSpan>

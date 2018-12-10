@@ -12,11 +12,11 @@ describe("File Operations", () => {
 describe("To file text", () => {
     test("Single file", () => {
         const firstFile = mockFiles_SensitivityConfidential.items[0];
-        expect(FileUtils.toFileText([firstFile])).toBe("1 file selected.");
+        expect(FileUtils.toFileText([firstFile])).toBe("1 file selected");
     });
 
     test("Multiple files", () => {
-        expect(FileUtils.toFileText(mockFiles_SensitivityConfidential.items)).toBe("10 files selected.")
+        expect(FileUtils.toFileText(mockFiles_SensitivityConfidential.items)).toBe("10 files selected")
     });
 });
 

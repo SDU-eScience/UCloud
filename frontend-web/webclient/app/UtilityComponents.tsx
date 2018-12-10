@@ -1,47 +1,30 @@
 import * as React from "react";
-import { Icon as SIcon, IconProps, Popup } from "semantic-ui-react";
-import { Icon, Heading, Box, Flex, Relative, Absolute } from "ui-components";
-import styled from "styled-components";
+import { Icon, FtIcon, Heading, Absolute, Flex, Text } from "ui-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
+import { IconName } from "ui-components/Icon";
+import { ThemeColor } from "ui-components/theme";
+import { FtIconProps } from "UtilityFunctions";
 
-const IconGroup = styled(Box)`
-    position: relative;
-    display: inline-block;
-`
 
-const _FileIcon = ({ name, shared = false, link = false, color }: FileIconProps) => 
+interface FileIconProps { link?: boolean, shared?: boolean, fileIcon: FtIconProps, ext?: string, color?: ThemeColor, size?: string | number  }
+export const FileIcon = ({ ext, shared = false, link = false, fileIcon, color }: FileIconProps) => 
     link || shared ?
-        <Relative>
-            <IconGroup>
-                <Icon name={"files"} color="blue"/>
-                <Absolute top={"40%"} right={"-10%"}>
-                    <Dropdown>
-                        <Icon size={"10px"} name={"share"} color={"gray"}/>
-                        <DropdownContent color="white" colorOnHover={false} backgroundColor={"black"}>
-                            {shared ? "This file is shared" : "This is a link to a file"}
-                        </DropdownContent>
-                    </Dropdown>
-                </Absolute>
-            </IconGroup>
-        </Relative> : null
+    <Flex style={{position: "relative"}}>
+        <FtIcon size={30} fileIcon={fileIcon}/>
+        <Absolute bottom={"-6px"} right={"-2px"}>
+            <Dropdown>
+                <Icon size={"15px"} name={"link"} color2={"white"}/>
+                <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
+                    <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
+                </DropdownContent>
+            </Dropdown>
+        </Absolute>
+    </Flex> : <FtIcon size={30} fileIcon={fileIcon}/>
 
-
-interface FileIconProps extends IconProps { link?: boolean, shared?: boolean }
-export const FileIcon = ({ name, size, shared = false, link = false, color }: FileIconProps) =>
-    link || shared ?
-        <SIcon.Group size={size}>
-            <SIcon name={name} color={color} />
-            <Popup
-                content={shared ? "This file is shared" : "This is a link to a file"}
-                position="right center"
-                trigger={<SIcon corner color="grey" name={shared ? "users" : "share"}/>}
-            />
-        </SIcon.Group> :
-        <SIcon name={name} size={size} color={color} />
 
 export function Arrow({ name }: { name: "arrowUp" | "arrowDown" | undefined}) {
-    if (name === "arrowUp") return (<Icon name="arrowUp" />);
-    else if (name === "arrowDown") return (<Icon name="arrowDown" />);
+    if (name === "arrowUp") return (<Icon name="arrowDown" rotation="180" size=".7em" mr=".4em" />);
+    else if (name === "arrowDown") return (<Icon name="arrowDown" size=".7em" mr=".4em" />);
     return null;
 }
 

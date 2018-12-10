@@ -1,8 +1,11 @@
 import * as React from "react";
 import { Flex, Box, Hide } from "ui-components";
+import * as Heading from "ui-components/Heading";
+import { LoadableContent } from "LoadableContent";
+import { default as Spinner } from "LoadingIcon/LoadingIcon_new";
 
-interface MainContainer { sidebar?: React.ReactNode, main?: React.ReactNode, additional?: React.ReactNode, header?: React.ReactNode }
-export const MainContainer = ({ sidebar, main, additional, header }: MainContainer) => (
+export interface MainContainerProps { sidebar?: React.ReactNode, main?: React.ReactNode, additional?: React.ReactNode, header?: React.ReactNode }
+export const MainContainer = ({ sidebar, main, additional, header }: MainContainerProps) => (
     <React.StrictMode>
         <Box mb={16}>
             {header}
@@ -23,3 +26,25 @@ export const MainContainer = ({ sidebar, main, additional, header }: MainContain
         </Flex>
     </React.StrictMode>
 );
+
+export interface LoadingMainContainerProps<T = any> extends MainContainerProps {
+    loadable: LoadableContent<T>
+    fallbackHeader?: JSX.Element
+    fallbackSidebar?: JSX.Element
+}
+
+export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Element {
+    if (!props.loadable.content) {
+        const main = !!props.loadable.error ? 
+            <>
+                <Heading.h2>{props.loadable.error.statusCode} - {props.loadable.error.errorMessage}</Heading.h2>
+            </> : 
+            <Spinner size={24}/>
+        return <MainContainer
+            header={props.fallbackHeader}
+            sidebar={props.fallbackSidebar}
+            main={main} />;
+    } else {
+        return <MainContainer {...props} />
+    }
+}

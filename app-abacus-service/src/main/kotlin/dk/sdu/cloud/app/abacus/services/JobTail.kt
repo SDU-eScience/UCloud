@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.abacus.services.ssh.use
 import dk.sdu.cloud.app.api.InternalFollowStdStreamsRequest
 import dk.sdu.cloud.app.api.InternalStdStreamsResponse
 import dk.sdu.cloud.app.api.JobState
+import kotlin.math.max
 import kotlin.math.min
 
 class JobTail(
@@ -57,8 +58,8 @@ class JobTail(
             }
 
             return respond(
-                stdout, stdout.count { it == '\n' } + lines.stdoutLineStart,
-                stderr, stderr.count { it == '\n' } + lines.stderrLineStart
+                stdout, stdout.count { it == '\n' } + max(1, lines.stdoutLineStart),
+                stderr, stderr.count { it == '\n' } + max(1, lines.stderrLineStart)
             )
         }
     }

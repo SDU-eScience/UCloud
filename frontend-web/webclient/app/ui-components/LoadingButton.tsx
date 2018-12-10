@@ -1,12 +1,14 @@
 import * as React from "react";
 import { Button, Icon } from ".";
+import { ButtonProps } from "./Button";
+import { ThemeColor } from "./theme";
 
-const LoadingButton = ({ loading, color, content, ...props }) => loading ?
-    <Button color={color} disabled {...props}>
+const LoadingButton = ({ loading, ...props }: ButtonProps & { loading: boolean, children: any, color: ThemeColor } & any) => loading ?
+    <Button color={props.color} disabled {...props}>
         <i className="fas fa-circle-notch fa-spin" />
     </Button> :
-    <Button color={color} {...props}>
-        {content}{props.children}
+    <Button color={props.color} {...props}>
+        {props.content}{props.children}
     </Button>
 
 export default LoadingButton;

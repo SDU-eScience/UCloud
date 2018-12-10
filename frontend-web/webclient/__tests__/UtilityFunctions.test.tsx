@@ -173,7 +173,7 @@ test("Text extension", () =>
 );
 
 test("Sound extension", () =>
-    expect(UF.extensionType("wav")).toBe("sound")
+    expect(UF.extensionType("wav")).toBe("audio")
 );
 
 test("Archive extension", () =>
@@ -181,7 +181,7 @@ test("Archive extension", () =>
 );
 
 test("No extension", () =>
-    expect(UF.extensionType(".exe")).toBe("")
+    expect(UF.extensionType(".exe")).toBeNull()
 );
 
 // Extension type from path
@@ -191,52 +191,16 @@ test("Extract code type from path", () =>
 );
 
 test("Extract sound type from path", () =>
-    expect(UF.extensionTypeFromPath("/Home/user@user.dk/startupsound.mp3")).toBe("sound")
+    expect(UF.extensionTypeFromPath("/Home/user@user.dk/startupsound.mp3")).toBe("audio")
 );
 
 test("Extract no type from path", () =>
-    expect(UF.extensionTypeFromPath("/Home/user@user.dk/theme_hospital")).toBe("")
+    expect(UF.extensionTypeFromPath("/Home/user@user.dk/theme_hospital")).toBeNull()
 );
 
 // Icon from file path
 
 const HOME_FOLDER = "/home/user@test.dk/";
-
-test("Code icon", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}code.cc`, "FILE", HOME_FOLDER)).toBe("file code outline")
-);
-
-test("Image icon", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}profile_iamge.png`, "FILE", HOME_FOLDER)).toBe("image")
-);
-
-test("Text icon", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}notes.txt`, "FILE", HOME_FOLDER)).toBe("file outline")
-);
-
-test("Sound icon", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}theme_song.wav`, "FILE", HOME_FOLDER)).toBe("volume up")
-);
-
-test("Archive icon", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}files.zip`, "FILE", HOME_FOLDER)).toBe("file archive outline")
-);
-
-test("Directory icon", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}Content`, "DIRECTORY", HOME_FOLDER)).toBe("folder")
-);
-
-test("Jobs icon", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}Jobs/`, "DIRECTORY", HOME_FOLDER)).toBe("tasks")
-);
-
-test("Favorites icon", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}Favorites/`, "DIRECTORY", HOME_FOLDER)).toBe("star")
-);
-
-test("File outline icon, fallback", () =>
-    expect(UF.iconFromFilePath(`${HOME_FOLDER}pacman.savegame`, "FILE", HOME_FOLDER)).toBe("file outline")
-);
 
 // Short UUID
 
@@ -422,48 +386,6 @@ describe("If Present", () => {
         UF.ifPresent(undefined, fun);
         expect(fun).toBeCalledTimes(0);
     });
-});
-
-describe("iconFromFilePath", () => {
-    const homeFolder = "/home/test@user.dk/";
-    const dir = "DIRECTORY";
-    const file = "FILE";
-
-    test("tasks", () =>
-        expect(UF.iconFromFilePath(`${homeFolder}Jobs/`, file, homeFolder)).toBe("tasks")
-    );
-
-    test("star", () =>
-        expect(UF.iconFromFilePath(`${homeFolder}Favorites/`, file, homeFolder)).toBe("star")
-    );
-
-    test("folder", () =>
-        expect(UF.iconFromFilePath("sounds", dir, homeFolder)).toBe("folder")
-    );
-
-    test("file outline", () =>
-        expect(UF.iconFromFilePath("notes.txt", file, homeFolder)).toBe("file outline")
-    );
-
-    test("file code outline", () =>
-        expect(UF.iconFromFilePath("main.kt", file, homeFolder)).toBe("file code outline")
-    );
-
-    test("volume up", () =>
-        expect(UF.iconFromFilePath("sound.wav", file, homeFolder)).toBe("volume up")
-    );
-
-    test("file archive outline", () =>
-        expect(UF.iconFromFilePath("name.tar.gz", file, homeFolder)).toBe("file archive outline")
-    );
-
-    test("file outline from default", () =>
-        expect(UF.iconFromFilePath("non-recognized-ending.fileThing", file, homeFolder)).toBe("file outline")
-    );
-
-    test("file outline from no period in path", () =>
-        expect(UF.iconFromFilePath("iHaveNoPeriodInPath", file, homeFolder)).toBe("file outline")
-    );
 });
 
 describe("defaultErrorHandler", () => {

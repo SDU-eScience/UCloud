@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Modal as SModal, Button as SButton, List as SList } from "semantic-ui-react";
 import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
@@ -8,11 +7,17 @@ import { replaceHomeFolder, getFilenameFromPath, getParentPath, isDirectory, cre
 import * as uf from "UtilityFunctions";
 import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
-import { FileIcon } from "UtilityComponents";
+import { FileIcon, RefreshButton } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileListProps, FileSelectorModalProps, FileSelectorBodyProps, File } from ".";
 import { filepathQuery, isInvalidPathName } from "Utilities/FileUtilities";
-import { Input } from "ui-components";
+import { Input, Flex, Icon, Box, Button, Divider, List, OutlineButton } from "ui-components";
+import * as ReactModal from "react-modal";
+import * as Heading from "ui-components/Heading";
+import { TextSpan } from "ui-components/Text";
+import { Spacer } from "ui-components/Spacer";
+import { EntriesPerPageSelector } from "Pagination";
+import * as UF from "UtilityFunctions";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props, context) {
@@ -118,33 +123,58 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
 }
 
 export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorModalProps) => (
-    <SModal open={props.show} onClose={props.onHide} closeOnDimmerClick size="large">
-        <SModal.Header>
-            File selector
-            <SButton circular floated="right" icon="cancel" type="button" onClick={props.onHide} />
-            <SButton icon="redo" loading={props.loading} floated="right" circular onClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)} />
-            <CreateFolderButton createFolder={props.createFolder} />
-        </SModal.Header>
-        <SModal.Content scrolling>
-            <BreadCrumbs homeFolder={Cloud.homeFolder} currentPath={props.path} navigate={(path) => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />
-            <PaginationList
-                errorMessage={props.errorMessage}
-                onErrorDismiss={props.onErrorDismiss}
-                pageRenderer={(page) =>
-                    <FileSelectorBody
-                        canSelectFolders={!!canSelectFolders}
-                        {...props}
-                        page={page}
-                        fetchFiles={(path) => props.fetchFiles(path, page.pageNumber, page.itemsPerPage)}
-                    />
-                }
-                page={props.page}
-                onPageChanged={(pageNumber) => props.fetchFiles(props.path, pageNumber, props.page.itemsPerPage)}
-                onItemsPerPageChanged={(itemsPerPage) => props.fetchFiles(props.path, 0, itemsPerPage)}
-                loading={props.loading}
-            />
-        </SModal.Content>
-    </SModal>
+    <ReactModal isOpen={props.show} shouldCloseOnEsc ariaHideApp={false} onRequestClose={props.onHide}
+        style={{
+            content: {
+                top: "80px",
+                left: "25%",
+                right: "25%"
+            }
+        }}
+    >
+        <Spacer alignItems="center"
+            left={<Heading.h3>File selector</Heading.h3>}
+            right={
+                <>
+                    <CreateFolderButton createFolder={props.createFolder} />
+                    <Box mr="5px" />
+                    <Icon name="close" onClick={props.onHide} />
+                </>
+            }
+        />
+        <Divider />
+        <BreadCrumbs
+            homeFolder={Cloud.homeFolder}
+            currentPath={props.path}
+            navigate={path => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)}
+        />
+        <PaginationList
+            customEntriesPerPage
+            errorMessage={props.errorMessage}
+            onErrorDismiss={props.onErrorDismiss}
+            pageRenderer={page =>
+                <FileSelectorBody
+                    entriesPerPageSelector={
+                        <>
+                            <EntriesPerPageSelector
+                                entriesPerPage={page.itemsPerPage}
+                                content="Files per page"
+                                onChange={itemsPerPage => props.fetchFiles(props.path, page.pageNumber, itemsPerPage)}
+                            />
+                            <RefreshButton loading={props.loading} onClick={() => props.fetchFiles(props.path, page.pageNumber, page.itemsPerPage)} />
+                        </>}
+                    canSelectFolders={!!canSelectFolders}
+                    {...props}
+                    page={page}
+                    fetchFiles={path => props.fetchFiles(path, page.pageNumber, page.itemsPerPage)}
+                />
+            }
+            page={props.page}
+            onPageChanged={pageNumber => props.fetchFiles(props.path, pageNumber, props.page.itemsPerPage)}
+            onItemsPerPageChanged={itemsPerPage => props.fetchFiles(props.path, 0, itemsPerPage)}
+            loading={props.loading}
+        />
+    </ReactModal>
 );
 
 const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
@@ -152,40 +182,39 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
     const files = f.filter((it) => !disallowedPaths.some((d) => d === it.path));
     const { path } = props;
     return (
-        <>
-            <SList divided size="large">
-                <SList.Header>
-                    Filename
-                </SList.Header>
-                <CreatingFolder
-                    creatingFolder={props.creatingFolder}
-                    handleKeyDown={props.handleKeyDown}
-                />
-                <MockFolder // Return folder
-                    predicate={uf.removeTrailingSlash(path) !== uf.removeTrailingSlash(Cloud.homeFolder) && !(disallowedPaths.some(it => it === getParentPath(path)))}
-                    folderName=".."
-                    path={getParentPath(path)}
-                    canSelectFolders={canSelectFolders}
-                    setSelectedFile={props.setSelectedFile}
-                    fetchFiles={props.fetchFiles}
-                />
-                <MockFolder // Current folder
-                    predicate={onlyAllowFolders && !disallowedPaths.some(dP => uf.addTrailingSlash(dP) === uf.addTrailingSlash(path))}
-                    path={path}
-                    setSelectedFile={props.setSelectedFile}
-                    canSelectFolders
-                    folderName={`${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))} (Current folder)`}
-                    fetchFiles={() => null}
-                />
-                <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={canSelectFolders} />
-            </SList>
-        </>)
+        <List childPadding="10px">
+            <Flex>
+                Filename
+                <Box ml="auto" />
+                {props.entriesPerPageSelector}
+            </Flex>
+            <CreatingFolder
+                creatingFolder={props.creatingFolder}
+                handleKeyDown={props.handleKeyDown}
+            />
+            <MockFolder // Return folder
+                predicate={uf.removeTrailingSlash(path) !== uf.removeTrailingSlash(Cloud.homeFolder) && !(disallowedPaths.some(it => it === getParentPath(path)))}
+                folderName=".."
+                path={getParentPath(path)}
+                canSelectFolders={canSelectFolders}
+                setSelectedFile={props.setSelectedFile}
+                fetchFiles={props.fetchFiles}
+            />
+            <MockFolder // Current folder
+                predicate={onlyAllowFolders && !disallowedPaths.some(dP => uf.addTrailingSlash(dP) === uf.addTrailingSlash(path))}
+                path={path}
+                setSelectedFile={props.setSelectedFile}
+                canSelectFolders
+                folderName={`${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))} (Current folder)`}
+                fetchFiles={() => null}
+            />
+            <FileList files={files} setSelectedFile={props.setSelectedFile} fetchFiles={props.fetchFiles} canSelectFolders={canSelectFolders} />
+        </List>)
 };
 
 type CreateFolderButton = { createFolder?: () => void }
 const CreateFolderButton = ({ createFolder }: CreateFolderButton) =>
-    !!createFolder ?
-        (<SButton onClick={() => createFolder()} basic className="float-right" content="Create new folder" />) : null;
+    !!createFolder ? (<Button onClick={() => createFolder()}>Create new folder</Button>) : null;
 
 interface MockFolderProps {
     predicate: boolean
@@ -195,67 +224,68 @@ interface MockFolderProps {
     setSelectedFile: Function
     fetchFiles: (p: string) => void
 }
+
 function MockFolder({ predicate, path, folderName, fetchFiles, setSelectedFile, canSelectFolders }: MockFolderProps) {
     const folderSelection = canSelectFolders ? (
-        <SList.Content floated="right">
-            <SButton onClick={() => setSelectedFile({ path })} content="Select" />
-        </SList.Content>
+        <>
+            <Box ml="auto" />
+            <Button onClick={() => setSelectedFile({ path })}>Select</Button>
+        </>
     ) : null;
     return predicate ? (
-        <SList.Item className="pointer-cursor itemPadding" onClick={() => fetchFiles(path)}>
-            <SList.Content>
-                {folderSelection}
-                <SList.Icon name="folder" color="blue" />
-                {folderName}
-            </SList.Content>
-        </SList.Item>
+        <Flex onClick={() => fetchFiles(path)}>
+            <Icon name="folder" color="blue" />
+            {folderName}
+            {folderSelection}
+        </Flex>
     ) : null;
 }
 
 const CreatingFolder = ({ creatingFolder, handleKeyDown }) =>
     !creatingFolder ? null : (
-        <SList.Item className="itemPadding">
-            <SList.Content>
-                <Input
-                    onKeyDown={(e: any) => handleKeyDown(e.keyCode, e.target.value)}
-                    placeholder="Folder name..."
-                    autoFocus
-                >
-                    <SList.Icon className="margin-top-7px" name="folder" color="blue" />
-                    <input />
-                    <SButton content="Cancel" size="tiny" color="red" basic onClick={() => handleKeyDown(KeyCode.ESC)} />
-                </Input>
-            </SList.Content>
-        </SList.Item>
+        <Flex>
+            <Input
+                onKeyDown={(e: any) => handleKeyDown(e.keyCode, e.target.value)}
+                placeholder="Folder name..."
+                autoFocus
+            />
+            <Icon name="folder" color="blue" />
+            <OutlineButton color="red" onClick={() => handleKeyDown(KeyCode.ESC)}>Cancel</OutlineButton>
+        </Flex>
     );
 
-const UploadButton = ({ onClick }) => (<SButton type="button" content="Upload File" onClick={onClick} />);
-const RemoveButton = ({ onClick }) => (<SButton type="button" content="✗" onClick={onClick} />);
+const UploadButton = ({ onClick }) => (<Button type="button" onClick={onClick}>Upload File</Button>);
+const RemoveButton = ({ onClick }) => (<Button type="button" onClick={onClick}>✗</Button>);
 const FolderSelection = ({ canSelectFolders, setSelectedFile }) => canSelectFolders ?
-    (<SButton onClick={setSelectedFile} floated="right" content="Select" />) : null;
+    (<Button onClick={setSelectedFile}>Select</Button>) : null;
 
-const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: FileListProps) =>
-    !files.length ? null :
-        (<>
+const FileListIcon = ({ file, link }: { file: File, link: boolean }) => {
+    const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
+    return ( <FileIcon fileIcon={iconType} link={link} /> );
+}
+
+const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: FileListProps): JSX.Element => {
+    if (files.length == 0) return (<></>);
+
+    return (
+        <>
             {files.map((file, index) =>
                 file.fileType === "FILE" ? (
-                    <SList.Item key={index} className="itemPadding pointer-cursor">
-                        <SList.Content onClick={() => setSelectedFile(file)}>
-                            <SList.Icon name={uf.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)} />
-                            {getFilenameFromPath(file.path)}
-                        </SList.Content>
-                    </SList.Item>
+                    <Flex key={index} onClick={() => setSelectedFile(file)}>
+                        <FileListIcon file={file} link={file.link}/>{getFilenameFromPath(file.path)}
+                    </Flex>
                 ) : (
-                        <SList.Item key={index} className="itemPadding pointer-cursor">
-                            <SList.Content floated="right">
-                                <FolderSelection canSelectFolders={canSelectFolders} setSelectedFile={() => setSelectedFile(file)} />
-                            </SList.Content>
-                            <SList.Content onClick={() => fetchFiles(file.path)}>
-                                <FileIcon size={undefined} name="folder" link={file.link} color="blue" />
+                        <Flex key={index}>
+                            <TextSpan onClick={() => fetchFiles(file.path)}>
+                            <FileListIcon file={file} link={file.link}/>
                                 {getFilenameFromPath(file.path)}
-                            </SList.Content>
-                        </SList.Item>
+                            </TextSpan>
+                            <Box ml="auto" />
+                            <FolderSelection canSelectFolders={canSelectFolders} setSelectedFile={() => setSelectedFile(file)} />
+                        </Flex>
                     ))}
-        </>);
+        </>
+    );
+}
 
 export default FileSelector;

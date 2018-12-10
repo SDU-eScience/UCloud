@@ -1,8 +1,5 @@
 import { Page } from "Types";
-import { History } from "history";
-import { SemanticICONS, ButtonProps, ModalProps, SemanticCOLORS, IconProps } from "semantic-ui-react";
 import Cloud from "Authentication/lib";
-import { Moment } from "moment";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
@@ -10,13 +7,14 @@ import { IconName } from "ui-components/Icon";
 import { ComponentWithPage } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 import { RouterLocationProps } from "Utilities/URIUtilities";
+import { ThemeColor } from "ui-components/theme";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
     DESCENDING = "DESCENDING"
 }
 
-export type FileType = "FILE" | "DIRECTORY";
+export type FileType = "FILE" | "DIRECTORY" | "FAVFOLDER" | "TRASHFOLDER" | "RESULTFOLDER";
 export interface File {
     fileType: FileType
     path: string
@@ -52,9 +50,7 @@ export enum SortBy {
     SENSITIVITY = "SENSITIVITY"
 }
 
-export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps {
-    history: History
-}
+export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps {}
 
 export interface MockedTableProps {
     onCreateFolder: (a: number, c: number) => void
@@ -157,7 +153,8 @@ export interface FilesTableHeaderProps {
     customEntriesPerPage?: React.ReactNode
 }
 
-export interface FilenameAndIconsProps extends IconProps {
+export interface FilenameAndIconsProps {
+    size?: number | string
     file: File
     hasCheckbox: boolean
     onRenameFile?: (key: number, file: File, name: string) => void
@@ -169,7 +166,7 @@ export interface FileSelectorModalProps {
     show: boolean
     loading: boolean
     path: string
-    onHide: (event: any, data?: ButtonProps | ModalProps) => void
+    onHide: () => void
     page: Page<File>
     setSelectedFile: Function
     fetchFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
@@ -185,6 +182,7 @@ export interface FileSelectorModalProps {
 }
 
 export interface FileSelectorBodyProps {
+    entriesPerPageSelector?: React.ReactNode
     disallowedPaths?: string[]
     onlyAllowFolders?: boolean
     creatingFolder?: boolean
@@ -229,7 +227,7 @@ export interface MobileButtonsProps {
 }
 
 export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
-export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: SemanticICONS | IconName, color?: SemanticCOLORS }
+export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon: IconName, color?: ThemeColor }
 export type FileOperation = Operation | PredicatedOperation
 
 export interface ContextButtonsProps {
@@ -269,10 +267,10 @@ export interface DetailedFileSearchReduxState extends ComponentWithPage<File> {
     extensions: Set<string>
     tags: Set<string>
     sensitivities: Set<SensitivityLevel>
-    createdBefore?: Moment
-    createdAfter?: Moment
-    modifiedBefore?: Moment
-    modifiedAfter?: Moment
+    createdBefore?: Date
+    createdAfter?: Date
+    modifiedBefore?: Date
+    modifiedAfter?: Date
 }
 
 export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalidPath: boolean }

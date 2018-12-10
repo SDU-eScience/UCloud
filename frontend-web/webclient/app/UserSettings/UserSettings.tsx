@@ -133,7 +133,6 @@ class UserSettings extends React.Component<{}, UserSettingsState> {
                                         mt="1em"
                                         type="submit"
                                         color="green"
-                                        hoverColor="darkGreen"
                                     >
                                         Change password
                                     </Button>

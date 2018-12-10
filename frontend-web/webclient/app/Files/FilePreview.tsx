@@ -48,8 +48,10 @@ class FilePreview extends React.Component<FilePreviewProps> {
             case "image":
                 return (<img src={`${0}`} />)
             case "text":
-            case "sound":
+            case "audio":
+            case "video":
             case "archive":
+            case "pdf":
             default:
                 return (<div>Can't render content</div>)
         }

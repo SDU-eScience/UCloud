@@ -12,6 +12,8 @@ import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
 import { Hide, Heading } from "ui-components";
 import { fileTablePage } from "Utilities/FileUtilities";
+import { MainContainer } from "MainContainer/MainContainer";
+import { Navigation, Pages } from "./Navigation";
 
 class JobResults extends React.Component<AnalysesProps, AnalysesState> {
     constructor(props) {
@@ -42,26 +44,29 @@ class JobResults extends React.Component<AnalysesProps, AnalysesState> {
 
     render() {
         const { page, loading, fetchAnalyses, error, onErrorDismiss } = this.props;
+        const content = <List
+            customEmptyPage={<Heading>No jobs have been run on this account.</Heading>}
+            loading={loading}
+            onErrorDismiss={onErrorDismiss}
+            errorMessage={error}
+            onRefresh={() => fetchAnalyses(page.itemsPerPage, page.pageNumber)}
+            pageRenderer={(page) =>
+                <Table>
+                    <Header />
+                    <TableBody>
+                        {page.items.map((a, i) => <Analysis analysis={a} key={i} />)}
+                    </TableBody>
+                </Table>
+            }
+            page={page}
+            onItemsPerPageChanged={size => this.props.fetchAnalyses(size, 0)}
+            onPageChanged={pageNumber => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
+        />;
+
         return (
             <React.StrictMode>
-                <List
-                    customEmptyPage={<Heading>No jobs have been run on this account.</Heading>}
-                    loading={loading}
-                    onErrorDismiss={onErrorDismiss}
-                    errorMessage={error}
-                    onRefresh={() => fetchAnalyses(page.itemsPerPage, page.pageNumber)}
-                    pageRenderer={(page) =>
-                        <Table>
-                            <Header />
-                            <TableBody>
-                                {page.items.map((a, i) => <Analysis analysis={a} key={i} />)}
-                            </TableBody>
-                        </Table>
-                    }
-                    page={page}
-                    onItemsPerPageChanged={size => this.props.fetchAnalyses(size, 0)}
-                    onPageChanged={pageNumber => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
-                />
+                <MainContainer
+                    main={content} />
             </React.StrictMode>
         )
     }

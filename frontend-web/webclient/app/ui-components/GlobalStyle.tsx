@@ -36,7 +36,7 @@ const UIGlobalStyle = css`
  * 4. Use a 4-space tab width in all browsers (opinionated).
  * 5. Prevent adjustments of font size after orientation changes in
  *    IE on Windows Phone and in iOS.
- * 6. Breaks words to prevent overflow in all browsers (opinionated).
+ * 6. Breaks words to prevent overflow in all browsers (opinionated) NB: This causes problems in Buttons. Removed
  */
 
 html {
@@ -58,11 +58,12 @@ html {
 
   line-height: ${props => props.theme.lineHeights.standard}; /* 3 */
   font-weight: ${props => props.theme.fontWeights.regular};
+  color: ${props => props.theme.colors.text};
   -moz-tab-size: 4; /* 4 */
   tab-size: 4; /* 4 */
   -ms-text-size-adjust: 100%; /* 5 */
   -webkit-text-size-adjust: 100%; /* 5 */
-  word-break: break-word; /* 6 */
+  /* word-break: break-word;  */ /* 6 */
 }
 
 /* Sections

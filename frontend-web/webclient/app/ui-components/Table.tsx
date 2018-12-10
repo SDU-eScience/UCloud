@@ -1,6 +1,7 @@
 import styled from "styled-components";
 import { textAlign, TextAlignProps, WidthProps, width } from "styled-system";
 import { HideProps, hidden } from "./Hide";
+import theme from "./theme";
 
 export const Table = styled.table`
     width: 100%;
@@ -10,22 +11,29 @@ export const Table = styled.table`
 
 export const TableBody = styled.tbody``;
 
-export const TableRow = styled.tr`
-
-    & > td {
-        border-spacing: 0;
-        border-top: 1px solid rgba(34,36,38,.1);
-        padding-top: 11px;
-        padding-bottom: 11px;
-    }
-`;
-
 export const TableCell = styled.td<TextAlignProps & HideProps & WidthProps>`
     border: 0px;
     border-spacing: 0;
     ${width};
     ${textAlign};
     ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
+`;
+
+const highlighted = ({ highlighted }: { highlighted?: boolean }) => highlighted ? { backgroundColor: theme.colors.lightBlue } : null;
+
+
+const contentAlign = props => props.aligned ? { verticalAlign: props.aligned } : null;
+
+export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string }>`
+    ${highlighted};
+    ${contentAlign};
+
+    & > ${TableCell} {
+        border-spacing: 0;
+        border-top: 1px solid rgba(34,36,38,.1);
+        padding-top: 11px;
+        padding-bottom: 11px;
+    }
 `;
 
 export const TableHeader = styled.thead`

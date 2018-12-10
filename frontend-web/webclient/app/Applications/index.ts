@@ -3,9 +3,7 @@ import { Page } from "Types";
 import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
-import { DetailedResultReduxObject, ApplicationReduxObject, ComponentWithPage } from "DefaultObjects";
-
-export type ApplicationsProps = ApplicationReduxObject & ApplicationsOperations;
+import { DetailedResultReduxObject, ComponentWithPage } from "DefaultObjects";
 
 export interface Analysis {
     status: string
@@ -16,17 +14,6 @@ export interface Analysis {
     createdAt: number
     modifiedAt: number
     owner: string
-}
-
-export interface ApplicationsOperations {
-    prioritizeApplicationSearch: () => void
-    onErrorDismiss: () => void
-    updatePageTitle: () => void
-    setLoading: (loading: boolean) => void
-    setFavoritesLoading: (loading: boolean) => void
-    fetchApplications: (a: number, b: number) => void
-    fetchFavorites: (a: number, b: number) => void
-    receiveApplications: (applications: Page<Application>) => void
 }
 
 export interface AnalysesProps extends AnalysesStateProps, AnalysesOperations { }
@@ -68,6 +55,7 @@ export interface Application {
     modifiedAt: number
     description: ApplicationDescription
     tool: ApplicationTool
+    imageUrl: string
 }
 
 interface ApplicationTool {
@@ -102,6 +90,9 @@ export interface ApplicationDescription {
     invocation: any[]
     parameters: ApplicationParameter[]
     outputFileGlobs: string[]
+    website?: string
+    resources: { multiNodeSupport: boolean }
+    tags: string[]
 }
 
 export interface DetailedResultState {
@@ -125,13 +116,26 @@ export interface DetailedResultState {
 export type StdElement = { scrollTop: number, scrollHeight: number } | null
 
 export type MaxTime = {
-    hours: number | null
-    minutes: number | null
-    seconds: number | null
-} | null
+    hours: number
+    minutes: number
+    seconds: number
+}
 
 export interface JobSchedulingOptions {
     maxTime: MaxTime
+    numberOfNodes: number | null
+    tasksPerNode: number | null
+}
+
+export interface MaxTimeForInput {
+    hours: number | null,
+    minutes: number | null,
+    seconds: number | null
+
+}
+
+export interface JobSchedulingOptionsForInput {
+    maxTime: MaxTimeForInput | null
     numberOfNodes: number | null
     tasksPerNode: number | null
 }
@@ -145,7 +149,7 @@ export interface RunAppState {
 
     application?: Application
     parameterValues: {}
-    schedulingOptions: JobSchedulingOptions
+    schedulingOptions: JobSchedulingOptionsForInput
 }
 
 export interface RunAppProps {
@@ -245,15 +249,6 @@ interface ToolDescription {
     title: string,
     description: string
     backend: string
-}
-
-
-export interface ApplicationInformation {
-    owner: string
-    favorite?: boolean
-    createdAt, modifiedAt: number
-    description: Description
-    tool: Tool
 }
 
 export enum ParameterTypes {

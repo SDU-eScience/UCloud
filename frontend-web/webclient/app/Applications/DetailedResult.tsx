@@ -24,6 +24,7 @@ import { Flex, Box, List, Card } from "ui-components";
 import { Step, StepGroup } from "ui-components/Step";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
+import Icon, { IconName } from "ui-components/Icon";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -53,13 +54,12 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 
     componentDidMount() {
-        this.retrieveStdStreams();
-        let reloadIntervalId = window.setInterval(() => this.retrieveStdStreams(), 1_000);
+        let reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
         this.setState(() => ({ reloadIntervalId: reloadIntervalId }));
     }
 
     componentWillUnmount() {
-        if (this.state.reloadIntervalId) window.clearInterval(this.state.reloadIntervalId);
+        if (this.state.reloadIntervalId) window.clearTimeout(this.state.reloadIntervalId);
         this.state.promises.cancelPromises();
     }
 
@@ -109,6 +109,10 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
                 this.scrollIfNeeded();
                 if (response.complete) this.retrieveStateWhenCompleted();
+                else {
+                    let reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
+                    this.setState(() => ({ reloadIntervalId: reloadIntervalId }));
+                }
             },
 
             failure => {
@@ -129,7 +133,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
         this.props.fetchPage(this.jobId, pageNumber, itemsPerPage);
-        window.clearInterval(this.state.reloadIntervalId);
+        window.clearTimeout(this.state.reloadIntervalId);
     }
 
     favoriteFile = (file: File) => this.props.receivePage(favoriteFileFromPage(this.props.page, [file], Cloud));
@@ -139,22 +143,22 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             <h4>Progress</h4>
             <StepGroup>
                 <StepTrackerItem
-                    icon="fas fa-check"
+                    icon="checkDouble"
                     active={this.isStateActive("VALIDATED")}
                     complete={this.isStateComplete("VALIDATED")}
                     title={"Validated"} />
                 <StepTrackerItem
-                    icon="fas fa-hourglass-half"
+                    icon="hourglass"
                     active={this.isStateActive("PENDING")}
                     complete={this.isStateComplete("PENDING")}
                     title={"Pending"} />
                 <StepTrackerItem
-                    icon="fas fa-calendar"
+                    icon="calendar"
                     active={this.isStateActive("SCHEDULED")}
                     complete={this.isStateComplete("SCHEDULED")}
                     title={"Scheduled"} />
                 <StepTrackerItem
-                    icon="fas fa-stopwatch"
+                    icon="chrono"
                     active={this.isStateActive("RUNNING")}
                     complete={this.isStateComplete("RUNNING")}
                     title={"Running"} />
@@ -176,7 +180,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 domEntries.push(
                     <Box>
                         Application has completed successfully. Click
-                            <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}> here</Link>
+                            <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}> here </Link>
                         to go to the output.
                     </Box>
                 );
@@ -325,14 +329,13 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 }
 
-type ProgressTrackerIcon = "fas fa-check" |
-    "fas fa-hourglass-half" |
-    "fas fa-calendar" |
-    "fas fa-stopwatch"
-
-const StepTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: ProgressTrackerIcon }) => (
+const StepTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: IconName }) => (
     <Step active={props.active}>
-        <span><TextSpan fontSize={4} mr="0.7em"><i className={props.icon} /></TextSpan><TextSpan fontSize={3}>{props.title}</TextSpan></span>
+        <span>
+            {/* <TextSpan fontSize={4} mr="0.7em"><i className={props.icon} /></TextSpan> */}
+            <Icon name={props.icon} mr="0.7em" size="30px" color="iconColor" color2="iconColor2" />
+            <TextSpan fontSize={3}>{props.title}</TextSpan>
+        </span>
     </Step>
 );
 

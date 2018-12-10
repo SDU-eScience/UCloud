@@ -8,9 +8,11 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
-import dk.sdu.cloud.app.utils.withDatabase
+import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.db.withTransaction
-import io.mockk.mockk
+import dk.sdu.cloud.service.hibernateDatabase
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.initializeMicro
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -27,8 +29,8 @@ class JobHibernateDaoTest {
         listOf("authors"),
         "title",
         "description",
-        mockk(relaxed = true),
-        mockk(relaxed = true),
+        emptyList(),
+        emptyList(),
         listOf("Globs"),
         listOf()
     )
@@ -40,7 +42,7 @@ class JobHibernateDaoTest {
         2,
         SimpleDuration(1, 0, 0),
         listOf(""),
-        listOf("auther"),
+        listOf("author"),
         "title",
         "description",
         ToolBackend.UDOCKER
@@ -49,40 +51,50 @@ class JobHibernateDaoTest {
     @Test
     fun `create, find and update jobinfo test`() {
         val toolDao = ToolHibernateDAO()
-        val appDao = ApplicationHibernateDAO(toolDao)
+        val appDao = ApplicationHibernateDAO(toolDao, DefaultImageGenerator())
         val jobHibDao = JobHibernateDao(appDao)
 
-        withDatabase { db ->
-            db.withTransaction {
-                toolDao.create(it, user, normToolDesc)
-                appDao.create(it, user, normAppDesc)
-                val app = appDao.findByNameAndVersion(it, null, appName, version)
-                val jobWithToken = VerifiedJobWithAccessToken(
-                    VerifiedJob(
-                        app,
-                        emptyList(),
-                        systemId,
-                        user,
-                        1,
-                        1,
-                        SimpleDuration(0, 1, 0),
-                        VerifiedJobInput(emptyMap()),
-                        "abacus",
-                        JobState.VALIDATED,
-                        "Unknown"
-                    ),
-                    "token"
-                )
-                jobHibDao.create(it, jobWithToken)
+        val micro = initializeMicro()
+        micro.install(HibernateFeature)
+        val db = micro.hibernateDatabase
+        db.withTransaction(autoFlush = true) {
+            toolDao.create(it, user, normToolDesc)
+            appDao.create(it, user, normAppDesc)
+        }
 
-                val result = jobHibDao.findOrNull(it, systemId, user)
-                assertEquals(JobState.VALIDATED, result?.job?.currentState)
+        db.withTransaction(autoFlush = true) {
+            val app = appDao.findByNameAndVersion(it, null, appName, version)
+            val jobWithToken = VerifiedJobWithAccessToken(
+                VerifiedJob(
+                    app,
+                    emptyList(),
+                    systemId,
+                    user,
+                    1,
+                    1,
+                    SimpleDuration(0, 1, 0),
+                    VerifiedJobInput(emptyMap()),
+                    "abacus",
+                    JobState.VALIDATED,
+                    "Unknown"
+                ),
+                "token"
+            )
+            jobHibDao.create(it, jobWithToken)
+        }
 
-                jobHibDao.updateStateAndStatus(it, systemId, JobState.SUCCESS)
-                val result2 = jobHibDao.findOrNull(it, systemId, user)
-                assertEquals(JobState.SUCCESS, result2?.job?.currentState)
+        db.withTransaction(autoFlush = true) {
+            val result = jobHibDao.findOrNull(it, systemId, user)
+            assertEquals(JobState.VALIDATED, result?.job?.currentState)
+        }
 
-            }
+        db.withTransaction(autoFlush = true) {
+            jobHibDao.updateStateAndStatus(it, systemId, JobState.SUCCESS)
+        }
+
+        db.withTransaction(autoFlush = true) {
+            val result2 = jobHibDao.findOrNull(it, systemId, user)
+            assertEquals(JobState.SUCCESS, result2?.job?.currentState)
         }
     }
 }

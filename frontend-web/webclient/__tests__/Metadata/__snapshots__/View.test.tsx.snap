@@ -1,186 +1,517 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`View component Mount view 1`] = `
-<div>
-  <h1
-    className="ui header"
+Array [
+  <div
+    className="sc-bdVaJa jIaizL"
   >
-    <div
-      className="content"
+    <h2
+      className="sc-EHOje iXGhfy"
+      cursor="inherit"
+      fontSize={5}
     >
       Untitled project
-      <div
-        className="sub header"
-      >
-        <div
-          className="ui horizontal list"
-          role="list"
-        />
-      </div>
-    </div>
-  </h1>
+    </h2>
+    <div
+      className="sc-ifAKCX hEFUra"
+    />
+  </div>,
   <div
-    className="ui stackable divided grid"
+    className="sc-ifAKCX iCcktw"
   >
     <div
-      className="twelve wide column"
+      className="sc-bdVaJa cqSMqG"
+      width={
+        Array [
+          1,
+          0.8125,
+        ]
+      }
     >
+      <div
+        className="sc-bdVaJa sc-jTzLTM dtQBbz"
+      >
+        <div
+          className="sc-bdVaJa tfARS"
+        >
+          <h4
+            className="sc-EHOje iCzVTA"
+            cursor="inherit"
+            fontSize={3}
+          >
+            <div
+              className="sc-ifAKCX hEFUra"
+            >
+              <div
+                className="sc-bdVaJa hJeWHc"
+                width="20%"
+              >
+                <div
+                  className="sc-EHOje jgUTdN"
+                  cursor="inherit"
+                >
+                  <i
+                    className="fas fa-hand-pointer"
+                  />
+                </div>
+              </div>
+              <div
+                className="sc-bdVaJa fcWbLF"
+                width="80%"
+              >
+                Actions
+              </div>
+            </div>
+          </h4>
+          <a
+            className="sc-hMqMXs eXJRRJ"
+            color="text"
+            hoverColor="textHighlight"
+            href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
+            mb="1em"
+            onClick={[Function]}
+          >
+            <button
+              className="sc-htoDjs hLNMPh"
+              color="blue"
+              size="small"
+            >
+              <i
+                className="far fa-edit"
+                style={
+                  Object {
+                    "paddingRight": "0.4em",
+                  }
+                }
+              />
+              Edit
+            </button>
+          </a>
+          <h4
+            className="sc-EHOje iCzVTA"
+            cursor="inherit"
+            fontSize={3}
+          >
+            <div
+              className="sc-ifAKCX hEFUra"
+            >
+              <div
+                className="sc-bdVaJa hJeWHc"
+                width="20%"
+              >
+                <div
+                  className="sc-EHOje jgUTdN"
+                  cursor="inherit"
+                >
+                  <i
+                    className="fas fa-info"
+                  />
+                </div>
+              </div>
+              <div
+                className="sc-bdVaJa fcWbLF"
+                width="80%"
+              >
+                About
+              </div>
+            </div>
+          </h4>
+          <div
+            className="sc-bdVaJa sc-gipzik hpKfbc"
+            fontSize="large"
+          >
+            <a
+              href="https://spdx.org/licenses/AML.html"
+              rel="noopener"
+              target="_blank"
+            >
+              <button
+                className="sc-htoDjs hLNMPh"
+                color="blue"
+                size="small"
+              >
+                <i
+                  className="fas fa-book"
+                  style={
+                    Object {
+                      "paddingRight": "0.4em",
+                    }
+                  }
+                />
+                <span
+                  className="sc-EHOje cJvdXR"
+                  cursor="inherit"
+                >
+                  AML
+                </span>
+                <span
+                  className="sc-EHOje gsjfYZ"
+                  color="lightGray"
+                  cursor="inherit"
+                >
+                  License
+                </span>
+              </button>
+            </a>
+          </div>
+          <h4
+            className="sc-EHOje iCzVTA"
+            cursor="inherit"
+            fontSize={3}
+          >
+            <div
+              className="sc-ifAKCX hEFUra"
+            >
+              <div
+                className="sc-bdVaJa hJeWHc"
+                width="20%"
+              >
+                <div
+                  className="sc-EHOje jgUTdN"
+                  cursor="inherit"
+                >
+                  <i
+                    className="fas fa-hashtag"
+                  />
+                </div>
+              </div>
+              <div
+                className="sc-bdVaJa fcWbLF"
+                width="80%"
+              >
+                Keywords
+              </div>
+            </div>
+          </h4>
+          <div
+            className="sc-bdVaJa sc-gipzik dPbgGA"
+            fontSize="large"
+          >
+            <div
+              className="sc-jWBwVP kfhpxH"
+              color="black"
+              fontSize={0}
+            >
+              Example
+            </div>
+          </div>
+          <h4
+            className="sc-EHOje iCzVTA"
+            cursor="inherit"
+            fontSize={3}
+          >
+            <div
+              className="sc-ifAKCX hEFUra"
+            >
+              <div
+                className="sc-bdVaJa hJeWHc"
+                width="20%"
+              >
+                <div
+                  className="sc-EHOje jgUTdN"
+                  cursor="inherit"
+                >
+                  <i
+                    className="fas fa-bookmark"
+                  />
+                </div>
+              </div>
+              <div
+                className="sc-bdVaJa fcWbLF"
+                width="80%"
+              >
+                References
+              </div>
+            </div>
+          </h4>
+          <div
+            className="sc-bdVaJa sc-gipzik dPbgGA"
+            fontSize="large"
+          />
+          <h4
+            className="sc-EHOje iCzVTA"
+            cursor="inherit"
+            fontSize={3}
+          >
+            <div
+              className="sc-ifAKCX hEFUra"
+            >
+              <div
+                className="sc-bdVaJa hJeWHc"
+                width="20%"
+              >
+                <div
+                  className="sc-EHOje jgUTdN"
+                  cursor="inherit"
+                >
+                  <i
+                    className="fas fa-money-bill"
+                  />
+                </div>
+              </div>
+              <div
+                className="sc-bdVaJa fcWbLF"
+                width="80%"
+              >
+                Grants
+              </div>
+            </div>
+          </h4>
+          <div
+            className="sc-bdVaJa sc-gipzik dPbgGA"
+            fontSize="large"
+          />
+        </div>
+      </div>
       <p>
         Project description goes here...
       </p>
     </div>
     <div
-      className="four wide column"
+      className="sc-bdVaJa sc-jTzLTM jhzWaI"
+      width={
+        Array [
+          0,
+          0.1875,
+        ]
+      }
     >
-      <h4
-        className="ui header"
-      >
-        <i
-          aria-hidden="true"
-          className="hand pointer icon"
-        />
-        <div
-          className="content"
-        >
-          Actions
-        </div>
-      </h4>
       <div
-        className="ui list"
-        role="list"
+        className="sc-bdVaJa hpQzLR"
       >
         <div
-          className="item"
-          onClick={[Function]}
-          role="listitem"
+          className="sc-bdVaJa tfARS"
         >
-          <a
-            href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
-            onClick={[Function]}
+          <h4
+            className="sc-EHOje iCzVTA"
+            cursor="inherit"
+            fontSize={3}
           >
             <div
-              className="ui blue label metadata-detailed-tag"
-              onClick={[Function]}
+              className="sc-ifAKCX hEFUra"
             >
-              <i
-                aria-hidden="true"
-                className="edit icon"
-              />
-              Edit
-            </div>
-          </a>
-        </div>
-      </div>
-      <h4
-        className="ui header"
-      >
-        <i
-          aria-hidden="true"
-          className="info icon"
-        />
-        <div
-          className="content"
-        >
-          About
-        </div>
-      </h4>
-      <div
-        className="ui list"
-        role="list"
-      >
-        <div
-          className="item"
-          onClick={[Function]}
-          role="listitem"
-        >
-          <a
-            href="https://spdx.org/licenses/AML.html"
-            rel="noopener"
-            target="_blank"
-          >
-            <div
-              className="ui blue label metadata-detailed-tag"
-              onClick={[Function]}
-            >
-              <i
-                aria-hidden="true"
-                className="book icon"
-              />
-              AML
               <div
-                className="detail"
+                className="sc-bdVaJa hJeWHc"
+                width="20%"
               >
-                License
+                <div
+                  className="sc-EHOje jgUTdN"
+                  cursor="inherit"
+                >
+                  <i
+                    className="fas fa-hand-pointer"
+                  />
+                </div>
+              </div>
+              <div
+                className="sc-bdVaJa fcWbLF"
+                width="80%"
+              >
+                Actions
               </div>
             </div>
-          </a>
-        </div>
-      </div>
-      <h4
-        className="ui header"
-      >
-        <i
-          aria-hidden="true"
-          className="hashtag icon"
-        />
-        <div
-          className="content"
-        >
-          Keywords
-        </div>
-      </h4>
-      <div
-        className="ui list"
-        role="list"
-      >
-        <div
-          className="item"
-          onClick={[Function]}
-          role="listitem"
-        >
-          <div
-            className="ui label metadata-detailed-tag"
+          </h4>
+          <a
+            className="sc-hMqMXs eXJRRJ"
+            color="text"
+            hoverColor="textHighlight"
+            href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
+            mb="1em"
             onClick={[Function]}
           >
-            Example
+            <button
+              className="sc-htoDjs hLNMPh"
+              color="blue"
+              size="small"
+            >
+              <i
+                className="far fa-edit"
+                style={
+                  Object {
+                    "paddingRight": "0.4em",
+                  }
+                }
+              />
+              Edit
+            </button>
+          </a>
+          <h4
+            className="sc-EHOje iCzVTA"
+            cursor="inherit"
+            fontSize={3}
+          >
+            <div
+              className="sc-ifAKCX hEFUra"
+            >
+              <div
+                className="sc-bdVaJa hJeWHc"
+                width="20%"
+              >
+                <div
+                  className="sc-EHOje jgUTdN"
+                  cursor="inherit"
+                >
+                  <i
+                    className="fas fa-info"
+                  />
+                </div>
+              </div>
+              <div
+                className="sc-bdVaJa fcWbLF"
+                width="80%"
+              >
+                About
+              </div>
+            </div>
+          </h4>
+          <div
+            className="sc-bdVaJa sc-gipzik hpKfbc"
+            fontSize="large"
+          >
+            <a
+              href="https://spdx.org/licenses/AML.html"
+              rel="noopener"
+              target="_blank"
+            >
+              <button
+                className="sc-htoDjs hLNMPh"
+                color="blue"
+                size="small"
+              >
+                <i
+                  className="fas fa-book"
+                  style={
+                    Object {
+                      "paddingRight": "0.4em",
+                    }
+                  }
+                />
+                <span
+                  className="sc-EHOje cJvdXR"
+                  cursor="inherit"
+                >
+                  AML
+                </span>
+                <span
+                  className="sc-EHOje gsjfYZ"
+                  color="lightGray"
+                  cursor="inherit"
+                >
+                  License
+                </span>
+              </button>
+            </a>
           </div>
+          <h4
+            className="sc-EHOje iCzVTA"
+            cursor="inherit"
+            fontSize={3}
+          >
+            <div
+              className="sc-ifAKCX hEFUra"
+            >
+              <div
+                className="sc-bdVaJa hJeWHc"
+                width="20%"
+              >
+                <div
+                  className="sc-EHOje jgUTdN"
+                  cursor="inherit"
+                >
+                  <i
+                    className="fas fa-hashtag"
+                  />
+                </div>
+              </div>
+              <div
+                className="sc-bdVaJa fcWbLF"
+                width="80%"
+              >
+                Keywords
+              </div>
+            </div>
+          </h4>
+          <div
+            className="sc-bdVaJa sc-gipzik dPbgGA"
+            fontSize="large"
+          >
+            <div
+              className="sc-jWBwVP kfhpxH"
+              color="black"
+              fontSize={0}
+            >
+              Example
+            </div>
+          </div>
+          <h4
+            className="sc-EHOje iCzVTA"
+            cursor="inherit"
+            fontSize={3}
+          >
+            <div
+              className="sc-ifAKCX hEFUra"
+            >
+              <div
+                className="sc-bdVaJa hJeWHc"
+                width="20%"
+              >
+                <div
+                  className="sc-EHOje jgUTdN"
+                  cursor="inherit"
+                >
+                  <i
+                    className="fas fa-bookmark"
+                  />
+                </div>
+              </div>
+              <div
+                className="sc-bdVaJa fcWbLF"
+                width="80%"
+              >
+                References
+              </div>
+            </div>
+          </h4>
+          <div
+            className="sc-bdVaJa sc-gipzik dPbgGA"
+            fontSize="large"
+          />
+          <h4
+            className="sc-EHOje iCzVTA"
+            cursor="inherit"
+            fontSize={3}
+          >
+            <div
+              className="sc-ifAKCX hEFUra"
+            >
+              <div
+                className="sc-bdVaJa hJeWHc"
+                width="20%"
+              >
+                <div
+                  className="sc-EHOje jgUTdN"
+                  cursor="inherit"
+                >
+                  <i
+                    className="fas fa-money-bill"
+                  />
+                </div>
+              </div>
+              <div
+                className="sc-bdVaJa fcWbLF"
+                width="80%"
+              >
+                Grants
+              </div>
+            </div>
+          </h4>
+          <div
+            className="sc-bdVaJa sc-gipzik dPbgGA"
+            fontSize="large"
+          />
         </div>
       </div>
-      <h4
-        className="ui header"
-      >
-        <i
-          aria-hidden="true"
-          className="bookmark icon"
-        />
-        <div
-          className="content"
-        >
-          References
-        </div>
-      </h4>
-      <div
-        className="ui list"
-        role="list"
-      />
-      <h4
-        className="ui header"
-      >
-        <i
-          aria-hidden="true"
-          className="money icon"
-        />
-        <div
-          className="content"
-        >
-          Grants
-        </div>
-      </h4>
-      <div
-        className="ui list"
-        role="list"
-      />
     </div>
-  </div>
-</div>
+  </div>,
+]
 `;

@@ -5,14 +5,14 @@ exports[`UserSettings Mount 1`] = `
   className="sc-bZQynM Ygzij"
 >
   <div
-    className="sc-htpNat dRpDjV"
+    className="sc-htpNat gbNhWf"
     width={0.7}
   >
     <div
-      className="sc-htpNat bPPcnA"
+      className="sc-htpNat ffMeME"
     >
       <h1
-        className="sc-bdVaJa fEtJUa"
+        className="sc-bdVaJa jOPwGr"
         cursor="inherit"
         fontSize={6}
       >
@@ -23,7 +23,7 @@ exports[`UserSettings Mount 1`] = `
       className="sc-bZQynM bTpYSl"
     >
       <div
-        className="sc-htpNat hwFUka"
+        className="sc-htpNat hVaCaW"
         width={
           Array [
             1,
@@ -32,23 +32,23 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-fjdhpX llNXsf"
+          className="sc-htpNat sc-jTzLTM dtQBbz"
         />
         <form
           onSubmit={[Function]}
         >
           <div
-            className="sc-htpNat jiarCv"
+            className="sc-htpNat dosJSB"
           >
             <label
-              className="sc-kpOJdX kaSAoa"
+              className="sc-ckVGcZ gXhFce"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               Current Password
               <input
-                className="sc-cSHVUG cjUtlX"
+                className="sc-chPdSV ktXeRQ"
                 id="default"
                 onChange={[Function]}
                 placeholder="Current password"
@@ -58,17 +58,17 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <div
-            className="sc-htpNat jiarCv"
+            className="sc-htpNat dosJSB"
           >
             <label
-              className="sc-kpOJdX kaSAoa"
+              className="sc-ckVGcZ gXhFce"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               New Password
               <input
-                className="sc-cSHVUG cjUtlX"
+                className="sc-chPdSV ktXeRQ"
                 id="default"
                 onChange={[Function]}
                 placeholder="New password"
@@ -78,17 +78,17 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <div
-            className="sc-htpNat jiarCv"
+            className="sc-htpNat dosJSB"
           >
             <label
-              className="sc-kpOJdX kaSAoa"
+              className="sc-ckVGcZ gXhFce"
               color="black"
               fontSize={1}
               fontWeight="bold"
             >
               Repeat new password
               <input
-                className="sc-cSHVUG cjUtlX"
+                className="sc-chPdSV ktXeRQ"
                 id="default"
                 onChange={[Function]}
                 placeholder="Repeat password"
@@ -98,7 +98,7 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <button
-            className="sc-htoDjs GrhCv"
+            className="sc-htoDjs bEJjtz"
             color="green"
             type="submit"
           >
@@ -106,7 +106,7 @@ exports[`UserSettings Mount 1`] = `
           </button>
         </form>
         <h1
-          className="sc-bdVaJa fEtJUa"
+          className="sc-bdVaJa jOPwGr"
           cursor="inherit"
           fontSize={6}
         >
@@ -116,11 +116,11 @@ exports[`UserSettings Mount 1`] = `
           You do NOT have a 2FA device connected to your account
         </b>
         <hr
-          className="sc-jTzLTM eodfCV"
+          className="sc-VigVT kXJjWb"
         />
         <div>
           <h3
-            className="sc-bdVaJa inHAPv"
+            className="sc-bdVaJa bNfRTK"
             cursor="inherit"
             fontSize={4}
           >
@@ -138,7 +138,7 @@ exports[`UserSettings Mount 1`] = `
               target="_blank"
             >
               <img
-                className="sc-jzJRlG dpgqIF"
+                className="sc-kAzzGY kHvfeN"
                 src={[Function]}
                 width="150px"
               />
@@ -149,7 +149,7 @@ exports[`UserSettings Mount 1`] = `
               target="_blank"
             >
               <img
-                className="sc-jzJRlG dpgqIF"
+                className="sc-kAzzGY kHvfeN"
                 src={[Function]}
                 width="150px"
               />
@@ -159,8 +159,9 @@ exports[`UserSettings Mount 1`] = `
             Once you are ready click the button below to get started:
           </p>
           <button
-            className="sc-htoDjs ekVhyU"
+            className="sc-htoDjs cYgazJ"
             color="green"
+            content="Start setup"
             disabled={true}
             onClick={[Function]}
           >
@@ -171,7 +172,7 @@ exports[`UserSettings Mount 1`] = `
         </div>
       </div>
       <div
-        className="sc-fjdhpX fGTFZv"
+        className="sc-htpNat sc-jTzLTM YxtQX"
         width={
           Array [
             0,
@@ -180,7 +181,7 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-htpNat jLddIv"
+          className="sc-htpNat jaqxvr"
         />
       </div>
     </div>

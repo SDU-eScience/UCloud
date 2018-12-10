@@ -4,7 +4,6 @@ import Flex from "./Flex"
 import Text, { TextSpan } from "./Text"
 import Icon, { IconName } from "./Icon"
 import * as Heading from "./Heading"
-import CloseButton from "./CloseButton"
 import { TextAlign } from "./Types";
 import { BoxProps } from "./Box";
 
@@ -83,10 +82,11 @@ const Banner = (props) => {
           </Text>
         </Box>
         {!!props.onClose && (
-          <CloseButton
+          <Icon
             onClick={props.onClose}
             ml={2}
             size={24}
+            name="close"
             title="close"
             mt="-2px"
           />

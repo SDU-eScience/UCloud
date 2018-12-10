@@ -22,7 +22,7 @@ sealed class InvocationParameter {
     abstract fun buildInvocationSnippet(parameters: AppParametersWithValues): String?
 }
 
-class WordInvocationParameter(val word: String) : InvocationParameter() {
+data class WordInvocationParameter(val word: String) : InvocationParameter() {
     override fun buildInvocationSnippet(parameters: AppParametersWithValues): String? {
         return word
     }
@@ -30,7 +30,7 @@ class WordInvocationParameter(val word: String) : InvocationParameter() {
 
 typealias AppParametersWithValues = Map<ApplicationParameter<*>, ParsedApplicationParameter?>
 
-class VariableInvocationParameter(
+data class VariableInvocationParameter(
     val variableNames: List<String>,
     val prefixGlobal: String = "",
     val suffixGlobal: String = "",
@@ -64,7 +64,7 @@ class VariableInvocationParameter(
     }
 }
 
-class BooleanFlagParameter(
+data class BooleanFlagParameter(
     val variableName: String,
     val flag: String
 ) : InvocationParameter() {

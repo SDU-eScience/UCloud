@@ -11,7 +11,7 @@ import Core from "Core";
 import header from "Navigation/Redux/HeaderReducer";
 import files from "Files/Redux/FilesReducer";
 import status from "Navigation/Redux/StatusReducer";
-import applications from "Applications/Redux/ApplicationsReducer";
+import applications from "Applications/Redux/BrowseReducer";
 import dashboard from "Dashboard/Redux/DashboardReducer";
 import zenodo from "Zenodo/Redux/ZenodoReducer";
 import sidebar from "Navigation/Redux/SidebarReducer";
@@ -23,6 +23,7 @@ import detailedResult from "Applications/Redux/DetailedResultReducer";
 import simpleSearch from "Search/Redux/SearchReducer";
 import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
 import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
+import * as AppRedux from "Applications/Redux";
 import { configureStore } from "Utilities/ReduxUtilities";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
@@ -43,7 +44,8 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     simpleSearch,
     detailedFileSearch,
     detailedApplicationSearch,
-    fileInfo
+    fileInfo,
+    ...AppRedux.reducers
 });
 
 

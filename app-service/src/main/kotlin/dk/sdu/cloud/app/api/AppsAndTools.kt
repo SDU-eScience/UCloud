@@ -13,8 +13,13 @@ data class Application(
     val createdAt: Long,
     val modifiedAt: Long,
     val description: NormalizedApplicationDescription,
-    val tool: Tool
-)
+    val tool: Tool,
+    val imageUrl: String = ""
+) {
+    override fun toString(): String {
+        return "Application(owner='$owner', createdAt=$createdAt, modifiedAt=$modifiedAt, description=$description, tool=$tool)"
+    }
+}
 
 data class ApplicationForUser(
     @JsonUnwrapped
@@ -33,7 +38,28 @@ data class NormalizedApplicationDescription(
     val invocation: List<InvocationParameter>,
     val parameters: List<ApplicationParameter<*>>,
     val outputFileGlobs: List<String>,
-    val tags: List<String> = emptyList()
+    val tags: List<String> = emptyList(),
+
+    val applicationType: ApplicationType = ApplicationType.BATCH,
+    val website: String? = null,
+    val resources: ResourceRequirements = ResourceRequirements()
+) {
+    override fun toString(): String {
+        return "NormalizedApplicationDescription(info=$info, tool=$tool)"
+    }
+}
+
+enum class ApplicationType {
+    BATCH
+}
+
+data class ResourceRequirements(
+    val multiNodeSupport: Boolean = false,
+    val coreRequirements: Int = -1,
+    val memoryRequirementsMb: Int = -1,
+    val gpuRequirements: Int = -1,
+    val tempStorageRequiremenstGb: Int = -1,
+    val persistentStorageRequirementsGb: Int = -1
 )
 
 @JsonTypeInfo(
@@ -280,7 +306,11 @@ data class NormalizedToolDescription(
     val title: String,
     val description: String,
     val backend: ToolBackend
-)
+) {
+    override fun toString(): String {
+        return "NormalizedToolDescription(info=$info, container='$container')"
+    }
+}
 
 private const val MAX_LENGTH = 255
 

@@ -10,6 +10,7 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.Tool
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.services.ApplicationHibernateDAO
+import dk.sdu.cloud.app.services.DefaultImageGenerator
 import dk.sdu.cloud.app.services.ToolHibernateDAO
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.HibernateFeature
@@ -104,7 +105,7 @@ class AppTest {
             setup = {
                 val user = "user"
                 val toolDao = ToolHibernateDAO()
-                val appDao = ApplicationHibernateDAO(toolDao)
+                val appDao = ApplicationHibernateDAO(toolDao, DefaultImageGenerator())
                 micro.install(HibernateFeature)
                 micro.hibernateDatabase.withTransaction {
                     toolDao.create(it, user, normToolDesc)
@@ -205,7 +206,7 @@ class AppTest {
             setup = {
                 val user = "user"
                 val toolDao = ToolHibernateDAO()
-                val appDao = ApplicationHibernateDAO(toolDao)
+                val appDao = ApplicationHibernateDAO(toolDao, DefaultImageGenerator())
                 micro.install(HibernateFeature)
                 micro.hibernateDatabase.withTransaction {
                     toolDao.create(it, user, normToolDesc)
@@ -277,7 +278,7 @@ class AppTest {
             setup = {
                 val user = "user"
                 val toolDao = ToolHibernateDAO()
-                val appDao = ApplicationHibernateDAO(toolDao)
+                val appDao = ApplicationHibernateDAO(toolDao, DefaultImageGenerator())
                 micro.install(HibernateFeature)
                 micro.hibernateDatabase.withTransaction {
                     toolDao.create(it, user, normToolDesc)
@@ -352,8 +353,8 @@ class AppTest {
             setup = {
                 val appDao = mockk<ApplicationHibernateDAO>()
 
-                every { appDao.findByNameAndVersion(any(), any(), any(), any()) } answers {
-                    app
+                every { appDao.findByNameAndVersionForUser(any(), any(), any(), any()) } answers {
+                    ApplicationForUser(app, false)
                 }
 
                 micro.install(HibernateFeature)

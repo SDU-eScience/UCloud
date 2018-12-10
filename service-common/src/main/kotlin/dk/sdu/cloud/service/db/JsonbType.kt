@@ -36,7 +36,7 @@ open class JsonbType : UserType, DynamicParameterizedType {
     override fun assemble(cached: Serializable?, owner: Any?): Any = deepCopy(cached)
     override fun disassemble(value: Any?): Serializable = deepCopy(value) as Serializable
     override fun deepCopy(value: Any?): Any {
-        return mapper.readValue(mapper.writeValueAsString(value), klass)
+        return mapper.readValue(mapper.writeValueAsString(value), createType())
     }
 
     override fun hashCode(x: Any?): Int {

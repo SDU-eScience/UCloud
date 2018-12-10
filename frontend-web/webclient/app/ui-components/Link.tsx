@@ -1,5 +1,4 @@
 import styled from 'styled-components';
-import theme from './theme';
 import { Link as ReactRouterLink } from "react-router-dom";
 import { style, space, color, SpaceProps, ColorProps } from 'styled-system';
 
@@ -17,6 +16,7 @@ const hoverColor = style({
 const Link = styled(ReactRouterLink) <LinkProps>`
   cursor: pointer;
   text-decoration: none;
+  display: inherit;
   ${space}
   ${color}
 
@@ -26,7 +26,6 @@ const Link = styled(ReactRouterLink) <LinkProps>`
 `
 
 Link.defaultProps = {
-  theme,
   color: "text",
   hoverColor: "textHighlight"
 };

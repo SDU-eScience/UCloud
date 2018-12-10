@@ -11,6 +11,7 @@ export { default as Flex } from './Flex'
 export { default as Heading } from './Heading'
 export { default as Hide } from './Hide'
 export { default as Icon } from './Icon'
+export { default as FtIcon } from './FtIcon'
 export { default as IconButton } from './IconButton'
 export { default as Image } from './Image'
 export { default as Input } from './Input'
@@ -36,6 +37,9 @@ export { default as ContainerForText } from "./ContainerForText";
 export { default as Progress } from "./Progress";
 export { default as List } from './List'
 export { default as ButtonGroup } from "./ButtonGroup";
+export { default as VerticalButtonGroup } from "./VerticalButtonGroup";
+export { default as DataList } from "./DataList";
+export { default as TextArea } from "./TextArea";
 
 export { default as Sidebar } from './Sidebar'
 
@@ -43,5 +47,6 @@ export { default as LoadingButton } from "./LoadingButton";
 
 export { default as theme } from './theme'
 export { default as UIGlobalStyle } from './GlobalStyle'
+export { default as ActionButton } from "./ActionButton";
 
 //export * from './theme'

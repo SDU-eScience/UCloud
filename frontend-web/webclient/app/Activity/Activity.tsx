@@ -1,18 +1,20 @@
 import * as React from "react";
 import { connect } from "react-redux";
 import { ActivityProps, Activity as ActivityType, TrackedActivity, CountedActivity, TrackedOperations, CountedOperations, ActivityDispatchProps } from "Activity";
-import { Feed as SFeed, SemanticICONS as SSemanticICONS } from "semantic-ui-react";
-import { Page } from "Types";
 import * as Pagination from "Pagination";
 import * as moment from "moment";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
-import { Link } from "react-router-dom";
 import { ActivityReduxObject } from "DefaultObjects";
 import { fetchActivity, setErrorMessage, setLoading } from "./Redux/ActivityActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Dispatch } from "redux";
 import { fileInfoPage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading"
+import Icon, { IconName } from "ui-components/Icon";
+import List from "ui-components/List";
+import { Box, Flex, Text, Link } from "ui-components";
+import Table, { TableRow, TableCell } from "ui-components/Table";
+import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 
 class Activity extends React.Component<ActivityProps> {
 
@@ -30,11 +32,11 @@ class Activity extends React.Component<ActivityProps> {
                     loading={loading}
                     errorMessage={error}
                     onErrorDismiss={setError}
-                    pageRenderer={(page: Page<ActivityType>) => <ActivityFeed activity={page.items} />}
+                    pageRenderer={page => <ActivityFeed activity={page.items} />}
                     page={page}
                     onRefresh={() => fetchActivity(page.pageNumber, page.itemsPerPage)}
-                    onItemsPerPageChanged={(itemsPerPage) => fetchActivity(page.pageNumber, itemsPerPage)}
-                    onPageChanged={(pageNumber) => fetchActivity(pageNumber, page.itemsPerPage)}
+                    onItemsPerPageChanged={itemsPerPage => fetchActivity(page.pageNumber, itemsPerPage)}
+                    onPageChanged={pageNumber => fetchActivity(pageNumber, page.itemsPerPage)}
                 />
             </React.StrictMode>
         );
@@ -42,7 +44,7 @@ class Activity extends React.Component<ActivityProps> {
 }
 
 export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => activity.length ? (
-    <SFeed>
+    <Table>
         {activity.map((a, i) => {
             switch (a.type) {
                 case "tracked": {
@@ -53,36 +55,55 @@ export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => acti
                 }
             }
         })}
-    </SFeed>
+    </Table>
 ) : null;
 
 const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
-    <SFeed.Event
-        icon={eventIcon(activity.operation).icon}
-        date={moment(new Date(activity.timestamp)).fromNow()}
-        summary={`Files ${operationToPastTense(activity.operation)}`}
-        extraText={activity.entries.map((entry, i) => !!entry.path ?
-            (<div key={i}>
-                <b>
-                    <Link to={fileInfoPage(entry.path)}>{getFilenameFromPath(entry.path)}</Link>
-                </b> was <b>{operationToPastTense(activity.operation)}</b> {entry.count === 1 ? "once" : <><b>{entry.count}</b> times</>}</div>) : null
-        )}
-    />
+    <TableRow contentAlign={"top"}>
+        <TableCell>
+            <Dropdown>
+                <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
+                <DropdownContent>
+                    {new Date(activity.timestamp).toLocaleString()}
+                </DropdownContent>
+            </Dropdown>
+        </TableCell>
+        <TableCell>
+            <Flex><Icon mr="0.5em" name={eventIcon(activity.operation).icon} /><Text fontSize={2}>{`Files ${operationToPastTense(activity.operation)}`}</Text></Flex>
+        </TableCell>
+        <TableCell>
+            {activity.entries.map((entry, i) => entry.path != null ?
+                (<Text fontSize={1} key={i}>
+                    <b>
+                        <Link to={fileInfoPage(entry.path)}>{getFilenameFromPath(entry.path)}</Link>
+                    </b> was <b>{operationToPastTense(activity.operation)}</b> {entry.count === 1 ? "once" : <><b>{entry.count}</b> times</>}</Text>) : null
+            )}
+        </TableCell>
+    </TableRow >
 );
 
 const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
-    <SFeed.Event
-        icon={eventIcon(activity.operation).icon}
-        date={moment(new Date(activity.timestamp)).fromNow()}
-        summary={`Files ${operationToPastTense(activity.operation)}`}
-        extraText={activity.files.map((f, i) => !!f.path ?
-            (<div key={i}>
-                <b>
-                    <Link to={fileInfoPage(f.path)}>{getFilenameFromPath(f.path)}</Link>
-                </b> was <b>{operationToPastTense(activity.operation)}</b>
-            </div>) : null
-        )}
-    />
+    <TableRow style={{ verticalAlign: "top" }}>
+        <TableCell>
+            <Dropdown>
+                <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
+                <DropdownContent>
+                    {new Date(activity.timestamp).toLocaleString()}
+                </DropdownContent>
+            </Dropdown>
+        </TableCell>
+        <TableCell>
+            <Flex><Icon mr="0.5em" name={eventIcon(activity.operation).icon} /><Text fontSize={2}>{`Files ${operationToPastTense(activity.operation)}`}</Text></Flex>
+        </TableCell>
+        <TableCell>
+            {activity.files.map((f, i) => f.path != null ?
+                (<Text fontSize={1} key={i}>
+                    <b>
+                        <Link to={fileInfoPage(f.path)}>{getFilenameFromPath(f.path)}</Link>
+                    </b> was <b>{operationToPastTense(activity.operation)}</b></Text>) : null
+            )}
+        </TableCell>
+    </TableRow>
 );
 
 const operationToPastTense = (operation: TrackedOperations | CountedOperations): string => {
@@ -91,26 +112,26 @@ const operationToPastTense = (operation: TrackedOperations | CountedOperations):
     if ((operation as string).endsWith("E")) return `${(operation as string).toLowerCase()}d`;
     return `${operation.toLowerCase()}ed`;
 }
-interface EventIconAndColor { icon: SSemanticICONS, color: "blue" | "green" | "red" }
+interface EventIconAndColor { icon: IconName, color: "blue" | "green" | "red", rotation?: 45 }
 const eventIcon = (operation: TrackedOperations | CountedOperations): EventIconAndColor => {
     switch (operation) {
         case "FAVORITE": {
-            return { icon: "star", color: "blue" };
+            return { icon: "starFilled", color: "blue" };
         }
         case "REMOVE_FAVORITE": {
-            return { icon: "star outline", color: "blue" };
+            return { icon: "starEmpty", color: "blue" };
         }
         case "DOWNLOAD": {
             return { icon: "download", color: "blue" };
         }
         case "CREATE": {
-            return { icon: "plus", color: "green" };
+            return { icon: "close", rotation: 45, color: "green" };
         }
         case "UPDATE": {
             return { icon: "refresh", color: "green" };
         }
         case "DELETE": {
-            return { icon: "delete", color: "red" };
+            return { icon: "close", color: "red" };
         }
         case "MOVED": {
             return { icon: "move", color: "green" };
@@ -120,11 +141,11 @@ const eventIcon = (operation: TrackedOperations | CountedOperations): EventIconA
 
 const mapStateToProps = ({ activity }): ActivityReduxObject => activity;
 const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
-    fetchActivity: async (pageNumber: number, pageSize: number) => {
+    fetchActivity: async (pageNumber, pageSize) => {
         dispatch(setLoading(true));
         dispatch(await fetchActivity(pageNumber, pageSize))
     },
-    setError: (error?: string) => dispatch(setErrorMessage(error)),
+    setError: error => dispatch(setErrorMessage(error)),
     setPageTitle: () => dispatch(updatePageTitle("Activity"))
 });
 

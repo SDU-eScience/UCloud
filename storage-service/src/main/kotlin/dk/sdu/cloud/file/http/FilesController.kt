@@ -2,7 +2,6 @@ package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy

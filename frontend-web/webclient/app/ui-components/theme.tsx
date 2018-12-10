@@ -23,7 +23,7 @@ export const space = [0, 4, 8, 16, 32, 64, 128]
 
 export const fontFamily = `'IBM Plex Sans', sans-serif`
 
-export const fontSizes = [12, 14, 16, 20, 24, 32, 40, 56, 72]
+export const fontSizes = [10, 14, 16, 20, 24, 32, 40, 56, 72]
 
 export const medium = 300
 export const bold = 700
@@ -115,6 +115,7 @@ export const textStyles = {
 // color palette
 const black = "#000";
 const white = "#fff";
+const textBlack = "#1e252e"
 //// Gray
 const lightGray = "#ebeff3";
 const midGray = "#c9d3df";
@@ -125,9 +126,9 @@ const lightBlue = "#cdf";
 const blue = "#0055d5";
 const darkBlue = "#049";
 //// Green
-const lightGreen = "#cec";
-const green = "#0a0"; // secondary
-const darkGreen = "#060";
+const lightGreen = "#00ff77";
+const green = "#00C05A"; // secondary
+const darkGreen = "#00823c";
 //// Red
 const lightRed = "#fcc";
 const red = "#c00"; // secondary
@@ -143,7 +144,7 @@ const purple = "#70b"; // secondary
 // should use colors from the palette above
 //// Light color theme
 // const text = "#001833";
-const text = darkGray;
+const text = textBlack;
 const textHighlight = blue;
 const headerText = lightGray;
 const headerBg = blue;
@@ -157,6 +158,9 @@ const paginationDisabled = lightGray;
 // Icons colors
 const iconColor = darkGray;
 const iconColor2 = gray;
+const FtIconColor = lightGray;
+const FtIconColor2 = gray;
+const spinnerColor = blue;
 
 
 const colors = {
@@ -190,6 +194,9 @@ const colors = {
   paginationDisabled,
   iconColor,
   iconColor2,
+  FtIconColor,
+  FtIconColor2,
+  spinnerColor,
 }
 
 export type ThemeColor = keyof typeof colors;
@@ -298,7 +305,7 @@ export const colorStyles = {
 
 // styled-system's `borderRadius` function can hook into the `radii` object/array
 export const radii = [0, 2, 6]
-export const radius = '2px'
+export const radius = '5px'
 
 export const maxContainerWidth = '1280px'
 
