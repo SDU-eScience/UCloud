@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as Modal from "react-modal";
 import { Progress, Icon, Button, ButtonGroup, Heading, Divider } from "ui-components";
-import * as Dropzone from "react-dropzone/dist/index";
+import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString } from "UtilityFunctions";
 import { fileSizeToString } from "Utilities/FileUtilities";
@@ -15,6 +15,7 @@ import { Box, Flex, Error } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import CloseButton from "ui-components/CloseButton";
 import { Toggle } from "ui-components/Toggle";
+import styled from "styled-components";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -156,16 +157,17 @@ class Uploader extends React.Component<UploaderProps> {
                                 onClick={this.startAllUploads}
                             ><Icon name={"upload"} />Start all!</Button>
                             : null}
-
-                        <Dropzone className="dropzone" onDrop={this.onFilesAdded}>
+                        <DropZone onDrop={this.onFilesAdded}>
                             <p>
-                                <Icon name="cloud upload" />
-                                Drop files here or <a href="#">browse</a>
+                                <Flex>
+                                    <Box mr="0.5em"><Icon name="upload" /></Box>
+                                    <Box mr="0.3em">Drop files here or </Box><a href="#">{" browse"}</a>
+                                </Flex>
                             </p>
                             <p>
                                 <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
                             </p>
-                        </Dropzone>
+                        </DropZone>
                     </div>
                 </Box>
             </Modal>
@@ -173,6 +175,21 @@ class Uploader extends React.Component<UploaderProps> {
         );
     }
 }
+
+const DropZone = styled(ReactDropzone)`
+
+    width: 100%;
+    height: 100px; 
+    border-width: 2px; 
+    border-color: rgb(102, 102, 102); 
+    border-style: dashed; 
+    border-radius: 5px;
+    margin: 16px 0 16px 0;
+
+    & > p {
+        margin: 16px;
+    }
+`
 
 const UploaderRow = (p: {
     file: File,
