@@ -192,9 +192,6 @@ const statusToIconName = (status: AppState) => {
 }
 const statusToColor = (status: AppState) => status === AppState.FAILURE ? "red" : "green";
 
-
-status === "FAILURE" ? "red" : "green";
-
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     errorDismiss: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, undefined)),
     updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
