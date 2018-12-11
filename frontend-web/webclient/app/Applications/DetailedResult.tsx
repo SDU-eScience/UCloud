@@ -183,7 +183,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         switch (this.state.appState) {
             case AppState.SUCCESS:
                 domEntries.push(
-                    <Box>
+                    <Box pt="0.8em" pb="0.8em">
                         Application has completed successfully. Click
                             <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}> here </Link>
                         to go to the output.
@@ -192,21 +192,21 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 break;
             case AppState.SCHEDULED:
                 domEntries.push(
-                    <Box>
+                    <Box pt="0.8em" pb="0.8em">
                         Your application is currently in the Slurm queue on ABC2 <Spinner loading color="primary" />
                     </Box>
                 );
                 break;
             case AppState.PREPARED:
                 domEntries.push(
-                    <Box>
+                    <Box pt="0.8em" pb="0.8em">
                         We are currently transferring your job from SDUCloud to ABC2 <Spinner loading color="primary" />
                     </Box>
                 );
                 break;
             case AppState.RUNNING:
                 domEntries.push(
-                    <Box>
+                    <Box pt="0.8em" pb="0.8em">
                         Your job is currently being executed on ABC2 <Spinner loading color="primary" />
                     </Box>
                 );
