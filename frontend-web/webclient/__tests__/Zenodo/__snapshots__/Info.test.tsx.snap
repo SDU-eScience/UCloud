@@ -4,9 +4,33 @@ exports[`Zenodo Info Mount component 1`] = `
 <div
   className="sc-bdVaJa tfARS"
 >
-  <i
-    className="fas fa-circle-notch fa-spin"
-  />
+  <svg
+    className="sc-gzVnrw kudwwP"
+    cursor="inherit"
+    fill="currentcolor"
+    height={24}
+    id="outer_ellipsis_svg__Layer_1"
+    spin={true}
+    viewBox="0 0 24 24"
+    width={24}
+    x={0}
+    xmlSpace="preserve"
+    y={0}
+  >
+    <style />
+    <ellipse
+      cx={5}
+      cy={12}
+      rx={3}
+      ry={3}
+    />
+    <ellipse
+      cx={19}
+      cy={12}
+      rx={3}
+      ry={3}
+    />
+  </svg>
    
 </div>
 `;

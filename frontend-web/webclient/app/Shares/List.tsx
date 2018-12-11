@@ -18,7 +18,7 @@ import { TextSpan } from "ui-components/Text";
 
 
 class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState> {
-    constructor(props) {
+    constructor(props: any) {
         super(props);
         this.state = {
             promises: new PromiseKeeper(),
@@ -74,7 +74,7 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
                         ))}
                     </ClickableDropdown>
                 </Flex>
-                <DefaultLoading loading={this.state.loading} size="big" />
+                <DefaultLoading loading={this.state.loading} />
                 <Heading.h3>Shared with Me</Heading.h3>
                 {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
                     <ListEntry

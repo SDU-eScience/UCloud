@@ -170,7 +170,7 @@ interface ManagedViewState {
 }
 
 export class ManagedView extends React.Component<any, ManagedViewState> {
-    constructor(props) {
+    constructor(props: any) {
         super(props);
         this.state = {}
     }
@@ -191,7 +191,7 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
 
     render() {
         if (!this.state.metadata) {
-            return <DefaultLoading size={undefined} loading className="" />;
+            return <DefaultLoading loading />;
         } else {
             return <View canEdit={this.state.canEdit} metadata={this.state.metadata} />;
         }

@@ -27,7 +27,7 @@ import { default as Spinner } from "LoadingIcon/LoadingIcon_new";
 import * as UF from "UtilityFunctions";
 
 class Dashboard extends React.Component<DashboardProps & { history: History }> {
-    constructor(props) {
+    constructor(props: any) {
         super(props);
         const { favoriteFiles, recentFiles, recentAnalyses } = props;
         props.updatePageTitle();
@@ -78,7 +78,7 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
     }
 }
 
-const DashBoardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: any }) => (
+const DashBoardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
             <Heading.h4>{title}</Heading.h4>

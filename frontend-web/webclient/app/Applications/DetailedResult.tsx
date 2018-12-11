@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Spinner } from "LoadingIcon/LoadingIcon"
+import { DefaultLoading } from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { shortUUID, failureNotification } from "UtilityFunctions";
@@ -17,7 +17,6 @@ import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 import { History } from "history";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
-import { Page } from "Types";
 import { RefreshButton } from "UtilityComponents";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { Flex, Box, List, Card } from "ui-components";
@@ -30,7 +29,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     private stdoutEl: StdElement;
     private stderrEl: StdElement;
 
-    constructor(props) {
+    constructor(props: any) {
         super(props);
         this.state = {
             complete: false,
@@ -193,21 +192,21 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             case AppState.SCHEDULED:
                 domEntries.push(
                     <Box pt="0.8em" pb="0.8em">
-                        Your application is currently in the Slurm queue on ABC2 <Spinner loading color="primary" />
+                        Your application is currently in the Slurm queue on ABC2 <DefaultLoading loading />
                     </Box>
                 );
                 break;
             case AppState.PREPARED:
                 domEntries.push(
                     <Box pt="0.8em" pb="0.8em">
-                        We are currently transferring your job from SDUCloud to ABC2 <Spinner loading color="primary" />
+                        We are currently transferring your job from SDUCloud to ABC2 <DefaultLoading loading />
                     </Box>
                 );
                 break;
             case AppState.RUNNING:
                 domEntries.push(
                     <Box pt="0.8em" pb="0.8em">
-                        Your job is currently being executed on ABC2 <Spinner loading color="primary" />
+                        Your job is currently being executed on ABC2 <DefaultLoading loading />
                     </Box>
                 );
                 break;
