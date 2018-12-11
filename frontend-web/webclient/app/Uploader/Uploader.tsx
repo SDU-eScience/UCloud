@@ -32,7 +32,6 @@ const newUpload = (file: File): Upload => ({
 class Uploader extends React.Component<UploaderProps> {
     constructor(props) {
         super(props);
-        console.log("Constructor");
     }
 
     onFilesAdded = (files: File[]) => {
@@ -118,7 +117,6 @@ class Uploader extends React.Component<UploaderProps> {
     }
 
     render() {
-        console.log("render");
         return (
             <Modal isOpen={this.props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={() => this.props.dispatch(setUploaderVisible(false))}
                 style={{
@@ -153,22 +151,25 @@ class Uploader extends React.Component<UploaderProps> {
                         {this.props.uploads.filter(it => !it.isUploading).length > 1 ?
                             <Button
                                 fullWidth
-
                                 color={"green"}
                                 onClick={this.startAllUploads}
                             ><Icon name={"upload"} />Start all!</Button>
                             : null}
-                        <DropZone onDrop={this.onFilesAdded}>
-                            <p>
-                                <Flex>
-                                    <Box mr="0.5em"><Icon name="upload" /></Box>
-                                    <Box mr="0.3em">Drop files here or </Box><a href="#">{" browse"}</a>
-                                </Flex>
-                            </p>
-                            <p>
-                                <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
-                            </p>
-                        </DropZone>
+                        <ReactDropzone onDrop={this.onFilesAdded}>
+                            {({ getRootProps }) =>
+                                <DropZoneBox {...getRootProps()}>
+                                    <p>
+                                        <Flex>
+                                            <Box mr="0.5em"><Icon name="upload" /></Box>
+                                            <Box mr="0.3em">Drop files here or </Box><a href="#">{" browse"}</a>
+                                        </Flex>
+                                    </p>
+                                    <p>
+                                        <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
+                                    </p>
+                                </DropZoneBox>
+                            }
+                        </ReactDropzone>
                     </div>
                 </Box>
             </Modal>
@@ -177,8 +178,7 @@ class Uploader extends React.Component<UploaderProps> {
     }
 }
 
-const DropZone = styled(ReactDropzone)`
-
+const DropZoneBox = styled(Box)`
     width: 100%;
     height: 100px; 
     border-width: 2px; 
