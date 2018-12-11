@@ -55,7 +55,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                     setTimes({ createdBefore: m });
                     return;
                 } else {
-                    setError("Before can't be before After");
+                    setError("Invalid date range");
                     return;
                 }
             } else if (!before && createdBefore) {
@@ -63,7 +63,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                     setTimes({ createdAfter: m })
                     return;
                 } else {
-                    setError("After can't be after Before");
+                    setError("Invalid date range");
                     return;
                 }
             }
@@ -73,7 +73,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                     setTimes({ modifiedBefore: m })
                     return;
                 } else {
-                    setError("After can't be after Before");
+                    setError("Invalid date range");
                     return;
                 }
             } else if (!before && modifiedBefore) {
@@ -81,7 +81,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                     setTimes({ modifiedAfter: m })
                     return;
                 } else {
-                    setError("After can't be after Before");
+                    setError("Invalid date range");
                     return;
                 }
             }

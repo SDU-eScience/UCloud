@@ -7,7 +7,7 @@ import { DetailedResultReduxObject, ComponentWithPage } from "DefaultObjects";
 
 export interface Analysis {
     status: string
-    state: string
+    state: AppState
     jobId: string
     appName: string
     appVersion: string
@@ -95,9 +95,19 @@ export interface ApplicationDescription {
     tags: string[]
 }
 
+export enum AppState {
+    VALIDATED = "VALIDATED",
+    PREPARED = "PREPARED",
+    SCHEDULED = "SCHEDULED",
+    RUNNING = "RUNNING",
+    TRANSFER_SUCCESS = "TRANSFER_SUCCESS",
+    SUCCESS = "SUCCESS",
+    FAILURE = "FAILURE"
+}
+
 export interface DetailedResultState {
     complete: boolean
-    appState: string
+    appState: AppState
     status: string
     app: {
         name: string

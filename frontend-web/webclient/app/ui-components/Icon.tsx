@@ -16,7 +16,22 @@ export interface IconProps extends SpaceProps, ColorProps {
   color2?: string
   rotation?: number
   cursor?: string
+  spin?: boolean
 }
+
+const spin = (props: { spin?: boolean }) => props.spin ? `
+  -webkit-animation: spin 1s linear infinite; /* Safari */
+  animation: spin 1s linear infinite;
+  @-webkit-keyframes spin {
+    0% { -webkit-transform: rotate(0deg); }
+    100% { -webkit-transform: rotate(360deg); }
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+` : null;
 
 const Icon = styled(IconBase) <IconProps>`
   flex: none;
@@ -24,6 +39,7 @@ const Icon = styled(IconBase) <IconProps>`
   cursor: ${props => props.cursor};
   ${props => props.rotation ? `transform: rotate(${props.rotation}deg);` : ""}
   ${space} ${color};
+  ${spin};
 `;
 
 Icon.displayName = "Icon"

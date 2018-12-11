@@ -9,7 +9,7 @@ import { List as PaginationList, EntriesPerPageSelector } from "Pagination";
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { ReduxObject, DetailedResultReduxObject } from "DefaultObjects";
-import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations } from ".";
+import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations, AppState } from ".";
 import { File, SortBy, SortOrder } from "Files";
 import { AllFileOperations, fileTablePage } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
@@ -34,7 +34,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         super(props);
         this.state = {
             complete: false,
-            appState: "VALIDATED",
+            appState: AppState.VALIDATED,
             status: "",
             app: { name: "", version: "" },
             stdout: "",
@@ -144,24 +144,29 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             <StepGroup>
                 <StepTrackerItem
                     icon="checkDouble"
-                    active={this.isStateActive("VALIDATED")}
-                    complete={this.isStateComplete("VALIDATED")}
+                    active={this.isStateActive(AppState.VALIDATED)}
+                    complete={this.isStateComplete(AppState.VALIDATED)}
                     title={"Validated"} />
                 <StepTrackerItem
                     icon="hourglass"
-                    active={this.isStateActive("PENDING")}
-                    complete={this.isStateComplete("PENDING")}
+                    active={this.isStateActive(AppState.PREPARED)}
+                    complete={this.isStateComplete(AppState.PREPARED)}
                     title={"Pending"} />
                 <StepTrackerItem
                     icon="calendar"
-                    active={this.isStateActive("SCHEDULED")}
-                    complete={this.isStateComplete("SCHEDULED")}
+                    active={this.isStateActive(AppState.SCHEDULED)}
+                    complete={this.isStateComplete(AppState.SCHEDULED)}
                     title={"Scheduled"} />
                 <StepTrackerItem
                     icon="chrono"
-                    active={this.isStateActive("RUNNING")}
-                    complete={this.isStateComplete("RUNNING")}
+                    active={this.isStateActive(AppState.RUNNING)}
+                    complete={this.isStateComplete(AppState.RUNNING)}
                     title={"Running"} />
+                <StepTrackerItem
+                    icon="move"
+                    active={this.isStateActive(AppState.TRANSFER_SUCCESS)}
+                    complete={this.isStateComplete(AppState.TRANSFER_SUCCESS)}
+                    title={"Transferring"} />
             </StepGroup>
         </div>
     );
@@ -176,32 +181,32 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         let domEntries = entries.map((it, idx) => <Box pt="0.8em" pb="0.8em" key={idx}><b>{it.key}</b>: {it.value}</Box>);
 
         switch (this.state.appState) {
-            case "SUCCESS":
+            case AppState.SUCCESS:
                 domEntries.push(
-                    <Box>
+                    <Box pt="0.8em" pb="0.8em">
                         Application has completed successfully. Click
                             <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}> here </Link>
                         to go to the output.
                     </Box>
                 );
                 break;
-            case "SCHEDULED":
+            case AppState.SCHEDULED:
                 domEntries.push(
-                    <Box>
+                    <Box pt="0.8em" pb="0.8em">
                         Your application is currently in the Slurm queue on ABC2 <Spinner loading color="primary" />
                     </Box>
                 );
                 break;
-            case "PENDING":
+            case AppState.PREPARED:
                 domEntries.push(
-                    <Box>
+                    <Box pt="0.8em" pb="0.8em">
                         We are currently transferring your job from SDUCloud to ABC2 <Spinner loading color="primary" />
                     </Box>
                 );
                 break;
-            case "RUNNING":
+            case AppState.RUNNING:
                 domEntries.push(
-                    <Box>
+                    <Box pt="0.8em" pb="0.8em">
                         Your job is currently being executed on ABC2 <Spinner loading color="primary" />
                     </Box>
                 );
@@ -228,7 +233,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     Standard Streams
                     &nbsp;
                     <Dropdown>
-                        <i className="fas fa-info-circle" />
+                        <Icon name="information" />
                         <DropdownContent colorOnHover={false} color="white" backgroundColor="black">
                             <span>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</span>
                         </DropdownContent>
@@ -301,41 +306,42 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         </Flex>
     );
 
-    static stateToOrder(state) {
+    static stateToOrder(state: AppState): 0 | 1 | 2 | 3 | 4 | 5 {
         switch (state) {
-            case "VALIDATED":
+            case AppState.VALIDATED:
                 return 0;
-            case "PENDING":
+            case AppState.PREPARED:
                 return 1;
-            case "SCHEDULED":
+            case AppState.SCHEDULED:
                 return 2;
-            case "RUNNING":
+            case AppState.RUNNING:
                 return 3;
-            case "SUCCESS":
+            case AppState.TRANSFER_SUCCESS:
                 return 4;
-            case "FAILURE":
-                return 4;
+            case AppState.SUCCESS:
+                return 5;
+            case AppState.FAILURE:
+                return 5;
             default:
                 return 0;
         }
     }
 
-    isStateComplete(queryState) {
-        return DetailedResult.stateToOrder(queryState) < DetailedResult.stateToOrder(this.state.appState);
-    }
+    isStateComplete = (queryState: AppState) =>
+        DetailedResult.stateToOrder(queryState) < DetailedResult.stateToOrder(this.state.appState);
 
-    isStateActive(queryState) {
-        return DetailedResult.stateToOrder(this.state.appState) === DetailedResult.stateToOrder(queryState);
-    }
+
+    isStateActive = (queryState: AppState) =>
+        DetailedResult.stateToOrder(this.state.appState) === DetailedResult.stateToOrder(queryState);
 }
 
 const StepTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: IconName }) => (
     <Step active={props.active}>
-        <span>
-            {/* <TextSpan fontSize={4} mr="0.7em"><i className={props.icon} /></TextSpan> */}
+        {props.complete ?
+            <Icon name="check" color="green" mr="0.7em" size="30px" /> :
             <Icon name={props.icon} mr="0.7em" size="30px" color="iconColor" color2="iconColor2" />
-            <TextSpan fontSize={3}>{props.title}</TextSpan>
-        </span>
+        }
+        <TextSpan fontSize={3}>{props.title}</TextSpan>
     </Step>
 );
 
@@ -348,11 +354,11 @@ const Stream = styled.pre`
 
 const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxObject => detailedResult;
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
-    detailedResultError: (error: string) => dispatch(detailedResultError(error)),
-    setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    setPageTitle: (jobId: string) => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),
-    receivePage: (page: Page<File>) => dispatch(receivePage(page)),
-    fetchPage: async (jobId: string, pageNumber: number, itemsPerPage: number) =>
+    detailedResultError: error => dispatch(detailedResultError(error)),
+    setLoading: loading => dispatch(setLoading(loading)),
+    setPageTitle: jobId => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),
+    receivePage: page => dispatch(receivePage(page)),
+    fetchPage: async (jobId, pageNumber, itemsPerPage) =>
         dispatch(await fetchPage(Cloud.username, jobId, pageNumber, itemsPerPage))
 });
 
