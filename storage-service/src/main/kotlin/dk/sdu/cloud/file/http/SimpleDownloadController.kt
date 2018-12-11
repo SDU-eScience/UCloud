@@ -159,7 +159,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
             audit(BulkFileAudit(request.files.map { null }, request))
 
             commandRunnerFactory.withContext(call.securityPrincipal.username) { ctx ->
-                val filesDownloaded = ArrayList<String>()
+                val filesDownloaded = ArrayList<String?>()
                 audit(BulkFileAudit(filesDownloaded, request))
                 okContentDeliveredExternally()
 

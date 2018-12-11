@@ -27,9 +27,6 @@
         <Logger name="dk.sdu.cloud.service.HealthCheck" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
-        <!--<Logger name="dk.sdu.cloud.storage.services.cephfs.StreamingProcessRunner" level="info" additivity="false">-->
-        <!--<AppenderRef ref="Console"/>-->
-        <!--</Logger>-->
         <Logger name="dk.sdu.cloud.service.EventProducer" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
@@ -37,6 +34,9 @@
             <AppenderRef ref="Console"/>
         </Logger>
         <Logger name="com.zaxxer.hikari" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="dk.sdu.cloud.service" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
     </Loggers>

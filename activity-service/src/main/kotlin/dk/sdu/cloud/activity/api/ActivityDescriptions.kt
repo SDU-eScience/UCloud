@@ -4,6 +4,8 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.service.PaginationRequest
+import io.ktor.http.HttpMethod
 
 object ActivityDescriptions : RESTDescriptions("activity") {
     val baseContext = "/api/activity"
@@ -44,6 +46,24 @@ object ActivityDescriptions : RESTDescriptions("activity") {
             +boundTo(ListActivityByPathRequest::itemsPerPage)
             +boundTo(ListActivityByPathRequest::page)
             +boundTo(ListActivityByPathRequest::path)
+        }
+    }
+
+    val listByUser = callDescription<ListActivityByUserRequest, ListActivityByUserResponse, CommonErrorMessage> {
+        name = "listByUser"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+        }
+
+        params {
+            +boundTo(ListActivityByUserRequest::itemsPerPage)
+            +boundTo(ListActivityByUserRequest::page)
         }
     }
 

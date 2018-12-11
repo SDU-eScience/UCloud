@@ -8,7 +8,8 @@ import dk.sdu.cloud.service.bearer
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.jobId
+import dk.sdu.cloud.service.safeJobId
+import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
 
 class ActivityController<DBSession>(
@@ -33,11 +34,19 @@ class ActivityController<DBSession>(
                     req.normalize(),
                     req.path,
                     call.request.bearer!!,
-                    call.request.jobId
+                    call.request.safeJobId
                 )
             }
 
             ok(page)
+        }
+
+        implement(ActivityDescriptions.listByUser) { req ->
+            ok(
+                db.withTransaction {
+                    activityService.findEventsForUser(it, req.normalize(), call.securityPrincipal.username)
+                }
+            )
         }
     }
 

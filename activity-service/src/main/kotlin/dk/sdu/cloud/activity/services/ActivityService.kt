@@ -128,6 +128,14 @@ class ActivityService<DBSession>(
         return activityDao.findByFileId(session, pagination, fileId)
     }
 
+    fun findEventsForUser(
+        session: DBSession,
+        pagination: NormalizedPaginationRequest,
+        user: String
+    ): Page<ActivityEvent> {
+        return activityDao.findByUser(session, pagination, user)
+    }
+
     suspend fun findStreamForUser(
         session: DBSession,
         pagination: NormalizedPaginationRequest,
