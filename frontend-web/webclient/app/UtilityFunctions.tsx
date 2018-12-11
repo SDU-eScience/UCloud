@@ -329,3 +329,12 @@ export function defaultErrorHandler(error: { request: XMLHttpRequest, response: 
 export function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+export function sortByToPrettierString(sortBy: SortBy): string {
+    switch (sortBy) {
+        case "ACL":
+            return "Members";
+        default:
+            return prettierString(sortBy);
+    }
+}

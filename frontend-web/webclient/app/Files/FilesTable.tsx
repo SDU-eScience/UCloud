@@ -122,7 +122,7 @@ const FilesTableHeader = ({
     );
 
 const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isSortedBy }: SortByDropdownProps) => asDropdown ? (
-    <ClickableDropdown trigger={<TextSpan>{UF.prettierString(currentSelection)}</TextSpan>} chevron>
+    <ClickableDropdown trigger={<TextSpan>{UF.sortByToPrettierString(currentSelection)}</TextSpan>} chevron>
         <Box ml="-16px" mr="-16px" pl="15px"
             hidden={sortOrder === SortOrder.ASCENDING && isSortedBy}
             onClick={() => onSelect(SortOrder.ASCENDING, currentSelection)}
@@ -141,7 +141,7 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
                 onClick={() => onSelect(sortOrder, sortByKey)}
                 hidden={sortByKey === currentSelection || sortByKey === SortBy.PATH}
             >
-                {UF.prettierString(sortByKey)}
+                {UF.sortByToPrettierString(sortByKey)}
             </Box>
         ))}
     </ClickableDropdown>) : <>{UF.prettierString(currentSelection)}</>;
