@@ -32,6 +32,7 @@ const newUpload = (file: File): Upload => ({
 class Uploader extends React.Component<UploaderProps> {
     constructor(props) {
         super(props);
+        console.log("Constructor");
     }
 
     onFilesAdded = (files: File[]) => {
@@ -117,6 +118,7 @@ class Uploader extends React.Component<UploaderProps> {
     }
 
     render() {
+        console.log("render");
         return (
             <Modal isOpen={this.props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={() => this.props.dispatch(setUploaderVisible(false))}
                 style={{
@@ -190,6 +192,12 @@ const DropZone = styled(ReactDropzone)`
     }
 `
 
+const privacyOptions = [
+    { text: "Private", value: "PRIVATE" },
+    { text: "Confidential", value: "CONFIDENTIAL" },
+    { text: "Sensitive", value: "SENSITIVE" }
+]
+
 const UploaderRow = (p: {
     file: File,
     extractArchive: boolean,
@@ -237,7 +245,7 @@ const UploaderRow = (p: {
                         chevron
                         trigger={prettierString(p.sensitivity)}
                         onChange={key => p.setSensitivity(key as Sensitivity)}
-                        options={[{ text: "Private", value: "PRIVATE" }, { text: "Confidential", value: "CONFIDENTIAL" }, { text: "Sensitive", value: "SENSITIVE" }]}
+                        options={privacyOptions}
                     />
                 </Flex>
             </Box>
@@ -286,7 +294,7 @@ const UploaderRow = (p: {
     );
 }
 
-const archiveExtensions: string[] = [".tar.gz"]
+const archiveExtensions: string[] = [".tar.gz", ".zip"]
 const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 
 const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({

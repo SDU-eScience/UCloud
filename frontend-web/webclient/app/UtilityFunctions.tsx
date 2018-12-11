@@ -87,11 +87,9 @@ export const uploadsNotifications = (finished: number, total: number) => swal({
 export const shareSwal = () => swal({
     title: "Share",
     input: "text",
-    html: `<label for="access-select">Access right </label>
-            <select id="access-select">
-                <option value=""></option>
-                <option value="read">Read</option>
-                <option value="read_edit">Read and Edit</option>
+    html: `<select id="access-select">
+                <option value="read">Can View</option>
+                <option value="read_edit">Can View and Edit</option>
             </select>`,
     showCloseButton: true,
     showCancelButton: true,

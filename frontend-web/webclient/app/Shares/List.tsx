@@ -344,7 +344,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                 >
                     <Flex alignItems="center" justifyContent="center">
                         <Icon size={18} name="search" />
-                        <Text ml="5px">Read</Text>
+                        <Text ml="5px">View</Text>
                     </Flex>
                 </Button>
                 <Button
@@ -363,30 +363,28 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
     );
 }
 
-function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
+async function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
     if (byState) url += `&state=${encodeURIComponent(byState)}`;
-    return Cloud.get(url).then(it => it.response);
+    return (await Cloud.get(url)).response;
 }
 
-function acceptShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`).then(e => e.response); // FIXME Add error handling
-}
+const acceptShare = async (shareId: ShareId): Promise<any> =>
+    (await Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`)).response; // FIXME Add error handling
 
-function revokeShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`).then(e => e.response); // FIXME Add error handling
-}
 
-function createShare(user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> {
-    return Cloud.put(`/shares/`, { sharedWith: user, path, rights }).then(e => e.response); // FIXME Add error handling
-}
+const revokeShare = async (shareId: ShareId): Promise<any> =>
+    (await Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`)).response; // FIXME Add error handling
 
-function updateShare(id: ShareId, rights: AccessRightValues[]): Promise<any> {
-    return Cloud.post(`/shares/`, { id, rights }).then(e => e.response);
-}
+const createShare = async (user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> =>
+    (await Cloud.put(`/shares/`, { sharedWith: user, path, rights })).response; // FIXME Add error handling
 
-const sharesByPath = (path: string): Promise<any> => {
-    return Cloud.get(sharesByPathQuery(path)).then(e => ({ items: [e.response] }));
-}
+const updateShare = async (id: ShareId, rights: AccessRightValues[]): Promise<any> =>
+    (await Cloud.post(`/shares/`, { id, rights })).response;
+
+const sharesByPath = async (path: string): Promise<any> => ({
+    items: [(await Cloud.get(sharesByPathQuery(path))).response]
+});
+
 
 export default connect()(List);
