@@ -12,7 +12,7 @@ class FileAnnotationService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val storageEventProducer: StorageEventProducer
 ) {
-    fun annotateFiles(ctx: Ctx, path: String, annotation: String) {
+    suspend fun annotateFiles(ctx: Ctx, path: String, annotation: String) {
         validateAnnotation(annotation)
 
         fs.setExtendedAttribute(ctx, path, "annotate${UUID.randomUUID().toString().replace("-", "")}", annotation)

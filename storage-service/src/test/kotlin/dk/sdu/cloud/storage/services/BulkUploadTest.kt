@@ -5,7 +5,7 @@ import dk.sdu.cloud.file.services.BulkUploadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import io.mockk.mockk
@@ -87,7 +87,7 @@ class BulkUploadTest {
         }
 
         val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withContext("user") {
+        runner.withBlockingContext("user") {
             service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
         }
 
@@ -124,7 +124,7 @@ class BulkUploadTest {
         }
 
         val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withContext("user") {
+        runner.withBlockingContext("user") {
             val result =
                 service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.RENAME, tarFile.inputStream())
 
@@ -169,7 +169,7 @@ class BulkUploadTest {
         }
 
         val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withContext("user") {
+        runner.withBlockingContext("user") {
             val result =
                 service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
@@ -209,7 +209,7 @@ class BulkUploadTest {
         }
 
         val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withContext("user") {
+        runner.withBlockingContext("user") {
             val result =
                 service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.REJECT, tarFile.inputStream())
 
@@ -251,7 +251,7 @@ class BulkUploadTest {
         }
 
         val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withContext("user") {
+        runner.withBlockingContext("user") {
             val result =
                 service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
@@ -291,7 +291,7 @@ class BulkUploadTest {
         }
 
         val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withContext("user") {
+        runner.withBlockingContext("user") {
             val result =
                 service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 
@@ -325,7 +325,7 @@ class BulkUploadTest {
             putFile("test/\$PWD", "contents")
         }
         val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withContext("user") {
+        runner.withBlockingContext("user") {
             val result =
                 service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
 

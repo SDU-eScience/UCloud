@@ -5,7 +5,7 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFSUserDao
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
-import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.services.withBlockingContext
 import org.junit.Ignore
 import org.junit.Test
 import java.nio.file.Files
@@ -21,7 +21,7 @@ class UnixUploadTest {
         val factory = UnixFSCommandRunnerFactory(userDao, true)
         val owner = SERVICE_USER
 
-        factory.withContext(owner) { ctx ->
+        factory.withBlockingContext(owner) { ctx ->
             run {
                 val result = cephFs.openForWriting(ctx, "/file.txt", true)
                 assertEquals(0, result.statusCode)

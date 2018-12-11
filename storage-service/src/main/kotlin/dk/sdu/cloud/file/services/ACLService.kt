@@ -6,7 +6,7 @@ import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.unwrap
 
 class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterface<Ctx>) {
-    fun grantRights(
+    suspend fun grantRights(
         ctx: Ctx,
         path: String,
         entity: FSACLEntity,
@@ -31,7 +31,7 @@ class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterfac
         fs.createACLEntry(ctx, path, entity, rights, defaultList = false, recursive = recursive).setfaclUnwrap()
     }
 
-    fun revokeRights(
+    suspend fun revokeRights(
         ctx: Ctx,
         path: String,
         entity: FSACLEntity,

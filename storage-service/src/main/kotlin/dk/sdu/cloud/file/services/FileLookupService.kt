@@ -29,7 +29,7 @@ class FileLookupService<Ctx : FSUserContext>(
     private val coreFs: CoreFileSystemService<Ctx>,
     private val favoriteService: FavoriteService<Ctx>
 ) {
-    fun listDirectory(
+    suspend fun listDirectory(
         ctx: Ctx,
         path: String,
         pagination: NormalizedPaginationRequest,
@@ -39,7 +39,7 @@ class FileLookupService<Ctx : FSUserContext>(
         return listDirectorySorted(ctx, path, sortBy, order).paginate(pagination)
     }
 
-    private fun listDirectorySorted(
+    private suspend fun listDirectorySorted(
         ctx: Ctx,
         path: String,
         sortBy: FileSortBy,
@@ -103,7 +103,7 @@ class FileLookupService<Ctx : FSUserContext>(
             fileId = row.inode
         )
 
-    fun lookupFileInDirectory(
+    suspend fun lookupFileInDirectory(
         ctx: Ctx,
         path: String,
         itemsPerPage: Int,
@@ -120,7 +120,7 @@ class FileLookupService<Ctx : FSUserContext>(
         return allFiles.paginate(NormalizedPaginationRequest(normalizedItemsPerPage, page))
     }
 
-    fun stat(
+    suspend fun stat(
         ctx: Ctx,
         path: String
     ): StorageFile {

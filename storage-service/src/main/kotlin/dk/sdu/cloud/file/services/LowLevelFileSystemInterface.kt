@@ -31,101 +31,101 @@ sealed class FSACLEntity {
 }
 
 interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
-    fun copy(
+    suspend fun copy(
         ctx: Ctx,
         from: String,
         to: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
 
-    fun move(
+    suspend fun move(
         ctx: Ctx,
         from: String,
         to: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.Moved>>
 
-    fun listDirectory(
+    suspend fun listDirectory(
         ctx: Ctx,
         directory: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>>
 
-    fun delete(
+    suspend fun delete(
         ctx: Ctx,
         path: String
     ): FSResult<List<StorageEvent.Deleted>>
 
-    fun openForWriting(
+    suspend fun openForWriting(
         ctx: Ctx,
         path: String,
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
 
-    fun write(
+    suspend fun write(
         ctx: Ctx,
-        writer: (OutputStream) -> Unit
+        writer: suspend (OutputStream) -> Unit
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
 
-    fun tree(
+    suspend fun tree(
         ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>>
 
-    fun makeDirectory(
+    suspend fun makeDirectory(
         ctx: Ctx,
         path: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
 
-    fun getExtendedAttribute(
+    suspend fun getExtendedAttribute(
         ctx: Ctx,
         path: String,
         attribute: String
     ): FSResult<String>
 
-    fun setExtendedAttribute(
+    suspend fun setExtendedAttribute(
         ctx: Ctx,
         path: String,
         attribute: String,
         value: String
     ): FSResult<Unit>
 
-    fun listExtendedAttribute(
+    suspend fun listExtendedAttribute(
         ctx: Ctx,
         path: String
     ): FSResult<List<String>>
 
-    fun deleteExtendedAttribute(
+    suspend fun deleteExtendedAttribute(
         ctx: Ctx,
         path: String,
         attribute: String
     ): FSResult<Unit>
 
-    fun stat(
+    suspend fun stat(
         ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
     ): FSResult<FileRow>
 
-    fun openForReading(
+    suspend fun openForReading(
         ctx: Ctx,
         path: String
     ): FSResult<Unit>
 
-    fun <R> read(
+    suspend fun <R> read(
         ctx: Ctx,
         range: IntRange? = null,
-        consumer: (InputStream) -> R
+        consumer: suspend (InputStream) -> R
     ): R
 
-    fun createSymbolicLink(
+    suspend fun createSymbolicLink(
         ctx: Ctx,
         targetPath: String,
         linkPath: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
 
-    fun createACLEntry(
+    suspend fun createACLEntry(
         ctx: Ctx,
         path: String,
         entity: FSACLEntity,
@@ -134,7 +134,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         recursive: Boolean = false
     ): FSResult<Unit>
 
-    fun removeACLEntry(
+    suspend fun removeACLEntry(
         ctx: Ctx,
         path: String,
         entity: FSACLEntity,
@@ -142,7 +142,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         recursive: Boolean = false
     ): FSResult<Unit>
 
-    fun chmod(
+    suspend fun chmod(
         ctx: Ctx,
         path: String,
         owner: Set<AccessRight>,

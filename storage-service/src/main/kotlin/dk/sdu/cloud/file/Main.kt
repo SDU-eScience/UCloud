@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.refreshingJwtCloud
 import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.KafkaTopicFeatureConfiguration
 import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.ServiceDiscoveryOverrides
 import dk.sdu.cloud.service.configuration
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
@@ -13,6 +14,8 @@ import dk.sdu.cloud.service.kafka
 import dk.sdu.cloud.service.runScriptHandler
 import dk.sdu.cloud.service.serverProvider
 import dk.sdu.cloud.storage.api.StorageServiceDescription
+import io.ktor.server.cio.CIO
+import io.ktor.server.engine.embeddedServer
 
 val SERVICE_USER = "_${StorageServiceDescription.name}"
 const val SERVICE_UNIX_USER = "storage" // Note: root is also supported. Should only be done in a container

@@ -3,7 +3,7 @@ package dk.sdu.cloud.storage.services
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
@@ -26,7 +26,7 @@ class MakeDirectoryTest {
         val existingFolder = File(fsRoot, "home/user1/folder")
         Assert.assertTrue(existingFolder.exists())
 
-        runner.withContext("user1") {
+        runner.withBlockingContext("user1") {
             service.makeDirectory(it, "/home/user1/folder")
         }
     }
@@ -39,7 +39,7 @@ class MakeDirectoryTest {
         val existingFolder = File(fsRoot, "home/user1/folder/Weirdpath")
         Assert.assertFalse(existingFolder.exists())
 
-        runner.withContext("user1") {
+        runner.withBlockingContext("user1") {
             service.makeDirectory(it, "/home/user1/folder/./../folder/./Weirdpath")
         }
 

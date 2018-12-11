@@ -4,7 +4,7 @@ import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
@@ -57,7 +57,7 @@ class BulkDownloadTest {
         val fsRoot = createFileSystem()
         val (runner, service) = createService(fsRoot.absolutePath)
         val out = ByteArrayOutputStream()
-        runner.withContext("user1") {
+        runner.withBlockingContext("user1") {
             service.downloadFiles(it, "/home/user1/PleaseShare", (1..10).map { "file$it.txt" }, out)
         }
 
@@ -82,7 +82,7 @@ class BulkDownloadTest {
         val (runner, service) = createService(fsRoot.absolutePath)
 
         val out = ByteArrayOutputStream()
-        runner.withContext("user1") {
+        runner.withBlockingContext("user1") {
             service.downloadFiles(
                 it,
                 "/home/user1/PleaseShare",

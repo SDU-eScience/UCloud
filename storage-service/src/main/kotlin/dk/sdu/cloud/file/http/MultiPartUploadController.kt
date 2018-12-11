@@ -7,10 +7,6 @@ import dk.sdu.cloud.file.api.MultiPartUploadAudit
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.UploadRequestAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.file.services.BulkUploadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
@@ -18,10 +14,17 @@ import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.tryWithFS
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.io.jvm.javaio.copyTo
+import kotlinx.coroutines.io.readRemaining
 import kotlinx.coroutines.launch
+import kotlinx.io.ByteBuffer
 import org.slf4j.Logger
 import java.nio.file.Files
 
@@ -57,7 +60,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                     commandRunnerFactory.withContext(owner) { ctx ->
                         fs.write(ctx, req.location, WriteConflictPolicy.OVERWRITE) {
                             val out = this
-                            req.upload.payload.use { it.copyTo(out) }
+                            req.upload.channel.copyTo(out)
                         }
 
                         sensitivityService.setSensitivityLevel(ctx, req.location, req.sensitivity, owner)

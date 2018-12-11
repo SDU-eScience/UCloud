@@ -2,7 +2,6 @@ package dk.sdu.cloud.file.services.unixfs
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
@@ -32,7 +31,7 @@ class UnixFileSystem(
     // TODO This attribute probably needs to live somewhere else
     private val attributesToCopy = listOf(FileSensitivityService.SENSITIVITY_ATTRIBUTE)
 
-    override fun copy(
+    override suspend fun copy(
         ctx: UnixFSCommandRunner,
         from: String,
         to: String,
@@ -73,7 +72,7 @@ class UnixFileSystem(
         return result
     }
 
-    override fun move(
+    override suspend fun move(
         ctx: UnixFSCommandRunner,
         from: String,
         to: String,
@@ -98,7 +97,7 @@ class UnixFileSystem(
                 val sequence = toList.iterator()
                 val realFrom = sequence.next()
                     .takeIf { !it.startsWith(EXIT) }
-                    ?.toCloudPath() ?: return@runCommand FSResult(NOT_FOUND)
+                    ?.toCloudPath() ?: return@runCommand FSResult<List<StorageEvent.Moved>>(NOT_FOUND)
 
                 val realTo = sequence.next().toCloudPath()
 
@@ -120,7 +119,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun listDirectory(
+    override suspend fun listDirectory(
         ctx: UnixFSCommandRunner,
         directory: String,
         mode: Set<FileAttribute>
@@ -134,7 +133,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun delete(ctx: UnixFSCommandRunner, path: String): FSResult<List<StorageEvent.Deleted>> {
+    override suspend fun delete(ctx: UnixFSCommandRunner, path: String): FSResult<List<StorageEvent.Deleted>> {
         val timestamp = System.currentTimeMillis()
         val absolutePath = translateAndCheckFile(path)
 
@@ -158,7 +157,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun openForWriting(
+    override suspend fun openForWriting(
         ctx: UnixFSCommandRunner,
         path: String,
         allowOverwrite: Boolean
@@ -177,9 +176,9 @@ class UnixFileSystem(
         )
     }
 
-    override fun write(
+    override suspend fun write(
         ctx: UnixFSCommandRunner,
-        writer: (OutputStream) -> Unit
+        writer: suspend (OutputStream) -> Unit
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
         return ctx.runCommand(
             InterpreterCommand.WRITE,
@@ -193,7 +192,11 @@ class UnixFileSystem(
         )
     }
 
-    override fun tree(ctx: UnixFSCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<List<FileRow>> {
+    override suspend fun tree(
+        ctx: UnixFSCommandRunner,
+        path: String,
+        mode: Set<FileAttribute>
+    ): FSResult<List<FileRow>> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.TREE,
@@ -203,7 +206,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun makeDirectory(
+    override suspend fun makeDirectory(
         ctx: UnixFSCommandRunner,
         path: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
@@ -220,7 +223,11 @@ class UnixFileSystem(
         )
     }
 
-    override fun getExtendedAttribute(ctx: UnixFSCommandRunner, path: String, attribute: String): FSResult<String> {
+    override suspend fun getExtendedAttribute(
+        ctx: UnixFSCommandRunner,
+        path: String,
+        attribute: String
+    ): FSResult<String> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.GET_XATTR,
@@ -244,7 +251,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun setExtendedAttribute(
+    override suspend fun setExtendedAttribute(
         ctx: UnixFSCommandRunner,
         path: String,
         attribute: String,
@@ -260,7 +267,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun listExtendedAttribute(ctx: UnixFSCommandRunner, path: String): FSResult<List<String>> {
+    override suspend fun listExtendedAttribute(ctx: UnixFSCommandRunner, path: String): FSResult<List<String>> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.LIST_XATTR,
@@ -277,7 +284,11 @@ class UnixFileSystem(
         )
     }
 
-    override fun deleteExtendedAttribute(ctx: UnixFSCommandRunner, path: String, attribute: String): FSResult<Unit> {
+    override suspend fun deleteExtendedAttribute(
+        ctx: UnixFSCommandRunner,
+        path: String,
+        attribute: String
+    ): FSResult<Unit> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.DELETE_XATTR,
@@ -286,7 +297,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun stat(ctx: UnixFSCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<FileRow> {
+    override suspend fun stat(ctx: UnixFSCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<FileRow> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.STAT,
@@ -300,7 +311,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun openForReading(ctx: UnixFSCommandRunner, path: String): FSResult<Unit> {
+    override suspend fun openForReading(ctx: UnixFSCommandRunner, path: String): FSResult<Unit> {
         val absolutePath = translateAndCheckFile(path)
         return ctx.runCommand(
             InterpreterCommand.READ_OPEN,
@@ -309,7 +320,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun <R> read(ctx: UnixFSCommandRunner, range: IntRange?, consumer: (InputStream) -> R): R {
+    override suspend fun <R> read(ctx: UnixFSCommandRunner, range: IntRange?, consumer: suspend (InputStream) -> R): R {
         val start = range?.start ?: -1
         val end = range?.endInclusive ?: -1
 
@@ -324,7 +335,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun createSymbolicLink(
+    override suspend fun createSymbolicLink(
         ctx: UnixFSCommandRunner,
         targetPath: String,
         linkPath: String
@@ -345,7 +356,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun createACLEntry(
+    override suspend fun createACLEntry(
         ctx: UnixFSCommandRunner,
         path: String,
         entity: FSACLEntity,
@@ -384,7 +395,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun removeACLEntry(
+    override suspend fun removeACLEntry(
         ctx: UnixFSCommandRunner,
         path: String,
         entity: FSACLEntity,
@@ -411,7 +422,7 @@ class UnixFileSystem(
         )
     }
 
-    override fun chmod(
+    override suspend fun chmod(
         ctx: UnixFSCommandRunner,
         path: String,
         owner: Set<AccessRight>,
@@ -453,7 +464,7 @@ class UnixFileSystem(
         }
     }
 
-    private fun consumeStatusCode(it: UnixFSCommandRunner): FSResult<Unit> {
+    private suspend fun consumeStatusCode(it: UnixFSCommandRunner): FSResult<Unit> {
         var statusCode: Int? = null
         val stdoutLineSequence = it.stdoutLineSequence().toList()
         for (line in stdoutLineSequence) {

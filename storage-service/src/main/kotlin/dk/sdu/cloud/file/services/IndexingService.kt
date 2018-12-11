@@ -27,13 +27,13 @@ class IndexingService<Ctx : FSUserContext>(
     private val fs: CoreFileSystemService<Ctx>,
     private val storageEventProducer: StorageEventProducer
 ) {
-    fun verifyKnowledge(ctx: Ctx, files: List<String>): List<Boolean> {
+    suspend fun verifyKnowledge(ctx: Ctx, files: List<String>): List<Boolean> {
         val parents = files.asSequence().map { it.parent() }.toSet()
         val knowledgeByParent = parents.map { it to hasReadInDirectory(ctx, it) }.toMap()
         return files.map { knowledgeByParent[it.parent()]!! }
     }
 
-    private fun hasReadInDirectory(ctx: Ctx, directoryPath: String): Boolean {
+    private suspend fun hasReadInDirectory(ctx: Ctx, directoryPath: String): Boolean {
         return try {
             // TODO We don't actually have to list anything in the directory. Would be faster without
             fs.listDirectory(ctx, directoryPath, setOf(FileAttribute.INODE))
@@ -63,7 +63,7 @@ class IndexingService<Ctx : FSUserContext>(
      * Afterwards the algorithm will continue to perform the diffing and launch events based on
      * this, progress can be tracked via [Pair.second].
      */
-    fun runDiffOnRoots(
+    suspend fun runDiffOnRoots(
         rootToReference: Map<String, List<EventMaterializedStorageFile>>
     ): Pair<Map<String, Boolean>, Job> {
         val ctx = runnerFactory(SERVICE_USER)
@@ -112,7 +112,7 @@ class IndexingService<Ctx : FSUserContext>(
      *
      * It is assumed that the [ctx] can read the entirety of [directoryPath]
      */
-    fun calculateDiff(ctx: Ctx, directoryPath: String, reference: List<EventMaterializedStorageFile>): DirectoryDiff {
+    suspend fun calculateDiff(ctx: Ctx, directoryPath: String, reference: List<EventMaterializedStorageFile>): DirectoryDiff {
         val realDirectory = try {
             fs.listDirectory(ctx, directoryPath, STORAGE_EVENT_MODE)
         } catch (ex: FSException.NotFound) {

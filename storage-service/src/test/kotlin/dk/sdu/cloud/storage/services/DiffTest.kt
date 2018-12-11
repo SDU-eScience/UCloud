@@ -1,5 +1,6 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
@@ -7,9 +8,6 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.service.test.assertCollectionHasItem
-import dk.sdu.cloud.service.test.assertThatPropertyEquals
-import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
@@ -20,12 +18,14 @@ import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
-import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.storage.util.storageUserDaoWithFixedAnswer
+import dk.sdu.cloud.service.test.assertCollectionHasItem
+import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.storage.util.createFS
 import dk.sdu.cloud.storage.util.inode
 import dk.sdu.cloud.storage.util.mkdir
+import dk.sdu.cloud.storage.util.storageUserDaoWithFixedAnswer
 import dk.sdu.cloud.storage.util.timestamps
 import dk.sdu.cloud.storage.util.touch
 import io.mockk.Runs
@@ -126,7 +126,7 @@ class DiffTest {
             },
 
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
                     val diff = indexingService.calculateDiff(
                         it, "/home", emptyList()
                     )
@@ -167,7 +167,7 @@ class DiffTest {
             },
 
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
                     val diff = indexingService.calculateDiff(
                         it, "/home", listOf(
                             fsRoot.resolvePath("/home/a").asMaterialized(),
@@ -190,7 +190,7 @@ class DiffTest {
                 mkdir("home") {}
             },
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
                     val diff = indexingService.calculateDiff(
                         it, "/home", listOf(
                             fakeMaterializedFile("1", "/home/foo", FileType.DIRECTORY),
@@ -220,7 +220,7 @@ class DiffTest {
                 mkdir("home") {}
             },
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
                     val diff = indexingService.calculateDiff(it, "/home", emptyList())
                     assertThatPropertyEquals(diff, { it.diff.size }, 0)
                     assertTrue(diff.shouldContinue)
@@ -240,7 +240,7 @@ class DiffTest {
             },
 
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
                     val realFile = fsRoot.resolvePath(filePath)
                     val referenceFile = realFile.asMaterialized()
 
@@ -275,7 +275,7 @@ class DiffTest {
             builder = {},
 
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
                     val diff = indexingService.calculateDiff(it, "/home/notThere", emptyList())
 
                     assertCollectionHasItem(diff.diff) { it is StorageEvent.Invalidated && it.path == "/home/notThere" }
@@ -296,7 +296,7 @@ class DiffTest {
             },
 
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
                     val realFile = fsRoot.resolvePath("/home/b")
                     val diff = indexingService.calculateDiff(
                         it, "/home", listOf(
@@ -332,7 +332,7 @@ class DiffTest {
             },
 
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
                     val realFile = fsRoot.resolvePath("/home/b")
                     val diff = indexingService.calculateDiff(
                         it, "/home", listOf(
@@ -386,7 +386,7 @@ class DiffTest {
             },
 
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
                     val realFile = fsRoot.resolvePath("/home/a")
                     val diff = indexingService.calculateDiff(
                         ctx,
@@ -423,7 +423,7 @@ class DiffTest {
             },
 
             consumer = {
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
                     val aFile = fsRoot.resolvePath("/home/a")
 
                     val diff = indexingService.calculateDiff(
@@ -454,12 +454,14 @@ class DiffTest {
             },
 
             consumer = {
-                val result = indexingService.runDiffOnRoots(
-                    mapOf(
-                        "/home/a" to emptyList(),
-                        "/home/b" to emptyList()
+                val result = runBlocking {
+                    indexingService.runDiffOnRoots(
+                        mapOf(
+                            "/home/a" to emptyList(),
+                            "/home/b" to emptyList()
+                        )
                     )
-                )
+                }
 
                 runBlocking { result.second.join() }
                 assertFalse(result.first["/home/a"]!!)
@@ -496,7 +498,7 @@ class DiffTest {
                     assertThatPropertyEquals(collection, { it.size }, 3)
                 }
 
-                commandRunnerFactory.withContext(SERVICE_USER) {
+                commandRunnerFactory.withBlockingContext(SERVICE_USER) {
                     val aFile = fsRoot.resolvePath("/home/a")
                     val reference = listOf(aFile.asMaterialized())
 
@@ -526,13 +528,13 @@ class DiffTest {
         val eventProducer = mockk<StorageEventProducer>()
 
         val ctx = mockk<FSUserContext>(relaxed = true)
-        every { commandRunnerFactory.invoke(any()) } returns ctx
-        every { coreFs.statOrNull(any(), any(), any()) } throws FSException.CriticalException("Mock")
+        coEvery { commandRunnerFactory.invoke(any()) } returns ctx
+        coEvery { coreFs.statOrNull(any(), any(), any()) } throws FSException.CriticalException("Mock")
 
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
 
         assertFailsWith(FSException.CriticalException::class) {
-            indexingService.runDiffOnRoots(mapOf("/" to emptyList()))
+            runBlocking { indexingService.runDiffOnRoots(mapOf("/" to emptyList())) }
         }
 
         verify { ctx.close() }
@@ -549,14 +551,14 @@ class DiffTest {
         every { commandRunnerFactory.invoke(any()) } returns ctx
 
         val directory = mockk<FileRow>()
-        every { directory.fileType } returns FileType.DIRECTORY
-        every { coreFs.statOrNull(any(), any(), any()) } returns directory
+        coEvery { directory.fileType } returns FileType.DIRECTORY
+        coEvery { coreFs.statOrNull(any(), any(), any()) } returns directory
 
-        every { coreFs.listDirectory(any(), any(), any()) } throws FSException.CriticalException("Mock")
+        coEvery { coreFs.listDirectory(any(), any(), any()) } throws FSException.CriticalException("Mock")
 
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
 
-        val (shouldContinue, job) = indexingService.runDiffOnRoots(mapOf("/" to emptyList()))
+        val (shouldContinue, job) = runBlocking { indexingService.runDiffOnRoots(mapOf("/" to emptyList())) }
         assertTrue(shouldContinue["/"]!!)
         runBlocking { job.join() }
 

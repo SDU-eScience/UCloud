@@ -21,8 +21,10 @@ import io.ktor.util.cio.readChannel
 import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.jvm.javaio.copyTo
+import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.io.readRemaining
+import kotlinx.io.core.ExperimentalIoApi
 import java.io.File
 import java.io.InputStream
 import java.lang.reflect.ParameterizedType
@@ -39,6 +41,16 @@ class StreamingFile(
     val fileName: String?,
     val channel: ByteReadChannel
 ) {
+    @Deprecated("use channel instead")
+    @UseExperimental(ExperimentalIoApi::class)
+    constructor(
+        contentType: ContentType,
+        length: Long?,
+        fileName: String?,
+        payload: InputStream
+    ) : this(contentType, length, fileName, payload.toByteReadChannel())
+
+    @Deprecated("use channel instead", ReplaceWith("channel"))
     val payload: InputStream get() = channel.toInputStream()
 
     companion object {

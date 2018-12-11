@@ -2,13 +2,6 @@ package dk.sdu.cloud.file.http.upload
 
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.forStream
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.service.kafka
-import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.files.TestContext
 import dk.sdu.cloud.file.http.files.setUser
@@ -20,9 +13,16 @@ import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
+import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.forStream
+import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.kafka
+import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.storage.util.createDummyFSInRoot
 import dk.sdu.cloud.storage.util.createFS
+import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.application.Application
 import io.ktor.http.ContentDisposition
@@ -37,6 +37,7 @@ import io.ktor.routing.routing
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.ktor.server.testing.withTestApplication
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.io.ByteReadChannel
@@ -88,8 +89,8 @@ class MultipartUploadTest {
                     every { runner.invoke(any()) } returns userContext
 
                     val fs = mockk<UnixFileSystem>()
-                    every { fs.openForWriting(any(), any(), any()) } throws FSException.PermissionException()
-                    every { fs.write(any(), any()) } throws FSException.PermissionException()
+                    coEvery { fs.openForWriting(any(), any(), any()) } throws FSException.PermissionException()
+                    coEvery { fs.write(any(), any()) } throws FSException.PermissionException()
 
                     createService(runner, fs)
                 },

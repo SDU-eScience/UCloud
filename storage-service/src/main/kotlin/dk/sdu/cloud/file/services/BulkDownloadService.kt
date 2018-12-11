@@ -18,7 +18,7 @@ class BulkDownloadService<Ctx : FSUserContext>(
     /**
      * @param filesDownloadedOutput Will write which files ids are downloaded to this list. Useful for auditing.
      */
-    fun downloadFiles(
+    suspend fun downloadFiles(
         ctx: Ctx,
         prefixPath: String,
         listOfFiles: List<String>,

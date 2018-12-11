@@ -44,10 +44,10 @@ class KtorServerProviderFeature : MicroFeature {
         override val log = logger()
 
         private val officialEngines = listOf(
-            "io.ktor.server.netty.Netty",
             "io.ktor.server.cio.CIO",
             "io.ktor.server.jetty.Jetty",
-            "io.ktor.server.tomcat.Tomcat"
+            "io.ktor.server.tomcat.Tomcat",
+            "io.ktor.server.netty.Netty"
         )
 
         internal val serverProviderKey = MicroAttributeKey<HttpServerProvider>("ktor-server-provider-key")

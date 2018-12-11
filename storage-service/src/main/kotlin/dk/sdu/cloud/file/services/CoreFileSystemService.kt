@@ -22,11 +22,11 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer
 ) {
-    fun write(
+    suspend fun write(
         ctx: Ctx,
         path: String,
         conflictPolicy: WriteConflictPolicy,
-        writer: OutputStream.() -> Unit
+        writer: suspend OutputStream.() -> Unit
     ) {
         val normalizedPath = path.normalize()
         val targetPath =
@@ -36,17 +36,17 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         fs.write(ctx, writer).emitAll()
     }
 
-    fun <R> read(
+    suspend fun <R> read(
         ctx: Ctx,
         path: String,
         range: IntRange? = null,
-        consumer: InputStream.() -> R
+        consumer: suspend InputStream.() -> R
     ): R {
         fs.openForReading(ctx, path).unwrap()
         return fs.read(ctx, range, consumer)
     }
 
-    fun copy(
+    suspend fun copy(
         ctx: Ctx,
         from: String,
         to: String,
@@ -75,14 +75,14 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
-    fun delete(
+    suspend fun delete(
         ctx: Ctx,
         path: String
     ) {
         fs.delete(ctx, path).emitAll()
     }
 
-    fun stat(
+    suspend fun stat(
         ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
@@ -90,7 +90,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         return fs.stat(ctx, path, mode).unwrap()
     }
 
-    fun statOrNull(
+    suspend fun statOrNull(
         ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
@@ -102,7 +102,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
-    fun listDirectory(
+    suspend fun listDirectory(
         ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
@@ -110,7 +110,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         return fs.listDirectory(ctx, path, mode).unwrap()
     }
 
-    fun tree(
+    suspend fun tree(
         ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
@@ -118,7 +118,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         return fs.tree(ctx, path, mode).unwrap()
     }
 
-    fun makeDirectory(
+    suspend fun makeDirectory(
         ctx: Ctx,
         path: String
     ) {
@@ -126,7 +126,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
     }
 
-    fun move(
+    suspend fun move(
         ctx: Ctx,
         from: String,
         to: String,
@@ -136,7 +136,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         fs.move(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
     }
 
-    fun exists(
+    suspend fun exists(
         ctx: Ctx,
         path: String
     ): Boolean {
@@ -148,7 +148,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
-    fun renameAccordingToPolicy(
+    suspend fun renameAccordingToPolicy(
         ctx: Ctx,
         desiredTargetPath: String,
         conflictPolicy: WriteConflictPolicy
@@ -173,7 +173,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
-    fun createSymbolicLink(
+    suspend fun createSymbolicLink(
         ctx: Ctx,
         targetPath: String,
         linkPath: String
@@ -184,7 +184,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         return filesCreated.single()
     }
 
-    fun chmod(
+    suspend fun chmod(
         ctx: Ctx,
         path: String,
         owner: Set<AccessRight>,
@@ -193,7 +193,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         recurse: Boolean,
         fileIds: ArrayList<String>? = null
     ) {
-        fun applyChmod(path: String): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
+        suspend fun applyChmod(path: String): FSResult<List<StorageEvent.CreatedOrRefreshed>> {
             return fs.chmod(ctx, path, owner, group, other)
         }
 
@@ -212,7 +212,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     }
 
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
-    private fun findFreeNameForNewFile(ctx: Ctx, desiredPath: String): String {
+    private suspend fun findFreeNameForNewFile(ctx: Ctx, desiredPath: String): String {
         fun findFileNameNoExtension(fileName: String): String {
             return fileName.substringBefore('.')
         }

@@ -6,7 +6,7 @@ import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
 import io.mockk.Runs
@@ -40,7 +40,7 @@ class FavoriteTest {
         val fileToFavorite = "home/user1/folder/a"
 
         Assert.assertFalse(File(fsRoot, favoriteLink).exists())
-        runner.withContext("user1") { service.markAsFavorite(it, fileToFavorite) }
+        runner.withBlockingContext("user1") { service.markAsFavorite(it, fileToFavorite) }
         Assert.assertTrue(File(fsRoot, favoriteLink).exists())
 
         Thread.sleep(1000)
@@ -57,7 +57,7 @@ class FavoriteTest {
 
         val favoriteLink = "home/user1/Favorites/a"
         val fileToFavorite = "home/user1/folder/a"
-        runner.withContext("user1") { ctx ->
+        runner.withBlockingContext("user1") { ctx ->
             service.markAsFavorite(ctx, "/$fileToFavorite")
 
             Assert.assertTrue(File(fsRoot, favoriteLink).exists())

@@ -5,7 +5,7 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFSUserDao
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
-import dk.sdu.cloud.file.services.withContext
+import dk.sdu.cloud.file.services.withBlockingContext
 import org.junit.Ignore
 import org.junit.Test
 import java.nio.file.Files
@@ -23,7 +23,7 @@ class UnixSymlinkTest {
         val factory = UnixFSCommandRunnerFactory(userDao, true)
         val owner = SERVICE_USER
 
-        factory.withContext(owner) { ctx ->
+        factory.withBlockingContext(owner) { ctx ->
             val targetPath = "/target"
             val linkPath = "/link"
 

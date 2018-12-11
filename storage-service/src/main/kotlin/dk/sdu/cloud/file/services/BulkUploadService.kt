@@ -15,7 +15,7 @@ import java.util.zip.GZIPInputStream
 class BulkUploadService<Ctx : FSUserContext>(
     private val fs: CoreFileSystemService<Ctx>
 ) {
-    fun bulkUpload(
+    suspend fun bulkUpload(
         ctx: Ctx,
         path: String,
         format: String,
@@ -28,7 +28,7 @@ class BulkUploadService<Ctx : FSUserContext>(
         }
     }
 
-    private fun bulkUploadTarGz(
+    private suspend fun bulkUploadTarGz(
         ctx: Ctx,
         path: String,
         conflictPolicy: WriteConflictPolicy,

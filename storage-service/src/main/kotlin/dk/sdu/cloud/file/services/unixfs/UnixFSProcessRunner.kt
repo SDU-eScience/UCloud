@@ -118,11 +118,11 @@ class UnixFSCommandRunner(
         cache.remove(key)
     }
 
-    fun <T> runCommand(
+    suspend fun <T> runCommand(
         command: InterpreterCommand,
         vararg args: String,
-        writer: (OutputStream) -> Unit = {},
-        consumer: (UnixFSCommandRunner) -> T
+        writer: suspend (OutputStream) -> Unit = {},
+        consumer: suspend (UnixFSCommandRunner) -> T
     ): T {
         log.debug("Running command: $command ${args.joinToString(" ")}")
 
