@@ -316,11 +316,11 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 return 2;
             case AppState.RUNNING:
                 return 3;
-            case AppState.SUCCESS:
-                return 4;
-            case AppState.FAILURE:
-                return 4;
             case AppState.TRANSFER_SUCCESS:
+                return 4;
+            case AppState.SUCCESS:
+                return 5;
+            case AppState.FAILURE:
                 return 5;
             default:
                 return 0;
@@ -337,10 +337,11 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
 const StepTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: IconName }) => (
     <Step active={props.active}>
-        <span>
+        {props.complete ?
+            <Icon name="check" color="green" mr="0.7em" size="30px" /> :
             <Icon name={props.icon} mr="0.7em" size="30px" color="iconColor" color2="iconColor2" />
-            <TextSpan fontSize={3}>{props.title}</TextSpan>
-        </span>
+        }
+        <TextSpan fontSize={3}>{props.title}</TextSpan>
     </Step>
 );
 
