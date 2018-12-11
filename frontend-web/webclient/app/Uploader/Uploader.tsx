@@ -15,6 +15,7 @@ import { Box, Flex, Error } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Toggle } from "ui-components/Toggle";
 import styled from "styled-components";
+import { TextSpan } from "ui-components/Text";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -80,7 +81,7 @@ class Uploader extends React.Component<UploaderProps> {
         }
     }
 
-    startAllUploads = (event) => {
+    startAllUploads = event => {
         event.preventDefault();
         const length = this.props.uploads.length;
         for (let i = 0; i < length; i++) {
@@ -156,13 +157,12 @@ class Uploader extends React.Component<UploaderProps> {
                             ><Icon name={"upload"} />Start all!</Button>
                             : null}
                         <ReactDropzone onDrop={this.onFilesAdded}>
-                            {({ getRootProps }) =>
+                            {({ getRootProps, getInputProps }) =>
                                 <DropZoneBox {...getRootProps()}>
+                                    <input {...getInputProps()} />
                                     <p>
-                                        <Flex>
-                                            <Box mr="0.5em"><Icon name="upload" /></Box>
-                                            <Box mr="0.3em">Drop files here or </Box><a href="#">{" browse"}</a>
-                                        </Flex>
+                                        <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
+                                        <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">{" browse"}</a>
                                     </p>
                                     <p>
                                         <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
@@ -190,7 +190,7 @@ const DropZoneBox = styled(Box)`
     & > p {
         margin: 16px;
     }
-`
+`;
 
 const privacyOptions = [
     { text: "Private", value: "PRIVATE" },

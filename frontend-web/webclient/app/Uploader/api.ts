@@ -37,7 +37,7 @@ export const multipartUpload = async (location: string, file: File, sensitivity:
 export const bulkUpload = async (location: string, file: File, sensitivity: Sensitivity, policy: BulkUploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
     const newFile = new File([file], "ignored");
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
-    const format = "tgz";
+    const format = formatFromType(file.type);
     let formData = new FormData();
     formData.append("location", location);
     formData.append("format", format);
@@ -87,6 +87,17 @@ function statusToError(status: number) {
         }
         default:
             return "An error ocurred."
+    }
+}
+
+function formatFromType(type: string): string {
+    switch (type) {
+        case "application/zip":
+            return "zip";
+        case "application/x-gzip":
+            return "tgz";
+        default:
+            return "";
     }
 }
 
