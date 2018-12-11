@@ -9,7 +9,7 @@ import dk.sdu.cloud.app.abacus.services.ssh.SSH.log
 
 private const val MAX_SPLITS = 3
 
-fun SSHConnection.pollSlurmStatus(): List<SlurmEvent> {
+suspend fun SSHConnection.pollSlurmStatus(): List<SlurmEvent> {
     val (_, text) = execWithOutputAsText("sacct -b -P -n")
 
     return text.lines().mapNotNull {

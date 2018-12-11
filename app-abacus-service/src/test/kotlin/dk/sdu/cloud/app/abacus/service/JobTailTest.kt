@@ -7,9 +7,11 @@ import dk.sdu.cloud.app.abacus.services.ssh.SSHConnectionPool
 import dk.sdu.cloud.app.abacus.services.ssh.linesInRange
 import dk.sdu.cloud.app.api.InternalFollowStdStreamsRequest
 import dk.sdu.cloud.app.api.JobState
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkStatic
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
@@ -32,7 +34,7 @@ class JobTailTest {
     }
 
     @Test
-    fun `test following streams (bad status)`() {
+    fun `test following streams (bad status)`() = runBlocking {
         val request = InternalFollowStdStreamsRequest(
             JobData.job.copy(currentState = JobState.SUCCESS),
             0, 100,
@@ -46,7 +48,7 @@ class JobTailTest {
     }
 
     @Test
-    fun `test following lines`() {
+    fun `test following lines`() = runBlocking {
         val request = InternalFollowStdStreamsRequest(
             JobData.job.copy(currentState = JobState.RUNNING),
             0, 100,
@@ -54,7 +56,7 @@ class JobTailTest {
         )
 
         val second = "foobar"
-        every { connection.linesInRange(any(), any(), any()) } returns Pair(0, second)
+        coEvery { connection.linesInRange(any(), any(), any()) } returns Pair(0, second)
 
         val response = service.followStdStreams(request)
         assertEquals(second, response.stdout)
@@ -62,7 +64,7 @@ class JobTailTest {
     }
 
     @Test
-    fun `test following stdout`() {
+    fun `test following stdout`() = runBlocking {
         val request = InternalFollowStdStreamsRequest(
             JobData.job.copy(currentState = JobState.RUNNING),
             0, 100,
@@ -70,7 +72,7 @@ class JobTailTest {
         )
 
         val second = "foobar"
-        every { connection.linesInRange(any(), any(), any()) } returns Pair(0, second)
+        coEvery { connection.linesInRange(any(), any(), any()) } returns Pair(0, second)
 
         val response = service.followStdStreams(request)
         assertEquals(second, response.stdout)

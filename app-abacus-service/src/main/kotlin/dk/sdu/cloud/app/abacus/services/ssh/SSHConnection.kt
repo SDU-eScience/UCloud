@@ -28,7 +28,7 @@ class SSHConnection(val session: Session) {
     fun openExecChannel(): ChannelExec = session.openChannel("exec") as ChannelExec
     fun openSFTPChannel(): ChannelSftp = session.openChannel("sftp") as ChannelSftp
 
-    fun <T> exec(command: String, body: ChannelExec.() -> T): Pair<Int, T> =
+    suspend fun <T> exec(command: String, body: suspend ChannelExec.() -> T): Pair<Int, T> =
         openExecChannel().run {
             setCommand(command)
             connect()
@@ -45,7 +45,7 @@ class SSHConnection(val session: Session) {
             Pair(fixedStatus, res)
         }
 
-    fun execWithOutputAsText(command: String, charLimit: Long = CHARLIMIT_DEFAULT): Pair<Int, String> =
+    suspend fun execWithOutputAsText(command: String, charLimit: Long = CHARLIMIT_DEFAULT): Pair<Int, String> =
         exec(command) {
             log.debug("Running command: $command")
             inputStream.bufferedReader().use {

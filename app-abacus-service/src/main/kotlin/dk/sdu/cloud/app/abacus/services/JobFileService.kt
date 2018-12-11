@@ -12,7 +12,6 @@ import dk.sdu.cloud.app.abacus.services.ssh.scpUpload
 import dk.sdu.cloud.app.abacus.services.ssh.stat
 import dk.sdu.cloud.app.abacus.services.ssh.unzip
 import dk.sdu.cloud.app.abacus.services.ssh.use
-import dk.sdu.cloud.app.abacus.util.CappedInputStream
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.FileForUploadArchiveType
 import dk.sdu.cloud.app.api.SubmitComputationResult
@@ -26,9 +25,9 @@ import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.io.jvm.javaio.copyTo
 import java.io.File
-import java.io.InputStream
 
 /**
  * Manages file associated to a job
@@ -40,7 +39,7 @@ class JobFileService(
 ) {
     private val workingDirectory = File(workingDirectory)
 
-    fun initializeJob(jobId: String) {
+    suspend fun initializeJob(jobId: String) {
         val status = sshConnectionPool.use {
             val rootDir = rootDirectoryForJob(jobId)
             val filesDir = filesDirectoryForJob(jobId)
@@ -52,12 +51,12 @@ class JobFileService(
         if (status != 0) throw JobFileException.UnableToCreateFile()
     }
 
-    fun uploadFile(
+    suspend fun uploadFile(
         jobId: String,
         relativeLocation: String,
         length: Long,
         needsExtractionOfType: FileForUploadArchiveType?,
-        stream: InputStream
+        stream: ByteReadChannel
     ) {
         val filesDirectoryForJob = filesDirectoryForJob(jobId)
         val location = filesDirectoryForJob.resolve(relativeLocation).normalize()
@@ -65,14 +64,13 @@ class JobFileService(
             throw JobFileException.ErrorDuringTransfer("Bad destination path: $filesDirectoryForJob <=> $location")
         }
 
-        val cappedStream = CappedInputStream(stream, length)
         sshConnectionPool.use {
             mkdir(location.parent, createParents = true)
 
             @Suppress("TooGenericExceptionCaught")
             try {
                 scpUpload(length, location.name, location.parent, "0600") { outs ->
-                    cappedStream.copyTo(outs)
+                    stream.copyTo(outs, limit = length)
                 }.takeIf { it == 0 } ?: throw JobFileException.ErrorDuringTransfer(relativeLocation)
             } catch (ex: Exception) {
                 // Maybe a bit too generic
@@ -96,13 +94,13 @@ class JobFileService(
         }
     }
 
-    fun cleanup(jobId: String) {
+    suspend fun cleanup(jobId: String) {
         sshConnectionPool.use {
             rm(rootDirectoryForJob(jobId).absolutePath, recurse = true)
         }
     }
 
-    fun transferForJob(job: VerifiedJob) {
+    suspend fun transferForJob(job: VerifiedJob) {
         val directory = filesDirectoryForJob(job.id)
 
         sshConnectionPool.use {
@@ -136,7 +134,7 @@ class JobFileService(
 
     }
 
-    private fun SSHConnection.transferFileFromCompute(
+    private suspend fun SSHConnection.transferFileFromCompute(
         jobId: String,
         filePath: String,
         originalFileName: String,
@@ -150,23 +148,22 @@ class JobFileService(
                 val relativePath = parsedFilePath.relativeTo(filesRoot).path
 
                 scpDownload(filePath) { ins ->
-                    runBlocking {
-                        ComputationCallbackDescriptions.submitFile.call(
-                            MultipartRequest.create(
-                                SubmitComputationResult(
-                                    jobId,
+                    ComputationCallbackDescriptions.submitFile.call(
+                        MultipartRequest.create(
+                            @Suppress("DEPRECATION")
+                            SubmitComputationResult(
+                                jobId,
+                                relativePath,
+                                StreamingFile(
+                                    ContentType.Application.OctetStream,
+                                    length,
                                     relativePath,
-                                    StreamingFile(
-                                        ContentType.Application.OctetStream,
-                                        length,
-                                        relativePath,
-                                        ins
-                                    )
+                                    ins
                                 )
-                            ),
-                            cloud
-                        )
-                    } as? RESTResponse.Ok ?: throw JobFileException.UploadToCloudFailed(originalFileName)
+                            )
+                        ),
+                        cloud
+                    ) as? RESTResponse.Ok ?: throw JobFileException.UploadToCloudFailed(originalFileName)
                 }
             } catch (ex: Exception) {
                 log.warn("Caught exception while uploading file to SDUCloud")
@@ -179,7 +176,7 @@ class JobFileService(
         }
     }
 
-    private fun SSHConnection.prepareForTransfer(
+    private suspend fun SSHConnection.prepareForTransfer(
         sourceFile: SftpATTRS,
         source: File,
         transfer: String

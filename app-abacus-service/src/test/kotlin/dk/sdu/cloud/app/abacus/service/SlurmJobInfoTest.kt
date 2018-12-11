@@ -3,24 +3,25 @@ package dk.sdu.cloud.app.abacus.service
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnection
 import dk.sdu.cloud.app.abacus.services.ssh.slurmJobInfo
 import dk.sdu.cloud.app.api.SimpleDuration
-import io.mockk.every
+import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
-import io.mockk.verify
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
 class SlurmJobInfoTest {
     @Test
-    fun `test normal output`() {
+    fun `test normal output`() = runBlocking {
         val conn = mockk<SSHConnection>()
-        every { conn.execWithOutputAsText(any(), any()) } returns (0 to "00:00:01")
+        coEvery { conn.execWithOutputAsText(any(), any()) } returns (0 to "00:00:01")
 
         val jobId = 1234L
         val result = conn.slurmJobInfo(jobId)
         assertEquals(result, SimpleDuration(0, 0, 1))
 
-        verify {
+        coVerify {
             conn.execWithOutputAsText(match { command ->
                 val tokens = command.split(" ")
                 assertEquals("sacct", tokens[0])
@@ -33,15 +34,15 @@ class SlurmJobInfoTest {
     }
 
     @Test
-    fun `test normal output - all set`() {
+    fun `test normal output - all set`() = runBlocking {
         val conn = mockk<SSHConnection>()
-        every { conn.execWithOutputAsText(any(), any()) } returns (0 to "01:02:03")
+        coEvery { conn.execWithOutputAsText(any(), any()) } returns (0 to "01:02:03")
 
         val jobId = 1234L
         val result = conn.slurmJobInfo(jobId)
         assertEquals(result, SimpleDuration(1, 2, 3))
 
-        verify {
+        coVerify {
             conn.execWithOutputAsText(match { command ->
                 val tokens = command.split(" ")
                 assertEquals("sacct", tokens[0])
@@ -54,29 +55,34 @@ class SlurmJobInfoTest {
     }
 
     @Test(expected = IllegalStateException::class)
-    fun `test bad error code`() {
+    fun `test bad error code`() = runBlocking {
         val conn = mockk<SSHConnection>()
-        every { conn.execWithOutputAsText(any(), any()) } returns (1 to "error")
+        coEvery { conn.execWithOutputAsText(any(), any()) } returns (1 to "error")
 
         val jobId = 1234L
         conn.slurmJobInfo(jobId)
+
+        Unit
     }
 
     @Test(expected = IllegalStateException::class)
-    fun `test bad output`() {
+    fun `test bad output`() = runBlocking {
         val conn = mockk<SSHConnection>()
-        every { conn.execWithOutputAsText(any(), any()) } returns (1 to "qweassd")
+        coEvery { conn.execWithOutputAsText(any(), any()) } returns (1 to "qweassd")
 
         val jobId = 1234L
         conn.slurmJobInfo(jobId)
+
+        Unit
     }
 
     @Test(expected = IllegalStateException::class)
-    fun `test bad output with split`() {
+    fun `test bad output with split`() = runBlocking {
         val conn = mockk<SSHConnection>()
-        every { conn.execWithOutputAsText(any(), any()) } returns (1 to "aa:bb:cc qweasdeqwe")
+        coEvery { conn.execWithOutputAsText(any(), any()) } returns (1 to "aa:bb:cc qweasdeqwe")
 
         val jobId = 1234L
         conn.slurmJobInfo(jobId)
+        Unit
     }
 }

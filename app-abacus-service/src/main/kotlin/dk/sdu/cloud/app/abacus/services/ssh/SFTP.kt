@@ -28,7 +28,7 @@ fun SSHConnection.ls(path: String): List<ChannelSftp.LsEntry> {
     return allFiles
 }
 
-fun SSHConnection.mkdir(path: String, createParents: Boolean = false): Int {
+suspend fun SSHConnection.mkdir(path: String, createParents: Boolean = false): Int {
     val invocation = arrayListOf("mkdir")
     if (createParents) invocation += "-p"
     invocation += BashEscaper.safeBashArgument(path)
@@ -51,7 +51,7 @@ fun SSHConnection.stat(path: String): SftpATTRS? =
 
 data class LSWithGlobResult(val fileName: String, val size: Long)
 
-fun SSHConnection.lsWithGlob(baseDirectory: String, path: String): List<LSWithGlobResult> {
+suspend fun SSHConnection.lsWithGlob(baseDirectory: String, path: String): List<LSWithGlobResult> {
     val parentDirectory = baseDirectory.removeSuffix("/") + "/" + path.substringBeforeLast('/', ".")
     val query = baseDirectory.removeSuffix("/") + "/" + path.removeSuffix("/")
     // TODO FIXME Should this be escaped?
@@ -68,7 +68,7 @@ fun SSHConnection.lsWithGlob(baseDirectory: String, path: String): List<LSWithGl
     }
 }
 
-fun SSHConnection.rm(path: String, recurse: Boolean = false, force: Boolean = false): Int {
+suspend fun SSHConnection.rm(path: String, recurse: Boolean = false, force: Boolean = false): Int {
     val invocation = mutableListOf("rm")
 
     val flags = run {
@@ -84,7 +84,7 @@ fun SSHConnection.rm(path: String, recurse: Boolean = false, force: Boolean = fa
     return execWithOutputAsText(invocation.joinToString(" ")).first
 }
 
-fun SSHConnection.linesInRange(path: String, startingAt: Int, maxLines: Int): Pair<Int, String> {
+suspend fun SSHConnection.linesInRange(path: String, startingAt: Int, maxLines: Int): Pair<Int, String> {
     val invocation = """
             bash -c "tail -n +$startingAt ${safeBashArgument(safeBashArgument(path))} | head -n $maxLines"
         """.trimIndent().lines().first()

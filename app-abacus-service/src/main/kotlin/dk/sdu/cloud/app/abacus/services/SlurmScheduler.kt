@@ -61,7 +61,7 @@ class SlurmScheduler<DBSession>(
         ComputationCallbackDescriptions.requestStateChange.call(StateChangeRequest(job.id, JobState.SCHEDULED), cloud)
     }
 
-    private fun SSHConnection.fakeCompleteSlurmJob(job: VerifiedJob): Long {
+    private suspend fun SSHConnection.fakeCompleteSlurmJob(job: VerifiedJob): Long {
         log.info("SKIPPING SLURM QUEUE JUST FAKING AN ALREADY COMPLETED JOB")
 
         val filesRoot = jobFileService.filesDirectoryForJob(job.id)

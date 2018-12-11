@@ -96,7 +96,7 @@ class SlurmJobTracker<DBSession>(
         ).orThrow()
     }
 
-    private fun computeUsage(slurmId: Long): SimpleDuration {
+    private suspend fun computeUsage(slurmId: Long): SimpleDuration {
         return sshConnectionPool.use { slurmJobInfo(slurmId) }
     }
 

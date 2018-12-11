@@ -13,7 +13,7 @@ class JobTail(
     private val sshPool: SSHConnectionPool,
     private val jobFileService: JobFileService
 ) {
-    fun followStdStreams(lines: InternalFollowStdStreamsRequest): InternalStdStreamsResponse {
+    suspend fun followStdStreams(lines: InternalFollowStdStreamsRequest): InternalStdStreamsResponse {
         val job = lines.job
 
         fun respond(stdout: String = "", stdoutNext: Int = 0, stderr: String = "", stderrNext: Int = 0) =

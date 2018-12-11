@@ -5,7 +5,7 @@ import dk.sdu.cloud.app.api.SimpleDuration
 
 private const val SUPPOSED_NUMBER_OF_SPLITS = 3
 
-fun SSHConnection.slurmJobInfo(jobId: Long): SimpleDuration {
+suspend fun SSHConnection.slurmJobInfo(jobId: Long): SimpleDuration {
     if (jobId == SlurmPollAgent.SLURM_ID_SKIP) return SimpleDuration(0, 1, 0)
 
     val (exit, output) = execWithOutputAsText("""sacct --format="elapsed" -s cd -s f -s to -n -X -P -j $jobId""")

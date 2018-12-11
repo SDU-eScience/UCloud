@@ -26,15 +26,15 @@ import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.awaitAllOrThrow
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.okContentOrNull
+import dk.sdu.cloud.service.okChannelOrNull
 import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.safeAsync
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
-import java.io.InputStream
 
 class JobOrchestrator<DBSession>(
     private val serviceCloud: RefreshingJWTAuthenticatedCloud,
@@ -189,7 +189,7 @@ class JobOrchestrator<DBSession>(
         securityPrincipal: SecurityPrincipal,
         filePath: String,
         length: Long,
-        data: InputStream
+        data: ByteReadChannel
     ) {
         withJobExceptionHandler(jobId) {
             val jobWithToken = findJobForId(jobId)
@@ -303,7 +303,7 @@ class JobOrchestrator<DBSession>(
                     val fileStream = FileDescriptions.download.call(
                         DownloadByURI(file.sourcePath, null),
                         userCloud
-                    ).okContentOrNull ?: throw JobException.TransferError()
+                    ).okChannelOrNull ?: throw JobException.TransferError()
 
                     backend.submitFile.call(
                         MultipartRequest.create(

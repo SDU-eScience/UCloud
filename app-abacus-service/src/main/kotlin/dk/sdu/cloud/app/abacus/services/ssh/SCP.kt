@@ -34,7 +34,7 @@ private fun scpCheckAck(ins: InputStream): Int {
     return b
 }
 
-fun SSHConnection.scpUpload(file: File, destination: String, permissions: String) =
+suspend fun SSHConnection.scpUpload(file: File, destination: String, permissions: String) =
     scpUpload(
         fileLength = file.length(),
         fileName = file.name,
@@ -44,9 +44,9 @@ fun SSHConnection.scpUpload(file: File, destination: String, permissions: String
         out.write(file.readBytes())
     }
 
-fun SSHConnection.scpUpload(
+suspend fun SSHConnection.scpUpload(
     fileLength: Long, fileName: String, fileDestination: String, filePermissions: String,
-    fileWriter: (OutputStream) -> Unit
+    fileWriter: suspend (OutputStream) -> Unit
 ): Int {
     log.debug(
         "scpUpload(fileLength=$fileLength, fileName=$fileName, fileDestination=$fileDestination, " +
@@ -85,7 +85,7 @@ private const val SSH_KEY_EXCHANGE_FAILED_STATUSCODE = 67
 private const val DELIMITER_IN_HEX = 0xA
 private const val SKIP_CONSTANT = 5L
 
-fun SSHConnection.scpDownload(remoteFile: String, body: (InputStream) -> Unit): Int {
+suspend fun SSHConnection.scpDownload(remoteFile: String, body: suspend (InputStream) -> Unit): Int {
     fun requireNotEOF(read: Int) {
         if (read < 0) throw IllegalStateException("Unexpected EOF")
     }

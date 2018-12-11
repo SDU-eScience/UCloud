@@ -6,15 +6,24 @@ import io.ktor.http.BadContentTypeFormatException
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import java.io.InputStream
 
+@Deprecated("use RESTResponseChannel instead")
 data class RESTResponseContent(
     val stream: InputStream,
     val contentLength: Long?,
     val contentType: ContentType?
 )
 
+data class RESTResponseChannel(
+    val stream: ByteReadChannel,
+    val contentLength: Long?,
+    val contentType: ContentType?
+)
+
+@Deprecated("use okChannel instead", ReplaceWith("okChannel"))
 val RESTResponse<*, *>.okContent: RESTResponseContent
     get() {
         orThrow()
@@ -31,10 +40,36 @@ val RESTResponse<*, *>.okContent: RESTResponseContent
         return RESTResponseContent(stream, contentLength, contentType)
     }
 
+@Deprecated("use okChannelOrNull instead", ReplaceWith("okChannelOrNull"))
 val RESTResponse<*, *>.okContentOrNull: RESTResponseContent?
     get() {
         return try {
             okContent
+        } catch (ex: RPCException) {
+            null
+        }
+    }
+
+val RESTResponse<*, *>.okChannel: RESTResponseChannel
+    get() {
+        orThrow()
+
+        val ok = this as RESTResponse.Ok
+        val contentLength = ok.response.headers[HttpHeaders.ContentLength]?.toLongOrNull()
+        val contentType = try {
+            ok.response.headers[HttpHeaders.ContentType]?.let { ContentType.parse(it) }
+        } catch (ex: BadContentTypeFormatException) {
+            null
+        }
+
+        val stream = ok.response.content
+        return RESTResponseChannel(stream, contentLength, contentType)
+    }
+
+val RESTResponse<*, *>.okChannelOrNull: RESTResponseChannel?
+    get() {
+        return try {
+            okChannel
         } catch (ex: RPCException) {
             null
         }

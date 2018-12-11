@@ -30,7 +30,7 @@ class SlurmPollAgent(
         log.info("Starting slurm poll agent")
 
         if (future != null) throw IllegalStateException("Already started!")
-        future = executor.scheduleAtFixedRate({ tick() }, initialDelay, pollInterval, pollUnit)
+        future = executor.scheduleAtFixedRate({ runBlocking { tick() } }, initialDelay, pollInterval, pollUnit)
     }
 
     fun startTracking(slurmId: Long) {
@@ -48,7 +48,7 @@ class SlurmPollAgent(
     }
 
     @Suppress("TooGenericExceptionCaught") // For now
-    private fun tick() {
+    private suspend fun tick() {
         try {
             log.debug("Ticking: ${active.size}")
             if (active.isEmpty()) return

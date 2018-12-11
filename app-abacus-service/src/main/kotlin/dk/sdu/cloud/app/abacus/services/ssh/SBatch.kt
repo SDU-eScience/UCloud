@@ -6,7 +6,7 @@ data class SBatchSubmissionResult(val exitCode: Int, val output: String, val job
 
 private val submitRegex = Regex("Submitted batch job (\\d+)")
 
-fun SSHConnection.sbatch(
+suspend fun SSHConnection.sbatch(
     file: String,
     reservation: String? = null,
     vararg args: String

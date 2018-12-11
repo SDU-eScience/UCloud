@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.abacus.service
 import dk.sdu.cloud.app.abacus.services.SlurmPollAgent
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnection
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnectionPool
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -20,7 +21,7 @@ class SlurmPollTest {
         val scheduledExeService = Executors.newSingleThreadScheduledExecutor()
         val sshConnect = mockk<SSHConnection>()
         every { ssh.borrowConnection() } answers {
-            every { sshConnect.execWithOutputAsText(any(), any()) } returns Pair(0, "8282|COMPLETED|0")
+            coEvery { sshConnect.execWithOutputAsText(any(), any()) } returns Pair(0, "8282|COMPLETED|0")
             Pair(0, sshConnect)
         }
         every { ssh.returnConnection(0) } just runs

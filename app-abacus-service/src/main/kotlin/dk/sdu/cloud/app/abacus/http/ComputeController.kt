@@ -38,7 +38,7 @@ class ComputeController(
                     relativePath,
                     file.stat.size,
                     file.needsExtractionOfType,
-                    block.fileData.payload
+                    block.fileData.channel
                 )
             }
 

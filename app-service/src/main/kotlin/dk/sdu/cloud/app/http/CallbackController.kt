@@ -25,7 +25,7 @@ class CallbackController<DBSession>(
                         call.securityPrincipal,
                         req.filePath,
                         length,
-                        req.fileData.payload
+                        req.fileData.channel
                     )
                     ok(Unit)
                 } else {

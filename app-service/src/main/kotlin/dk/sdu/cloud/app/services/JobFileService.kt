@@ -13,6 +13,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.orThrow
 import io.ktor.http.ContentType
 import io.ktor.http.defaultForFilePath
+import kotlinx.coroutines.io.ByteReadChannel
 import java.io.File
 import java.io.InputStream
 
@@ -38,7 +39,7 @@ class JobFileService(
 
         filePath: String,
         length: Long,
-        fileData: InputStream
+        fileData: ByteReadChannel
     ) {
         log.debug("Accepting file at $filePath for ${jobWithToken.job.id}")
 
@@ -66,7 +67,7 @@ class JobFileService(
                         contentType = ContentType.defaultForFilePath(filePath),
                         length = length,
                         fileName = destPath.name,
-                        payload = fileData
+                        channel = fileData
                     )
                 )
             ),
