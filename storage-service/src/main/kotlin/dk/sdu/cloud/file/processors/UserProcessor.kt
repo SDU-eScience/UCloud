@@ -2,10 +2,10 @@ package dk.sdu.cloud.file.processors
 
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.file.api.homeDirectory
-import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.ExternalFileService
 import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.runBlocking
 import org.apache.kafka.streams.kstream.KStream
 

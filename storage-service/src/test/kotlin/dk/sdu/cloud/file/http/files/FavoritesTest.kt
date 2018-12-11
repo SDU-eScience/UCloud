@@ -4,6 +4,7 @@ import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.withTestApplication
 import org.junit.Test
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 
 class FavoritesTest {

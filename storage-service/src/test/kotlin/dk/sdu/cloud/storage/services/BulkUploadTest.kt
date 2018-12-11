@@ -1,12 +1,15 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.services.BulkUploadService
+import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.test.assertCollectionHasItem
+import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import io.mockk.mockk
 import junit.framework.Assert.*
@@ -65,10 +68,10 @@ class BulkUploadTest {
         }
     }
 
-    private fun createService(root: String): Pair<UnixFSCommandRunnerFactory, BulkUploadService<UnixFSCommandRunner>> {
+    private fun createService(root: String): Pair<UnixFSCommandRunnerFactory, CoreFileSystemService<UnixFSCommandRunner>> {
         val (runner, fs) = unixFSWithRelaxedMocks(root)
         val coreFs = CoreFileSystemService(fs, mockk(relaxed = true))
-        return Pair(runner, BulkUploadService(coreFs))
+        return Pair(runner, coreFs)
     }
 
     @Test
@@ -86,22 +89,33 @@ class BulkUploadTest {
             putFile("test/file", "hello!")
         }
 
-        val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withBlockingContext("user") {
-            service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+        BackgroundScope.reset()
+        try {
+            val (runner, service) = createService(fsRoot.absolutePath)
+            runner.withBlockingContext("user") {
+                BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                    service,
+                    it,
+                    "/home/user/",
+                    WriteConflictPolicy.OVERWRITE,
+                    tarFile.inputStream()
+                )
+            }
+
+            val homeDir = File(fsRoot, "/home/user")
+            assertTrue(homeDir.exists())
+
+            val testDir = File(homeDir, "test")
+            assertTrue(testDir.exists())
+            assertTrue(testDir.isDirectory)
+
+            val testFile = File(testDir, "file")
+            assertTrue(testFile.exists())
+            assertFalse(testFile.isDirectory)
+            assertEquals("hello!", testFile.readText())
+        } finally {
+            BackgroundScope.stop()
         }
-
-        val homeDir = File(fsRoot, "/home/user")
-        assertTrue(homeDir.exists())
-
-        val testDir = File(homeDir, "test")
-        assertTrue(testDir.exists())
-        assertTrue(testDir.isDirectory)
-
-        val testFile = File(testDir, "file")
-        assertTrue(testFile.exists())
-        assertFalse(testFile.isDirectory)
-        assertEquals("hello!", testFile.readText())
     }
 
     @Test
@@ -117,35 +131,46 @@ class BulkUploadTest {
             }
         }
 
-        val tarFile = Files.createTempFile("foo", ".tar.gz").toFile()
-        createTarFile(tarFile.outputStream()) {
-            putDirectory("test")
-            putFile("test/file", "hello!")
-        }
+        BackgroundScope.reset()
+        try {
+            val tarFile = Files.createTempFile("foo", ".tar.gz").toFile()
+            createTarFile(tarFile.outputStream()) {
+                putDirectory("test")
+                putFile("test/file", "hello!")
+            }
 
-        val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withBlockingContext("user") {
-            val result =
-                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.RENAME, tarFile.inputStream())
+            val (runner, service) = createService(fsRoot.absolutePath)
+            runner.withBlockingContext("user") {
+                val result =
+                    BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                        service,
+                        it,
+                        "/home/user/",
+                        WriteConflictPolicy.RENAME,
+                        tarFile.inputStream()
+                    )
 
-            val homeDir = File(fsRoot, "/home/user")
-            assertTrue(homeDir.exists())
+                val homeDir = File(fsRoot, "/home/user")
+                assertTrue(homeDir.exists())
 
-            val testDir = File(homeDir, "test")
-            assertTrue(testDir.exists())
-            assertTrue(testDir.isDirectory)
+                val testDir = File(homeDir, "test")
+                assertTrue(testDir.exists())
+                assertTrue(testDir.isDirectory)
 
-            val origTestFile = File(testDir, "file")
-            assertTrue(origTestFile.exists())
-            assertFalse(origTestFile.isDirectory)
-            assertEquals(originalContents, origTestFile.readText())
+                val origTestFile = File(testDir, "file")
+                assertTrue(origTestFile.exists())
+                assertFalse(origTestFile.isDirectory)
+                assertEquals(originalContents, origTestFile.readText())
 
-            val testFile = File(testDir, "file(1)")
-            assertTrue(testFile.exists())
-            assertFalse(testFile.isDirectory)
-            assertEquals("hello!", testFile.readText())
+                val testFile = File(testDir, "file(1)")
+                assertTrue(testFile.exists())
+                assertFalse(testFile.isDirectory)
+                assertEquals("hello!", testFile.readText())
 
-            assertEquals(0, result.size)
+                assertEquals(1, result.size)
+            }
+        } finally {
+            BackgroundScope.stop()
         }
     }
 
@@ -162,30 +187,41 @@ class BulkUploadTest {
             }
         }
 
-        val tarFile = Files.createTempFile("foo", ".tar.gz").toFile()
-        createTarFile(tarFile.outputStream()) {
-            putDirectory("test")
-            putFile("test/file", "hello!")
-        }
+        BackgroundScope.reset()
+        try {
+            val tarFile = Files.createTempFile("foo", ".tar.gz").toFile()
+            createTarFile(tarFile.outputStream()) {
+                putDirectory("test")
+                putFile("test/file", "hello!")
+            }
 
-        val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withBlockingContext("user") {
-            val result =
-                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+            val (runner, service) = createService(fsRoot.absolutePath)
+            runner.withBlockingContext("user") {
+                val result =
+                    BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                        service,
+                        it,
+                        "/home/user/",
+                        WriteConflictPolicy.OVERWRITE,
+                        tarFile.inputStream()
+                    )
 
-            val homeDir = File(fsRoot, "/home/user")
-            assertTrue(homeDir.exists())
+                val homeDir = File(fsRoot, "/home/user")
+                assertTrue(homeDir.exists())
 
-            val testDir = File(homeDir, "test")
-            assertTrue(testDir.exists())
-            assertTrue(testDir.isDirectory)
+                val testDir = File(homeDir, "test")
+                assertTrue(testDir.exists())
+                assertTrue(testDir.isDirectory)
 
-            val origTestFile = File(testDir, "file")
-            assertTrue(origTestFile.exists())
-            assertFalse(origTestFile.isDirectory)
-            assertEquals("hello!", origTestFile.readText())
+                val origTestFile = File(testDir, "file")
+                assertTrue(origTestFile.exists())
+                assertFalse(origTestFile.isDirectory)
+                assertEquals("hello!", origTestFile.readText())
 
-            assertEquals(0, result.size)
+                assertEquals(1, result.size)
+            }
+        } finally {
+            BackgroundScope.stop()
         }
     }
 
@@ -211,7 +247,12 @@ class BulkUploadTest {
         val (runner, service) = createService(fsRoot.absolutePath)
         runner.withBlockingContext("user") {
             val result =
-                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.REJECT, tarFile.inputStream())
+                BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(service,
+                    it,
+                    "/home/user/",
+                    WriteConflictPolicy.REJECT,
+                    tarFile.inputStream()
+                )
 
             val homeDir = File(fsRoot, "/home/user")
             assertTrue(homeDir.exists())
@@ -251,9 +292,14 @@ class BulkUploadTest {
         }
 
         val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withBlockingContext("user") {
+        runner.withBlockingContext("user") { ctx ->
             val result =
-                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+                BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(service,
+                    ctx,
+                    "/home/user/",
+                    WriteConflictPolicy.OVERWRITE,
+                    tarFile.inputStream()
+                )
 
             val homeDir = File(fsRoot, "/home/user")
             assertTrue(homeDir.exists())
@@ -267,8 +313,8 @@ class BulkUploadTest {
             assertFalse(origTestFile.isDirectory)
             assertEquals(originalContents, origTestFile.readText())
 
-            assertEquals(1, result.size)
-            assertEquals(listOf("/home/user/test/file/foo"), result)
+            assertThatPropertyEquals(result, { it.size }, 3)
+            assertCollectionHasItem(result, matcher = { it == "/home/user/test/file/foo" })
         }
     }
 
@@ -293,7 +339,12 @@ class BulkUploadTest {
         val (runner, service) = createService(fsRoot.absolutePath)
         runner.withBlockingContext("user") {
             val result =
-                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+                BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(service,
+                    it,
+                    "/home/user/",
+                    WriteConflictPolicy.OVERWRITE,
+                    tarFile.inputStream()
+                )
 
             val homeDir = File(fsRoot, "/home/user")
             assertTrue(homeDir.exists())
@@ -306,8 +357,8 @@ class BulkUploadTest {
             assertTrue(origTestFile.exists())
             assertTrue(origTestFile.isDirectory)
 
-            assertEquals(1, result.size)
-            assertEquals(listOf("/home/user/test/file"), result)
+            assertThatPropertyEquals(result, { it.size }, 2)
+            assertCollectionHasItem(result, matcher = { it == "/home/user/test/file" })
         }
     }
 
@@ -319,28 +370,39 @@ class BulkUploadTest {
             }
         }
 
-        val tarFile = Files.createTempFile("foo", ".tar.gz").toFile()
-        createTarFile(tarFile.outputStream()) {
-            putDirectory("test")
-            putFile("test/\$PWD", "contents")
-        }
-        val (runner, service) = createService(fsRoot.absolutePath)
-        runner.withBlockingContext("user") {
-            val result =
-                service.bulkUpload(it, "/home/user/", "tgz", WriteConflictPolicy.OVERWRITE, tarFile.inputStream())
+        BackgroundScope.reset()
+        try {
+            val tarFile = Files.createTempFile("foo", ".tar.gz").toFile()
+            createTarFile(tarFile.outputStream()) {
+                putDirectory("test")
+                putFile("test/\$PWD", "contents")
+            }
+            val (runner, service) = createService(fsRoot.absolutePath)
+            runner.withBlockingContext("user") {
+                val result =
+                    BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
+                        service,
+                        it,
+                        "/home/user/",
+                        WriteConflictPolicy.OVERWRITE,
+                        tarFile.inputStream()
+                    )
 
-            val homeDir = File(fsRoot, "/home/user")
-            assertTrue(homeDir.exists())
+                val homeDir = File(fsRoot, "/home/user")
+                assertTrue(homeDir.exists())
 
-            val testDir = File(homeDir, "test")
-            assertTrue(testDir.exists())
-            assertTrue(testDir.isDirectory)
+                val testDir = File(homeDir, "test")
+                assertTrue(testDir.exists())
+                assertTrue(testDir.isDirectory)
 
-            val origTestFile = File(testDir, "\$PWD")
-            assertTrue(origTestFile.exists())
-            assertFalse(origTestFile.isDirectory)
+                val origTestFile = File(testDir, "\$PWD")
+                assertTrue(origTestFile.exists())
+                assertFalse(origTestFile.isDirectory)
 
-            assertEquals(0, result.size)
+                assertEquals(0, result.size)
+            }
+        } finally {
+            BackgroundScope.stop()
         }
     }
 }

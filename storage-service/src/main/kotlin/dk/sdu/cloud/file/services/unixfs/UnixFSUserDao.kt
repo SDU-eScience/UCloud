@@ -2,10 +2,10 @@ package dk.sdu.cloud.file.services.unixfs
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.file.SERVICE_UNIX_USER
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.service.stackTraceToString
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.Base64
@@ -66,9 +66,11 @@ class UnixFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
         return if (isDevelopment) {
             cloudToUser[cloudUser]
         } else {
-            B64_PREFIX + encoder.encodeToString(cloudUser.toByteArray(
-                USERNAME_CHARSET
-            )).replace('=', '.')
+            B64_PREFIX + encoder.encodeToString(
+                cloudUser.toByteArray(
+                    USERNAME_CHARSET
+                )
+            ).replace('=', '.')
         }
     }
 

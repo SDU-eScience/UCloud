@@ -6,11 +6,11 @@ import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.paginate
-import dk.sdu.cloud.file.util.FSException
 
 /**
  * A service for looking up files.
@@ -47,7 +47,8 @@ class FileLookupService<Ctx : FSUserContext>(
     ): List<StorageFile> {
         val favorites = favoriteService.retrieveFavoriteInodeSet(ctx)
 
-        val allResults = coreFs.listDirectory(ctx, path,
+        val allResults = coreFs.listDirectory(
+            ctx, path,
             STORAGE_FILE_ATTRIBUTES
         ).map {
             readStorageFile(it, favorites)

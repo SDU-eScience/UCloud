@@ -7,7 +7,8 @@ import dk.sdu.cloud.file.api.MultiPartUploadAudit
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.UploadRequestAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.services.BulkUploadService
+import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
@@ -20,18 +21,14 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.io.jvm.javaio.copyTo
-import kotlinx.coroutines.io.readRemaining
 import kotlinx.coroutines.launch
-import kotlinx.io.ByteBuffer
 import org.slf4j.Logger
 import java.nio.file.Files
 
 class MultiPartUploadController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
-    private val bulkUploadService: BulkUploadService<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
     baseContextOverride: String? = null
 ) : Controller {
@@ -75,38 +72,35 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
             tryWithFS {
                 multipart.receiveBlocks { req ->
-                    if (req.format != "tgz") {
-                        return@receiveBlocks error(
+                    val uploader =
+                        BulkUploader.fromFormat(req.format, commandRunnerFactory.type) ?: return@receiveBlocks error(
                             CommonErrorMessage("Unsupported format '${req.format}'"),
                             HttpStatusCode.BadRequest
                         )
-                    }
 
                     audit(BulkUploadAudit(req.location, req.policy, req.format))
 
                     val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
-                    req.upload.payload.copyTo(outputFile.outputStream())
-                    coroutineScope {
-                        launch {
-                            commandRunnerFactory.withContext(user) {
-                                bulkUploadService.bulkUpload(
-                                    it,
-                                    req.location,
-                                    req.format,
-                                    req.policy,
-                                    outputFile.inputStream()
-                                )
-                            }
-                            try {
-                                outputFile.delete()
-                            } catch (_: Exception) {
-                            }
+                    req.upload.channel.copyTo(outputFile.outputStream())
+                    BackgroundScope.launch {
+                        commandRunnerFactory.withContext(user) {
+                            uploader.upload(
+                                fs,
+                                it,
+                                req.location,
+                                req.policy,
+                                outputFile.inputStream()
+                            )
+                        }
+                        try {
+                            outputFile.delete()
+                        } catch (_: Exception) {
                         }
                     }
                 }
             }
 
-            ok(BulkUploadErrorMessage("OK", emptyList()), HttpStatusCode.Accepted)
+            ok(BulkUploadErrorMessage("OK"), HttpStatusCode.Accepted)
         }
     }
 

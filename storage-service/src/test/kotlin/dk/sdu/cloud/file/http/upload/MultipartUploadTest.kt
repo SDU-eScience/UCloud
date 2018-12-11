@@ -5,7 +5,6 @@ import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.files.TestContext
 import dk.sdu.cloud.file.http.files.setUser
-import dk.sdu.cloud.file.services.BulkUploadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FileSensitivityService
@@ -68,9 +67,8 @@ class MultipartUploadTest {
         val storageEventProducer = micro.kafka.producer.forStream(StorageEvents.events)
         val coreFs = CoreFileSystemService(fs, storageEventProducer)
 
-        val bulkUpload = BulkUploadService(coreFs)
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
-        val controller = MultiPartUploadController(runner, coreFs, bulkUpload, sensitivityService)
+        val controller = MultiPartUploadController(runner, coreFs, sensitivityService)
 
         installDefaultFeatures(micro)
 

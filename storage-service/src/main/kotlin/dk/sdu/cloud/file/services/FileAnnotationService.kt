@@ -4,7 +4,6 @@ import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.validateAnnotation
 import dk.sdu.cloud.file.util.unwrap
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -27,7 +26,7 @@ class FileAnnotationService<Ctx : FSUserContext>(
             )
         ).unwrap()
 
-        GlobalScope.launch {
+        BackgroundScope.launch {
             storageEventProducer.emit(
                 StorageEvent.AnnotationsUpdated(
                     stat.inode,

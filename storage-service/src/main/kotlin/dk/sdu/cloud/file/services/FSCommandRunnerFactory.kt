@@ -2,8 +2,10 @@ package dk.sdu.cloud.file.services
 
 import kotlinx.coroutines.runBlocking
 import java.io.Closeable
+import kotlin.reflect.KClass
 
 abstract class FSCommandRunnerFactory<Ctx : FSUserContext> {
+    abstract val type: KClass<Ctx>
     abstract operator fun invoke(user: String): Ctx
 }
 

@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.http.FilesController
 import dk.sdu.cloud.file.services.ACLService
+import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.FileAnnotationService
@@ -69,6 +70,8 @@ fun Application.configureServerWithFileController(
     userDao: StorageUserDao = simpleStorageUserDao(),
     additional: Routing.(FileControllerContext) -> Unit = {}
 ) {
+    BackgroundScope.reset()
+
     val micro = initializeMicro()
     micro.install(HibernateFeature)
     TestContext.micro = micro

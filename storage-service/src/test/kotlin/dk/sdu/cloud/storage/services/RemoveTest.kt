@@ -2,6 +2,7 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
+import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
@@ -27,29 +28,34 @@ class RemoveTest {
 
     @Test
     fun testSimpleRemove() {
-        val emitter: StorageEventProducer = mockk()
-        coEvery { emitter.emit(any()) } coAnswers {
-            println("Hello! ${it.invocation.args.first()}}")
-        }
+        BackgroundScope.reset()
+        try {
+            val emitter: StorageEventProducer = mockk()
+            coEvery { emitter.emit(any()) } coAnswers {
+                println("Hello! ${it.invocation.args.first()}}")
+            }
 
-        val fsRoot = createDummyFS()
-        val (runner, service) = createService(fsRoot.absolutePath, emitter)
+            val fsRoot = createDummyFS()
+            val (runner, service) = createService(fsRoot.absolutePath, emitter)
 
-        runner.withBlockingContext("user1") {
-            service.delete(it, "/home/user1/folder")
-        }
-        val existingFolder = File(fsRoot, "home/user1/folder")
-        assertFalse(existingFolder.exists())
+            runner.withBlockingContext("user1") {
+                service.delete(it, "/home/user1/folder")
+            }
+            val existingFolder = File(fsRoot, "home/user1/folder")
+            assertFalse(existingFolder.exists())
 
-        // The function returns immediately. We want to wait for those events to have been emitted.
-        // This is not a fool proof way of doing it. But we have no way of waiting for tasks
-        Thread.sleep(100)
+            // The function returns immediately. We want to wait for those events to have been emitted.
+            // This is not a fool proof way of doing it. But we have no way of waiting for tasks
+            Thread.sleep(100)
 
-        coVerify {
-            emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/a" })
-            emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/b" })
-            emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/c" })
-            emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder" })
+            coVerify {
+                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/a" })
+                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/b" })
+                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder/c" })
+                emitter.emit(match { it is StorageEvent.Deleted && it.path == "/home/user1/folder" })
+            }
+        } finally {
+            BackgroundScope.stop()
         }
     }
 

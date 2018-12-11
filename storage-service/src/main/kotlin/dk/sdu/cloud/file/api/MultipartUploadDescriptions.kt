@@ -25,7 +25,7 @@ data class BulkUploadRequest(
     val upload: StreamingFile
 )
 
-data class BulkUploadErrorMessage(val message: String, val rejectedUploads: List<String>)
+data class BulkUploadErrorMessage(val message: String)
 data class BulkUploadAudit(val path: String, val policy: WriteConflictPolicy, val owner: String)
 
 object MultiPartUploadDescriptions : RESTDescriptions("files.upload") {
@@ -63,5 +63,7 @@ object MultiPartUploadDescriptions : RESTDescriptions("files.upload") {
             using(baseContext)
             +"bulk"
         }
+
+        body { bindEntireRequestFromBody() }
     }
 }

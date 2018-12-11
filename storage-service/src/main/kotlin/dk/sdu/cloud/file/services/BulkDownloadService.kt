@@ -1,8 +1,8 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.stackTraceToString
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarHeader
 import org.kamranzafar.jtar.TarOutputStream

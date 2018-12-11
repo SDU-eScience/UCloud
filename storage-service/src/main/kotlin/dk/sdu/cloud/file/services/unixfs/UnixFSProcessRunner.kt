@@ -1,12 +1,12 @@
 package dk.sdu.cloud.file.services.unixfs
 
-import dk.sdu.cloud.service.GuardedOutputStream
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.util.BoundaryContainedStream
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.GuardedOutputStream
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.io.OutputStream
@@ -20,6 +20,8 @@ class UnixFSCommandRunnerFactory(
     private val userDao: StorageUserDao,
     private val isDevelopment: Boolean
 ) : FSCommandRunnerFactory<UnixFSCommandRunner>() {
+    override val type = UnixFSCommandRunner::class
+
     override fun invoke(user: String): UnixFSCommandRunner {
         return UnixFSCommandRunner(userDao, isDevelopment, user)
     }

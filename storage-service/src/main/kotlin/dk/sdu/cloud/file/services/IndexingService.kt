@@ -1,17 +1,16 @@
 package dk.sdu.cloud.file.services
 
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.toCreatedEvent
-import kotlinx.coroutines.GlobalScope
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -82,7 +81,7 @@ class IndexingService<Ctx : FSUserContext>(
             throw ex
         }
 
-        val job = GlobalScope.launch {
+        val job = BackgroundScope.launch {
             try {
                 rootToReference.map { (root, reference) ->
                     log.debug("Calculating diff for $root")
@@ -112,7 +111,11 @@ class IndexingService<Ctx : FSUserContext>(
      *
      * It is assumed that the [ctx] can read the entirety of [directoryPath]
      */
-    suspend fun calculateDiff(ctx: Ctx, directoryPath: String, reference: List<EventMaterializedStorageFile>): DirectoryDiff {
+    suspend fun calculateDiff(
+        ctx: Ctx,
+        directoryPath: String,
+        reference: List<EventMaterializedStorageFile>
+    ): DirectoryDiff {
         val realDirectory = try {
             fs.listDirectory(ctx, directoryPath, STORAGE_EVENT_MODE)
         } catch (ex: FSException.NotFound) {

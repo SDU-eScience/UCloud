@@ -9,8 +9,8 @@ import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLService
+import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.BulkDownloadService
-import dk.sdu.cloud.file.services.BulkUploadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.ExternalFileService
 import dk.sdu.cloud.file.services.FavoriteService
@@ -29,7 +29,6 @@ import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
@@ -46,7 +45,6 @@ import java.io.File
 class Server(
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
-    private val db: HibernateSessionFactory,
     private val cloud: RefreshingJWTAuthenticatedCloud,
     private val config: StorageConfiguration,
     private val micro: Micro
@@ -65,6 +63,7 @@ class Server(
 
     override fun start() {
         log.info("Creating core services")
+        BackgroundScope.init()
         val cloudToCephFsDao = UnixFSUserDao(micro.developmentModeEnabled)
         val processRunner =
             UnixFSCommandRunnerFactory(cloudToCephFsDao, micro.developmentModeEnabled)
@@ -79,7 +78,6 @@ class Server(
         val annotationService = FileAnnotationService(fs, storageEventProducer)
 
         val favoriteService = FavoriteService(coreFileSystem)
-        val uploadService = BulkUploadService(coreFileSystem)
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
         val fileLookupService = FileLookupService(coreFileSystem, favoriteService)
 
@@ -139,14 +137,12 @@ class Server(
                     MultiPartUploadController(
                         processRunner,
                         coreFileSystem,
-                        uploadService,
                         sensitivityService
                     ),
 
                     MultiPartUploadController(
                         processRunner,
                         coreFileSystem,
-                        uploadService,
                         sensitivityService,
                         baseContextOverride = "/api/upload" // backwards-comparability
                     )
@@ -161,5 +157,6 @@ class Server(
     override fun stop() {
         super.stop()
         allProcessors.forEach { it.close() }
+        BackgroundScope.stop()
     }
 }

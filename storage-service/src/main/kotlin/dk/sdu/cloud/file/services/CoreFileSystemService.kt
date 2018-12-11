@@ -2,7 +2,6 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
@@ -13,7 +12,6 @@ import dk.sdu.cloud.file.api.relativize
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
@@ -123,7 +121,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         path: String
     ) {
         fs.makeDirectory(ctx, path).emitAll()
-
     }
 
     suspend fun move(
@@ -198,10 +195,12 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
 
         if (recurse) {
-            fs.tree(ctx, path, setOf(
-                FileAttribute.PATH,
-                FileAttribute.INODE
-            )).unwrap().forEach {
+            fs.tree(
+                ctx, path, setOf(
+                    FileAttribute.PATH,
+                    FileAttribute.INODE
+                )
+            ).unwrap().forEach {
                 fileIds?.add(it.inode)
                 applyChmod(it.path).emitAll()
             }
@@ -263,7 +262,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private fun <T : StorageEvent> FSResult<List<T>>.emitAll(): List<T> {
         val result = unwrap()
         result.forEach { event ->
-            GlobalScope.launch { eventProducer.emit(event) } // TODO BAD IDEA
+            BackgroundScope.launch { eventProducer.emit(event) }
         }
         return result
     }

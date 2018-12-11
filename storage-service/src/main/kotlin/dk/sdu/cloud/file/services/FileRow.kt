@@ -1,11 +1,11 @@
 package dk.sdu.cloud.file.services
 
+import dk.sdu.cloud.file.SERVICE_UNIX_USER
 import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.file.SERVICE_UNIX_USER
 
 // This slightly messy code allows us to skip null checks. This makes for a better API
 @Suppress("ConstructorParameterNaming")
