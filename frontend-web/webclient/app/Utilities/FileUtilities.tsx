@@ -6,7 +6,7 @@ import { History } from "history";
 import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
 import { projectViewPage } from "Utilities/ProjectUtilities";
-import { SensitivityLevel, SensitivityLevelMap } from "DefaultObjects";
+import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 
 export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCloud): void {
@@ -376,10 +376,12 @@ export const shareFiles = (files: File[], cloud: SDUCloud) =>
     UF.shareSwal().then((input) => {
         if (input.dismiss) return;
         const rights: string[] = [];
-        if (UF.isElementChecked("read-swal")) rights.push("READ");
-        if (UF.isElementChecked("edit-swal")) rights.push("WRITE");
+        const elementValue = UF.elementValue("access-select");
+        console.log(elementValue);
+        if (elementValue.includes("read")) rights.push("READ")
+        if (elementValue.includes("edit")) rights.push("WRITE")
         let i = 0;
-        files.map((f) => f.path).forEach((path, i, paths) => {
+        files.map(f => f.path).forEach((path, i, paths) => {
             const body = {
                 sharedWith: input.value,
                 path,

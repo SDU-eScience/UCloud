@@ -87,26 +87,25 @@ export const uploadsNotifications = (finished: number, total: number) => swal({
 export const shareSwal = () => swal({
     title: "Share",
     input: "text",
-    html: `<span>
-                <label>Read</label>
-                <input id="read-swal" type="checkbox" />
-                <label>Edit</label>
-                <input id="edit-swal" type="checkbox" />
-            </span>`,
+    html: `<label for="access-select">Access right </label>
+            <select id="access-select">
+                <option value=""></option>
+                <option value="read">Read</option>
+                <option value="read_edit">Read and Edit</option>
+            </select>`,
     showCloseButton: true,
     showCancelButton: true,
     inputPlaceholder: "Enter username...",
     focusConfirm: false,
     inputValidator: (value: string) => {
         if (!value) return "Username missing";
-        if (!(isElementChecked("read-swal") ||
-            isElementChecked("edit-swal"))) return "Select at least one access right";
+        if (!(elementValue("access-select"))) return "Select at least one access right";
         return null;
     }
 
 });
 
-export const isElementChecked = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
+export const elementValue = (id: string): string => (document.getElementById(id) as HTMLOptionElement).value;
 
 export const inputSwal = (inputName: string) => ({
     title: "Share",
