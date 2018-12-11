@@ -4,14 +4,22 @@ import dk.sdu.cloud.accounting.api.BillableItem
 import dk.sdu.cloud.accounting.api.Currencies
 import dk.sdu.cloud.accounting.api.SerializedMoney
 import dk.sdu.cloud.accounting.storage.Configuration
+import dk.sdu.cloud.accounting.storage.api.StorageForUser
+import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.indexing.api.AllOf
 import dk.sdu.cloud.indexing.api.FileQuery
 import dk.sdu.cloud.indexing.api.NumericStatisticsRequest
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.StatisticsRequest
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.optionallyCausedBy
 import dk.sdu.cloud.service.orThrow
 import io.ktor.http.HttpStatusCode
@@ -19,8 +27,12 @@ import org.slf4j.Logger
 import java.math.BigDecimal
 import kotlin.math.roundToLong
 
-class StorageAccountingService(
+val FIRST_PAGE = NormalizedPaginationRequest(null, null)
+
+class StorageAccountingService<DBSession>(
     private val serviceCloud: AuthenticatedCloud,
+    private val db: DBSessionFactory<DBSession>,
+    private val dao: StorageAccountingDao<DBSession>,
     config: Configuration
 ) {
     private val pricePerUnit = BigDecimal(config.pricePerByte)
@@ -54,7 +66,36 @@ class StorageAccountingService(
         )
     }
 
+    suspend fun collectCurrentStorageUsage() {
+        db.withTransaction { session ->
+            val id = UserDescriptions.openUserIterator.call(Unit, serviceCloud).orThrow()
+            var userlist = UserDescriptions.fetchNextIterator.call(id, serviceCloud).orThrow()
+            while (userlist.isNotEmpty()) {
+                userlist.forEach {
+                    val usage = calculateUsage(homeDirectory(it.id),it.id).first().units
+                    dao.insert(session, it, usage)
+                }
+                userlist = UserDescriptions.fetchNextIterator.call(id, serviceCloud).orThrow()
+            }
+            UserDescriptions.closeIterator.call(id, serviceCloud).orThrow()
+        }
+    }
+
     companion object : Loggable {
         override val log: Logger = logger()
     }
+}
+
+interface StorageAccountingDao<Session> {
+    fun insert(
+        session: Session,
+        user: Principal,
+        usage: Long
+    )
+
+    fun findAllByUserId(
+        session: Session,
+        user: Principal,
+        paginationRequest: NormalizedPaginationRequest = FIRST_PAGE
+    ) : Page<StorageForUser>
 }

@@ -7,9 +7,9 @@ mainClassName = "dk.sdu.cloud.accounting.compute.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.1/sdu-cloud.gradle"
 
 dependencies {
-    compile 'dk.sdu.cloud:service-common:0.21.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:service-common:0.22.0-SNAPSHOT'
     compile "dk.sdu.cloud:app-api:0.10.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.8.0-SNAPSHOT"
     compile "dk.sdu.cloud:accounting-api:0.2.0-SNAPSHOT"
-    testCompile 'dk.sdu.cloud:service-common-test:0.21.0-SNAPSHOT'
+    testCompile 'dk.sdu.cloud:service-common-test:0.22.0-SNAPSHOT'
 }

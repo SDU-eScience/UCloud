@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.12.0-SNAPSHOT'
+version '1.13.0-SNAPSHOT'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
