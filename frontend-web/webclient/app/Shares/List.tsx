@@ -69,8 +69,8 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
                 <Flex>
                     <Box ml="auto" />
                     <ClickableDropdown chevron trigger={<TextSpan>Shares where: {prettierString(byState)}</TextSpan>}>
-                        {Object.keys(ShareState).map((it: ShareState) => (
-                            <Text onClick={() => this.updateShareState(it)}>{prettierString(it)}</Text>
+                        {Object.keys(ShareState).map((it: ShareState, i) => (
+                            <Text key={i} onClick={() => this.updateShareState(it)}>{prettierString(it)}</Text>
                         ))}
                     </ClickableDropdown>
                 </Flex>
