@@ -15,6 +15,7 @@ import { Box, Flex, Error } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Toggle } from "ui-components/Toggle";
 import styled from "styled-components";
+import { TextSpan } from "ui-components/Text";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -80,7 +81,7 @@ class Uploader extends React.Component<UploaderProps> {
         }
     }
 
-    startAllUploads = (event) => {
+    startAllUploads = event => {
         event.preventDefault();
         const length = this.props.uploads.length;
         for (let i = 0; i < length; i++) {
@@ -151,22 +152,24 @@ class Uploader extends React.Component<UploaderProps> {
                         {this.props.uploads.filter(it => !it.isUploading).length > 1 ?
                             <Button
                                 fullWidth
-
                                 color={"green"}
                                 onClick={this.startAllUploads}
                             ><Icon name={"upload"} />Start all!</Button>
                             : null}
-                        <DropZone onDrop={this.onFilesAdded}>
-                            <p>
-                                <Flex>
-                                    <Box mr="0.5em"><Icon name="upload" /></Box>
-                                    <Box mr="0.3em">Drop files here or </Box><a href="#">{" browse"}</a>
-                                </Flex>
-                            </p>
-                            <p>
-                                <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
-                            </p>
-                        </DropZone>
+                        <ReactDropzone onDrop={this.onFilesAdded}>
+                            {({ getRootProps, getInputProps }) =>
+                                <DropZoneBox {...getRootProps()}>
+                                    <input {...getInputProps()} />
+                                    <p>
+                                        <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
+                                        <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">{" browse"}</a>
+                                    </p>
+                                    <p>
+                                        <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
+                                    </p>
+                                </DropZoneBox>
+                            }
+                        </ReactDropzone>
                     </div>
                 </Box>
             </Modal>
@@ -175,8 +178,7 @@ class Uploader extends React.Component<UploaderProps> {
     }
 }
 
-const DropZone = styled(ReactDropzone)`
-
+const DropZoneBox = styled(Box)`
     width: 100%;
     height: 100px; 
     border-width: 2px; 
@@ -188,7 +190,13 @@ const DropZone = styled(ReactDropzone)`
     & > p {
         margin: 16px;
     }
-`
+`;
+
+const privacyOptions = [
+    { text: "Private", value: "PRIVATE" },
+    { text: "Confidential", value: "CONFIDENTIAL" },
+    { text: "Sensitive", value: "SENSITIVE" }
+]
 
 const UploaderRow = (p: {
     file: File,
@@ -237,7 +245,7 @@ const UploaderRow = (p: {
                         chevron
                         trigger={prettierString(p.sensitivity)}
                         onChange={key => p.setSensitivity(key as Sensitivity)}
-                        options={[{ text: "Private", value: "PRIVATE" }, { text: "Confidential", value: "CONFIDENTIAL" }, { text: "Sensitive", value: "SENSITIVE" }]}
+                        options={privacyOptions}
                     />
                 </Flex>
             </Box>
@@ -286,7 +294,7 @@ const UploaderRow = (p: {
     );
 }
 
-const archiveExtensions: string[] = [".tar.gz"]
+const archiveExtensions: string[] = [".tar.gz", ".zip"]
 const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 
 const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({

@@ -6,7 +6,7 @@ import { History } from "history";
 import swal from "sweetalert2";
 import * as UF from "UtilityFunctions";
 import { projectViewPage } from "Utilities/ProjectUtilities";
-import { SensitivityLevel, SensitivityLevelMap } from "DefaultObjects";
+import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 
 export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCloud): void {
@@ -39,7 +39,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
     operations.setDisallowedPaths([parentPath].concat(files.map(f => f.path)));
     operations.setFileSelectorCallback((file: File) => {
         const newPath = file.path;
-        files.forEach((f) => {
+        files.forEach(f => {
             const currentPath = f.path;
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
             cloud.post(`/files/move?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`).then(() => {
@@ -76,9 +76,8 @@ const hasAccess = (accessRight: AccessRight, file: File) => {
     return relevantEntries.some(entry => entry.rights.includes(accessRight));
 };
 
-export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) => {
-    return files.every(f => hasAccess(accessRight, f));
-};
+export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) =>
+    files.every(f => hasAccess(accessRight, f));
 
 /**
  * @returns Share and Download operations for files
@@ -261,7 +260,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
  */
 export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], cloud: SDUCloud): Page<File> => {
     filesToFavorite.forEach(f => {
-        const file = page.items.find((file: File) => file.path === f.path)!;
+        const file = page.items.find(file => file.path === f.path)!;
         favoriteFile(file, cloud);
     });
     return page;
@@ -377,11 +376,12 @@ export const shareFiles = (files: File[], cloud: SDUCloud) =>
     UF.shareSwal().then((input) => {
         if (input.dismiss) return;
         const rights: string[] = [];
-        if (UF.isElementChecked("read-swal")) rights.push("READ");
-        if (UF.isElementChecked("write-swal")) rights.push("WRITE");
-        if (UF.isElementChecked("execute-swal")) rights.push("EXECUTE");
+        const elementValue = UF.elementValue("access-select");
+        console.log(elementValue);
+        if (elementValue.includes("read")) rights.push("READ")
+        if (elementValue.includes("edit")) rights.push("WRITE")
         let i = 0;
-        files.map((f) => f.path).forEach((path, i, paths) => {
+        files.map(f => f.path).forEach((path, i, paths) => {
             const body = {
                 sharedWith: input.value,
                 path,

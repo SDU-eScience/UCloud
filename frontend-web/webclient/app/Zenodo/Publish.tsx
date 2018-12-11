@@ -37,7 +37,7 @@ interface ZenodoPublishOperations {
 }
 
 class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOperations, ZenodoPublishState> {
-    constructor(props) {
+    constructor(props: any) {
         super(props);
         this.state = {
             files: [""],
@@ -84,7 +84,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
     render() {
         const { name } = this.state;
         if (this.props.loading) {
-            return (<DefaultLoading className="" size={undefined} loading={true} />);
+            return (<DefaultLoading loading={true} />);
         } else if (!this.props.connected) {
             return (<NotConnectedToZenodo />);
         }

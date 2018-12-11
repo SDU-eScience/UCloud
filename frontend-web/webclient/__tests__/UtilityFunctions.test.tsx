@@ -310,19 +310,10 @@ test("shareSwal", () => {
     expect(JSON.parse(JSON.stringify(swal.params))).toEqual(JSON.parse(JSON.stringify({
         title: "Share",
         input: "text",
-        html: `<form class="ui form">
-            <div class="three fields">
-                <div class="field"><div class="ui checkbox">
-                    <input id="read-swal" type="checkbox" /><label>Read</label>
-                </div></div>
-                <div class="field"><div class="ui checkbox">
-                    <input id="write-swal" type="checkbox" /><label>Write</label>
-                </div></div>
-                <div class="field"><div class="ui checkbox">
-                    <input id="execute-swal" type="checkbox" /><label>Execute</label>
-                </div></div>
-            </div>
-          </form>`,
+        html: `<select id="access-select">
+                <option value="read">Can View</option>
+                <option value="read_edit">Can View and Edit</option>
+            </select>`,
         showCloseButton: true,
         showCancelButton: true,
         inputPlaceholder: "Enter username...",

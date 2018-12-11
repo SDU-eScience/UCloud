@@ -6,6 +6,7 @@
         "strictNullChecks": true,
         "noImplicitThis": true,
         "noImplicitAny": false,
+        "allowUnreachableCode": false,
         "module": "esnext",
         "lib": [
             "esnext",

@@ -16,7 +16,7 @@ import * as Heading from "ui-components/Heading";
 import { Spacer } from "ui-components/Spacer";
 import { EntriesPerPageSelector } from "Pagination";
 import * as UF from "UtilityFunctions";
-import { FilesTable } from "./Files";
+import { FilesTable } from "./FilesTable";
 import SDUCloud from "Authentication/lib";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
@@ -185,14 +185,14 @@ const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders =
         ops.push(
             {
                 text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
-                disabled: (files: File[], cloud: SDUCloud) => false, icon: "check", color: "green"
+                disabled: (files: File[], cloud: SDUCloud) => false
             })
     }
     else {
         ops.push(
             {
                 text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
-                disabled: (files: File[], cloud: SDUCloud) => isDirectory(files[0]), icon: "check", color: "green"
+                disabled: (files: File[], cloud: SDUCloud) => isDirectory(files[0])
             })
     }
     return (

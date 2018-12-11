@@ -20,7 +20,7 @@ import DetailedFileSearch from "Files/DetailedFileSearch";
 import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSearchActions";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import { setAppName } from "Applications/Redux/DetailedApplicationSearchActions";
-import { FilesTable } from "Files/Files";
+import { FilesTable } from "Files/FilesTable";
 import { searchPage } from "Utilities/SearchUtilities";
 import { getQueryParamOrElse } from "Utilities/URIUtilities";
 

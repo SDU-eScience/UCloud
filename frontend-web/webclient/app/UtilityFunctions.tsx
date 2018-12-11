@@ -87,34 +87,23 @@ export const uploadsNotifications = (finished: number, total: number) => swal({
 export const shareSwal = () => swal({
     title: "Share",
     input: "text",
-    html: `<form class="ui form">
-            <div class="three fields">
-                <div class="field"><div class="ui checkbox">
-                    <input id="read-swal" type="checkbox" /><label>Read</label>
-                </div></div>
-                <div class="field"><div class="ui checkbox">
-                    <input id="write-swal" type="checkbox" /><label>Write</label>
-                </div></div>
-                <div class="field"><div class="ui checkbox">
-                    <input id="execute-swal" type="checkbox" /><label>Execute</label>
-                </div></div>
-            </div>
-          </form>`,
+    html: `<select id="access-select">
+                <option value="read">Can View</option>
+                <option value="read_edit">Can View and Edit</option>
+            </select>`,
     showCloseButton: true,
     showCancelButton: true,
     inputPlaceholder: "Enter username...",
     focusConfirm: false,
     inputValidator: (value: string) => {
         if (!value) return "Username missing";
-        if (!(isElementChecked("read-swal") ||
-            isElementChecked("write-swal") ||
-            isElementChecked("execute-swal"))) return "Select at least one access right";
+        if (!(elementValue("access-select"))) return "Select at least one access right";
         return null;
     }
 
 });
 
-export const isElementChecked = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
+export const elementValue = (id: string): string => (document.getElementById(id) as HTMLOptionElement).value;
 
 export const inputSwal = (inputName: string) => ({
     title: "Share",
@@ -243,21 +232,21 @@ export interface FtIconProps {
 }
 
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FtIconProps => {
-    let icon:FtIconProps = { type:"FILE" };
+    let icon: FtIconProps = { type: "FILE" };
     if (isDirectory({ fileType: type })) {
         const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
-        switch(homeFolderReplaced) {
+        switch (homeFolderReplaced) {
             case "Home/Jobs":
-                icon.type="RESULTFOLDER";
+                icon.type = "RESULTFOLDER";
                 break;
             case "Home/Favorites":
-                icon.type="FAVFOLDER";
+                icon.type = "FAVFOLDER";
                 break;
             case "Home/Trash":
-                icon.type="TRASHFOLDER";
+                icon.type = "TRASHFOLDER";
                 break;
             default:
-                icon.type="DIRECTORY";
+                icon.type = "DIRECTORY";
         }
         return icon;
     }
@@ -339,4 +328,13 @@ export function defaultErrorHandler(error: { request: XMLHttpRequest, response: 
 
 export function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export function sortByToPrettierString(sortBy: SortBy): string {
+    switch (sortBy) {
+        case "ACL":
+            return "Members";
+        default:
+            return prettierString(sortBy);
+    }
 }

@@ -18,7 +18,7 @@ import { TextSpan } from "ui-components/Text";
 
 
 class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState> {
-    constructor(props) {
+    constructor(props: any) {
         super(props);
         this.state = {
             promises: new PromiseKeeper(),
@@ -69,12 +69,12 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
                 <Flex>
                     <Box ml="auto" />
                     <ClickableDropdown chevron trigger={<TextSpan>Shares where: {prettierString(byState)}</TextSpan>}>
-                        {Object.keys(ShareState).map((it: ShareState) => (
-                            <Text onClick={() => this.updateShareState(it)}>{prettierString(it)}</Text>
+                        {Object.keys(ShareState).map((it: ShareState, i) => (
+                            <Text key={i} onClick={() => this.updateShareState(it)}>{prettierString(it)}</Text>
                         ))}
                     </ClickableDropdown>
                 </Flex>
-                <DefaultLoading loading={this.state.loading} size="big" />
+                <DefaultLoading loading={this.state.loading} />
                 <Heading.h3>Shared with Me</Heading.h3>
                 {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
                     <ListEntry
@@ -344,7 +344,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                 >
                     <Flex alignItems="center" justifyContent="center">
                         <Icon size={18} name="search" />
-                        <Text ml="5px">Read</Text>
+                        <Text ml="5px">View</Text>
                     </Flex>
                 </Button>
                 <Button
@@ -355,7 +355,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                 >
                     <Flex alignItems="center" justifyContent="center">
                         <Icon size={18} name="rename" />
-                        <Text ml="5px">Write</Text>
+                        <Text ml="5px">Edit</Text>
                     </Flex>
                 </Button>
             </ButtonGroup>
@@ -363,30 +363,28 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
     );
 }
 
-function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
+async function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
     if (byState) url += `&state=${encodeURIComponent(byState)}`;
-    return Cloud.get(url).then(it => it.response);
+    return (await Cloud.get(url)).response;
 }
 
-function acceptShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`).then(e => e.response); // FIXME Add error handling
-}
+const acceptShare = async (shareId: ShareId): Promise<any> =>
+    (await Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`)).response; // FIXME Add error handling
 
-function revokeShare(shareId: ShareId): Promise<any> {
-    return Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`).then(e => e.response); // FIXME Add error handling
-}
 
-function createShare(user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> {
-    return Cloud.put(`/shares/`, { sharedWith: user, path, rights }).then(e => e.response); // FIXME Add error handling
-}
+const revokeShare = async (shareId: ShareId): Promise<any> =>
+    (await Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`)).response; // FIXME Add error handling
 
-function updateShare(id: ShareId, rights: AccessRightValues[]): Promise<any> {
-    return Cloud.post(`/shares/`, { id, rights }).then(e => e.response);
-}
+const createShare = async (user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> =>
+    (await Cloud.put(`/shares/`, { sharedWith: user, path, rights })).response; // FIXME Add error handling
 
-const sharesByPath = (path: string): Promise<any> => {
-    return Cloud.get(sharesByPathQuery(path)).then(e => ({ items: [e.response] }));
-}
+const updateShare = async (id: ShareId, rights: AccessRightValues[]): Promise<any> =>
+    (await Cloud.post(`/shares/`, { id, rights })).response;
+
+const sharesByPath = async (path: string): Promise<any> => ({
+    items: [(await Cloud.get(sharesByPathQuery(path))).response]
+});
+
 
 export default connect()(List);

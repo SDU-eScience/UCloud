@@ -27,7 +27,7 @@ const labelStyles = css`
   animation: ${fadeIn} 0.3s
 `
 
-const getFieldStyles = showLabel => {
+const getFieldStyles = (showLabel: boolean) => {
   return showLabel
     ? {
       paddingTop: "9.5px",
@@ -48,7 +48,7 @@ const formElements = [Input, Select]
 const isFormElement = element => formElements.includes(element)
 
 class FormField extends React.Component<{
-  onChange: (e) => void
+  onChange: (e: React.SyntheticEvent) => void
   label?: string
   icon?: IconName
   id?: string
