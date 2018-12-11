@@ -17,6 +17,7 @@ import * as Heading from "ui-components/Heading";
 import { TextSpan } from "ui-components/Text";
 import { Spacer } from "ui-components/Spacer";
 import { EntriesPerPageSelector } from "Pagination";
+import * as UF from "UtilityFunctions";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props, context) {
@@ -258,25 +259,33 @@ const RemoveButton = ({ onClick }) => (<Button type="button" onClick={onClick}>â
 const FolderSelection = ({ canSelectFolders, setSelectedFile }) => canSelectFolders ?
     (<Button onClick={setSelectedFile}>Select</Button>) : null;
 
-const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: FileListProps) =>
-    !files.length ? null :
-        (<>
+const FileListIcon = ({ file, link }: { file: File, link: boolean }) => {
+    const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
+    return ( <FileIcon fileIcon={iconType} link={link} /> );
+}
+
+const FileList = ({ files, fetchFiles, setSelectedFile, canSelectFolders }: FileListProps): JSX.Element => {
+    if (files.length == 0) return (<></>);
+
+    return (
+        <>
             {files.map((file, index) =>
                 file.fileType === "FILE" ? (
                     <Flex key={index} onClick={() => setSelectedFile(file)}>
-                        <Icon name="ftFile" color="blue" />{getFilenameFromPath(file.path)}
-                        {/* <SList.Icon name={uf.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)} /> */}
+                        <FileListIcon file={file} link={file.link}/>{getFilenameFromPath(file.path)}
                     </Flex>
                 ) : (
                         <Flex key={index}>
                             <TextSpan onClick={() => fetchFiles(file.path)}>
-                                <FileIcon name="ftFolder" link={file.link} color="blue" />
+                            <FileListIcon file={file} link={file.link}/>
                                 {getFilenameFromPath(file.path)}
                             </TextSpan>
                             <Box ml="auto" />
                             <FolderSelection canSelectFolders={canSelectFolders} setSelectedFile={() => setSelectedFile(file)} />
                         </Flex>
                     ))}
-        </>);
+        </>
+    );
+}
 
 export default FileSelector;

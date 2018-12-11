@@ -221,8 +221,7 @@ export const FilesTable = ({
             />
             <TableBody>
                 {files.map((file, i) => (
-                    // FIXME Use :has() or parent selector when available
-                    <TableRow style={file.isChecked ? { backgroundColor: "#EBF4FD" } : {}} key={i}>
+                    <TableRow highlighted={file.isChecked} key={i}>
                         <FilenameAndIcons
 
                             file={file}
@@ -252,16 +251,15 @@ const ResponsiveTableColumn = ({
     currentSelection,
     sortOrder
 }: ResponsiveTableColumnProps) => (
-        <TableHeaderCell width="17.5%" xs sm md textAlign="left">
-            <Flex>
+        <TableHeaderCell width="20%" xs sm md >
+            <Flex alignItems="center" justifyContent="left">
+                <Arrow name={iconName} />
                 <SortByDropdown
                     isSortedBy={isSortedBy}
                     onSelect={onSelect}
                     asDropdown={asDropdown}
                     currentSelection={currentSelection}
                     sortOrder={sortOrder} />
-                <Box ml="auto" />
-                <Arrow name={iconName} />
             </Flex>
         </TableHeaderCell>
     );
@@ -282,15 +280,16 @@ const FilesTableHeader = ({
         <TableHeader>
             <TableRow>
                 <TableHeaderCell width="50%" textAlign="left">
-                    <Flex>
-                        <Box ml="9px">
+                    <Flex
+                        alignItems="center" 
+                        onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
+                        <Box mx="9px" onClick={e => e.stopPropagation()}>
                             {masterCheckbox}
                         </Box>
-                        <Box ml="9px" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
-                            Filename
-                    </Box>
-                        <Box ml="auto" onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)} />
                         <Arrow name={toSortingIcon(SortBy.PATH)} />
+                        <Box>
+                            Filename
+                        </Box>
                     </Flex>
                 </TableHeaderCell>
                 {sortingColumns.map((sC, i) => (
@@ -305,7 +304,7 @@ const FilesTableHeader = ({
                         iconName={toSortingIcon(sC)}
                     />
                 ))}
-                <TableHeaderCell width="15%" colSpan={3} textAlign="right">
+                <TableHeaderCell width="20%" textAlign="right">
                     {customEntriesPerPage}
                 </TableHeaderCell>
             </TableRow>
@@ -352,7 +351,7 @@ const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: C
             <Button color="red"
                 onClick={() => clearTrash(Cloud, () => toHome())}
             >
-                Clear trash
+                Empty trash
                 </Button> : null}
     </VerticalButtonGroup>
 );
@@ -364,7 +363,7 @@ const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
 const PredicatedFavorite = ({ predicate, item, onClick }) =>
     predicate ? (
         <Icon
-            size={15} ml="5px"
+            size="1em" ml=".7em"
             color="blue"
             name={item.favorited ? "starFilled" : "starEmpty"}
             className={`${item.favorited ? "" : "file-data"}`}
@@ -372,8 +371,7 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
         />
     ) : null;
 
-// FIXME Use own icons when available
-const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<i style={{ marginLeft: "5px" }} className="fas fa-users" />) : null;
+const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
 
 const FileLink = ({ file, children }) => {
     if (isDirectory(file)) {
@@ -388,11 +386,11 @@ const FileLink = ({ file, children }) => {
 function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} /></Box>
+    const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     const icon = (
         <Box mr="10px">
             <FileIcon
-                color={isDirectory(file) ? "gray" : "gray"}
-                name={UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder)}
+                fileIcon={iconType}
                 size={size} link={file.link} shared={(file.acl !== undefined ? file.acl.length : 0) > 0}
             />
         </Box>
@@ -414,7 +412,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                     onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
                 />
                 {/* <OutlineButton size="tiny" color="red" mr="10px" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton> */}
-                <Icon size={24} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")}/>
+                <Icon size={24} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
             </Flex>
         </TableCell > :
         <TableCell width="50%">

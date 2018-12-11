@@ -158,6 +158,8 @@ const paginationDisabled = lightGray;
 // Icons colors
 const iconColor = darkGray;
 const iconColor2 = gray;
+const FtIconColor = lightGray;
+const FtIconColor2 = gray;
 const spinnerColor = blue;
 
 
@@ -192,6 +194,8 @@ const colors = {
   paginationDisabled,
   iconColor,
   iconColor2,
+  FtIconColor,
+  FtIconColor2,
   spinnerColor,
 }
 

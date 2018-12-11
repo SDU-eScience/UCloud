@@ -66,7 +66,6 @@ class JobResults extends React.Component<AnalysesProps, AnalysesState> {
         return (
             <React.StrictMode>
                 <MainContainer
-                    header={<Navigation selected={Pages.RESULTS} />}
                     main={content} />
             </React.StrictMode>
         )

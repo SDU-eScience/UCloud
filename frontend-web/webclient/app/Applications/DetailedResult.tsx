@@ -24,6 +24,7 @@ import { Flex, Box, List, Card } from "ui-components";
 import { Step, StepGroup } from "ui-components/Step";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
+import Icon, { IconName } from "ui-components/Icon";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -142,22 +143,22 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             <h4>Progress</h4>
             <StepGroup>
                 <StepTrackerItem
-                    icon="fas fa-check"
+                    icon="checkDouble"
                     active={this.isStateActive("VALIDATED")}
                     complete={this.isStateComplete("VALIDATED")}
                     title={"Validated"} />
                 <StepTrackerItem
-                    icon="fas fa-hourglass-half"
+                    icon="hourglass"
                     active={this.isStateActive("PENDING")}
                     complete={this.isStateComplete("PENDING")}
                     title={"Pending"} />
                 <StepTrackerItem
-                    icon="fas fa-calendar"
+                    icon="calendar"
                     active={this.isStateActive("SCHEDULED")}
                     complete={this.isStateComplete("SCHEDULED")}
                     title={"Scheduled"} />
                 <StepTrackerItem
-                    icon="fas fa-stopwatch"
+                    icon="chrono"
                     active={this.isStateActive("RUNNING")}
                     complete={this.isStateComplete("RUNNING")}
                     title={"Running"} />
@@ -328,14 +329,13 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
 }
 
-type ProgressTrackerIcon = "fas fa-check" |
-    "fas fa-hourglass-half" |
-    "fas fa-calendar" |
-    "fas fa-stopwatch"
-
-const StepTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: ProgressTrackerIcon }) => (
+const StepTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: IconName }) => (
     <Step active={props.active}>
-        <span><TextSpan fontSize={4} mr="0.7em"><i className={props.icon} /></TextSpan><TextSpan fontSize={3}>{props.title}</TextSpan></span>
+        <span>
+            {/* <TextSpan fontSize={4} mr="0.7em"><i className={props.icon} /></TextSpan> */}
+            <Icon name={props.icon} mr="0.7em" size="30px" color="iconColor" color2="iconColor2" />
+            <TextSpan fontSize={3}>{props.title}</TextSpan>
+        </span>
     </Step>
 );
 

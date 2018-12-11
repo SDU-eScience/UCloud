@@ -29,7 +29,7 @@ Array [
       }
     >
       <div
-        className="sc-bdVaJa sc-fjdhpX lajvgC"
+        className="sc-bdVaJa sc-jTzLTM dtQBbz"
       >
         <div
           className="sc-bdVaJa tfARS"
@@ -64,7 +64,7 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-jKJlTe kbxWhx"
+            className="sc-hMqMXs eXJRRJ"
             color="text"
             hoverColor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
@@ -117,7 +117,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-iRbamj gyvoRN"
+            className="sc-bdVaJa sc-gipzik hpKfbc"
             fontSize="large"
           >
             <a
@@ -184,11 +184,11 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-iRbamj erHLDQ"
+            className="sc-bdVaJa sc-gipzik dPbgGA"
             fontSize="large"
           >
             <div
-              className="sc-eHgmQL fOxgDb"
+              className="sc-jWBwVP kfhpxH"
               color="black"
               fontSize={0}
             >
@@ -225,7 +225,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-iRbamj erHLDQ"
+            className="sc-bdVaJa sc-gipzik dPbgGA"
             fontSize="large"
           />
           <h4
@@ -258,7 +258,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-iRbamj erHLDQ"
+            className="sc-bdVaJa sc-gipzik dPbgGA"
             fontSize="large"
           />
         </div>
@@ -268,7 +268,7 @@ Array [
       </p>
     </div>
     <div
-      className="sc-bdVaJa sc-fjdhpX jgzaqd"
+      className="sc-bdVaJa sc-jTzLTM jhzWaI"
       width={
         Array [
           0,
@@ -312,7 +312,7 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-jKJlTe kbxWhx"
+            className="sc-hMqMXs eXJRRJ"
             color="text"
             hoverColor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
@@ -365,7 +365,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-iRbamj gyvoRN"
+            className="sc-bdVaJa sc-gipzik hpKfbc"
             fontSize="large"
           >
             <a
@@ -432,11 +432,11 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-iRbamj erHLDQ"
+            className="sc-bdVaJa sc-gipzik dPbgGA"
             fontSize="large"
           >
             <div
-              className="sc-eHgmQL fOxgDb"
+              className="sc-jWBwVP kfhpxH"
               color="black"
               fontSize={0}
             >
@@ -473,7 +473,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-iRbamj erHLDQ"
+            className="sc-bdVaJa sc-gipzik dPbgGA"
             fontSize="large"
           />
           <h4
@@ -506,7 +506,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-iRbamj erHLDQ"
+            className="sc-bdVaJa sc-gipzik dPbgGA"
             fontSize="large"
           />
         </div>

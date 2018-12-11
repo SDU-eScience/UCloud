@@ -189,7 +189,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             { !onFavorite ? null :
 	            <AppRibbonContainer right={0} 
 	                      top={isFavorite ? 0 : -30}
-	                      onClick={(e) => !!onFavorite ? (e.preventDefault(), onFavorite(app.description.info.name, app.description.info.version)) : undefined}
+	                      onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(app.description.info.name, app.description.info.version)) : undefined}
 	            >
 	                <Icon name={"starRibbon"} color="red" size={48}/>
 	            </AppRibbonContainer>

@@ -10,6 +10,7 @@ export interface ListState {
     page: number,
     itemsPerPage: number
     loading: boolean
+    byState: ShareState
 }
 
 export interface ListProps {
@@ -33,9 +34,7 @@ export interface Share {
 export type ShareStateValues = keyof typeof ShareState
 export enum ShareState {
     REQUEST_SENT = "REQUEST_SENT",
-    ACCEPTED = "ACCEPTED",
-    REJECTED = "REJECT",
-    REVOKE = "REVOKE"
+    ACCEPTED = "ACCEPTED"
 }
 
 export type ShareId = string

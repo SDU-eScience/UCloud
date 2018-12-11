@@ -1,5 +1,5 @@
 import * as React from "react";
-import { iconFromFilePath, toLowerCaseAndCapitalize } from "UtilityFunctions";
+import { toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -11,10 +11,10 @@ import { DASHBOARD_FAVORITE_ERROR } from "./Redux/DashboardReducer";
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 import { Notification, NotificationEntry } from "Notifications";
 import { Analysis } from "Applications";
-import { File, FileType } from "Files";
+import { File } from "Files";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Error, Box, Flex, Card, Text, Link, theme, Icon } from "ui-components";
+import { Error, Box, Flex, Card, Text, Link, Icon } from "ui-components";
 import { EllipsedText } from "ui-components/Text"
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
@@ -24,6 +24,7 @@ import { fileTablePage } from "Utilities/FileUtilities";
 import { notificationRead, readAllNotifications } from "Notifications/Redux/NotificationsActions";
 import { History } from "history";
 import { default as Spinner } from "LoadingIcon/LoadingIcon_new";
+import * as UF from "UtilityFunctions";
 
 class Dashboard extends React.Component<DashboardProps & { history: History }> {
     constructor(props) {
@@ -99,32 +100,35 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
         <List>
             {files.map((file, i) => (
                 <Flex key={i} pt="0.8em" pb="6px">
-                    <ListFileContent path={file.path} type={file.fileType} link={false} pixelsWide={200} />
+                    <ListFileContent file={file} link={false} pixelsWide={200} />
                     <Box ml="auto" />
-                    <Box><i className="fas fa-star" style={{ color: theme.colors.blue }} onClick={() => favorite(file)} /></Box>
+                    <Icon name="starFilled" color="blue" cursor="pointer" onClick={() => favorite(file)} />
                 </Flex>)
             )}
         </List>
     </DashBoardCard>
 );
 
-const ListFileContent = ({ path, type, link, pixelsWide }: { path: string, type: FileType, link: boolean, pixelsWide: number }) => (
-    <>
-        <FileIcon  name={"ftFile"/* iconFromFilePath(path, type, Cloud.homeFolder) */} size={undefined} link={link} color="gray" />
-        <Link ml="0.5em" to={fileTablePage(isDirectory({ fileType: type }) ? path : getParentPath(path))}>
-            <EllipsedText fontSize={2} width={pixelsWide}>
-                {getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}
-            </EllipsedText>
-        </Link>
-    </>
-);
+const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean, pixelsWide: number }) => {
+    const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
+    return (
+        <>
+            <FileIcon fileIcon={iconType} link={link} />
+            <Link ml="0.5em" to={fileTablePage(isDirectory(file) ? file.path : getParentPath(file.path))}>
+                <EllipsedText fontSize={2} width={pixelsWide}>
+                    {getFilenameFromPath(replaceHomeFolder(file.path, Cloud.homeFolder))}
+                </EllipsedText>
+            </Link>
+        </>
+    );
+}
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
     <DashBoardCard title="Recently used files" isLoading={isLoading}>
         <List>
             {files.map((file, i) => (
                 <Flex key={i} pt="0.8em" pb="6px">
-                    <ListFileContent path={file.path} type={file.fileType} link={file.link} pixelsWide={130} />
+                    <ListFileContent file={file} link={file.link} pixelsWide={130} />
                     <Box ml="auto" />
                     <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt)).fromNow()}</Text>
                 </Flex>
@@ -164,7 +168,7 @@ const DashboardNotifications = ({ notifications, readAll, onNotificationAction }
         <Flex bg="lightGray" color="darkGray" p={3}>
             <Heading.h4>Recent notifications</Heading.h4>
             <Box ml="auto" />
-            <i style={{ margin: "5px", cursor: "pointer" }} title="Mark all as read" onClick={readAll} className="fas fa-check-double"></i>
+            <Icon name="checkDouble" m="5px" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />
         </Flex>
         <Box px={3} py={1}>
             {notifications.length === 0 ? <Heading.h6>No notifications</Heading.h6> : null}
