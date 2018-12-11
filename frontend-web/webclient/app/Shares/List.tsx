@@ -7,7 +7,7 @@ import { DefaultLoading } from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
-import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Button } from "ui-components";
+import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Button, Icon } from "ui-components";
 import { sharesByPathQuery } from "Utilities/SharesUtilities";
 import * as Heading from "ui-components/Heading";
 import { connect } from "react-redux";
@@ -191,7 +191,6 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     renderSharedByMe(): JSX.Element {
         const { groupedShare } = this.props;
         const { isLoading } = this.state;
-
         const shareComponents: JSX.Element[] = groupedShare.shares.map((e, i, { length }) => (
             <Box key={e.id}>
                 <Flex m="5px 5px 5px 5px">
@@ -212,7 +211,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                             onClick={() => this.onRevoke(e)}
                         >
                             <Flex justifyContent="center" alignItems="center">
-                                <i className="fas fa-times" />
+                                <Icon size={18} name="close" />
                                 <Text ml="3px">Revoke</Text>
                             </Flex>
                         </LoadingButton>
@@ -241,7 +240,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         );
     }
 
-    maybeInvoke<T>(payload: T, f?: (T) => void) {
+    maybeInvoke<T>(payload: T, f?: (t: T) => void) {
         if (f) f(payload)
     }
 
@@ -318,12 +317,12 @@ interface AccessRightsDisplayProps {
     rights?: AccessRightValues[]
 
     read?: boolean
-    write?: boolean 
+    write?: boolean
     floated?: boolean
 
     className?: string
 
-    onRightsToggle?: (AccessRight) => void
+    onRightsToggle?: (aR: AccessRight) => void
 }
 
 const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
@@ -344,7 +343,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                     onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.READ) : 0}
                 >
                     <Flex alignItems="center" justifyContent="center">
-                        <i className="fas fa-search" />
+                        <Icon size={18} name="search" />
                         <Text ml="5px">Read</Text>
                     </Flex>
                 </Button>
@@ -355,7 +354,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                     onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.WRITE) : 0}
                 >
                     <Flex alignItems="center" justifyContent="center">
-                        <i className="far fa-edit" />
+                        <Icon size={18} name="rename" />
                         <Text ml="5px">Write</Text>
                     </Flex>
                 </Button>

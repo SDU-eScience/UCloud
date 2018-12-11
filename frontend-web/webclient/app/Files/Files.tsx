@@ -206,7 +206,7 @@ class Files extends React.Component<FilesProps> {
 
 export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
-    fileOperations, sortOrder, onFavoriteFile, sortBy, customEntriesPerPage
+    fileOperations, sortOrder, onFavoriteFile, sortBy, customEntriesPerPage, onNavigationClick
 }: FilesTableProps) => (
         <Table>
             <FilesTableHeader
@@ -223,19 +223,22 @@ export const FilesTable = ({
                 {files.map((file, i) => (
                     <TableRow highlighted={file.isChecked} key={i}>
                         <FilenameAndIcons
-
+                            onNavigationClick={onNavigationClick}
                             file={file}
                             onFavoriteFile={onFavoriteFile}
                             hasCheckbox={masterCheckbox != null}
                             onRenameFile={onRenameFile}
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
-                        <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[0], file) : dateToString(file.modifiedAt)}</TableCell>
-                        <TableCell xs sm md>{sortingColumns ? UF.sortingColumnToValue(sortingColumns[1], file) : UF.getOwnerFromAcls(file.acl)}</TableCell>
+                        <TableCell xs sm md>{sortingColumns[0] ? UF.sortingColumnToValue(sortingColumns[0], file) : null}</TableCell>
+                        <TableCell xs sm md>{sortingColumns[1] ? UF.sortingColumnToValue(sortingColumns[1], file) : null}</TableCell>
                         <TableCell textAlign="center">
-                            <ClickableDropdown width="175px" trigger={<i className="fas fa-ellipsis-h" />}>
+                            {fileOperations.length > 1 ?
+                                <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" />}>
+                                    <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
+                                </ClickableDropdown> : 
                                 <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
-                            </ClickableDropdown>
+                            }
                         </TableCell>
                     </TableRow>)
                 )}
@@ -281,7 +284,7 @@ const FilesTableHeader = ({
             <TableRow>
                 <TableHeaderCell width="50%" textAlign="left">
                     <Flex
-                        alignItems="center" 
+                        alignItems="center"
                         onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
                         <Box mx="9px" onClick={e => e.stopPropagation()}>
                             {masterCheckbox}
@@ -292,16 +295,16 @@ const FilesTableHeader = ({
                         </Box>
                     </Flex>
                 </TableHeaderCell>
-                {sortingColumns.map((sC, i) => (
+                {sortingColumns.filter(it => it != null).map((sC, i) => (
                     <ResponsiveTableColumn
                         key={i}
                         isSortedBy={sC === sortBy}
                         minWidth={768}
                         onSelect={(sortOrder: SortOrder, sortBy: SortBy) => { if (!!onDropdownSelect) onDropdownSelect(sortOrder, sortBy, i) }}
-                        currentSelection={sC}
+                        currentSelection={sC!}
                         sortOrder={sortOrder}
                         asDropdown={!!onDropdownSelect}
-                        iconName={toSortingIcon(sC)}
+                        iconName={toSortingIcon(sC!)}
                     />
                 ))}
                 <TableHeaderCell width="20%" textAlign="right">
@@ -383,7 +386,7 @@ const FileLink = ({ file, children }) => {
     }
 }
 
-function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile }: FilenameAndIconsProps) {
+function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile, ...props }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} /></Box>
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
@@ -395,7 +398,9 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             />
         </Box>
     );
-    const nameLink = (<FileLink file={file}><Flex alignItems="center">{icon}<Text mr="5px">{fileName}</Text></Flex></FileLink>);
+    const nameLink = !!props.onNavigationClick ?
+        <Flex onClick={() => isDirectory(file) ? props.onNavigationClick!(file.path) : null} alignItems="center">{icon}<Text mr="5px">{fileName}</Text></Flex>
+        : (<FileLink file={file}><Flex alignItems="center">{icon}<Text mr="5px">{fileName}</Text></Flex></FileLink>);
     return file.beingRenamed ?
         <TableCell width="50%">
             <Flex flexDirection="row" alignItems="center">
@@ -411,7 +416,6 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                     autoFocus
                     onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
                 />
-                {/* <OutlineButton size="tiny" color="red" mr="10px" onClick={() => onRenameFile(KeyCode.ESC, file, "")}>Cancel</OutlineButton> */}
                 <Icon size={24} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
             </Flex>
         </TableCell > :

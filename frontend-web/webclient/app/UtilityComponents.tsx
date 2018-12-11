@@ -29,7 +29,7 @@ export function Arrow({ name }: { name: "arrowUp" | "arrowDown" | undefined}) {
 }
 
 export const RefreshButton = ({ loading, onClick }: { loading?: boolean, onClick: () => void, className?: string }) => (
-    <i className={`fas fa-sync ${loading ? "fa-spin" : ""}`} onClick={() => onClick()}/>
+    <Icon name="refresh" spin={loading} onClick={() => onClick()}/>
 );
 
 export const WebSocketSupport = () =>

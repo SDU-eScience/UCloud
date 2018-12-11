@@ -120,9 +120,10 @@ export interface FileSelectorState {
 }
 
 export interface FilesTableProps {
+    onNavigationClick?: (path: string) => void
     sortOrder: SortOrder
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
-    sortingColumns: [SortBy, SortBy]
+    sortingColumns: [SortBy?, SortBy?]
     files: File[]
     masterCheckbox?: React.ReactNode
     sortingIcon?: (name: SortBy) => "arrowUp" | "arrowDown" | undefined
@@ -148,7 +149,7 @@ export interface FilesTableHeaderProps {
     sortOrder: SortOrder
     sortBy: SortBy
     masterCheckbox?: React.ReactNode
-    sortingColumns: [SortBy, SortBy]
+    sortingColumns: [SortBy?, SortBy?]
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
     customEntriesPerPage?: React.ReactNode
 }
@@ -160,6 +161,7 @@ export interface FilenameAndIconsProps {
     onRenameFile?: (key: number, file: File, name: string) => void
     onCheckFile?: (c: boolean) => void
     onFavoriteFile?: (files: File[]) => void
+    onNavigationClick?: (path: string) => void
 }
 
 export interface FileSelectorModalProps {

@@ -140,7 +140,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="sc-bdVaJa bFsHEP"
           />
           <svg
-            className="sc-gzVnrw kIhMOw"
+            className="sc-gzVnrw fCUJrO"
             clipRule="evenodd"
             cursor="pointer"
             fill="currentcolor"
@@ -193,7 +193,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="sc-bdVaJa bFsHEP"
           />
           <svg
-            className="sc-gzVnrw kIhMOw"
+            className="sc-gzVnrw fCUJrO"
             clipRule="evenodd"
             cursor="pointer"
             fill="currentcolor"
@@ -246,7 +246,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="sc-bdVaJa bFsHEP"
           />
           <svg
-            className="sc-gzVnrw kIhMOw"
+            className="sc-gzVnrw fCUJrO"
             clipRule="evenodd"
             cursor="pointer"
             fill="currentcolor"
@@ -299,7 +299,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="sc-bdVaJa bFsHEP"
           />
           <svg
-            className="sc-gzVnrw kIhMOw"
+            className="sc-gzVnrw fCUJrO"
             clipRule="evenodd"
             cursor="pointer"
             fill="currentcolor"
@@ -352,7 +352,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="sc-bdVaJa bFsHEP"
           />
           <svg
-            className="sc-gzVnrw kIhMOw"
+            className="sc-gzVnrw fCUJrO"
             clipRule="evenodd"
             cursor="pointer"
             fill="currentcolor"
@@ -405,7 +405,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="sc-bdVaJa bFsHEP"
           />
           <svg
-            className="sc-gzVnrw kIhMOw"
+            className="sc-gzVnrw fCUJrO"
             clipRule="evenodd"
             cursor="pointer"
             fill="currentcolor"
@@ -458,7 +458,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="sc-bdVaJa bFsHEP"
           />
           <svg
-            className="sc-gzVnrw kIhMOw"
+            className="sc-gzVnrw fCUJrO"
             clipRule="evenodd"
             cursor="pointer"
             fill="currentcolor"
@@ -511,7 +511,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="sc-bdVaJa bFsHEP"
           />
           <svg
-            className="sc-gzVnrw kIhMOw"
+            className="sc-gzVnrw fCUJrO"
             clipRule="evenodd"
             cursor="pointer"
             fill="currentcolor"
@@ -564,7 +564,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="sc-bdVaJa bFsHEP"
           />
           <svg
-            className="sc-gzVnrw kIhMOw"
+            className="sc-gzVnrw fCUJrO"
             clipRule="evenodd"
             cursor="pointer"
             fill="currentcolor"
@@ -617,7 +617,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             className="sc-bdVaJa bFsHEP"
           />
           <svg
-            className="sc-gzVnrw kIhMOw"
+            className="sc-gzVnrw fCUJrO"
             clipRule="evenodd"
             cursor="pointer"
             fill="currentcolor"
@@ -735,7 +735,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         className="sc-bdVaJa bFsHEP"
       />
       <svg
-        className="sc-gzVnrw hnTJwq"
+        className="sc-gzVnrw gCVALd"
         clipRule="evenodd"
         color2="#8393A7"
         cursor="pointer"
@@ -1452,7 +1452,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         className="sc-bdVaJa bFsHEP"
       />
       <svg
-        className="sc-gzVnrw hnTJwq"
+        className="sc-gzVnrw gCVALd"
         clipRule="evenodd"
         color2="#8393A7"
         cursor="pointer"
@@ -1612,7 +1612,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
           className="sc-ifAKCX fdcbWa"
         >
           <svg
-            className="sc-gzVnrw jRxwVs"
+            className="sc-gzVnrw dnCABv"
             cursor="inherit"
             fill="currentcolor"
             height="1.5em"
@@ -1654,7 +1654,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
           className="sc-ifAKCX fdcbWa"
         >
           <svg
-            className="sc-gzVnrw jRxwVs"
+            className="sc-gzVnrw dnCABv"
             cursor="inherit"
             fill="currentcolor"
             height="1.5em"
@@ -1696,7 +1696,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
           className="sc-ifAKCX fdcbWa"
         >
           <svg
-            className="sc-gzVnrw jRxwVs"
+            className="sc-gzVnrw dnCABv"
             cursor="inherit"
             fill="currentcolor"
             height="1.5em"
@@ -1738,7 +1738,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
           className="sc-ifAKCX fdcbWa"
         >
           <svg
-            className="sc-gzVnrw dYldAD"
+            className="sc-gzVnrw fCnTSl"
             cursor="inherit"
             fill="currentcolor"
             height="1.5em"
@@ -1804,7 +1804,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         className="sc-bdVaJa bFsHEP"
       />
       <svg
-        className="sc-gzVnrw hnTJwq"
+        className="sc-gzVnrw gCVALd"
         clipRule="evenodd"
         color2="#8393A7"
         cursor="pointer"

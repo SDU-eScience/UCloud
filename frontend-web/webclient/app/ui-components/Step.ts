@@ -3,10 +3,12 @@ import Box from "./Box"
 import Flex from "./Flex";
 
 
-export const Step = styled(Box) <{ active?: boolean }>`
+export const Step = styled(Flex) <{ active?: boolean }>`
     text-align: center;
     position: relative;
     height: 5em;
+    justify-content: center;
+    align-items: center;
     line-height: 5em;
     width: 100%;
     background-color: ${({ active, theme }) => active ? theme.colors.lightGray : theme.colors.white};
