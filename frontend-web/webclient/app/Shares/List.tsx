@@ -355,7 +355,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                 >
                     <Flex alignItems="center" justifyContent="center">
                         <Icon size={18} name="rename" />
-                        <Text ml="5px">Write</Text>
+                        <Text ml="5px">Edit</Text>
                     </Flex>
                 </Button>
             </ButtonGroup>

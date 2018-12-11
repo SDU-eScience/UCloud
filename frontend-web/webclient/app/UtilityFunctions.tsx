@@ -87,19 +87,12 @@ export const uploadsNotifications = (finished: number, total: number) => swal({
 export const shareSwal = () => swal({
     title: "Share",
     input: "text",
-    html: `<form class="ui form">
-            <div class="three fields">
-                <div class="field"><div class="ui checkbox">
-                    <input id="read-swal" type="checkbox" /><label>Read</label>
-                </div></div>
-                <div class="field"><div class="ui checkbox">
-                    <input id="write-swal" type="checkbox" /><label>Write</label>
-                </div></div>
-                <div class="field"><div class="ui checkbox">
-                    <input id="execute-swal" type="checkbox" /><label>Execute</label>
-                </div></div>
-            </div>
-          </form>`,
+    html: `<span>
+                <label>Read</label>
+                <input id="read-swal" type="checkbox" />
+                <label>Edit</label>
+                <input id="edit-swal" type="checkbox" />
+            </span>`,
     showCloseButton: true,
     showCancelButton: true,
     inputPlaceholder: "Enter username...",
@@ -107,8 +100,7 @@ export const shareSwal = () => swal({
     inputValidator: (value: string) => {
         if (!value) return "Username missing";
         if (!(isElementChecked("read-swal") ||
-            isElementChecked("write-swal") ||
-            isElementChecked("execute-swal"))) return "Select at least one access right";
+            isElementChecked("edit-swal"))) return "Select at least one access right";
         return null;
     }
 
@@ -243,21 +235,21 @@ export interface FtIconProps {
 }
 
 export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FtIconProps => {
-    let icon:FtIconProps = { type:"FILE" };
+    let icon: FtIconProps = { type: "FILE" };
     if (isDirectory({ fileType: type })) {
         const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
-        switch(homeFolderReplaced) {
+        switch (homeFolderReplaced) {
             case "Home/Jobs":
-                icon.type="RESULTFOLDER";
+                icon.type = "RESULTFOLDER";
                 break;
             case "Home/Favorites":
-                icon.type="FAVFOLDER";
+                icon.type = "FAVFOLDER";
                 break;
             case "Home/Trash":
-                icon.type="TRASHFOLDER";
+                icon.type = "TRASHFOLDER";
                 break;
             default:
-                icon.type="DIRECTORY";
+                icon.type = "DIRECTORY";
         }
         return icon;
     }
