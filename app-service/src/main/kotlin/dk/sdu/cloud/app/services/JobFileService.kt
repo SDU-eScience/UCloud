@@ -58,7 +58,7 @@ class JobFileService(
 
         log.debug("The destination path is ${destPath.path}")
 
-        val sensitivityLevel = jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedBy { it.ordinal }.max()
+        val sensitivityLevel = jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
             ?: SensitivityLevel.PRIVATE
 
         val (_, accessToken) = jobWithToken
