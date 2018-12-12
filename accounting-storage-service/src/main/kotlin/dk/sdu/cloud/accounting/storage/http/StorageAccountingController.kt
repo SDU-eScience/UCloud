@@ -19,11 +19,19 @@ class StorageAccountingController<DBSession>(
     override fun configure(routing: Route): Unit = with(routing) {
         implement(StorageAccountingDescriptions.buildReport) { req ->
             if (call.securityPrincipal.username != "_accounting") {
-                return@implement(error(CommonErrorMessage("User Not Allowed"), HttpStatusCode.Unauthorized))
-            }
-            else {
+                return@implement error(
+                    CommonErrorMessage("User Not Allowed"), HttpStatusCode.Unauthorized
+                )
+            } else {
                 val storageUsed = storageAccountingService
-                return@implement(ok(BuildReportResponse(storageUsed.calculateUsage(homeDirectory(req.user), req.user))))
+                return@implement ok(
+                    BuildReportResponse(
+                        storageUsed.calculateUsage(
+                            homeDirectory(req.user),
+                            req.user
+                        )
+                    )
+                )
             }
         }
     }

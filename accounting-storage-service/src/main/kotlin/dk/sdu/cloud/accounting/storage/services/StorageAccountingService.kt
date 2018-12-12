@@ -1,10 +1,11 @@
 package dk.sdu.cloud.accounting.storage.services
 
 import dk.sdu.cloud.accounting.api.BillableItem
+import dk.sdu.cloud.accounting.api.ContextQuery
 import dk.sdu.cloud.accounting.api.Currencies
 import dk.sdu.cloud.accounting.api.SerializedMoney
 import dk.sdu.cloud.accounting.storage.Configuration
-import dk.sdu.cloud.accounting.storage.api.StorageForUser
+import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.client.AuthenticatedCloud
@@ -23,6 +24,9 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.optionallyCausedBy
 import dk.sdu.cloud.service.orThrow
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.slf4j.Logger
 import java.math.BigDecimal
 import kotlin.math.roundToLong
@@ -62,7 +66,7 @@ class StorageAccountingService<DBSession>(
         }
 
         return listOf(
-            BillableItem("Storage Used", usedStorage, SerializedMoney(pricePerUnit,currencyName))
+            BillableItem("Storage Used", usedStorage, SerializedMoney(pricePerUnit, currencyName))
         )
     }
 
@@ -71,13 +75,36 @@ class StorageAccountingService<DBSession>(
             val id = UserDescriptions.openUserIterator.call(Unit, serviceCloud).orThrow()
             var userlist = UserDescriptions.fetchNextIterator.call(id, serviceCloud).orThrow()
             while (userlist.isNotEmpty()) {
-                userlist.forEach {
-                    val usage = calculateUsage(homeDirectory(it.id),it.id).first().units
-                    dao.insert(session, it, usage)
+                coroutineScope {
+                    userlist.map {
+                        async {
+                            val usage = calculateUsage(homeDirectory(it.id), it.id).first().units
+                            dao.insert(session, it, usage)
+                        }
+                    }.awaitAll()
                 }
                 userlist = UserDescriptions.fetchNextIterator.call(id, serviceCloud).orThrow()
             }
             UserDescriptions.closeIterator.call(id, serviceCloud).orThrow()
+        }
+    }
+
+    fun listEventsPage(
+        paging: NormalizedPaginationRequest,
+        context: ContextQuery,
+        user: String
+    ) : Page<StorageUsedEvent> {
+        return db.withTransaction {
+            dao.findAllPage(it, paging, context, user)
+        }
+    }
+
+    fun listEvents(
+        context: ContextQuery,
+        user: String
+    ) : List<StorageUsedEvent> {
+        return db.withTransaction {
+            dao.findAllList(it, context, user)
         }
     }
 
@@ -97,5 +124,18 @@ interface StorageAccountingDao<Session> {
         session: Session,
         user: Principal,
         paginationRequest: NormalizedPaginationRequest = FIRST_PAGE
-    ) : Page<StorageForUser>
+    ): Page<StorageUsedEvent>
+
+    fun findAllPage(
+        session: Session,
+        paging: NormalizedPaginationRequest,
+        context: ContextQuery,
+        user: String
+    ): Page<StorageUsedEvent>
+
+    fun findAllList(
+        session: Session,
+        context: ContextQuery,
+        user: String
+    ): List<StorageUsedEvent>
 }

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.storage.services
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.storage.Configuration
@@ -17,9 +18,11 @@ import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.withDatabase
+import io.ktor.http.HttpStatusCode
 import io.mockk.Invocation
 import io.mockk.coEvery
 import io.mockk.every
@@ -108,10 +111,18 @@ class StorageAccountingServiceTest {
             FindByStringId("1")
         )
 
-        CloudMock.mockCallSuccess(
+        var callCount = 0
+        CloudMock.mockCall(
             UserDescriptions,
             { UserDescriptions.fetchNextIterator },
-            emptyList()
+            {
+                callCount++
+                when (callCount) {
+                    1 -> TestCallResult.Ok(listOf(ServicePrincipal("_user", Role.SERVICE)), HttpStatusCode.OK)
+                    2 -> TestCallResult.Ok(emptyList())
+                    else -> TestCallResult.Error(CommonErrorMessage("ERROR"), HttpStatusCode.BadRequest)
+                }
+            }
         )
 
         CloudMock.mockCallSuccess(

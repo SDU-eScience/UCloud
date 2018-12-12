@@ -2,7 +2,7 @@ package dk.sdu.cloud.accounting.storage
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.accounting.storage.http.StorageAccountingController
-import dk.sdu.cloud.accounting.storage.http.StorageAccountingUsageController
+import dk.sdu.cloud.accounting.storage.http.StorageUsedController
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingHibernateDao
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingService
 import dk.sdu.cloud.service.CommonServer
@@ -17,6 +17,7 @@ import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
+import kotlinx.coroutines.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 
 class Server(
@@ -46,6 +47,16 @@ class Server(
                 StorageAccountingHibernateDao(),
                 config
             )
+
+        if (micro.commandLineArguments.contains("--scan")) {
+            log.info("Running scan instead of server")
+            runBlocking {
+                storageAccountingService.collectCurrentStorageUsage()
+            }
+            log.info("Scan complete")
+            return
+        }
+
         // Initialize consumers here:
         // addConsumers(...)
 
@@ -56,7 +67,7 @@ class Server(
             routing {
                 configureControllers(
                     StorageAccountingController(storageAccountingService),
-                    StorageAccountingUsageController(storageAccountingService)
+                    StorageUsedController(storageAccountingService)
                 )
             }
         }
