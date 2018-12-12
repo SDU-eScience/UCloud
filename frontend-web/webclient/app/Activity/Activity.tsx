@@ -1,30 +1,30 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { ActivityProps, Activity as ActivityType, TrackedActivity, CountedActivity, TrackedOperations, CountedOperations, ActivityDispatchProps } from "Activity";
+import { GroupedActivity, ActivityProps, ActivityDispatchProps } from "Activity";
+import * as Module from "Activity";
 import * as Pagination from "Pagination";
 import * as moment from "moment";
-import { getFilenameFromPath } from "Utilities/FileUtilities";
-import { ActivityReduxObject } from "DefaultObjects";
+import { getFilenameFromPath, replaceHomeFolder } from "Utilities/FileUtilities";
+import { ActivityReduxObject, ReduxObject } from "DefaultObjects";
 import { fetchActivity, setErrorMessage, setLoading } from "./Redux/ActivityActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { Dispatch } from "redux";
 import { fileInfoPage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading"
 import Icon, { IconName } from "ui-components/Icon";
-import List from "ui-components/List";
-import { Box, Flex, Text, Link } from "ui-components";
+import { Flex, Text, Link } from "ui-components";
 import Table, { TableRow, TableCell } from "ui-components/Table";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 class Activity extends React.Component<ActivityProps> {
-
     componentDidMount = () => {
         this.props.setPageTitle();
-        this.props.fetchActivity(0, 25);
+        this.props.fetchActivity(0, 100);
     }
 
     render() {
-        const { fetchActivity, page, error, setError, loading } = this.props;
+        const { fetchActivity, page, error, setError, loading, groupedEntries } = this.props;
         return (
             <React.StrictMode>
                 <Heading.h1>File Activity</Heading.h1>
@@ -32,7 +32,7 @@ class Activity extends React.Component<ActivityProps> {
                     loading={loading}
                     errorMessage={error}
                     onErrorDismiss={setError}
-                    pageRenderer={page => <ActivityFeed activity={page.items} />}
+                    pageRenderer={page => <ActivityFeedGrouped activity={groupedEntries ? groupedEntries : []} />}
                     page={page}
                     onRefresh={() => fetchActivity(page.pageNumber, page.itemsPerPage)}
                     onItemsPerPageChanged={itemsPerPage => fetchActivity(page.pageNumber, itemsPerPage)}
@@ -43,103 +43,164 @@ class Activity extends React.Component<ActivityProps> {
     }
 }
 
-export const ActivityFeed = ({ activity }: { activity: ActivityType[] }) => activity.length ? (
+
+const ActivityFeedGrouped = ({ activity }: { activity: GroupedActivity[] }) => activity.length ? (
     <Table>
-        {activity.map((a, i) => {
-            switch (a.type) {
-                case "tracked": {
-                    return <TrackedFeedActivity key={i} activity={a} />
-                }
-                case "counted": {
-                    return <CountedFeedActivity key={i} activity={a} />
-                }
-            }
-        })}
+        {
+            activity.map((a, i) => {
+                return <TrackedFeedActivity key={i} activity={a} />
+            })
+        }
     </Table>
 ) : null;
 
-const CountedFeedActivity = ({ activity }: { activity: CountedActivity }) => (
-    <TableRow contentAlign={"top"}>
-        <TableCell>
-            <Dropdown>
-                <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
-                <DropdownContent>
-                    {new Date(activity.timestamp).toLocaleString()}
-                </DropdownContent>
-            </Dropdown>
-        </TableCell>
-        <TableCell>
-            <Flex><Icon mr="0.5em" name={eventIcon(activity.operation).icon} /><Text fontSize={2}>{`Files ${operationToPastTense(activity.operation)}`}</Text></Flex>
-        </TableCell>
-        <TableCell>
-            {activity.entries.map((entry, i) => entry.path != null ?
-                (<Text fontSize={1} key={i}>
-                    <b>
-                        <Link to={fileInfoPage(entry.path)}>{getFilenameFromPath(entry.path)}</Link>
-                    </b> was <b>{operationToPastTense(activity.operation)}</b> {entry.count === 1 ? "once" : <><b>{entry.count}</b> times</>}</Text>) : null
-            )}
-        </TableCell>
-    </TableRow >
+export const ActivityFeed = ({ activity }: { activity: Module.Activity[] }) =>
+    <ActivityFeedGrouped activity={groupActivity(activity)!} />;
+
+const ActivityOperation: React.FunctionComponent<{ event: Module.Activity }> = props => {
+    switch (props.event.type) {
+        case Module.ActivityType.MOVED: {
+            return <>
+                was moved to
+                {" "}
+                <b><Link to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
+                    {replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}
+                </Link></b>
+            </>;
+        }
+
+        case Module.ActivityType.FAVORITE: {
+            const isFavorite = (props.event as Module.FavoriteActivity).favorite;
+            if (isFavorite) {
+                return <>was <b>added to favorites</b></>;
+            } else {
+                return <>was <b>removed from favorites</b></>;
+            }
+        }
+
+        default: {
+            return <>was <b>{operationToPastTense(props.event.type)}</b></>;
+        }
+    }
+};
+
+const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props => (
+    <Text fontSize={1}>
+        <b>
+            <Link to={fileInfoPage(props.event.originalFilePath)}>
+                {getFilenameFromPath(props.event.originalFilePath)}
+            </Link>
+        </b> <ActivityOperation event={props.event} />
+    </Text>
+
 );
 
-const TrackedFeedActivity = ({ activity }: { activity: TrackedActivity }) => (
+const TrackedFeedActivity = ({ activity }: { activity: GroupedActivity }) => (
     <TableRow style={{ verticalAlign: "top" }}>
         <TableCell>
             <Dropdown>
                 <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
                 <DropdownContent>
-                    {new Date(activity.timestamp).toLocaleString()}
+                    {moment(new Date(activity.timestamp)).format("llll")}
                 </DropdownContent>
             </Dropdown>
         </TableCell>
         <TableCell>
-            <Flex><Icon mr="0.5em" name={eventIcon(activity.operation).icon} /><Text fontSize={2}>{`Files ${operationToPastTense(activity.operation)}`}</Text></Flex>
+            <Flex>
+                <Icon mr="0.5em" name={eventIcon(activity.type).icon} />
+                <Text fontSize={2}>{`Files ${operationToPastTense(activity.type)}`}</Text>
+            </Flex>
         </TableCell>
         <TableCell>
-            {activity.files.map((f, i) => f.path != null ?
-                (<Text fontSize={1} key={i}>
-                    <b>
-                        <Link to={fileInfoPage(f.path)}>{getFilenameFromPath(f.path)}</Link>
-                    </b> was <b>{operationToPastTense(activity.operation)}</b></Text>) : null
+            {activity.entries.map((item, idx) =>
+                <ActivityEvent key={idx} event={item} />
             )}
         </TableCell>
     </TableRow>
 );
 
-const operationToPastTense = (operation: TrackedOperations | CountedOperations): string => {
-    if (operation === "MOVED") return "moved";
-    if (operation === "REMOVE_FAVORITE") return "unfavorited"
-    if ((operation as string).endsWith("E")) return `${(operation as string).toLowerCase()}d`;
-    return `${operation.toLowerCase()}ed`;
-}
-interface EventIconAndColor { icon: IconName, color: "blue" | "green" | "red", rotation?: 45 }
-const eventIcon = (operation: TrackedOperations | CountedOperations): EventIconAndColor => {
+const operationToPastTense = (operation: Module.ActivityType): string => {
     switch (operation) {
-        case "FAVORITE": {
+        case Module.ActivityType.DELETED: return "deleted";
+        case Module.ActivityType.DOWNLOAD: return "downloaded";
+        case Module.ActivityType.FAVORITE: return "favorited";
+        case Module.ActivityType.INSPECTED: return "inspected";
+        case Module.ActivityType.MOVED: return "moved";
+        case Module.ActivityType.UPDATED: return "updated";
+    }
+}
+
+interface EventIconAndColor {
+    icon: IconName,
+    color: "blue" | "green" | "red",
+    rotation?: 45
+}
+
+const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
+    switch (operation) {
+        case Module.ActivityType.FAVORITE: {
             return { icon: "starFilled", color: "blue" };
         }
-        case "REMOVE_FAVORITE": {
-            return { icon: "starEmpty", color: "blue" };
-        }
-        case "DOWNLOAD": {
+        case Module.ActivityType.DOWNLOAD: {
             return { icon: "download", color: "blue" };
         }
-        case "CREATE": {
-            return { icon: "close", rotation: 45, color: "green" };
-        }
-        case "UPDATE": {
+        case Module.ActivityType.UPDATED: {
             return { icon: "refresh", color: "green" };
         }
-        case "DELETE": {
+        case Module.ActivityType.DELETED: {
             return { icon: "close", color: "red" };
         }
-        case "MOVED": {
+        case Module.ActivityType.MOVED: {
             return { icon: "move", color: "green" };
+        }
+
+        default: {
+            return { icon: "ellipsis", color: "blue" }
         }
     }
 }
 
-const mapStateToProps = ({ activity }): ActivityReduxObject => activity;
+function groupActivity(items: Module.Activity[] = []): GroupedActivity[] {
+    const result: GroupedActivity[] = [];
+    let currentGroup: GroupedActivity | null = null;
+
+    const pushGroup = () => {
+        if (currentGroup != null) {
+            result.push(currentGroup);
+            currentGroup = null;
+        }
+    };
+
+    const initializeGroup = (item: Module.Activity) => {
+        currentGroup = {
+            type: item.type,
+            timestamp: item.timestamp,
+            entries: [item]
+        };
+    };
+
+    items.forEach(item => {
+        if (currentGroup === null) {
+            initializeGroup(item);
+        } else {
+            if (currentGroup.type !== item.type || Math.abs(item.timestamp - currentGroup.timestamp) > (1000 * 60 * 15)) {
+                pushGroup();
+                initializeGroup(item);
+            } else {
+                currentGroup.entries.push(item);
+            }
+        }
+    });
+
+    pushGroup();
+    return result;
+}
+
+const mapStateToProps = ({ activity }: ReduxObject): ActivityReduxObject & Module.ActivityOwnProps => ({
+    ...activity,
+    groupedEntries: groupActivity(activity.page.items)
+});
+
 const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
     fetchActivity: async (pageNumber, pageSize) => {
         dispatch(setLoading(true));

@@ -1,39 +1,30 @@
-import { ActivityReduxObject  } from "DefaultObjects";
+import { ActivityReduxObject } from "DefaultObjects";
 
-export type Activity = CountedActivity | TrackedActivity;
-
-export type CountedOperations = "DOWNLOAD";
-export type TrackedOperations = "CREATE" | "UPDATE" | "DELETE" | "MOVED" | "FAVORITE" | "REMOVE_FAVORITE";
-
-interface CountedActivityEntry {
-    id: string
-    path: string | null
-    count: number
+export enum ActivityType {
+    DOWNLOAD = "download",
+    UPDATED = "updated",
+    DELETED = "deleted",
+    FAVORITE = "favorite",
+    INSPECTED = "inspected",
+    MOVED = "moved"
 }
 
-export interface CountedActivity {
-    type: "counted"
-    operation: CountedOperations
-    entries: CountedActivityEntry[]
+export interface Activity {
+    type: ActivityType
     timestamp: number
-}
-
-interface TrackedActivityFile {
-    id: string
-    path: string | null
-}
-
-export interface TrackedActivity {
-    type: "tracked"
-    operation: TrackedOperations
-    files: TrackedActivityFile[]
-    timestamp: number
-    users: ActivityUser[]
-}
-
-interface ActivityUser {
+    fileId: string
     username: string
+    originalFilePath: string
 }
+
+export interface FavoriteActivity extends Activity {
+    favorite: boolean
+}
+
+export interface MovedActivity extends Activity {
+    newName: string
+}
+
 
 export interface ActivityDispatchProps {
     fetchActivity: (pageNumber: number, pageSize: number) => void
@@ -41,4 +32,14 @@ export interface ActivityDispatchProps {
     setPageTitle: () => void
 }
 
-export interface ActivityProps extends ActivityReduxObject, ActivityDispatchProps { }
+export interface GroupedActivity {
+    timestamp: number
+    type: ActivityType
+    entries: Activity[]
+}
+
+export interface ActivityOwnProps {
+    groupedEntries?: GroupedActivity[]
+}
+
+export type ActivityProps = ActivityReduxObject & ActivityDispatchProps & ActivityOwnProps;

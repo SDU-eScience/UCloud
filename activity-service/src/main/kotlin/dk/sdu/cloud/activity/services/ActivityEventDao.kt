@@ -214,9 +214,11 @@ class HibernateActivityEventDao : ActivityEventDao<HibernateSession> {
         pagination: NormalizedPaginationRequest,
         fileId: String
     ): Page<ActivityEvent> {
-        return session.paginatedCriteria<ActivityEventEntity>(pagination) {
-            entity[ActivityEventEntity::fileId] equal fileId
-        }.mapItems { it.toModel() }
+        return session.paginatedCriteria<ActivityEventEntity>(
+            pagination = pagination,
+            orderBy = { listOf(descending(entity[ActivityEventEntity::timestamp])) },
+            predicate = { entity[ActivityEventEntity::fileId] equal fileId }
+        ).mapItems { it.toModel() }
     }
 
     override fun findByUser(
@@ -224,9 +226,11 @@ class HibernateActivityEventDao : ActivityEventDao<HibernateSession> {
         pagination: NormalizedPaginationRequest,
         user: String
     ): Page<ActivityEvent> {
-        return session.paginatedCriteria<ActivityEventEntity>(pagination) {
-            entity[ActivityEventEntity::username] equal user
-        }.mapItems { it.toModel() }
+        return session.paginatedCriteria<ActivityEventEntity>(
+            pagination = pagination,
+            orderBy = { listOf(descending(entity[ActivityEventEntity::timestamp])) },
+            predicate = { entity[ActivityEventEntity::username] equal user }
+        ).mapItems { it.toModel() }
     }
 
     override fun insertBatch(session: HibernateSession, events: List<ActivityEvent>) {

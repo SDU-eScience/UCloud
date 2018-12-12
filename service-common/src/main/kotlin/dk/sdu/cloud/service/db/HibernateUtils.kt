@@ -141,7 +141,12 @@ abstract class CriteriaBuilderGeneralContext {
         return builder.asc(expression)
     }
 
+    @Deprecated("Fixed typo", ReplaceWith("descending(expression)"))
     fun <E> descinding(expression: Expression<E>): Order {
+        return descending(expression)
+    }
+
+    fun <E> descending(expression: Expression<E>): Order {
         return builder.desc(expression)
     }
 
