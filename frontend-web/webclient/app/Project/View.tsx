@@ -109,7 +109,7 @@ export const View = (props: ViewProps) => {
     );
 }
 
-const SectionHeader = ({ iconClass, title }: { iconClass: string, title: string }) => (
+const SectionHeader = ({ iconClass, title }: { iconClass: "fas fa-info" | "fas fa-hand-pointer" | "fas fa-bookmark" | "fas fa-money-bill" | "fas fa-hashtag", title: string }) => (
     <Heading.h4>
         <Flex>
             <Box width="20%">
@@ -159,7 +159,7 @@ const ContributorItem = (props: { contributor: Contributor }) => {
                 </DropdownContent>
             </Dropdown>)
     } else {
-        return (<Box><i className="user" />{contributor.name}</Box>);
+        return (<Box><Icon name="user" />{contributor.name}</Box>);
     }
 };
 
