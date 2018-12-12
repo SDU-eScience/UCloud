@@ -133,6 +133,7 @@ interface SupportState {
 
 class Support extends React.Component<{}, SupportState> {
     private textArea = React.createRef<HTMLTextAreaElement>();
+    private supportBox = React.createRef<HTMLDivElement>();
 
     constructor(props) {
         super(props);
@@ -142,9 +143,13 @@ class Support extends React.Component<{}, SupportState> {
             loading: false
         };
         document.addEventListener("keydown", this.handleESC);
+        document.addEventListener("mousedown", this.handleClickOutside);
     }
 
-    componentWillUnmount = () => document.removeEventListener("keydown", this.handleESC);
+    componentWillUnmount = () => {
+        document.removeEventListener("keydown", this.handleESC);
+        document.removeEventListener("mousedown", this.handleClickOutside);
+    }
 
     private handleESC = (e) => {
         if (e.keyCode == KeyCode.ESC) this.setState(() => ({ visible: false }))
@@ -153,6 +158,11 @@ class Support extends React.Component<{}, SupportState> {
     onSupportClick(event: React.SyntheticEvent) {
         event.preventDefault();
         this.setState(() => ({ visible: !this.state.visible }));
+    }
+
+    private handleClickOutside = event => {
+        if (this.supportBox.current && !this.supportBox.current.contains(event.target) && this.state.visible)
+            this.setState(() => ({ visible: false }));
     }
 
     onSubmit(event: React.FormEvent) {
@@ -178,7 +188,7 @@ class Support extends React.Component<{}, SupportState> {
         return <div>
             <a href="#support" onClick={e => this.onSupportClick(e)}><Text fontSize={1}>Support</Text></a>
             <Relative>
-                <SupportBox visible={this.state.visible}>
+                <SupportBox ref={this.supportBox} visible={this.state.visible}>
                     <Box>
                         <Heading.h3>Support Form</Heading.h3>
                         <p>Describe your problem below and we will investigate it.</p>

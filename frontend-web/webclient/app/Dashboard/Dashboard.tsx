@@ -23,7 +23,7 @@ import { TextSpan } from "ui-components/Text";
 import { fileTablePage } from "Utilities/FileUtilities";
 import { notificationRead, readAllNotifications } from "Notifications/Redux/NotificationsActions";
 import { History } from "history";
-import { default as Spinner } from "LoadingIcon/LoadingIcon_new";
+import Spinner from "LoadingIcon/LoadingIcon";
 import * as UF from "UtilityFunctions";
 
 class Dashboard extends React.Component<DashboardProps & { history: History }> {

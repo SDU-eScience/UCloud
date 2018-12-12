@@ -3,7 +3,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { AccessRight, Page, AccessRightValues } from "Types";
 import { shareSwal, prettierString } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
@@ -74,7 +74,7 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
                         ))}
                     </ClickableDropdown>
                 </Flex>
-                <DefaultLoading loading={this.state.loading} />
+                {this.state.loading ? <LoadingIcon size={18} /> : null }
                 <Heading.h3>Shared with Me</Heading.h3>
                 {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
                     <ListEntry

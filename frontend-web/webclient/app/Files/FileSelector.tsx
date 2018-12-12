@@ -90,6 +90,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     required={this.props.isRequired}
                     placeholder="No file selected"
                     value={replaceHomeFolder(path, Cloud.homeFolder)}
+                    onChange={() => undefined}
                     onClick={() => this.setState(() => ({ modalShown: true }))}
                 />
                 {uploadButton}

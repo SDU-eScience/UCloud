@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link, Button, Flex, List } from "ui-components";
 import { ProjectMetadata } from "./api";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
 import * as ReactMarkdown from "react-markdown";
 import { Contributor, getByPath } from "./api";
 import { findLicenseByIdentifier } from "./licenses";
@@ -191,7 +191,7 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
 
     render() {
         if (!this.state.metadata) {
-            return <DefaultLoading loading />;
+            return <LoadingIcon size={18} />;
         } else {
             return <View canEdit={this.state.canEdit} metadata={this.state.metadata} />;
         }

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
 import { dateToString } from "Utilities/DateUtilities";
@@ -61,7 +61,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
 
     render() {
         if (this.state.loading) {
-            return (<Box><DefaultLoading loading={this.state.loading} /> </Box>)
+            return (<Box><LoadingIcon size={18} /> </Box>)
         } else {
             return (
                 <Flex alignItems="center" flexDirection="column">

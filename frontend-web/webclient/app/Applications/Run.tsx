@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon"
+import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification } from "UtilityFunctions";
@@ -185,45 +185,47 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     }
 
     render() {
-        if (!this.state.application) return (
+        const { application, loading, error, jobSubmitted, schedulingOptions, parameterValues } = this.state;
+
+        if (!application) return (
             <>
-                <DefaultLoading loading={this.state.loading} />
+                <LoadingIcon size={18} />
                 <Error
                     clearError={() => this.setState(() => ({ error: undefined }))}
-                    error={this.state.error} />
+                    error={error} />
             </>
         );
 
         const header = (
             <Header
-                name={this.state.application.description.title}
-                version={this.state.application.description.info.version} />
+                name={application.description.title}
+                version={application.description.info.version} />
         );
 
         const main = (
             <ContainerForText>
                 <Error
                     clearError={() => this.setState(() => ({ error: undefined }))}
-                    error={this.state.error} />
+                    error={error} />
 
                 <Parameters
-                    values={this.state.parameterValues}
-                    parameters={this.state.application.description.parameters}
+                    values={parameterValues}
+                    parameters={application.description.parameters}
                     onSubmit={this.onSubmit}
                     onChange={this.onInputChange}
-                    schedulingOptions={this.state.schedulingOptions}
-                    app={this.state.application}
+                    schedulingOptions={schedulingOptions}
+                    app={application}
                     onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
-                    disableSubmit={this.state.jobSubmitted}
+                    disableSubmit={jobSubmitted}
                 />
             </ContainerForText>
         );
 
         const sidebar = (
             <VerticalButtonGroup>
-                <OutlineButton 
-                    fullWidth 
-                    color="darkGreen" 
+                <OutlineButton
+                    fullWidth
+                    color="darkGreen"
                     onClick={() => this.exportParameters()}>
                     Export parameters
                 </OutlineButton>

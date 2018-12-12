@@ -2,7 +2,7 @@ import * as React from "react";
 import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setZenodoLoading, setErrorMessage } from "./Redux/ZenodoActions";
 import { connect } from "react-redux";
@@ -84,7 +84,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
     render() {
         const { name } = this.state;
         if (this.props.loading) {
-            return (<DefaultLoading loading={true} />);
+            return (<LoadingIcon size={18} />);
         } else if (!this.props.connected) {
             return (<NotConnectedToZenodo />);
         }

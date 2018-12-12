@@ -5,7 +5,7 @@ import { ifPresent } from "UtilityFunctions";
 import { RefreshButton } from "UtilityComponents";
 import * as Heading from "ui-components/Heading";
 import { Box, Flex, Relative, Error } from "ui-components";
-import { default as Spinner } from "LoadingIcon/LoadingIcon_new";
+import Spinner from "LoadingIcon/LoadingIcon";
 
 interface ListProps<T> {
     pageRenderer: (page: Page<T>) => React.ReactNode

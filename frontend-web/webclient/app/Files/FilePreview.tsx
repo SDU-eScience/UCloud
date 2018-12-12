@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { getParentPath, fetchFileContent } from "Utilities/FileUtilities";
 import { fetchPageFromPath, updateFiles } from "Files/Redux/FilesActions";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { Page } from "Types";
 import { File } from "Files";
 import { match } from "react-router";
@@ -41,7 +41,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
 
     renderContent() {
         const type = extensionTypeFromPath(this.filepath);
-        if (!this.file || !this.file.content) return (<DefaultLoading loading={true} />)
+        if (!this.file || !this.file.content) return (<LoadingIcon size={18} />)
         switch (type) {
             case "code":
                 return (<code style={{ whiteSpace: "pre-wrap" }}>{this.file.content}</code>)
