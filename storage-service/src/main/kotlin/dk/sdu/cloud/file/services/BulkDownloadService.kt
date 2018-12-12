@@ -23,7 +23,7 @@ class BulkDownloadService<Ctx : FSUserContext>(
         prefixPath: String,
         listOfFiles: List<String>,
         target: OutputStream,
-        filesDownloadedOutput: ArrayList<String>? = null
+        filesDownloadedOutput: ArrayList<String?>? = null
     ) {
         TarOutputStream(GZIPOutputStream(target)).use { tarStream ->
             for (path in listOfFiles) {
@@ -40,26 +40,30 @@ class BulkDownloadService<Ctx : FSUserContext>(
                             FileAttribute.TIMESTAMPS,
                             FileAttribute.FILE_TYPE
                         )
-                    ) ?: continue
-
-                    // Write tar header
-                    log.debug("Writing tar header: ($path, $stat)")
-                    tarStream.putNextEntry(
-                        TarEntry(
-                            TarHeader.createHeader(
-                                path,
-                                stat.size,
-                                stat.timestamps.modified,
-                                stat.fileType == FileType.DIRECTORY,
-                                DEFAULT_FILE_PERMISSION // TODO! (0777)
-                            )
-                        )
                     )
 
-                    filesDownloadedOutput?.add(stat.inode)
+                    if (stat == null) {
+                        filesDownloadedOutput?.add(null)
+                    } else {
+                        filesDownloadedOutput?.add(stat.inode)
 
-                    // Write file contents
-                    fs.read(ctx, absPath) { copyTo(tarStream) }
+                        // Write tar header
+                        log.debug("Writing tar header: ($path, $stat)")
+                        tarStream.putNextEntry(
+                            TarEntry(
+                                TarHeader.createHeader(
+                                    path,
+                                    stat.size,
+                                    stat.timestamps.modified,
+                                    stat.fileType == FileType.DIRECTORY,
+                                    DEFAULT_FILE_PERMISSION // TODO! (0777)
+                                )
+                            )
+                        )
+
+                        // Write file contents
+                        fs.read(ctx, absPath) { copyTo(tarStream) }
+                    }
                 } catch (ex: FSException) {
                     when (ex) {
                         is FSException.NotFound, is FSException.PermissionException -> {

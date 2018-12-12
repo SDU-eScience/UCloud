@@ -32,7 +32,7 @@ class ActivityServiceTest {
         val (service, dao) = initStreamConversionTest()
         val fileId = "fileId"
         val downloadCount = 10
-        val events = (0 until downloadCount).map { ActivityEvent.Download("user", System.currentTimeMillis(), fileId) }
+        val events = (0 until downloadCount).map { ActivityEvent.Download("user", System.currentTimeMillis(), fileId, "file") }
         service.insertBatch(Unit, events)
 
         verify {
@@ -67,7 +67,8 @@ class ActivityServiceTest {
                 ActivityEvent.Download(
                     "user",
                     System.currentTimeMillis(),
-                    download.fileId
+                    download.fileId,
+                    "file"
                 )
             }
         }
@@ -101,7 +102,7 @@ class ActivityServiceTest {
         val fileId = "fileId"
         val user = "user"
         val downloadCount = 10
-        val events = (0 until downloadCount).map { ActivityEvent.Download(user, System.currentTimeMillis(), fileId) }
+        val events = (0 until downloadCount).map { ActivityEvent.Download(user, System.currentTimeMillis(), fileId, "file") }
         service.insertBatch(Unit, events)
 
         verify {
@@ -137,7 +138,8 @@ class ActivityServiceTest {
                 ActivityEvent.Download(
                     user,
                     System.currentTimeMillis(),
-                    download.fileId
+                    download.fileId,
+                    "file"
                 )
             }
         }
@@ -170,7 +172,7 @@ class ActivityServiceTest {
     @Test
     fun `stream conversion - user report - updates`() {
         data class Update(val user: String, val fileIds: List<String>) {
-            fun toEvents() = fileIds.map { ActivityEvent.Updated(user, System.currentTimeMillis(), it) }
+            fun toEvents() = fileIds.map { ActivityEvent.Updated(user, System.currentTimeMillis(), it, "file") }
         }
 
         val (service, dao) = initStreamConversionTest()
@@ -206,7 +208,7 @@ class ActivityServiceTest {
     @Test
     fun `stream conversion - user report - renames`() {
         data class Rename(val user: String, val fileIds: List<String>) {
-            fun toEvents() = fileIds.map { ActivityEvent.Moved(user, "newName", System.currentTimeMillis(), it) }
+            fun toEvents() = fileIds.map { ActivityEvent.Moved(user, "newName", System.currentTimeMillis(), it, "file") }
         }
 
         val (service, dao) = initStreamConversionTest()
@@ -243,7 +245,7 @@ class ActivityServiceTest {
     @Test
     fun `stream conversion - file report - updates`() {
         data class Update(val fileId: String, val users: List<String>) {
-            fun toEvents() = users.map { ActivityEvent.Updated(it, System.currentTimeMillis(), fileId) }
+            fun toEvents() = users.map { ActivityEvent.Updated(it, System.currentTimeMillis(), fileId, "file") }
         }
 
         val (service, dao) = initStreamConversionTest()
@@ -280,7 +282,7 @@ class ActivityServiceTest {
     @Test
     fun `stream conversion - single unused event`() {
         val (service, dao) = initStreamConversionTest()
-        service.insert(Unit, ActivityEvent.Inspected("user", System.currentTimeMillis(), "fileId"))
+        service.insert(Unit, ActivityEvent.Inspected("user", System.currentTimeMillis(), "fileId", "file"))
 
         verify {
             dao.insertBatchIntoStream(
@@ -297,7 +299,7 @@ class ActivityServiceTest {
     @Test
     fun `stream conversion - single unused event (batch)`() {
         val (service, dao) = initStreamConversionTest()
-        service.insertBatch(Unit, listOf(ActivityEvent.Inspected("user", System.currentTimeMillis(), "fileId")))
+        service.insertBatch(Unit, listOf(ActivityEvent.Inspected("user", System.currentTimeMillis(), "fileId", "file")))
 
         verify {
             dao.insertBatchIntoStream(
@@ -320,8 +322,8 @@ class ActivityServiceTest {
 
         service.insertBatch(
             Unit, listOf(
-                ActivityEvent.Download(userA, 0L, fileId),
-                ActivityEvent.Download(userB, 0L, fileId)
+                ActivityEvent.Download(userA, 0L, fileId, "file"),
+                ActivityEvent.Download(userB, 0L, fileId, "file")
             )
         )
 
@@ -354,8 +356,8 @@ class ActivityServiceTest {
 
         service.insertBatch(
             Unit, listOf(
-                ActivityEvent.Download(userA, 0L, fileId),
-                ActivityEvent.Download(userB, 0L, fileId)
+                ActivityEvent.Download(userA, 0L, fileId, "file"),
+                ActivityEvent.Download(userB, 0L, fileId, "file")
             )
         )
 
@@ -389,8 +391,8 @@ class ActivityServiceTest {
 
         service.insertBatch(
             Unit, listOf(
-                ActivityEvent.Updated(userA, 0L, fileId),
-                ActivityEvent.Updated(userB, 0L, fileId)
+                ActivityEvent.Updated(userA, 0L, fileId, "file"),
+                ActivityEvent.Updated(userB, 0L, fileId, "file")
             )
         )
 
@@ -423,8 +425,8 @@ class ActivityServiceTest {
 
         service.insertBatch(
             Unit, listOf(
-                ActivityEvent.Updated(userA, 0L, fileId),
-                ActivityEvent.Updated(userB, 0L, fileId)
+                ActivityEvent.Updated(userA, 0L, fileId, "file"),
+                ActivityEvent.Updated(userB, 0L, fileId, "file")
             )
         )
 

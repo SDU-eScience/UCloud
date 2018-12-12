@@ -59,14 +59,28 @@ class StorageEventProcessor<DBSession>(
         if (event !is StorageEvent.CreatedOrRefreshed) return emptyList()
         val causedBy = event.eventCausedBy ?: return emptyList()
 
-        return listOf(ActivityEvent.Updated(causedBy, event.timestamp, event.id))
+        return listOf(
+            ActivityEvent.Updated(
+                username = causedBy,
+                timestamp = event.timestamp,
+                fileId = event.id,
+                originalFilePath = event.path
+            )
+        )
     }
 
     private fun deletedTransformer(event: StorageEvent): List<ActivityEvent>? {
         if (event !is StorageEvent.Deleted) return emptyList()
         val causedBy = event.eventCausedBy ?: return emptyList()
 
-        return listOf(ActivityEvent.Deleted(event.timestamp, event.id, causedBy))
+        return listOf(
+            ActivityEvent.Deleted(
+                timestamp = event.timestamp,
+                fileId = event.id,
+                username = causedBy,
+                originalFilePath = event.path
+            )
+        )
     }
 
     companion object : Loggable {

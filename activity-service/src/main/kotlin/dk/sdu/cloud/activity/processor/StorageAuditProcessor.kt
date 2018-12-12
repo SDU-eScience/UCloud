@@ -26,11 +26,12 @@ class StorageAuditProcessor<DBSession>(
     private val parallelism: Int = 4
 ) {
     private val transformers: List<Transformer> = listOf(
-        this::transformBulkUpload,
+        this::transformBulkDownload,
         this::transformStat,
         this::transformAddFavorite,
         this::transformRemoveFavorite,
-        this::transformMove
+        this::transformMove,
+        this::transformDownload
     )
 
     @Suppress("TooGenericExceptionCaught")
@@ -81,11 +82,28 @@ class StorageAuditProcessor<DBSession>(
         }
     }
 
-    private fun transformBulkUpload(parsedEvent: JsonNode): List<ActivityEvent>? {
+    private fun transformDownload(parsedEvent: JsonNode): List<ActivityEvent>? {
+        FileDescriptions.download.parseAuditMessageOrNull(parsedEvent)?.let {
+            val username = it.username ?: return null
+            val path = it.request.request.path
+            return it.request.fileIds.filterNotNull().map {
+                ActivityEvent.Download(username, System.currentTimeMillis(), it, path)
+            }
+        }
+
+        return null
+    }
+
+    private fun transformBulkDownload(parsedEvent: JsonNode): List<ActivityEvent>? {
         FileDescriptions.bulkDownload.parseAuditMessageOrNull(parsedEvent)?.let {
             val username = it.username ?: return null
-            return it.request.fileIds.asSequence().filterNotNull().map { fileId ->
-                ActivityEvent.Download(username, System.currentTimeMillis(), fileId)
+            return it.request.fileIds.asSequence().filterNotNull().mapIndexed { index, fileId ->
+                ActivityEvent.Download(
+                    username,
+                    System.currentTimeMillis(),
+                    fileId,
+                    it.request.fileIds.getOrNull(index) ?: "UNKNOWN_FILE"
+                )
             }.toList()
         }
 
@@ -96,7 +114,14 @@ class StorageAuditProcessor<DBSession>(
         FileDescriptions.stat.parseAuditMessageOrNull(parsedEvent)?.let {
             val username = it.username ?: return null
             val fileId = it.request.fileId ?: return null
-            return listOf(ActivityEvent.Inspected(username, System.currentTimeMillis(), fileId))
+            return listOf(
+                ActivityEvent.Inspected(
+                    username,
+                    System.currentTimeMillis(),
+                    fileId,
+                    it.request.request.path
+                )
+            )
         }
 
         return null
@@ -106,7 +131,15 @@ class StorageAuditProcessor<DBSession>(
         FileDescriptions.markAsFavorite.parseAuditMessageOrNull(parsedEvent)?.let {
             val username = it.username ?: return null
             val fileId = it.request.fileId ?: return null
-            return listOf(ActivityEvent.Favorite(username, true, System.currentTimeMillis(), fileId))
+            return listOf(
+                ActivityEvent.Favorite(
+                    username,
+                    true,
+                    System.currentTimeMillis(),
+                    fileId,
+                    it.request.request.path
+                )
+            )
         }
 
         return null
@@ -116,7 +149,15 @@ class StorageAuditProcessor<DBSession>(
         FileDescriptions.removeFavorite.parseAuditMessageOrNull(parsedEvent)?.let {
             val username = it.username ?: return null
             val fileId = it.request.fileId ?: return null
-            return listOf(ActivityEvent.Favorite(username, false, System.currentTimeMillis(), fileId))
+            return listOf(
+                ActivityEvent.Favorite(
+                    username,
+                    false,
+                    System.currentTimeMillis(),
+                    fileId,
+                    it.request.request.path
+                )
+            )
         }
 
         return null
@@ -128,7 +169,15 @@ class StorageAuditProcessor<DBSession>(
             val fileId = it.request.fileId ?: return null
             val newPath = it.request.request.newPath
 
-            return listOf(ActivityEvent.Moved(username, newPath, System.currentTimeMillis(), fileId))
+            return listOf(
+                ActivityEvent.Moved(
+                    username,
+                    newPath,
+                    System.currentTimeMillis(),
+                    fileId,
+                    it.request.request.path
+                )
+            )
         }
 
         return null

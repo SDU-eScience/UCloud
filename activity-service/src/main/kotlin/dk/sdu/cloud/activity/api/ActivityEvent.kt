@@ -3,6 +3,7 @@ package dk.sdu.cloud.activity.api
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
 
@@ -14,6 +15,7 @@ import dk.sdu.cloud.service.WithPaginationRequest
 @JsonSubTypes(
     JsonSubTypes.Type(value = ActivityEvent.Download::class, name = "download"),
     JsonSubTypes.Type(value = ActivityEvent.Updated::class, name = "updated"),
+    JsonSubTypes.Type(value = ActivityEvent.Deleted::class, name = "deleted"),
     JsonSubTypes.Type(value = ActivityEvent.Favorite::class, name = "favorite"),
     JsonSubTypes.Type(value = ActivityEvent.Inspected::class, name = "inspected"),
     JsonSubTypes.Type(value = ActivityEvent.Moved::class, name = "moved")
@@ -28,45 +30,52 @@ sealed class ActivityEvent {
     abstract val timestamp: Long
     abstract val fileId: String
     abstract val username: String
+    abstract val originalFilePath: String
 
     // TODO We cannot reliably track who uploaded a file (due to bulk uploads)
 
     data class Download(
         override val username: String,
         override val timestamp: Long,
-        override val fileId: String
+        override val fileId: String,
+        override val originalFilePath: String
     ) : ActivityEvent()
 
     data class Updated(
         override val username: String,
         override val timestamp: Long,
-        override val fileId: String
+        override val fileId: String,
+        override val originalFilePath: String
     ) : ActivityEvent()
 
     data class Favorite(
         override val username: String,
         val isFavorite: Boolean,
         override val timestamp: Long,
-        override val fileId: String
+        override val fileId: String,
+        override val originalFilePath: String
     ) : ActivityEvent()
 
     data class Inspected(
         override val username: String,
         override val timestamp: Long,
-        override val fileId: String
+        override val fileId: String,
+        override val originalFilePath: String
     ) : ActivityEvent()
 
     data class Moved(
         override val username: String,
         val newName: String,
         override val timestamp: Long,
-        override val fileId: String
+        override val fileId: String,
+        override val originalFilePath: String
     ) : ActivityEvent()
 
     data class Deleted(
         override val timestamp: Long,
         override val fileId: String,
-        override val username: String
+        override val username: String,
+        override val originalFilePath: String
     ) : ActivityEvent()
 }
 
@@ -84,3 +93,7 @@ data class ListActivityByPathRequest(
     override val page: Int?
 ) : WithPaginationRequest
 typealias ListActivityByPathResponse = Page<ActivityEvent>
+
+
+typealias ListActivityByUserRequest = PaginationRequest
+typealias ListActivityByUserResponse = Page<ActivityEvent>
