@@ -15,7 +15,8 @@ export type BoxProps =
   MaxWidthProps &
   FlexGrowProps &
   FlexShrinkProps &
-  TextAlignProps;
+  TextAlignProps &
+  { cursor?: string };
 
 interface FlexGrowProps {
   flexGrow?: number
@@ -29,6 +30,7 @@ const flexGrow = ({ flexGrow }: FlexGrowProps) => flexGrow ? { flexGrow } : null
 const flexShrink = ({ flexShrink }: FlexShrinkProps) => flexShrink ? { flexShrink } : null;
 
 const Box = styled.div<BoxProps>`
+  cursor: ${props => props.cursor};
   ${flexGrow}
   ${flexShrink}
   ${space} 
@@ -45,7 +47,8 @@ const Box = styled.div<BoxProps>`
 Box.displayName = "Box";
 
 Box.defaultProps = {
-  theme
+  theme,
+  cursor: "auto"
 }
 
 export default Box;

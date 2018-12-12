@@ -252,7 +252,7 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) => files
         }
         operation = operation as Operation;
         return !operation.disabled(files, Cloud) ? (
-            <As key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
+            <As cursor="pointer" key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
                 {operation.icon ? <Icon size={16} mr="1em" color={operation.color} name={operation.icon} /> : null}
                 <span>{operation.text}</span>
             </As>
