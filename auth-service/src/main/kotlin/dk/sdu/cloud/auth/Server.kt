@@ -5,6 +5,7 @@ import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthStreams
+import dk.sdu.cloud.auth.api.refreshingJwtCloud
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.LoginResponder
 import dk.sdu.cloud.auth.http.PasswordController
@@ -12,6 +13,7 @@ import dk.sdu.cloud.auth.http.SAMLController
 import dk.sdu.cloud.auth.http.TwoFactorAuthController
 import dk.sdu.cloud.auth.http.UserController
 import dk.sdu.cloud.auth.services.AccessTokenContents
+import dk.sdu.cloud.auth.services.CursorStateHibernateDao
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.OneTimeTokenHibernateDAO
 import dk.sdu.cloud.auth.services.PasswordHashingService
@@ -23,6 +25,7 @@ import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
 import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
+import dk.sdu.cloud.auth.services.UserIterationService
 import dk.sdu.cloud.auth.services.WSTOTPService
 import dk.sdu.cloud.auth.services.ZXingQRService
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
@@ -37,6 +40,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.serviceInstance
 import dk.sdu.cloud.service.startServices
 import io.ktor.application.install
 import io.ktor.features.CORS
@@ -65,6 +69,7 @@ class Server(
 
     override val kStreams: KafkaStreams? = null
     override lateinit var httpServer: ApplicationEngine
+    private lateinit var userIterator: UserIterationService
 
     override fun start() {
         log.info("Creating core services...")
@@ -82,6 +87,16 @@ class Server(
 
         val totpService = WSTOTPService()
         val qrService = ZXingQRService()
+        val cursorStateDao = CursorStateHibernateDao()
+        userIterator = UserIterationService(
+            micro.serviceInstance.hostname,
+            micro.serviceInstance.port,
+            db,
+            cursorStateDao,
+            micro.refreshingJwtCloud
+        )
+
+        userIterator.start()
 
         val twoFactorDao = TwoFactorHibernateDAO()
 
@@ -134,18 +149,32 @@ class Server(
                     )
 
                     userCreationService.blockingCreateUser(user)
-                    val token = tokenService.createAndRegisterTokenFor(user, AccessTokenContents(
-                        user,
-                        listOf(SecurityScope.ALL_WRITE),
-                        createdAt = System.currentTimeMillis(),
-                        expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
-                    ))
+                    val token = tokenService.createAndRegisterTokenFor(
+                        user, AccessTokenContents(
+                            user,
+                            listOf(SecurityScope.ALL_WRITE),
+                            createdAt = System.currentTimeMillis(),
+                            expiresAt = System.currentTimeMillis() + ONE_YEAR_IN_MILLS
+                        )
+                    )
 
                     log.info("Username: admin@dev")
                     log.info("accessToken = ${token.accessToken}")
                     log.info("refreshToken = ${token.refreshToken}")
                     log.info("Access token expires in one year.")
                     log.info("Password is: '$password'")
+
+                    repeat(100) {
+                        val person = personService.createUserByPassword(
+                            "user",
+                            "user",
+                            "user$it@mail",
+                            Role.USER,
+                            "asdqwe"
+                        )
+
+                        userCreationService.blockingCreateUser(person)
+                    }
                 }
             }
         }
@@ -202,7 +231,8 @@ class Server(
                         personService = personService,
                         userDAO = userDao,
                         userCreationService = userCreationService,
-                        tokenService = tokenService
+                        tokenService = tokenService,
+                        userIterationService = userIterator
                     ),
 
                     TwoFactorAuthController(twoFactorChallengeService, loginResponder)
@@ -213,5 +243,10 @@ class Server(
         }
 
         startServices()
+    }
+
+    override fun stop() {
+        super.stop()
+        userIterator.stop()
     }
 }

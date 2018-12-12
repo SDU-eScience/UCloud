@@ -11,19 +11,27 @@ import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 
-class StorageAccountingController(
-    private val storageAccountingService: StorageAccountingService
+class StorageAccountingController<DBSession>(
+    private val storageAccountingService: StorageAccountingService<DBSession>
 ) : Controller {
     override val baseContext: String = StorageAccountingDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(StorageAccountingDescriptions.buildReport) { req ->
             if (call.securityPrincipal.username != "_accounting") {
-                return@implement(error(CommonErrorMessage("User Not Allowed"), HttpStatusCode.Unauthorized))
-            }
-            else {
+                return@implement error(
+                    CommonErrorMessage("User Not Allowed"), HttpStatusCode.Unauthorized
+                )
+            } else {
                 val storageUsed = storageAccountingService
-                return@implement(ok(BuildReportResponse(storageUsed.calculateUsage(homeDirectory(req.user), req.user))))
+                return@implement ok(
+                    BuildReportResponse(
+                        storageUsed.calculateUsage(
+                            homeDirectory(req.user),
+                            req.user
+                        )
+                    )
+                )
             }
         }
     }

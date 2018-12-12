@@ -19,13 +19,14 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.mockk.coEvery
 import io.mockk.mockk
+import org.h2.engine.Session
 import org.junit.Test
 import java.math.BigDecimal
 import kotlin.test.assertEquals
 
-class StorageAccountingTes {
+class StorageAccountingTest {
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
-        val storageAccountingService = mockk<StorageAccountingService>(relaxed = true)
+        val storageAccountingService = mockk<StorageAccountingService<Session>>(relaxed = true)
         coEvery { storageAccountingService.calculateUsage(any(), any(), any()) } answers {
             val invoice = listOf(BillableItem("Used Storage", 150, SerializedMoney(BigDecimal("0.1"), Currencies.DKK)))
             invoice
