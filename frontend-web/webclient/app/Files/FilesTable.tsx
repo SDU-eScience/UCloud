@@ -44,7 +44,7 @@ export const FilesTable = ({
                                 <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" />}>
                                     <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
                                 </ClickableDropdown> : 
-                                <OutlineButton><FileOperations files={[file]} fileOperations={fileOperations} As={"span"} ml="-17px" mr="-17px" pl="15px" /></OutlineButton>
+                                <FileOperations files={[file]} fileOperations={fileOperations} As={OutlineButton} ml="-17px" mr="-17px" pl="15px" />
                             }
                         </TableCell>
                     </TableRow>)
@@ -89,7 +89,7 @@ const FilesTableHeader = ({
 }: FilesTableHeaderProps) => (
         <TableHeader>
             <TableRow>
-                <TableHeaderCell width="50%" textAlign="left">
+                <TableHeaderCell width="45%" textAlign="left">
                     <Flex
                         alignItems="center"
                         onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
@@ -226,13 +226,13 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                 <Icon size={24} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
             </Flex>
         </TableCell > :
-        <TableCell width="50%">
+        <TableCell width="45%">
             <Flex flexDirection="row" alignItems="center">
                 {checkbox}
                 <Box ml="5px" pr="5px" />
                 {nameLink}
                 <GroupIcon isProject={isProject(file)} />
-                <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={onFavoriteFile} />
+                <PredicatedFavorite predicate={!!onFavoriteFile} item={file} onClick={onFavoriteFile} />
             </Flex>
         </TableCell>
 };
@@ -252,7 +252,7 @@ export const FileOperations = ({ files, fileOperations, As, ...props }) => files
         }
         operation = operation as Operation;
         return !operation.disabled(files, Cloud) ? (
-            <As key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
+            <As cursor="pointer" key={i} onClick={() => (operation as Operation).onClick(files, Cloud)} {...props}>
                 {operation.icon ? <Icon size={16} mr="1em" color={operation.color} name={operation.icon} /> : null}
                 <span>{operation.text}</span>
             </As>

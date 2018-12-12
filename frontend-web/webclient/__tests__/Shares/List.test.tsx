@@ -13,7 +13,7 @@ import { shares } from "../mock/Shares";
 configure({ adapter: new Adapter() });
 
 describe("Shares List", () => {
-    test("Shares component", () => {
+    test.skip("Shares component", () => {
         expect(create(
             <Provider store={configureStore({ files: initFiles("/home/user@test.abc/") }, { files })}>
                 <MemoryRouter>

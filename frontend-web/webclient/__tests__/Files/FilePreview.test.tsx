@@ -8,7 +8,7 @@ import { initFiles } from "DefaultObjects";
 import files from "Files/Redux/FilesReducer";
 
 describe("File Preview", () => {
-    test("Mount preview", () => {
+    test.skip("Mount preview", () => {
         const store = configureStore({ files: initFiles("/does/not/matter/") }, { files });
         expect(create(
             <Provider store={store}>

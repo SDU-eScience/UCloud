@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon"
+import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { shortUUID, failureNotification } from "UtilityFunctions";
@@ -192,21 +192,21 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             case AppState.SCHEDULED:
                 domEntries.push(
                     <Box pt="0.8em" pb="0.8em">
-                        Your application is currently in the Slurm queue on ABC2 <DefaultLoading loading />
+                        Your application is currently in the Slurm queue on ABC2 <LoadingIcon size={18} />
                     </Box>
                 );
                 break;
             case AppState.PREPARED:
                 domEntries.push(
                     <Box pt="0.8em" pb="0.8em">
-                        We are currently transferring your job from SDUCloud to ABC2 <DefaultLoading loading />
+                        We are currently transferring your job from SDUCloud to ABC2 <LoadingIcon size={18} />
                     </Box>
                 );
                 break;
             case AppState.RUNNING:
                 domEntries.push(
                     <Box pt="0.8em" pb="0.8em">
-                        Your job is currently being executed on ABC2 <DefaultLoading loading />
+                        Your job is currently being executed on ABC2 <LoadingIcon size={18} />
                     </Box>
                 );
                 break;
@@ -259,6 +259,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             <div>
                 <h4>Output Files</h4>
                 <PaginationList
+                    loading={this.props.loading}
                     page={page}
                     pageRenderer={page =>
                         <FilesTable

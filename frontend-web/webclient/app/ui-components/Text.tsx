@@ -21,10 +21,10 @@ export const caps = (props: { caps?: boolean }): { textTransform: "uppercase" } 
   props.caps ? { textTransform: "uppercase" } : null;
 
 export const regular = (props: { regular?: boolean, theme: Theme }) =>
-  props.regular ? { fontWeight: props.theme.regular } : null
+  props.regular ? { fontWeight: props.theme.regular } : null;
 
 export const bold = (props: { bold?: boolean, theme: Theme }) =>
-  props.bold ? { fontWeight: props.theme.bold } : null
+  props.bold ? { fontWeight: props.theme.bold } : null;
 
 export const italic = (props: { italic?: boolean }) => (props.italic ? { fontStyle: "italic" } : null)
 

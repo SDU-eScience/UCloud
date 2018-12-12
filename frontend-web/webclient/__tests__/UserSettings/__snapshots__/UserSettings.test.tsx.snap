@@ -5,11 +5,13 @@ exports[`UserSettings Mount 1`] = `
   className="sc-bZQynM Ygzij"
 >
   <div
-    className="sc-htpNat gbNhWf"
+    className="sc-htpNat hwVXPq"
+    cursor="auto"
     width={0.7}
   >
     <div
-      className="sc-htpNat ffMeME"
+      className="sc-htpNat bWSHjv"
+      cursor="auto"
     >
       <h1
         className="sc-bdVaJa jOPwGr"
@@ -23,7 +25,8 @@ exports[`UserSettings Mount 1`] = `
       className="sc-bZQynM bTpYSl"
     >
       <div
-        className="sc-htpNat hVaCaW"
+        className="sc-htpNat fsOuZp"
+        cursor="auto"
         width={
           Array [
             1,
@@ -32,13 +35,14 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-htpNat sc-jTzLTM dtQBbz"
+          className="sc-htpNat sc-jTzLTM jpgNfr"
         />
         <form
           onSubmit={[Function]}
         >
           <div
-            className="sc-htpNat dosJSB"
+            className="sc-htpNat dQLcuo"
+            cursor="auto"
           >
             <label
               className="sc-ckVGcZ gXhFce"
@@ -58,7 +62,8 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <div
-            className="sc-htpNat dosJSB"
+            className="sc-htpNat dQLcuo"
+            cursor="auto"
           >
             <label
               className="sc-ckVGcZ gXhFce"
@@ -78,7 +83,8 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <div
-            className="sc-htpNat dosJSB"
+            className="sc-htpNat dQLcuo"
+            cursor="auto"
           >
             <label
               className="sc-ckVGcZ gXhFce"
@@ -165,14 +171,37 @@ exports[`UserSettings Mount 1`] = `
             disabled={true}
             onClick={[Function]}
           >
-            <i
-              className="fas fa-circle-notch fa-spin"
-            />
+            <svg
+              className="sc-gzVnrw kudwwP"
+              cursor="inherit"
+              fill="currentcolor"
+              height={24}
+              id="outer_ellipsis_svg__Layer_1"
+              viewBox="0 0 24 24"
+              width={24}
+              x={0}
+              xmlSpace="preserve"
+              y={0}
+            >
+              <style />
+              <ellipse
+                cx={5}
+                cy={12}
+                rx={3}
+                ry={3}
+              />
+              <ellipse
+                cx={19}
+                cy={12}
+                rx={3}
+                ry={3}
+              />
+            </svg>
           </button>
         </div>
       </div>
       <div
-        className="sc-htpNat sc-jTzLTM YxtQX"
+        className="sc-htpNat sc-jTzLTM laRPub"
         width={
           Array [
             0,
@@ -181,7 +210,8 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-htpNat jaqxvr"
+          className="sc-htpNat fsPsYE"
+          cursor="auto"
         />
       </div>
     </div>

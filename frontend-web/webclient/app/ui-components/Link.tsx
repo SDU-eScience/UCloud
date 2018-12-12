@@ -4,7 +4,7 @@ import { style, space, color, SpaceProps, ColorProps } from 'styled-system';
 
 interface LinkProps extends SpaceProps, ColorProps 
 {
-  hoverColor?: string
+  hovercolor?: string
 }
 
 const hoverColor = style({
@@ -27,7 +27,7 @@ const Link = styled(ReactRouterLink) <LinkProps>`
 
 Link.defaultProps = {
   color: "text",
-  hoverColor: "textHighlight"
+  hovercolor: "textHighlight"
 };
 
 Link.displayName = "Link";

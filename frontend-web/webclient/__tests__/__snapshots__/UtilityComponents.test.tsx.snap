@@ -146,7 +146,6 @@ exports[`RefreshButton RefreshButton 1`] = `
   fill="currentcolor"
   height={24}
   onClick={[Function]}
-  spin={false}
   viewBox="0 0 24 24"
   width={24}
 >

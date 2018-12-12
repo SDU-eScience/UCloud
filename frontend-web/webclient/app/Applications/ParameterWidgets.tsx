@@ -1,4 +1,5 @@
 import * as React from "react";
+import { File } from "Files";
 import FileSelector from "Files/FileSelector";
 import * as ReactMarkdown from "react-markdown";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
@@ -32,7 +33,7 @@ export const Parameter = (props) => {
 };
 
 const InputFileParameter = (props) => {
-    const internalOnChange = (file) => {
+    const internalOnChange = (file: File) => {
         props.onChange(props.parameter.name, {
             source: file.path,
             destination: getFilenameFromPath(file.path)
@@ -45,7 +46,7 @@ const InputFileParameter = (props) => {
                 onFileSelect={file => internalOnChange(file)}
                 path={path}
                 isRequired={!props.parameter.optional}
-            /* allowUpload */
+                /* allowUpload */
             />
         </GenericParameter>
     );
@@ -62,7 +63,7 @@ const InputDirectoryParameter = (props) => {
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
-                onFileSelect={(file) => internalOnChange(file)}
+                onFileSelect={(file: File) => internalOnChange(file)}
                 path={path}
                 canSelectFolders
                 onlyAllowFolders

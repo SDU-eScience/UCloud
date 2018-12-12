@@ -21,7 +21,7 @@ const SvgFtLabel = ({hasExt, ext}) => {
         fill={color3}
       // fillRule="nonzero"
       />
-      <text text-anchor="middle" x="21.5" y="53" fill="#fff"
+      <text textAnchor="middle" x="21.5" y="53" fill="#fff"
         style={{ fontSize: "15px", 
                  textTransform: "uppercase",
                  fontWeight: "bold",
@@ -114,7 +114,7 @@ const SvgFtType = ({type}) => {
     case "code":
       return (
         <>
-          <text text-anchor="middle" x="21.5" y="27" style={{ fontSize:"24px" }} fill="#3d4d65" >{'{ }'}</text>
+          <text textAnchor="middle" x="21.5" y="27" style={{ fontSize:"24px" }} fill="#3d4d65" >{'{ }'}</text>
         </>
       );
     case "pdf":
@@ -131,8 +131,8 @@ const SvgFtType = ({type}) => {
     case "binary":
       return (
         <>
-          <text text-anchor="middle" x="21.5" y="17" style={{ fontSize: "14px" }} fill="#3d4d65" >{'0101'}</text>
-          <text text-anchor="middle" x="21.5" y="31" style={{ fontSize: "14px" }} fill="#3d4d65" >{'1110'}</text>
+          <text textAnchor="middle" x="21.5" y="17" style={{ fontSize: "14px" }} fill="#3d4d65" >{'0101'}</text>
+          <text textAnchor="middle" x="21.5" y="31" style={{ fontSize: "14px" }} fill="#3d4d65" >{'1110'}</text>
         </>
       );
   }

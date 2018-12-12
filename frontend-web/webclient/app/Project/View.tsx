@@ -1,7 +1,7 @@
 import * as React from "react";
-import { Link, Button, Flex, List } from "ui-components";
+import { Link, Button, Flex, List, Icon } from "ui-components";
 import { ProjectMetadata } from "./api";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
 import * as ReactMarkdown from "react-markdown";
 import { Contributor, getByPath } from "./api";
 import { findLicenseByIdentifier } from "./licenses";
@@ -109,7 +109,7 @@ export const View = (props: ViewProps) => {
     );
 }
 
-const SectionHeader = ({ iconClass, title }: { iconClass: string, title: string }) => (
+const SectionHeader = ({ iconClass, title }: { iconClass: "fas fa-info" | "fas fa-hand-pointer" | "fas fa-bookmark" | "fas fa-money-bill" | "fas fa-hashtag", title: string }) => (
     <Heading.h4>
         <Flex>
             <Box width="20%">
@@ -135,7 +135,7 @@ const ContributorItem = (props: { contributor: Contributor }) => {
             <Dropdown>
                 <Box width="auto">
                     <a href="#" onClick={e => e.preventDefault()}>
-                        <i className="fas fa-user" /><TextSpan ml="0.5em">{contributor.name}</TextSpan>
+                        <Icon name="user" /><TextSpan ml="0.5em">{contributor.name}</TextSpan>
                     </a>
                 </Box>
                 <DropdownContent width="180px" colorOnHover={false}>
@@ -159,7 +159,7 @@ const ContributorItem = (props: { contributor: Contributor }) => {
                 </DropdownContent>
             </Dropdown>)
     } else {
-        return (<Box><i className="user" />{contributor.name}</Box>);
+        return (<Box><Icon name="user" />{contributor.name}</Box>);
     }
 };
 
@@ -191,7 +191,7 @@ export class ManagedView extends React.Component<any, ManagedViewState> {
 
     render() {
         if (!this.state.metadata) {
-            return <DefaultLoading loading />;
+            return <LoadingIcon size={18} />;
         } else {
             return <View canEdit={this.state.canEdit} metadata={this.state.metadata} />;
         }

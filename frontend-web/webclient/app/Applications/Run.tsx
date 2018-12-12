@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon"
+import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification } from "UtilityFunctions";
@@ -9,7 +9,7 @@ import { RunAppProps, RunAppState, JobSchedulingOptions, MaxTime, ApplicationPar
 import { Application } from ".";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Box, Flex, Button, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup } from "ui-components";
+import { Box, Flex, Button, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter } from "./ParameterWidgets";
@@ -185,45 +185,47 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     }
 
     render() {
-        if (!this.state.application) return (
+        const { application, error, jobSubmitted, schedulingOptions, parameterValues } = this.state;
+
+        if (!application) return (
             <>
-                <DefaultLoading loading={this.state.loading} />
+                <LoadingIcon size={18} />
                 <Error
                     clearError={() => this.setState(() => ({ error: undefined }))}
-                    error={this.state.error} />
+                    error={error} />
             </>
         );
 
         const header = (
             <Header
-                name={this.state.application.description.title}
-                version={this.state.application.description.info.version} />
+                name={application.description.title}
+                version={application.description.info.version} />
         );
 
         const main = (
             <ContainerForText>
                 <Error
                     clearError={() => this.setState(() => ({ error: undefined }))}
-                    error={this.state.error} />
+                    error={error} />
 
                 <Parameters
-                    values={this.state.parameterValues}
-                    parameters={this.state.application.description.parameters}
+                    values={parameterValues}
+                    parameters={application.description.parameters}
                     onSubmit={this.onSubmit}
                     onChange={this.onInputChange}
-                    schedulingOptions={this.state.schedulingOptions}
-                    app={this.state.application}
+                    schedulingOptions={schedulingOptions}
+                    app={application}
                     onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
-                    disableSubmit={this.state.jobSubmitted}
+                    disableSubmit={jobSubmitted}
                 />
             </ContainerForText>
         );
 
         const sidebar = (
             <VerticalButtonGroup>
-                <OutlineButton 
-                    fullWidth 
-                    color="darkGreen" 
+                <OutlineButton
+                    fullWidth
+                    color="darkGreen"
                     onClick={() => this.exportParameters()}>
                     Export parameters
                 </OutlineButton>
@@ -251,7 +253,7 @@ interface ParameterValues {
     [name: string]: any
 }
 
-const Parameters = (props: {
+interface ParameterProps {
     values: ParameterValues,
     parameters: ApplicationParameter[],
     schedulingOptions: JobSchedulingOptionsForInput,
@@ -260,7 +262,8 @@ const Parameters = (props: {
     onChange: (name, value) => void,
     onSubmit: (e: React.FormEvent) => void,
     onJobSchedulingParamsChange: (field, value, subField) => void,
-}) => {
+}
+const Parameters = (props: ParameterProps) => {
     if (!props.parameters) return null
 
     let parametersList = props.parameters.map((parameter, index) => {
@@ -284,7 +287,7 @@ const Parameters = (props: {
                 app={props.app}
             />
 
-            <Button color="blue" disabled={props.disableSubmit}>Submit</Button>
+            <LoadingButton loading={props.disableSubmit} color="blue">Submit</LoadingButton>
         </form>
     )
 };
@@ -301,28 +304,28 @@ interface SchedulingFieldProps {
     max?: number
 }
 
-const SchedulingField: React.StatelessComponent<SchedulingFieldProps> = props => {
-    return (
-        <Label>
-            {props.text}
+const SchedulingField: React.StatelessComponent<SchedulingFieldProps> = props => (
+    <Label>
+        {props.text}
 
-            <Input
-                type="number"
-                step="1"
-                min={props.min}
-                max={props.max}
-                value={props.value == null || isNaN(props.value) ? "" : props.value}
-                placeholder={`${props.defaultValue}`}
-                onChange={({ target: { value } }) => {
-                    const parsed = parseInt(value);
-                    props.onChange(props.field, parsed, props.subField);
-                }}
-            />
-        </Label>
-    );
-};
+        <Input
+            type="number"
+            step="1"
+            min={props.min}
+            max={props.max}
+            value={props.value == null || isNaN(props.value) ? "" : props.value}
+            placeholder={`${props.defaultValue}`}
+            onChange={({ target: { value } }) => {
+                const parsed = parseInt(value);
+                props.onChange(props.field, parsed, props.subField);
+            }}
+        />
+    </Label>
+);
 
-const JobSchedulingOptions = (props: { onChange: (a, b, c) => void, options: any, app: Application }) => {
+
+interface JobSchedulingOptionsProps { onChange: (a, b, c) => void, options: any, app: Application }
+const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
     if (!props.app) return null;
     const tool = props.app.tool.description;
     const { maxTime, numberOfNodes, tasksPerNode } = props.options;

@@ -2,7 +2,7 @@ import * as React from "react";
 import { Flex, Box, Hide } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { LoadableContent } from "LoadableContent";
-import { default as Spinner } from "LoadingIcon/LoadingIcon_new";
+import Spinner from "LoadingIcon/LoadingIcon";
 
 export interface MainContainerProps { sidebar?: React.ReactNode, main?: React.ReactNode, additional?: React.ReactNode, header?: React.ReactNode }
 export const MainContainer = ({ sidebar, main, additional, header }: MainContainerProps) => (

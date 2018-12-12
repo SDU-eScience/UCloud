@@ -3,7 +3,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { AccessRight, Page, AccessRightValues } from "Types";
 import { shareSwal, prettierString } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
@@ -74,7 +74,7 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
                         ))}
                     </ClickableDropdown>
                 </Flex>
-                <DefaultLoading loading={this.state.loading} />
+                {this.state.loading ? <LoadingIcon size={18} /> : null }
                 <Heading.h3>Shared with Me</Heading.h3>
                 {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
                     <ListEntry
@@ -177,8 +177,8 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         <Flex>
                             <Box ml="auto" />
                             <ButtonGroup width="200px">
-                                <LoadingButton loading={isLoading} disabled={isLoading} color="green" onClick={() => this.onAccept(actualShare)} hoverColor="darkGreen" content="Accept" />
-                                <LoadingButton loading={isLoading} disabled={isLoading} color="red" onClick={() => this.onReject(actualShare)} hoverColor="darkRed" content="Reject" />
+                                <LoadingButton loading={isLoading} disabled={isLoading} color="green" onClick={() => this.onAccept(actualShare)} hovercolor="darkGreen" content="Accept" />
+                                <LoadingButton loading={isLoading} disabled={isLoading} color="red" onClick={() => this.onReject(actualShare)} hovercolor="darkRed" content="Reject" />
                             </ButtonGroup>
                         </Flex>
                     </>)

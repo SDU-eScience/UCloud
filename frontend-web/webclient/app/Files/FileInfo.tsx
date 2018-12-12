@@ -2,7 +2,7 @@ import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { toLowerCaseAndCapitalize, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
 import { fileSizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile, reclassifyFile } from "Utilities/FileUtilities";
-import { DefaultLoading } from "LoadingIcon/LoadingIcon";
+import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
@@ -51,7 +51,7 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations & { lo
 
     render() {
         const { loading, file, activity, ...props } = this.props;
-        if (!file) { return (<DefaultLoading loading={true} />) }
+        if (!file) { return (<LoadingIcon size={18} />) }
         const fileName = replaceHomeFolder(isDirectory(file) ? addTrailingSlash(file.path) : file.path, Cloud.homeFolder);
         return (
             <Flex alignItems="center" flexDirection="column">
@@ -67,7 +67,7 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations & { lo
                             <ActivityFeed activity={activity.items} />
                         </Card>) : null}
                     <ShareList byPath={file.path} />
-                    <DefaultLoading loading={loading} />
+                    {loading ? <LoadingIcon size={18} /> : null}
                 </Box>
             </Flex>
         );

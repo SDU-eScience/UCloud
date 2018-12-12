@@ -3,7 +3,7 @@ import Button from "./Button";
 import { ButtonStyleProps } from "styled-system";
 import theme, { Theme }from "./theme";
 
-export interface OutlineButtonProps extends ButtonStyleProps { hoverColor?: string }
+export interface OutlineButtonProps extends ButtonStyleProps { hovercolor?: string }
 
 //Different from the one in button because of border size
 const size = ({ size, theme }: { size: string, theme: Theme }) => {
@@ -45,8 +45,8 @@ const OutlineButton = styled(Button) <OutlineButtonProps>`
   background-color: transparent;
 
   &:hover {
-    color: ${props => (props.disabled ? null : (props.hoverColor ? props.theme.colors[props.hoverColor] : null))};
-    border: 2px solid ${props => props.hoverColor ? props.theme.colors[props.hoverColor] : null};
+    color: ${props => (props.disabled ? null : (props.hovercolor ? props.theme.colors[props.hovercolor] : null))};
+    border: 2px solid ${props => props.hovercolor ? props.theme.colors[props.hovercolor] : null};
     background-color: transparent;
     transition: ease 0.1s;
   }

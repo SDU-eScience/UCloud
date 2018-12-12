@@ -252,7 +252,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 pt="8px"
                                 mt="-2px"
                                 onKeyDown={e => {
-                                    if (e.keyCode === KeyCode.ENTER) {e.preventDefault(); this.onAddExtension()}
+                                    if (e.keyCode === KeyCode.ENTER) { e.preventDefault(); this.onAddExtension() }
                                 }}
                                 ref={this.extensionsInput}
                                 placeholder={"Add extensions..."}

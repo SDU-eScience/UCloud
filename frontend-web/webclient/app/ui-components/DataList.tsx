@@ -24,7 +24,7 @@ export class DataList extends React.PureComponent<DataListProps, { text: string 
         }
     }
 
-    private totalShown: 8 = 8;
+    private readonly totalShown = 8;
 
     private onSelect(content: string, value: string) {
         this.props.onSelect(value);

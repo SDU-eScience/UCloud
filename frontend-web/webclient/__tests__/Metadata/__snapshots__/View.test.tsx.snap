@@ -3,7 +3,8 @@
 exports[`View component Mount view 1`] = `
 Array [
   <div
-    className="sc-bdVaJa jIaizL"
+    className="sc-bdVaJa eDTbXN"
+    cursor="auto"
   >
     <h2
       className="sc-EHOje iXGhfy"
@@ -20,7 +21,8 @@ Array [
     className="sc-ifAKCX iCcktw"
   >
     <div
-      className="sc-bdVaJa cqSMqG"
+      className="sc-bdVaJa fOIZHW"
+      cursor="auto"
       width={
         Array [
           1,
@@ -29,10 +31,11 @@ Array [
       }
     >
       <div
-        className="sc-bdVaJa sc-jTzLTM dtQBbz"
+        className="sc-bdVaJa sc-jTzLTM jpgNfr"
       >
         <div
-          className="sc-bdVaJa tfARS"
+          className="sc-bdVaJa bYxiQv"
+          cursor="auto"
         >
           <h4
             className="sc-EHOje iCzVTA"
@@ -43,7 +46,8 @@ Array [
               className="sc-ifAKCX hEFUra"
             >
               <div
-                className="sc-bdVaJa hJeWHc"
+                className="sc-bdVaJa fubmCm"
+                cursor="auto"
                 width="20%"
               >
                 <div
@@ -56,7 +60,8 @@ Array [
                 </div>
               </div>
               <div
-                className="sc-bdVaJa fcWbLF"
+                className="sc-bdVaJa ejBYcY"
+                cursor="auto"
                 width="80%"
               >
                 Actions
@@ -64,9 +69,9 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-hMqMXs eXJRRJ"
+            className="sc-hMqMXs dmWfKM"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
             mb="1em"
             onClick={[Function]}
@@ -96,7 +101,8 @@ Array [
               className="sc-ifAKCX hEFUra"
             >
               <div
-                className="sc-bdVaJa hJeWHc"
+                className="sc-bdVaJa fubmCm"
+                cursor="auto"
                 width="20%"
               >
                 <div
@@ -109,7 +115,8 @@ Array [
                 </div>
               </div>
               <div
-                className="sc-bdVaJa fcWbLF"
+                className="sc-bdVaJa ejBYcY"
+                cursor="auto"
                 width="80%"
               >
                 About
@@ -117,7 +124,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hpKfbc"
+            className="sc-bdVaJa sc-gipzik kkczwm"
             fontSize="large"
           >
             <a
@@ -163,7 +170,8 @@ Array [
               className="sc-ifAKCX hEFUra"
             >
               <div
-                className="sc-bdVaJa hJeWHc"
+                className="sc-bdVaJa fubmCm"
+                cursor="auto"
                 width="20%"
               >
                 <div
@@ -176,7 +184,8 @@ Array [
                 </div>
               </div>
               <div
-                className="sc-bdVaJa fcWbLF"
+                className="sc-bdVaJa ejBYcY"
+                cursor="auto"
                 width="80%"
               >
                 Keywords
@@ -184,7 +193,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik dPbgGA"
+            className="sc-bdVaJa sc-gipzik hHQOvf"
             fontSize="large"
           >
             <div
@@ -204,7 +213,8 @@ Array [
               className="sc-ifAKCX hEFUra"
             >
               <div
-                className="sc-bdVaJa hJeWHc"
+                className="sc-bdVaJa fubmCm"
+                cursor="auto"
                 width="20%"
               >
                 <div
@@ -217,7 +227,8 @@ Array [
                 </div>
               </div>
               <div
-                className="sc-bdVaJa fcWbLF"
+                className="sc-bdVaJa ejBYcY"
+                cursor="auto"
                 width="80%"
               >
                 References
@@ -225,7 +236,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik dPbgGA"
+            className="sc-bdVaJa sc-gipzik hHQOvf"
             fontSize="large"
           />
           <h4
@@ -237,7 +248,8 @@ Array [
               className="sc-ifAKCX hEFUra"
             >
               <div
-                className="sc-bdVaJa hJeWHc"
+                className="sc-bdVaJa fubmCm"
+                cursor="auto"
                 width="20%"
               >
                 <div
@@ -250,7 +262,8 @@ Array [
                 </div>
               </div>
               <div
-                className="sc-bdVaJa fcWbLF"
+                className="sc-bdVaJa ejBYcY"
+                cursor="auto"
                 width="80%"
               >
                 Grants
@@ -258,7 +271,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik dPbgGA"
+            className="sc-bdVaJa sc-gipzik hHQOvf"
             fontSize="large"
           />
         </div>
@@ -268,7 +281,7 @@ Array [
       </p>
     </div>
     <div
-      className="sc-bdVaJa sc-jTzLTM jhzWaI"
+      className="sc-bdVaJa sc-jTzLTM fWbZTz"
       width={
         Array [
           0,
@@ -277,10 +290,12 @@ Array [
       }
     >
       <div
-        className="sc-bdVaJa hpQzLR"
+        className="sc-bdVaJa hORKfa"
+        cursor="auto"
       >
         <div
-          className="sc-bdVaJa tfARS"
+          className="sc-bdVaJa bYxiQv"
+          cursor="auto"
         >
           <h4
             className="sc-EHOje iCzVTA"
@@ -291,7 +306,8 @@ Array [
               className="sc-ifAKCX hEFUra"
             >
               <div
-                className="sc-bdVaJa hJeWHc"
+                className="sc-bdVaJa fubmCm"
+                cursor="auto"
                 width="20%"
               >
                 <div
@@ -304,7 +320,8 @@ Array [
                 </div>
               </div>
               <div
-                className="sc-bdVaJa fcWbLF"
+                className="sc-bdVaJa ejBYcY"
+                cursor="auto"
                 width="80%"
               >
                 Actions
@@ -312,9 +329,9 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-hMqMXs eXJRRJ"
+            className="sc-hMqMXs dmWfKM"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
             mb="1em"
             onClick={[Function]}
@@ -344,7 +361,8 @@ Array [
               className="sc-ifAKCX hEFUra"
             >
               <div
-                className="sc-bdVaJa hJeWHc"
+                className="sc-bdVaJa fubmCm"
+                cursor="auto"
                 width="20%"
               >
                 <div
@@ -357,7 +375,8 @@ Array [
                 </div>
               </div>
               <div
-                className="sc-bdVaJa fcWbLF"
+                className="sc-bdVaJa ejBYcY"
+                cursor="auto"
                 width="80%"
               >
                 About
@@ -365,7 +384,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hpKfbc"
+            className="sc-bdVaJa sc-gipzik kkczwm"
             fontSize="large"
           >
             <a
@@ -411,7 +430,8 @@ Array [
               className="sc-ifAKCX hEFUra"
             >
               <div
-                className="sc-bdVaJa hJeWHc"
+                className="sc-bdVaJa fubmCm"
+                cursor="auto"
                 width="20%"
               >
                 <div
@@ -424,7 +444,8 @@ Array [
                 </div>
               </div>
               <div
-                className="sc-bdVaJa fcWbLF"
+                className="sc-bdVaJa ejBYcY"
+                cursor="auto"
                 width="80%"
               >
                 Keywords
@@ -432,7 +453,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik dPbgGA"
+            className="sc-bdVaJa sc-gipzik hHQOvf"
             fontSize="large"
           >
             <div
@@ -452,7 +473,8 @@ Array [
               className="sc-ifAKCX hEFUra"
             >
               <div
-                className="sc-bdVaJa hJeWHc"
+                className="sc-bdVaJa fubmCm"
+                cursor="auto"
                 width="20%"
               >
                 <div
@@ -465,7 +487,8 @@ Array [
                 </div>
               </div>
               <div
-                className="sc-bdVaJa fcWbLF"
+                className="sc-bdVaJa ejBYcY"
+                cursor="auto"
                 width="80%"
               >
                 References
@@ -473,7 +496,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik dPbgGA"
+            className="sc-bdVaJa sc-gipzik hHQOvf"
             fontSize="large"
           />
           <h4
@@ -485,7 +508,8 @@ Array [
               className="sc-ifAKCX hEFUra"
             >
               <div
-                className="sc-bdVaJa hJeWHc"
+                className="sc-bdVaJa fubmCm"
+                cursor="auto"
                 width="20%"
               >
                 <div
@@ -498,7 +522,8 @@ Array [
                 </div>
               </div>
               <div
-                className="sc-bdVaJa fcWbLF"
+                className="sc-bdVaJa ejBYcY"
+                cursor="auto"
                 width="80%"
               >
                 Grants
@@ -506,7 +531,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik dPbgGA"
+            className="sc-bdVaJa sc-gipzik hHQOvf"
             fontSize="large"
           />
         </div>

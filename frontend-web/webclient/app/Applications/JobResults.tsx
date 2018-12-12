@@ -10,12 +10,12 @@ import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } 
 import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
-import { Hide, Heading } from "ui-components";
+import { Heading } from "ui-components";
 import { fileTablePage } from "Utilities/FileUtilities";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Navigation, Pages } from "./Navigation";
+import { History } from "history";
 
-class JobResults extends React.Component<AnalysesProps, AnalysesState> {
+class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -43,7 +43,7 @@ class JobResults extends React.Component<AnalysesProps, AnalysesState> {
     }
 
     render() {
-        const { page, loading, fetchAnalyses, error, onErrorDismiss } = this.props;
+        const { page, loading, fetchAnalyses, error, onErrorDismiss, history } = this.props;
         const content = <List
             customEmptyPage={<Heading>No jobs have been run on this account.</Heading>}
             loading={loading}
@@ -54,7 +54,9 @@ class JobResults extends React.Component<AnalysesProps, AnalysesState> {
                 <Table>
                     <Header />
                     <TableBody>
-                        {page.items.map((a, i) => <Analysis analysis={a} key={i} />)}
+                        {page.items.map((a, i) => <Analysis
+                            to={() => history.push(`/applications/results/${a.jobId}`)} analysis={a} key={i} 
+                        />)}
                     </TableBody>
                 </Table>
             }
@@ -65,8 +67,7 @@ class JobResults extends React.Component<AnalysesProps, AnalysesState> {
 
         return (
             <React.StrictMode>
-                <MainContainer
-                    main={content} />
+                <MainContainer main={content} />
             </React.StrictMode>
         )
     }
@@ -85,21 +86,13 @@ const Header = () => (
     </TableHeader>
 );
 
-const Analysis = ({ analysis }) => {
+const Analysis = ({ analysis, to }) => {
     const jobIdField = analysis.status === "COMPLETE" ?
         (<Link to={fileTablePage(`${Cloud.jobFolder}/${analysis.jobId}`)}>{analysis.jobId}</Link>) : analysis.jobId;
     return (
-        <TableRow>
-            <TableCell>
-                <Link to={`/applications/${analysis.appName}/${analysis.appVersion}`}>
-                    {analysis.appName}@{analysis.appVersion}
-                </Link>
-            </TableCell>
-            <TableCell>
-                <Link to={`/applications/results/${jobIdField}`}>
-                    <span title={jobIdField}>{shortUUID(jobIdField)}</span>
-                </Link>
-            </TableCell>
+        <TableRow cursor="pointer" onClick={() => to()}>
+            <TableCell>{analysis.appName}@{analysis.appVersion}</TableCell>
+            <TableCell><span title={jobIdField}>{shortUUID(jobIdField)}</span></TableCell>
             <TableCell>{toLowerCaseAndCapitalize(analysis.state)}</TableCell>
             <TableCell xs sm>{analysis.status}</TableCell>
             <TableCell xs sm>{formatDate(analysis.createdAt)}</TableCell>

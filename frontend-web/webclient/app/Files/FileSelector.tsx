@@ -3,10 +3,10 @@ import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import * as PropTypes from "prop-types";
-import { replaceHomeFolder, getFilenameFromPath, isDirectory, createFolder } from "Utilities/FileUtilities";
+import { replaceHomeFolder, getFilenameFromPath, isDirectory, createFolder, newMockFolder } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
-import { FileIcon, RefreshButton } from "UtilityComponents";
+import { RefreshButton } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
 import { filepathQuery, isInvalidPathName } from "Utilities/FileUtilities";
@@ -15,7 +15,6 @@ import * as ReactModal from "react-modal";
 import * as Heading from "ui-components/Heading";
 import { Spacer } from "ui-components/Spacer";
 import { EntriesPerPageSelector } from "Pagination";
-import * as UF from "UtilityFunctions";
 import { FilesTable } from "./FilesTable";
 import SDUCloud from "Authentication/lib";
 
@@ -32,10 +31,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             creatingFolder: false
         };
     }
-
-    static contextTypes = {
-        store: PropTypes.object.isRequired
-    };
 
     // FIXME Find better name
     handleKeyDown = (key: number, name: string) => {
@@ -58,9 +53,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         this.fetchFiles(Cloud.homeFolder, page.pageNumber, page.itemsPerPage);
     }
 
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
-    }
+    componentWillUnmount = () => this.state.promises.cancelPromises();
 
     setSelectedFile = (file: File) => {
         let fileCopy = { path: file.path };
@@ -97,6 +90,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     required={this.props.isRequired}
                     placeholder="No file selected"
                     value={replaceHomeFolder(path, Cloud.homeFolder)}
+                    onChange={() => undefined}
                     onClick={() => this.setState(() => ({ modalShown: true }))}
                 />
                 {uploadButton}
@@ -177,7 +171,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
     </ReactModal>
 );
 
-const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
+const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
     const files = f.filter(({ path }) => !disallowedPaths.some((d) => d === path));
     const ops: FileOperation[] = [];

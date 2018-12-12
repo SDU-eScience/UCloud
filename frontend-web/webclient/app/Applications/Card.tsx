@@ -161,12 +161,12 @@ const AppLogo = ({ size, ...props }) => (
         <clipPath id="myClip">
             <rect x="-1000" y="-1000" width="2000" height="2000" rx="500" ry="500" />
         </clipPath>
-        <g clip-path="url(#myClip)" >
+        <g clipPath="url(#myClip)" >
             <g transform="rotate(15 0 0)">
-                <ellipse cx="0" cy="0" rx="1600" ry="400" fill="#0096ff" fill-opacity=".85" transform="translate(0 800)" />
-                <ellipse cx="0" cy="0" rx="400" ry="1600" fill="#ff2600" fill-opacity=".85" transform="translate(-800 0)" />
-                <ellipse cx="0" cy="0" rx="400" ry="1600" fill="#008f00" fill-opacity=".85" transform="translate(800 0)" />
-                <ellipse cx="0" cy="0" rx="1600" ry="400" fill="#ff9300" fill-opacity=".85" transform="translate(0 -800)" />
+                <ellipse cx="0" cy="0" rx="1600" ry="400" fill="#0096ff" fillOpacity=".85" transform="translate(0 800)" />
+                <ellipse cx="0" cy="0" rx="400" ry="1600" fill="#ff2600" fillOpacity=".85" transform="translate(-800 0)" />
+                <ellipse cx="0" cy="0" rx="400" ry="1600" fill="#008f00" fillOpacity=".85" transform="translate(800 0)" />
+                <ellipse cx="0" cy="0" rx="1600" ry="400" fill="#ff9300" fillOpacity=".85" transform="translate(0 -800)" />
             </g>
         </g>
     </svg>
@@ -174,7 +174,7 @@ const AppLogo = ({ size, ...props }) => (
 
 const AppRibbonContainer = styled(Absolute)`
     transition: ease 0.2s;
-    :hover {
+    &:hover {
         top: 0
     }
 ` 

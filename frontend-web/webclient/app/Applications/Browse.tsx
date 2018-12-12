@@ -124,6 +124,7 @@ class Applications extends React.Component<ApplicationsProps> {
     render() {
         const main = (
             <Pagination.List
+                loading={false}
                 onRefresh={() => this.fetch(this.props)}
                 pageRenderer={(page: Page<Application>) =>
                     <CardGroup>

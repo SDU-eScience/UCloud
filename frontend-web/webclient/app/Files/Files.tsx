@@ -9,21 +9,22 @@ import { KeyCode, ReduxObject } from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
-import { RefreshButton } from "UtilityComponents";
+import { MasterCheckbox, CustomEntriesPerPage } from "UtilityComponents";
 import { FilesProps, FilesStateProps, FilesOperations, File, FileOperation } from ".";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
     startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
-    getParentPath, moveFile, createFolder, fileTablePage
+    getParentPath, moveFile, createFolder, fileTablePage, newMockFolder
 } from "Utilities/FileUtilities";
-import { Box, Hide, Flex, Checkbox, Label } from "ui-components";
+import { Box } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { Dispatch } from "redux";
 import DetailedFileSearch from "./DetailedFileSearch";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
 import { allFilesHasAccessRight } from "Utilities/FileUtilities";
 import { AccessRight } from "Types";
-import { FilesTable, ContextBar, ContextButtons } from "./FilesTable";
+import { FilesTable, ContextBar } from "./FilesTable";
+import { MainContainer } from "MainContainer/MainContainer";
 
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
@@ -64,6 +65,13 @@ class Files extends React.Component<FilesProps> {
         }
     }
 
+    private fetchPageFromPath = (path: string) => {
+        const { page, history, sortOrder, sortBy  } = this.props;
+        this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
+        this.props.updatePath(getParentPath(path)); // FIXME Could these be handled by shouldComponentUpdate?
+        history.push(fileTablePage(getParentPath(path)))
+    }
+
     shouldComponentUpdate(nextProps: FilesProps, _nextState): boolean {
         const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
         const nextPath = this.urlPathFromProps(nextProps);
@@ -78,26 +86,9 @@ class Files extends React.Component<FilesProps> {
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
 
-        const masterCheckbox = (
-            <Label>
-                <Checkbox
-                    onClick={e => this.props.checkAllFiles(!!e.target.checked)}
-                    checked={page.items.length === selectedFiles.length && page.items.length > 0}
-                    onChange={e => e.stopPropagation()}
-                />
-            </Label>
-        );
-
         const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
-
-        const fetchPageFromPath = (path: string) => {
-            this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
-            this.props.updatePath(getParentPath(path)); // FIXME Could these be handled by shouldComponentUpdate?
-            navigate(getParentPath(path)); // FIXME Could these be handled by shouldComponentUpdate?
-        };
-
-        const fileSelectorOperations = { setDisallowedPaths, setFileSelectorCallback, showFileSelector, fetchPageFromPath };
+        const fileSelectorOperations = { setDisallowedPaths, setFileSelectorCallback, showFileSelector, fetchPageFromPath: this.fetchPageFromPath };
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const fileOperations: FileOperation[] = [
             {
@@ -109,90 +100,89 @@ class Files extends React.Component<FilesProps> {
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
-        const customEntriesPerPage = (
+        
+        const main = (
             <>
-                <Pagination.EntriesPerPageSelector
-                    entriesPerPage={page.itemsPerPage}
-                    content="Files per page"
-                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
+                <Pagination.List
+                    loading={loading}
+                    errorMessage={props.error}
+                    onErrorDismiss={props.dismissError}
+                    customEmptyPage={(<Heading.h3>No files in current folder</Heading.h3>)}
+                    pageRenderer={page => (
+                        <FilesTable
+                            onFavoriteFile={favoriteFile}
+                            fileOperations={fileOperations}
+                            sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                            sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
+                            sortOrder={sortOrder}
+                            sortingColumns={[leftSortingColumn, rightSortingColumn]}
+                            refetchFiles={() => refetch()}
+                            onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
+                            masterCheckbox={
+                                <MasterCheckbox
+                                    checked={page.items.length === selectedFiles.length && page.items.length > 0}
+                                    onClick={this.props.checkAllFiles}
+                                />}
+                            onRenameFile={this.onRenameFile}
+                            files={page.items}
+                            sortBy={sortBy}
+                            onCheckFile={(checked, file) => checkFile(checked, file.path)}
+                            customEntriesPerPage={<CustomEntriesPerPage
+                                entriesPerPage={page.itemsPerPage}
+                                text="Files per page"
+                                onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                                loading={loading}
+                                onRefreshClick={refetch}
+                            />}
+                        />
+                    )}
+                    customEntriesPerPage
+                    onItemsPerPageChanged={pageSize => fetchFiles(path, pageSize, 0, sortOrder, sortBy)}
+                    page={page}
+                    onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
                 />
-                <RefreshButton loading={loading} onClick={refetch} />
             </>
-        );
-        return (
-            <Flex flexDirection="row">
-                <Box width={[1, 13 / 16]}>
-                    <Hide lg xl>
-                        {!props.invalidPath ? (
-                            <ContextButtons
-                                createFolder={props.createFolder}
-                                showUploader={props.showUploader}
-                                inTrashFolder={UF.addTrailingSlash(path) === Cloud.trashFolder}
-                                toHome={() => navigate(Cloud.homeFolder)}
-                            />
-                        ) : null}
-                    </Hide>
-                    <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
-                    <Pagination.List
-                        loading={loading}
-                        errorMessage={props.error}
-                        onErrorDismiss={props.dismissError}
-                        customEmptyPage={(<Heading.h3>No files in current folder</Heading.h3>)}
-                        pageRenderer={page => (
-                            <FilesTable
-                                onFavoriteFile={favoriteFile}
-                                fileOperations={fileOperations}
-                                sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
-                                sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
-                                sortOrder={sortOrder}
-                                sortingColumns={[leftSortingColumn, rightSortingColumn]}
-                                refetchFiles={() => refetch()}
-                                onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
-                                masterCheckbox={masterCheckbox}
-                                onRenameFile={this.onRenameFile}
-                                files={page.items}
-                                sortBy={sortBy}
-                                onCheckFile={(checked, file) => checkFile(checked, file.path)}
-                                customEntriesPerPage={customEntriesPerPage}
-                            />
-                        )}
-                        customEntriesPerPage
-                        onItemsPerPageChanged={pageSize => fetchFiles(path, pageSize, 0, sortOrder, sortBy)}
-                        page={page}
-                        onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
+        )
+
+        const sidebar = (
+            !props.invalidPath ?
+                <Box pl="5px" pr="5px">
+                    <ContextBar
+                        invalidPath={props.invalidPath}
+                        showUploader={props.showUploader}
+                        fileOperations={fileOperations}
+                        files={selectedFiles}
+                        inTrashFolder={UF.addTrailingSlash(path) === Cloud.trashFolder}
+                        createFolder={() => props.createFolder()}
+                        toHome={() => navigate(Cloud.homeFolder)}
                     />
-                </Box>
-                <Hide xs sm md width={3 / 16}>
-                    {!props.invalidPath ?
-                        <Box pl="5px" pr="5px">
-                            <ContextBar
-                                invalidPath={props.invalidPath}
-                                showUploader={props.showUploader}
-                                fileOperations={fileOperations}
-                                files={selectedFiles}
-                                inTrashFolder={UF.addTrailingSlash(path) === Cloud.trashFolder}
-                                createFolder={() => props.createFolder()}
-                                toHome={() => navigate(Cloud.homeFolder)}
-                            />
-                            <DetailedFileSearch />
-                        </Box> : null
-                    }
-                </Hide>
-                <FileSelectorModal
-                    show={props.fileSelectorShown}
-                    onHide={() => showFileSelector(false)}
-                    path={props.fileSelectorPath}
-                    fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
-                    loading={props.fileSelectorLoading}
-                    errorMessage={props.fileSelectorError}
-                    onErrorDismiss={props.onFileSelectorErrorDismiss}
-                    onlyAllowFolders
-                    canSelectFolders
-                    page={props.fileSelectorPage}
-                    setSelectedFile={props.fileSelectorCallback}
-                    disallowedPaths={props.disallowedPaths}
-                />
-            </Flex>);
+                    <DetailedFileSearch />
+                </Box> : null
+        );
+        const additional = (
+            <FileSelectorModal
+                show={props.fileSelectorShown}
+                onHide={() => showFileSelector(false)}
+                path={props.fileSelectorPath}
+                fetchFiles={(path, pageNumber, itemsPerPage) => props.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
+                loading={props.fileSelectorLoading}
+                errorMessage={props.fileSelectorError}
+                onErrorDismiss={props.onFileSelectorErrorDismiss}
+                onlyAllowFolders
+                canSelectFolders
+                page={props.fileSelectorPage}
+                setSelectedFile={props.fileSelectorCallback}
+                disallowedPaths={props.disallowedPaths}
+            />
+        );
+
+        return (
+            <MainContainer
+                main={main}
+                sidebar={sidebar}
+                additional={additional}
+            />)
     }
 }
 

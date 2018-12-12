@@ -5,7 +5,8 @@ exports[`UserCreation Mount 1`] = `
   className="sc-ifAKCX LORpy"
 >
   <div
-    className="sc-bdVaJa hkLEBL"
+    className="sc-bdVaJa hsfjeU"
+    cursor="auto"
     width={0.7}
   >
     <h1
