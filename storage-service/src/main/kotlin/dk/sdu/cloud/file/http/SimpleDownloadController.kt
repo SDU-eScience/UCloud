@@ -106,7 +106,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                             ZipOutputStream(toOutputStream()).use { os ->
                                 fs.tree(
                                     ctx,
-                                    request.path,
+                                    stat.path,
                                     setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.INODE)
                                 ).forEach { item ->
                                     filesDownloaded.add(item.inode)
