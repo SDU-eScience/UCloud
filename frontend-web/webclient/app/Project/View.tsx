@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, Button, Flex, List } from "ui-components";
+import { Link, Button, Flex, List, Icon } from "ui-components";
 import { ProjectMetadata } from "./api";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import * as ReactMarkdown from "react-markdown";
@@ -135,7 +135,7 @@ const ContributorItem = (props: { contributor: Contributor }) => {
             <Dropdown>
                 <Box width="auto">
                     <a href="#" onClick={e => e.preventDefault()}>
-                        <i className="fas fa-user" /><TextSpan ml="0.5em">{contributor.name}</TextSpan>
+                        <Icon name="user" /><TextSpan ml="0.5em">{contributor.name}</TextSpan>
                     </a>
                 </Box>
                 <DropdownContent width="180px" colorOnHover={false}>
