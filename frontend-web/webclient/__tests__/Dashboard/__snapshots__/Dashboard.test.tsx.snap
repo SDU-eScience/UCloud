@@ -5,7 +5,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
   className="sc-iwsKbI hHseNu"
 >
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -27,13 +27,15 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <div
-        className="sc-bdVaJa fIHEhA"
+        className="sc-bdVaJa hVEHDA"
+        cursor="auto"
       />
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       >
         <div
@@ -113,7 +115,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
                   "textTransform": "uppercase",
                 }
               }
-              text-anchor="middle"
+              textAnchor="middle"
               x="21.5"
               y="53"
             >
@@ -121,9 +123,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </text>
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
             ml="0.5em"
             onClick={[Function]}
@@ -137,7 +139,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <svg
             className="sc-gzVnrw fCUJrO"
@@ -174,9 +177,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
             ml="0.5em"
             onClick={[Function]}
@@ -190,7 +193,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <svg
             className="sc-gzVnrw fCUJrO"
@@ -227,9 +231,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
             ml="0.5em"
             onClick={[Function]}
@@ -243,7 +247,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <svg
             className="sc-gzVnrw fCUJrO"
@@ -280,9 +285,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
             ml="0.5em"
             onClick={[Function]}
@@ -296,7 +301,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <svg
             className="sc-gzVnrw fCUJrO"
@@ -333,9 +339,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
             ml="0.5em"
             onClick={[Function]}
@@ -349,7 +355,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <svg
             className="sc-gzVnrw fCUJrO"
@@ -386,9 +393,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
             ml="0.5em"
             onClick={[Function]}
@@ -402,7 +409,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <svg
             className="sc-gzVnrw fCUJrO"
@@ -439,9 +447,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
             ml="0.5em"
             onClick={[Function]}
@@ -455,7 +463,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <svg
             className="sc-gzVnrw fCUJrO"
@@ -492,9 +501,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
             ml="0.5em"
             onClick={[Function]}
@@ -508,7 +517,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <svg
             className="sc-gzVnrw fCUJrO"
@@ -545,9 +555,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
             ml="0.5em"
             onClick={[Function]}
@@ -561,7 +571,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <svg
             className="sc-gzVnrw fCUJrO"
@@ -598,9 +609,9 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
             ml="0.5em"
             onClick={[Function]}
@@ -614,7 +625,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <svg
             className="sc-gzVnrw fCUJrO"
@@ -636,7 +648,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
     </div>
   </div>
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -658,19 +670,21 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <div
-        className="sc-bdVaJa fIHEhA"
+        className="sc-bdVaJa hVEHDA"
+        cursor="auto"
       />
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       />
     </div>
   </div>
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -692,10 +706,12 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <div
-        className="sc-bdVaJa fIHEhA"
+        className="sc-bdVaJa hVEHDA"
+        cursor="auto"
       />
       <h6
         className="sc-EHOje iDMxJR"
@@ -705,13 +721,13 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         No results found
       </h6>
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       />
     </div>
   </div>
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -732,7 +748,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         Recent notifications
       </h4>
       <div
-        className="sc-bdVaJa bFsHEP"
+        className="sc-bdVaJa duHGOK"
+        cursor="auto"
       />
       <svg
         className="sc-gzVnrw gCVALd"
@@ -762,7 +779,8 @@ exports[`Dashboard Component Mount with favorites 1`] = `
       </svg>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <h6
         className="sc-EHOje iDMxJR"
@@ -772,7 +790,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         No notifications
       </h6>
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       />
     </div>
@@ -785,7 +803,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
   className="sc-iwsKbI hHseNu"
 >
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -807,10 +825,12 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <div
-        className="sc-bdVaJa fIHEhA"
+        className="sc-bdVaJa hVEHDA"
+        cursor="auto"
       />
       <h6
         className="sc-EHOje iDMxJR"
@@ -820,13 +840,13 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         No favorites found
       </h6>
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       />
     </div>
   </div>
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -848,13 +868,15 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <div
-        className="sc-bdVaJa fIHEhA"
+        className="sc-bdVaJa hVEHDA"
+        cursor="auto"
       />
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       >
         <div
@@ -934,7 +956,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
                   "textTransform": "uppercase",
                 }
               }
-              text-anchor="middle"
+              textAnchor="middle"
               x="21.5"
               y="53"
             >
@@ -942,9 +964,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </text>
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
             ml="0.5em"
             onClick={[Function]}
@@ -958,7 +980,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <div
             className="sc-EHOje kmIRlQ"
@@ -988,9 +1011,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
             ml="0.5em"
             onClick={[Function]}
@@ -1004,7 +1027,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <div
             className="sc-EHOje kmIRlQ"
@@ -1034,9 +1058,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
             ml="0.5em"
             onClick={[Function]}
@@ -1050,7 +1074,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <div
             className="sc-EHOje kmIRlQ"
@@ -1080,9 +1105,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
             ml="0.5em"
             onClick={[Function]}
@@ -1096,7 +1121,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <div
             className="sc-EHOje kmIRlQ"
@@ -1126,9 +1152,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
             ml="0.5em"
             onClick={[Function]}
@@ -1142,7 +1168,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <div
             className="sc-EHOje kmIRlQ"
@@ -1172,9 +1199,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
             ml="0.5em"
             onClick={[Function]}
@@ -1188,7 +1215,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <div
             className="sc-EHOje kmIRlQ"
@@ -1218,9 +1246,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
             ml="0.5em"
             onClick={[Function]}
@@ -1234,7 +1262,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <div
             className="sc-EHOje kmIRlQ"
@@ -1264,9 +1293,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
             ml="0.5em"
             onClick={[Function]}
@@ -1280,7 +1309,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <div
             className="sc-EHOje kmIRlQ"
@@ -1310,9 +1340,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
             ml="0.5em"
             onClick={[Function]}
@@ -1326,7 +1356,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <div
             className="sc-EHOje kmIRlQ"
@@ -1356,9 +1387,9 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs iJbUXx"
+            className="sc-hMqMXs hGdpsd"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
             ml="0.5em"
             onClick={[Function]}
@@ -1372,7 +1403,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
             </div>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <div
             className="sc-EHOje kmIRlQ"
@@ -1387,7 +1419,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
     </div>
   </div>
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -1409,10 +1441,12 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <div
-        className="sc-bdVaJa fIHEhA"
+        className="sc-bdVaJa hVEHDA"
+        cursor="auto"
       />
       <h6
         className="sc-EHOje iDMxJR"
@@ -1422,13 +1456,13 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         No results found
       </h6>
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       />
     </div>
   </div>
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -1449,7 +1483,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         Recent notifications
       </h4>
       <div
-        className="sc-bdVaJa bFsHEP"
+        className="sc-bdVaJa duHGOK"
+        cursor="auto"
       />
       <svg
         className="sc-gzVnrw gCVALd"
@@ -1479,7 +1514,8 @@ exports[`Dashboard Component Mount with recent files 1`] = `
       </svg>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <h6
         className="sc-EHOje iDMxJR"
@@ -1489,7 +1525,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         No notifications
       </h6>
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       />
     </div>
@@ -1502,7 +1538,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
   className="sc-iwsKbI hHseNu"
 >
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -1524,10 +1560,12 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <div
-        className="sc-bdVaJa fIHEhA"
+        className="sc-bdVaJa hVEHDA"
+        cursor="auto"
       />
       <h6
         className="sc-EHOje iDMxJR"
@@ -1537,13 +1575,13 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         No favorites found
       </h6>
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       />
     </div>
   </div>
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -1565,19 +1603,21 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <div
-        className="sc-bdVaJa fIHEhA"
+        className="sc-bdVaJa hVEHDA"
+        cursor="auto"
       />
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       />
     </div>
   </div>
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -1599,13 +1639,15 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       </h4>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <div
-        className="sc-bdVaJa fIHEhA"
+        className="sc-bdVaJa hVEHDA"
+        cursor="auto"
       />
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       >
         <div
@@ -1625,9 +1667,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs kzhqpI"
+            className="sc-hMqMXs haAaVC"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/applications/results/bbcf5395-e78e-4fa7-a4e1-989fe5ce21ee"
             onClick={[Function]}
           >
@@ -1640,7 +1682,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <span
             className="sc-EHOje cKKZzB"
@@ -1667,9 +1710,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs kzhqpI"
+            className="sc-hMqMXs haAaVC"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/applications/results/15274bec-ef72-4ed2-97ff-2be1829a2db1"
             onClick={[Function]}
           >
@@ -1682,7 +1725,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <span
             className="sc-EHOje cKKZzB"
@@ -1709,9 +1753,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs kzhqpI"
+            className="sc-hMqMXs haAaVC"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/applications/results/3544b177-e9a7-4323-bcde-c4d6e442dc36"
             onClick={[Function]}
           >
@@ -1724,7 +1768,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <span
             className="sc-EHOje cKKZzB"
@@ -1751,9 +1796,9 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             />
           </svg>
           <a
-            className="sc-hMqMXs kzhqpI"
+            className="sc-hMqMXs haAaVC"
             color="text"
-            hoverColor="textHighlight"
+            hovercolor="textHighlight"
             href="/applications/results/e28defb0-d66c-4461-91f6-b09afd85480c"
             onClick={[Function]}
           >
@@ -1766,7 +1811,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
             </span>
           </a>
           <div
-            className="sc-bdVaJa bFsHEP"
+            className="sc-bdVaJa duHGOK"
+            cursor="auto"
           />
           <span
             className="sc-EHOje cKKZzB"
@@ -1780,7 +1826,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
     </div>
   </div>
   <div
-    className="sc-bdVaJa sc-dnqmqq jxVBPm"
+    className="sc-bdVaJa sc-dnqmqq iUFUZY"
     height="auto"
     style={
       Object {
@@ -1801,7 +1847,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         Recent notifications
       </h4>
       <div
-        className="sc-bdVaJa bFsHEP"
+        className="sc-bdVaJa duHGOK"
+        cursor="auto"
       />
       <svg
         className="sc-gzVnrw gCVALd"
@@ -1831,7 +1878,8 @@ exports[`Dashboard Component Mount with recent files 2`] = `
       </svg>
     </div>
     <div
-      className="sc-bdVaJa dnoybz"
+      className="sc-bdVaJa bzYMEp"
+      cursor="auto"
     >
       <h6
         className="sc-EHOje iDMxJR"
@@ -1841,7 +1889,7 @@ exports[`Dashboard Component Mount with recent files 2`] = `
         No notifications
       </h6>
       <div
-        className="sc-bdVaJa sc-gipzik vTxWL"
+        className="sc-bdVaJa sc-gipzik jVwAef"
         fontSize="large"
       />
     </div>
