@@ -18,6 +18,7 @@ import { KeyCode } from "DefaultObjects";
 
 const SidebarContainer = styled(Flex)`
     position: fixed;
+    z-index: 100;
     top: 48px;
     height: calc(100% - 48px);
     flex-flow: column;
