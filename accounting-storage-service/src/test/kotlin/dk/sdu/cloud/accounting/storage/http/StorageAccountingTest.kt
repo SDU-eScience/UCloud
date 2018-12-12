@@ -24,7 +24,7 @@ import org.junit.Test
 import java.math.BigDecimal
 import kotlin.test.assertEquals
 
-class StorageAccountingTes {
+class StorageAccountingTest {
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         val storageAccountingService = mockk<StorageAccountingService<Session>>(relaxed = true)
         coEvery { storageAccountingService.calculateUsage(any(), any(), any()) } answers {

@@ -22,7 +22,7 @@ class StorageUsedController<DBSession>(
 
             ok(
                 ChartResponse(
-                    ChartingHelpers.basicChartFromEvents(dataPoints,yAxisLabel = "Storage Used (Bytes)") {
+                    ChartingHelpers.basicChartFromEvents(dataPoints, yAxisLabel = "Storage Used (Bytes)") {
                         it.bytesUsed
                     },
                     quota = null

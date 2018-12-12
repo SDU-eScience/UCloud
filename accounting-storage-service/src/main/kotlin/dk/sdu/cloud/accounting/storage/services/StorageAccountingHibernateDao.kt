@@ -45,7 +45,7 @@ class StorageForUserEntity(
     companion object : HibernateEntity<StorageForUserEntity>, WithId<Long>
 }
 
-fun StorageForUserEntity.toModel() : StorageUsedEvent = StorageUsedEvent(id, usage, date.time, user)
+fun StorageForUserEntity.toModel() : StorageUsedEvent = StorageUsedEvent(date.time, usage, id, user)
 
 fun StorageUsedEvent.toEntity() : StorageForUserEntity = StorageForUserEntity(user, Date(timestamp), bytesUsed, id)
 
@@ -58,7 +58,7 @@ class StorageAccountingHibernateDao : StorageAccountingDao<HibernateSession> {
 
     override fun findAllByUserId(
         session: HibernateSession,
-        user: Principal,
+        user: String,
         paginationRequest: NormalizedPaginationRequest
     ): Page<StorageUsedEvent> {
         return session.paginatedCriteria<StorageForUserEntity>(
@@ -66,7 +66,7 @@ class StorageAccountingHibernateDao : StorageAccountingDao<HibernateSession> {
             orderBy = { listOf(ascending(entity[StorageForUserEntity::date])) }
         ) {
             allOf(
-                entity[StorageForUserEntity::user] equal user.id
+                entity[StorageForUserEntity::user] equal user
             )
         }.mapItems {
             it.toModel()

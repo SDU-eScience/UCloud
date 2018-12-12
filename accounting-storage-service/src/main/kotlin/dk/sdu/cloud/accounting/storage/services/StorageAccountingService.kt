@@ -122,7 +122,7 @@ interface StorageAccountingDao<Session> {
 
     fun findAllByUserId(
         session: Session,
-        user: Principal,
+        user: String,
         paginationRequest: NormalizedPaginationRequest = FIRST_PAGE
     ): Page<StorageUsedEvent>
 
