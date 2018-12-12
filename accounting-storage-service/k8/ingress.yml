@@ -10,7 +10,7 @@ spec:
   - host: cloud.sdu.dk
     http:
       paths:
-      - path: /api/accounting-storage
+      - path: /api/accounting/storage
         backend:
           serviceName: accounting-storage
           servicePort: 8080

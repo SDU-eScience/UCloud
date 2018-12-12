@@ -3,12 +3,12 @@ apiVersion: batch/v1
 kind: Job
 
 metadata:
-  name: auth-migration
+  name: accounting-storage-migration
 
 spec:
   template:
     metadata:
-      name: auth-migration
+      name: accounting-storage-migration
 
     spec:
       containers:
@@ -22,8 +22,8 @@ spec:
         - /etc/token-validation
         - --run-script
         - migrate-db
-        image: registry.cloud.sdu.dk/sdu-cloud/auth-service:1.13.1
-        name: auth-migration
+        image: registry.cloud.sdu.dk/sdu-cloud/accounting-storage-service:0.3.5
+        name: accounting-storage-migration
 
         volumeMounts:
         - mountPath: /etc/service
@@ -41,10 +41,10 @@ spec:
       volumes:
       - name: vol1
         secret:
-          secretName: auth-psql
+          secretName: accounting-storage-psql
       - name: vol2
         secret:
-          secretName: auth-refresh-token
+          secretName: accounting-storage-refresh-token
       - configMap:
           defaultMode: 420
           name: token-validation

@@ -101,7 +101,7 @@ class UserController<DBSession>(
     }
 
     private val allowedRoles = setOf(Role.SERVICE, Role.ADMIN)
-    private val allowedUsernames = setOf("_auth", "_accounting", "admin@dev")
+    private val allowedUsernames = setOf("_auth", "_accounting", "_accounting-storage", "admin@dev")
 
     companion object : Loggable {
         override val log = logger()

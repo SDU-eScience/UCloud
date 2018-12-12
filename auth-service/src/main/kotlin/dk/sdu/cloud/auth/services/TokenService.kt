@@ -19,7 +19,6 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.toSecurityToken
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.time.delay
 import java.security.SecureRandom
 import java.util.*
 

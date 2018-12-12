@@ -65,7 +65,6 @@ import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.MalformedURLException
 import java.net.URL
-import java.time.ZonedDateTime
 import kotlin.collections.set
 
 class CoreAuthController<DBSession>(
@@ -122,8 +121,7 @@ class CoreAuthController<DBSession>(
             options {
                 // For some reason there is no other way to specify which version we want.
                 // Likely working around a bug.
-                @Suppress("CAST_NEVER_SUCCEEDS")
-                CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private), null as? ZonedDateTime)
+                CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private), null)
             }
         }
 

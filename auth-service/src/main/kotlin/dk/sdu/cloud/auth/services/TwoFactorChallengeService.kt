@@ -8,7 +8,7 @@ import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
-import java.util.UUID
+import java.util.*
 
 /**
  * Exceptions that may be thrown by a [TwoFactorChallengeService]
@@ -80,7 +80,7 @@ class TwoFactorChallengeService<DBSession>(
     fun verifyChallenge(challengeId: String, verificationCode: Int): Pair<Boolean, TwoFactorChallenge> {
         val challenge = db.withTransaction { dbSession ->
             twoFactorDAO.findActiveChallengeOrNull(dbSession, challengeId)
-                    ?: throw TwoFactorException.InvalidChallenge()
+                ?: throw TwoFactorException.InvalidChallenge()
         }
 
         return Pair(
@@ -102,7 +102,7 @@ class TwoFactorChallengeService<DBSession>(
     fun createLoginChallengeOrNull(username: String, service: String): String? {
         return db.withTransaction { dbSession ->
             val credentials = twoFactorDAO.findEnforcedCredentialsOrNull(dbSession, username)
-                    ?: return null
+                ?: return null
 
             val challengeId = createChallengeId()
             twoFactorDAO.createChallenge(

@@ -29,6 +29,11 @@ spec:
           name: refresh-token
         - mountPath: /etc/token-validation
           name: token-validation
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
 
       volumes:
       - name: refresh-token

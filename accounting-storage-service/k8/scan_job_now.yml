@@ -1,20 +1,13 @@
 ---
-apiVersion: apps/v1beta1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
-  name: accounting-storage-service-deployment
-  labels:
-    app: accounting-storage-service
+  name: accounting-storage-scan
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: accounting-storage-service
   template:
-    metadata:
-      labels:
-        app: accounting-storage-service
     spec:
+      restartPolicy: Never
+
       containers:
       - name: accounting-storage-service
         image: registry.cloud.sdu.dk/sdu-cloud/accounting-storage-service:0.3.5
@@ -26,6 +19,7 @@ spec:
         - /etc/token-validation
         - --config-dir
         - /etc/psql
+        - --scan
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
@@ -48,19 +42,3 @@ spec:
 
       imagePullSecrets:
         - name: esci-docker
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: accounting-storage
-spec:
-  clusterIP: None
-  type: ClusterIP
-  ports:
-  - name: web
-    port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app: accounting-storage-service
