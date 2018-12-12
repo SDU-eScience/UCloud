@@ -170,7 +170,12 @@ fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
                                 InputParsingResponse.InternalError(ex)
                             }
                         } else {
-                            parseRequestBody(call.receiveOrNull(), restCall.body)
+                            if (restCall.body == null) {
+                                // Don't call receiveOrNull unless we have to.
+                                InputParsingResponse.MissingAndNotRequired
+                            } else {
+                                parseRequestBody(call.receiveOrNull(), restCall.body)
+                            }
                         }
 
                         val valueFromBody =

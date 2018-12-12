@@ -45,7 +45,8 @@ class Server(
             }
         }
 
-        startServices()
+//        startServices()
+        httpServer.start(wait = true)
     }
 
     override fun stop() {
