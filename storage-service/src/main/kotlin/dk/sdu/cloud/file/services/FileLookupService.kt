@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.favoritesDirectory
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
@@ -11,6 +12,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.paginate
+import java.io.File
 
 /**
  * A service for looking up files.
@@ -51,7 +53,7 @@ class FileLookupService<Ctx : FSUserContext>(
             ctx, path,
             STORAGE_FILE_ATTRIBUTES
         ).map {
-            readStorageFile(it, favorites)
+            readStorageFile(it, favorites, ctx.user)
         }
 
         return allResults.let { results ->
@@ -88,7 +90,7 @@ class FileLookupService<Ctx : FSUserContext>(
         }
     }
 
-    private fun readStorageFile(row: FileRow, favorites: Set<String>): StorageFile =
+    private fun readStorageFile(row: FileRow, favorites: Set<String>, username: String): StorageFile =
         StorageFile(
             fileType = row.fileType,
             path = row.rawPath,
@@ -97,7 +99,7 @@ class FileLookupService<Ctx : FSUserContext>(
             ownerName = row.owner,
             size = row.size,
             acl = row.shares,
-            favorited = row.inode in favorites,
+            favorited = (row.inode in favorites) || File(row.rawPath).parentFile == File(favoritesDirectory(username)),
             sensitivityLevel = row.sensitivityLevel,
             link = row.isLink,
             annotations = row.annotations,
@@ -126,7 +128,7 @@ class FileLookupService<Ctx : FSUserContext>(
         path: String
     ): StorageFile {
         val favorites = favoriteService.retrieveFavoriteInodeSet(ctx)
-        return coreFs.stat(ctx, path, STORAGE_FILE_ATTRIBUTES).let { readStorageFile(it, favorites) }
+        return readStorageFile(coreFs.stat(ctx, path, STORAGE_FILE_ATTRIBUTES), favorites, ctx.user)
     }
 
     companion object : Loggable {

@@ -16,8 +16,12 @@ class FavoriteService<Ctx : FSUserContext>(val fs: CoreFileSystemService<Ctx>) {
 
     suspend fun removeFavorite(ctx: Ctx, favoriteFileToRemove: String) {
         val stat = fs.stat(ctx, favoriteFileToRemove, setOf(FileAttribute.INODE))
+        removeFavoriteViaId(ctx, stat.inode)
+    }
+
+    suspend fun removeFavoriteViaId(ctx: Ctx, fileId: String) {
         val allFavorites = retrieveFavorites(ctx)
-        val toRemove = allFavorites.filter { it.inode == stat.inode || it.favInode == stat.inode }
+        val toRemove = allFavorites.filter { it.inode == fileId || it.favInode == fileId }
         if (toRemove.isEmpty()) return
         toRemove.forEach { fs.delete(ctx, it.from) }
     }

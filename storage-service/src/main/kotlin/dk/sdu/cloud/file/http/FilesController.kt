@@ -118,12 +118,27 @@ class FilesController<Ctx : FSUserContext>(
         implement(FileDescriptions.removeFavorite) { req ->
             audit(SingleFileAudit(null, req))
 
-            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
-                val stat = fileLookupService.stat(it, req.path)
-                if (stat.favorited) {
-                    favoriteService.removeFavorite(it, req.path)
+            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+                val favorites = favoriteService.retrieveFavoriteInodeSet(ctx)
+                val stat = coreFs.stat(
+                    ctx,
+                    req.path,
+                    setOf(
+                        FileAttribute.LINK_TARGET,
+                        FileAttribute.LINK_INODE,
+                        FileAttribute.IS_LINK,
+                        FileAttribute.INODE
+                    )
+                )
 
-                    audit(SingleFileAudit(stat.fileId, req))
+                val isLinkToFavorite = (stat.isLink && stat.linkInode in favorites)
+                val isFavorite = isLinkToFavorite || (stat.inode in favorites)
+
+                if (isFavorite) {
+                    val inode = if (isLinkToFavorite) stat.linkInode else stat.inode
+                    favoriteService.removeFavoriteViaId(ctx, inode)
+
+                    audit(SingleFileAudit(inode, req))
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 } else {
                     CallResult.Error(
