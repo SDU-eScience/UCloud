@@ -3,7 +3,7 @@ import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import * as PropTypes from "prop-types";
-import { replaceHomeFolder, getFilenameFromPath, isDirectory, createFolder } from "Utilities/FileUtilities";
+import { replaceHomeFolder, getFilenameFromPath, isDirectory, createFolder, newMockFolder } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
 import { FileIcon, RefreshButton } from "UtilityComponents";
@@ -58,9 +58,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         this.fetchFiles(Cloud.homeFolder, page.pageNumber, page.itemsPerPage);
     }
 
-    componentWillUnmount() {
-        this.state.promises.cancelPromises();
-    }
+    componentWillUnmount = () => this.state.promises.cancelPromises();
 
     setSelectedFile = (file: File) => {
         let fileCopy = { path: file.path };
@@ -177,7 +175,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
     </ReactModal>
 );
 
-const FileSelectorBody = ({ disallowedPaths = [] as string[], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
+const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
     const files = f.filter(({ path }) => !disallowedPaths.some((d) => d === path));
     const ops: FileOperation[] = [];
