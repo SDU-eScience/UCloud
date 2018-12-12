@@ -5,8 +5,8 @@ import * as icons from './icons/index'
 import theme from './theme'
 
 
-const IconBase = ({ name, size, theme, color, color2, ...props }): JSX.Element => {
-  const Component = icons[name]
+const IconBase = ({ name, size, theme, color, color2, spin, ...props }): JSX.Element => {
+  const Component = icons[name];
   if (!Component) return (<></>);
   return <Component width={size} height={size} color2={theme.colors[color2]} {...props} />
 }

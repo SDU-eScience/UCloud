@@ -29,7 +29,7 @@ export function Arrow({ name }: { name: "arrowUp" | "arrowDown" | undefined}) {
     return null;
 }
 
-export const RefreshButton = ({ loading, onClick }: { loading?: boolean, onClick: () => void, className?: string }) => (
+export const RefreshButton = ({ loading, onClick }: { loading: boolean, onClick: () => void, className?: string }) => (
     <Icon name="refresh" spin={loading} onClick={() => onClick()}/>
 );
 

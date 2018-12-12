@@ -259,6 +259,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             <div>
                 <h4>Output Files</h4>
                 <PaginationList
+                    loading={this.props.loading}
                     page={page}
                     pageRenderer={page =>
                         <FilesTable

@@ -11,7 +11,7 @@ interface ListProps<T> {
     pageRenderer: (page: Page<T>) => React.ReactNode
 
     // List state
-    loading?: boolean
+    loading: boolean
 
     // Page results
     page: Page<T>

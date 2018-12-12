@@ -6,7 +6,7 @@ import * as PropTypes from "prop-types";
 import { replaceHomeFolder, getFilenameFromPath, isDirectory, createFolder, newMockFolder } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
-import { FileIcon, RefreshButton } from "UtilityComponents";
+import { RefreshButton } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
 import { filepathQuery, isInvalidPathName } from "Utilities/FileUtilities";
@@ -15,7 +15,6 @@ import * as ReactModal from "react-modal";
 import * as Heading from "ui-components/Heading";
 import { Spacer } from "ui-components/Spacer";
 import { EntriesPerPageSelector } from "Pagination";
-import * as UF from "UtilityFunctions";
 import { FilesTable } from "./FilesTable";
 import SDUCloud from "Authentication/lib";
 
@@ -32,10 +31,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             creatingFolder: false
         };
     }
-
-    static contextTypes = {
-        store: PropTypes.object.isRequired
-    };
 
     // FIXME Find better name
     handleKeyDown = (key: number, name: string) => {

@@ -109,7 +109,7 @@ class UserCreation extends React.Component<{}, UserCreationState> {
                             <LoadingButton
                                 type="submit"
                                 content="Create user"
-                                hoverColor="darkGreen"
+                                hovercolor="darkGreen"
                                 color="green"
                                 loading={submitted}
                             />

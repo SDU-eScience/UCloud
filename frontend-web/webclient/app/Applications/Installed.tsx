@@ -35,6 +35,7 @@ class Installed extends React.Component<InstalledProps> {
         const page = this.props.applications.content as Page<Application>;
         const main = (
             <Pagination.List
+                loading={false}
                 onRefresh={() => this.props.fetchItems(page.pageNumber, page.itemsPerPage)}
                 page={page}
                 onItemsPerPageChanged={size => this.props.fetchItems(0, size)}

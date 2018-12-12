@@ -177,8 +177,8 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         <Flex>
                             <Box ml="auto" />
                             <ButtonGroup width="200px">
-                                <LoadingButton loading={isLoading} disabled={isLoading} color="green" onClick={() => this.onAccept(actualShare)} hoverColor="darkGreen" content="Accept" />
-                                <LoadingButton loading={isLoading} disabled={isLoading} color="red" onClick={() => this.onReject(actualShare)} hoverColor="darkRed" content="Reject" />
+                                <LoadingButton loading={isLoading} disabled={isLoading} color="green" onClick={() => this.onAccept(actualShare)} hovercolor="darkGreen" content="Accept" />
+                                <LoadingButton loading={isLoading} disabled={isLoading} color="red" onClick={() => this.onReject(actualShare)} hovercolor="darkRed" content="Reject" />
                             </ButtonGroup>
                         </Flex>
                     </>)
