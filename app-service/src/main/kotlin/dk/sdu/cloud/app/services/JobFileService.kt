@@ -9,13 +9,14 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.UploadRequest
+import dk.sdu.cloud.file.api.homeDirectory
+import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.orThrow
 import io.ktor.http.ContentType
 import io.ktor.http.defaultForFilePath
 import kotlinx.coroutines.io.ByteReadChannel
 import java.io.File
-import java.io.InputStream
 
 class JobFileService(
     cloud: AuthenticatedCloud
@@ -57,12 +58,15 @@ class JobFileService(
 
         log.debug("The destination path is ${destPath.path}")
 
+        val sensitivityLevel = jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedBy { it.ordinal }.max()
+            ?: SensitivityLevel.PRIVATE
+
         val (_, accessToken) = jobWithToken
         MultiPartUploadDescriptions.upload.call(
             MultipartRequest.create(
                 UploadRequest(
                     location = destPath.path,
-                    sensitivity = SensitivityLevel.CONFIDENTIAL,
+                    sensitivity = sensitivityLevel,
                     upload = StreamingFile(
                         contentType = ContentType.defaultForFilePath(filePath),
                         length = length,
@@ -75,7 +79,7 @@ class JobFileService(
         )
     }
 
-    private fun jobFolder(jobId: String, user: String): String = "/home/$user/Jobs/$jobId"
+    private fun jobFolder(jobId: String, user: String): String = joinPath(homeDirectory(user), "Jobs", jobId)
 
     companion object : Loggable {
         override val log = logger()
