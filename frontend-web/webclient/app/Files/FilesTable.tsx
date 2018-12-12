@@ -89,7 +89,7 @@ const FilesTableHeader = ({
 }: FilesTableHeaderProps) => (
         <TableHeader>
             <TableRow>
-                <TableHeaderCell width="50%" textAlign="left">
+                <TableHeaderCell width="45%" textAlign="left">
                     <Flex
                         alignItems="center"
                         onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
@@ -226,7 +226,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                 <Icon size={24} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
             </Flex>
         </TableCell > :
-        <TableCell width="50%">
+        <TableCell width="45%">
             <Flex flexDirection="row" alignItems="center">
                 {checkbox}
                 <Box ml="5px" pr="5px" />

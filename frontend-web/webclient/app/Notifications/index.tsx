@@ -67,7 +67,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         }
 
         const unreadLength = page.items.filter((e) => !e.read).length;
-        const uploads = unreadLength > 0 ? (
+        const uploads = activeUploads > 0 ? (
             <>
                 <Divider />
                 <UploaderButton
@@ -175,7 +175,7 @@ const NotificationWrapper = styled(Flex)`
 `;
 
 const UploaderButton = styled(Button)`
-    background-color: ${props => props.theme.colors.green}
+    background-color: ${props => props.theme.colors.green};
     &:hover {
         background-color: ${props => props.theme.colors.green};
     }
