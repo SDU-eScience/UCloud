@@ -9,7 +9,7 @@ import { KeyCode, ReduxObject } from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
-import { RefreshButton } from "UtilityComponents";
+import { RefreshButton, MasterCheckbox, CustomEntriesPerPage } from "UtilityComponents";
 import { FilesProps, FilesStateProps, FilesOperations, File, FileOperation } from ".";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
@@ -79,13 +79,10 @@ class Files extends React.Component<FilesProps> {
         const selectedFiles = page.items.filter(file => file.isChecked);
 
         const masterCheckbox = (
-            <Label>
-                <Checkbox
-                    onClick={e => this.props.checkAllFiles(!!e.target.checked)}
-                    checked={page.items.length === selectedFiles.length && page.items.length > 0}
-                    onChange={e => e.stopPropagation()}
-                />
-            </Label>
+            <MasterCheckbox
+                checked={page.items.length === selectedFiles.length && page.items.length > 0}
+                onClick={this.props.checkAllFiles}
+            />
         );
 
         const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
@@ -109,15 +106,15 @@ class Files extends React.Component<FilesProps> {
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
+
         const customEntriesPerPage = (
-            <>
-                <Pagination.EntriesPerPageSelector
-                    entriesPerPage={page.itemsPerPage}
-                    content="Files per page"
-                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
-                />
-                <RefreshButton loading={loading} onClick={refetch} />
-            </>
+            <CustomEntriesPerPage
+                entriesPerPage={page.itemsPerPage}
+                text="Files per page"
+                onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                loading={loading}
+                onRefreshClick={refetch}
+            />
         );
         return (
             <Flex flexDirection="row">

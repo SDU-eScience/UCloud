@@ -1,9 +1,10 @@
 import * as React from "react";
-import { Icon, FtIcon, Heading, Absolute, Flex, Text } from "ui-components";
+import { Icon, FtIcon, Heading, Absolute, Flex, Text, Label, Checkbox } from "ui-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
 import { IconName } from "ui-components/Icon";
 import { ThemeColor } from "ui-components/theme";
 import { FtIconProps } from "UtilityFunctions";
+import { EntriesPerPageSelector } from "Pagination";
 
 
 interface FileIconProps { link?: boolean, shared?: boolean, fileIcon: FtIconProps, ext?: string, color?: ThemeColor, size?: string | number  }
@@ -110,3 +111,23 @@ export class PP extends React.Component<{ visible: boolean}, {duration: number}>
     }
 }
 
+export const MasterCheckbox = ({ onClick, checked }) => (
+    <Label>
+        <Checkbox 
+            onClick={e => onClick(!!e.target.checked)}
+            checked={checked}
+            onChange={e => e.stopPropagation()}
+        />
+    </Label>
+);
+
+export const CustomEntriesPerPage = ({entriesPerPage, text, onChange, loading, onRefreshClick }) => (
+    <>
+        <EntriesPerPageSelector
+            entriesPerPage={entriesPerPage}
+            content={text}
+            onChange={itemsPerPage => onChange(itemsPerPage)}
+        />
+        <RefreshButton loading={loading} onClick={onRefreshClick} />
+    </>
+);
