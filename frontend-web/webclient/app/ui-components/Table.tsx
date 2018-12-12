@@ -21,12 +21,13 @@ export const TableCell = styled.td<TextAlignProps & HideProps & WidthProps>`
 
 const highlighted = ({ highlighted }: { highlighted?: boolean }) => highlighted ? { backgroundColor: theme.colors.lightBlue } : null;
 
-
 const contentAlign = props => props.aligned ? { verticalAlign: props.aligned } : null;
 
-export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string }>`
+
+export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string, cursor?: string }>`
     ${highlighted};
     ${contentAlign};
+    cursor: ${props => props.cursor};
 
     & > ${TableCell} {
         border-spacing: 0;
@@ -35,6 +36,10 @@ export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string
         padding-bottom: 11px;
     }
 `;
+
+TableRow.defaultProps = {
+    cursor: "auto"
+}
 
 export const TableHeader = styled.thead`
     padding-top: 11px;

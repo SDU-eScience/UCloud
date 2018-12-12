@@ -232,7 +232,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                 <Box ml="5px" pr="5px" />
                 {nameLink}
                 <GroupIcon isProject={isProject(file)} />
-                <PredicatedFavorite predicate={!!onFavoriteFile && !file.path.startsWith(`${Cloud.homeFolder}Favorites`)} item={file} onClick={onFavoriteFile} />
+                <PredicatedFavorite predicate={!!onFavoriteFile} item={file} onClick={onFavoriteFile} />
             </Flex>
         </TableCell>
 };
