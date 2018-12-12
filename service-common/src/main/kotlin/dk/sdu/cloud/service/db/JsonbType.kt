@@ -2,6 +2,7 @@ package dk.sdu.cloud.service.db
 
 import com.fasterxml.jackson.databind.JavaType
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import dk.sdu.cloud.client.defaultMapper
 import org.hibernate.collection.internal.PersistentList
 import org.hibernate.collection.spi.PersistentCollection
 import org.hibernate.dialect.Dialect
@@ -32,10 +33,10 @@ const val JSONB_MAP_PARAM_VALUE_TYPE = "valueParam"
 open class JsonbType : UserType, DynamicParameterizedType {
     private lateinit var klass: Class<*>
 
-    override fun replace(original: Any?, target: Any?, owner: Any?): Any = deepCopy(original)
-    override fun assemble(cached: Serializable?, owner: Any?): Any = deepCopy(cached)
+    override fun replace(original: Any?, target: Any?, owner: Any?): Any? = deepCopy(original)
+    override fun assemble(cached: Serializable?, owner: Any?): Any? = deepCopy(cached)
     override fun disassemble(value: Any?): Serializable = deepCopy(value) as Serializable
-    override fun deepCopy(value: Any?): Any {
+    override fun deepCopy(value: Any?): Any? {
         return mapper.readValue(mapper.writeValueAsString(value), createType())
     }
 
@@ -111,7 +112,7 @@ open class JsonbType : UserType, DynamicParameterizedType {
         return mapper.typeFactory.constructSimpleType(klass, erasedParameters)
     }
 
-    protected val mapper = jacksonObjectMapper()
+    protected val mapper = defaultMapper
 }
 
 class JsonbCollectionType : JsonbType(), UserCollectionType {

@@ -34,5 +34,10 @@ interface JobDao<Session> {
         owner: String,
         pagination: NormalizedPaginationRequest
     ): Page<VerifiedJobWithAccessToken>
+
+    suspend fun findJobsCreatedBefore(
+        session: Session,
+        timestamp: Long
+    ): Sequence<VerifiedJobWithAccessToken>
 }
 

@@ -58,7 +58,7 @@ data class ResourceRequirements(
     val coreRequirements: Int = -1,
     val memoryRequirementsMb: Int = -1,
     val gpuRequirements: Int = -1,
-    val tempStorageRequiremenstGb: Int = -1,
+    val tempStorageRequirementsGb: Int = -1,
     val persistentStorageRequirementsGb: Int = -1
 )
 

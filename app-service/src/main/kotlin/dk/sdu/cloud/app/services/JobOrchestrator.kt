@@ -12,6 +12,7 @@ import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.app.http.JOB_MAX_TIME
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.MultipartRequest
@@ -75,11 +76,7 @@ class JobOrchestrator<DBSession>(
                     jobDao.findOrNull(session, jobId)
                 }
 
-                // If we don't check for an existing failure state we can loop forever in a crash
-                if (existingJob != null && existingJob.job.currentState != JobState.FAILURE) {
-                    stateChangeProducer.emit(JobStateChange(jobId, JobState.FAILURE))
-                }
-
+                failJob(existingJob)
             } catch (cleanupException: Exception) {
                 log.info("Exception while cleaning up (most likely to job not existing)")
                 log.info(cleanupException.stackTraceToString())
@@ -92,6 +89,15 @@ class JobOrchestrator<DBSession>(
                 log.debug("Not rethrowing exception")
                 null
             }
+        }
+    }
+
+    private suspend fun failJob(existingJob: VerifiedJobWithAccessToken?) {
+        // If we don't check for an existing failure state we can loop forever in a crash
+        if (existingJob != null && existingJob.job.currentState != JobState.FAILURE) {
+            val stateChange = JobStateChange(existingJob.job.id, JobState.FAILURE)
+            stateChangeProducer.emit(stateChange)
+            handleStateChangeImmediately(existingJob, stateChange, null)
         }
     }
 
@@ -329,6 +335,15 @@ class JobOrchestrator<DBSession>(
         val jobWithToken = findJobForId(jobId)
         computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
         return jobWithToken.job
+    }
+
+    suspend fun removeExpiredJobs() {
+        val expired = System.currentTimeMillis() - JOB_MAX_TIME
+        db.withTransaction { session ->
+            jobDao.findJobsCreatedBefore(session, expired).forEach { job ->
+                failJob(job)
+            }
+        }
     }
 
     private fun findJobForId(id: String): VerifiedJobWithAccessToken =

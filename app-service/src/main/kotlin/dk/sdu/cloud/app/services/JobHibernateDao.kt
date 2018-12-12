@@ -19,10 +19,12 @@ import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
 import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.WithTimestamps
+import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.db.updateCriteria
 import dk.sdu.cloud.service.mapItems
+import org.hibernate.ScrollMode
 import org.hibernate.annotations.NaturalId
 import org.hibernate.annotations.Parameter
 import org.hibernate.annotations.Type
@@ -167,6 +169,26 @@ class JobHibernateDao(
             ?.toModel(session)
     }
 
+    override suspend fun findJobsCreatedBefore(
+        session: HibernateSession,
+        timestamp: Long
+    ): Sequence<VerifiedJobWithAccessToken> {
+        return sequence {
+            val scroller = session
+                .criteria<JobInformationEntity> {
+                    entity[JobInformationEntity::createdAt] lessThan Date(timestamp) and
+                            (entity[JobInformationEntity::state] notEqual JobState.SUCCESS) and
+                            (entity[JobInformationEntity::state] notEqual JobState.FAILURE)
+                }
+                .scroll(ScrollMode.FORWARD_ONLY)
+
+            while (scroller.next()) {
+                val next = scroller.get(0) as JobInformationEntity
+                yield(next.toModel(session))
+            }
+        }
+    }
+
     override fun list(
         session: HibernateSession,
         owner: String,
@@ -174,7 +196,7 @@ class JobHibernateDao(
     ): Page<VerifiedJobWithAccessToken> {
         return session.paginatedCriteria<JobInformationEntity>(
             pagination,
-            orderBy = { listOf(descinding(entity[JobInformationEntity::createdAt])) },
+            orderBy = { listOf(descending(entity[JobInformationEntity::createdAt])) },
             predicate = {
                 entity[JobInformationEntity::owner] equal owner
             }

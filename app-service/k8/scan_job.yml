@@ -1,0 +1,40 @@
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: app-scan
+spec:
+  schedule: "0 */3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+
+          containers:
+          - name: app-service
+            image: registry.cloud.sdu.dk/sdu-cloud/app-service:0.11.8
+            command:
+            - /opt/service/bin/service
+            - --config-dir
+            - /etc/refresh-token
+            - --config-dir
+            - /etc/token-validation
+            - --scan
+            volumeMounts:
+            - mountPath: /etc/refresh-token
+              name: refresh-token
+            - mountPath: /etc/token-validation
+              name: token-validation
+
+          volumes:
+          - name: refresh-token
+            secret:
+              optional: false
+              secretName: app-refresh-token
+          - name: token-validation
+            configMap:
+              name: token-validation
+
+          imagePullSecrets:
+            - name: esci-docker

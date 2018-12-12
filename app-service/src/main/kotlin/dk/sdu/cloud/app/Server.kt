@@ -38,6 +38,7 @@ import dk.sdu.cloud.service.stream
 import dk.sdu.cloud.service.tokenValidation
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
+import kotlinx.coroutines.runBlocking
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 import java.io.File
@@ -77,6 +78,15 @@ class Server(
             jobFileService,
             jobDao
         )
+
+        if (micro.commandLineArguments.contains("--scan")) {
+            log.info("Scanning for expired jobs")
+            runBlocking {
+                jobOrchestrator.removeExpiredJobs()
+            }
+            log.info("Done!")
+            return
+        }
 
         kStreams = buildStreams { kBuilder ->
             kBuilder.stream(JobStreams.jobStateEvents).foreach { _, event ->

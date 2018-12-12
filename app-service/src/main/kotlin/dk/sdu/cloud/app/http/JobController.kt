@@ -30,7 +30,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 
-private const val ONE_DAY_IN_MILLS = 1000 * 60 * 60 * 24L
+internal const val JOB_MAX_TIME = 1000 * 60 * 60 * 24L
 
 class JobController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -67,7 +67,7 @@ class JobController<DBSession>(
                         FileDescriptions.createDirectory.requiredAuthScope.toString(),
                         FileDescriptions.stat.requiredAuthScope.toString()
                     ),
-                    ONE_DAY_IN_MILLS
+                    JOB_MAX_TIME
                 ),
                 call.cloudClient
             )
