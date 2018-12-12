@@ -18,22 +18,23 @@ import { KeyCode } from "DefaultObjects";
 
 const SidebarContainer = styled(Flex)`
     position: fixed;
-    top:48px;
+    top: 48px;
     height: calc(100% - 48px);
     flex-flow: column;
-    border-right: 1px solid ${props => props.theme.colors.borderGray}
+    border-right: 1px solid ${props => props.theme.colors.borderGray};
 `;
 
 const SidebarElementContainer = styled(Flex)`
     justify-content: left;
     flex-flow: row;
     align-items: center;
-    :hover {
+    &:hover {
         svg {
             filter: saturate(500%);
         }
     }
-`
+`;
+
 interface SidebarElementProps { icon: IconName, label: string, showLabel: boolean, to: string }
 const SidebarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => (
     <Link to={to}>
@@ -84,8 +85,9 @@ type SidebarMenuElements = {
 
 
 // FIXME, move to own file
-const SupportBox = styled.div<{ visible: boolean }>`
-    display: ${props => props.visible ? "block" : "none"}
+type SupportBoxProps = { visible: boolean }
+const SupportBox = styled.div<SupportBoxProps>`
+    display: ${props => props.visible ? "block" : "none"};
     position: absolute;
     left: 150px;
     top: -282px;
@@ -139,10 +141,10 @@ class Support extends React.Component<{}, SupportState> {
             visible: false,
             loading: false
         };
-        document.addEventListener("keypress", this.handleESC);
+        document.addEventListener("keydown", this.handleESC);
     }
 
-    componentWillUnmount = () => document.removeEventListener("keypress", this.handleESC);
+    componentWillUnmount = () => document.removeEventListener("keydown", this.handleESC);
 
     private handleESC = (e) => {
         if (e.keyCode == KeyCode.ESC) this.setState(() => ({ visible: false }))
