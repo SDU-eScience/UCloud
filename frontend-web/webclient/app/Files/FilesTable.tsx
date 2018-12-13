@@ -115,7 +115,7 @@ const FilesTableHeader = ({
                     />
                 ))}
                 <TableHeaderCell width="20%" textAlign="right">
-                    <Flex flexWrap="nowrap">{customEntriesPerPage}</Flex>
+                    <Flex style={{ whiteSpace: "nowrap" }}>{customEntriesPerPage}</Flex>
                 </TableHeaderCell>
             </TableRow>
         </TableHeader>

@@ -94,9 +94,9 @@ export const EntriesPerPageSelector = ({
         <ClickableDropdown left={"85px"} minWidth={"80px"} width={"80px"} chevron
             trigger={<TextSpan> {`${content} ${entriesPerPage}`}</TextSpan>}>
             {EntriesPerPageSelectorOptions.map((opt, i) =>
-                <Box key={i} onClick={() => entriesPerPage === opt.value ? undefined : onChange(opt.value)}>
-                    <Text textAlign="center">{opt.text}</Text>
-                </Box>
+                <Text ml="-17px" pl="17px" mr="-17px" cursor={"pointer"} key={i} onClick={() => entriesPerPage === opt.value ? undefined : onChange(opt.value)}>
+                    {opt.text}
+                </Text>
             )}
         </ClickableDropdown>
     );

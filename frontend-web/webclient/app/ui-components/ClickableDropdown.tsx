@@ -21,7 +21,7 @@ type ClickableDropdownProps = {
 class ClickableDropdown extends React.Component<ClickableDropdownProps, ClickableDropdownState> {
     private ref = React.createRef<HTMLDivElement>();;
 
-    constructor(props) {
+    constructor(props: Readonly<ClickableDropdownProps>) {
         super(props);
         this.state = { open: false };
         let neither = true;
