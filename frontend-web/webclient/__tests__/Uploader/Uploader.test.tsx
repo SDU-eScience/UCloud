@@ -55,6 +55,7 @@ describe("Uploader", () => {
             file: new File([], "file"),
             isUploading: false,
             sensitivity: "PRIVATE",
+            uploadEvents: [],
             progressPercentage: 0,
             extractArchive: false,
             uploadXHR: undefined

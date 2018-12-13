@@ -338,3 +338,12 @@ export function sortByToPrettierString(sortBy: SortBy): string {
             return prettierString(sortBy);
     }
 }
+
+export function timestampUnixMs(): number {
+    return window.performance &&
+        window.performance.now &&
+        window.performance.timing && 
+        window.performance.timing.navigationStart ? 
+            window.performance.now() + window.performance.timing.navigationStart : 
+            Date.now();
+}

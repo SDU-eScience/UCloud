@@ -3,7 +3,7 @@ import * as Modal from "react-modal";
 import { Progress, Icon, Button, ButtonGroup, Heading, Divider } from "ui-components";
 import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs } from "UtilityFunctions";
 import { fileSizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
@@ -27,8 +27,29 @@ const newUpload = (file: File): Upload => ({
     isUploading: false,
     progressPercentage: 0,
     extractArchive: false,
-    uploadXHR: undefined
+    uploadXHR: undefined,
+    uploadEvents: []
 });
+
+const addProgressEvent = (upload: Upload, e: ProgressEvent) => {
+    const now = timestampUnixMs();
+    upload.uploadEvents = upload.uploadEvents.filter(e => now - e.timestamp < 10_000);
+    upload.uploadEvents.push({ timestamp: now, progressInBytes: e.loaded });
+    upload.progressPercentage = (e.loaded / e.total) * 100;
+};
+
+function calculateSpeed(upload: Upload): number {
+    if (upload.uploadEvents.length === 0) return 0;
+
+    const min = upload.uploadEvents[0];
+    const max = upload.uploadEvents[upload.uploadEvents.length - 1];
+
+    const timespan = max.timestamp - min.timestamp;
+    const bytesTransferred = max.progressInBytes - min.progressInBytes;
+
+    if (timespan === 0) return 0;
+    return (bytesTransferred / timespan) * 1000;
+}
 
 class Uploader extends React.Component<UploaderProps> {
     constructor(props) {
@@ -69,15 +90,26 @@ class Uploader extends React.Component<UploaderProps> {
 
         window.addEventListener("beforeunload", this.beforeUnload);
         if (!upload.extractArchive) {
-            multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, upload.sensitivity, e => {
-                upload.progressPercentage = (e.loaded / e.total) * 100;
-                this.props.dispatch(setUploads(this.props.uploads));
-            }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)); // FIXME Add error handling
+            multipartUpload(
+                `${this.props.location}/${upload.file.name}`,
+                upload.file,
+                upload.sensitivity, e => {
+                    addProgressEvent(upload, e);
+                    this.props.dispatch(setUploads(this.props.uploads));
+                },
+                (err) => this.props.dispatch(setUploaderError(err))
+            ).then(xhr => onThen(xhr)); // FIXME Add error handling
         } else {
-            bulkUpload(this.props.location, upload.file, upload.sensitivity, BulkUploadPolicy.OVERWRITE, e => {
-                upload.progressPercentage = (e.loaded / e.total) * 100;
-                this.props.dispatch(setUploads(this.props.uploads));
-            }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)); // FIXME Add error handling
+            bulkUpload(
+                this.props.location,
+                upload.file,
+                upload.sensitivity,
+                BulkUploadPolicy.OVERWRITE, e => {
+                    addProgressEvent(upload, e);
+                    this.props.dispatch(setUploads(this.props.uploads));
+                },
+                (err) => this.props.dispatch(setUploaderError(err))
+            ).then(xhr => onThen(xhr)); // FIXME Add error handling
         }
     }
 
@@ -140,7 +172,7 @@ class Uploader extends React.Component<UploaderProps> {
                         {this.props.uploads.map((upload, index) => (
                             <UploaderRow
                                 key={index}
-                                {...upload}
+                                upload={upload}
                                 setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
                                 onExtractChange={value => this.onExtractChange(index, value)}
                                 onUpload={() => this.startUpload(index)}
@@ -199,12 +231,7 @@ const privacyOptions = [
 ]
 
 const UploaderRow = (p: {
-    file: File,
-    extractArchive: boolean,
-    sensitivity: Sensitivity
-    isUploading: boolean,
-    progressPercentage: number,
-    uploadXHR?: XMLHttpRequest,
+    upload: Upload,
     setSensitivity: (key: Sensitivity) => void,
     onExtractChange?: (value: boolean) => void,
     onUpload?: (e: React.MouseEvent<any>) => void,
@@ -212,22 +239,22 @@ const UploaderRow = (p: {
     onAbort?: (e: React.MouseEvent<any>) => void
     onCheck?: (checked) => void
 }) => {
-    const fileTitle = <span><b>{p.file.name}</b> ({fileSizeToString(p.file.size)})</span>;
+    const fileTitle = <span><b>{p.upload.file.name}</b> ({fileSizeToString(p.upload.file.size)})</span>;
     let body;
 
-    if (!p.isUploading) {
+    if (!p.upload.isUploading) {
         body = <>
             <Box width={0.7}>
                 {fileTitle}
                 <br />
                 {
-                    isArchiveExtension(p.file.name) ?
+                    isArchiveExtension(p.upload.file.name) ?
                         <Flex>
                             <label>Extract archive?</label>
                             <Box ml="0.5em" />
                             <Toggle
-                                checked={p.extractArchive}
-                                onChange={() => ifPresent(p.onExtractChange, c => c(!p.extractArchive))}
+                                checked={p.upload.extractArchive}
+                                onChange={() => ifPresent(p.onExtractChange, c => c(!p.upload.extractArchive))}
                             />
                         </Flex> : null
                 }
@@ -243,7 +270,7 @@ const UploaderRow = (p: {
                 <Flex justifyContent="center" pt="0.3em">
                     <ClickableDropdown
                         chevron
-                        trigger={prettierString(p.sensitivity)}
+                        trigger={prettierString(p.upload.sensitivity)}
                         onChange={key => p.setSensitivity(key as Sensitivity)}
                         options={privacyOptions}
                     />
@@ -256,8 +283,8 @@ const UploaderRow = (p: {
                 {fileTitle}
                 <br />
                 {
-                    isArchiveExtension(p.file.name) ?
-                        (p.extractArchive ?
+                    isArchiveExtension(p.upload.file.name) ?
+                        (p.upload.extractArchive ?
                             <span><Icon name="checkmark" color="green" />Extracting archive</span> :
                             <span><Icon name="close" color="red" /> <i>Not</i> extracting archive</span>)
                         : null
@@ -266,17 +293,17 @@ const UploaderRow = (p: {
 
             <Box width={0.45} ml="0.5em" mr="0.5em" pl="0.5" pr="0.5">
                 <Progress
-                    active={p.progressPercentage !== 100}
+                    active={p.upload.progressPercentage !== 100}
                     color="green"
-                    label={`${p.progressPercentage.toFixed(2)}%`}
-                    percent={p.progressPercentage}
+                    label={`${p.upload.progressPercentage.toFixed(2)}% (${fileSizeToString(calculateSpeed(p.upload))}/s)`}
+                    percent={p.upload.progressPercentage}
                 />
             </Box>
 
             <Box width={0.22}>
                 <Button
                     fullWidth
-                    disabled={isFinishedUploading(p.uploadXHR)}
+                    disabled={isFinishedUploading(p.upload.uploadXHR)}
                     color="red"
                     onClick={e => ifPresent(p.onAbort, c => c(e))}
                 >Cancel</Button>
@@ -287,7 +314,7 @@ const UploaderRow = (p: {
     return (
         <Flex flexDirection="row">
             <Box width={0.08} textAlign="center">
-                <Icon name={iconFromFilePath(p.file.name, "FILE", Cloud.homeFolder)} />
+                <Icon name={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)} />
             </Box>
             <Flex width={0.92}>{body}</Flex>
         </Flex>
