@@ -89,7 +89,7 @@ class Server(
         val qrService = ZXingQRService()
         val cursorStateDao = CursorStateHibernateDao()
         userIterator = UserIterationService(
-            micro.serviceInstance.hostname,
+            micro.serviceInstance.ipAddress ?: "localhost",
             micro.serviceInstance.port,
             db,
             cursorStateDao,

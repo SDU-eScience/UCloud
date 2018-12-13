@@ -6,10 +6,10 @@ create sequence accounting_storage.hibernate_sequence
 
 create table accounting_storage.storage_usage_for_user (
     id int8 not null,
-    date date,
+    date timestamp,
     usage int8 not null,
-    "user" varchar(255),
+    username varchar(255),
     primary key (id)
 );
 
-create index on accounting_storage.storage_usage_for_user ("user");
+create index on accounting_storage.storage_usage_for_user (username);

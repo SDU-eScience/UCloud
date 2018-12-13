@@ -1,5 +1,7 @@
 package dk.sdu.cloud.accounting.api
 
+import kotlin.math.min
+
 object ChartingHelpers {
     const val HINT_LINE_CHART = "line-chart"
     const val HINT_BAR_CHART = "bar-chart"
@@ -25,7 +27,8 @@ object ChartingHelpers {
         val buckets = Array(desiredDataPoints) { ArrayList<E>() }
         events.forEach {
             val relativeTimestamp = it.timestamp - minTimestamp
-            val bucketIdx = if (timePerBucket == 0L) 0 else (relativeTimestamp / timePerBucket).toInt()
+            val bucketIdx =
+                if (timePerBucket == 0L) 0 else min(desiredDataPoints - 1, (relativeTimestamp / timePerBucket).toInt())
 
             buckets[bucketIdx].add(it)
         }

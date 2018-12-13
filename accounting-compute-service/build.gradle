@@ -4,7 +4,7 @@ version '0.3.0-SNAPSHOT'
 apply plugin: "application"
 mainClassName = "dk.sdu.cloud.accounting.compute.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.1/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.4/sdu-cloud.gradle"
 
 dependencies {
     compile 'dk.sdu.cloud:service-common:0.22.0-SNAPSHOT'
