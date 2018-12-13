@@ -121,7 +121,7 @@ export const ApplicationCard = ({ app, onFavorite, isFavorite, linkToRun }: Appl
     </Link >
 );
 
-const NewAppCard = styled(Link)`
+export const NewAppCard = styled(Link)`
     padding: 10px;
     width: 30%;
     min-width: 350px;
@@ -132,7 +132,7 @@ const NewAppCard = styled(Link)`
     border-radius: ${props => props.theme.radius};
     background-color: #ebeff3;
     position: relative;
-    flex: 1 0 auto;
+    /* flex: 1 0 auto; */
     overflow: hidden;
 `;
 

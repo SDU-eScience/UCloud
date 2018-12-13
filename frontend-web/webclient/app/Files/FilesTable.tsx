@@ -43,7 +43,7 @@ export const FilesTable = ({
                             {fileOperations.length > 1 ?
                                 <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" />}>
                                     <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
-                                </ClickableDropdown> : 
+                                </ClickableDropdown> :
                                 <FileOperations files={[file]} fileOperations={fileOperations} As={OutlineButton} ml="-17px" mr="-17px" pl="15px" />
                             }
                         </TableCell>

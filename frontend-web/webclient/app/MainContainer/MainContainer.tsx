@@ -11,13 +11,13 @@ export const MainContainer = ({ sidebar, main, additional, header }: MainContain
             {header}
         </Box>
         <Flex flexDirection="row">
-            <Box width={[1, sidebar != null ? 13 / 16 : 1]}>
-                <Hide lg xl>
+            <Box width={1}>
+                <Hide xl>
                     {sidebar}
                 </Hide>
                 {main}
             </Box>
-            <Hide xs sm md width={[0, sidebar != null ? 3 / 16 : 0]}>
+            <Hide xs sm md lg width={[0, sidebar != null ? 3 / 16 : 0]}>
                 <Box pl="1.0em">
                     {sidebar}
                 </Box>

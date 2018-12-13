@@ -53,6 +53,7 @@ Card.defaultProps = {
 export const CardGroup = styled.div`
   display: flex;
   flex-wrap: wrap;
+  flex-grow: 0;
   margin: -5px -5px -5px -5px;
 
   & > * {

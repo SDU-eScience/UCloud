@@ -8,7 +8,6 @@ import { setPrioritizedSearch, HeaderActions } from "Navigation/Redux/HeaderActi
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
 import { LoadingMainContainer } from "MainContainer/MainContainer";
-import { Navigation, Pages as NavPages } from "./Navigation";
 import { NewApplicationCard } from "./Card";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
@@ -175,7 +174,7 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
     }
 });
 
-const mapStateToProps = (state: ReduxObject): ReduxType  => {
+const mapStateToProps = (state: ReduxObject): ReduxType => {
     return state.applicationsBrowse;
 }
 
