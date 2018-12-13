@@ -63,8 +63,7 @@ const Button = styled.button<ButtonProps>`
 
   &:hover {
     transition: ease 0.15s;
-    filter: ${props => props.disabled ? null : "brightness(125%)"};
-    //transform: ${props => props.disabled ? null : "scale(1.03)"};
+    filter: ${props => props.disabled ? null : "saturate(200%)"};
   }
 
   ${fullWidth} ${size} ${space};

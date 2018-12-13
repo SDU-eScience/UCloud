@@ -3,7 +3,7 @@ import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import * as PropTypes from "prop-types";
-import { replaceHomeFolder, getFilenameFromPath, isDirectory, createFolder, newMockFolder } from "Utilities/FileUtilities";
+import { replaceHomeFolder, getFilenameFromPath, isDirectory, createFolder, newMockFolder, getParentPath } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
 import { RefreshButton } from "UtilityComponents";
@@ -19,8 +19,8 @@ import { FilesTable } from "./FilesTable";
 import SDUCloud from "Authentication/lib";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
-    constructor(props, context) {
-        super(props, context);
+    constructor(props: Readonly<FileSelectorProps>) {
+        super(props);
         this.state = {
             promises: new PromiseKeeper(),
             path: `${Cloud.homeFolder}`,
@@ -30,22 +30,6 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             modalShown: false,
             creatingFolder: false
         };
-    }
-
-    // FIXME Find better name
-    handleKeyDown = (key: number, name: string) => {
-        if (key === KeyCode.ESC) {
-            this.setState(() => ({ creatingFolder: false }));
-        } else if (key === KeyCode.ENTER) {
-            const { path, page } = this.state;
-            const fileNames = page.items.map((it) => getFilenameFromPath(it.path));
-            if (isInvalidPathName(name, fileNames)) { return }
-            const newPath = `${path.endsWith("/") ? path + name : path + "/" + name}`;
-            createFolder(newPath, Cloud, () => {
-                this.setState(() => ({ creatingFolder: false }));
-                this.fetchFiles(path, page.pageNumber, page.itemsPerPage);
-            });
-        }
     }
 
     componentDidMount() {
@@ -73,7 +57,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 path,
                 error: undefined
             }))
-        ).catch(_ => this.setState(() => ({ error: "An error occurred fetching files", loading: false })));
+        ).catch((_) => this.setState(() => ({ error: "An error occurred fetching files", loading: false })));
         // FIXME: Ideally finally should be used for loading, but ts-jest doesn't allow it.
     }
 
@@ -83,7 +67,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         };
         const path = this.props.path ? this.props.path : "";
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
-        const removeButton = this.props.remove ? (<RemoveButton onClick={this.props.remove} />) : null;
+        const removeButton = this.props.remove ? (<RemoveButton onClick={() => this.props.remove!()} />) : null;
         return (
             <React.StrictMode>
                 <Input
@@ -104,11 +88,8 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     navigate={this.fetchFiles}
                     page={this.state.page}
                     loading={this.state.loading}
-                    creatingFolder={this.state.creatingFolder}
                     setSelectedFile={this.setSelectedFile}
                     fetchFiles={this.fetchFiles}
-                    handleKeyDown={this.handleKeyDown}
-                    createFolder={() => this.setState(() => ({ creatingFolder: true }))}
                     canSelectFolders={this.props.canSelectFolders}
                     onlyAllowFolders={this.props.onlyAllowFolders}
                 />
@@ -128,13 +109,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
     >
         <Spacer alignItems="center"
             left={<Heading.h3>File selector</Heading.h3>}
-            right={
-                <>
-                    <CreateFolderButton createFolder={props.createFolder} />
-                    <Box mr="5px" />
-                    <Icon name="close" onClick={props.onHide} />
-                </>
-            }
+            right={<Icon name="close" onClick={props.onHide} />}
         />
         <Divider />
         <BreadCrumbs
@@ -173,7 +148,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
 
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
-    const files = f.filter(({ path }) => !disallowedPaths.some((d) => d === path));
+    const files = f.filter(({ path }) => !disallowedPaths.some(d => d === path));
     const ops: FileOperation[] = [];
     if (canSelectFolders) {
         ops.push(
@@ -203,11 +178,8 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
         />);
 };
 
-type CreateFolderButton = { createFolder?: () => void }
-const CreateFolderButton = ({ createFolder }: CreateFolderButton) =>
-    !!createFolder ? (<Button onClick={() => createFolder()}>Create new folder</Button>) : null;
-
-const UploadButton = ({ onClick }) => (<Button type="button" onClick={onClick}>Upload File</Button>);
-const RemoveButton = ({ onClick }) => (<Button type="button" onClick={onClick}>✗</Button>);
+interface FileSelectorButton { onClick: () => void }
+const UploadButton = ({ onClick }: FileSelectorButton) => (<Button type="button" onClick={onClick}>Upload File</Button>);
+const RemoveButton = ({ onClick }: FileSelectorButton) => (<Button type="button" onClick={onClick}>✗</Button>);
 
 export default FileSelector;

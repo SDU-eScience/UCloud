@@ -175,9 +175,6 @@ export interface FileSelectorModalProps {
     disallowedPaths?: string[]
     onlyAllowFolders?: boolean
     canSelectFolders?: boolean
-    creatingFolder?: boolean
-    handleKeyDown?: Function
-    createFolder?: () => void
     errorMessage?: string
     onErrorDismiss?: () => void
     navigate?: (path: string, pageNumber: number, itemsPerPage: number) => void
@@ -191,7 +188,6 @@ export interface FileSelectorBodyProps {
     canSelectFolders: boolean
     page: Page<File>
     fetchFiles: (path: string) => void
-    handleKeyDown?: Function
     setSelectedFile: Function
     createFolder?: () => void
     path: string
@@ -199,7 +195,8 @@ export interface FileSelectorBodyProps {
 
 export interface FileListProps {
     files: File[]
-    setSelectedFile, fetchFiles: Function
+    setSelectedFile: Function
+    fetchFiles: Function
     canSelectFolders: boolean
 }
 

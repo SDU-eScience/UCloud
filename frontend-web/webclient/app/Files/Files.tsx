@@ -193,9 +193,9 @@ const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     const renamingCount = page.items.filter(file => file.beingRenamed).length;
     const fileCount = page.items.length;
     return {
-        error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath,
+        error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath, invalidPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
-        leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount, invalidPath
+        leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount
     }
 };
 

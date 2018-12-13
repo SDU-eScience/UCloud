@@ -19,8 +19,7 @@ const ProgressBase = styled(Box) <ProgressBaseProps>`
 
     /* From semantic-ui-css */
     ${props => props.active ?
-        `-webkit-animation: progress-active 2s ease infinite;
-        animation: progress-active 2s ease infinite;` : null}
+        `animation: progress-active 2s ease infinite;` : null}
     
 
     @-webkit-keyframes progress-active {

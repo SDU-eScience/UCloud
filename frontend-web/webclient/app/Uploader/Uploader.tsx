@@ -238,7 +238,7 @@ const UploaderRow = (p: {
                         color="green"
                         onClick={e => ifPresent(p.onUpload, c => c(e))}
                     ><Icon name="cloud upload" />Upload</Button>
-                    <Button color="lightGray" onClick={e => ifPresent(p.onDelete, c => c(e))}><Icon name="close" /></Button>
+                    <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))}><Icon name="close" /></Button>
                 </ButtonGroup>
                 <Flex justifyContent="center" pt="0.3em">
                     <ClickableDropdown
