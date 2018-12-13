@@ -12,7 +12,7 @@ import { File, FileInfoProps } from "Files";
 import { ActivityFeed } from "Activity/Activity";
 import { Dispatch } from "redux";
 import { fetchFileStat, setLoading, fetchFileActivity, receiveFileStat } from "./Redux/FileInfoActions";
-import { Flex, Box, Icon, Card, Button } from "ui-components";
+import { Flex, Box, Icon, Card } from "ui-components";
 import List from "ui-components/List";
 import * as Heading from "ui-components/Heading"
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -25,7 +25,11 @@ interface FileInfoOperations {
     receiveFileStat: (file: File) => void
 }
 
-class FileInfo extends React.Component<FileInfoProps & FileInfoOperations & { location: { pathname: string, search: string } }> {
+interface FileInfo extends FileInfoProps, FileInfoOperations {
+    location: { pathname: string, search: string }
+}
+
+class FileInfo extends React.Component<FileInfo> {
     constructor(props) {
         super(props);
     }
@@ -58,9 +62,9 @@ class FileInfo extends React.Component<FileInfoProps & FileInfoOperations & { lo
                 <Box width={0.7}>
                     <Heading.h2>{fileName}</Heading.h2>
                     <Heading.h5 color="gray">{toLowerCaseAndCapitalize(file.fileType)}</Heading.h5>
-                    <FileView 
-                        file={file} 
-                        onFavorite={() => props.receiveFileStat(favoriteFile(file, Cloud))} 
+                    <FileView
+                        file={file}
+                        onFavorite={() => props.receiveFileStat(favoriteFile(file, Cloud))}
                         onReclassify={async level => props.receiveFileStat(await reclassifyFile(file, level, Cloud))} />
                     {activity.items.length ? (
                         <Card mt="1em" mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">

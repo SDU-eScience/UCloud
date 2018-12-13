@@ -14,7 +14,7 @@ import { FilesProps, FilesStateProps, FilesOperations, File, FileOperation } fro
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
 import {
     startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
-    getParentPath, moveFile, createFolder, fileTablePage, newMockFolder
+    getParentPath, moveFile, createFolder, fileTablePage
 } from "Utilities/FileUtilities";
 import { Box } from "ui-components";
 import * as Heading from "ui-components/Heading";

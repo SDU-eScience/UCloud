@@ -1,14 +1,12 @@
 import * as React from "react";
 import { Icon, FtIcon, Heading, Absolute, Flex, Text, Label, Checkbox } from "ui-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
-import { IconName } from "ui-components/Icon";
-import { ThemeColor } from "ui-components/theme";
 import { FtIconProps } from "UtilityFunctions";
 import { EntriesPerPageSelector } from "Pagination";
 
 
-interface FileIconProps { link?: boolean, shared?: boolean, fileIcon: FtIconProps, ext?: string, color?: ThemeColor, size?: string | number  }
-export const FileIcon = ({ ext, shared = false, link = false, fileIcon, color }: FileIconProps) => 
+interface FileIconProps { link?: boolean, shared?: boolean, fileIcon: FtIconProps, size?: string | number  }
+export const FileIcon = ({ shared = false, link = false, fileIcon }: FileIconProps) => 
     link || shared ?
     <Flex style={{position: "relative"}}>
         <FtIcon size={30} fileIcon={fileIcon}/>
@@ -23,13 +21,15 @@ export const FileIcon = ({ ext, shared = false, link = false, fileIcon, color }:
     </Flex> : <FtIcon size={30} fileIcon={fileIcon}/>
 
 
-export function Arrow({ name }: { name: "arrowUp" | "arrowDown" | undefined}) {
+interface Arrow { name: "arrowUp" | "arrowDown" | undefined}
+export function Arrow({ name }: Arrow) {
     if (name === "arrowUp") return (<Icon name="arrowDown" rotation="180" size=".7em" mr=".4em" />);
     else if (name === "arrowDown") return (<Icon name="arrowDown" size=".7em" mr=".4em" />);
     return null;
 }
 
-export const RefreshButton = ({ loading, onClick }: { loading: boolean, onClick: () => void, className?: string }) => (
+interface RefreshButton { loading: boolean, onClick: () => void, className?: string }
+export const RefreshButton = ({ loading, onClick }: RefreshButton) => (
     <Icon name="refresh" spin={loading} onClick={() => onClick()}/>
 );
 
@@ -111,17 +111,29 @@ export class PP extends React.Component<{ visible: boolean}, {duration: number}>
     }
 }
 
-export const MasterCheckbox = ({ onClick, checked }) => (
+interface MasterCheckbox {
+    onClick: (e: boolean) => void
+    checked: boolean 
+}
+export const MasterCheckbox = ({ onClick, checked }: MasterCheckbox) => (
     <Label>
         <Checkbox 
-            onClick={e => onClick(!!e.target.checked)}
+            onClick={(e: any) => onClick(!!e.target.checked)}
             checked={checked}
-            onChange={e => e.stopPropagation()}
+            onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
         />
     </Label>
 );
 
-export const CustomEntriesPerPage = ({entriesPerPage, text, onChange, loading, onRefreshClick }) => (
+interface CustomEntriesPerPage { 
+    entriesPerPage: number
+    text: string
+    onChange: (itemsPerPage: number) => void
+    loading: boolean
+    onRefreshClick: () => void
+}
+
+export const CustomEntriesPerPage = ({entriesPerPage, text, onChange, loading, onRefreshClick }: CustomEntriesPerPage) => (
     <>
         <EntriesPerPageSelector
             entriesPerPage={entriesPerPage}

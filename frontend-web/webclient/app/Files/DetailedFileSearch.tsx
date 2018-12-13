@@ -1,6 +1,9 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { DetailedFileSearchProps, DetailedFileSearchReduxState, SensitivityLevel, PossibleTime, FileType, AdvancedSearchRequest, DetailedFileSearchOperations } from ".";
+import {
+    DetailedFileSearchProps, DetailedFileSearchReduxState, SensitivityLevel, PossibleTime, FileType,
+    AdvancedSearchRequest, DetailedFileSearchOperations
+} from ".";
 import { DatePicker } from "ui-components/DatePicker";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -230,8 +233,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 <Label fontSize={1} color="black">
                                     <Checkbox
                                         checked={allowFolders}
-                                        onChange={e => e.stopPropagation()}
-                                        onClick={_ => this.props.toggleFolderAllowed()}
+                                        onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
+                                        onClick={() => this.props.toggleFolderAllowed()}
                                     />
                                     Folders
                             </Label>
@@ -239,7 +242,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     <Checkbox
                                         checked={allowFiles}
                                         onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
-                                        onClick={(_: any) => this.props.toggleFilesAllowed()}
+                                        onClick={() => this.props.toggleFilesAllowed()}
                                     />
                                     Files
                             </Label>
