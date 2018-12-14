@@ -59,8 +59,6 @@ data class DataPoint3D<XType, YType, ZType>(
 ) : ChartDataPoint3D<XType, YType, ZType>
 
 data class Chart<DataPointType : ChartDataPoint>(
-    val xAxisLabel: String,
-    val yAxisLabel: String,
     val data: List<DataPointType>,
 
     /**
@@ -69,5 +67,25 @@ data class Chart<DataPointType : ChartDataPoint>(
      * This can be any value and is only used as a hint for the API consumer. API consumer should not rely on this
      * value. It may be used as a hint to people who explore the data.
      */
-    val chartTypeHint: String? = null
+    val chartTypeHint: String? = null,
+
+    /**
+     * An array of data types. Each element corresponds to a dimension.
+     *
+     * The data types are typically values from [ChartDataTypes], but are allowed
+     * to be of a different type.
+     */
+    val dataTypes: List<String?>? = null,
+
+    /**
+     * An array containing axis labels. Each element corresponds to a dimension.
+     */
+    val axisLabels: List<String?>? = null
 )
+
+object ChartDataTypes {
+    val BYTES = "bytes"
+    val DURATION = "duration"
+    val DATE = "date"
+    val DATETIME = "datetime"
+}

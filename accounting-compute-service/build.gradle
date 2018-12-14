@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.3.0-SNAPSHOT'
+version '0.3.2-SNAPSHOT'
 
 apply plugin: "application"
 mainClassName = "dk.sdu.cloud.accounting.compute.MainKt"
@@ -10,6 +10,6 @@ dependencies {
     compile 'dk.sdu.cloud:service-common:0.22.0-SNAPSHOT'
     compile "dk.sdu.cloud:app-api:0.10.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.12.0-SNAPSHOT"
-    compile "dk.sdu.cloud:accounting-api:0.3.0-SNAPSHOT"
+    compile "dk.sdu.cloud:accounting-api:0.3.1-SNAPSHOT"
     testCompile 'dk.sdu.cloud:service-common-test:0.22.0-SNAPSHOT'
 }

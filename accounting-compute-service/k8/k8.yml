@@ -2,35 +2,49 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: accounting-compute-service-deployment
+  name: accounting-compute
   labels:
-    app: accounting-compute-service
+    app: accounting-compute
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: accounting-compute-service
+      app: accounting-compute
   template:
     metadata:
       labels:
-        app: accounting-compute-service
+        app: accounting-compute
     spec:
       containers:
-      - name: accounting-compute-service
-        image: registry.cloud.sdu.dk/sdu-cloud/accounting-compute-service:0.1.0
+      - name: accounting-compute
+        image: registry.cloud.sdu.dk/sdu-cloud/accounting-compute-service:0.3.2
         command:
         - /opt/service/bin/service
         - --config-dir
         - /etc/refresh-token
+        - --config-dir
+        - /etc/psql
+        - --config-dir
+        - /etc/token-validation
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
+        - mountPath: /etc/psql
+          name: psql
+        - mountPath: /etc/token-validation
+          name: token-validation
 
       volumes:
       - name: refresh-token
         secret:
           optional: false
           secretName: accounting-compute-refresh-token
+      - name: psql
+        secret:
+          secretName: accounting-compute-psql
+      - name: token-validation
+        configMap:
+          name: token-validation
 
       imagePullSecrets:
       - name: esci-docker
@@ -49,4 +63,4 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
-    app: accounting-compute-service
+    app: accounting-compute

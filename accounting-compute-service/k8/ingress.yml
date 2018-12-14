@@ -2,7 +2,7 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: filesearch-service-ingress
+  name: accounting-compute-ingress
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: ""
 spec:
@@ -10,7 +10,7 @@ spec:
   - host: cloud.sdu.dk
     http:
       paths:
-      - path: /api/file-search
+      - path: /api/accounting/compute
         backend:
           serviceName: accounting-compute
           servicePort: 8080

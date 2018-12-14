@@ -25,6 +25,7 @@ import ZenodoInfo from "Zenodo/Info";
 import DetailedResult from "Applications/DetailedResult";
 import ApplicationView from "Applications/View";
 import * as ApplicationsInstalled from "Applications/Installed";
+import * as Accounting from "Accounting";
 import Status from "Navigation/StatusPage";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
@@ -45,6 +46,8 @@ const Core = () => (
 
                 <Route exact path="/activity" component={Activity} />
                 <Route exact path="/status" component={Status} />
+
+                <Route exact path="/accounting" component={Accounting.Chart} />
 
                 <Route exact path="/applications" component={Applications} />
                 <Route exact path="/applications/installed" component={ApplicationsInstalled.default} />
