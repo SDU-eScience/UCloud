@@ -29,7 +29,6 @@ import { searchPage } from "Utilities/SearchUtilities";
 
 interface HeaderProps {
     sidebarOpen?: boolean
-    history: History
     prioritizedSearch: string
 }
 
@@ -38,7 +37,7 @@ interface HeaderState {
 }
 
 class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState> {
-    constructor(props) {
+    constructor(props: any) {
         super(props);
         this.state = {
             searchText: ""
@@ -143,7 +142,13 @@ const SearchInput = styled(Flex)`
     }
 `;
 
-const Search = ({ searchText, onChange, navigate, searchFiles }) => (
+interface Search {
+    searchText: string
+    onChange: (input: string) => void
+    navigate: () => void
+    searchFiles: (input: string) => void
+}
+const Search = ({ searchText, onChange, navigate, searchFiles }: Search) => (
     <Relative>
         <SearchInput>
             <Input

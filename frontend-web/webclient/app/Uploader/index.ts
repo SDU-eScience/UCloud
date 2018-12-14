@@ -20,5 +20,4 @@ export interface UploaderProps {
     allowMultiple?: boolean
     location: string
     onFilesUploaded?: (path: string) => void
-    dispatch: Dispatch
 }

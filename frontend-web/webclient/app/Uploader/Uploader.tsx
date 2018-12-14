@@ -16,6 +16,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Toggle } from "ui-components/Toggle";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
+import { Dispatch } from "redux";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -30,8 +31,8 @@ const newUpload = (file: File): Upload => ({
     uploadXHR: undefined
 });
 
-class Uploader extends React.Component<UploaderProps> {
-    constructor(props) {
+class Uploader extends React.Component<UploaderProps & UploadOperations> {
+    constructor(props: any) {
         super(props);
     }
 
@@ -40,9 +41,9 @@ class Uploader extends React.Component<UploaderProps> {
         const filteredFiles = files.filter(it => it.size > 0).map(it => newUpload(it));
         if (filteredFiles.length == 0) return;
         if (this.props.allowMultiple !== false) { // true if no value
-            this.props.dispatch(setUploads(this.props.uploads.concat(filteredFiles)))
+            this.props.setUploads(this.props.uploads.concat(filteredFiles))
         } else {
-            this.props.dispatch(setUploads([filteredFiles[0]]))
+            this.props.setUploads([filteredFiles[0]])
         }
     }
 
@@ -55,7 +56,7 @@ class Uploader extends React.Component<UploaderProps> {
     startUpload = (index: number) => {
         const upload = this.props.uploads[index];
         upload.isUploading = true;
-        this.props.dispatch(setUploads(this.props.uploads));
+        this.props.setUploads(this.props.uploads);
         const onThen = (xhr: XMLHttpRequest) => {
             xhr.onloadend = () => {
                 if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads)) {
@@ -64,20 +65,20 @@ class Uploader extends React.Component<UploaderProps> {
                 }
             }
             upload.uploadXHR = xhr;
-            this.props.dispatch(setUploads(this.props.uploads));
+            this.props.setUploads(this.props.uploads);
         };
 
         window.addEventListener("beforeunload", this.beforeUnload);
         if (!upload.extractArchive) {
             multipartUpload(`${this.props.location}/${upload.file.name}`, upload.file, upload.sensitivity, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
-                this.props.dispatch(setUploads(this.props.uploads));
-            }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)); // FIXME Add error handling
+                this.props.setUploads(this.props.uploads);
+            }, (err) => this.props.setUploaderError(err)).then(xhr => onThen(xhr)); // FIXME Add error handling
         } else {
             bulkUpload(this.props.location, upload.file, upload.sensitivity, BulkUploadPolicy.OVERWRITE, e => {
                 upload.progressPercentage = (e.loaded / e.total) * 100;
-                this.props.dispatch(setUploads(this.props.uploads));
-            }, (err) => this.props.dispatch(setUploaderError(err))).then(xhr => onThen(xhr)); // FIXME Add error handling
+                this.props.setUploads(this.props.uploads);
+            }, err => this.props.setUploaderError(err)).then(xhr => onThen(xhr)); // FIXME Add error handling
         }
     }
 
@@ -93,7 +94,7 @@ class Uploader extends React.Component<UploaderProps> {
         const files = this.props.uploads.slice();
         if (index < files.length) {
             const remainderFiles = removeEntry(files, index);
-            this.props.dispatch(setUploads(remainderFiles));
+            this.props.setUploads(remainderFiles);
         }
     }
 
@@ -108,18 +109,18 @@ class Uploader extends React.Component<UploaderProps> {
     onExtractChange = (index: number, value: boolean) => {
         const uploads = this.props.uploads;
         uploads[index].extractArchive = value;
-        this.props.dispatch(setUploads(uploads));
+        this.props.setUploads(uploads);
     }
 
     updateSensitivity(index: number, sensitivity: Sensitivity) {
         const uploads = this.props.uploads;
         uploads[index].sensitivity = sensitivity;
-        this.props.dispatch(setUploads(uploads));
+        this.props.setUploads(uploads);
     }
 
     render() {
         return (
-            <Modal isOpen={this.props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={() => this.props.dispatch(setUploaderVisible(false))}
+            <Modal isOpen={this.props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={() => this.props.setUploaderVisible(false)}
                 style={{
                     content: {
                         top: "80px",
@@ -133,7 +134,7 @@ class Uploader extends React.Component<UploaderProps> {
                 <Divider />
                 {this.props.error ?
                     <Box pt="0.5em" pr="0.5em" pl="0.5em">
-                        <Error error={this.props.error} clearError={() => this.props.dispatch(setUploaderError())} />
+                        <Error error={this.props.error} clearError={() => this.props.setUploaderError()} />
                     </Box> : null}
                 <Box>
                     <div>
@@ -307,4 +308,15 @@ const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
     error: uploader.error
 });
 
-export default connect(mapStateToProps)(Uploader);
+interface UploadOperations {
+    setUploads: (uploads: Upload[]) => void
+    setUploaderError: (err?: string) => void
+    setUploaderVisible: (visible :boolean) => void
+}
+const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
+    setUploads: uploads => dispatch(setUploads(uploads)),
+    setUploaderError: err => dispatch(setUploaderError(err)),
+    setUploaderVisible: visible => dispatch(setUploaderVisible(visible))
+});
+
+export default connect(mapStateToProps, mapDispatchToProps)(Uploader);
