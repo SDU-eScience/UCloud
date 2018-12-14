@@ -140,17 +140,34 @@ const Tag = ({ label }: { label: string }) => (
     <RatingBadge mr={"3px"} bg={"darkGray"}><Heading.h6>{label}</Heading.h6></RatingBadge>
 )
 
-const AppBg = () => (
+const bgGradients = [
+    //["#0096ff", "#043eff"], // blue
+    ["#EC6F8E", "#AA2457"], // salmon
+    ["#B8D1E3", "#5B698C"], // bluegray
+    ["#83D8F9", "#2951BE"], // blue
+    ["#AE83CF", "#68449E"], // violet
+    ["#E392CC", "#B33B6D"], // pink
+    ["#ECB08C", "#BC4F33"], // bronze
+    ["#90DCA1", "#4D9161"], // green
+    ["#F3B576", "#7C4C3C"], // brown
+    ["#F7D06A", "#C46927"], // golden
+    ["#BB7AD5", "#8132A1"], // purple
+    ["#98E0F9", "#3E79C0"], // lightblue
+    ["#DC6AA6", "#AA2457"] // red
+//    ["#", "#"], //
+].map(x => ({ color1: x[0], color2: x[1] }));
+
+const AppBg = ({ color1, color2 }: { color1: string, color2: string }) => (
     <svg height={"128px"} viewBox="0 0 100 128" >
-        <path d="M 25,0 h 75 v 128 h -100 z" fill="url(#appbg_svg___Linear1)" />
+        <path d="M 25,0 h 75 v 128 h -100 z" fill={"url(#appbg_svg___"+color1+"_"+color2} />
         <defs>
             <linearGradient
-                id="appbg_svg___Linear1"
+                id={"appbg_svg___"+color1+"_"+color2}
                 x1={25} x2={100} y1={0} y2={128}
                 gradientUnits="userSpaceOnUse"
             >
-                <stop offset={0} stopColor="#0096ff" />
-                <stop offset={1} stopColor="#043eff" />
+                <stop offset={0} stopColor={color1} />
+                <stop offset={1} stopColor={color2} />
             </linearGradient>
         </defs>
     </svg>
@@ -179,17 +196,39 @@ const AppRibbonContainer = styled(Absolute)`
     }
 `
 
+function hashF(str: string):number {
+    var hash = 5381,
+        i = str.length;
+
+    while (i) {
+        hash = (hash * 33) ^ str.charCodeAt(--i);
+    }
+
+    /* JavaScript does bitwise operations (like XOR, above) on 32-bit signed
+     * integers. Since we want the results to be always positive, convert the
+     * signed int to an unsigned by doing an unsigned bitshift. */
+    return hash >>> 0;
+}
+
+function bgHash(hash: number):number {
+    return (hash&15)%bgGradients.length;
+}
+
+
+let i=0;
 export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
+    const hash=hashF(appDesc.title);
+    console.log(appDesc.title, bgHash(hash), bgGradients[bgHash(hash)]);
     return (
         <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
             <Absolute right={0} top={0}>
-                <AppBg />
+                <AppBg {...bgGradients[bgHash(hash)]}/>
             </Absolute>
             {!onFavorite ? null :
                 <AppRibbonContainer right={0}
                     top={isFavorite ? 0 : -30}
-                    onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(app.description.info.name, app.description.info.version)) : undefined}
+                    onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(appDesc.info.name, appDesc.info.version)) : undefined}
                 >
                     <Icon name={"starRibbon"} color="red" size={48} />
                 </AppRibbonContainer>
@@ -197,7 +236,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             <Flex flexDirection={"row"} alignItems={"flex-start"}>
                 <AppLogo size={"48px"} />
                 <Flex flexDirection={"column"} ml="10px">
-                    <Heading.h4>{app.description.title}</Heading.h4>
+                    <Heading.h4>{appDesc.title}</Heading.h4>
                     <EllipsedText width={200} title={`by ${appDesc.authors.join(", ")}`} color="gray">
                         by {appDesc.authors.join(", ")}
                     </EllipsedText>
