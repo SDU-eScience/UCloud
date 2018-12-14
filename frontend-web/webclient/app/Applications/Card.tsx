@@ -140,7 +140,7 @@ const Tag = ({ label }: { label: string }) => (
     <RatingBadge mr={"3px"} bg={"darkGray"}><Heading.h6>{label}</Heading.h6></RatingBadge>
 )
 
-const AppBg = (props) => (
+const AppBg = () => (
     <svg height={"128px"} viewBox="0 0 100 128" >
         <path d="M 25,0 h 75 v 128 h -100 z" fill="url(#appbg_svg___Linear1)" />
         <defs>
@@ -156,7 +156,7 @@ const AppBg = (props) => (
     </svg>
 );
 
-const AppLogo = ({ size, ...props }) => (
+const AppLogo = ({ size }: { size: string }) => (
     <svg width={size} height={size} viewBox="-1000 -1000 2000 2000" >
         <clipPath id="myClip">
             <rect x="-1000" y="-1000" width="2000" height="2000" rx="500" ry="500" />
@@ -177,7 +177,7 @@ const AppRibbonContainer = styled(Absolute)`
     &:hover {
         top: 0
     }
-` 
+`
 
 export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
@@ -186,14 +186,14 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             <Absolute right={0} top={0}>
                 <AppBg />
             </Absolute>
-            { !onFavorite ? null :
-	            <AppRibbonContainer right={0} 
-	                      top={isFavorite ? 0 : -30}
-	                      onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(app.description.info.name, app.description.info.version)) : undefined}
-	            >
-	                <Icon name={"starRibbon"} color="red" size={48}/>
-	            </AppRibbonContainer>
-	        }
+            {!onFavorite ? null :
+                <AppRibbonContainer right={0}
+                    top={isFavorite ? 0 : -30}
+                    onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(app.description.info.name, app.description.info.version)) : undefined}
+                >
+                    <Icon name={"starRibbon"} color="red" size={48} />
+                </AppRibbonContainer>
+            }
             <Flex flexDirection={"row"} alignItems={"flex-start"}>
                 <AppLogo size={"48px"} />
                 <Flex flexDirection={"column"} ml="10px">

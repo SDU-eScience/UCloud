@@ -211,7 +211,7 @@ const UploaderRow = (p: {
     onUpload?: (e: React.MouseEvent<any>) => void,
     onDelete?: (e: React.MouseEvent<any>) => void,
     onAbort?: (e: React.MouseEvent<any>) => void
-    onCheck?: (checked) => void
+    onCheck?: (checked: boolean) => void
 }) => {
     const fileTitle = <span><b>{p.file.name}</b> ({fileSizeToString(p.file.size)})</span>;
     let body;

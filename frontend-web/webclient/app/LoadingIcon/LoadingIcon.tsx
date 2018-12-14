@@ -3,8 +3,8 @@ import styled, { keyframes } from 'styled-components'
 import { width, height, HeightProps, WidthProps } from "styled-system";
 
 
-
-const CubeGrid = ({ size }: {size: number}) => {
+type CubeGridProps = { size: number }
+const CubeGrid = ({ size }: CubeGridProps) => {
     type SpinnerProps = WidthProps & HeightProps;
 
     const Spinner = styled.div<SpinnerProps>`

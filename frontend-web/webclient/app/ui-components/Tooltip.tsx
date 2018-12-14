@@ -51,9 +51,9 @@ const arrow = (props: { top?: boolean }) => {
     }
 }
 
-const tooltipPosition = (props: { top?: boolean }) => {
-  return props.top ? { bottom: '-8px' } : { top: 0 }
-}
+const tooltipPosition = (props: { top?: boolean }) =>
+  props.top ? { bottom: '-8px' } : { top: 0 }
+
 
 const tooltipAlign = (props: { right: boolean, center: boolean }) => {
   return props.right

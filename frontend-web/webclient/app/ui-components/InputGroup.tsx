@@ -6,7 +6,7 @@ import Input from './Input';
 
 export type InputGroupProps = any;
 
-const InputGroup = styled("div")<InputGroupProps>`
+const InputGroup = styled.div<InputGroupProps>`
   display: flex;
   align-items: center;
   border-radius: ${theme['radius']};

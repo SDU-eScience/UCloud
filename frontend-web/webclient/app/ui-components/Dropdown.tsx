@@ -24,7 +24,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     border-radius: 5px;
     ${props => props.hover ? "display: none;" : ""}
     position: absolute;
-    background-color: ${props => props.theme.colors[props.backgroundColor!]}
+    background-color: ${props => props.theme.colors[props.backgroundColor!]};
     color: ${props => props.theme.colors[props.color!]};
     width: ${props => props.width};
     min-width: ${props => props.minWidth ? props.minWidth : "138" }px;
@@ -35,11 +35,11 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     overflow-y: auto;
     overflow-x: hidden;
     text-align: left;
+    cursor: ${props => props.cursor};
 
     ${props => props.colorOnHover ? `
         & > *:hover {
             background-color: rgba(0, 0, 0, 0.05);
-            cursor: ${props => props.cursor}
         }` : null};
     
     & svg {
@@ -58,7 +58,7 @@ DropdownContent.defaultProps = {
     color: "black",
     colorOnHover: true,
     disabled: false,
-    cursor: "auto",
+    cursor: "pointer",
     minWidth: "138px",
     maxHeight: "300px"
 }

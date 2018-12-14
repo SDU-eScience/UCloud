@@ -17,16 +17,14 @@ class UserSettings extends React.Component<{}, UserSettingsState> {
         this.state = this.initialState();
     }
 
-    initialState(): UserSettingsState {
-        return {
-            promiseKeeper: new PromiseKeeper(),
-            currentPassword: "",
-            newPassword: "",
-            repeatedPassword: "",
-            error: false,
-            repeatPasswordError: false
-        };
-    }
+    initialState = (): UserSettingsState => ({
+        promiseKeeper: new PromiseKeeper(),
+        currentPassword: "",
+        newPassword: "",
+        repeatedPassword: "",
+        error: false,
+        repeatPasswordError: false
+    });
 
     updateField(field: UserSettingsFields, value: string | boolean): void {
         const state = { ...this.state }

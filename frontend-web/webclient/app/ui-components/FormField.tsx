@@ -24,7 +24,7 @@ const fadeIn = keyframes`
   }
 `
 const labelStyles = css`
-  animation: ${fadeIn} 0.3s
+  animation: ${fadeIn} 0.3s;
 `
 
 const getFieldStyles = (showLabel: boolean) => {
@@ -45,7 +45,7 @@ const noop = () => { }
 
 const formElements = [Input, Select]
 
-const isFormElement = element => formElements.includes(element)
+const isFormElement = (element) => formElements.includes(element)
 
 class FormField extends React.Component<{
   onChange: (e: React.SyntheticEvent) => void

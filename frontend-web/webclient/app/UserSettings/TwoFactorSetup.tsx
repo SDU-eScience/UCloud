@@ -3,7 +3,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { TwoFactorSetupState } from ".";
 import * as UF from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
-import { Image, Flex, Divider, Input, LoadingButton, Button } from "ui-components";
+import { Image, Flex, Divider, Input, LoadingButton } from "ui-components";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
@@ -165,9 +165,8 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
         });
     }
 
-    private setLoading(isLoading: boolean) {
-        this.setState(() => ({ isLoading }));
-    }
+    private setLoading = (isLoading: boolean) => this.setState(() => ({ isLoading }));
+    
 
     private onVerificationSubmit() {
         this.setLoading(true);
@@ -175,7 +174,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
             challengeId: this.state.challengeId,
             verificationCode: this.state.verificationCode
         }, "/auth").then((res) => {
-            this.setState(() => ({
+            this.setState(() => ({ 
                 isConnectedToAccount: true
             }));
         }).catch((res) => {
