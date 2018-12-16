@@ -238,6 +238,7 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
     const s32=Math.sqrt(3)*.5;
     const r1 = 0.5; //inner radius of outer element (outer radius is 1)
     const r2 = 0.7; //outer radius of inner element
+    const r3 = (1+r2)*.5; // radius of white background hexagon 
 
     return (
     <svg
@@ -249,8 +250,10 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
         <defs>
             <path id="hex_to___" d={"M-"+r1+" 0H-1L-0.5 "+s32+"H0.5L"+(0.5*r1)+" "+(s32*r1)+"H-"+(0.5*r1)+"Z"} />
             <path id="hex_ti___" d={"M0 0H"+r2+"L"+(0.5*r2)+" -"+(s32*r2)+"H-"+(0.5*r2)+"Z"} fill-opacity=".55"/>
+            <path id="hex_th___" d={"M-"+r3+" 0L-"+(0.5*r3)+" "+(s32*r3)+"H"+(0.5*r3)+"L"+r3+" 0L"+(0.5*r3)+" -"+(s32*r3)+"H-"+(0.5*r3)+"Z"} />
         </defs>
         <g  transform={"rotate("+rot[i3]+" 0 0)"} >
+            <use xlinkHref="#hex_th___" fill="#fff"/>
             <use xlinkHref="#hex_to___" fill={appColors[appC][c1[0]]}/>
             <use xlinkHref="#hex_to___" fill={appColors[appC][c1[1]]} transform="rotate(120 0 0)"/>
             <use xlinkHref="#hex_to___" fill={appColors[appC][c1[2]]} transform="rotate(240 0 0)"/>         
@@ -297,11 +300,13 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
     const appC=appColor(hash);
     return (
         <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
-            <Absolute right={0} top={0}>
+            <Absolute right={0} top={0} cursor="inherit">
                 <AppBg {...bgGradients[appC]}/>
             </Absolute>
             {!onFavorite ? null :
-                <AppRibbonContainer right={0}
+                <AppRibbonContainer
+                    cursor="inherit" 
+                    right={0}
                     top={isFavorite ? 0 : -30}
                     onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(appDesc.info.name, appDesc.info.version)) : undefined}
                 >
