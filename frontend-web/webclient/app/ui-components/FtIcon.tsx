@@ -148,12 +148,14 @@ const SvgFt = ({color, color2, hasExt, ext, type, ...props}) => (
     clipRule="evenodd"
     {...props}
   >
+    {/* Paper background */}
     <path
       d="M29 0H1.463C.655 0 0 .655 0 1.926v52.611C.009 55.246.655 56 1.463 56h40.074c.808 0 1.453-.709 1.463-1.463V10L29 0z"
       fill={color}
       // fillRule="nonzero"
     />
     <SvgFtType type={type} />
+    {/* Paper corner */}
     <path
       d="M29 0l14 10-12 2-2-12z"
       fill={color2}

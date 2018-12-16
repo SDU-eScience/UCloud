@@ -177,11 +177,8 @@ const Tag = ({ label }: { label: string }) => (
 // const hues = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330]; 
 // //const hues = [...Array(12).keys()].map( x=> (360/12)*x);
 
-// const bgGradients2 = hues.map( x=> ( 
-//     {
-//         color1: hslToHex(x,60,60),
-//         color2: hslToHex(x,60,40)
-//     }
+// const appColors2 = hues.map( x=> ( 
+//     [ hslToHex(x,60,70), hslToHex(x,60,55), hslToHex(x,60,40) ]
 // ));
 
 
