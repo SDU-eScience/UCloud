@@ -7,6 +7,8 @@ import { Application } from ".";
 import styled from "styled-components";
 import * as ReactMarkdown from "react-markdown";
 import * as Heading from "ui-components/Heading"
+import { bgColor } from "styled-system";
+import { SSL_OP_NO_QUERY_MTU } from "constants";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void,
@@ -179,22 +181,28 @@ const Tag = ({ label }: { label: string }) => (
 //     }
 // ));
 
-const bgGradients = [
+
+// Colors in the array come in 3 shades: light, medium , dark
+// last color is for logo centers only
+const appColors = [
     //["#0096ff", "#043eff"], // blue
-    ["#F7D06A", "#C46927"], // golden
-    ["#EC6F8E", "#AA2457"], // salmon
-    ["#B8D1E3", "#5B698C"], // bluegray
-    ["#83D8F9", "#2951BE"], // blue
-    ["#AE83CF", "#68449E"], // violet
-    ["#E392CC", "#B33B6D"], // pink
-    ["#ECB08C", "#BC4F33"], // bronze
-    ["#90DCA1", "#4D9161"], // green
-    ["#F3B576", "#7C4C3C"], // brown
-    ["#D57AC5", "#A1328F"], // purple
-    ["#98E0F9", "#3E79C0"], // lightblue
-    ["#DC6AA6", "#AA2457"] // red
-//    ["#", "#"], //
-].map(x => ({ color1: x[0], color2: x[1] }));
+    ["#F7D06A", "#E98C33", "#C46927"], // gold
+    ["#EC6F8E", "#C75480", "#AA2457"], // salmon
+    ["#B8D1E3", "#7C8DB3", "#5B698C"], // silver
+    ["#83D8F9", "#3F80F6", "#2951BE"], // blue
+    ["#AE83CF", "#9065D1", "#68449E"], // violet
+    ["#E392CC", "#E2689D", "#B33B6D"], // pink
+    ["#ECB08C", "#EA7B4B", "#BC4F33"], // bronze
+    ["#90DCA1", "#69C97D", "#4D9161"], // green
+    ["#F3B576", "#B77D50", "#7C4C3C"], // brown
+    ["#D57AC5", "#E439C9", "#A1328F"], // purple
+    ["#98E0F9", "#53A5F5", "#3E79C0"], // lightblue
+    ["#DC6AA6", "#C62A5A", "#AA2457"], // red
+    ["#c9d3df", "#8393A7", "#53657D"], // gray colors from the theme
+];
+const nColors = appColors.length;
+
+const bgGradients = appColors.map(x => ({ color1: x[0], color2: x[2] }));
 
 const AppBg = ({ color1, color2 }: { color1: string, color2: string }) => (
     <svg height={"128px"} viewBox="0 0 100 128" >
@@ -212,21 +220,44 @@ const AppBg = ({ color1, color2 }: { color1: string, color2: string }) => (
     </svg>
 );
 
-const AppLogo = ({ size }: { size: string }) => (
-    <svg width={size} height={size} viewBox="-1000 -1000 2000 2000" >
-        <clipPath id="myClip">
-            <rect x="-1000" y="-1000" width="2000" height="2000" rx="500" ry="500" />
-        </clipPath>
-        <g clipPath="url(#myClip)" >
-            <g transform="rotate(15 0 0)">
-                <ellipse cx="0" cy="0" rx="1600" ry="400" fill="#0096ff" fillOpacity=".85" transform="translate(0 800)" />
-                <ellipse cx="0" cy="0" rx="400" ry="1600" fill="#ff2600" fillOpacity=".85" transform="translate(-800 0)" />
-                <ellipse cx="0" cy="0" rx="400" ry="1600" fill="#008f00" fillOpacity=".85" transform="translate(800 0)" />
-                <ellipse cx="0" cy="0" rx="1600" ry="400" fill="#ff9300" fillOpacity=".85" transform="translate(0 -800)" />
-            </g>
+const AppLogo = ({ size, appC, hash }: { size: string, appC: number, hash: number }) => {
+    const i1=(hash>>>30)&3;
+    const i2=(hash>>>20)&3;
+    const c1 = [i1%3, (i1+1)%3, (i1+2)%3];
+    const c2 = [i2%3, (i2+1)%3, (i2+2)%3];
+    const centerC = nColors-1;
+    //const centerC = appC;
+
+    const i3=(hash>>>10)&3;
+    const rot = [0, 15, 30];
+
+    const s32=Math.sqrt(3)*.5;
+    const r1 = 0.5; //inner radius of outer element (outer radius is 1)
+    const r2 = 0.7; //outer radius of inner element
+
+    return (
+    <svg
+        width={size} height={size}
+        viewBox={"-1 -"+s32+" 2 "+(2*s32)}
+        fillRule="evenodd"
+            clipRule="evenodd"
+        >
+        <defs>
+            <path id="hex_to___" d={"M-"+r1+" 0H-1L-0.5 "+s32+"H0.5L"+(0.5*r1)+" "+(s32*r1)+"H-"+(0.5*r1)+"Z"} />
+            <path id="hex_ti___" d={"M0 0H"+r2+"L"+(0.5*r2)+" -"+(s32*r2)+"H-"+(0.5*r2)+"Z"} fill-opacity=".85"/>
+        </defs>
+        <g  transform={"rotate("+rot[i3]+" 0 0)"} >
+            <use xlinkHref="#hex_to___" fill={appColors[appC][c1[0]]}/>
+            <use xlinkHref="#hex_to___" fill={appColors[appC][c1[1]]} transform="rotate(120 0 0)"/>
+            <use xlinkHref="#hex_to___" fill={appColors[appC][c1[2]]} transform="rotate(240 0 0)"/>         
+            <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[0]]}/>
+            <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[1]]} transform="rotate(120 0 0)"/>
+            <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[2]]} transform="rotate(240 0 0)"/>
         </g>
-    </svg>
-);
+        </svg>
+    );
+}
+
 
 const AppRibbonContainer = styled(Absolute)`
     transition: ease 0.2s;
@@ -252,19 +283,18 @@ function hashF(str: string):number {
 
 }
 
-function bgHash(hash: number):number {
-    return (hash>>>22)%bgGradients.length;
+function appColor(hash: number):number {
+    return (hash>>>22)%(nColors-1); //last color not used
 }
 
-
-let i=0;
 export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
     const hash=hashF(appDesc.title);
+    const appC=appColor(hash);
     return (
         <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
             <Absolute right={0} top={0}>
-                <AppBg {...bgGradients[bgHash(hash)]}/>
+                <AppBg {...bgGradients[appC]}/>
             </Absolute>
             {!onFavorite ? null :
                 <AppRibbonContainer right={0}
@@ -275,7 +305,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
                 </AppRibbonContainer>
             }
             <Flex flexDirection={"row"} alignItems={"flex-start"}>
-                <AppLogo size={"48px"} />
+                <AppLogo size={"48px"} appC={appC} hash={hash}/>
                 <Flex flexDirection={"column"} ml="10px">
                     <Heading.h4>{appDesc.title}</Heading.h4>
                     <EllipsedText width={200} title={`by ${appDesc.authors.join(", ")}`} color="gray">
