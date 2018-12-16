@@ -142,6 +142,7 @@ const Tag = ({ label }: { label: string }) => (
 
 const bgGradients = [
     //["#0096ff", "#043eff"], // blue
+    ["#F7D06A", "#C46927"], // golden
     ["#EC6F8E", "#AA2457"], // salmon
     ["#B8D1E3", "#5B698C"], // bluegray
     ["#83D8F9", "#2951BE"], // blue
@@ -150,8 +151,7 @@ const bgGradients = [
     ["#ECB08C", "#BC4F33"], // bronze
     ["#90DCA1", "#4D9161"], // green
     ["#F3B576", "#7C4C3C"], // brown
-    ["#F7D06A", "#C46927"], // golden
-    ["#BB7AD5", "#8132A1"], // purple
+    ["#D57AC5", "#A1328F"], // purple
     ["#98E0F9", "#3E79C0"], // lightblue
     ["#DC6AA6", "#AA2457"] // red
 //    ["#", "#"], //
@@ -196,6 +196,7 @@ const AppRibbonContainer = styled(Absolute)`
     }
 `
 
+
 function hashF(str: string):number {
     var hash = 5381,
         i = str.length;
@@ -207,11 +208,13 @@ function hashF(str: string):number {
     /* JavaScript does bitwise operations (like XOR, above) on 32-bit signed
      * integers. Since we want the results to be always positive, convert the
      * signed int to an unsigned by doing an unsigned bitshift. */
+
     return hash >>> 0;
+
 }
 
 function bgHash(hash: number):number {
-    return (hash&15)%bgGradients.length;
+    return (hash>>>22)%bgGradients.length;
 }
 
 
@@ -219,7 +222,6 @@ let i=0;
 export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
     const hash=hashF(appDesc.title);
-    console.log(appDesc.title, bgHash(hash), bgGradients[bgHash(hash)]);
     return (
         <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
             <Absolute right={0} top={0}>
