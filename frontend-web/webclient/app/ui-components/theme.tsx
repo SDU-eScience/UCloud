@@ -122,7 +122,8 @@ const midGray = "#c9d3df";
 const gray = "#8393A7";
 const darkGray = "#53657d";
 //// Blue
-const lightBlue = "#cdf";
+const lightBlue = "#f0f6ff";
+const lightBlue2 = "#cdf";
 const blue = "#0055d5";
 const darkBlue = "#049";
 //// Green
@@ -161,6 +162,8 @@ const iconColor2 = gray;
 const FtIconColor = lightGray;
 const FtIconColor2 = gray;
 const spinnerColor = blue;
+// File table colors
+const tableRowHighlight = lightBlue;
 
 
 const colors = {
@@ -197,6 +200,7 @@ const colors = {
   FtIconColor,
   FtIconColor2,
   spinnerColor,
+  tableRowHighlight,
 }
 
 export type ThemeColor = keyof typeof colors;

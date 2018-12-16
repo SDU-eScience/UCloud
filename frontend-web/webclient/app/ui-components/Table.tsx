@@ -19,7 +19,7 @@ export const TableCell = styled.td<TextAlignProps & HideProps & WidthProps>`
     ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
 
-const highlighted = ({ highlighted }: { highlighted?: boolean }) => highlighted ? { backgroundColor: theme.colors.lightBlue } : null;
+const highlighted = ({ highlighted }: { highlighted?: boolean }) => highlighted ? { backgroundColor: theme.colors.tableRowHighlight } : null;
 
 const contentAlign = props => props.aligned ? { verticalAlign: props.aligned } : null;
 
