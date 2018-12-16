@@ -244,7 +244,7 @@ const AppLogo = ({ size, appC, hash }: { size: string, appC: number, hash: numbe
         >
         <defs>
             <path id="hex_to___" d={"M-"+r1+" 0H-1L-0.5 "+s32+"H0.5L"+(0.5*r1)+" "+(s32*r1)+"H-"+(0.5*r1)+"Z"} />
-            <path id="hex_ti___" d={"M0 0H"+r2+"L"+(0.5*r2)+" -"+(s32*r2)+"H-"+(0.5*r2)+"Z"} fill-opacity=".85"/>
+            <path id="hex_ti___" d={"M0 0H"+r2+"L"+(0.5*r2)+" -"+(s32*r2)+"H-"+(0.5*r2)+"Z"} fill-opacity=".55"/>
         </defs>
         <g  transform={"rotate("+rot[i3]+" 0 0)"} >
             <use xlinkHref="#hex_to___" fill={appColors[appC][c1[0]]}/>
