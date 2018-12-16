@@ -75,7 +75,10 @@ export const ApplicationCardContainer = styled.div`
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
     return (
         <AppCardBase to={props.linkToRun ? Pages.runApplication(props.app) : Pages.viewApplication(props.app)}>
-            <img src={props.app.imageUrl} />
+            <Box mr={16} >
+                <AppLogo size={"32px"} hash={hashF(props.app.description.title)} />
+            </Box>
+            {/* <img src={props.app.imageUrl} /> */}
             <strong>{props.app.description.title} v{props.app.description.info.version}</strong>
             <EllipsedText>
                 <ReactMarkdown
@@ -220,11 +223,12 @@ const AppBg = ({ color1, color2 }: { color1: string, color2: string }) => (
     </svg>
 );
 
-const AppLogo = ({ size, appC, hash }: { size: string, appC: number, hash: number }) => {
+export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
     const i1=(hash>>>30)&3;
     const i2=(hash>>>20)&3;
     const c1 = [i1%3, (i1+1)%3, (i1+2)%3];
     const c2 = [i2%3, (i2+1)%3, (i2+2)%3];
+    const appC = appColor(hash);
     const centerC = nColors-1;
     //const centerC = appC;
 
@@ -267,7 +271,7 @@ const AppRibbonContainer = styled(Absolute)`
 `
 
 
-function hashF(str: string):number {
+export function hashF(str: string):number {
     var hash = 5381,
         i = str.length;
 
@@ -305,7 +309,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
                 </AppRibbonContainer>
             }
             <Flex flexDirection={"row"} alignItems={"flex-start"}>
-                <AppLogo size={"48px"} appC={appC} hash={hash}/>
+                <AppLogo size={"48px"} hash={hash}/>
                 <Flex flexDirection={"column"} ml="10px">
                     <Heading.h4>{appDesc.title}</Heading.h4>
                     <EllipsedText width={200} title={`by ${appDesc.authors.join(", ")}`} color="gray">

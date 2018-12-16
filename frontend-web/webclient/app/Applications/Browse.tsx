@@ -11,7 +11,7 @@ import { LoadingMainContainer } from "MainContainer/MainContainer";
 import { NewApplicationCard } from "./Card";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
-import { Link } from "react-router-dom";
+import { Link } from "ui-components";
 import { CardGroup } from "ui-components/Card";
 import { getQueryParam, RouterLocationProps, getQueryParamOrElse } from "Utilities/URIUtilities";
 import * as Pages from "./Pages";

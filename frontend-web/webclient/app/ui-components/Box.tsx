@@ -1,5 +1,10 @@
 import styled from "styled-components";
-import { space, width, minWidth, color, textAlign, SpaceProps, WidthProps, MinWidthProps, ColorProps, AlignItemsProps, TopProps, minHeight, MinHeightProps, HeightProps, height, MaxHeightProps, MaxWidthProps, maxWidth, maxHeight, TextAlignProps } from "styled-system";
+import { space, width, minWidth, color, textAlign, 
+         SpaceProps, WidthProps, MinWidthProps, 
+         ColorProps, AlignItemsProps, TopProps, 
+         minHeight, MinHeightProps, HeightProps, 
+         height, MaxHeightProps, MaxWidthProps, 
+         maxWidth, maxHeight, TextAlignProps } from "styled-system";
 import theme from "./theme";
 
 export type BoxProps =

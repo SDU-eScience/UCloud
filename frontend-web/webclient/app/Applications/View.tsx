@@ -12,10 +12,9 @@ import * as Actions from "./Redux/ViewActions";
 import * as ViewObject from "./Redux/ViewObject";
 import { updatePageTitle, UpdatePageTitleAction } from "Navigation/Redux/StatusActions";
 
-import { Link } from "react-router-dom";
 import * as ReactMarkdown from "react-markdown";
 
-import { VerticalButtonGroup, Box, Image, OutlineButton, ActionButton } from "ui-components"
+import { VerticalButtonGroup, Box, Image, OutlineButton, ActionButton, Link } from "ui-components"
 import { TextSpan } from "ui-components/Text";
 import * as Heading from "ui-components/Heading"
 import ContainerForText from "ui-components/ContainerForText";
@@ -24,6 +23,7 @@ import { dateToString } from "Utilities/DateUtilities";
 import { toLowerCaseAndCapitalize } from "UtilityFunctions"
 import { LoadingMainContainer } from "MainContainer/MainContainer";
 import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
+import { AppLogo, hashF } from "./Card";
 
 import * as Pages from "./Pages";
 import { Navigation } from "./Navigation";
@@ -108,7 +108,10 @@ const AppHeaderDetails = styled.div`
 
 const AppHeader: React.StatelessComponent<MainContentProps> = props => (
     <AppHeaderBase>
-        <Image src={props.application.imageUrl} />
+        {/* <Image src={props.application.imageUrl} /> */}
+        <Box mr={16} >
+            <AppLogo size={"128px"} hash={hashF(props.application.description.title)}/>
+        </Box>
         <AppHeaderDetails>
             <Heading.h2>{props.application.description.title}</Heading.h2>
             <Heading.h3>v{props.application.description.info.version}</Heading.h3>
