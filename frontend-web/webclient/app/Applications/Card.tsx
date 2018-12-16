@@ -261,7 +261,6 @@ let i=0;
 export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
     const hash=hashF(appDesc.title);
-    console.log(bgGradients);
     return (
         <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
             <Absolute right={0} top={0}>
