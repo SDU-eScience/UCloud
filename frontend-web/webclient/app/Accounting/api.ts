@@ -1,3 +1,6 @@
+import * as moment from "moment";
+import { fileSizeToString } from "Utilities/FileUtilities";
+
 export interface DataPoint {
     label: string | null
 }
@@ -29,15 +32,62 @@ export interface Chart<Point extends DataPoint> {
     dataTypes?: (string | null)[]
 }
 
+export interface Usage {
+    usage: number
+    quota?: number
+    dataType?: string
+    title?: string
+}
+
+export interface AccountingEvent {
+    title: string
+    description?: string
+    timestamp: number
+}
+
 /**
  * Contains known data types. 
  * 
  * A data type is allowed to not be one of the following.
  */
-export namespace ChartDataTypes {
+export namespace DataTypes {
     export const BYTES = "bytes"
     export const DURATION = "duration"
     export const DATE = "date"
     export const DATETIME = "datetime"
     export const NUMBER = "number";
+}
+
+export function formatDataType(type: string, value: any): string {
+    switch (type) {
+        case DataTypes.BYTES: {
+            if (typeof value === 'number') {
+                return fileSizeToString(value);
+            }
+            break;
+        }
+
+        case DataTypes.DATE: {
+            if (typeof value === 'number') {
+                return moment(value).format("DD/MM");
+            }
+            break;
+        }
+
+        case DataTypes.DATETIME: {
+            if (typeof value === 'number') {
+                return moment(value).format("DD/MM hh:mm");
+            }
+            break;
+        }
+
+        case DataTypes.DURATION: {
+            if (typeof value === 'number') {
+                return moment.duration(value, "seconds").humanize();
+            }
+            break;
+        }
+    }
+
+    return "" + value;
 }

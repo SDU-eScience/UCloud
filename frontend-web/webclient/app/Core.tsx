@@ -47,7 +47,7 @@ const Core = () => (
                 <Route exact path="/activity" component={Activity} />
                 <Route exact path="/status" component={Status} />
 
-                <Route exact path="/accounting" component={Accounting.Chart} />
+                <Route exact path="/accounting" component={Accounting.Breakdown} />
 
                 <Route exact path="/applications" component={Applications} />
                 <Route exact path="/applications/installed" component={ApplicationsInstalled.default} />
