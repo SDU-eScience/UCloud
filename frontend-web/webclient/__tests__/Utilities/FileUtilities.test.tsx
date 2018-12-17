@@ -36,39 +36,39 @@ describe("GET PARENT PATH", () => {
 
 describe("File size to string", () => {
     test("0 bytes to string", () =>
-        expect(FileUtils.fileSizeToString(0)).toBe("0 B")
+        expect(FileUtils.sizeToString(0)).toBe("0 B")
     );
 
     test("500 bytes to string", () =>
-        expect(FileUtils.fileSizeToString(500)).toBe("500 B")
+        expect(FileUtils.sizeToString(500)).toBe("500 B")
     );
 
     test("1500 bytes to string", () =>
-        expect(FileUtils.fileSizeToString(1500)).toBe("1.50 KB")
+        expect(FileUtils.sizeToString(1500)).toBe("1.50 KB")
     );
 
     test("1500 * 1000 bytes to string ", () =>
-        expect(FileUtils.fileSizeToString(1500 * 1000)).toBe("1.50 MB")
+        expect(FileUtils.sizeToString(1500 * 1000)).toBe("1.50 MB")
     );
 
     test("1500 * 1000**2 bytes to string ", () =>
-        expect(FileUtils.fileSizeToString(1500 * 1000 ** 2)).toBe("1.50 GB")
+        expect(FileUtils.sizeToString(1500 * 1000 ** 2)).toBe("1.50 GB")
     );
 
     test("1500 * 1000**3 bytes to string ", () =>
-        expect(FileUtils.fileSizeToString(1500 * 1000 ** 3)).toBe("1.50 TB")
+        expect(FileUtils.sizeToString(1500 * 1000 ** 3)).toBe("1.50 TB")
     );
 
     test("1500 * 1000**4 bytes to string ", () =>
-        expect(FileUtils.fileSizeToString(1500 * 1000 ** 4)).toBe("1.50 PB")
+        expect(FileUtils.sizeToString(1500 * 1000 ** 4)).toBe("1.50 PB")
     );
 
     test("1500 * 1000**5 bytes to string ", () =>
-        expect(FileUtils.fileSizeToString(1500 * 1000 ** 5)).toBe("1.50 EB")
+        expect(FileUtils.sizeToString(1500 * 1000 ** 5)).toBe("1.50 EB")
     );
 
     test("Invalid bytes size to string", () =>
-        expect(FileUtils.fileSizeToString(-1)).toBe("Invalid size")
+        expect(FileUtils.sizeToString(-1)).toBe("Invalid size")
     );
 });
 

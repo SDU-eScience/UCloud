@@ -65,7 +65,7 @@ export const BreadCrumbs = ({ currentPath, navigate, homeFolder }: BreadcrumbsLi
 }
 
 function buildBreadCrumbs(path: string, homeFolder: string) {
-    const paths = path.split("/").filter((path: string) => path);
+    const paths = path.split("/").filter(path => path);
     let pathsMapping: BreadCrumbMapping[] = [];
     for (let i = 0; i < paths.length; i++) {
         let actualPath = "/";

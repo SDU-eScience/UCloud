@@ -52,6 +52,7 @@ export class DataList extends React.PureComponent<DataListProps, { text: string 
                     </Box>
                 ))}
                 {filtered.length > this.totalShown ? <Box mb="0.5em">...</Box> : null}
+                {filtered.length === 0 ? <Box mb="0.5em">No Results</Box> : null}
             </ClickableDropdown>);
     }
 }

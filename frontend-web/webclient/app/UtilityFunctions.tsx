@@ -5,7 +5,7 @@ import { SortBy, SortOrder, File, Acl, FileType } from "Files";
 import { dateToString } from "Utilities/DateUtilities";
 import {
     getFilenameFromPath,
-    fileSizeToString,
+    sizeToString,
     replaceHomeFolder,
     isDirectory
 } from "Utilities/FileUtilities";
@@ -127,7 +127,7 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
         case SortBy.MODIFIED_AT:
             return dateToString(file.modifiedAt);
         case SortBy.SIZE:
-            return fileSizeToString(file.size);
+            return sizeToString(file.size);
         case SortBy.ACL:
             if (file.acl !== undefined)
                 return getOwnerFromAcls(file.acl)

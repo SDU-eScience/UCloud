@@ -4,7 +4,7 @@ import { Progress, Icon, Button, ButtonGroup, Heading, Divider } from "ui-compon
 import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString } from "UtilityFunctions";
-import { fileSizeToString } from "Utilities/FileUtilities";
+import { sizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
 import { ReduxObject, Sensitivity } from "DefaultObjects";
@@ -213,7 +213,7 @@ const UploaderRow = (p: {
     onAbort?: (e: React.MouseEvent<any>) => void
     onCheck?: (checked: boolean) => void
 }) => {
-    const fileTitle = <span><b>{p.file.name}</b> ({fileSizeToString(p.file.size)})</span>;
+    const fileTitle = <span><b>{p.file.name}</b> ({sizeToString(p.file.size)})</span>;
     let body;
 
     if (!p.isUploading) {

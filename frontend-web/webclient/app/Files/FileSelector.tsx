@@ -17,6 +17,7 @@ import { Spacer } from "ui-components/Spacer";
 import { EntriesPerPageSelector } from "Pagination";
 import { FilesTable } from "./FilesTable";
 import SDUCloud from "Authentication/lib";
+import { addTrailingSlash } from "UtilityFunctions";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props: Readonly<FileSelectorProps>) {
@@ -149,6 +150,9 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
     const files = f.filter(({ path }) => !disallowedPaths.some(d => d === path));
+    const relativeFolders: File[] = [];
+    if (addTrailingSlash(props.path) !== Cloud.homeFolder) relativeFolders.push(newMockFolder(`${props.path}/../`, false));
+    if (canSelectFolders) relativeFolders.push(newMockFolder(`${props.path}/./`, false));
     const ops: FileOperation[] = [];
     if (canSelectFolders) {
         ops.push(
@@ -167,7 +171,7 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
     return (
         <FilesTable
             onNavigationClick={props.fetchFiles}
-            files={files}
+            files={relativeFolders.concat(files)}
             sortOrder={SortOrder.ASCENDING}
             sortingColumns={[]}
             sortFiles={() => undefined}

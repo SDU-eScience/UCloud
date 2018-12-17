@@ -27,19 +27,16 @@ const labelStyles = css`
   animation: ${fadeIn} 0.3s;
 `
 
-const getFieldStyles = (showLabel: boolean) => {
-  return showLabel
-    ? {
-      paddingTop: "9.5px",
-      paddingBottom: "8px",
-      transition: "padding-top 0.1s, padding-bottom 0.1s"
-    }
-    : {
-      paddingTop: "9.5px",
-      paddingBottom: "9.5px",
-      transition: "padding-top 0.1s, padding-bottom 0.1s"
-    }
-}
+const getFieldStyles = (showLabel: boolean) =>
+  showLabel ? {
+    paddingTop: "9.5px",
+    paddingBottom: "8px",
+    transition: "padding-top 0.1s, padding-bottom 0.1s"
+  } : {
+    paddingTop: "9.5px",
+    paddingBottom: "9.5px",
+    transition: "padding-top 0.1s, padding-bottom 0.1s"
+  }
 
 const noop = () => { }
 

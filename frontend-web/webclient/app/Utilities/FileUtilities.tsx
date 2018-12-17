@@ -175,7 +175,7 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
                     (projectPath: string) => history.push(projectViewPage(projectPath))
                 ),
             disabled: (files: File[], cloud: SDUCloud) =>
-                files.length !== 1 || !canBeProject(files, cloud.homeFolder) || 
+                files.length !== 1 || !canBeProject(files, cloud.homeFolder) ||
                 !allFilesHasAccessRight("READ", files) || !allFilesHasAccessRight("WRITE", files),
             icon: "projects",
             color: "blue"
@@ -183,8 +183,8 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
     }
 ];
 
-export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(path)}`;
-export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(path)}`;
+export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
+export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
 export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: (() => void) | false, history: History | false) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
@@ -194,12 +194,32 @@ export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyO
     return [...stateLessOperations, ...fileSelectorOperations, ...deleteOperation, ...historyOperations];
 };
 
+
+/**
+ * Used for resolving paths, which contain either "." or "..", and returning the resolved path.
+ * @param path The current input path, which can include relative paths
+ */
+export function resolvePath(path: string) {
+    const components = path.split("/");
+    const result: string[] = [];
+    components.forEach(it => {
+        if (it === ".") {
+            return;
+        } else if (it === "..") {
+            result.pop();
+        } else {
+            result.push(it);
+        }
+    });
+    return result.join("/");
+}
+
 export const filepathQuery = (path: string, page: number, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): string =>
-    `files?path=${encodeURIComponent(path)}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}`;
+    `files?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}`;
 
 // FIXME: UF.removeTrailingSlash(path) shouldn't be unnecessary, but otherwise causes backend issues
 export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: SortOrder = SortOrder.DESCENDING, sortBy: SortBy = SortBy.PATH): string =>
-    `files/lookup?path=${encodeURIComponent(UF.removeTrailingSlash(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}`;
+    `files/lookup?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}`;
 
 export const advancedFileSearch = "/file-search/advanced"
 
@@ -334,7 +354,17 @@ export const getParentPath = (path: string): string => {
     return parentPath;
 };
 
-export const getFilenameFromPath = (path: string): string => path.split("/").filter(p => p).pop()!;
+const goUpDirectory = (count: number, path: string) => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
+
+const toFileName = (path: string) => path.split("/").filter(p => p).pop()!;
+
+export function getFilenameFromPath(path: string): string {
+    const replacedHome = replaceHomeFolder(path, Cloud.homeFolder)
+    const fileName = toFileName(replacedHome);
+    if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`
+    if (fileName === ".") return `. (Current folder)`
+    return fileName;
+}
 
 export const downloadFiles = (files: File[], cloud: SDUCloud) =>
     files.map(f => f.path).forEach(p =>
@@ -353,7 +383,7 @@ export const fetchFileContent = (path: string, cloud: SDUCloud) =>
         fetch(`/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`)
     );
 
-export const fileSizeToString = (bytes: number): string => {
+export const sizeToString = (bytes: number): string => {
     if (bytes < 0) return "Invalid size";
     if (bytes < 1000) {
         return `${bytes} B`;
@@ -377,7 +407,6 @@ export const shareFiles = (files: File[], cloud: SDUCloud) =>
         if (input.dismiss) return;
         const rights: string[] = [];
         const elementValue = UF.elementValue("access-select");
-        console.log(elementValue);
         if (elementValue.includes("read")) rights.push("READ")
         if (elementValue.includes("edit")) rights.push("WRITE")
         let i = 0;

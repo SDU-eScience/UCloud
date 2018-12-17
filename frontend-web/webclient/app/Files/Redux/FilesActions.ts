@@ -17,7 +17,7 @@ import {
     CREATE_FOLDER,
     FILES_INVALID_PATH
 } from "./FilesReducer";
-import { getFilenameFromPath, replaceHomeFolder, getParentPath, statFileQuery } from "Utilities/FileUtilities";
+import { getFilenameFromPath, replaceHomeFolder, getParentPath, statFileQuery, resolvePath } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
 import { SortOrder, SortBy, File } from "..";
 import { Action } from "redux";
@@ -89,7 +89,7 @@ interface UpdatePathAction extends Action<typeof UPDATE_PATH> { path: string }
  */
 export const updatePath = (path: string): UpdatePathAction => ({
     type: UPDATE_PATH,
-    path
+    path: resolvePath(path)
 });
 
 interface ReceiveFiles extends PayloadAction<typeof RECEIVE_FILES, { path: string, sortOrder: SortOrder, sortBy: SortBy, page: Page<File> }> { }
@@ -157,11 +157,12 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
  * @param {SortBy} sortBy the field to be sorted by
  */
 export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR>> =>
-    Cloud.get(fileLookupQuery(path, itemsPerPage, order, sortBy))
+    Cloud.get<Page<File>>(fileLookupQuery(path, itemsPerPage, order, sortBy))
         .then(({ response }) => {
-            const i = response.items.findIndex(it => it.path === path);
+            const resolvedPath = resolvePath(path);
+            const i = response.items.findIndex(it => it.path === resolvedPath); 
             response.items[i].isChecked = true;
-            return receiveFiles(response, getParentPath(path), order, sortBy)
+            return receiveFiles(response, getParentPath(resolvedPath), order, sortBy)
         }).catch(() =>
             setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
         ); // FIXME Add error handling
@@ -175,7 +176,7 @@ export const fetchPageFromPath = (path: string, itemsPerPage: number, order: Sor
 export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> =>
     Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage)).then(({ response }) => {
         response.items.forEach(file => file.isChecked = false);
-        return receiveFileSelectorFiles(response, path);
+        return receiveFileSelectorFiles(response, resolvePath(path));
     }).catch(() => setFileSelectorError({ error: `An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}` }));
 
 /**

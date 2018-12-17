@@ -198,16 +198,16 @@ const OldUserAvatar = () => (
 const UserAvatar = () => (
     <ClippedBox mr="8px" width="60px">
         <Avatar
-            avatarStyle='Circle'
-            topType='ShortHairShortFlat'
-            accessoriesType='Blank'
-            hairColor='Black'
-            facialHairType='Blank'
-            clotheType='BlazerShirt'
-            eyeType='Default'
-            eyebrowType='Default'
-            mouthType='Default'
-            skinColor='Light'
+            avatarStyle="Circle"
+            topType="ShortHairShortFlat"
+            accessoriesType="Blank"
+            hairColor="Black"
+            facialHairType="Blank"
+            clotheType="BlazerShirt"
+            eyeType="Default"
+            eyebrowType="Default"
+            mouthType="Default"
+            skinColor="Light"
         />
     </ClippedBox>
 );
@@ -219,9 +219,9 @@ interface HeaderOperations {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
-    setSidebarOpen: (open) => dispatch(setSidebarState(open)),
+    setSidebarOpen: open => dispatch(setSidebarState(open)),
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
-    searchFiles: async (fileName) => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] }))
+    searchFiles: async fileName => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] }))
 });
 
 const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps => ({

@@ -8,7 +8,7 @@ module.exports = {
         const typeScriptTpl = template.smart({ plugins: ['typescript'] })
         return typeScriptTpl.ast`
     import * as React from 'react';
-    const ${componentName} = (props: React.SVGProps<SVGSVGElement>) => ${jsx};
+    const ${componentName} = (props) => ${jsx};
     export default ${componentName};
   `
     },

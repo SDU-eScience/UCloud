@@ -1,5 +1,5 @@
 import * as UF from "UtilityFunctions";
-import { getFilenameFromPath, fileSizeToString } from "Utilities/FileUtilities";
+import { getFilenameFromPath, sizeToString } from "Utilities/FileUtilities";
 import { SortBy, SortOrder, Acl } from "Files";
 
 // TO LOWER CASE AND CAPITALIZE
@@ -349,7 +349,7 @@ describe("sortingColumnToValue", () => {
         expect(UF.sortingColumnToValue(SortBy.MODIFIED_AT, file)).toBe(dateToString(file.modifiedAt))
     })
     test("SIZE", () => {
-        expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(fileSizeToString(file.size))
+        expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(sizeToString(file.size))
     })
     test("ACL", () => {
         expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getOwnerFromAcls(file.acl))

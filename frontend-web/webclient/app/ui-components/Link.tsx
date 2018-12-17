@@ -32,5 +32,4 @@ Link.defaultProps = {
 
 Link.displayName = "Link";
 
-
 export default Link;

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { toLowerCaseAndCapitalize, removeTrailingSlash, addTrailingSlash } from "UtilityFunctions";
-import { fileSizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile, reclassifyFile } from "Utilities/FileUtilities";
+import { sizeToString, getParentPath, replaceHomeFolder, isDirectory, favoriteFile, reclassifyFile } from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { dateToString } from "Utilities/DateUtilities"
@@ -124,7 +124,7 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
                             }))
                         } />
                 </Attribute>
-                <Attribute name="Size" value={fileSizeToString(file.size)} />
+                <Attribute name="Size" value={sizeToString(file.size)} />
                 <Attribute name="Shared with" value={`${file.acl !== undefined ? file.acl.length : 0} people`} />
             </AttributeBox>
         </Flex >

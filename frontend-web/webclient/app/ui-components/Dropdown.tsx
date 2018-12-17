@@ -2,7 +2,8 @@ import styled from "styled-components";
 import { left } from "styled-system";
 import { min } from "moment";
 
-const fullWidth = (props) => props.fullWidth ? { width: "100%" } : null; 
+interface FullWidthProps { fullWidth?: boolean }
+const fullWidth = ({ fullWidth }: FullWidthProps) => fullWidth ? { width: "100%" } : null;
 
 export const Dropdown = styled.div<{ hover?: boolean, fullWidth?: boolean }>`
     position: relative;
@@ -27,7 +28,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     background-color: ${props => props.theme.colors[props.backgroundColor!]};
     color: ${props => props.theme.colors[props.color!]};
     width: ${props => props.width};
-    min-width: ${props => props.minWidth ? props.minWidth : "138" }px;
+    min-width: ${props => props.minWidth ? props.minWidth : "138"}px;
     max-height: ${props => props.maxHeight ? props.maxHeight : ""};
     box-shadow: 0px 0px 3px 1px rgba(0, 0, 0, 0.2);
     padding: 12px 16px;

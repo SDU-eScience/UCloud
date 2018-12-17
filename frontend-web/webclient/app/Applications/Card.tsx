@@ -226,8 +226,8 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
     const c1 = [i1%3, (i1+1)%3, (i1+2)%3];
     const c2 = [i2%3, (i2+1)%3, (i2+2)%3];
     const appC = appColor(hash);
-    const centerC = nColors-1;
-    //const centerC = appC;
+    //const centerC = nColors-1;
+    const centerC = appC;
 
     const i3=(hash>>>10)&3;
     const rot = [0, 15, 30];
