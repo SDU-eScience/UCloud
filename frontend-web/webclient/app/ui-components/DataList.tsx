@@ -17,7 +17,7 @@ interface DataListProps {
     clearOnSelect?: boolean
 }
 export class DataList extends React.PureComponent<DataListProps, { text: string }> {
-    constructor(props) {
+    constructor(props: DataListProps) {
         super(props);
         this.state = {
             text: ""

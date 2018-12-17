@@ -2,7 +2,7 @@ import { History } from "history";
 import { Contributor, Subject, RelatedIdentifier } from "./api";
 import { RouterLocationProps } from "Utilities/URIUtilities";
 import { License } from "./licenses";
-export { CreateUpdate } from "./CreateUpdate";
+export { default as CreateUpdate } from "./CreateUpdate";
 export { ManagedView, View } from "./View";
 
 export interface CreateUpdateState {

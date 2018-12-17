@@ -1,6 +1,6 @@
 import * as React from "react";
 import { create } from "react-test-renderer";
-import { CreateUpdate } from "Project/CreateUpdate";
+import CreateUpdate from "Project/CreateUpdate";
 import { createMemoryHistory } from "history";
 import { Provider } from "react-redux";
 import { configureStore } from "Utilities/ReduxUtilities";

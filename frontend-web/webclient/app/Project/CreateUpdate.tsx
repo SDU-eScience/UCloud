@@ -11,6 +11,7 @@ import { projectViewPage } from "Utilities/ProjectUtilities";
 import { Input, DataList, Box, Button, Flex, TextArea, Text, Label } from "ui-components";
 import { contentValuePairLicenses, contentValuePairIdentifierTypes } from "ui-components/DataList";
 import { TextSpan } from "ui-components/Text";
+import { connect } from "react-redux";
 
 // FIXME: MISSING TYPESAFETY THROUGHOUT
 
@@ -42,8 +43,8 @@ const filePathFromProps = (props: CreateUpdateProps): string | null =>
     getQueryParam(props, "filePath");
 
 
-export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
-    constructor(props, ctx) {
+class CreateUpdate extends React.Component<CreateUpdateProps, any> {
+    constructor(props) {
         super(props);
         const path = filePathFromProps(props);
         this.state = {
@@ -61,7 +62,7 @@ export class CreateUpdate extends React.Component<CreateUpdateProps, any> {
             relatedIdentifiers: [newIdentifier()],
             errors: { contributors: {}, subjects: {}, relatedIdentifiers: {} }
         };
-        ctx.store.dispatch(updatePageTitle("Edit Project"));
+        props.dispatch(updatePageTitle("Edit Project"));
         this.setStateEv = this.setStateEv.bind(this);
         this.setStateEvList = this.setStateEvList.bind(this);
     }
@@ -526,3 +527,5 @@ const FormFieldList = ({ items, name, onChange }) =>
 
 
 const Required = () => <TextSpan color="red">{" *"}</TextSpan>
+
+export default connect()(CreateUpdate);
