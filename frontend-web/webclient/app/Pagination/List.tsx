@@ -6,6 +6,8 @@ import { RefreshButton } from "UtilityComponents";
 import * as Heading from "ui-components/Heading";
 import { Box, Flex, Relative, Error } from "ui-components";
 import Spinner from "LoadingIcon/LoadingIcon";
+import { emptyPage } from "DefaultObjects";
+import { LoadingBox } from "ui-components/LoadingBox";
 
 interface ListProps<T> {
     pageRenderer: (page: Page<T>) => React.ReactNode
@@ -50,7 +52,6 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
                 onClick={this.props.onRefresh}
             />
         ) : null;
-
         return (
             <>
                 {errorComponent}
@@ -80,8 +81,7 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
 
     private renderBody(): React.ReactNode {
         const { props } = this;
-        if (props.loading) {
-//            return (<Flex><Box width="50%" /><DefaultLoading loading/></Flex>)
+        if (props.loading && props.page === emptyPage) {
             return (<Spinner size={24}/>)
         } else {
             if (props.page == null || props.page.items.length == 0) {

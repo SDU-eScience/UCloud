@@ -10,9 +10,9 @@ export interface Reducer {
 const reducer = (state: ReduxType = init().applicationsBrowse, action: ActionType): ReduxType => {
     switch (action.type) {
         case Tag.RECEIVE_APP: {
-            return { ...state, applications: loadableEventToContent(action.payload) };
+            return { ...state, applications: { ...state.applications, ...loadableEventToContent(action.payload) } };
         }
-        
+
         default: {
             return state;
         }

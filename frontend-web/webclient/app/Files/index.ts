@@ -89,6 +89,7 @@ export interface FilesOperations { // Redux operations
     setFileSelectorCallback: (callback: Function) => void
     checkFile: (checked: boolean, path: string) => void
     setPageTitle: () => void
+    setLoading: (loading: boolean) => void
     updateFiles: (files: Page<File>) => void
     updatePath: (path: string) => void
     showFileSelector: (open: boolean) => void

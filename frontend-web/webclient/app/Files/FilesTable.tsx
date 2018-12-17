@@ -1,4 +1,5 @@
 import * as React from "react";
+import { File } from "Files";
 import { Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader } from "ui-components/Table";
 import { FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps } from "Files";
 import ClickableDropdown from "ui-components/ClickableDropdown";

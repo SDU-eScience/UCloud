@@ -35,11 +35,9 @@ export interface LoadingMainContainerProps<T = any> extends MainContainerProps {
 
 export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Element {
     if (!props.loadable.content) {
-        const main = !!props.loadable.error ? 
-            <>
-                <Heading.h2>{props.loadable.error.statusCode} - {props.loadable.error.errorMessage}</Heading.h2>
-            </> : 
-            <Spinner size={24}/>
+        const main = !!props.loadable.error ?
+            <Heading.h2>{props.loadable.error.statusCode} - {props.loadable.error.errorMessage}</Heading.h2> :
+            <Spinner size={24} />
         return <MainContainer
             header={props.fallbackHeader}
             sidebar={props.fallbackSidebar}

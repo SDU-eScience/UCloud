@@ -66,13 +66,13 @@ class Files extends React.Component<FilesProps> {
     }
 
     private fetchPageFromPath = (path: string) => {
-        const { page, history, sortOrder, sortBy  } = this.props;
+        const { page, history, sortOrder, sortBy } = this.props;
         this.props.fetchPageFromPath(path, page.itemsPerPage, sortOrder, sortBy);
         this.props.updatePath(getParentPath(path)); // FIXME Could these be handled by shouldComponentUpdate?
         history.push(fileTablePage(getParentPath(path)))
     }
 
-    shouldComponentUpdate(nextProps: FilesProps, _nextState): boolean {
+    shouldComponentUpdate(nextProps: FilesProps): boolean {;
         const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
         const nextPath = this.urlPathFromProps(nextProps);
         if (nextProps.path !== nextPath && !loading) {
@@ -100,7 +100,6 @@ class Files extends React.Component<FilesProps> {
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
-        
         const main = (
             <>
                 <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
@@ -214,6 +213,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
         dispatch(Actions.setLoading(true));
         dispatch(await Actions.fetchPageFromPath(path, itemsPerPage, sortOrder, sortBy));
     },
+    setLoading: loading => dispatch(Actions.setLoading(loading)),
     updatePath: path => dispatch(Actions.updatePath(path)),
     fetchSelectorFiles: async (path, pageNumber, itemsPerPage) => dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
     showFileSelector: open => dispatch(Actions.fileSelectorShown(open)),

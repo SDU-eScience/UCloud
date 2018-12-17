@@ -6,9 +6,9 @@ export interface LoadableContent<Content = any> {
     content?: Content
 }
 
-export function emptyLoadableContent<T = any>(): LoadableContent<T> {
-    return { loading: false };
-}
+export const emptyLoadableContent = <T = any>(): LoadableContent<T> => ({
+    loading: false
+});
 
 export enum LoadableEventTag {
     LOADING = "LOADING",
@@ -44,9 +44,9 @@ export function loadableEventToContent<T>(event: LoadableEvent<T>): LoadableCont
     }
 }
 
-export function loadingEvent(loading: boolean): LoadableEventLoading {
-    return { type: LoadableEventTag.LOADING, loading };
-}
+export const loadingEvent = (loading: boolean): LoadableEventLoading => ({
+    type: LoadableEventTag.LOADING, loading
+});
 
 export async function unwrapCall<T>(httpResponse: Promise<{ request: XMLHttpRequest, response: T }>): Promise<LoadableEvent<T>> {
     const message = await unwrap(httpResponse);

@@ -123,7 +123,7 @@ class Applications extends React.Component<ApplicationsProps> {
     render() {
         const main = (
             <Pagination.List
-                loading={false}
+                loading={this.props.applications.loading}
                 onRefresh={() => this.fetch(this.props)}
                 pageRenderer={(page: Page<Application>) =>
                     <CardGroup>
