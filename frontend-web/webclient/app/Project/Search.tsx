@@ -7,7 +7,7 @@ import { projectViewPage } from "Utilities/ProjectUtilities";
 
 interface SearchItemProps { item: ProjectMetadata }
 export const SearchItem = ({ item }: SearchItemProps) => (
-    <Card height="154px" p="12px" mb="0.5em" mt="0.5em" borderRadius=".28571429rem">
+    <Card minHeight="168px" p="12px" mb="0.5em" mt="0.5em" borderRadius=".28571429rem">
         <Heading.h3><Link to={projectViewPage(item.sduCloudRoot)}>{item.title}</Link></Heading.h3>
 
         <Divider />
