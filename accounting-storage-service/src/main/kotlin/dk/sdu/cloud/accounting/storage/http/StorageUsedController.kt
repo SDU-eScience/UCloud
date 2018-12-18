@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.storage.http
 
+import dk.sdu.cloud.accounting.api.ChartDataTypes
 import dk.sdu.cloud.accounting.api.ChartResponse
 import dk.sdu.cloud.accounting.api.ChartingHelpers
 import dk.sdu.cloud.accounting.api.CurrentUsageResponse
@@ -22,25 +23,36 @@ class StorageUsedController<DBSession>(
 
             ok(
                 ChartResponse(
-                    ChartingHelpers.basicChartFromEvents(dataPoints, yAxisLabel = "Storage Used (Bytes)") {
-                        it.bytesUsed
-                    },
+                    ChartingHelpers.absoluteChartFromEvents(
+                        dataPoints,
+                        dataType = ChartDataTypes.BYTES,
+                        dataTitle = "Storage Used",
+                        dataSelector = { it.bytesUsed }
+                    ),
                     quota = null
                 )
             )
         }
 
-        implement(StorageUsedResourceDescription.currentUsage) { req ->
-            ok(CurrentUsageResponse(
-                usage = storageAccountingService.calculateUsage(
-                    homeDirectory(call.securityPrincipal.username),
-                    call.securityPrincipal.username
-                    ).first().units,
-                quota = null
-            ))
+        implement(StorageUsedResourceDescription.currentUsage) {
+            // TODO FIXME This doesn't actually live up to the correct API.
+            val usage = storageAccountingService.calculateUsage(
+                homeDirectory(call.securityPrincipal.username),
+                call.securityPrincipal.username
+            ).first().units
+
+            ok(
+                CurrentUsageResponse(
+                    usage = usage,
+                    dataType = ChartDataTypes.BYTES,
+                    title = "Storage Used",
+                    quota = null
+                )
+            )
         }
 
         implement(StorageUsedResourceDescription.listEvents) { req ->
+            // TODO This doesn't actually live up to the correct API.
             ok(storageAccountingService.listEventsPage(req.normalize(), req, call.securityPrincipal.username))
         }
     }

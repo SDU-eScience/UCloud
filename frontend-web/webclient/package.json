@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "@svgr/cli": "^4.1.0",
+    "@types/recharts": "^1.1.5",
     "avataaars": "^1.2.1",
     "fuse.js": "^3.3.0",
     "install": "^0.12.2",
@@ -68,6 +69,7 @@
     "react-redux": "^6.0.0",
     "react-router": "4.3.1",
     "react-router-dom": "4.3.1",
+    "recharts": "^1.4.1",
     "redux": "4.0.1",
     "styled-components": "^4.1.2",
     "styled-system": "^3.1.11",

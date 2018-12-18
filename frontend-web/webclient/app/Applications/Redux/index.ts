@@ -13,7 +13,7 @@ export function init(): Objects {
         ...ViewObject.init(),
         ...ApplicationObject.init(),
         ...FavoriteObject.init()
-    }
+    };
 }
 
 export const reducers: Reducers = {

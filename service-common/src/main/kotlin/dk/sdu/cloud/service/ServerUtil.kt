@@ -38,18 +38,18 @@ fun CommonServer.buildStreams(builder: (StreamsBuilder) -> Unit): KafkaStreams {
 }
 
 fun CommonServer.startServices() {
-    val httpServer = httpServer
-    if (httpServer != null) {
-        log.info("Starting HTTP server...")
-        httpServer.start(wait = false)
-        log.info("HTTP server started!")
-    }
-
     val kStreams = kStreams
     if (kStreams != null) {
         log.info("Starting Kafka Streams...")
         kStreams.start()
         log.info("Kafka Streams started!")
+    }
+
+    val httpServer = httpServer
+    if (httpServer != null) {
+        log.info("Starting HTTP server...")
+        httpServer.start(wait = true)
+        log.info("HTTP server started!")
     }
 }
 

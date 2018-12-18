@@ -3,12 +3,12 @@ apiVersion: batch/v1
 kind: Job
 
 metadata:
-  name: accounting-storage-migration
+  name: accounting-compute-migration
 
 spec:
   template:
     metadata:
-      name: accounting-storage-migration
+      name: accounting-compute-migration
 
     spec:
       containers:
@@ -22,8 +22,8 @@ spec:
         - /etc/token-validation
         - --run-script
         - migrate-db
-        image: registry.cloud.sdu.dk/sdu-cloud/accounting-storage-service:0.3.7
-        name: accounting-storage-migration
+        image: registry.cloud.sdu.dk/sdu-cloud/accounting-compute-service:0.3.2
+        name: accounting-compute-migration
 
         volumeMounts:
         - mountPath: /etc/service
@@ -41,10 +41,10 @@ spec:
       volumes:
       - name: vol1
         secret:
-          secretName: accounting-storage-psql
+          secretName: accounting-compute-psql
       - name: vol2
         secret:
-          secretName: accounting-storage-refresh-token
+          secretName: accounting-compute-refresh-token
       - configMap:
           defaultMode: 420
           name: token-validation

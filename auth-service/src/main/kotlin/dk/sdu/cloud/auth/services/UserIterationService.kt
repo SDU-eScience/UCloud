@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.SDUCloud
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
@@ -16,6 +17,8 @@ import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.updateCriteria
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.orThrow
+import io.ktor.client.request.HttpRequestBuilder
+import io.ktor.client.request.header
 import io.ktor.http.HttpStatusCode
 import org.hibernate.ScrollMode
 import org.hibernate.ScrollableResults
@@ -166,15 +169,30 @@ class UserIterationService(
     private fun cloudForHostname(hostname: String, port: Int): AuthenticatedCloud {
         val refresher = serviceCloud.tokenRefresher
         val cloudContext = SDUCloud("http://$hostname:$port")
-        return RefreshingJWTAuthenticatedCloud(cloudContext, refresher)
+        return RefreshingJWTAuthenticatedCloud(cloudContext, refresher).withJobId()
     }
 
     companion object : Loggable {
         override val log: Logger = logger()
 
-        const val PAGE_SIZE = 10
+        const val PAGE_SIZE = 1000
     }
 }
+
+private class AuthenticatedCloudWithJobId(private val delegate: AuthenticatedCloud) : AuthenticatedCloud {
+    override val parent: CloudContext
+        get() = delegate.parent
+
+    override fun HttpRequestBuilder.configureCall() {
+        with (delegate) {
+            configureCall()
+        }
+
+        header("Job-Id", UUID.randomUUID().toString())
+    }
+}
+
+private fun AuthenticatedCloud.withJobId(): AuthenticatedCloud = AuthenticatedCloudWithJobId(this)
 
 sealed class UserIterationException(why: String, statusCode: HttpStatusCode) : RPCException(why, statusCode) {
     class BadIterator : UserIterationException("Bad iterator (Not found)", HttpStatusCode.NotFound)
