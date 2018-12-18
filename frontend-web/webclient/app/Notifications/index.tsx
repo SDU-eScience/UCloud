@@ -85,7 +85,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             </>) : null;
         const badgeCount = unreadLength + activeUploads;
         return (
-            <ClickableDropdown width={"380px"} left={"-270px"} trigger={
+            <ClickableDropdown top="37px" width={"380px"} left={"-270px"} trigger={
                 <Flex>
                     <Relative top="0" left="0">
                         <Flex justifyContent="center" width="60px">
@@ -157,7 +157,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
     }
 }
 
-const read = ({ read }) => read ? { backgroundColor: theme.colors.white } : { backgroundColor: theme.colors.gray };
+const read = (p: { read: boolean }) => p.read ? { backgroundColor: theme.colors.white } : { backgroundColor: theme.colors.gray };
 
 const NotificationWrapper = styled(Flex)`
     ${read};
