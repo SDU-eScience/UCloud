@@ -2,7 +2,7 @@ import * as React from "react";
 import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
-import { replaceHomeFolder, isDirectory, newMockFolder } from "Utilities/FileUtilities";
+import { replaceHomeFolder, isDirectory, newMockFolder, resolvePath } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
 import { RefreshButton } from "UtilityComponents";
@@ -54,7 +54,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             this.setState(() => ({
                 page: response,
                 loading: false,
-                path,
+                path: resolvePath(path),
                 error: undefined
             }))
         ).catch((_) => this.setState(() => ({ error: "An error occurred fetching files", loading: false })));

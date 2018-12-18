@@ -49,7 +49,7 @@ export class DataList extends React.PureComponent<DataListProps, { text: string,
     }
 
     render() {
-        const results = this.state.fuse.search(this.state.text);
+        const results = this.state.text ? this.props.options.slice(0, this.totalShown) : this.state.fuse.search(this.state.text);
         return (
             <ClickableDropdown fullWidth trigger={
                 <FormField>
