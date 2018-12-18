@@ -8,14 +8,15 @@ import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import ShareList from "Shares/List";
-import { File, FileInfoProps } from "Files";
+import { File } from "Files";
 import { ActivityFeed } from "Activity/Activity";
 import { Dispatch } from "redux";
-import { fetchFileStat, setLoading, fetchFileActivity, receiveFileStat } from "./Redux/FileInfoActions";
-import { Flex, Box, Icon, Card } from "ui-components";
+import { fetchFileStat, setLoading, fetchFileActivity, receiveFileStat, fileInfoError } from "./Redux/FileInfoActions";
+import { Flex, Box, Icon, Card, Error } from "ui-components";
 import List from "ui-components/List";
 import * as Heading from "ui-components/Heading"
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import { FileInfoReduxObject } from "DefaultObjects";
 
 interface FileInfoOperations {
     updatePageTitle: () => void
@@ -23,9 +24,10 @@ interface FileInfoOperations {
     fetchFileStat: (path: string) => void
     fetchFileActivity: (path: string) => void
     receiveFileStat: (file: File) => void
+    setError: (err?: string) => void
 }
 
-interface FileInfo extends FileInfoProps, FileInfoOperations {
+interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
     location: { pathname: string, search: string }
 }
 
@@ -55,7 +57,8 @@ class FileInfo extends React.Component<FileInfo> {
 
     render() {
         const { loading, file, activity, ...props } = this.props;
-        if (!file) { return (<LoadingIcon size={18} />) }
+        if (loading) return (<LoadingIcon size={18} />);
+        if (!file) return <Error error={this.props.error} clearError={() => this.props.setError()} />;
         const fileName = replaceHomeFolder(isDirectory(file) ? addTrailingSlash(file.path) : file.path, Cloud.homeFolder);
         return (
             <Flex alignItems="center" flexDirection="column">
@@ -130,19 +133,21 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
         </Flex >
     );
 
-const mapStateToProps = ({ fileInfo }: ReduxObject): FileInfoProps => ({
+const mapStateToProps = ({ fileInfo }: ReduxObject): FileInfoReduxObject & { favorite: boolean } => ({
     loading: fileInfo.loading,
     file: fileInfo.file,
     favorite: !!(fileInfo.file && fileInfo.file.favorited),
-    activity: fileInfo.activity
+    activity: fileInfo.activity,
+    error: fileInfo.error
 });
 
 const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("File Info")),
     setLoading: loading => dispatch(setLoading(loading)),
-    fetchFileStat: async (path) => dispatch(await fetchFileStat(path)),
-    fetchFileActivity: async (path) => dispatch(await fetchFileActivity(path)),
-    receiveFileStat: (file) => dispatch(receiveFileStat(file))
+    setError: err => dispatch(fileInfoError(err)),
+    fetchFileStat: async path => dispatch(await fetchFileStat(path)),
+    fetchFileActivity: async path => dispatch(await fetchFileActivity(path)),
+    receiveFileStat: file => dispatch(receiveFileStat(file))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(FileInfo);
