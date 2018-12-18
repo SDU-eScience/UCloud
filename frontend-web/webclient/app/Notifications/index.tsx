@@ -129,16 +129,12 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
     public render() {
         const { notification } = this.props;
         return (
-            <NotificationWrapper read={notification.read} flexDirection="row" onClick={() => this.handleAction()}>
-                <Box width="0.20" m="0 0.3em 0 0.3em">
-                    <Icon size={1} name={this.resolveEventIcon(notification.type)} />
-                </Box>
-                <Box width="0.80">
-                    <Flex flexDirection="column">
-                        <TextSpan color="grey" fontSize={1}>{moment(notification.ts.toString(), "x").fromNow()}</TextSpan>
-                        <TextSpan>{notification.message}</TextSpan>
-                    </Flex>
-                </Box>
+            <NotificationWrapper alignItems="center" read={notification.read} flexDirection="row" onClick={() => this.handleAction()}>
+                <Box mr="0.4em" width="10%"><Icon name={this.resolveEventIcon(notification.type)} /></Box>
+                <Flex width="90%" flexDirection="column">
+                    <TextSpan color="grey" fontSize={1}>{moment(notification.ts.toString(), "x").fromNow()}</TextSpan>
+                    <TextSpan fontSize={1}>{notification.message}</TextSpan>
+                </Flex>
             </NotificationWrapper>
         );
     }

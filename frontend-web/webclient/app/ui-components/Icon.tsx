@@ -1,7 +1,7 @@
 import * as React from 'react'
 import styled from 'styled-components'
 import { space, color, SpaceProps, ColorProps } from "styled-system"
-import * as icons from './icons/index'
+import * as icons from './icons/index';
 import theme from './theme'
 
 
