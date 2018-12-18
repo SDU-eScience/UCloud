@@ -145,7 +145,7 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
     type: RECEIVE_FILE_SELECTOR_FILES,
     payload: {
         page,
-        path
+        path: resolvePath(path)
     }
 });
 

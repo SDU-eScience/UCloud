@@ -2,15 +2,14 @@ import * as React from "react";
 import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
-import * as PropTypes from "prop-types";
-import { replaceHomeFolder, getFilenameFromPath, isDirectory, createFolder, newMockFolder, getParentPath } from "Utilities/FileUtilities";
+import { replaceHomeFolder, isDirectory, newMockFolder } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
 import { RefreshButton } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
-import { filepathQuery, isInvalidPathName } from "Utilities/FileUtilities";
-import { Input, Icon, Box, Button, Divider } from "ui-components";
+import { filepathQuery } from "Utilities/FileUtilities";
+import { Input, Icon, Button, Divider } from "ui-components";
 import * as ReactModal from "react-modal";
 import * as Heading from "ui-components/Heading";
 import { Spacer } from "ui-components/Spacer";
@@ -151,8 +150,10 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
     const files = f.filter(({ path }) => !disallowedPaths.some(d => d === path));
     const relativeFolders: File[] = [];
-    if (addTrailingSlash(props.path) !== Cloud.homeFolder) relativeFolders.push(newMockFolder(`${props.path}/../`, false));
-    if (canSelectFolders) relativeFolders.push(newMockFolder(`${props.path}/./`, false));
+
+    const p = props.path.startsWith("/") ? addTrailingSlash(props.path) : `/${addTrailingSlash(props.path)}`
+    if (p !== Cloud.homeFolder) relativeFolders.push(newMockFolder(`${props.path}/..`, false));
+    if (canSelectFolders) relativeFolders.push(newMockFolder(`${props.path}/.`, false));
     const ops: FileOperation[] = [];
     if (canSelectFolders) {
         ops.push(
