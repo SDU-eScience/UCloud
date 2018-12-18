@@ -81,7 +81,7 @@ class StorageAccountingHibernateDao : StorageAccountingDao<HibernateSession> {
     ): Page<StorageUsedEvent> {
         return session.paginatedCriteria<StorageForUserEntity>(
             paging,
-            orderBy = { listOf(ascending(entity[StorageForUserEntity::date])) } ,
+            orderBy = { listOf(descending(entity[StorageForUserEntity::date])) } ,
             predicate = {
                 (entity[StorageForUserEntity::username] equal user) and matchingContext(context)
             }

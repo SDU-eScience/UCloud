@@ -77,10 +77,7 @@ data class Chart<DataPointType : ChartDataPoint>(
      */
     val dataTypes: List<String?>? = null,
 
-    /**
-     * An array containing axis labels. Each element corresponds to a dimension.
-     */
-    val axisLabels: List<String?>? = null
+    val dataTitle: String? = null
 )
 
 object ChartDataTypes {
@@ -88,4 +85,5 @@ object ChartDataTypes {
     val DURATION = "duration"
     val DATE = "date"
     val DATETIME = "datetime"
+    val NUMBER = "number"
 }

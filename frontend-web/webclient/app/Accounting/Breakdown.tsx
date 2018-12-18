@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as API from "./api";
-import Table, { TableRow, TableCell } from "ui-components/Table";
+import Table, { TableRow, TableCell, TableBody, TableHeader, TableHeaderCell } from "ui-components/Table";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { Text, Flex } from "ui-components";
 import * as moment from "moment";
@@ -36,7 +36,16 @@ class Breakdown extends React.Component<BreakdownProps> {
     render() {
         const events: API.AccountingEvent[] = this.props.events || MockEvents.items;
         return <Table>
-            {events.map((e, idx) => <BreakdownItem item={e} key={idx} />)}
+            <TableHeader style={{ textAlign: "left" }}>
+                <TableRow>
+                    <TableHeaderCell>Time</TableHeaderCell>
+                    <TableHeaderCell>Type</TableHeaderCell>
+                    <TableHeaderCell>Description</TableHeaderCell>
+                </TableRow>
+            </TableHeader>
+            <TableBody>
+                {events.map((e, idx) => <BreakdownItem item={e} key={idx} />)}
+            </TableBody>
         </Table>;
     }
 }

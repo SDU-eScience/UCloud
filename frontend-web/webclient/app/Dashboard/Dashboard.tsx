@@ -25,6 +25,20 @@ import { notificationRead, readAllNotifications } from "Notifications/Redux/Noti
 import { History } from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
 import * as UF from "UtilityFunctions";
+import * as Accounting from "Accounting";
+
+const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
+    <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
+            <Heading.h4>{title}</Heading.h4>
+        </Flex>
+        <Box px={3} py={1}>
+            {isLoading && <Spinner size={24} />}
+            <Box pb="0.5em" />
+            {children}
+        </Box>
+    </Card>
+);
 
 class Dashboard extends React.Component<DashboardProps & { history: History }> {
     constructor(props: any) {
@@ -69,30 +83,39 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
                         isLoading={favoriteLoading}
                         favorite={file => favoriteOrUnfavorite(file)}
                     />
-                    <DashboardRecentFiles files={recentFiles} isLoading={recentLoading} />
-                    <DashboardAnalyses analyses={recentAnalyses} isLoading={analysesLoading} />
-                    <DashboardNotifications onNotificationAction={this.onNotificationAction} notifications={notifications} readAll={() => props.readAll()} />
+
+                    <DashboardRecentFiles
+                        files={recentFiles}
+                        isLoading={recentLoading}
+                    />
+
+                    <DashboardAnalyses
+                        analyses={recentAnalyses}
+                        isLoading={analysesLoading}
+                    />
+
+                    <DashboardNotifications
+                        onNotificationAction={this.onNotificationAction}
+                        notifications={notifications}
+                        readAll={() => props.readAll()}
+                    />
+
+                    <DashboardCard title={"Storage Used"} isLoading={false}>
+                        <Accounting.Usage resource={"storage"} subResource={"bytesUsed"} />
+                    </DashboardCard>
+
+                    <DashboardCard title={"Compute Time Used"} isLoading={false}>
+                        <Accounting.Usage resource={"compute"} subResource={"timeUsed"} />
+                    </DashboardCard>
                 </CardGroup>
             </React.StrictMode>
         );
     }
 }
 
-const DashBoardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
-    <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
-        <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
-            <Heading.h4>{title}</Heading.h4>
-        </Flex>
-        <Box px={3} py={1}>
-            {isLoading && <Spinner size={24} />}
-            <Box pb="0.5em" />
-            {children}
-        </Box>
-    </Card>
-)
 
 const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[], isLoading: boolean, favorite: (file: File) => void }) => (
-    <DashBoardCard title="Favorite Files" isLoading={isLoading}>
+    <DashboardCard title="Favorite Files" isLoading={isLoading}>
         {files.length || isLoading ? null : (<Heading.h6>No favorites found</Heading.h6>)}
         <List>
             {files.map((file, i) => (
@@ -103,7 +126,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
                 </Flex>)
             )}
         </List>
-    </DashBoardCard>
+    </DashboardCard>
 );
 
 const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean, pixelsWide: number }) => {
@@ -121,7 +144,7 @@ const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean
 }
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
-    <DashBoardCard title="Recently used files" isLoading={isLoading}>
+    <DashboardCard title="Recently used files" isLoading={isLoading}>
         <List>
             {files.map((file, i) => (
                 <Flex key={i} pt="0.8em" pb="6px">
@@ -131,11 +154,11 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
                 </Flex>
             ))}
         </List>
-    </DashBoardCard>
+    </DashboardCard>
 );
 
 const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLoading: boolean }) => (
-    <DashBoardCard title="Recent Jobs" isLoading={isLoading}>
+    <DashboardCard title="Recent Jobs" isLoading={isLoading}>
         {isLoading || analyses.length ? null : (<Heading.h6>No results found</Heading.h6>)}
         <List>
             {analyses.map((analysis: Analysis, index: number) =>
@@ -151,7 +174,7 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
                 </Flex>
             )}
         </List>
-    </DashBoardCard>
+    </DashboardCard>
 );
 
 interface DashboardNotificationProps {

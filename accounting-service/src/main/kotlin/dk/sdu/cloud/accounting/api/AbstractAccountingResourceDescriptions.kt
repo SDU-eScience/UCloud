@@ -79,7 +79,12 @@ typealias CurrentUsageRequest = ContextQueryImpl
 /**
  * @see [AbstractAccountingResourceDescriptions.currentUsage]
  */
-data class CurrentUsageResponse(val usage: Long, val dataType: String?, val quota: Long?)
+data class CurrentUsageResponse(
+    val usage: Long,
+    val quota: Long? = null,
+    val dataType: String? = null,
+    val title: String? = null
+)
 
 internal const val ACCOUNTING_NAMESPACE = "accounting"
 

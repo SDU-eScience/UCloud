@@ -342,8 +342,22 @@ export function sortByToPrettierString(sortBy: SortBy): string {
 export function timestampUnixMs(): number {
     return window.performance &&
         window.performance.now &&
-        window.performance.timing && 
-        window.performance.timing.navigationStart ? 
-            window.performance.now() + window.performance.timing.navigationStart : 
-            Date.now();
+        window.performance.timing &&
+        window.performance.timing.navigationStart ?
+        window.performance.now() + window.performance.timing.navigationStart :
+        Date.now();
+}
+
+export function humanReadableNumber(
+    number: number, 
+    sectionDelim: string = ",", 
+    decimalDelim: string = ".",
+    numDecimals: number = 2
+): string {
+    const regex = new RegExp("\\d(?=(\\d{3})+" + (numDecimals > 0 ? "\\D" : "$") + ")", "g");
+    const fixedNumber = number.toFixed(numDecimals);
+
+    return fixedNumber
+        .replace('.', decimalDelim)
+        .replace(regex, '$&' + sectionDelim);
 }

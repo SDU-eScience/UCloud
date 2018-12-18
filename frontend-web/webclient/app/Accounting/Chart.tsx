@@ -29,7 +29,7 @@ class Chart extends React.Component<ChartProps> {
             return result;
         });
 
-        return <ResponsiveContainer aspect={16 / 9}>
+        return <ResponsiveContainer aspect={16 / 9} maxHeight={576}>
             <LineChart data={normalizedData}>
                 <XAxis
                     dataKey="name"

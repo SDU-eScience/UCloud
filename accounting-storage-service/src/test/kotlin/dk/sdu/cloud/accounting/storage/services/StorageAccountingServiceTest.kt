@@ -3,15 +3,11 @@ package dk.sdu.cloud.accounting.storage.services
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.accounting.api.ContextQuery
 import dk.sdu.cloud.accounting.api.ContextQueryImpl
 import dk.sdu.cloud.accounting.storage.Configuration
 import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
-import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.StatisticsResponse
@@ -20,30 +16,18 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
-import dk.sdu.cloud.service.test.withDatabase
 import io.ktor.http.HttpStatusCode
-import io.mockk.Invocation
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import kotlinx.coroutines.runBlocking
-import org.junit.Before
 import org.junit.Test
-import org.mockito.Mockito.doAnswer
-import org.mockito.invocation.InvocationOnMock
-import org.mockito.stubbing.Answer
-import java.awt.Stroke
 import java.util.*
-import kotlin.collections.ArrayList
-import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -89,7 +73,7 @@ class StorageAccountingServiceTest {
 
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `test calculation - NaN`() {
         val storageAccountService = setupService()
         val statisticResponse = mockk<StatisticsResponse>()
@@ -172,9 +156,10 @@ class StorageAccountingServiceTest {
         val storageAccountingService = setupService()
         assertTrue(
             storageAccountingService.listEventsPage(
-                NormalizedPaginationRequest(10,0),
+                NormalizedPaginationRequest(10, 0),
                 context,
                 TestUsers.user.username
-            ).items.isEmpty())
+            ).items.isEmpty()
+        )
     }
 }

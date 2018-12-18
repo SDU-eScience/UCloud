@@ -1,5 +1,6 @@
 import * as moment from "moment";
 import { fileSizeToString } from "Utilities/FileUtilities";
+import { humanReadableNumber } from "UtilityFunctions";
 
 export interface DataPoint {
     label: string | null
@@ -15,6 +16,11 @@ export interface DataPoint2D<X = number, Y = number> extends DataPoint1D<X> {
 
 export interface DataPoint3D<X = number, Y = number, Z = number> extends DataPoint2D<X, Y> {
     z: Z
+}
+
+export interface ChartResponse {
+    chart: Chart<DataPoint2D>
+    quota?: number
 }
 
 export interface Chart<Point extends DataPoint> {
@@ -59,35 +65,38 @@ export namespace DataTypes {
 }
 
 export function formatDataType(type: string, value: any): string {
+    if (typeof value !== 'number') return "" + value;
+
     switch (type) {
         case DataTypes.BYTES: {
-            if (typeof value === 'number') {
-                return fileSizeToString(value);
-            }
-            break;
+            return fileSizeToString(value);
         }
 
         case DataTypes.DATE: {
-            if (typeof value === 'number') {
-                return moment(value).format("DD/MM");
-            }
-            break;
+            return moment(value).format("DD/MM");
         }
 
         case DataTypes.DATETIME: {
-            if (typeof value === 'number') {
-                return moment(value).format("DD/MM hh:mm");
-            }
-            break;
+            return moment(value).format("DD/MM hh:mm");
         }
 
         case DataTypes.DURATION: {
-            if (typeof value === 'number') {
-                return moment.duration(value, "seconds").humanize();
-            }
-            break;
+            if (value < 60_000) return `${(value / 1000) | 0} seconds`;
+            return moment.duration(value, "milliseconds").humanize();
         }
     }
 
     return "" + value;
+}
+
+export function formatDataTypeLong(type: string, value: any): string {
+    switch (type) {
+        case DataTypes.BYTES: {
+            return `${humanReadableNumber(value, ',', '.', 0)} bytes`;
+        }
+
+        default: {
+            return formatDataType(type, value);
+        }
+    }
 }

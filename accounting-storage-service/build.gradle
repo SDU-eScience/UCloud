@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.3.12-SNAPSHOT'
+version '0.4.3'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.accounting.storage.MainKt"
@@ -11,7 +11,7 @@ dependencies {
     // Internal services
     compile 'dk.sdu.cloud:service-common:0.22.0-SNAPSHOT'
     compile 'dk.sdu.cloud:auth-api:1.13.0-SNAPSHOT'
-    compile 'dk.sdu.cloud:accounting-api:0.3.1-SNAPSHOT'
+    compile 'dk.sdu.cloud:accounting-api:0.3.4'
     compile 'dk.sdu.cloud:indexing-api:1.7.0-SNAPSHOT'
     compile 'dk.sdu.cloud:file-api:0.14.0-SNAPSHOT'
     testCompile 'dk.sdu.cloud:service-common-test:0.22.0-SNAPSHOT'

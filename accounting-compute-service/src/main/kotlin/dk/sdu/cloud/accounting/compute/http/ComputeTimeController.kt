@@ -1,16 +1,14 @@
 package dk.sdu.cloud.accounting.compute.http
 
+import dk.sdu.cloud.accounting.api.ChartDataTypes
 import dk.sdu.cloud.accounting.api.ChartResponse
 import dk.sdu.cloud.accounting.api.ChartingHelpers
-import dk.sdu.cloud.accounting.api.ContextQueryImpl
 import dk.sdu.cloud.accounting.api.CurrentUsageResponse
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingTimeDescriptions
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.accounting.compute.services.toMillis
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
@@ -30,9 +28,12 @@ class ComputeTimeController<DBSession>(
 
             ok(
                 ChartResponse(
-                    chart = ChartingHelpers.basicChartFromEvents(events, yAxisLabel = "Compute time used") {
-                        it.totalDuration.toMillis()
-                    },
+                    chart = ChartingHelpers.basicChartFromEvents(
+                        events,
+                        yAxisDataType = ChartDataTypes.DURATION,
+                        dataTitle = "Compute Time Used",
+                        dataSelector = { it.totalDuration.toMillis() }
+                    ),
                     quota = null
                 )
             )
@@ -42,27 +43,12 @@ class ComputeTimeController<DBSession>(
             ok(
                 CurrentUsageResponse(
                     usage = completedJobsService.computeUsage(req, call.securityPrincipal.username),
-                    quota = null
+                    quota = null,
+                    dataType = ChartDataTypes.DURATION,
+                    title = "Compute Time Used"
                 )
             )
         }
-    }
-
-    // Could be used in the Page library
-    private inline fun <E> retrieveAllPages(pageRetriever: (NormalizedPaginationRequest) -> Page<E>): List<E> {
-        val result = ArrayList<E>()
-        var currentPage = NormalizedPaginationRequest(100, 0)
-        while (true) {
-            val page = pageRetriever(currentPage)
-            result.addAll(page.items)
-
-            if (page.pagesInTotal > currentPage.page) {
-                currentPage = NormalizedPaginationRequest(currentPage.itemsPerPage, currentPage.page + 1)
-            } else {
-                break
-            }
-        }
-        return result
     }
 
     companion object : Loggable {

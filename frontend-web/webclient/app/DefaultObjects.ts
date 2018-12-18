@@ -11,6 +11,7 @@ import { Activity } from "Activity";
 import { Reducer } from "redux";
 import { SimpleSearchStateProps } from "Search";
 import * as ApplicationRedux from "Applications/Redux";
+import * as AccountingRedux from "Accounting/Redux";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -163,7 +164,7 @@ interface LegacyReducers {
     detailedResult?: Reducer<DetailedResultReduxObject>
 }
 
-export type Reducers = LegacyReducers & ApplicationRedux.Reducers;
+export type Reducers = LegacyReducers & ApplicationRedux.Reducers & AccountingRedux.Reducers;
 
 export type DetailedResultReduxObject = ComponentWithPage<File>
 
@@ -191,7 +192,7 @@ interface LegacyReduxObject {
     fileInfo: FileInfoReduxObject
 }
 
-export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects;
+export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects;
 
 export const initActivity = (): ActivityReduxObject => ({
     page: emptyPage,
@@ -242,7 +243,8 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     detailedApplicationSearch: initApplicationsAdvancedSearch(),
     detailedFileSearch: initFilesDetailedSearch(),
     fileInfo: initFileInfo(),
-    ...ApplicationRedux.init()
+    ...ApplicationRedux.init(),
+    ...AccountingRedux.init()
 });
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({

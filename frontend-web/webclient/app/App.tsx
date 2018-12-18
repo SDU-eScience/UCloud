@@ -24,6 +24,7 @@ import simpleSearch from "Search/Redux/SearchReducer";
 import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
 import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
 import * as AppRedux from "Applications/Redux";
+import * as AccountingRedux from "Accounting/Redux";
 import { configureStore } from "Utilities/ReduxUtilities";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
@@ -45,7 +46,8 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     detailedFileSearch,
     detailedApplicationSearch,
     fileInfo,
-    ...AppRedux.reducers
+    ...AppRedux.reducers,
+    ...AccountingRedux.reducers
 });
 
 
