@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as API from "./api";
-import { Box } from "ui-components";
+import { Box, Link } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { resourceName, emptyResourceState } from "./Redux/AccountingObject";
 import * as Actions from "./Redux/AccountingActions";
@@ -9,6 +9,7 @@ import { ReduxObject } from "DefaultObjects";
 import { Dispatch } from "redux";
 import { LoadableContent } from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
+import { detailedPage } from "Accounting";
 
 interface UsageOwnProps {
     resource: string
@@ -38,7 +39,12 @@ const Quota: React.FunctionComponent<{ usage: API.Usage }> = props => {
     return <>({percentage}%)</>;
 };
 
-const Usage: React.FunctionComponent<{ usage: API.Usage, renderTitle?: boolean }> = props => {
+const Usage: React.FunctionComponent<{ 
+    usage: API.Usage, 
+    resource: string,
+    subResource: string,
+    renderTitle?: boolean 
+}> = props => {
     const { usage } = props;
     const type = (usage.dataType || API.DataTypes.NUMBER);
     return <>
@@ -50,6 +56,7 @@ const Usage: React.FunctionComponent<{ usage: API.Usage, renderTitle?: boolean }
             {props.renderTitle ? usage.title : null}
             {" "}
             <Quota usage={usage} />
+            <Box><Link to={detailedPage(props.resource, props.subResource)}>View Chart</Link></Box>
         </Heading.h4>
     </>;
 };
@@ -65,7 +72,12 @@ class UsageContainer extends React.Component<UsageProps> {
         const usage = this.props.usage;
         const content = usage.content;
         if (!!content) {
-            return <Usage usage={content} renderTitle={this.props.renderTitle} />;
+            return <Usage 
+                resource={this.props.resource} 
+                subResource={this.props.subResource} 
+                usage={content} 
+                renderTitle={this.props.renderTitle} 
+            />;
         } else {
             if (!!usage.error) return usage.error.errorMessage;
             else return <Spinner size={24} />;
