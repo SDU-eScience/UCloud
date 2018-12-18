@@ -1,8 +1,9 @@
 import * as React from "react";
-import { Box, Input } from "ui-components";
+import { Box, Input, FormField, Icon } from "ui-components";
 import ClickableDropdown from "./ClickableDropdown";
 import { allLicenses } from "Project/licenses";
 import { identifierTypes } from "DefaultObjects";
+import * as Fuse from "fuse.js";
 
 export const contentValuePairLicenses = allLicenses.map(it => ({ content: it.name, value: it.identifier }))
 export const contentValuePairIdentifierTypes = identifierTypes.map(it => ({ content: it.text, value: it.value }))
@@ -16,11 +17,12 @@ interface DataListProps {
     width?: number | string
     clearOnSelect?: boolean
 }
-export class DataList extends React.PureComponent<DataListProps, { text: string }> {
+export class DataList extends React.PureComponent<DataListProps, { text: string, fuse: Fuse<ContentValuePair> }> {
     constructor(props: DataListProps) {
         super(props);
         this.state = {
-            text: ""
+            text: "",
+            fuse: new Fuse(this.props.options, this.options)
         }
     }
 
@@ -32,27 +34,42 @@ export class DataList extends React.PureComponent<DataListProps, { text: string 
         else this.setState(() => ({ text: content }))
     }
 
+    get options(): Fuse.FuseOptions<ContentValuePair> {
+        return {
+            shouldSort: true,
+            threshold: 0.6,
+            location: 0,
+            distance: 100,
+            maxPatternLength: 32,
+            minMatchCharLength: 1,
+            keys: [
+                "content"
+            ]
+        };
+    }
+
     render() {
-        const lowerCasedInput = this.state.text.toLowerCase();
-        const filtered = this.props.options.filter(it => it.content.toLowerCase().includes(lowerCasedInput));
-        const subsetFiltered = filtered.slice(0, this.totalShown);
-        const fuzzySearch = undefined; // :(
+        const results = this.state.fuse.search(this.state.text);
         return (
             <ClickableDropdown fullWidth trigger={
-                <Input
-                    placeholder={this.props.placeholder}
-                    autoComplete="off"
-                    type="text"
-                    value={this.state.text}
-                    onChange={({ target }) => this.setState(() => ({ text: target.value }))}
-                />}>
-                {subsetFiltered.map(({ content, value }) => (
+                <FormField>
+                    <Input
+                        placeholder={this.props.placeholder}
+                        autoComplete="off"
+                        type="text"
+                        value={this.state.text}
+                        onChange={({ target }) => this.setState(() => ({ text: target.value }))}
+                    />
+                    <Icon name="chevronDown" mb="9px" size={14} />
+                </FormField>
+            }>
+                {results.map(({ content, value }) => (
                     <Box key={content} onClick={() => this.onSelect(content, value)} mb="0.5em">
                         {content}
                     </Box>
                 ))}
-                {filtered.length > this.totalShown ? <Box mb="0.5em">...</Box> : null}
-                {filtered.length === 0 ? <Box mb="0.5em">No Results</Box> : null}
+                {results.length > this.totalShown ? <Box mb="0.5em">...</Box> : null}
+                {results.length === 0 ? <Box mb="0.5em">No Results</Box> : null}
             </ClickableDropdown>);
     }
 }

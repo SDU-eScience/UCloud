@@ -50,6 +50,7 @@
   "dependencies": {
     "@svgr/cli": "^4.1.0",
     "avataaars": "^1.2.1",
+    "fuse.js": "^3.3.0",
     "install": "^0.12.2",
     "jsonwebtoken": "8.4.0",
     "loaders.css": "0.1.2",
@@ -61,7 +62,7 @@
     "react": "16.6.3",
     "react-datepicker": "2.0.0",
     "react-dom": "16.6.3",
-    "react-dropzone": "^8.0.1",
+    "react-dropzone": "^8.0.2",
     "react-markdown": "^4.0.4",
     "react-modal": "^3.7.1",
     "react-redux": "^6.0.0",

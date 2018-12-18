@@ -7,7 +7,6 @@ import * as Heading from "ui-components/Heading";
 import { Box, Flex, Relative, Error } from "ui-components";
 import Spinner from "LoadingIcon/LoadingIcon";
 import { emptyPage } from "DefaultObjects";
-import { LoadingBox } from "ui-components/LoadingBox";
 
 interface ListProps<T> {
     pageRenderer: (page: Page<T>) => React.ReactNode
