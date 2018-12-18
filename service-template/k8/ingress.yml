@@ -2,7 +2,7 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: {{ serviceName }}-service-ingress
+  name: {{ serviceName }}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: ""
 spec:

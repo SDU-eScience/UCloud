@@ -2,21 +2,21 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: {{ serviceName }}-service-deployment
+  name: {{ serviceName }}
   labels:
-    app: {{ serviceName }}-service
+    app: {{ serviceName }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ serviceName }}-service
+      app: {{ serviceName }}
   template:
     metadata:
       labels:
-        app: {{ serviceName }}-service
+        app: {{ serviceName }}
     spec:
       containers:
-      - name: {{ serviceName }}-service
+      - name: {{ serviceName }}
         image: registry.cloud.sdu.dk/sdu-cloud/{{ serviceName }}-service:0.1.0
         command:
         - /opt/service/bin/service
