@@ -275,7 +275,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             customEntriesPerPage={
                                 <>
                                     <RefreshButton
-                                        className="float-right"
                                         loading={false}
                                         onClick={() => this.retrieveFilesPage(page.pageNumber, page.itemsPerPage)}
                                     />

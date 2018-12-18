@@ -30,7 +30,7 @@ export function Arrow({ name }: Arrow) {
 
 interface RefreshButton { loading: boolean, onClick: () => void, className?: string }
 export const RefreshButton = ({ loading, onClick }: RefreshButton) => (
-    <Icon name="refresh" spin={loading} onClick={() => onClick()}/>
+    <Icon name="refresh" ml="10px" spin={loading} onClick={() => onClick()}/>
 );
 
 export const WebSocketSupport = () =>
