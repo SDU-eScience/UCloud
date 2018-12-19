@@ -6,7 +6,7 @@ exports[`Status Mount component 1`] = `
   onClick={[Function]}
 >
   <button
-    className="sc-htoDjs kVAoke"
+    className="sc-htoDjs hMOnGI"
     color="green"
     title="The system is running as intended."
   >
