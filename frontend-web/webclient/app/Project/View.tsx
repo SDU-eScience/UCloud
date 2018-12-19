@@ -1,8 +1,7 @@
 import * as React from "react";
-import { Link, Button, Flex, List, Icon } from "ui-components";
+import { Link, Button, Flex, List, Icon, ExternalLink, Markdown } from "ui-components";
 import { ProjectMetadata } from "./api";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
-import * as ReactMarkdown from "react-markdown";
 import { Contributor, getByPath } from "./api";
 import { findLicenseByIdentifier } from "./licenses";
 import { blankOrUndefined } from "UtilityFunctions";
@@ -64,13 +63,13 @@ export const View = (props: ViewProps) => {
         />
         <List bordered={false} pb="1em">
             {license ?
-                <a href={license.link} target="_blank" rel="noopener">
+                <ExternalLink href={license.link}>
                     <Button color="blue" lineHeight="0.3" size="small" fullWidth>
                         <i style={{ paddingRight: "0.4em" }} className="fas fa-book" />
                         <Text mr="0.4em" as="span" bold>{license.identifier}</Text>
                         <TextSpan color="lightGray">License</TextSpan>
                     </Button>
-                </a> : null
+                </ExternalLink> : null
             }
         </List>
         <SectionHeader
@@ -103,7 +102,7 @@ export const View = (props: ViewProps) => {
     return (
         <MainContainer
             header={header}
-            main={<ReactMarkdown source={metadata.description} />}
+            main={<Markdown source={metadata.description} />}
             sidebar={sidebar}
         />
     );
@@ -150,9 +149,9 @@ const ContributorItem = (props: { contributor: Contributor }) => {
                             <Box>
                                 <b>ORCID:</b>
                                 {" "}
-                                <a href={`https://orcid.org/${contributor.orcId}`} target="_blank" rel="noopener">
+                                <ExternalLink href={`https://orcid.org/${contributor.orcId}`}>
                                     {contributor.orcId}
-                                </a>
+                                </ExternalLink>
                             </Box> : null
                         }
                     </>
@@ -214,11 +213,11 @@ const isIdentifierDOI = (identifier: string): boolean => {
 
 const DOIBadge = (props: { identifier: string }) => {
     const { identifier } = props;
-    return <a href={`https://doi.org/${identifier}`} target="_blank" rel="noopener">
+    return <ExternalLink href={`https://doi.org/${identifier}`}>
         <Stamp mb="0.4em" borderColor="lightGray" fullWidth>
             {identifier}
         </Stamp>
-    </a>;
+    </ExternalLink>;
 }
 
 const PotentialDOIBadge = (props: { identifier: string }) => {

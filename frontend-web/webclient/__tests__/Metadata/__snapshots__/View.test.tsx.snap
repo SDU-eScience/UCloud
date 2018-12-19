@@ -21,17 +21,12 @@ Array [
     className="sc-ifAKCX iCcktw"
   >
     <div
-      className="sc-bdVaJa fOIZHW"
+      className="sc-bdVaJa gehKoV"
       cursor="auto"
-      width={
-        Array [
-          1,
-          0.8125,
-        ]
-      }
+      width={1}
     >
       <div
-        className="sc-bdVaJa sc-jTzLTM jpgNfr"
+        className="sc-bdVaJa sc-jTzLTM kNEtzm"
       >
         <div
           className="sc-bdVaJa bYxiQv"
@@ -69,15 +64,15 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-hMqMXs dmWfKM"
+            className="sc-kEYyzF dnEJKT"
             color="text"
-            hovercolor="textHighlight"
+            hoverColor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
             mb="1em"
             onClick={[Function]}
           >
             <button
-              className="sc-htoDjs hLNMPh"
+              className="sc-htoDjs icxEsC"
               color="blue"
               size="small"
             >
@@ -124,16 +119,18 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik kkczwm"
+            className="sc-bdVaJa sc-csuQGl dxGAbS"
             fontSize="large"
           >
             <a
+              className="sc-hMqMXs jvXQSL"
+              color="text"
               href="https://spdx.org/licenses/AML.html"
               rel="noopener"
               target="_blank"
             >
               <button
-                className="sc-htoDjs hLNMPh"
+                className="sc-htoDjs icxEsC"
                 color="blue"
                 size="small"
               >
@@ -193,11 +190,11 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           >
             <div
-              className="sc-jWBwVP kfhpxH"
+              className="sc-brqgnP fWStYE"
               color="black"
               fontSize={0}
             >
@@ -236,7 +233,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           />
           <h4
@@ -271,7 +268,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           />
         </div>
@@ -281,7 +278,7 @@ Array [
       </p>
     </div>
     <div
-      className="sc-bdVaJa sc-jTzLTM fWbZTz"
+      className="sc-bdVaJa sc-jTzLTM joAdSv"
       width={
         Array [
           0,
@@ -329,15 +326,15 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-hMqMXs dmWfKM"
+            className="sc-kEYyzF dnEJKT"
             color="text"
-            hovercolor="textHighlight"
+            hoverColor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
             mb="1em"
             onClick={[Function]}
           >
             <button
-              className="sc-htoDjs hLNMPh"
+              className="sc-htoDjs icxEsC"
               color="blue"
               size="small"
             >
@@ -384,16 +381,18 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik kkczwm"
+            className="sc-bdVaJa sc-csuQGl dxGAbS"
             fontSize="large"
           >
             <a
+              className="sc-hMqMXs jvXQSL"
+              color="text"
               href="https://spdx.org/licenses/AML.html"
               rel="noopener"
               target="_blank"
             >
               <button
-                className="sc-htoDjs hLNMPh"
+                className="sc-htoDjs icxEsC"
                 color="blue"
                 size="small"
               >
@@ -453,11 +452,11 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           >
             <div
-              className="sc-jWBwVP kfhpxH"
+              className="sc-brqgnP fWStYE"
               color="black"
               fontSize={0}
             >
@@ -496,7 +495,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           />
           <h4
@@ -531,7 +530,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           />
         </div>

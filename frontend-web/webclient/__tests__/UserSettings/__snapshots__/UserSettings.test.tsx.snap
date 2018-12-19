@@ -25,17 +25,12 @@ exports[`UserSettings Mount 1`] = `
       className="sc-bZQynM bTpYSl"
     >
       <div
-        className="sc-htpNat fsOuZp"
+        className="sc-htpNat dCbdhM"
         cursor="auto"
-        width={
-          Array [
-            1,
-            1,
-          ]
-        }
+        width={1}
       >
         <div
-          className="sc-htpNat sc-jTzLTM jpgNfr"
+          className="sc-htpNat sc-jTzLTM kNEtzm"
         />
         <form
           onSubmit={[Function]}
@@ -104,7 +99,7 @@ exports[`UserSettings Mount 1`] = `
             </label>
           </div>
           <button
-            className="sc-htoDjs bEJjtz"
+            className="sc-htoDjs hpPnDS"
             color="green"
             type="submit"
           >
@@ -139,6 +134,8 @@ exports[`UserSettings Mount 1`] = `
             className="sc-bZQynM bqIUrb"
           >
             <a
+              className="sc-hMqMXs jvXQSL"
+              color="text"
               href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us"
               rel="noopener"
               target="_blank"
@@ -150,6 +147,8 @@ exports[`UserSettings Mount 1`] = `
               />
             </a>
             <a
+              className="sc-hMqMXs jvXQSL"
+              color="text"
               href="https://itunes.apple.com/us/app/google-authenticator/id388497605"
               rel="noopener"
               target="_blank"
@@ -165,7 +164,7 @@ exports[`UserSettings Mount 1`] = `
             Once you are ready click the button below to get started:
           </p>
           <button
-            className="sc-htoDjs cYgazJ"
+            className="sc-htoDjs dacUeo"
             color="green"
             content="Start setup"
             disabled={true}
@@ -201,7 +200,7 @@ exports[`UserSettings Mount 1`] = `
         </div>
       </div>
       <div
-        className="sc-htpNat sc-jTzLTM laRPub"
+        className="sc-htpNat sc-jTzLTM eGihWZ"
         width={
           Array [
             0,

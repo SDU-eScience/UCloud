@@ -3,7 +3,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { TwoFactorSetupState } from ".";
 import * as UF from "UtilityFunctions";
 import * as Heading from "ui-components/Heading";
-import { Image, Flex, Divider, Input, LoadingButton } from "ui-components";
+import { Image, Flex, Divider, Input, LoadingButton, ExternalLink } from "ui-components";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
@@ -72,13 +72,13 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
                 </p>
 
                 <Flex>
-                    <a target="_blank" rel="noopener" href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
+                    <ExternalLink href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us">
                         <Image width="150px" src={googlePlay} />
-                    </a>
+                    </ExternalLink>
 
-                    <a target="_blank" rel="noopener" href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
+                    <ExternalLink href="https://itunes.apple.com/us/app/google-authenticator/id388497605">
                         <Image width="150px" src={appStore} />
-                    </a>
+                    </ExternalLink>
                 </Flex>
 
                 {this.state.challengeId === undefined ?

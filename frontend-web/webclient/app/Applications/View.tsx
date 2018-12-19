@@ -12,9 +12,7 @@ import * as Actions from "./Redux/ViewActions";
 import * as ViewObject from "./Redux/ViewObject";
 import { updatePageTitle, UpdatePageTitleAction } from "Navigation/Redux/StatusActions";
 
-import * as ReactMarkdown from "react-markdown";
-
-import { VerticalButtonGroup, Box, Image, OutlineButton, ActionButton, Link } from "ui-components"
+import { VerticalButtonGroup, Box, Image, OutlineButton, ActionButton, Link, ExternalLink, Markdown } from "ui-components"
 import { TextSpan } from "ui-components/Text";
 import * as Heading from "ui-components/Heading"
 import ContainerForText from "ui-components/ContainerForText";
@@ -137,9 +135,9 @@ const Sidebar: React.StatelessComponent<MainContentProps> = props => (
             </Link>
 
             {!props.application.description.website ? null :
-                <a target="_blank" href={props.application.description.website} rel="noopener">
+                <ExternalLink href={props.application.description.website}>
                     <OutlineButton fullWidth color={"blue"}>Website</OutlineButton>
-                </a>
+                </ExternalLink>
             }
         </VerticalButtonGroup>
     </>
@@ -153,7 +151,7 @@ function Content(props: MainContentProps & { previousVersions?: Page<Application
     return (
         <>
             <AppSection>
-                <ReactMarkdown
+                <Markdown
                     unwrapDisallowed
                     source={props.application.description.description}
                     disallowedTypes={[

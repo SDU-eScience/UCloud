@@ -141,10 +141,11 @@ exports[`PP Visible PP-Component 1`] = `
 
 exports[`RefreshButton RefreshButton 1`] = `
 <svg
-  className="sc-gzVnrw dltGRX"
+  className="sc-gzVnrw dQVKLL"
   cursor="inherit"
   fill="currentcolor"
   height={24}
+  ml="10px"
   onClick={[Function]}
   viewBox="0 0 24 24"
   width={24}

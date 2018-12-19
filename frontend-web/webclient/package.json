@@ -19,6 +19,7 @@
     },
     "moduleNameMapper": {
       "^.+\\.png$": "file-loader",
+      "^.+\\.ttf$": "file-loader",
       "Authentication/SDUCloudObject": "<rootDir>/__tests__/mock/Cloud.ts"
     },
     "testRegex": "(/__tests__/.*|(\\.|/)\\.(test|spec))\\.(jsx?|tsx?)$",
