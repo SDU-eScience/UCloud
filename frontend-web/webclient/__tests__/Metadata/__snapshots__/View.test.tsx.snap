@@ -21,17 +21,12 @@ Array [
     className="sc-ifAKCX iCcktw"
   >
     <div
-      className="sc-bdVaJa fOIZHW"
+      className="sc-bdVaJa gehKoV"
       cursor="auto"
-      width={
-        Array [
-          1,
-          0.8125,
-        ]
-      }
+      width={1}
     >
       <div
-        className="sc-bdVaJa sc-jTzLTM jpgNfr"
+        className="sc-bdVaJa sc-jTzLTM kNEtzm"
       >
         <div
           className="sc-bdVaJa bYxiQv"
@@ -69,15 +64,15 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-hMqMXs dmWfKM"
+            className="sc-hMqMXs eXJRRJ"
             color="text"
-            hovercolor="textHighlight"
+            hoverColor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
             mb="1em"
             onClick={[Function]}
           >
             <button
-              className="sc-htoDjs hLNMPh"
+              className="sc-htoDjs icxEsC"
               color="blue"
               size="small"
             >
@@ -133,7 +128,7 @@ Array [
               target="_blank"
             >
               <button
-                className="sc-htoDjs hLNMPh"
+                className="sc-htoDjs icxEsC"
                 color="blue"
                 size="small"
               >
@@ -197,8 +192,8 @@ Array [
             fontSize="large"
           >
             <div
-              className="sc-jWBwVP kfhpxH"
-              color="black"
+              className="sc-jWBwVP exSLkP"
+              color="lightGray"
               fontSize={0}
             >
               Example
@@ -281,7 +276,7 @@ Array [
       </p>
     </div>
     <div
-      className="sc-bdVaJa sc-jTzLTM fWbZTz"
+      className="sc-bdVaJa sc-jTzLTM joAdSv"
       width={
         Array [
           0,
@@ -329,15 +324,15 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-hMqMXs dmWfKM"
+            className="sc-hMqMXs eXJRRJ"
             color="text"
-            hovercolor="textHighlight"
+            hoverColor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
             mb="1em"
             onClick={[Function]}
           >
             <button
-              className="sc-htoDjs hLNMPh"
+              className="sc-htoDjs icxEsC"
               color="blue"
               size="small"
             >
@@ -393,7 +388,7 @@ Array [
               target="_blank"
             >
               <button
-                className="sc-htoDjs hLNMPh"
+                className="sc-htoDjs icxEsC"
                 color="blue"
                 size="small"
               >
@@ -457,8 +452,8 @@ Array [
             fontSize="large"
           >
             <div
-              className="sc-jWBwVP kfhpxH"
-              color="black"
+              className="sc-jWBwVP exSLkP"
+              color="lightGray"
               fontSize={0}
             >
               Example
