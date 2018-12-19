@@ -20,7 +20,7 @@ export const SearchItem = ({ item }: SearchItemProps) => (
             </Text>
         </Box>
         <Divider mb="1em" />
-        <Stamp bg="blue" color="white" borderColor="blue" ml="0.2em">
+        <Stamp color="blue" ml="0.2em">
             <Flex>
                 <Box pl="0.5em" pr="0.5em">
                     <i className="fas fa-book"></i>

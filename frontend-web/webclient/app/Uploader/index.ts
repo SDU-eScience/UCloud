@@ -11,6 +11,7 @@ export interface Upload {
     extractArchive: boolean
     sensitivity: Sensitivity
     uploadXHR?: XMLHttpRequest
+    uploadEvents: { progressInBytes: number, timestamp: number }[]
 }
 
 export interface UploaderProps {

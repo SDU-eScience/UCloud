@@ -79,7 +79,7 @@ export const View = (props: ViewProps) => {
         />
         <List mb="1em" bordered={false}>
             {metadata.keywords.map((it, idx) => (
-                <Stamp mb="0.4em" fullWidth borderColor="lightGray" key={idx}>{it}</Stamp>
+                <Stamp mb="0.4em" fullWidth color="lightGray" key={idx}>{it}</Stamp>
             ))}
         </List>
 
@@ -215,7 +215,7 @@ const isIdentifierDOI = (identifier: string): boolean => {
 const DOIBadge = (props: { identifier: string }) => {
     const { identifier } = props;
     return <a href={`https://doi.org/${identifier}`} target="_blank" rel="noopener">
-        <Stamp mb="0.4em" borderColor="lightGray" fullWidth>
+        <Stamp mb="0.4em" color="lightGray" fullWidth>
             {identifier}
         </Stamp>
     </a>;
@@ -225,5 +225,5 @@ const PotentialDOIBadge = (props: { identifier: string }) => {
     if (isIdentifierDOI(props.identifier)) {
         return <DOIBadge identifier={props.identifier} />;
     }
-    return <Stamp borderColor="lightGray" mb="0.4em" fullWidth>{props.identifier}</Stamp>;
+    return <Stamp color="lightGray" mb="0.4em" fullWidth>{props.identifier}</Stamp>;
 };

@@ -279,13 +279,6 @@ export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" |
 
 export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: "arrowUp" | "arrowDown", minWidth?: number }
 
-export interface FileInfoProps {
-    file?: File
-    activity: Page<Activity>
-    loading: boolean
-    favorite: boolean
-}
-
 export interface FileInfoState {
     activity: Page<Activity>
 }

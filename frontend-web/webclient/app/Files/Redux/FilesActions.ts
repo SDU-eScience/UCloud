@@ -17,7 +17,7 @@ import {
     CREATE_FOLDER,
     FILES_INVALID_PATH
 } from "./FilesReducer";
-import { getFilenameFromPath, replaceHomeFolder, getParentPath, statFileQuery, resolvePath } from "Utilities/FileUtilities";
+import { getFilenameFromPath, replaceHomeFolder, getParentPath, resolvePath } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
 import { SortOrder, SortBy, File } from "..";
 import { Action } from "redux";
@@ -104,7 +104,7 @@ const receiveFiles = (page: Page<File>, path: string, sortOrder: SortOrder, sort
     type: RECEIVE_FILES,
     payload: {
         page,
-        path,
+        path: resolvePath(path),
         sortOrder,
         sortBy
     }
@@ -145,7 +145,7 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
     type: RECEIVE_FILE_SELECTOR_FILES,
     payload: {
         page,
-        path
+        path: resolvePath(path)
     }
 });
 

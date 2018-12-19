@@ -7,7 +7,6 @@ import * as Heading from "ui-components/Heading";
 import { Box, Flex, Relative, Error } from "ui-components";
 import Spinner from "LoadingIcon/LoadingIcon";
 import { emptyPage } from "DefaultObjects";
-import { LoadingBox } from "ui-components/LoadingBox";
 
 interface ListProps<T> {
     pageRenderer: (page: Page<T>) => React.ReactNode
@@ -24,9 +23,9 @@ interface ListProps<T> {
     customEmptyPage?: React.ReactNode
 
     // Callbacks
-    onItemsPerPageChanged: (itemsPerPage: number) => void
-    onPageChanged: (newPage: number) => void
-    onRefresh?: () => void
+    onItemsPerPageChanged: (itemsPerPage: number, page: Page<T>) => void
+    onPageChanged: (newPage: number, page: Page<T>) => void
+    onRefresh?: (page: Page<T>) => void
     onErrorDismiss?: () => void
 }
 
@@ -49,7 +48,7 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
         const refreshButton = !!this.props.onRefresh ? (
             <RefreshButton
                 loading={this.props.loading}
-                onClick={this.props.onRefresh}
+                onClick={() => this.props.onRefresh ? this.props.onRefresh(this.props.page) : null}
             />
         ) : null;
         return (
@@ -61,7 +60,7 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
                         {!props.customEntriesPerPage ? <Self.EntriesPerPageSelector
                             content="Items per page"
                             entriesPerPage={props.page.itemsPerPage}
-                            onChange={perPage => ifPresent(props.onItemsPerPageChanged, c => c(perPage))}
+                            onChange={perPage => ifPresent(props.onItemsPerPageChanged, c => c(perPage, props.page))}
                         /> : null}
                         {refreshButton}
                     </Relative>
@@ -70,7 +69,7 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
                 <Box pb="2em">
                     <Self.PaginationButtons
                         currentPage={props.page.pageNumber}
-                        toPage={(page) => ifPresent(props.onPageChanged, c => c(page))}
+                        toPage={(page) => ifPresent(props.onPageChanged, c => c(page, props.page))}
                         totalPages={props.page.pagesInTotal}
                     />
                 </Box>

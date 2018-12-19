@@ -73,7 +73,7 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <button
-        className="sc-htoDjs kVAoke"
+        className="sc-htoDjs hMOnGI"
         color="green"
         content="Create user"
         type="submit"

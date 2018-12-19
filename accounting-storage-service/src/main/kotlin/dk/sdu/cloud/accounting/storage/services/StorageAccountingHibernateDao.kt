@@ -27,13 +27,13 @@ import javax.persistence.criteria.Predicate
 @Entity
 @Table(
     name = "storage_usage_for_user",
-    indexes = [Index(columnList = "user")]
+    indexes = [Index(columnList = "username")]
 )
 class StorageForUserEntity(
-    @Column(name = "user")
-    var user: String,
+    @Column(name = "username")
+    var username: String,
 
-    @Temporal(TemporalType.DATE)
+    @Temporal(TemporalType.TIMESTAMP)
     var date: Date,
 
     var usage: Long,
@@ -45,7 +45,7 @@ class StorageForUserEntity(
     companion object : HibernateEntity<StorageForUserEntity>, WithId<Long>
 }
 
-fun StorageForUserEntity.toModel() : StorageUsedEvent = StorageUsedEvent(date.time, usage, id, user)
+fun StorageForUserEntity.toModel() : StorageUsedEvent = StorageUsedEvent(date.time, usage, id, username)
 
 fun StorageUsedEvent.toEntity() : StorageForUserEntity = StorageForUserEntity(user, Date(timestamp), bytesUsed, id)
 
@@ -66,7 +66,7 @@ class StorageAccountingHibernateDao : StorageAccountingDao<HibernateSession> {
             orderBy = { listOf(ascending(entity[StorageForUserEntity::date])) }
         ) {
             allOf(
-                entity[StorageForUserEntity::user] equal user
+                entity[StorageForUserEntity::username] equal user
             )
         }.mapItems {
             it.toModel()
@@ -81,9 +81,9 @@ class StorageAccountingHibernateDao : StorageAccountingDao<HibernateSession> {
     ): Page<StorageUsedEvent> {
         return session.paginatedCriteria<StorageForUserEntity>(
             paging,
-            orderBy = { listOf(ascending(entity[StorageForUserEntity::date])) } ,
+            orderBy = { listOf(descending(entity[StorageForUserEntity::date])) } ,
             predicate = {
-                (entity[StorageForUserEntity::user] equal user) and matchingContext(context)
+                (entity[StorageForUserEntity::username] equal user) and matchingContext(context)
             }
         ).mapItems {
             it.toModel()
@@ -98,7 +98,7 @@ class StorageAccountingHibernateDao : StorageAccountingDao<HibernateSession> {
         return session.criteria<StorageForUserEntity>(
             orderBy = { listOf(ascending(entity[StorageForUserEntity::date])) } ,
             predicate = {
-                (entity[StorageForUserEntity::user] equal user) and matchingContext(context)
+                (entity[StorageForUserEntity::username] equal user) and matchingContext(context)
             }
         ).list().map {
             it.toModel()

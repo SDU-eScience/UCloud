@@ -72,9 +72,9 @@ class Applications extends React.Component<ApplicationsProps> {
         this.fetch(props);
     }
 
-    componentWillReceiveProps(nextProps: ApplicationsProps) {
-        if (nextProps.location !== this.props.location) {
-            this.fetch(nextProps);
+    componentDidUpdate(prevProps: ApplicationsProps) {
+        if (prevProps.location !== this.props.location) {
+            this.fetch(this.props);
         }
     }
 

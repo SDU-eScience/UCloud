@@ -85,7 +85,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             </>) : null;
         const badgeCount = unreadLength + activeUploads;
         return (
-            <ClickableDropdown width={"380px"} left={"-270px"} trigger={
+            <ClickableDropdown top="37px" width={"380px"} left={"-270px"} trigger={
                 <Flex>
                     <Relative top="0" left="0">
                         <Flex justifyContent="center" width="60px">
@@ -129,16 +129,12 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
     public render() {
         const { notification } = this.props;
         return (
-            <NotificationWrapper read={notification.read} flexDirection="row" onClick={() => this.handleAction()}>
-                <Box width="0.20" m="0 0.3em 0 0.3em">
-                    <Icon size={1} name={this.resolveEventIcon(notification.type)} />
-                </Box>
-                <Box width="0.80">
-                    <Flex flexDirection="column">
-                        <TextSpan color="grey" fontSize={1}>{moment(notification.ts.toString(), "x").fromNow()}</TextSpan>
-                        <TextSpan>{notification.message}</TextSpan>
-                    </Flex>
-                </Box>
+            <NotificationWrapper alignItems="center" read={notification.read} flexDirection="row" onClick={() => this.handleAction()}>
+                <Box mr="0.4em" width="10%"><Icon name={this.resolveEventIcon(notification.type)} /></Box>
+                <Flex width="90%" flexDirection="column">
+                    <TextSpan color="grey" fontSize={1}>{moment(notification.ts.toString(), "x").fromNow()}</TextSpan>
+                    <TextSpan fontSize={1}>{notification.message}</TextSpan>
+                </Flex>
             </NotificationWrapper>
         );
     }
@@ -161,7 +157,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
     }
 }
 
-const read = ({ read }) => read ? { backgroundColor: theme.colors.white } : { backgroundColor: theme.colors.gray };
+const read = (p: { read: boolean }) => p.read ? { backgroundColor: theme.colors.white } : { backgroundColor: theme.colors.gray };
 
 const NotificationWrapper = styled(Flex)`
     ${read};

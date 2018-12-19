@@ -1,0 +1,79 @@
+{
+    "data": {
+        "items": [
+            {
+                "bytesUsed": 13621444439,
+                "timestamp": 1544690293367,
+                "title": "Storage used",
+                "user": "jonas@hinchely.dk"
+            },
+            {
+                "bytesUsed": 13621444439,
+                "id": 939,
+                "timestamp": 1544691621563,
+                "title": "Storage used",
+                "user": "jonas@hinchely.dk"
+            },
+            {
+                "bytesUsed": 13621440645,
+                "id": 1863,
+                "timestamp": 1544702428576,
+                "title": "Storage used",
+                "user": "jonas@hinchely.dk"
+            },
+            {
+                "bytesUsed": 14630986490,
+                "id": 2787,
+                "timestamp": 1544713221357,
+                "title": "Storage used",
+                "user": "jonas@hinchely.dk"
+            },
+            {
+                "bytesUsed": 14630986490,
+                "id": 3711,
+                "timestamp": 1544724022728,
+                "title": "Storage used",
+                "user": "jonas@hinchely.dk"
+            },
+            {
+                "bytesUsed": 14630986490,
+                "id": 4635,
+                "timestamp": 1544734821383,
+                "title": "Storage used",
+                "user": "jonas@hinchely.dk"
+            },
+            {
+                "bytesUsed": 14630986490,
+                "id": 5559,
+                "timestamp": 1544745625707,
+                "title": "Storage used",
+                "user": "jonas@hinchely.dk"
+            },
+            {
+                "bytesUsed": 14630986490,
+                "id": 6483,
+                "timestamp": 1544756424121,
+                "title": "Storage used",
+                "user": "jonas@hinchely.dk"
+            },
+            {
+                "bytesUsed": 14630986490,
+                "id": 7407,
+                "timestamp": 1544767224694,
+                "title": "Storage used",
+                "user": "jonas@hinchely.dk"
+            },
+            {
+                "bytesUsed": 14630986490,
+                "id": 8331,
+                "timestamp": 1544778023464,
+                "title": "Storage used",
+                "user": "jonas@hinchely.dk"
+            }
+        ],
+        "itemsInTotal": 10,
+        "itemsPerPage": 10,
+        "pageNumber": 0,
+        "pagesInTotal": 1
+    }
+}

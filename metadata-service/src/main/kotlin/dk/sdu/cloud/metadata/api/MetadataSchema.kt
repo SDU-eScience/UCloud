@@ -1,6 +1,9 @@
 package dk.sdu.cloud.metadata.api
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.metadata.util.Licenses
+import dk.sdu.cloud.service.TYPE_PROPERTY
 
 interface UserEditableProjectMetadata {
     val title: String?
@@ -134,21 +137,40 @@ data class Subject(val term: String, val identifier: String, val scheme: String?
     }
 }
 
-sealed class RelatedIdentifier(val relation: String) {
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = "relation"
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = RelatedIdentifier.CitedBy::class, name = "isCitedBy"),
+    JsonSubTypes.Type(value = RelatedIdentifier.Cites::class, name = "cites"),
+    JsonSubTypes.Type(value = RelatedIdentifier.SupplementTo::class, name = "isSupplementTo"),
+    JsonSubTypes.Type(value = RelatedIdentifier.SupplementedBy::class, name = "isSupplementedBy"),
+    JsonSubTypes.Type(value = RelatedIdentifier.NewVersionOf::class, name = "isNewVersionOf"),
+    JsonSubTypes.Type(value = RelatedIdentifier.PreviousVersionOf::class, name = "isPreviousVersionOf"),
+    JsonSubTypes.Type(value = RelatedIdentifier.PartOf::class, name = "isPartOf"),
+    JsonSubTypes.Type(value = RelatedIdentifier.HasPart::class, name = "hasPart"),
+    JsonSubTypes.Type(value = RelatedIdentifier.Compiles::class, name = "compiles"),
+    JsonSubTypes.Type(value = RelatedIdentifier.CompiledBy::class, name = "isCompiledBy"),
+    JsonSubTypes.Type(value = RelatedIdentifier.IdenticalTo::class, name = "isIdenticalTo"),
+    JsonSubTypes.Type(value = RelatedIdentifier.AlternativeIdentifier::class, name = "IsAlternateIdentifier")
+)
+sealed class RelatedIdentifier {
     abstract val identifier: String
 
-    data class CitedBy(override val identifier: String) : RelatedIdentifier("isCitedBy")
-    data class Cites(override val identifier: String) : RelatedIdentifier("cites")
-    data class SupplementTo(override val identifier: String) : RelatedIdentifier("isSupplementTo")
-    data class SupplementedBy(override val identifier: String) : RelatedIdentifier("isSupplementedBy")
-    data class NewVersionOf(override val identifier: String) : RelatedIdentifier("isNewVersionOf")
-    data class PreviousVersionOf(override val identifier: String) : RelatedIdentifier("isPreviousVersionOf")
-    data class PartOf(override val identifier: String) : RelatedIdentifier("isPartOf")
-    data class HasPart(override val identifier: String) : RelatedIdentifier("hasPart")
-    data class Compiles(override val identifier: String) : RelatedIdentifier("compiles")
-    data class CompiledBy(override val identifier: String) : RelatedIdentifier("isCompiledBy")
-    data class IdenticalTo(override val identifier: String) : RelatedIdentifier("isIdenticalTo")
-    data class AlternativeIdentifier(override val identifier: String) : RelatedIdentifier("IsAlternateIdentifier")
+    data class CitedBy(override val identifier: String) : RelatedIdentifier()
+    data class Cites(override val identifier: String) : RelatedIdentifier()
+    data class SupplementTo(override val identifier: String) : RelatedIdentifier()
+    data class SupplementedBy(override val identifier: String) : RelatedIdentifier()
+    data class NewVersionOf(override val identifier: String) : RelatedIdentifier()
+    data class PreviousVersionOf(override val identifier: String) : RelatedIdentifier()
+    data class PartOf(override val identifier: String) : RelatedIdentifier()
+    data class HasPart(override val identifier: String) : RelatedIdentifier()
+    data class Compiles(override val identifier: String) : RelatedIdentifier()
+    data class CompiledBy(override val identifier: String) : RelatedIdentifier()
+    data class IdenticalTo(override val identifier: String) : RelatedIdentifier()
+    data class AlternativeIdentifier(override val identifier: String) : RelatedIdentifier()
 }
 
 data class Creator(
