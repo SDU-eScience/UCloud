@@ -3,7 +3,7 @@ import { themeGet, space, color } from "styled-system";
 import theme, { ThemeColor } from "./theme";
 import { NumberOrStringOrArray } from "./Types";
 
-const type = (props) => {
+export const colorScheme = (props) => {
   const badgeColors = {
     blue: {
       backgroundColor: props.theme.colors.blue,
@@ -59,7 +59,7 @@ const Badge = styled("div") <BadgeProps>`
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: ${themeGet("letterSpacings.caps")};
-  ${space} ${type} ${color};
+  ${space} ${colorScheme} ${color};
 `
 
 Badge.displayName = "Badge";
