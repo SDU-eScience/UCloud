@@ -139,6 +139,7 @@ export const NewAppCard = styled(Link)`
     position: relative;
     /* flex: 1 0 auto; */
     overflow: hidden;
+    box-shadow: ${({ theme }) => theme.boxShadows[0]};
 `;
 
 const Tag = ({ label }: { label: string }) => (
@@ -204,6 +205,23 @@ const nColors = appColors.length;
 
 const bgGradients = appColors.map(x => ({ color1: x[0], color2: x[2] }));
 
+
+const AppBg_triangle = ({ color1, color2 }: { color1: string, color2: string }) => (
+    <svg height={"128px"} viewBox="0 0 128 128" >
+        <path d="M64,0h64v64z" fill={"url(#appbg_svg___"+color1+"_"+color2} />
+        <defs>
+            <linearGradient
+                id={"appbg_svg___"+color1+"_"+color2}
+                x1={64} x2={128} y1={0} y2={64}
+                gradientUnits="userSpaceOnUse"
+            >
+                <stop offset={0} stopColor={color1} />
+                <stop offset={1} stopColor={color2} />
+            </linearGradient>
+        </defs>
+    </svg>
+);
+
 const AppBg = ({ color1, color2 }: { color1: string, color2: string }) => (
     <svg height={"128px"} viewBox="0 0 100 128" >
         <path d="M 25,0 h 75 v 128 h -100 z" fill={"url(#appbg_svg___"+color1+"_"+color2} />
@@ -220,14 +238,130 @@ const AppBg = ({ color1, color2 }: { color1: string, color2: string }) => (
     </svg>
 );
 
+const AppBg2 = ({ color1, color2 }: { color1: string, color2: string }) => {
+
+    const s32=Math.sqrt(3)*.5;
+    const s15=1.5;
+    const rot60 = "rotate(60 0 0)";
+
+    const rots = [0, 60, 120, 180, 240, 300].map(x =>(" rotate("+x+" 0 0)"));
+    const r= [1, 2, 4, 2, 
+              5, 4, 2, 3,
+              4, 1, 0, 3,
+              4, 5, 2, 1
+             ];
+
+    return (
+    <svg height={"128px"} viewBox="0 0 100 128" >
+        <use xlinkHref="#bg_card___" fill={"url(#appbg_svg___"+color1+"_"+color2} />
+        <g clipPath="url(#bg_clip___)"> 
+            <g transform="scale(20)">
+            <use xlinkHref="#hex_tile1___" transform={"translate(0.0,"+(4*s32)+")"+rots[r[0]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(0.0,"+(6*s32)+")"+rots[r[1]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(0.0,"+(8*s32)+")"+rots[r[2]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(1.5,"+(1*s32)+")"+rots[r[3]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(1.5,"+(3*s32)+")"+rots[r[4]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(1.5,"+(5*s32)+")"+rots[r[5]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(1.5,"+(7*s32)+")"+rots[r[6]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(3.0,"+(0*s32)+")"+rots[r[7]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(3.0,"+(2*s32)+")"+rots[r[8]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(3.0,"+(4*s32)+")"+rots[r[9]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(3.0,"+(6*s32)+")"+rots[r[10]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(3.0,"+(8*s32)+")"+rots[r[11]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(4.5,"+(1*s32)+")"+rots[r[12]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(4.5,"+(3*s32)+")"+rots[r[13]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(4.5,"+(5*s32)+")"+rots[r[14]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(4.5,"+(7*s32)+")"+rots[r[15]]}/>
+        </g> </g>
+        <defs>
+            <linearGradient
+                id={"appbg_svg___"+color1+"_"+color2}
+                x1={25} x2={100} y1={0} y2={128}
+                gradientUnits="userSpaceOnUse"
+            >
+                <stop offset={0} stopColor={color1} />
+                <stop offset={1} stopColor={color2} />
+            </linearGradient>
+            <path id="bg_card___" d="M 25,0 h 75 v 128 h -100 z" />
+            <clipPath id="bg_clip___">
+                <use xlinkHref="#bg_card___" />
+            </clipPath>
+            <path id="hex_l1___" d={"M0 "+s32+"Q 0 0 0.75 -"+(s32*0.5)} fill="none"/>
+            <path id="hex_l2___" d={"M0 -"+s32+"Q 0 0 -0.75 -"+(s32*0.5)} fill="none"/>
+            <g id="hex_tile1___">
+                {/* <use xlinkHref="#hex_th___" fill="#fff"/> */}
+                <use xlinkHref="#hex_l1___" stroke="black" strokeWidth="0.15" />
+                <use xlinkHref="#hex_l1___" stroke="white" strokeWidth="0.1" />
+                <use xlinkHref="#hex_l1___" stroke="black" strokeWidth="0.15"  transform={rot60}/>
+                <use xlinkHref="#hex_l1___" stroke="white" strokeWidth="0.1"  transform={rot60}/>
+                <use xlinkHref="#hex_l2___" stroke="black" strokeWidth="0.15" />
+                <use xlinkHref="#hex_l2___" stroke="white" strokeWidth="0.1" />
+            </g>
+        </defs>
+    </svg>
+);
+}
+
+const AppBg3 = ({ color1, color2 }: { color1: string, color2: string }) => {
+
+    const s32=Math.sqrt(3)*.5;
+    const fill="url(#appbg_svg___" + color1 + "_" + color2+") #fff";
+    const hexR = r => ( "M-"+r+" 0L-"+(0.5*r)+" "+(s32*r)+"H"+(0.5*r)+"L"+r+" 0L"+(0.5*r)+" -"+(s32*r)+"H-"+(0.5*r)+"Z" )
+
+    return (
+        <svg height={"128px"} viewBox="0 0 100 128" >
+         <g fill={fill} >
+          <use xlinkHref="#bg_card___" clipPath="url(#bg_clip2___)"/>
+            </g>
+
+            <defs>
+                <linearGradient
+                    id={"appbg_svg___" + color1 + "_" + color2}
+                    x1={25} x2={100} y1={0} y2={128}
+                    gradientUnits="userSpaceOnUse"
+                >
+                    <stop offset={0} stopColor={color1} />
+                    <stop offset={1} stopColor={color2} />
+                </linearGradient>
+                <path id="bg_card___" d="M 25,0 h 75 v 128 h -100 z" />
+                <path id="hex_th1___" d={"M-1 0L-0.5"+ (s32) + "H0.5L1 0L0.5 -" + (s32) + "H-0.5Z"} />
+                <clipPath id="bg_clip___" >
+                    <use xlinkHref="#bg_card___" />
+                </clipPath>
+                <clipPath id="bg_clip2___" >
+                    <g transform="scale(50)" >
+                       {/* <use xlinkHref="#hex_th1___" transform={"translate(0.0," + (4 * s32) + ") scale(0.96)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(0.0," + (6 * s32) + ") scale(0.94)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(0.0," + (8 * s32) + ") scale(0.92)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(1.5," + (1 * s32) + ") scale(0.99)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(1.5," + (3 * s32) + ") scale(0.97)"} /> */}
+                        <use xlinkHref="#hex_th1___" transform={"translate(1.5," + (5 * s32) + ") scale(0.95)"} />
+                        {/* <use xlinkHref="#hex_th1___" transform={"translate(1.5," + (7 * s32) + ") scale(0.93)"} /> 
+                        <use xlinkHref="#hex_th1___" transform={"translate(3.0," + (0 * s32) + ") scale(1.00)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(3.0," + (2 * s32) + ") scale(0.98)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(3.0," + (4 * s32) + ") scale(0.96)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(3.0," + (6 * s32) + ") scale(0.94)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(3.0," + (8 * s32) + ") scale(0.92)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(4.5," + (1 * s32) + ") scale(0.99)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(4.5," + (3 * s32) + ") scale(0.97)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(4.5," + (5 * s32) + ") scale(0.95)"} />
+                        <use xlinkHref="#hex_th1___" transform={"translate(4.5," + (7 * s32) + ") scale(0.93)"} /> */}
+                    </g>
+                </clipPath>
+                
+            </defs>
+        </svg>
+    );
+}
+
 export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
     const i1=(hash>>>30)&3;
     const i2=(hash>>>20)&3;
     const c1 = [i1%3, (i1+1)%3, (i1+2)%3];
     const c2 = [i2%3, (i2+1)%3, (i2+2)%3];
     const appC = appColor(hash);
-    //const centerC = nColors-1;
-    const centerC = appC;
+    const centerC = nColors-1;
+    //const centerC = appC;
 
     const i3=(hash>>>10)&3;
     const rot = [0, 15, 30];
@@ -237,12 +371,15 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
     const r2 = 0.7; //outer radius of inner element
     const r3 = (1+r2)*.5; // radius of white background hexagon 
 
+    const rot120 = "rotate(120 0 0)";
+    const rot240 = "rotate(240 0 0)";
+
     return (
     <svg
         width={size} height={size}
         viewBox={"-1 -"+s32+" 2 "+(2*s32)}
         fillRule="evenodd"
-            clipRule="evenodd"
+        clipRule="evenodd"
         >
         <defs>
             <path id="hex_to___" d={"M-"+r1+" 0H-1L-0.5 "+s32+"H0.5L"+(0.5*r1)+" "+(s32*r1)+"H-"+(0.5*r1)+"Z"} />
@@ -252,11 +389,11 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
         <g  transform={"rotate("+rot[i3]+" 0 0)"} >
             <use xlinkHref="#hex_th___" fill="#fff"/>
             <use xlinkHref="#hex_to___" fill={appColors[appC][c1[0]]}/>
-            <use xlinkHref="#hex_to___" fill={appColors[appC][c1[1]]} transform="rotate(120 0 0)"/>
-            <use xlinkHref="#hex_to___" fill={appColors[appC][c1[2]]} transform="rotate(240 0 0)"/>         
+            <use xlinkHref="#hex_to___" fill={appColors[appC][c1[1]]} transform={rot120}/>
+            <use xlinkHref="#hex_to___" fill={appColors[appC][c1[2]]} transform={rot240}/>         
             <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[0]]}/>
-            <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[1]]} transform="rotate(120 0 0)"/>
-            <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[2]]} transform="rotate(240 0 0)"/>
+            <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[1]]} transform={rot120}/>
+            <use xlinkHref="#hex_ti___" fill={appColors[centerC][c2[2]]} transform={rot240}/>
         </g>
         </svg>
     );
