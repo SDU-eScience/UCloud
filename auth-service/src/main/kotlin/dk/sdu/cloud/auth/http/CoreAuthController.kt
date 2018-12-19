@@ -2,6 +2,8 @@ package dk.sdu.cloud.auth.http
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
@@ -328,6 +330,11 @@ class CoreAuthController<DBSession>(
                 CommonErrorMessage("Unauthorized"),
                 HttpStatusCode.Unauthorized
             )
+
+            if (token.principal.role != Role.PROJECT_PROXY && call.securityPrincipal.role !in Roles.PRIVILEDGED) {
+                error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
+                return@implement
+            }
 
             audit(auditMessage.copy(username = token.principal.username, role = token.principal.role))
 

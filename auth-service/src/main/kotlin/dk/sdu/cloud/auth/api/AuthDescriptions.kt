@@ -177,7 +177,6 @@ object AuthDescriptions : RESTDescriptions("auth") {
         name = "tokenExtension"
 
         auth {
-            roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 

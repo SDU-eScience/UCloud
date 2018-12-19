@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.auth.api.ProjectProxy
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
@@ -59,6 +60,18 @@ data class ServiceEntity(
 ) : PrincipalEntity() {
     override fun toModel(): Principal {
         return ServicePrincipal(id, role)
+    }
+}
+
+@Entity
+data class ProjectProxyEntity(
+    override var id: String,
+    override var role: Role,
+    override var createdAt: Date,
+    override var modifiedAt: Date
+) : PrincipalEntity() {
+    override fun toModel(): Principal {
+        return ProjectProxy(id, role)
     }
 }
 
@@ -274,6 +287,13 @@ fun Principal.toEntity(): PrincipalEntity {
         )
 
         is ServicePrincipal -> ServiceEntity(
+            id,
+            role,
+            Date(),
+            Date()
+        )
+
+        is ProjectProxy -> ProjectProxyEntity(
             id,
             role,
             Date(),

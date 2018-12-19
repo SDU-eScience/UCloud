@@ -1,11 +1,13 @@
 package dk.sdu.cloud.auth.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.ChangePasswordAudit
 import dk.sdu.cloud.auth.api.CreateUserAudit
 import dk.sdu.cloud.auth.api.LookupUsersResponse
+import dk.sdu.cloud.auth.api.ProjectProxy
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
@@ -38,23 +40,37 @@ class UserController<DBSession>(
         implement(UserDescriptions.createNewUser) { req ->
             audit(CreateUserAudit(req.username, req.role))
 
-            if (req.role != Role.SERVICE) {
-                val person = personService.createUserByPassword(
-                    firstNames = req.username,
-                    lastName = "N/A",
-                    email = req.username,
-                    role = req.role ?: Role.USER,
-                    password = req.password
-                )
+            when (req.role) {
+                Role.SERVICE -> {
+                    val user = ServicePrincipal(req.username, Role.SERVICE)
+                    userCreationService.createUser(user)
 
-                userCreationService.createUser(person)
-                val tokens = tokenService.createAndRegisterTokenFor(person)
-                ok(tokens)
-            } else {
-                val user = ServicePrincipal(req.username, Role.SERVICE)
-                userCreationService.createUser(user)
+                    ok(tokenService.createAndRegisterTokenFor(user))
+                }
 
-                ok(tokenService.createAndRegisterTokenFor(user))
+                null, Role.ADMIN, Role.USER -> {
+                    val person = personService.createUserByPassword(
+                        firstNames = req.username,
+                        lastName = "N/A",
+                        email = req.username,
+                        role = req.role ?: Role.USER,
+                        password = req.password
+                    )
+
+                    userCreationService.createUser(person)
+                    val tokens = tokenService.createAndRegisterTokenFor(person)
+                    ok(tokens)
+                }
+
+                Role.PROJECT_PROXY -> {
+                    val user = ProjectProxy(req.username, Role.PROJECT_PROXY)
+                    userCreationService.createUser(user)
+                    ok(tokenService.createAndRegisterTokenFor(user))
+                }
+
+                else -> {
+                    error(CommonErrorMessage("Bad Request"), HttpStatusCode.BadRequest)
+                }
             }
         }
 

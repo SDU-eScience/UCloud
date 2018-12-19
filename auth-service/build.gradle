@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.13.5-SNAPSHOT'
+version '1.14.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
@@ -35,8 +35,8 @@ dependencies {
     compile 'com.google.zxing:javase:3.3.0'
 
     // Internal services
-    compile 'dk.sdu.cloud:service-common:0.22.0-SNAPSHOT'
-    testCompile 'dk.sdu.cloud:service-common-test:0.22.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:service-common:0.23.0'
+    testCompile 'dk.sdu.cloud:service-common-test:0.23.0'
 }
 
 sduCloud.createTasksForApiJar("auth", [])

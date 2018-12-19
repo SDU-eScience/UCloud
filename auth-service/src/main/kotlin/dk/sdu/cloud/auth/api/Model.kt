@@ -136,6 +136,16 @@ sealed class Person : Principal() {
     }
 }
 
+data class ProjectProxy(
+    override val id: String,
+    override val role: Role
+) : Principal() {
+    init {
+        validate()
+        if (role != Role.PROJECT_PROXY) throw IllegalArgumentException("Invalid role")
+    }
+}
+
 /**
  * Represents a service
  */
