@@ -42,14 +42,6 @@ data class EvilFormRequest(
     val streamingTwo: Int
 )
 
-data class EvilFormRequest2(
-    val normal: StreamingFile, // Should fail because type is incorrect
-    val json: JsonPayload,
-    val streamingOne: StreamingFile?,
-    val normal2: String?,
-    val streamingTwo: StreamingFile?
-)
-
 data class EvilFormRequest3(
     val normal: String,
     val json: JsonPayload,
@@ -65,21 +57,6 @@ data class BadFormRequest(
 
 object MultipartDescriptions : RESTDescriptions("foo") {
     val evilMultipart = callDescription<MultipartRequest<EvilFormRequest>, Unit, Unit> {
-        name = "multipart"
-        method = HttpMethod.Post
-
-        auth {
-            access = AccessRight.READ
-        }
-
-        path {
-            +"foo"
-        }
-
-        body { bindEntireRequestFromBody() }
-    }
-
-    val evilMultipart2 = callDescription<MultipartRequest<EvilFormRequest2>, Unit, Unit> {
         name = "multipart"
         method = HttpMethod.Post
 
@@ -219,26 +196,6 @@ class MultipartTest {
                 ),
                 cloud
             )
-
-            assertEquals(0, callCount)
-            assertEquals(HttpStatusCode.BadRequest.value, result.status)
-        }
-
-        runBlocking {
-            val file = Files.createTempFile("", ".txt").toFile().also { it.writeText("Hello 2!") }
-            val result = MultipartDescriptions.evilMultipart2.call(
-                MultipartRequest.create(
-                    EvilFormRequest2(
-                        StreamingFile.fromFile(file),
-                        JsonPayload(42, "bar", listOf("a", "b", "c").map { Wrapper(it) }),
-                        StreamingFile.fromFile(file),
-                        "Testing",
-                        StreamingFile.fromFile(file)
-                    )
-                ),
-                cloud
-            )
-
             assertEquals(0, callCount)
             assertEquals(HttpStatusCode.BadRequest.value, result.status)
         }
