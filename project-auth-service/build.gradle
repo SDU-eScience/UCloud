@@ -1,0 +1,21 @@
+group 'dk.sdu.cloud'
+version '0.1.0-SNAPSHOT'
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.project.auth.MainKt"
+
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.4/sdu-cloud.gradle"
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    // Internal services
+    compile 'dk.sdu.cloud:service-common:0.23.0'
+    compile 'dk.sdu.cloud:auth-api:1.14.0'
+    compile 'dk.sdu.cloud:project-api:0.1.0'
+    testCompile 'dk.sdu.cloud:service-common-test:0.23.0'
+}
+
+sduCloud.createTasksForApiJar("project.auth", [])

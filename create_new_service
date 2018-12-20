@@ -26,8 +26,8 @@ serviceName=$1
 jsonModel='{
     "serviceName": "'${serviceName}'",
     "serviceNameTitle": "'$(titlecase $serviceName)'",
-    "serviceCommonVersion": "0.22.0-SNAPSHOT",
-    "authApiVersion": "1.8.0-SNAPSHOT"
+    "serviceCommonVersion": "0.23.0",
+    "authApiVersion": "1.14.0"
 }'
 jsonModelFile=/tmp/create-new-service.json
 
