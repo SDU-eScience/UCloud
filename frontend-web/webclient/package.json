@@ -1,6 +1,6 @@
 {
   "name": "sducloud",
-  "version": "0.8.0",
+  "version": "0.10.1",
   "description": "SDU Cloud",
   "author": "IMADA - eScience Center, SDU",
   "jest": {
@@ -19,6 +19,7 @@
     },
     "moduleNameMapper": {
       "^.+\\.png$": "file-loader",
+      "^.+\\.ttf$": "file-loader",
       "Authentication/SDUCloudObject": "<rootDir>/__tests__/mock/Cloud.ts"
     },
     "testRegex": "(/__tests__/.*|(\\.|/)\\.(test|spec))\\.(jsx?|tsx?)$",

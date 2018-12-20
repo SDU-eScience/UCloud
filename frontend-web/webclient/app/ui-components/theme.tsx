@@ -175,6 +175,7 @@ const colors = {
   darkGray,
   blue,
   lightBlue,
+  lightBlue2,
   darkBlue,
   green,
   lightGreen,

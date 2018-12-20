@@ -1,14 +1,11 @@
 import * as React from "react";
-import { Link, Image } from "ui-components";
+import { Link, Image, Markdown } from "ui-components";
 import { Relative, Box, Absolute, Text, Icon, Flex, RatingBadge, Card } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import * as Pages from "./Pages";
 import { Application } from ".";
 import styled from "styled-components";
-import * as ReactMarkdown from "react-markdown";
 import * as Heading from "ui-components/Heading"
-import { bgColor } from "styled-system";
-import { SSL_OP_NO_QUERY_MTU } from "constants";
 
 interface ApplicationCardProps {
     onFavorite?: (name: string, version: string) => void,
@@ -81,7 +78,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
             {/* <img src={props.app.imageUrl} /> */}
             <strong>{props.app.description.title} v{props.app.description.info.version}</strong>
             <EllipsedText>
-                <ReactMarkdown
+                <Markdown
                     source={props.app.description.description}
                     allowedTypes={["text", "root", "paragraph"]} />
             </EllipsedText>

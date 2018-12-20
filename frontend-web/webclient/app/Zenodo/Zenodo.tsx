@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, Box, Icon } from "ui-components";
+import { Link, Box, Icon, ExternalLink } from "ui-components";
 import { toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -83,7 +83,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
 
 const PublicationRow = ({ publication }) => {
     const actionButton = publication.zenodoAction ? (
-        <a href={publication.zenodoAction} target="_blank" rel="noopener">Finish at Zenodo</a>
+        <ExternalLink href={publication.zenodoAction}>Finish at Zenodo</ExternalLink>
     ) : null;
     return (
         <TableRow>
