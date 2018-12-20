@@ -101,8 +101,9 @@ class ComputeTimeTest {
 
                         request.assertSuccess()
                         //TODO Works but not pretty
-                        assertTrue(request.response.content?.contains("\"xaxisLabel\":\"Time\"")!!)
-                        assertTrue(request.response.content?.contains("\"yaxisLabel\":\"Compute time used\"")!!)
+                        println(request.response.content)
+                        assertTrue(request.response.content?.contains(
+                            "\"dataTypes\":[\"datetime\",\"duration\"],\"dataTitle\":\"Compute Time Used\"")!!)
                     }
                 }
             }

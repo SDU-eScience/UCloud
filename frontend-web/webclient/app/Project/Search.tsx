@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link } from "react-router-dom";
+import { Link } from "ui-components";
 import { ProjectMetadata } from "./api";
 import * as Heading from "ui-components/Heading";
 import { Box, Flex, Text, Stamp, Divider, Card } from "ui-components";

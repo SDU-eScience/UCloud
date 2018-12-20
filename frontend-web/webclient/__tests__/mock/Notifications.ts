@@ -1,4 +1,7 @@
-export const notifications = {
+import { Page } from "Types";
+import { Notification } from "Notifications";
+
+export const notifications: Page<Notification> = {
     itemsInTotal: 2,
     itemsPerPage: 10,
     pageNumber: 0,

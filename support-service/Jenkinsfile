@@ -12,7 +12,7 @@ def initialize() {
   } finally {
     publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'support-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'support-service-detekt-Report', reportTitles: ''])
   }
-  try {
+  /*try {
     stage('test support-service') {
       sh '''cd support-service
       ./gradlew test'''
@@ -20,7 +20,7 @@ def initialize() {
   } catch (e) {
     echo "Test FAILED"
     return currentBuild.result ?: 'UNSTABLE'
-  }
+  }*/
   return currentBuild.result ?: 'SUCCESS'
 }
 
