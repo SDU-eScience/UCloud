@@ -119,7 +119,7 @@ class Search extends React.Component<SearchProps> {
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
         const fileOperations = AllFileOperations(true, false, false, this.props.history);
-
+        // FIXME: Search Pane approach is obsolete
         const panes: SearchPane[] = [
             {
                 headerType: "files",
@@ -190,7 +190,7 @@ class Search extends React.Component<SearchProps> {
                 fontSize={2}
                 onClick={() => this.setPath(pane.headerType)}
                 selected={activeIndex === index}
-                mr="0.4em"
+                mr="1em"
             >
                 {pane.menuItem}
             </SelectableText>

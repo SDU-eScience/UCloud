@@ -6,8 +6,11 @@ type AAttr = React.AnchorHTMLAttributes<HTMLAnchorElement>;
 
 const ExternalLink: React.FunctionComponent<
     BaseLinkProps & Pick<AAttr, Exclude<keyof AAttr, "rel" | "target">>
-> = props => {
-    return <BaseLink rel="noopener" target="_blank" {...props} />;
+> = props => <BaseLink rel="noopener" target="_blank" {...props} />;
+
+ExternalLink.defaultProps = {
+    color: "text",
+    hoverColor: "textHighlight"
 };
 
 export default ExternalLink;
