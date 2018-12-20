@@ -69,6 +69,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     onSubmit = event => {
         event.preventDefault();
         if (!this.state.application) return;
+        if (this.state.jobSubmitted) return;
 
         let maxTime: MaxTimeForInput | null = this.extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime && maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
@@ -217,7 +218,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     schedulingOptions={schedulingOptions}
                     app={application}
                     onJobSchedulingParamsChange={this.onJobSchedulingParamsChange}
-                    disableSubmit={jobSubmitted}
                 />
             </ContainerForText>
         );
@@ -237,6 +237,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         type="file"
                         onChange={(e) => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
                 </OutlineButton>
+                <LoadingButton onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>
             </VerticalButtonGroup>
         );
 
@@ -259,7 +260,6 @@ interface ParameterProps {
     parameters: ApplicationParameter[],
     schedulingOptions: JobSchedulingOptionsForInput,
     app: Application,
-    disableSubmit: boolean,
     onChange: (name, value) => void,
     onSubmit: (e: React.FormEvent) => void,
     onJobSchedulingParamsChange: (field, value, subField) => void,
@@ -287,8 +287,6 @@ const Parameters = (props: ParameterProps) => {
                 options={props.schedulingOptions}
                 app={props.app}
             />
-
-            <LoadingButton loading={props.disableSubmit} color="blue">Submit</LoadingButton>
         </form>
     )
 };
