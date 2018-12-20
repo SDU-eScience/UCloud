@@ -104,7 +104,7 @@ const AppHeaderDetails = styled.div`
     }
 `;
 
-const AppHeader: React.StatelessComponent<MainContentProps> = props => (
+export const AppHeader: React.StatelessComponent<MainContentProps> = props => (
     <AppHeaderBase>
         {/* <Image src={props.application.imageUrl} /> */}
         <Box mr={16} >

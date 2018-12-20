@@ -15,6 +15,7 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter } from "./ParameterWidgets";
 import { Header } from "./Header";
 import { extractParameters } from "Utilities/ApplicationUtilities";
+import { AppHeader } from "./View";
 
 type Tool = any;
 
@@ -197,9 +198,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         );
 
         const header = (
-            <Header
-                name={application.description.title}
-                version={application.description.info.version} />
+            <Flex ml="12%">
+                <AppHeader application={application} />
+            </Flex>
         );
 
         const main = (
