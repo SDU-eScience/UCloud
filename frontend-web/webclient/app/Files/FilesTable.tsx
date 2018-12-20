@@ -148,7 +148,7 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
     </ClickableDropdown>) : <>{UF.prettierString(currentSelection)}</>;
 
 export const ContextBar = ({ files, ...props }: ContextBarProps) => (
-    <Box mt="65px">
+    <Box>
         <ContextButtons toHome={props.toHome} inTrashFolder={props.inTrashFolder} showUploader={props.showUploader} createFolder={props.createFolder} />
         <FileOptions files={files} {...props} />
     </Box>

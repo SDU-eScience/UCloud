@@ -119,7 +119,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
         {files.length || isLoading ? null : (<Heading.h6>No favorites found</Heading.h6>)}
         <List>
             {files.map((file, i) => (
-                <Flex key={i} pt="0.8em" pb="6px">
+                <Flex alignItems="center" key={i} pt="0.5em" pb="6.4px">
                     <ListFileContent file={file} link={false} pixelsWide={200} />
                     <Box ml="auto" />
                     <Icon name="starFilled" color="blue" cursor="pointer" onClick={() => favorite(file)} />
@@ -132,14 +132,14 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
 const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean, pixelsWide: number }) => {
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     return (
-        <>
+        <Flex alignItems="center">
             <FileIcon fileIcon={iconType} link={link} />
             <Link ml="0.5em" to={fileTablePage(isDirectory(file) ? file.path : getParentPath(file.path))}>
                 <EllipsedText fontSize={2} width={pixelsWide}>
                     {getFilenameFromPath(replaceHomeFolder(file.path, Cloud.homeFolder))}
                 </EllipsedText>
             </Link>
-        </>
+        </Flex>
     );
 }
 
@@ -147,7 +147,7 @@ const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: 
     <DashboardCard title="Recently used files" isLoading={isLoading}>
         <List>
             {files.map((file, i) => (
-                <Flex key={i} pt="0.8em" pb="6px">
+                <Flex alignItems="center" key={i} pt="0.5em" pb="0.3em">
                     <ListFileContent file={file} link={file.link} pixelsWide={130} />
                     <Box ml="auto" />
                     <Text fontSize={1} color="grey">{moment(new Date(file.modifiedAt)).fromNow()}</Text>
@@ -162,7 +162,7 @@ const DashboardAnalyses = ({ analyses, isLoading }: { analyses: Analysis[], isLo
         {isLoading || analyses.length ? null : (<Heading.h6>No results found</Heading.h6>)}
         <List>
             {analyses.map((analysis: Analysis, index: number) =>
-                <Flex key={index} pt="0.8em" pb="6px">
+                <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
                     <Icon name={statusToIconName(analysis.state)}
                         color={statusToColor(analysis.state)}
                         size="1.5em"
@@ -188,7 +188,7 @@ const DashboardNotifications = ({ notifications, readAll, onNotificationAction }
         <Flex bg="lightGray" color="darkGray" p={3}>
             <Heading.h4>Recent notifications</Heading.h4>
             <Box ml="auto" />
-            <Icon name="checkDouble" m="5px" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />
+            <Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />
         </Flex>
         <Box px={3} py={1}>
             {notifications.length === 0 ? <Heading.h6>No notifications</Heading.h6> : null}

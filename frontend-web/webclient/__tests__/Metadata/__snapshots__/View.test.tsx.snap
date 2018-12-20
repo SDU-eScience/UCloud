@@ -194,8 +194,8 @@ Array [
             fontSize="large"
           >
             <div
-              className="sc-brqgnP fWStYE"
-              color="black"
+              className="sc-brqgnP iHrXtE"
+              color="lightGray"
               fontSize={0}
             >
               Example
@@ -456,8 +456,8 @@ Array [
             fontSize="large"
           >
             <div
-              className="sc-brqgnP fWStYE"
-              color="black"
+              className="sc-brqgnP iHrXtE"
+              color="lightGray"
               fontSize={0}
             >
               Example

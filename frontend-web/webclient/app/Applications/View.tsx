@@ -24,7 +24,6 @@ import { ApplicationCardContainer, SlimApplicationCard } from "./Card";
 import { AppLogo, hashF } from "./Card";
 
 import * as Pages from "./Pages";
-import { Navigation } from "./Navigation";
 
 interface MainContentProps {
     onFavorite?: () => void
@@ -57,7 +56,13 @@ class View extends React.Component<ViewProps> {
 
     render() {
         const { appName, appVersion } = this.props.match.params;
+        const { previous} = this.props;
         const application = this.props.application.content;
+        if (previous.content) {
+            previous.content.items = previous.content.items.filter(
+                ({ description }) => description.info.version !== appVersion
+            );
+        }
         return (
             <LoadingMainContainer
                 loadable={this.props.application}
@@ -104,11 +109,11 @@ const AppHeaderDetails = styled.div`
     }
 `;
 
-const AppHeader: React.StatelessComponent<MainContentProps> = props => (
+export const AppHeader: React.StatelessComponent<MainContentProps> = props => (
     <AppHeaderBase>
         {/* <Image src={props.application.imageUrl} /> */}
         <Box mr={16} >
-            <AppLogo size={"128px"} hash={hashF(props.application.description.title)}/>
+            <AppLogo size={"128px"} hash={hashF(props.application.description.title)} />
         </Box>
         <AppHeaderDetails>
             <Heading.h2>{props.application.description.title}</Heading.h2>
@@ -172,18 +177,20 @@ function Content(props: MainContentProps & { previousVersions?: Page<Application
     );
 }
 
-const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<Application> }> = props => (
-    <>
-        <Heading.h4>Previous Versions</Heading.h4>
-        {!props.previousVersions ? null :
-            <ApplicationCardContainer>
-                {props.previousVersions.items.map((it, idx) => (
-                    <SlimApplicationCard linkToRun app={it} key={idx} />
-                ))}
-            </ApplicationCardContainer>
-        }
-    </>
-);
+const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<Application> }> = props => {
+    return (
+        <>
+            <Heading.h4>Previous Versions</Heading.h4>
+            {!props.previousVersions ? null :
+                <ApplicationCardContainer>
+                    {props.previousVersions.items.map((it, idx) => (
+                        <SlimApplicationCard linkToRun app={it} key={idx} />
+                    ))}
+                </ApplicationCardContainer>
+            }
+        </>
+    )
+};
 
 const ButtonGroup = styled.div`
     display: flex;

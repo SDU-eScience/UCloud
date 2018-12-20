@@ -66,7 +66,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                     searchFiles={searchFiles}
                 />
                 <Notification />
-                <ClickableDropdown left={"-100%"} trigger={<Flex><UserAvatar /></Flex>}>
+                <ClickableDropdown width="180px" left={"-180%"} trigger={<Flex><UserAvatar /></Flex>}>
                     <Box style={{ backgroundColor: "unset" }}>Welcome, {Cloud.userInfo.firstNames}</Box>
                     <Divider />
                     <Box ml="-17px" mr="-17px" pl="15px">

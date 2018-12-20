@@ -68,37 +68,43 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
                 <Error clearError={() => this.setState({ errorMessage: undefined })} error={errorMessage} />
                 <Flex>
                     <Box ml="auto" />
-                    <ClickableDropdown chevron trigger={<TextSpan>Shares where: {prettierString(byState)}</TextSpan>}>
-                        {Object.keys(ShareState).map((it: ShareState, i) => (
-                            <Text key={i} onClick={() => this.updateShareState(it)}>{prettierString(it)}</Text>
-                        ))}
-                    </ClickableDropdown>
+                    <ClickableDropdown
+                        chevron
+                        width="150px"
+                        trigger={<TextSpan>Shares where: {prettierString(byState)}</TextSpan>}
+                        options={Object.keys(ShareState).map(v => ({ text: prettierString(v), value: v }))}
+                        onChange={(it: ShareState) => this.updateShareState(it)}
+                    />
                 </Flex>
-                {this.state.loading ? <LoadingIcon size={18} /> : null }
+                {this.state.loading ? <LoadingIcon size={18} /> : null}
                 <Heading.h3>Shared with Me</Heading.h3>
-                {noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
-                    <ListEntry
-                        groupedShare={it}
-                        key={it.path}
-                        onAccepted={e => this.onEntryAction()}
-                        onRejected={e => this.onEntryAction()}
-                        onRevoked={e => this.onEntryAction()}
-                        onShared={e => this.onEntryAction()}
-                        onRights={e => this.onEntryAction()}
-                        onError={it => this.setState({ errorMessage: it })} />
-                )}
+                {
+                    noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
+                        <ListEntry
+                            groupedShare={it}
+                            key={it.path}
+                            onAccepted={e => this.onEntryAction()}
+                            onRejected={e => this.onEntryAction()}
+                            onRevoked={e => this.onEntryAction()}
+                            onShared={e => this.onEntryAction()}
+                            onRights={e => this.onEntryAction()}
+                            onError={it => this.setState({ errorMessage: it })} />
+                    )
+                }
                 <Heading.h3>Shared by Me</Heading.h3>
-                {noSharesBy ? <NoShares /> : shares.filter(it => it.sharedByMe).map(it =>
-                    <ListEntry
-                        groupedShare={it}
-                        key={it.path}
-                        onAccepted={e => this.onEntryAction()}
-                        onRejected={e => this.onEntryAction()}
-                        onRevoked={e => this.onEntryAction()}
-                        onShared={e => this.onEntryAction()}
-                        onRights={e => this.onEntryAction()}
-                        onError={it => this.setState(() => ({ errorMessage: it }))} />
-                )}
+                {
+                    noSharesBy ? <NoShares /> : shares.filter(it => it.sharedByMe).map(it =>
+                        <ListEntry
+                            groupedShare={it}
+                            key={it.path}
+                            onAccepted={e => this.onEntryAction()}
+                            onRejected={e => this.onEntryAction()}
+                            onRevoked={e => this.onEntryAction()}
+                            onShared={e => this.onEntryAction()}
+                            onRights={e => this.onEntryAction()}
+                            onError={it => this.setState(() => ({ errorMessage: it }))} />
+                    )
+                }
             </>
         );
     }
