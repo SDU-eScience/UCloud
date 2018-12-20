@@ -157,7 +157,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
     }
 }
 
-const read = (p: { read: boolean }) => p.read ? { backgroundColor: theme.colors.white } : { backgroundColor: theme.colors.gray };
+const read = (p: { read: boolean }) => p.read ? { backgroundColor: theme.colors.white } : { backgroundColor: theme.colors.lightGray };
 
 const NotificationWrapper = styled(Flex)`
     ${read};
