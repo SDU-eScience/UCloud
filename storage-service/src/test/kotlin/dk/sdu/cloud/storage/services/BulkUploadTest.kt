@@ -95,7 +95,7 @@ class BulkUploadTest {
             runner.withBlockingContext("user") {
                 BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
                     service,
-                    it,
+                    { it },
                     "/home/user/",
                     WriteConflictPolicy.OVERWRITE,
                     tarFile.inputStream()
@@ -144,7 +144,7 @@ class BulkUploadTest {
                 val result =
                     BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
                         service,
-                        it,
+                        { it },
                         "/home/user/",
                         WriteConflictPolicy.RENAME,
                         tarFile.inputStream()
@@ -200,7 +200,7 @@ class BulkUploadTest {
                 val result =
                     BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
                         service,
-                        it,
+                        { it },
                         "/home/user/",
                         WriteConflictPolicy.OVERWRITE,
                         tarFile.inputStream()
@@ -248,7 +248,7 @@ class BulkUploadTest {
         runner.withBlockingContext("user") {
             val result =
                 BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(service,
-                    it,
+                    { it },
                     "/home/user/",
                     WriteConflictPolicy.REJECT,
                     tarFile.inputStream()
@@ -295,7 +295,7 @@ class BulkUploadTest {
         runner.withBlockingContext("user") { ctx ->
             val result =
                 BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(service,
-                    ctx,
+                    { ctx },
                     "/home/user/",
                     WriteConflictPolicy.OVERWRITE,
                     tarFile.inputStream()
@@ -340,7 +340,7 @@ class BulkUploadTest {
         runner.withBlockingContext("user") {
             val result =
                 BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(service,
-                    it,
+                    { it },
                     "/home/user/",
                     WriteConflictPolicy.OVERWRITE,
                     tarFile.inputStream()
@@ -382,7 +382,7 @@ class BulkUploadTest {
                 val result =
                     BulkUploader.fromFormat("tgz", UnixFSCommandRunner::class)!!.upload(
                         service,
-                        it,
+                        { it },
                         "/home/user/",
                         WriteConflictPolicy.OVERWRITE,
                         tarFile.inputStream()

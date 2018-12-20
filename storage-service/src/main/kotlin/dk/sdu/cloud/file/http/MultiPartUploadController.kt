@@ -14,7 +14,6 @@ import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
-import dk.sdu.cloud.file.util.tryWithFS
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.implement
@@ -70,32 +69,28 @@ class MultiPartUploadController<Ctx : FSUserContext>(
         implement(MultiPartUploadDescriptions.bulkUpload) { multipart ->
             val user = call.securityPrincipal.username
 
-            tryWithFS {
-                multipart.receiveBlocks { req ->
-                    val uploader =
-                        BulkUploader.fromFormat(req.format, commandRunnerFactory.type) ?: return@receiveBlocks error(
-                            CommonErrorMessage("Unsupported format '${req.format}'"),
-                            HttpStatusCode.BadRequest
-                        )
+            multipart.receiveBlocks { req ->
+                val uploader =
+                    BulkUploader.fromFormat(req.format, commandRunnerFactory.type) ?: return@receiveBlocks error(
+                        CommonErrorMessage("Unsupported format '${req.format}'"),
+                        HttpStatusCode.BadRequest
+                    )
 
-                    audit(BulkUploadAudit(req.location, req.policy, req.format))
+                audit(BulkUploadAudit(req.location, req.policy, req.format))
 
-                    val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
-                    req.upload.channel.copyTo(outputFile.outputStream())
-                    BackgroundScope.launch {
-                        commandRunnerFactory.withContext(user) {
-                            uploader.upload(
-                                fs,
-                                it,
-                                req.location,
-                                req.policy,
-                                outputFile.inputStream()
-                            )
-                        }
-                        try {
-                            outputFile.delete()
-                        } catch (_: Exception) {
-                        }
+                val outputFile = Files.createTempFile("upload", ".tar.gz").toFile()
+                req.upload.channel.copyTo(outputFile.outputStream())
+                BackgroundScope.launch {
+                    uploader.upload(
+                        fs,
+                        { commandRunnerFactory(user) },
+                        req.location,
+                        req.policy,
+                        outputFile.inputStream()
+                    )
+                    try {
+                        outputFile.delete()
+                    } catch (_: Exception) {
                     }
                 }
             }
