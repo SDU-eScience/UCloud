@@ -126,7 +126,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               </text>
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
@@ -184,7 +184,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
@@ -242,7 +242,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
@@ -300,7 +300,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
@@ -358,7 +358,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
@@ -416,7 +416,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
@@ -474,7 +474,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
@@ -532,7 +532,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
@@ -590,7 +590,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
@@ -648,7 +648,7 @@ exports[`Dashboard Component Mount with favorites 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
@@ -869,36 +869,36 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-jbKcbu fmyXkJ"
+          className="sc-dNLxif cjFzxQ"
           height={24}
           width={24}
         >
           <div
-            className="sc-dNLxif sc-jqCOkK gnGRdf"
+            className="sc-jqCOkK sc-uJMKN dwmSIB"
           />
           <div
-            className="sc-dNLxif sc-uJMKN jREtpL"
+            className="sc-jqCOkK sc-bbmXgH ldwYB"
           />
           <div
-            className="sc-dNLxif sc-bbmXgH lkwyCp"
+            className="sc-jqCOkK sc-gGBfsJ gSwopv"
           />
           <div
-            className="sc-dNLxif sc-gGBfsJ ePLnea"
+            className="sc-jqCOkK sc-jnlKLf brcsKI"
           />
           <div
-            className="sc-dNLxif sc-jnlKLf kCJrdv"
+            className="sc-jqCOkK sc-fYxtnH bHUzFw"
           />
           <div
-            className="sc-dNLxif sc-fYxtnH iBLZPa"
+            className="sc-jqCOkK sc-tilXH iPPHde"
           />
           <div
-            className="sc-dNLxif sc-tilXH coUMSF"
+            className="sc-jqCOkK sc-hEsumM kKzPLK"
           />
           <div
-            className="sc-dNLxif sc-hEsumM ekuvsi"
+            className="sc-jqCOkK sc-ktHwxA fRpOUA"
           />
           <div
-            className="sc-dNLxif sc-ktHwxA YpvGH"
+            className="sc-jqCOkK sc-cIShpX cGDmmd"
           />
         </div>
       </div>
@@ -939,36 +939,36 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-cIShpX jXZjVP"
+          className="sc-kafWEX eCLwzo"
           height={24}
           width={24}
         >
           <div
-            className="sc-kafWEX sc-feJyhm dXZoiS"
+            className="sc-feJyhm sc-iELTvK kWVTbR"
           />
           <div
-            className="sc-kafWEX sc-iELTvK iHvvIR"
+            className="sc-feJyhm sc-cmTdod jsQOqK"
           />
           <div
-            className="sc-kafWEX sc-cmTdod CIjPu"
+            className="sc-feJyhm sc-jwKygS jwxzmR"
           />
           <div
-            className="sc-kafWEX sc-jwKygS kWkOyL"
+            className="sc-feJyhm sc-btzYZH eybrZn"
           />
           <div
-            className="sc-kafWEX sc-btzYZH deBJuJ"
+            className="sc-feJyhm sc-lhVmIH ifTeFQ"
           />
           <div
-            className="sc-kafWEX sc-lhVmIH DJpLr"
+            className="sc-feJyhm sc-bYSBpT gIyotQ"
           />
           <div
-            className="sc-kafWEX sc-bYSBpT iglltN"
+            className="sc-feJyhm sc-elJkPf jkgXTX"
           />
           <div
-            className="sc-kafWEX sc-elJkPf eimgCQ"
+            className="sc-feJyhm sc-jtRfpW begvvJ"
           />
           <div
-            className="sc-kafWEX sc-jtRfpW lbMlBI"
+            className="sc-feJyhm sc-kTUwUJ bGByMu"
           />
         </div>
       </div>
@@ -1146,7 +1146,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
               </text>
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
@@ -1197,7 +1197,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
@@ -1248,7 +1248,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
@@ -1299,7 +1299,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
@@ -1350,7 +1350,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
@@ -1401,7 +1401,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
@@ -1452,7 +1452,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
@@ -1503,7 +1503,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
@@ -1554,7 +1554,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
@@ -1605,7 +1605,7 @@ exports[`Dashboard Component Mount with recent files 1`] = `
               />
             </svg>
             <a
-              className="sc-kEYyzF bSXGUo"
+              className="sc-kEYyzF fxVpHk"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
@@ -1783,36 +1783,36 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-kTUwUJ CNLQy"
+          className="sc-dqBHgY keEKRs"
           height={24}
           width={24}
         >
           <div
-            className="sc-dqBHgY sc-gxMtzJ ikzktl"
+            className="sc-gxMtzJ sc-dfVpRl gSTqeV"
           />
           <div
-            className="sc-dqBHgY sc-dfVpRl deFFcJ"
+            className="sc-gxMtzJ sc-gzOgki iYsPvs"
           />
           <div
-            className="sc-dqBHgY sc-gzOgki bMUBAi"
+            className="sc-gxMtzJ sc-iyvyFf bjVELi"
           />
           <div
-            className="sc-dqBHgY sc-iyvyFf gItDsw"
+            className="sc-gxMtzJ sc-hwwEjo gQcako"
           />
           <div
-            className="sc-dqBHgY sc-hwwEjo evQzyg"
+            className="sc-gxMtzJ sc-kPVwWT kdaZNh"
           />
           <div
-            className="sc-dqBHgY sc-kPVwWT jyLJoA"
+            className="sc-gxMtzJ sc-kfGgVZ eMDznJ"
           />
           <div
-            className="sc-dqBHgY sc-kfGgVZ cLYghU"
+            className="sc-gxMtzJ sc-esjQYD cfAbDM"
           />
           <div
-            className="sc-dqBHgY sc-esjQYD kzzgJz"
+            className="sc-gxMtzJ sc-kIPQKe dHRJoG"
           />
           <div
-            className="sc-dqBHgY sc-kIPQKe ubUqz"
+            className="sc-gxMtzJ sc-eXEjpC jnFpmv"
           />
         </div>
       </div>
@@ -1853,36 +1853,36 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-eXEjpC RiJAY"
+          className="sc-ibxdXY bMsPNE"
           height={24}
           width={24}
         >
           <div
-            className="sc-ibxdXY sc-RefOD eGlcSE"
+            className="sc-RefOD sc-iQKALj jjVILk"
           />
           <div
-            className="sc-ibxdXY sc-iQKALj fwxqju"
+            className="sc-RefOD sc-bwCtUz cSRypf"
           />
           <div
-            className="sc-ibxdXY sc-bwCtUz fulyUS"
+            className="sc-RefOD sc-hrWEMg kbdefG"
           />
           <div
-            className="sc-ibxdXY sc-hrWEMg imWXRx"
+            className="sc-RefOD sc-eTuwsz jQvmSG"
           />
           <div
-            className="sc-ibxdXY sc-eTuwsz yKdqy"
+            className="sc-RefOD sc-gwVKww jOlzQw"
           />
           <div
-            className="sc-ibxdXY sc-gwVKww bPMgdd"
+            className="sc-RefOD sc-hXRMBi jqzVwI"
           />
           <div
-            className="sc-ibxdXY sc-hXRMBi jarXSj"
+            className="sc-RefOD sc-epnACN eTBpiA"
           />
           <div
-            className="sc-ibxdXY sc-epnACN gVBbsc"
+            className="sc-RefOD sc-iQNlJl bmXAHd"
           />
           <div
-            className="sc-ibxdXY sc-iQNlJl jUkHBw"
+            className="sc-RefOD sc-bsbRJL bNlrPc"
           />
         </div>
       </div>
