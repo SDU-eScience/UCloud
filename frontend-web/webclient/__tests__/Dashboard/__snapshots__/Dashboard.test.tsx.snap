@@ -869,36 +869,36 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-hqyNC fqKDmH"
+          className="sc-jbKcbu fmyXkJ"
           height={24}
           width={24}
         >
           <div
-            className="sc-jbKcbu sc-dNLxif elDiOj"
+            className="sc-dNLxif sc-jqCOkK gnGRdf"
           />
           <div
-            className="sc-jbKcbu sc-jqCOkK jnruQM"
+            className="sc-dNLxif sc-uJMKN jREtpL"
           />
           <div
-            className="sc-jbKcbu sc-uJMKN gufTgM"
+            className="sc-dNLxif sc-bbmXgH lkwyCp"
           />
           <div
-            className="sc-jbKcbu sc-bbmXgH ggFzrt"
+            className="sc-dNLxif sc-gGBfsJ ePLnea"
           />
           <div
-            className="sc-jbKcbu sc-gGBfsJ hBlAin"
+            className="sc-dNLxif sc-jnlKLf kCJrdv"
           />
           <div
-            className="sc-jbKcbu sc-jnlKLf deMkin"
+            className="sc-dNLxif sc-fYxtnH iBLZPa"
           />
           <div
-            className="sc-jbKcbu sc-fYxtnH koUAlR"
+            className="sc-dNLxif sc-tilXH coUMSF"
           />
           <div
-            className="sc-jbKcbu sc-tilXH fLDXAY"
+            className="sc-dNLxif sc-hEsumM ekuvsi"
           />
           <div
-            className="sc-jbKcbu sc-hEsumM iJSkkm"
+            className="sc-dNLxif sc-ktHwxA YpvGH"
           />
         </div>
       </div>
@@ -939,36 +939,36 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-ktHwxA jhOlMX"
+          className="sc-cIShpX jXZjVP"
           height={24}
           width={24}
         >
           <div
-            className="sc-cIShpX sc-kafWEX fqrKvo"
+            className="sc-kafWEX sc-feJyhm dXZoiS"
           />
           <div
-            className="sc-cIShpX sc-feJyhm dHyTzJ"
+            className="sc-kafWEX sc-iELTvK iHvvIR"
           />
           <div
-            className="sc-cIShpX sc-iELTvK ZtFFl"
+            className="sc-kafWEX sc-cmTdod CIjPu"
           />
           <div
-            className="sc-cIShpX sc-cmTdod fDvFOw"
+            className="sc-kafWEX sc-jwKygS kWkOyL"
           />
           <div
-            className="sc-cIShpX sc-jwKygS gxGspV"
+            className="sc-kafWEX sc-btzYZH deBJuJ"
           />
           <div
-            className="sc-cIShpX sc-btzYZH eksEpi"
+            className="sc-kafWEX sc-lhVmIH DJpLr"
           />
           <div
-            className="sc-cIShpX sc-lhVmIH fRACGj"
+            className="sc-kafWEX sc-bYSBpT iglltN"
           />
           <div
-            className="sc-cIShpX sc-bYSBpT czzcz"
+            className="sc-kafWEX sc-elJkPf eimgCQ"
           />
           <div
-            className="sc-cIShpX sc-elJkPf jtkvtn"
+            className="sc-kafWEX sc-jtRfpW lbMlBI"
           />
         </div>
       </div>
@@ -1783,36 +1783,36 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-jtRfpW fckqwG"
+          className="sc-kTUwUJ CNLQy"
           height={24}
           width={24}
         >
           <div
-            className="sc-kTUwUJ sc-dqBHgY gctcgQ"
+            className="sc-dqBHgY sc-gxMtzJ ikzktl"
           />
           <div
-            className="sc-kTUwUJ sc-gxMtzJ cfErJF"
+            className="sc-dqBHgY sc-dfVpRl deFFcJ"
           />
           <div
-            className="sc-kTUwUJ sc-dfVpRl bvtFoG"
+            className="sc-dqBHgY sc-gzOgki bMUBAi"
           />
           <div
-            className="sc-kTUwUJ sc-gzOgki cIjMRc"
+            className="sc-dqBHgY sc-iyvyFf gItDsw"
           />
           <div
-            className="sc-kTUwUJ sc-iyvyFf drbswX"
+            className="sc-dqBHgY sc-hwwEjo evQzyg"
           />
           <div
-            className="sc-kTUwUJ sc-hwwEjo hzGxbW"
+            className="sc-dqBHgY sc-kPVwWT jyLJoA"
           />
           <div
-            className="sc-kTUwUJ sc-kPVwWT liiLhy"
+            className="sc-dqBHgY sc-kfGgVZ cLYghU"
           />
           <div
-            className="sc-kTUwUJ sc-kfGgVZ csrGNa"
+            className="sc-dqBHgY sc-esjQYD kzzgJz"
           />
           <div
-            className="sc-kTUwUJ sc-esjQYD iGwYDU"
+            className="sc-dqBHgY sc-kIPQKe ubUqz"
           />
         </div>
       </div>
@@ -1853,36 +1853,36 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-kIPQKe Pvsnd"
+          className="sc-eXEjpC RiJAY"
           height={24}
           width={24}
         >
           <div
-            className="sc-eXEjpC sc-ibxdXY huzKvo"
+            className="sc-ibxdXY sc-RefOD eGlcSE"
           />
           <div
-            className="sc-eXEjpC sc-RefOD flOESk"
+            className="sc-ibxdXY sc-iQKALj fwxqju"
           />
           <div
-            className="sc-eXEjpC sc-iQKALj cKJlBb"
+            className="sc-ibxdXY sc-bwCtUz fulyUS"
           />
           <div
-            className="sc-eXEjpC sc-bwCtUz lYLYi"
+            className="sc-ibxdXY sc-hrWEMg imWXRx"
           />
           <div
-            className="sc-eXEjpC sc-hrWEMg gEqfMo"
+            className="sc-ibxdXY sc-eTuwsz yKdqy"
           />
           <div
-            className="sc-eXEjpC sc-eTuwsz dTJCow"
+            className="sc-ibxdXY sc-gwVKww bPMgdd"
           />
           <div
-            className="sc-eXEjpC sc-gwVKww hAxggQ"
+            className="sc-ibxdXY sc-hXRMBi jarXSj"
           />
           <div
-            className="sc-eXEjpC sc-hXRMBi jTLFXJ"
+            className="sc-ibxdXY sc-epnACN gVBbsc"
           />
           <div
-            className="sc-eXEjpC sc-epnACN bpIRJz"
+            className="sc-ibxdXY sc-iQNlJl jUkHBw"
           />
         </div>
       </div>
