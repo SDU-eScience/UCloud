@@ -43,7 +43,7 @@ class FavoriteTest {
         runner.withBlockingContext("user1") { service.markAsFavorite(it, fileToFavorite) }
         Assert.assertTrue(File(fsRoot, favoriteLink).exists())
 
-        Thread.sleep(1000)
+        Thread.sleep(2000)
 
         coVerify {
             emitter.emit(match { it is StorageEvent.CreatedOrRefreshed && it.path == "/$favoriteLink" })

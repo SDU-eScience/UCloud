@@ -108,7 +108,7 @@ class StorageUsedTest{
 
                 request.assertSuccess()
                 val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
-                println(response)
+
                 assertEquals(11, response.itemsInTotal)
                 assertEquals(2, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
