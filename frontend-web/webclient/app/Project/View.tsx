@@ -8,7 +8,7 @@ import { blankOrUndefined } from "UtilityFunctions";
 import { getQueryParam, RouterLocationProps } from "Utilities/URIUtilities";
 import { projectEditPage } from "Utilities/ProjectUtilities";
 import * as Heading from "ui-components/Heading";
-import { Box, Stamp, Text } from "ui-components";
+import { Box, OldStamp, Text } from "ui-components";
 import { TextSpan } from "ui-components/Text";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { MainContainer } from "MainContainer/MainContainer";
@@ -78,7 +78,7 @@ export const View = (props: ViewProps) => {
         />
         <List mb="1em" bordered={false}>
             {metadata.keywords.map((it, idx) => (
-                <Stamp mb="0.4em" fullWidth color="lightGray" key={idx}>{it}</Stamp>
+                <OldStamp mb="0.4em" fullWidth color="lightGray" key={idx}>{it}</OldStamp>
             ))}
         </List>
 
@@ -214,9 +214,9 @@ const isIdentifierDOI = (identifier: string): boolean => {
 const DOIBadge = (props: { identifier: string }) => {
     const { identifier } = props;
     return <ExternalLink href={`https://doi.org/${identifier}`}>
-        <Stamp mb="0.4em" color="lightGray" fullWidth>
+        <OldStamp mb="0.4em" color="lightGray" fullWidth>
             {identifier}
-        </Stamp>
+        </OldStamp>
     </ExternalLink>;
 }
 
@@ -224,5 +224,5 @@ const PotentialDOIBadge = (props: { identifier: string }) => {
     if (isIdentifierDOI(props.identifier)) {
         return <DOIBadge identifier={props.identifier} />;
     }
-    return <Stamp color="lightGray" mb="0.4em" fullWidth>{props.identifier}</Stamp>;
+    return <OldStamp color="lightGray" mb="0.4em" fullWidth>{props.identifier}</OldStamp>;
 };
