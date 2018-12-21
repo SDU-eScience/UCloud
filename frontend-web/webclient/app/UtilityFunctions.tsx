@@ -80,10 +80,8 @@ export const uploadsNotifications = (finished: number, total: number) => swal({
     timer: 2000,
     showConfirmButton: false,
     type: finished !== total ? "warning" : "success",
-
 });
 
-// FIXME React Semantic UI Forms doesn't seem to allow checkboxes with labels, unless browser native checkboxes
 export const shareSwal = () => swal({
     title: "Share",
     input: "text",
