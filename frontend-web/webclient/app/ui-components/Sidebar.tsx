@@ -91,13 +91,13 @@ const SupportBox = styled.div<SupportBoxProps>`
     display: ${props => props.visible ? "block" : "none"};
     position: absolute;
     left: 150px;
-    top: -282px;
+    top: -320px;
     border: 1px solid ${props => props.theme.colors.borderGray};
     background-color: ${props => props.theme.colors.white};
 
     &&&&&&&&&&& {
         width: 600px;
-        height: 300px;
+        height: 350px;
     }
 
     &:before {
@@ -107,7 +107,7 @@ const SupportBox = styled.div<SupportBoxProps>`
         content: '';
         transform: rotate(45deg);
         position: relative;
-        top: 265px;
+        top: 300px;
         left: -9px;
         background: ${props => props.theme.colors.white};
         border-left: 1px solid ${props => props.theme.colors.borderGray};
