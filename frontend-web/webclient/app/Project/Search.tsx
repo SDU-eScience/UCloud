@@ -20,6 +20,7 @@ export const SearchItem = ({ item }: SearchItemProps) => (
             </Text>
         </Box>
         <Divider mb="1em" />
+        {/* FIXME: Waiting on icon */}
         <OldStamp color="blue" ml="0.2em">
             <Flex>
                 <Box pl="0.5em" pr="0.5em">

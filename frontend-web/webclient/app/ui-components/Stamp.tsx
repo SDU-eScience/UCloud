@@ -99,11 +99,11 @@ StampBase.defaultProps = {
   fullWidth: false
 }
 
-const Stamp = (props: StampProps & { icon?: IconName, onClick: () => void, text: string }) => (
+const Stamp = (props: StampProps & { icon?: IconName, onClick?: () => void, text: string }) => (
   <StampBase {...props}>
-    {props.icon ? <Icon name={props.icon} /> : null}
+    {props.icon ? <Icon name={props.icon} size={12} /> : null}
     <Text>{props.text}</Text>
-    {props.onClick ? null : null}
+    {props.onClick ? <Icon name={"close"} size={12} onClick={props.onClick} /> : null}
   </StampBase>
 );
 
