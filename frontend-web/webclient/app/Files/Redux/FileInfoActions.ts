@@ -30,10 +30,10 @@ export const receiveFileStat = (file: File): ReceiveFileStat => ({
     payload: { file, loading: false }
 });
 
-type FileInfoError = PayloadAction<typeof FILE_INFO_ERROR, { loading: false, error?: string }>;
+type FileInfoError = PayloadAction<typeof FILE_INFO_ERROR, { loading: false, error?: string, file: undefined }>;
 export const fileInfoError = (error?: string): FileInfoError => ({
     type: FILE_INFO_ERROR,
-    payload: { error, loading: false }
+    payload: { error, loading: false, file: undefined }
 });
 
 type SetFileInfoLoading = SetLoadingAction<typeof SET_FILE_INFO_LOADING>

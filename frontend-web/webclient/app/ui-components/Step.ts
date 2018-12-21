@@ -29,7 +29,6 @@ export const Step = styled(Flex) <{ active?: boolean }>`
         border-style: solid;
         border-color: rgba(34,36,38,.15);
         border-width: 0 1px 1px 0;
-        -webkit-transform: translateY(-50%) translateX(50%) rotate(-45deg);
         transform: translateY(-50%) translateX(50%) rotate(-45deg);
     }
 `;
