@@ -132,11 +132,47 @@ export const NewAppCard = styled(Link)`
     flex-direction: column;
     align-items: flex-start;
     border-radius: ${props => props.theme.radius};
-    background-color: #ebeff3;
     position: relative;
     /* flex: 1 0 auto; */
     overflow: hidden;
     box-shadow: ${({ theme }) => theme.boxShadows[0]};
+
+    transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
+    &:hover {
+        transform: scale(1.03);
+    }
+
+    // Background
+    &:before {
+        content: "";
+        position: absolute;
+        width: 110%;
+        height: 190%;
+        top: -45%;
+        left: -5%;
+        z-index: -1;
+        background-color: #ebeff3;
+        background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
+        background-repeat: repeat;
+        transform: rotate(15deg);
+        }
+
+    &:after {
+        content: "";
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: -1;
+        border: solid #c9d3df 1px;
+        border-radius: ${props => props.theme.radius};
+    }
+
+    &:hover:after {
+        border-color: ${props => props.theme.colors.textHighlight};
+        z-index: 1;
+    }
 `;
 
 const Tag = ({ label }: { label: string }) => (
@@ -202,14 +238,14 @@ const nColors = appColors.length;
 
 const bgGradients = appColors.map(x => ({ color1: x[0], color2: x[2] }));
 
-
 const AppBg_triangle = ({ color1, color2 }: { color1: string, color2: string }) => (
-    <svg height={"128px"} viewBox="0 0 128 128" >
-        <path d="M64,0h64v64z" fill={"url(#appbg_svg___"+color1+"_"+color2} />
+    <svg height={"128px"} viewBox="0 0 72 128" >
+        <path d="M0,128h72v-72z" fill={"url(#appbg_svg___"+color1+"_"+color2} />
         <defs>
             <linearGradient
                 id={"appbg_svg___"+color1+"_"+color2}
-                x1={64} x2={128} y1={0} y2={64}
+                x1={72} x2={0} y1={128-72} y2={128}
+                // x1={21} x2={72} y1={77} y2={128}
                 gradientUnits="userSpaceOnUse"
             >
                 <stop offset={0} stopColor={color1} />
@@ -298,18 +334,140 @@ const AppBg2 = ({ color1, color2 }: { color1: string, color2: string }) => {
     </svg>
 );
 }
+const AppBg2_1 = ({ color1, color2 }: { color1: string, color2: string }) => {
+
+    const s32=Math.sqrt(3)*.5;
+    const s15=1.5;
+    const rot60 = "rotate(60 0 0)";
+
+    const rots = [0, 60, 120, 180, 240, 300].map(x =>(" rotate("+x+" 0 0)"));
+    const r= [1, 2, 4, 2, 
+              5, 4, 2, 3,
+              4, 1, 0, 3,
+              4, 5, 2, 1
+             ];
+
+    return (
+    <svg height={"128px"} viewBox="-200 0 300 128" >
+        <g > 
+            <g transform="scale(20)">
+            <use xlinkHref="#hex_tile1___" transform={"translate(-10.5,"+(1*s32)+")"+rots[r[12]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-10.5,"+(3*s32)+")"+rots[r[13]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-10.5,"+(5*s32)+")"+rots[r[14]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-10.5,"+(7*s32)+")"+rots[r[15]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-9.0,"+(0*s32)+")"+rots[r[7]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-9.0,"+(2*s32)+")"+rots[r[8]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-9.0,"+(4*s32)+")"+rots[r[9]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-9.0,"+(6*s32)+")"+rots[r[10]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-9.0,"+(8*s32)+")"+rots[r[11]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-7.5,"+(1*s32)+")"+rots[r[12]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-7.5,"+(3*s32)+")"+rots[r[13]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-7.5,"+(5*s32)+")"+rots[r[14]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-7.5,"+(7*s32)+")"+rots[r[15]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-6.0,"+(0*s32)+")"+rots[r[7]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-6.0,"+(2*s32)+")"+rots[r[8]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-6.0,"+(4*s32)+")"+rots[r[9]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-6.0,"+(6*s32)+")"+rots[r[10]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-6.0,"+(8*s32)+")"+rots[r[11]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-4.5,"+(1*s32)+")"+rots[r[12]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-4.5,"+(3*s32)+")"+rots[r[13]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-4.5,"+(5*s32)+")"+rots[r[14]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-4.5,"+(7*s32)+")"+rots[r[15]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-3.0,"+(0*s32)+")"+rots[r[7]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-3.0,"+(2*s32)+")"+rots[r[8]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-3.0,"+(4*s32)+")"+rots[r[9]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-3.0,"+(6*s32)+")"+rots[r[10]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-3.0,"+(8*s32)+")"+rots[r[11]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-1.5,"+(1*s32)+")"+rots[r[3]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-1.5,"+(3*s32)+")"+rots[r[4]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-1.5,"+(5*s32)+")"+rots[r[5]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(-1.5,"+(7*s32)+")"+rots[r[6]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(0.0,"+(0*s32)+")"+rots[r[0]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(0.0,"+(2*s32)+")"+rots[r[0]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(0.0,"+(4*s32)+")"+rots[r[0]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(0.0,"+(6*s32)+")"+rots[r[1]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(0.0,"+(8*s32)+")"+rots[r[2]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(1.5,"+(1*s32)+")"+rots[r[3]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(1.5,"+(3*s32)+")"+rots[r[4]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(1.5,"+(5*s32)+")"+rots[r[5]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(1.5,"+(7*s32)+")"+rots[r[6]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(3.0,"+(0*s32)+")"+rots[r[7]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(3.0,"+(2*s32)+")"+rots[r[8]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(3.0,"+(4*s32)+")"+rots[r[9]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(3.0,"+(6*s32)+")"+rots[r[10]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(3.0,"+(8*s32)+")"+rots[r[11]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(4.5,"+(1*s32)+")"+rots[r[12]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(4.5,"+(3*s32)+")"+rots[r[13]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(4.5,"+(5*s32)+")"+rots[r[14]]}/>
+            <use xlinkHref="#hex_tile1___" transform={"translate(4.5,"+(7*s32)+")"+rots[r[15]]}/>
+        </g> </g>
+        <defs>
+            <linearGradient
+                id={"appbg_svg___"+color1+"_"+color2}
+                x1={25} x2={100} y1={0} y2={128}
+                gradientUnits="userSpaceOnUse"
+            >
+                <stop offset={0} stopColor={color1} />
+                <stop offset={1} stopColor={color2} />
+            </linearGradient>
+            <path id="bg_card___" d="M 25,0 h 75 v 128 h -100 z" />
+            <clipPath id="bg_clip___">
+                <use xlinkHref="#bg_card___" />
+            </clipPath>
+            <path id="hex_l1___" d={"M0 "+s32+"Q 0 0 0.75 -"+(s32*0.5)} fill="none"/>
+            <path id="hex_l2___" d={"M0 -"+s32+"Q 0 0 -0.75 -"+(s32*0.5)} fill="none"/>
+            <g id="hex_tile1___">
+                {/* <use xlinkHref="#hex_th___" fill="#fff"/> */}
+                <use xlinkHref="#hex_l1___" stroke="black" strokeWidth="0.15" />
+                <use xlinkHref="#hex_l1___" stroke="white" strokeWidth="0.1" />
+                <use xlinkHref="#hex_l1___" stroke="black" strokeWidth="0.15"  transform={rot60}/>
+                <use xlinkHref="#hex_l1___" stroke="white" strokeWidth="0.1"  transform={rot60}/>
+                <use xlinkHref="#hex_l2___" stroke="black" strokeWidth="0.15" />
+                <use xlinkHref="#hex_l2___" stroke="white" strokeWidth="0.1" />
+            </g>
+        </defs>
+    </svg>
+);
+}
 
 const AppBg3 = ({ color1, color2 }: { color1: string, color2: string }) => {
 
     const s32=Math.sqrt(3)*.5;
     const fill="url(#appbg_svg___" + color1 + "_" + color2+") #fff";
-    const hexR = r => ( "M-"+r+" 0L-"+(0.5*r)+" "+(s32*r)+"H"+(0.5*r)+"L"+r+" 0L"+(0.5*r)+" -"+(s32*r)+"H-"+(0.5*r)+"Z" )
+    const hexRxy = (r:number, dx:number, dy:number ) => ( "M"+(-r+dx)+" "+(dy)+"L"+(-0.5*r+dx)+" "+(s32*r+dy)+"H"+(0.5*r+dx)+"L"+(r+dx)+" "+(dy)+"L"+(0.5*r+dx)+" "+(-s32*r+dy)+"H"+(-0.5*r+dx)+"Z" )
+
+    const hR = 22;
+    const hScale = (s:number) => ( 1-0.05*s );
+    const dX = hR*1.5;
+    const dY = hR*s32;
+
+    const hPath = (x:number, y:number) => ( hexRxy(hR*hScale(3-x),x*dX,y*dY) );
 
     return (
         <svg height={"128px"} viewBox="0 0 100 128" >
-         <g fill={fill} >
-          <use xlinkHref="#bg_card___" clipPath="url(#bg_clip2___)"/>
-            </g>
+        <g fill={fill} clipPath="url(#bg_clip___)">
+                {/* <use xlinkHref="#bg_card___" /> */}
+                <path d={hPath(0,1)}  />
+                <path d={hPath(0,3)}  />
+                <path d={hPath(0,5)}  />
+                <path d={hPath(0,7)}  />
+                <path d={hPath(0,9)}  />
+                <path d={hPath(1,0)}  />
+                <path d={hPath(1,2)}  />
+                <path d={hPath(1,4)}  />
+                <path d={hPath(1,6)}  />
+                <path d={hPath(1,8)}  />
+                <path d={hPath(2,1)}  />
+                <path d={hPath(2,3)}  />
+                <path d={hPath(2,5)}  />
+                <path d={hPath(2,7)}  />
+                <path d={hPath(2,9)}  />
+                <path d={hPath(3,0)}  />
+                <path d={hPath(3,2)}  />
+                <path d={hPath(3,4)}  />
+                <path d={hPath(3,6)}  />
+                <path d={hPath(3,8)}  />
+        </g>
 
             <defs>
                 <linearGradient
@@ -324,28 +482,7 @@ const AppBg3 = ({ color1, color2 }: { color1: string, color2: string }) => {
                 <path id="hex_th1___" d={"M-1 0L-0.5"+ (s32) + "H0.5L1 0L0.5 -" + (s32) + "H-0.5Z"} />
                 <clipPath id="bg_clip___" >
                     <use xlinkHref="#bg_card___" />
-                </clipPath>
-                <clipPath id="bg_clip2___" >
-                    <g transform="scale(50)" >
-                       {/* <use xlinkHref="#hex_th1___" transform={"translate(0.0," + (4 * s32) + ") scale(0.96)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(0.0," + (6 * s32) + ") scale(0.94)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(0.0," + (8 * s32) + ") scale(0.92)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(1.5," + (1 * s32) + ") scale(0.99)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(1.5," + (3 * s32) + ") scale(0.97)"} /> */}
-                        <use xlinkHref="#hex_th1___" transform={"translate(1.5," + (5 * s32) + ") scale(0.95)"} />
-                        {/* <use xlinkHref="#hex_th1___" transform={"translate(1.5," + (7 * s32) + ") scale(0.93)"} /> 
-                        <use xlinkHref="#hex_th1___" transform={"translate(3.0," + (0 * s32) + ") scale(1.00)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(3.0," + (2 * s32) + ") scale(0.98)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(3.0," + (4 * s32) + ") scale(0.96)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(3.0," + (6 * s32) + ") scale(0.94)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(3.0," + (8 * s32) + ") scale(0.92)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(4.5," + (1 * s32) + ") scale(0.99)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(4.5," + (3 * s32) + ") scale(0.97)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(4.5," + (5 * s32) + ") scale(0.95)"} />
-                        <use xlinkHref="#hex_th1___" transform={"translate(4.5," + (7 * s32) + ") scale(0.93)"} /> */}
-                    </g>
-                </clipPath>
-                
+                </clipPath>                
             </defs>
         </svg>
     );
@@ -431,8 +568,8 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
     const appC=appColor(hash);
     return (
         <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
-            <Absolute right={0} top={0} cursor="inherit">
-                <AppBg {...bgGradients[appC]}/>
+            <Absolute right={0} top={0} cursor="inherit" >
+                <AppBg_triangle {...bgGradients[appC]}/>
             </Absolute>
             {!onFavorite ? null :
                 <AppRibbonContainer
@@ -444,7 +581,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
                     <Icon name={"starRibbon"} color="red" size={48} />
                 </AppRibbonContainer>
             }
-            <Flex flexDirection={"row"} alignItems={"flex-start"}>
+            <Flex flexDirection={"row"} alignItems={"flex-start"} style={{zIndex:1}}>
                 <AppLogo size={"48px"} hash={hash}/>
                 <Flex flexDirection={"column"} ml="10px">
                     <Heading.h4>{appDesc.title}</Heading.h4>
@@ -454,7 +591,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
                 </Flex>
             </Flex>
             <Box mt="auto" />
-            <Flex flexDirection={"row"} alignItems={"flex-start"}>
+            <Flex flexDirection={"row"} alignItems={"flex-start"} style={{zIndex:1}}>
                 {appDesc.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
         </NewAppCard>
