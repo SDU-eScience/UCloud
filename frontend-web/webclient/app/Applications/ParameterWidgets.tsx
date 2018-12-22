@@ -1,10 +1,9 @@
 import * as React from "react";
 import { File } from "Files";
 import FileSelector from "Files/FileSelector";
-import * as ReactMarkdown from "react-markdown";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import { ParameterTypes } from ".";
-import { Box, Flex, Label, Text, Select } from "ui-components";
+import { Box, Flex, Label, Text, Select, Markdown } from "ui-components";
 import Input from "ui-components/Input";
 
 const parameterTypeToComponent = (type) => {
@@ -196,7 +195,7 @@ const GenericParameter = ({ parameter, children }) => (
         </Label>
         {children}
         <OptionalText optional={parameter.optional} />
-        <ReactMarkdown source={parameter.description} />
+        <Markdown source={parameter.description} />
     </>
 );
 

@@ -7,7 +7,7 @@ import {
 import { DatePicker } from "ui-components/DatePicker";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Flex, Input, Label, InputGroup, Stamp, Checkbox, Error, OutlineButton, LoadingButton, Icon } from "ui-components";
+import { Flex, Input, Label, Stamp, InputGroup, OldStamp, Checkbox, Error, OutlineButton, LoadingButton, Icon } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { ReduxObject, KeyCode } from "DefaultObjects";
 import { Dispatch } from "redux";
@@ -285,8 +285,8 @@ interface SearchStampsProps {
 }
 const SearchStamps = ({ stamps, onStampRemove, clearAll }: SearchStampsProps) => (
     <Box pb="5px">
-        {[...stamps].map((l) => (<Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l}>{l}<Icon size="12" name="close" /></Stamp>))}
-        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="white" onClick={() => clearAll()}>Clear all<Icon name="close" size={12} /></Stamp>) : null}
+        {[...stamps].map((l) => (<Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l} text={l} />))}
+        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="white" onClick={() => clearAll()} text={"Clear all"} />) : null}
     </Box >
 );
 

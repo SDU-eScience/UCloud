@@ -131,8 +131,7 @@ class StorageUsedTest{
                 request.assertSuccess()
 
                 //TODO Works but not pretty
-                assertTrue(request.response.content?.contains("\"xaxisLabel\":\"Time\"")!!)
-                assertTrue(request.response.content?.contains("\"yaxisLabel\":\"Storage Used (Bytes)\"")!!)
+                assertTrue(request.response.content?.contains("\"dataTypes\":[\"datetime\",\"bytes\"],\"dataTitle\":\"Storage Used\"")!!)
 
             }
         )

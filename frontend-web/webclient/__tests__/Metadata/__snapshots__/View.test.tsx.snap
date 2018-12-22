@@ -64,7 +64,7 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-hMqMXs eXJRRJ"
+            className="sc-kEYyzF dnEJKT"
             color="text"
             hoverColor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
@@ -119,10 +119,12 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik kkczwm"
+            className="sc-bdVaJa sc-csuQGl dxGAbS"
             fontSize="large"
           >
             <a
+              className="sc-hMqMXs jvXQSL"
+              color="text"
               href="https://spdx.org/licenses/AML.html"
               rel="noopener"
               target="_blank"
@@ -188,11 +190,11 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           >
             <div
-              className="sc-jWBwVP exSLkP"
+              className="sc-brqgnP iHrXtE"
               color="lightGray"
               fontSize={0}
             >
@@ -231,7 +233,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           />
           <h4
@@ -266,7 +268,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           />
         </div>
@@ -285,7 +287,7 @@ Array [
       }
     >
       <div
-        className="sc-bdVaJa hORKfa"
+        className="sc-bdVaJa sc-cHGsZl bPQttJ"
         cursor="auto"
       >
         <div
@@ -324,7 +326,7 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-hMqMXs eXJRRJ"
+            className="sc-kEYyzF dnEJKT"
             color="text"
             hoverColor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
@@ -379,10 +381,12 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik kkczwm"
+            className="sc-bdVaJa sc-csuQGl dxGAbS"
             fontSize="large"
           >
             <a
+              className="sc-hMqMXs jvXQSL"
+              color="text"
               href="https://spdx.org/licenses/AML.html"
               rel="noopener"
               target="_blank"
@@ -448,11 +452,11 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           >
             <div
-              className="sc-jWBwVP exSLkP"
+              className="sc-brqgnP iHrXtE"
               color="lightGray"
               fontSize={0}
             >
@@ -491,7 +495,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           />
           <h4
@@ -526,7 +530,7 @@ Array [
             </div>
           </h4>
           <div
-            className="sc-bdVaJa sc-gipzik hHQOvf"
+            className="sc-bdVaJa sc-csuQGl gJRFtX"
             fontSize="large"
           />
         </div>

@@ -24,7 +24,7 @@ export { default as OutlineButton } from './OutlineButton'
 export { default as Radio } from './Radio'
 export { default as RatingBadge } from './RatingBadge'
 export { default as Relative } from './Relative'
-export { default as Stamp } from './Stamp'
+export { default as Stamp, OldStamp } from './Stamp'
 export { default as Select } from './Select'
 export { default as Slider } from './Slider'
 export { default as Text } from './Text'
@@ -48,5 +48,7 @@ export { default as LoadingButton } from "./LoadingButton";
 export { default as theme } from './theme'
 export { default as UIGlobalStyle } from './GlobalStyle'
 export { default as ActionButton } from "./ActionButton";
+export { default as ExternalLink } from "./ExternalLink";
+export { default as Markdown } from "./Markdown";
 
 //export * from './theme'

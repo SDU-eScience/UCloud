@@ -60,7 +60,7 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
         user: String
     ): List<AccountingJobCompletedEvent> {
         return session.criteria<JobCompletedEntity>(
-            orderBy = { listOf(descending(entity[JobCompletedEntity::timestamp])) },
+            orderBy = { listOf(descinding(entity[JobCompletedEntity::timestamp])) },
 
             predicate = {
                 (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
@@ -76,7 +76,7 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
     ): Page<AccountingJobCompletedEvent> {
         return session.paginatedCriteria<JobCompletedEntity>(
             paging,
-            orderBy = { listOf(descending(entity[JobCompletedEntity::timestamp])) },
+            orderBy = { listOf(descinding(entity[JobCompletedEntity::timestamp])) },
             predicate = {
                 (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
             }

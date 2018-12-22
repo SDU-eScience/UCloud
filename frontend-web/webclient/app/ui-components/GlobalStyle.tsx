@@ -1,6 +1,21 @@
 import { css } from "styled-components";
 
+const fontLight = require("Assets/IBMPlexSans-Light.ttf");
+const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
+
 const UIGlobalStyle = css`
+/* Custom font */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('${fontLight}');
+}
+
+@font-face {
+  font-family: 'IBM Plex Sans';
+  src: url('${fontRegular}');
+  font-weight: 400;
+}
+
 /*! sanitize.css v7.0.3 | CC0 License | github.com/csstools/sanitize.css */
 
 /* Document
@@ -145,6 +160,7 @@ pre {
 
 a {
   background-color: transparent;
+  text-decoration: none;
 }
 
 /**
