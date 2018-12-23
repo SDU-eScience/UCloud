@@ -167,6 +167,7 @@ export const NewAppCard = styled(Link)`
         z-index: -1;
         border: solid #c9d3df 1px;
         border-radius: ${props => props.theme.radius};
+        pointer-events: none; //needed for star-badge
     }
 
     &:hover:after {

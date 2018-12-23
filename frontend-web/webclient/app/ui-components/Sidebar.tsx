@@ -187,7 +187,7 @@ class Support extends React.Component<{}, SupportState> {
 
     render() {
         return <div>
-            <Link to="#support" onClick={e => this.onSupportClick(e)}><Text fontSize={1}>Support</Text></Link>
+            <Link to="#support" onClick={e => this.onSupportClick(e)}><Text fontSize={1}><Icon name={"chat"} size="1em" color2="lightGray" /> Support</Text></Link>
             <Relative>
                 <SupportBox ref={this.supportBox} visible={this.state.visible}>
                     <Box>
@@ -239,7 +239,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
             <SidebarPushToBottom />
 
             <SidebarInfoBox>
-                <Text fontSize={1}>ID: {Cloud.username}</Text>
+                <Text fontSize={1}><Icon name={"id"} size="1em" /> {Cloud.username}</Text>
                 <SidebarSpacer />
                 <Support />
                 <div>

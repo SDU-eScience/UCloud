@@ -209,6 +209,12 @@ const statusToIconName = (status: AppState) => {
             return "check";
         case AppState.FAILURE:
             return "close";
+        case AppState.SCHEDULED:
+            return "calendar";
+        case AppState.RUNNING:
+            return "chrono";
+        case AppState.VALIDATED:
+            return "checkDouble";
         default:
             return "ellipsis";
     }
