@@ -62,7 +62,7 @@ const SidebarPushToBottom = styled.div`
 
 const SidebarInfoBox = styled.div`
     flex-shrink: 0;
-    margin: 22px;
+    margin: 18px;
     color: ${props => props.theme.colors.iconColor};
 
     & div {
@@ -240,11 +240,11 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
 
             <SidebarInfoBox>
                 <Text fontSize={1}><Icon name={"id"} size="1em" /> {Cloud.username}</Text>
-                <SidebarSpacer />
+                {/* <SidebarSpacer /> */}
                 <Support />
                 <div>
                     <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
-                        <Text fontSize={1}>Data Protection at SDU</Text>
+                        <Text fontSize={1}><Icon name="verified" size="1em" color2="lightGray" /> SDU Data Protection</Text>
                     </ExternalLink>
                 </div>
             </SidebarInfoBox>

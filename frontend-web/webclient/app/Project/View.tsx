@@ -13,6 +13,7 @@ import { TextSpan } from "ui-components/Text";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { MainContainer } from "MainContainer/MainContainer";
 import Stamp from "ui-components/Stamp";
+import { IconName } from "ui-components/Icon";
 
 interface ViewProps {
     metadata: ProjectMetadata
@@ -35,7 +36,7 @@ export const View = (props: ViewProps) => {
             </Heading.h2>
             <Flex>
                 {metadata.contributors.map((it, idx) => (
-                    <Box mr="0.5em">
+                    <Box mr="1em">
                         <ContributorItem contributor={it} key={idx} />
                     </Box>
                 ))}
@@ -45,36 +46,31 @@ export const View = (props: ViewProps) => {
     const sidebar = (<Box>
         {canEdit ?
             <>
-                <SectionHeader
-                    title="Actions"
-                    iconClass="fas fa-hand-pointer"
-                />
-                <Link mb="1em" to={projectEditPage(metadata.sduCloudRoot)}>
-                    <Button color="blue" lineHeight="0.3" size="small" fullWidth>
-                        <i style={{ paddingRight: "0.4em" }} className="far fa-edit" />
+                <Link to={projectEditPage(metadata.sduCloudRoot)}>
+                    <Button color="blue" fullWidth>
+                        <Icon name="edit" mr="0.5em" my="0.15em" size="1em"/>
                         Edit
                     </Button>
                 </Link>
+                <Box mb="3em"/>
             </>
             : null
         }
         <SectionHeader
-            iconClass="fas fa-info"
+            iconClass="info"
             title="About"
         />
         <List bordered={false} pb="1em">
             {license ?
                 <ExternalLink href={license.link}>
                     <Button color="blue" lineHeight="0.3" size="small" fullWidth>
-                        <i style={{ paddingRight: "0.4em" }} className="fas fa-book" />
-                        <Text mr="0.4em" as="span" bold>{license.identifier}</Text>
-                        <TextSpan color="lightGray">License</TextSpan>
+                        <Text color="white"><Icon name="license" mr="0.5em" size="1.5em"/>{license.identifier} License</Text>
                     </Button>
                 </ExternalLink> : null
             }
         </List>
         <SectionHeader
-            iconClass="fas fa-hashtag"
+            iconClass="tags"
             title="Keywords"
         />
         <List mb="1em" bordered={false}>
@@ -84,7 +80,7 @@ export const View = (props: ViewProps) => {
         </List>
 
         <SectionHeader
-            iconClass="fas fa-bookmark"
+            iconClass="hashtag"
             title="References"
         />
         <List bordered={false} mb="1em">
@@ -92,7 +88,7 @@ export const View = (props: ViewProps) => {
         </List>
 
         <SectionHeader
-            iconClass="fas fa-money-bill"
+            iconClass="grant"
             title="Grants"
         />
         <List mb="1em" bordered={false}>
@@ -109,18 +105,9 @@ export const View = (props: ViewProps) => {
     );
 }
 
-const SectionHeader = ({ iconClass, title }: { iconClass: "fas fa-info" | "fas fa-hand-pointer" | "fas fa-bookmark" | "fas fa-money-bill" | "fas fa-hashtag", title: string }) => (
+const SectionHeader = ({ iconClass, title }: { iconClass: IconName, title: string }) => (
     <Heading.h4>
-        <Flex>
-            <Box width="20%">
-                <Text textAlign="center">
-                    <i className={iconClass} />
-                </Text>
-            </Box>
-            <Box width="80%">
-                {title}
-            </Box>
-        </Flex>
+        <TextSpan><Icon name={iconClass} size="1.1em" my="0.2em" color2="lightGray"/> {title}</TextSpan>
     </Heading.h4>
 )
 
@@ -134,8 +121,9 @@ const ContributorItem = (props: { contributor: Contributor }) => {
         return (
             <Dropdown>
                 <Box width="auto">
-                    <a href="#" onClick={e => e.preventDefault()}>
-                        <Icon name="user" /><TextSpan ml="0.5em">{contributor.name}</TextSpan>
+                    {/* why is this anchor here? */}
+                    <a href="#" onClick={e => e.preventDefault()} >
+                        <TextSpan color="text" ><Icon name="user" color2="lightGray" mr="0.5em" />{contributor.name}</TextSpan>
                     </a>
                 </Box>
                 <DropdownContent width="180px" colorOnHover={false}>
@@ -159,7 +147,7 @@ const ContributorItem = (props: { contributor: Contributor }) => {
                 </DropdownContent>
             </Dropdown>)
     } else {
-        return (<Box><Icon name="user" />{contributor.name}</Box>);
+        return (<TextSpan color="text" ><Icon name="user" color2="lightGray" mr="0.5em" />{contributor.name}</TextSpan>);
     }
 };
 

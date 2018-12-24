@@ -72,15 +72,13 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                     <Box ml="-17px" mr="-17px" pl="15px">
                         <Link color="black" to={"/users/settings"}>
                             <Flex>
-                                <Box pr="0.5em"><i className="fas fa-cogs" /></Box>
+                                <Icon name="properties" mr="0.5em" my="0.2em" size="1.3em" />
                                 Settings
                             </Flex>
                         </Link>
                     </Box>
                     <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
-                        <Box pr="0.7em">
-                            <i className="fas fa-sign-out-alt" />
-                        </Box>
+                        <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                         Logout
                     </Flex>
                 </ClickableDropdown>
