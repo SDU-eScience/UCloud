@@ -79,6 +79,7 @@ class Files extends React.Component<FilesProps> {
         if (nextProps.path !== nextPath && !loading) {
             fetchFiles(nextPath, page.itemsPerPage, 0, sortOrder, sortBy);
         }
+        // FIXME: Should this ALWAYS return true?
         return true;
     }
 
@@ -91,6 +92,7 @@ class Files extends React.Component<FilesProps> {
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
         const fileSelectorOperations = { setDisallowedPaths, setFileSelectorCallback, showFileSelector, fetchPageFromPath: this.fetchPageFromPath };
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
+        // Can this be made static, so it doesn't has to be redone each time?
         const fileOperations: FileOperation[] = [
             {
                 text: "Rename",

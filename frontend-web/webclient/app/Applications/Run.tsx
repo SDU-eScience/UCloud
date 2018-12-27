@@ -94,7 +94,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         });
     }
 
-    onInputChange = (parameterName, value) =>
+    onInputChange = (parameterName: string, value: string | number | object) =>
         this.setState(() => ({ parameterValues: { ...this.state.parameterValues, [parameterName]: value } }));
 
     extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
@@ -122,7 +122,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 application: app,
                 loading: false
             }));
-        }).catch(_ => this.setState(() => ({
+        }).catch(() => this.setState(() => ({
             loading: false,
             error: `An error occurred fetching ${name}`
         })));
@@ -222,6 +222,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             </ContainerForText>
         );
 
+        const requiredKeys = application.description.parameters.filter(it => !it.optional).map(it => it.name);
+        let disabled = requiredKeys.some(it => !parameterValues[it]);
+
         const sidebar = (
             <VerticalButtonGroup>
                 <OutlineButton
@@ -235,9 +238,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     Import parameters
                     <HiddenInputField
                         type="file"
-                        onChange={(e) => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
+                        onChange={e => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
                 </OutlineButton>
-                <LoadingButton onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>
+                <LoadingButton disabled={disabled} onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>
             </VerticalButtonGroup>
         );
 
@@ -260,7 +263,7 @@ interface ParameterProps {
     parameters: ApplicationParameter[],
     schedulingOptions: JobSchedulingOptionsForInput,
     app: Application,
-    onChange: (name, value) => void,
+    onChange: (name: string, value: any) => void,
     onSubmit: (e: React.FormEvent) => void,
     onJobSchedulingParamsChange: (field, value, subField) => void,
 }

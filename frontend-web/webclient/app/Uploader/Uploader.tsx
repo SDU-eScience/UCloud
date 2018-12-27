@@ -158,7 +158,7 @@ class Uploader extends React.Component<UploaderProps & UploadOperations> {
                     content: {
                         top: "80px",
                         margin: "0 auto",
-                        maxWidth: "80%",                        
+                        maxWidth: "80%",
                     }
                 }}
             >
@@ -311,8 +311,6 @@ const UploaderRow = (p: {
             </Box>
         </>;
     }
-
-    console.log(iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder));
 
     return (
         <Flex flexDirection="row">
