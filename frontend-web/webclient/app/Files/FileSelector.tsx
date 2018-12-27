@@ -5,7 +5,7 @@ import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import { replaceHomeFolder, isDirectory, newMockFolder, resolvePath } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
 import { KeyCode } from "DefaultObjects";
-import { RefreshButton } from "UtilityComponents";
+import { RefreshButton, CustomEntriesPerPage } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
 import { filepathQuery } from "Utilities/FileUtilities";
@@ -112,10 +112,19 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             right={<Icon name="close" onClick={props.onHide} />}
         />
         <Divider />
-        <BreadCrumbs
-            homeFolder={Cloud.homeFolder}
-            currentPath={props.path}
-            navigate={path => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)}
+        <Spacer
+            left={<BreadCrumbs
+                homeFolder={Cloud.homeFolder}
+                currentPath={props.path}
+                navigate={path => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />}
+            right={
+                <CustomEntriesPerPage
+                    entriesPerPage={props.page.itemsPerPage}
+                    text="Files per page"
+                    onChange={itemsPerPage => props.fetchFiles(props.path, props.page.pageNumber, itemsPerPage)}
+                    loading={props.loading} 
+                    onRefreshClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)}
+                />}
         />
         <PaginationList
             customEntriesPerPage
@@ -123,15 +132,6 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             onErrorDismiss={props.onErrorDismiss}
             pageRenderer={page =>
                 <FileSelectorBody
-                    entriesPerPageSelector={
-                        <>
-                            <EntriesPerPageSelector
-                                entriesPerPage={page.itemsPerPage}
-                                content="Files per page"
-                                onChange={itemsPerPage => props.fetchFiles(props.path, page.pageNumber, itemsPerPage)}
-                            />
-                            <RefreshButton loading={props.loading} onClick={() => props.fetchFiles(props.path, page.pageNumber, page.itemsPerPage)} />
-                        </>}
                     canSelectFolders={!!canSelectFolders}
                     {...props}
                     page={page}

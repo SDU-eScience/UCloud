@@ -20,10 +20,12 @@ export type FlexProps =
   AlignItemsProps &
   JustifyContentProps &
   FlexWrapProps &
-  FlexDirectionProps
+  FlexDirectionProps &
+  { cursor?: string }
 
 
 const Flex = styled.div<FlexProps>`
+  cursor: ${props => props.cursor};
   display: flex;
   ${space} ${width} ${color} ${alignItems} ${justifyContent}
   ${flexDirection}
@@ -31,7 +33,8 @@ const Flex = styled.div<FlexProps>`
 `
 
 Flex.defaultProps = {
-  theme
+  theme,
+  cursor: "auto"
 }
 
 

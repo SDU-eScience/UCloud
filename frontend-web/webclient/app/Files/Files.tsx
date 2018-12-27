@@ -26,6 +26,7 @@ import { AccessRight } from "Types";
 import { FilesTable, ContextBar } from "./FilesTable";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Spacer } from "ui-components/Spacer";
+import { setFileSelectorLoading } from "./Redux/FilesActions";
 
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
@@ -221,7 +222,10 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     },
     setLoading: loading => dispatch(Actions.setLoading(loading)),
     updatePath: path => dispatch(Actions.updatePath(path)),
-    fetchSelectorFiles: async (path, pageNumber, itemsPerPage) => dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
+    fetchSelectorFiles: async (path, pageNumber, itemsPerPage) => {
+        dispatch(setFileSelectorLoading());
+        dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage));
+    },
     showFileSelector: open => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: callback => dispatch(Actions.setFileSelectorCallback(callback)),
     checkFile: (checked, path) => dispatch(Actions.checkFile(checked, path)),
@@ -230,7 +234,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     checkAllFiles: checked => dispatch(Actions.checkAllFiles(checked)),
     setDisallowedPaths: disallowedPaths => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
     showUploader: () => dispatch(setUploaderVisible(true)),
-    setUploaderCallback: callback => dispatch(setUploaderCallback(callback))
+    setUploaderCallback: callback => dispatch(setUploaderCallback(callback)),
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Files);
