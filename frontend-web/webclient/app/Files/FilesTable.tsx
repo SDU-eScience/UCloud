@@ -208,8 +208,8 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
         </Box>
     );
     const nameLink = !!props.onNavigationClick ?
-        <Flex cursor={cursor} onClick={() => isDirectory(file) ? props.onNavigationClick!(file.path) : null} alignItems="center">{icon}<Text cursor={cursor} mr="5px">{fileName}</Text></Flex>
-        : (<FileLink file={file}><Flex alignItems="center">{icon}<Text mr="5px">{fileName}</Text></Flex></FileLink>);
+        <Flex onClick={() => isDirectory(file) ? props.onNavigationClick!(file.path) : null} alignItems="center">{icon}<Text cursor={cursor} mr="5px">{fileName}</Text></Flex>
+        : (<FileLink file={file}><Flex alignItems="center">{icon}<Text cursor={cursor} mr="5px">{fileName}</Text></Flex></FileLink>);
     return file.beingRenamed ?
         <TableCell width="50%">
             <Flex flexDirection="row" alignItems="center">
