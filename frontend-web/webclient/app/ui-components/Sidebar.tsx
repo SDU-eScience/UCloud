@@ -212,7 +212,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
             { icon: "share", label: "Shares", to: "/shares/" },
             { icon: "apps", label: "My Apps", to: "/applications/installed/" },
             { icon: "appStore", label: "App Store", to: "/applications/" },
-            { icon: "information", label: "My Results", to: "/applications/results/" }
+            { icon: "results", label: "My Results", to: "/applications/results/" }
         ], predicate: () => true
     },
     dev: { items: [{ icon: "publish", label: "Publish", to: "/zenodo/publish/" }], predicate: () => process.env.NODE_ENV === "development" },
