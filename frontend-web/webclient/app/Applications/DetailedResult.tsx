@@ -177,12 +177,12 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             { key: "Status", value: this.state.status },
         ];
 
-        let domEntries = entries.map((it, idx) => <Box pt="0.8em" pb="0.8em" key={idx}><b>{it.key}</b>: {it.value}</Box>);
+        let domEntries = entries.map(it => <Box pt="0.8em" pb="0.8em" key={it.key}><b>{it.key}</b>: {it.value}</Box>);
 
         switch (this.state.appState) {
             case AppState.SUCCESS:
                 domEntries.push(
-                    <Box pt="0.8em" pb="0.8em">
+                    <Box key={AppState.SUCCESS} pt="0.8em" pb="0.8em">
                         Application has completed successfully.
                         Click <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}>here</Link> to go to the output.
                     </Box>
@@ -190,22 +190,29 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 break;
             case AppState.SCHEDULED:
                 domEntries.push(
-                    <Box pt="0.8em" pb="0.8em">
+                    <Box key={AppState.SCHEDULED} pt="0.8em" pb="0.8em">
                         Your application is currently in the Slurm queue on ABC2 <LoadingIcon size={18} />
                     </Box>
                 );
                 break;
             case AppState.PREPARED:
                 domEntries.push(
-                    <Box pt="0.8em" pb="0.8em">
+                    <Box key={AppState.PREPARED} pt="0.8em" pb="0.8em">
                         We are currently transferring your job from SDUCloud to ABC2 <LoadingIcon size={18} />
                     </Box>
                 );
                 break;
             case AppState.RUNNING:
                 domEntries.push(
-                    <Box pt="0.8em" pb="0.8em">
+                    <Box key={AppState.RUNNING} pt="0.8em" pb="0.8em">
                         Your job is currently being executed on ABC2 <LoadingIcon size={18} />
+                    </Box>
+                );
+                break;
+            case AppState.FAILURE:
+                domEntries.push(
+                    <Box key={AppState.FAILURE} pt="0.8em" pb="0.8em">
+                        Your job failed
                     </Box>
                 );
                 break;
