@@ -9,13 +9,13 @@ import { RunAppProps, RunAppState, JobSchedulingOptions, MaxTime, ApplicationPar
 import { Application } from ".";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Box, Flex, Button, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
+import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter } from "./ParameterWidgets";
-import { Header } from "./Header";
 import { extractParameters } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
+import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 
 type Tool = any;
 
@@ -222,8 +222,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             </ContainerForText>
         );
 
-        const requiredKeys = application.description.parameters.filter(it => !it.optional).map(it => it.name);
-        let disabled = requiredKeys.some(it => !parameterValues[it]);
+        const requiredKeys = application.description.parameters.filter(it => !it.optional).map(it => ({ name: it.name, title: it.title }));
+        let disabled = requiredKeys.map(it => it.name).some(it => !parameterValues[it]);
+        let title: string | undefined = undefined;
+        title = `Missing input for fields ${requiredKeys.map(it => it.title).join(", ")}.`
 
         const sidebar = (
             <VerticalButtonGroup>
@@ -240,7 +242,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         type="file"
                         onChange={e => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
                 </OutlineButton>
-                <LoadingButton disabled={disabled} onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>
+                <Dropdown>
+                    <LoadingButton disabled={disabled} onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>
+                    {disabled ? <DropdownContent width={"auto"} colorOnHover={false} color="white" backgroundColor="black">
+                        <Text>{title}</Text>
+                    </DropdownContent> : null}
+                </Dropdown>
             </VerticalButtonGroup>
         );
 
