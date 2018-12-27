@@ -26,6 +26,7 @@ import { AccessRight } from "Types";
 import { FilesTable, ContextBar } from "./FilesTable";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Spacer } from "ui-components/Spacer";
+import { setFileSelectorLoading } from "./Redux/FilesActions";
 
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
@@ -79,6 +80,7 @@ class Files extends React.Component<FilesProps> {
         if (nextProps.path !== nextPath && !loading) {
             fetchFiles(nextPath, page.itemsPerPage, 0, sortOrder, sortBy);
         }
+        // FIXME: Should this ALWAYS return true?
         return true;
     }
 
@@ -91,6 +93,7 @@ class Files extends React.Component<FilesProps> {
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
         const fileSelectorOperations = { setDisallowedPaths, setFileSelectorCallback, showFileSelector, fetchPageFromPath: this.fetchPageFromPath };
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
+        // Can this be made static, so it doesn't has to be redone each time?
         const fileOperations: FileOperation[] = [
             {
                 text: "Rename",
@@ -219,7 +222,10 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     },
     setLoading: loading => dispatch(Actions.setLoading(loading)),
     updatePath: path => dispatch(Actions.updatePath(path)),
-    fetchSelectorFiles: async (path, pageNumber, itemsPerPage) => dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage)),
+    fetchSelectorFiles: async (path, pageNumber, itemsPerPage) => {
+        dispatch(setFileSelectorLoading());
+        dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage));
+    },
     showFileSelector: open => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: callback => dispatch(Actions.setFileSelectorCallback(callback)),
     checkFile: (checked, path) => dispatch(Actions.checkFile(checked, path)),
@@ -228,7 +234,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     checkAllFiles: checked => dispatch(Actions.checkAllFiles(checked)),
     setDisallowedPaths: disallowedPaths => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
     showUploader: () => dispatch(setUploaderVisible(true)),
-    setUploaderCallback: callback => dispatch(setUploaderCallback(callback))
+    setUploaderCallback: callback => dispatch(setUploaderCallback(callback)),
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Files);

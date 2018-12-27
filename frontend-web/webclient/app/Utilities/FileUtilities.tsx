@@ -446,12 +446,13 @@ export const clearTrashSwal = () => {
 
 export const moveToTrash = (files: File[], cloud: SDUCloud, callback: () => void) => {
     const paths = files.map(f => f.path);
+    const successResponse = `${paths.length > 1 ? `${paths.length} files` : replaceHomeFolder(paths[0], cloud.homeFolder)} moved to trash`
     moveToTrashSwal(paths).then((result: any) => {
         if (result.dismiss) {
             return;
         } else {
             cloud.post("/files/trash/", { files: paths })
-                .then(() => callback())
+                .then(() => { UF.successNotification(successResponse); callback() })
                 .catch(({ request }) => { UF.failureNotification("An error occurred moving to trash"); callback() });
         }
     })
@@ -465,7 +466,7 @@ export const batchDeleteFiles = (files: File[], cloud: SDUCloud, callback: () =>
         } else {
             let i = 0;
             paths.forEach(path => {
-                cloud.delete("/files", { path }).then(() => ++i === paths.length ? callback() : null)
+                cloud.delete("/files", { path }).then(() => { if (++i === paths.length) { UF.successNotification("Trash emptied"); callback() } })
                     .catch(() => i++);
             });
         }

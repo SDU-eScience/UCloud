@@ -50,7 +50,7 @@ export enum SortBy {
     SENSITIVITY = "SENSITIVITY"
 }
 
-export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps {}
+export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps { }
 
 export interface MockedTableProps {
     onCreateFolder: (a: number, c: number) => void
@@ -102,12 +102,12 @@ export interface FilesOperations { // Redux operations
 
 export interface FileSelectorProps {
     allowUpload?: boolean
-    onFileSelect: Function
+    onFileSelect: (file: { path: string }) => void
     path: string
     isRequired?: boolean
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean
-    remove?: Function
+    remove?: () => void
 }
 
 export interface FileSelectorState {

@@ -86,7 +86,7 @@ type SidebarMenuElements = {
 
 
 // FIXME, move to own file
-type SupportBoxProps = { visible: boolean }
+interface SupportBoxProps { visible: boolean }
 const SupportBox = styled.div<SupportBoxProps>`
     display: ${props => props.visible ? "block" : "none"};
     position: absolute;
@@ -240,7 +240,6 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
 
             <SidebarInfoBox>
                 <Text fontSize={1}><Icon name={"id"} size="1em" /> {Cloud.username}</Text>
-                {/* <SidebarSpacer /> */}
                 <Support />
                 <div>
                     <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">

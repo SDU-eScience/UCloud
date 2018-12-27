@@ -2,7 +2,7 @@ import * as React from "react";
 import { File } from "Files";
 import FileSelector from "Files/FileSelector";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
-import { ParameterTypes } from ".";
+import { ParameterTypes, ApplicationParameter } from ".";
 import { Box, Flex, Label, Text, Select, Markdown } from "ui-components";
 import Input from "ui-components/Input";
 
@@ -26,26 +26,32 @@ const parameterTypeToComponent = (type) => {
     }
 };
 
-export const Parameter = (props) => {
+interface ParameterProps {
+    parameter: ApplicationParameter
+    onChange: (name: string, value: any) => void
+    value: string | number | object
+}
+export const Parameter = (props: ParameterProps) => {
     let Component = parameterTypeToComponent(props.parameter.type);
     return (<><Component {...props} /><Box pb="1em" /></>);
 };
 
 const InputFileParameter = (props) => {
-    const internalOnChange = (file: File) => {
-        props.onChange(props.parameter.name, {
+    const internalOnChange = (file: { path: string }) => {
+        props.onChange(props.parameter.name, file.path ? {
             source: file.path,
             destination: getFilenameFromPath(file.path)
-        });
+        } : undefined);
     };
     const path = props.value ? props.value.source : "";
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
+                remove={!!path ? () => internalOnChange({ path: "" }) : undefined}
                 onFileSelect={file => internalOnChange(file)}
                 path={path}
                 isRequired={!props.parameter.optional}
-                /* allowUpload */
+            /* allowUpload */
             />
         </GenericParameter>
     );
@@ -93,14 +99,16 @@ const TextParameter = (props) => {
 
 
 type BooleanParameterOption = { value?: boolean, display: string }
-const BooleanParameter = (props) => {
+
+interface BooleanParameter { parameter: ApplicationParameter, onChange: (name: string, value?: boolean) => void }
+const BooleanParameter = (props: BooleanParameter) => {
     let options: BooleanParameterOption[] = [{ value: true, display: "Yes" }, { value: false, display: "No" }];
     if (props.parameter.optional) {
         options.unshift({ value: undefined, display: "" });
     }
 
-    const internalOnChange = (event) => {
-        let value;
+    const internalOnChange = event => {
+        let value: boolean | undefined;
         switch (event.target.value) {
             case "Yes": value = true; break;
             case "No": value = false; break;
@@ -188,10 +196,10 @@ const FloatingParameter = (props) => {
     return <GenericNumberParameter {...childProps} />;
 };
 
-const GenericParameter = ({ parameter, children }) => (
+const GenericParameter = ({ parameter, children }: { parameter: ApplicationParameter, children: any }) => (
     <>
         <Label fontSize={1} htmlFor={parameter.name}>
-            <Flex>{parameter.title}{parameter.optional ? "" : <Text bold color="red"> *</Text>}</Flex>
+            <Flex>{parameter.title}{parameter.optional ? "" : <Text ml="4px" bold color="red">*</Text>}</Flex>
         </Label>
         {children}
         <OptionalText optional={parameter.optional} />

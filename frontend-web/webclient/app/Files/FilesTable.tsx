@@ -184,7 +184,7 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
 
 const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
 
-const FileLink = ({ file, children }) => {
+const FileLink = ({ file, children }: { file: File, children: any }) => {
     if (isDirectory(file)) {
         return (<Link to={fileTablePage(file.path)}>{children}</Link>);
     } else if (previewSupportedExtension(file.path)) {
@@ -198,6 +198,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     const fileName = getFilenameFromPath(file.path);
     const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} /></Box>
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
+    const cursor = isDirectory(file) && !file.path.endsWith("/.") ? "pointer" : undefined;
     const icon = (
         <Box mr="10px">
             <FileIcon
@@ -207,7 +208,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
         </Box>
     );
     const nameLink = !!props.onNavigationClick ?
-        <Flex onClick={() => isDirectory(file) ? props.onNavigationClick!(file.path) : null} alignItems="center">{icon}<Text mr="5px">{fileName}</Text></Flex>
+        <Flex cursor={cursor} onClick={() => isDirectory(file) ? props.onNavigationClick!(file.path) : null} alignItems="center">{icon}<Text cursor={cursor} mr="5px">{fileName}</Text></Flex>
         : (<FileLink file={file}><Flex alignItems="center">{icon}<Text mr="5px">{fileName}</Text></Flex></FileLink>);
     return file.beingRenamed ?
         <TableCell width="50%">
@@ -222,7 +223,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
                     type="text"
                     width="100%"
                     autoFocus
-                    onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
+                    onKeyDown={e => { if ( !!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
                 />
                 <Icon size={24} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
             </Flex>
