@@ -86,7 +86,7 @@ type SidebarMenuElements = {
 
 
 // FIXME, move to own file
-type SupportBoxProps = { visible: boolean }
+interface SupportBoxProps { visible: boolean }
 const SupportBox = styled.div<SupportBoxProps>`
     display: ${props => props.visible ? "block" : "none"};
     position: absolute;
