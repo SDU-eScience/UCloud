@@ -143,26 +143,31 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             <StepGroup>
                 <StepTrackerItem
                     icon="checkDouble"
+                    failed={this.isStateFailure()}
                     active={this.isStateActive(AppState.VALIDATED)}
                     complete={this.isStateComplete(AppState.VALIDATED)}
                     title={"Validated"} />
                 <StepTrackerItem
                     icon="hourglass"
+                    failed={this.isStateFailure()}
                     active={this.isStateActive(AppState.PREPARED)}
                     complete={this.isStateComplete(AppState.PREPARED)}
                     title={"Pending"} />
                 <StepTrackerItem
                     icon="calendar"
+                    failed={this.isStateFailure()}
                     active={this.isStateActive(AppState.SCHEDULED)}
                     complete={this.isStateComplete(AppState.SCHEDULED)}
                     title={"Scheduled"} />
                 <StepTrackerItem
                     icon="chrono"
+                    failed={this.isStateFailure()}
                     active={this.isStateActive(AppState.RUNNING)}
                     complete={this.isStateComplete(AppState.RUNNING)}
                     title={"Running"} />
                 <StepTrackerItem
                     icon="move"
+                    failed={this.isStateFailure()}
                     active={this.isStateActive(AppState.TRANSFER_SUCCESS)}
                     complete={this.isStateComplete(AppState.TRANSFER_SUCCESS)}
                     title={"Transferring"} />
@@ -335,15 +340,16 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     isStateComplete = (queryState: AppState) =>
         DetailedResult.stateToOrder(queryState) < DetailedResult.stateToOrder(this.state.appState);
 
+    isStateFailure = () => this.state.appState === AppState.FAILURE
 
     isStateActive = (queryState: AppState) =>
         DetailedResult.stateToOrder(this.state.appState) === DetailedResult.stateToOrder(queryState);
 }
 
-const StepTrackerItem = (props: { complete: boolean, active: boolean, title: string, icon: IconName }) => (
+const StepTrackerItem = (props: { failed: boolean, complete: boolean, active: boolean, title: string, icon: IconName }) => (
     <Step active={props.active}>
         {props.complete ?
-            <Icon name="check" color="green" mr="0.7em" size="30px" /> :
+            <Icon name={props.failed ? "close" : "check"} color={props.failed ? "red" : "green"} mr="0.7em" size="30px" /> :
             <Icon name={props.icon} mr="0.7em" size="30px" color="iconColor" color2="iconColor2" />
         }
         <TextSpan fontSize={3}>{props.title}</TextSpan>
