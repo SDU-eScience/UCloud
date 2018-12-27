@@ -240,7 +240,6 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
 
             <SidebarInfoBox>
                 <Text fontSize={1}><Icon name={"id"} size="1em" /> {Cloud.username}</Text>
-                {/* <SidebarSpacer /> */}
                 <Support />
                 <div>
                     <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">

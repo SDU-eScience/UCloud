@@ -1,5 +1,5 @@
 import * as React from 'react';
-import styled, { ThemeProps } from 'styled-components';
+import styled from 'styled-components';
 import { space, fontSize, themeGet } from 'styled-system';
 
 import theme from './theme';

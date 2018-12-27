@@ -17,6 +17,7 @@ import { Toggle } from "ui-components/Toggle";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 import { Dispatch } from "redux";
+import { FileIcon } from "UtilityComponents";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -114,7 +115,7 @@ class Uploader extends React.Component<UploaderProps & UploadOperations> {
         }
     }
 
-    startAllUploads = event => {
+    startAllUploads = (event: { preventDefault: () => void; }) => {
         event.preventDefault();
         const length = this.props.uploads.length;
         for (let i = 0; i < length; i++) {
@@ -156,9 +157,8 @@ class Uploader extends React.Component<UploaderProps & UploadOperations> {
                 style={{
                     content: {
                         top: "80px",
-                        left: "10%",
-                        right: "10%",
-                        height: "auto"
+                        margin: "0 auto",
+                        maxWidth: "80%",                        
                     }
                 }}
             >
@@ -312,12 +312,14 @@ const UploaderRow = (p: {
         </>;
     }
 
+    console.log(iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder));
+
     return (
         <Flex flexDirection="row">
-            <Box width={0.08} textAlign="center">
-                <Icon name={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)} />
+            <Box width={0.04} textAlign="center">
+                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)} />
             </Box>
-            <Flex width={0.92}>{body}</Flex>
+            <Flex width={0.96}>{body}</Flex>
         </Flex>
     );
 }
