@@ -107,7 +107,7 @@ export interface FileSelectorProps {
     isRequired?: boolean
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean
-    remove?: Function
+    remove?: () => void
 }
 
 export interface FileSelectorState {

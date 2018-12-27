@@ -38,15 +38,16 @@ export const Parameter = (props: ParameterProps) => {
 
 const InputFileParameter = (props) => {
     const internalOnChange = (file: { path: string }) => {
-        props.onChange(props.parameter.name, {
+        props.onChange(props.parameter.name, file.path ? {
             source: file.path,
             destination: getFilenameFromPath(file.path)
-        });
+        } : undefined);
     };
     const path = props.value ? props.value.source : "";
     return (
         <GenericParameter parameter={props.parameter}>
             <FileSelector
+                remove={!!path ? () => internalOnChange({ path: "" }) : undefined}
                 onFileSelect={file => internalOnChange(file)}
                 path={path}
                 isRequired={!props.parameter.optional}

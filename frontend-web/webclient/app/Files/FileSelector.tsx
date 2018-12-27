@@ -9,11 +9,10 @@ import { RefreshButton, CustomEntriesPerPage } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
 import { filepathQuery } from "Utilities/FileUtilities";
-import { Input, Icon, Button, Divider } from "ui-components";
+import { Input, Icon, Button, Divider, Flex } from "ui-components";
 import * as ReactModal from "react-modal";
 import * as Heading from "ui-components/Heading";
 import { Spacer } from "ui-components/Spacer";
-import { EntriesPerPageSelector } from "Pagination";
 import { FilesTable } from "./FilesTable";
 import SDUCloud from "Authentication/lib";
 import { addTrailingSlash } from "UtilityFunctions";
@@ -69,7 +68,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         const uploadButton = this.props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
         const removeButton = this.props.remove ? (<RemoveButton onClick={() => this.props.remove!()} />) : null;
         return (
-            <React.StrictMode>
+            <Flex>
                 <Input
                     required={this.props.isRequired}
                     placeholder="No file selected"
@@ -93,7 +92,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                     canSelectFolders={this.props.canSelectFolders}
                     onlyAllowFolders={this.props.onlyAllowFolders}
                 />
-            </React.StrictMode>)
+            </Flex>)
     }
 }
 
@@ -184,7 +183,7 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
 };
 
 interface FileSelectorButton { onClick: () => void }
-const UploadButton = ({ onClick }: FileSelectorButton) => (<Button type="button" onClick={onClick}>Upload File</Button>);
-const RemoveButton = ({ onClick }: FileSelectorButton) => (<Button type="button" onClick={onClick}>✗</Button>);
+const UploadButton = ({ onClick }: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>Upload File</Button>);
+const RemoveButton = ({ onClick }: FileSelectorButton) => (<Button ml="5px" type="button" onClick={onClick}>✗</Button>);
 
 export default FileSelector;
