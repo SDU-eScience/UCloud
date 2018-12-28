@@ -26,6 +26,7 @@ import { History } from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
 import * as UF from "UtilityFunctions";
 import * as Accounting from "Accounting";
+import { MainContainer } from "MainContainer/MainContainer";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
@@ -74,7 +75,7 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
             this.props.receiveFavorites(favoriteFiles.filter(f => f.favorited));
         };
 
-        return (
+        const main = (
             <React.StrictMode>
                 <Error error={errors.join(",\n")} clearError={props.errorDismiss} />
                 <CardGroup>
@@ -109,6 +110,12 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
                     </DashboardCard>
                 </CardGroup>
             </React.StrictMode>
+        );
+        
+        return (
+            <MainContainer
+                main={main}
+            />
         );
     }
 }

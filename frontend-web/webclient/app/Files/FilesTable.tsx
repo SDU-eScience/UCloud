@@ -62,7 +62,7 @@ const ResponsiveTableColumn = ({
     currentSelection,
     sortOrder
 }: ResponsiveTableColumnProps) => (
-        <TableHeaderCell width="20%" xs sm md >
+        <TableHeaderCell width="7rem" xs sm md >
             <Flex alignItems="center" justifyContent="left">
                 <Arrow name={iconName} />
                 <SortByDropdown
@@ -90,7 +90,7 @@ const FilesTableHeader = ({
 }: FilesTableHeaderProps) => (
         <TableHeader>
             <TableRow>
-                <TableHeaderCell width="45%" textAlign="left">
+                <TableHeaderCell textAlign="left">
                     <Flex
                         alignItems="center"
                         onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
@@ -115,7 +115,7 @@ const FilesTableHeader = ({
                         iconName={toSortingIcon(sC!)}
                     />
                 ))}
-                <TableHeaderCell width="20%" textAlign="right">
+                <TableHeaderCell width="5rem" textAlign="right">
                     <Flex style={{ whiteSpace: "nowrap" }}>{customEntriesPerPage}</Flex>
                 </TableHeaderCell>
             </TableRow>
@@ -207,36 +207,36 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             />
         </Box>
     );
+    const renameBox = (<>
+        {icon}
+        <Input
+            placeholder={getFilenameFromPath(file.path)}
+            p="0"
+            noBorder
+            type="text"
+            width="100%"
+            autoFocus
+            onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
+        />
+        <Icon size={"1em"} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
+    </>);
+
     const nameLink = !!props.onNavigationClick ?
-        <Flex cursor={cursor} onClick={() => isDirectory(file) ? props.onNavigationClick!(file.path) : null} alignItems="center">{icon}<Text cursor={cursor} mr="5px">{fileName}</Text></Flex>
-        : (<FileLink file={file}><Flex alignItems="center">{icon}<Text cursor="pointer" mr="5px">{fileName}</Text></Flex></FileLink>);
-    return file.beingRenamed ?
-        <TableCell width="50%">
-            <Flex flexDirection="row" alignItems="center">
-                {checkbox}
-                <Box ml="5px" pr="5px" />
-                {icon}
-                <Input
-                    placeholder={getFilenameFromPath(file.path)}
-                    p="0"
-                    noBorder
-                    type="text"
-                    width="100%"
-                    autoFocus
-                    onKeyDown={e => { if ( !!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
-                />
-                <Icon size={24} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
-            </Flex>
-        </TableCell > :
-        <TableCell width="45%">
-            <Flex flexDirection="row" alignItems="center">
-                {checkbox}
-                <Box ml="5px" pr="5px" />
-                {nameLink}
-                <GroupIcon isProject={isProject(file)} />
-                <PredicatedFavorite predicate={!!onFavoriteFile} item={file} onClick={onFavoriteFile} />
-            </Flex>
-        </TableCell>
+        <Flex onClick={() => isDirectory(file) ? props.onNavigationClick!(file.path) : null} alignItems="center">{icon}<Text cursor={cursor} mr="5px">{fileName}</Text></Flex>
+        : (<FileLink file={file}><Flex alignItems="center">{icon}<Text cursor={cursor} mr="5px">{fileName}</Text></Flex></FileLink>);
+    const fileBox = (<>
+        {nameLink}
+        <GroupIcon isProject={isProject(file)} />
+        <PredicatedFavorite predicate={!!onFavoriteFile} item={file} onClick={onFavoriteFile} />
+    </>);
+
+    return <TableCell width="50%">
+        <Flex flexDirection="row" alignItems="center">
+            {checkbox}
+            <Box ml="5px" pr="5px" />
+            {file.beingRenamed ? renameBox : fileBox}
+        </Flex>
+    </TableCell>
 };
 
 const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (

@@ -150,7 +150,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
 
     private resolveEventIcon(eventType: string): IconName {
         switch (eventType) {
-            case "APP_COMPLETE": return "information";
+            case "APP_COMPLETE": return "info";
             case "SHARE_REQUEST": return "share";
             default: return "warning";
         }

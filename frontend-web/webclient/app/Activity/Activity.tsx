@@ -16,6 +16,7 @@ import { Flex, Text, Link } from "ui-components";
 import Table, { TableRow, TableCell } from "ui-components/Table";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { MainContainer } from "MainContainer/MainContainer";
 
 class Activity extends React.Component<ActivityProps> {
     componentDidMount = () => {
@@ -25,9 +26,9 @@ class Activity extends React.Component<ActivityProps> {
 
     render() {
         const { fetchActivity, page, error, setError, loading, groupedEntries } = this.props;
-        return (
+
+        const main = (
             <React.StrictMode>
-                <Heading.h1>File Activity</Heading.h1>
                 <Pagination.List
                     loading={loading}
                     errorMessage={error}
@@ -39,6 +40,19 @@ class Activity extends React.Component<ActivityProps> {
                     onPageChanged={pageNumber => fetchActivity(pageNumber, page.itemsPerPage)}
                 />
             </React.StrictMode>
+        );
+
+        const header = (
+            <React.StrictMode>
+                <Heading.h1>File Activity</Heading.h1>
+            </React.StrictMode>
+        );
+
+        return (
+            <MainContainer
+                main={main}
+                header={header}
+            />           
         );
     }
 }

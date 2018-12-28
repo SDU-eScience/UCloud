@@ -111,7 +111,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             right={<Icon name="close" onClick={props.onHide} />}
         />
         <Divider />
-        <Spacer
+        <Spacer height={"3em"} alignItems="center"
             left={<BreadCrumbs
                 homeFolder={Cloud.homeFolder}
                 currentPath={props.path}
