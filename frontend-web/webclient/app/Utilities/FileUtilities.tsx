@@ -406,17 +406,16 @@ export const shareFiles = (files: File[], cloud: SDUCloud) =>
     UF.shareSwal().then((input) => {
         if (input.dismiss) return;
         const rights: string[] = [];
-        const elementValue = UF.elementValue("access-select");
-        if (elementValue.includes("read")) rights.push("READ")
-        if (elementValue.includes("edit")) rights.push("WRITE")
-        let i = 0;
+        if (UF.elementValue("read")) rights.push("READ")
+        if (UF.elementValue("read_edit")) rights.push("WRITE")
+        let iteration = 0;
         files.map(f => f.path).forEach((path, i, paths) => {
             const body = {
                 sharedWith: input.value,
                 path,
                 rights
             };
-            cloud.put(`/shares/`, body).then(() => { if (++i === paths.length) UF.successNotification("Files shared successfully") })
+            cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) UF.successNotification("Files shared successfully") })
                 .catch(({ response }) => UF.failureNotification(`${response.why}`));
         });
     }); // FIXME Error handling
