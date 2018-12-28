@@ -5,7 +5,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { shortUUID, failureNotification } from "UtilityFunctions";
 import { Link } from "react-router-dom";
 import { FilesTable } from "Files/FilesTable";
-import { List as PaginationList, EntriesPerPageSelector } from "Pagination";
+import { List as PaginationList } from "Pagination";
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { ReduxObject, DetailedResultReduxObject } from "DefaultObjects";
@@ -17,7 +17,7 @@ import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 import { History } from "history";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
-import { RefreshButton } from "UtilityComponents";
+import { CustomEntriesPerPage } from "UtilityComponents";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { Flex, Box, List, Card, Hide } from "ui-components";
 import { Step, StepGroup } from "ui-components/Step";
@@ -125,7 +125,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     retrieveStateWhenCompleted() {
         if (!this.state.complete) return;
-        if (this.props.page.items.length || this.props.loading) return;
+        if (this.props.page.items.length) return;
         this.props.setLoading(true);
         this.retrieveFilesPage(this.props.page.pageNumber, this.props.page.itemsPerPage)
     }
@@ -217,7 +217,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             case AppState.FAILURE:
                 domEntries.push(
                     <Box key={AppState.FAILURE} pt="0.8em" pb="0.8em">
-                        Your job failed
+                        Job failed
                     </Box>
                 );
                 break;
@@ -284,17 +284,13 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
                             customEntriesPerPage={
-                                <>
-                                    <RefreshButton
-                                        loading={false}
-                                        onClick={() => this.retrieveFilesPage(page.pageNumber, page.itemsPerPage)}
-                                    />
-                                    <EntriesPerPageSelector
-                                        entriesPerPage={page.itemsPerPage}
-                                        content="Files per page"
-                                        onChange={itemsPerPage => this.retrieveFilesPage(page.pageNumber, itemsPerPage)}
-                                    />
-                                </>
+                                <CustomEntriesPerPage
+                                    loading={this.props.loading}
+                                    entriesPerPage={page.itemsPerPage}
+                                    text="Files per page"
+                                    onChange={itemsPerPage => this.retrieveFilesPage(page.pageNumber, itemsPerPage)}
+                                    onRefreshClick={() => this.retrieveFilesPage(page.pageNumber, page.itemsPerPage)}
+                                />
                             }
                         />}
                     customEntriesPerPage
@@ -362,15 +358,16 @@ const Stream = styled.pre`
     overflow: auto;
 `;
 
-
 const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxObject => detailedResult;
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     detailedResultError: error => dispatch(detailedResultError(error)),
     setLoading: loading => dispatch(setLoading(loading)),
     setPageTitle: jobId => dispatch(updatePageTitle(`Results for Job: ${jobId}`)),
     receivePage: page => dispatch(receivePage(page)),
-    fetchPage: async (jobId, pageNumber, itemsPerPage) =>
-        dispatch(await fetchPage(Cloud.username, jobId, pageNumber, itemsPerPage))
+    fetchPage: async (jobId, pageNumber, itemsPerPage) => {
+        dispatch(setLoading(true));
+        dispatch(await fetchPage(Cloud.username, jobId, pageNumber, itemsPerPage));
+    }
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(DetailedResult);
