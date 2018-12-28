@@ -1,37 +1,36 @@
 import * as React from "react";
-import { Flex, Box, Hide, Absolute } from "ui-components";
+import { Box, Absolute } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { LoadableContent } from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
 import styled from "styled-components";
 
 export interface MainContainerProps { sidebar?: React.ReactNode, main?: React.ReactNode, additional?: React.ReactNode, header?: React.ReactNode, sidebarSize?: number, headerSize?: number }
-export const MainContainer = ({ sidebar, main, additional, header, sidebarSize=240, headerSize=96 }: MainContainerProps) => {
-    const leftSidebarsize=190; //main webside sidebar H size
-    const topMenuSize=48; //main website top manu V size
-    const pad=14; //padding unit
+export const MainContainer = ({ sidebar, main, additional, header, sidebarSize = 240, headerSize = 96 }: MainContainerProps) => {
+    const leftSidebarsize = 190; //main webside sidebar H size
+    const topMenuSize = 48; //main website top manu V size
+    const pad = 14; //padding unit
 
-    const mainYpad = header ? headerSize : pad ;
-    const mainXpad = sidebar ? sidebarSize : pad ;
+    const mainYpad = header ? headerSize : pad;
+    const mainXpad = sidebar ? sidebarSize : pad;
 
 
     return (
         <React.StrictMode>
             {header &&
-                <HeaderContainer  
-                    top={topMenuSize} left="0" 
-                    py={pad} pl={leftSidebarsize+pad} pr={pad} 
+                <HeaderContainer
+                    top={topMenuSize} left="0"
+                    py={pad} pl={leftSidebarsize + pad} pr={pad}
                     width={1} height={headerSize}
                     bg="white">
                     {header}
                 </HeaderContainer>
             }
             {sidebar &&
-                <SidebarContainer 
-                    style={{overflowY:"scroll"}}
+                <SidebarContainer
                     // height={"calc(100% - "+(topMenuSize+mainYpad)+"px)"}
                     // top={topMenuSize+mainYpad} right="0"
-                    height="100%" pt={topMenuSize+mainYpad}
+                    height="100%" pt={topMenuSize + mainYpad}
                     top="0" right="0"
                     px={pad}
                     width={sidebarSize}
@@ -75,6 +74,7 @@ const HeaderContainer = styled(Absolute)`
 `
 
 const SidebarContainer = styled(Absolute)`
+    overflow-y: scroll;
     position: fixed;
     z-index: 45;
 `

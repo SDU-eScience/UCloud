@@ -99,22 +99,20 @@ class Files extends React.Component<FilesProps> {
             icon: "rename",
             color: undefined
         },
-        ...AllFileOperations(true, this.fileSelectorOperations,
-            () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
-            this.props.history)
+        ...AllFileOperations(true, this.fileSelectorOperations, this.refetch, this.props.history)
+    ];
 
-    ]
+    refetch() {
+        const { path, page, sortOrder, sortBy} = this.props;
+        this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
+    }
 
     render() {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
-
-        const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
-        // Can this be made static, so it doesn't has to be redone each time?
-
         const header = (
             <Spacer height={"100%"} alignItems="center"
                 left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />}
@@ -123,7 +121,7 @@ class Files extends React.Component<FilesProps> {
                     text="Files per page"
                     onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
                     loading={loading}
-                    onRefreshClick={refetch}
+                    onRefreshClick={this.refetch}
                 />}>
             </Spacer>
         );
@@ -142,7 +140,7 @@ class Files extends React.Component<FilesProps> {
                         sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
                         sortOrder={sortOrder}
                         sortingColumns={[leftSortingColumn, rightSortingColumn]}
-                        refetchFiles={() => refetch()}
+                        refetchFiles={() => this.refetch()}
                         onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
                         masterCheckbox={
                             <MasterCheckbox
