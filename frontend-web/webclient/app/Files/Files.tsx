@@ -84,6 +84,27 @@ class Files extends React.Component<FilesProps> {
         return true;
     }
 
+    fileSelectorOperations = {
+        setDisallowedPaths: this.props.setDisallowedPaths,
+        setFileSelectorCallback: this.props.setFileSelectorCallback,
+        showFileSelector: this.props.showFileSelector,
+        fetchPageFromPath: this.fetchPageFromPath
+    };
+
+    fileOperations: FileOperation[] = [
+        {
+            text: "Rename",
+            onClick: files => this.props.updateFiles(startRenamingFiles(files, this.props.page)),
+            disabled: (files: File[]) => !allFilesHasAccessRight(AccessRight.WRITE, files),
+            icon: "rename",
+            color: undefined
+        },
+        ...AllFileOperations(true, this.fileSelectorOperations,
+            () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
+            this.props.history)
+
+    ]
+
     render() {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
@@ -91,19 +112,8 @@ class Files extends React.Component<FilesProps> {
 
         const refetch = () => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
-        const fileSelectorOperations = { setDisallowedPaths, setFileSelectorCallback, showFileSelector, fetchPageFromPath: this.fetchPageFromPath };
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         // Can this be made static, so it doesn't has to be redone each time?
-        const fileOperations: FileOperation[] = [
-            {
-                text: "Rename",
-                onClick: files => updateFiles(startRenamingFiles(files, page)),
-                disabled: (files: File[]) => !allFilesHasAccessRight(AccessRight.WRITE, files),
-                icon: "rename",
-                color: undefined
-            },
-            ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
-        ];
 
         const header = (<Spacer
             left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />}
@@ -125,7 +135,7 @@ class Files extends React.Component<FilesProps> {
                 pageRenderer={page => (
                     <FilesTable
                         onFavoriteFile={favoriteFile}
-                        fileOperations={fileOperations}
+                        fileOperations={this.fileOperations}
                         sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
                         sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
                         sortOrder={sortOrder}
@@ -156,7 +166,7 @@ class Files extends React.Component<FilesProps> {
                     <ContextBar
                         invalidPath={props.invalidPath}
                         showUploader={props.showUploader}
-                        fileOperations={fileOperations}
+                        fileOperations={this.fileOperations}
                         files={selectedFiles}
                         inTrashFolder={UF.addTrailingSlash(path) === Cloud.trashFolder}
                         createFolder={() => props.createFolder()}
