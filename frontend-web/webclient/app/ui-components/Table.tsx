@@ -7,14 +7,14 @@ export const Table = styled.table`
     width: 100%;
     border: 0px;
     border-spacing: 0;
+    table-layout: fixed;
 `;
 
 export const TableBody = styled.tbody``;
 
-export const TableCell = styled.td<TextAlignProps & HideProps & WidthProps>`
+export const TableCell = styled.td<TextAlignProps & HideProps >`
     border: 0px;
     border-spacing: 0;
-    ${width};
     ${textAlign};
     ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
@@ -46,10 +46,11 @@ export const TableHeader = styled.thead`
     padding-bottom: 11px;
 `;
 
-export const TableHeaderCell = styled.th<TextAlignProps & HideProps>`
+export const TableHeaderCell = styled.th<TextAlignProps & HideProps & WidthProps>`
     border-spacing: 0;
     border: 0px;
     ${textAlign};
+    ${width}
     ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
 

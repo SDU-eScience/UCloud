@@ -32,7 +32,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     max-height: ${props => props.maxHeight ? props.maxHeight : ""};
     box-shadow: 0px 0px 3px 1px rgba(0, 0, 0, 0.2);
     padding: 12px 16px;
-    z-index: 1;
+    z-index: 47;
     overflow-y: auto;
     overflow-x: hidden;
     text-align: left;

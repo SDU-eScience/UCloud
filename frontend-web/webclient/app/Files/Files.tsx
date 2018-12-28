@@ -105,16 +105,18 @@ class Files extends React.Component<FilesProps> {
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
 
-        const header = (<Spacer
-            left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />}
-            right={<CustomEntriesPerPage
-                entriesPerPage={page.itemsPerPage}
-                text="Files per page"
-                onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
-                loading={loading}
-                onRefreshClick={refetch}
-            />}>
-        </Spacer>)
+        const header = (
+            <Spacer height={"100%"} alignItems="center"
+                left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />}
+                right={<CustomEntriesPerPage
+                    entriesPerPage={page.itemsPerPage}
+                    text="Files per page"
+                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                    loading={loading}
+                    onRefreshClick={refetch}
+                />}>
+            </Spacer>
+        );
 
         const main = (
             <Pagination.List
@@ -148,7 +150,7 @@ class Files extends React.Component<FilesProps> {
                 page={page}
                 onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
             />
-        )
+        );
 
         const sidebar = (
             !props.invalidPath ?
@@ -188,7 +190,8 @@ class Files extends React.Component<FilesProps> {
                 main={main}
                 sidebar={sidebar}
                 additional={additional}
-            />)
+            />
+        );
     }
 }
 

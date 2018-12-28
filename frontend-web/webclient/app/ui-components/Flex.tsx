@@ -2,12 +2,13 @@ import styled from 'styled-components'
 import {
   space,
   width,
+  height,
   color,
   alignItems,
   justifyContent,
   flexWrap,
   flexDirection,
-  SpaceProps, WidthProps, ColorProps, AlignItemsProps,
+  SpaceProps, WidthProps, HeightProps, ColorProps, AlignItemsProps,
   JustifyContentProps, FlexWrapProps, FlexDirectionProps
 } from 'styled-system'
 import theme from "./theme"
@@ -16,6 +17,7 @@ import theme from "./theme"
 export type FlexProps =
   SpaceProps &
   WidthProps &
+  HeightProps &
   ColorProps &
   AlignItemsProps &
   JustifyContentProps &
@@ -27,7 +29,7 @@ export type FlexProps =
 const Flex = styled.div<FlexProps>`
   cursor: ${props => props.cursor};
   display: flex;
-  ${space} ${width} ${color} ${alignItems} ${justifyContent}
+  ${space} ${width} ${height} ${color} ${alignItems} ${justifyContent}
   ${flexDirection}
   ${flexWrap}
 `

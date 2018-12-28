@@ -254,6 +254,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         return (
             <MainContainer
                 header={header}
+                headerSize={192}
                 main={main}
                 sidebar={sidebar}
             />
