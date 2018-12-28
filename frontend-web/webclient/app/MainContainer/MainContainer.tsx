@@ -74,7 +74,7 @@ const HeaderContainer = styled(Absolute)`
 `
 
 const SidebarContainer = styled(Absolute)`
-    overflow-y: scroll;
+    overflow-y: auto;
     position: fixed;
     z-index: 45;
 `

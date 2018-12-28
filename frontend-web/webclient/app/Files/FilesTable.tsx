@@ -42,7 +42,7 @@ export const FilesTable = ({
                         <TableCell xs sm md>{sortingColumns[1] ? UF.sortingColumnToValue(sortingColumns[1], file) : null}</TableCell>
                         <TableCell textAlign="center">
                             {fileOperations.length > 1 ?
-                                <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" />}>
+                                <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" size="1em" rotation="90" />}>
                                     <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
                                 </ClickableDropdown> :
                                 <FileOperations files={[file]} fileOperations={fileOperations} As={OutlineButton} ml="-17px" mr="-17px" pl="15px" />
@@ -62,7 +62,7 @@ const ResponsiveTableColumn = ({
     currentSelection,
     sortOrder
 }: ResponsiveTableColumnProps) => (
-        <TableHeaderCell width="7rem" xs sm md >
+        <TableHeaderCell width="10rem" xs sm md >
             <Flex alignItems="center" justifyContent="left">
                 <Arrow name={iconName} />
                 <SortByDropdown
@@ -107,7 +107,6 @@ const FilesTableHeader = ({
                     <ResponsiveTableColumn
                         key={i}
                         isSortedBy={sC === sortBy}
-                        minWidth={768}
                         onSelect={(sortOrder: SortOrder, sortBy: SortBy) => { if (!!onDropdownSelect) onDropdownSelect(sortOrder, sortBy, i) }}
                         currentSelection={sC!}
                         sortOrder={sortOrder}
@@ -115,7 +114,7 @@ const FilesTableHeader = ({
                         iconName={toSortingIcon(sC!)}
                     />
                 ))}
-                <TableHeaderCell width="5rem" textAlign="right">
+                <TableHeaderCell width="4rem" textAlign="right">
                     <Flex style={{ whiteSpace: "nowrap" }}>{customEntriesPerPage}</Flex>
                 </TableHeaderCell>
             </TableRow>
@@ -213,6 +212,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             placeholder={getFilenameFromPath(file.path)}
             p="0"
             noBorder
+            borderRadius="0px"
             type="text"
             width="100%"
             autoFocus
