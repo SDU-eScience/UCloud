@@ -10,22 +10,13 @@ import { History } from "history";
 import { HeaderStateToProps } from "Navigation";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { ReduxObject, KeyCode } from "DefaultObjects";
-import {
-    Flex,
-    Box,
-    Text,
-    Icon,
-    Relative,
-    Absolute,
-    Input,
-    Label,
-    Divider
-} from "ui-components";
+import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Divider } from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { searchFiles } from "Search/Redux/SearchActions";
 import { searchPage } from "Utilities/SearchUtilities";
+import BackgroundTask from "BackgroundTasks/BackgroundTask";
 
 interface HeaderProps {
     sidebarOpen?: boolean
@@ -59,6 +50,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
             <HeaderContainer color="headerText" bg="headerBg">
                 <Logo />
                 <Box ml="auto" />
+                <BackgroundTask />
                 <Search
                     onChange={searchText => this.setState(() => ({ searchText }))}
                     navigate={() => history.push(searchPage(prioritizedSearch, searchText))}
@@ -173,25 +165,6 @@ const ClippedBox = styled(Flex)`
     overflow: hidden;
     height: 48px;
 `;
-
-const OldUserAvatar = () => (
-    <ClippedBox mr="8px" width="60px">
-        <Avatar
-            style={{ width: "64px", height: "60px", cursor: "pointer" }}
-            avatarStyle="Circle"
-            topType="LongHairCurly"
-            accessoriesType="Sunglasses"
-            hairColor="Brown"
-            facialHairType="Blank"
-            clotheType="CollarSweater"
-            clotheColor="PastelRed"
-            eyeType="Default"
-            eyebrowType="Default"
-            mouthType="Smile"
-            skinColor="Light"
-        />
-    </ClippedBox>
-);
 
 const UserAvatar = () => (
     <ClippedBox mr="8px" width="60px">
