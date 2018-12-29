@@ -120,7 +120,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
                 <CustomEntriesPerPage
                     entriesPerPage={props.page.itemsPerPage}
                     text="Files per page"
-                    onChange={itemsPerPage => props.fetchFiles(props.path, props.page.pageNumber, itemsPerPage)}
+                    onChange={itemsPerPage => props.fetchFiles(props.path, Math.trunc(props.page.itemsPerPage*props.page.pageNumber/itemsPerPage), itemsPerPage)}
                     loading={props.loading} 
                     onRefreshClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)}
                 />}

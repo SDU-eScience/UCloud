@@ -119,7 +119,7 @@ class Files extends React.Component<FilesProps> {
                 right={<CustomEntriesPerPage
                     entriesPerPage={page.itemsPerPage}
                     text="Files per page"
-                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, Math.trunc(page.itemsPerPage*page.pageNumber/itemsPerPage), sortOrder, sortBy)}
                     loading={loading}
                     onRefreshClick={this.refetch}
                 />}>
