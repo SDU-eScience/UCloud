@@ -177,10 +177,10 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
     predicate ? (
         <Icon
             size="1em" ml=".7em"
-            color="blue"
+            color={item.favorited ? "blue" : "gray"}
             name={item.favorited ? "starFilled" : "starEmpty"}
-            className={`${item.favorited ? "" : "file-data"}`}
             onClick={() => onClick([item])}
+            hoverColor="blue"
         />
     ) : null;
 

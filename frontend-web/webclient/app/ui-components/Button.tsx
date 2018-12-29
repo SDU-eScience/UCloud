@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { space, ButtonStyleProps, SpaceProps, SizeProps, lineHeight } from "styled-system";
+import { space, ButtonStyleProps, SpaceProps, SizeProps } from "styled-system";
 import theme, { Theme, ThemeColor } from "./theme";
 
 const size = ({ size, theme }: { size: string, theme: Theme }) => {

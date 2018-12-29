@@ -1,8 +1,9 @@
 import * as React from 'react'
 import styled from 'styled-components'
-import { space, color, SpaceProps, ColorProps } from "styled-system"
+import { style, space, color, SpaceProps, ColorProps, ResponsiveValue } from "styled-system"
 import * as icons from './icons/index';
 import theme from './theme'
+import * as CSS from "csstype";
 
 
 const IconBase = ({ name, size, theme, color, color2, spin, ...props }): JSX.Element => {
@@ -11,12 +12,18 @@ const IconBase = ({ name, size, theme, color, color2, spin, ...props }): JSX.Ele
   return <Component width={size} height={size} color2={theme.colors[color2]} {...props} />
 }
 
+const hoverColor = style({
+  prop: 'hoverColor',
+  cssProperty: 'color',
+  key: 'colors'
+})
 export interface IconProps extends SpaceProps, ColorProps {
   name: IconName
-  color2?: string
+  color2?: CSS.ColorProperty
   rotation?: number
   cursor?: string
   spin?: boolean
+  hoverColor?: ResponsiveValue<CSS.ColorProperty>
 }
 
 const spin = (props: { spin?: boolean }) => props.spin ? `
@@ -40,6 +47,11 @@ const Icon = styled(IconBase) <IconProps>`
   ${props => props.rotation ? `transform: rotate(${props.rotation}deg);` : ""}
   ${space} ${color};
   ${spin};
+  
+  &:hover {
+    ${hoverColor};
+  }
+
 `;
 
 Icon.displayName = "Icon"
