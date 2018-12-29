@@ -3,7 +3,7 @@ import { File } from "Files";
 import { Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader } from "ui-components/Table";
 import { FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps } from "Files";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Text, Input } from "ui-components";
+import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Text, Input, Truncate } from "ui-components";
 import * as UF from "UtilityFunctions"
 import { Arrow, FileIcon } from "UtilityComponents";
 import { TextSpan } from "ui-components/Text";
@@ -26,6 +26,7 @@ export const FilesTable = ({
                 sortFiles={sortFiles}
                 sortBy={sortBy}
                 customEntriesPerPage={customEntriesPerPage}
+                customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"}
             />
             <TableBody>
                 {files.map((file, i) => (
@@ -38,14 +39,15 @@ export const FilesTable = ({
                             onRenameFile={onRenameFile}
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
-                        <TableCell xs sm md>{sortingColumns[0] ? UF.sortingColumnToValue(sortingColumns[0], file) : null}</TableCell>
-                        <TableCell xs sm md>{sortingColumns[1] ? UF.sortingColumnToValue(sortingColumns[1], file) : null}</TableCell>
+                        {sortingColumns.filter(it => it != null).map((sC, i) => (
+                            <TableCell key={i} xs sm md>{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
+                        ))}
                         <TableCell textAlign="center">
                             {fileOperations.length > 1 ?
                                 <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" size="1em" rotation="90" />}>
                                     <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
                                 </ClickableDropdown> :
-                                <FileOperations files={[file]} fileOperations={fileOperations} As={OutlineButton} ml="-17px" mr="-17px" pl="15px" />
+                                <FileOperations files={[file]} fileOperations={fileOperations} As={OutlineButton} />
                             }
                         </TableCell>
                     </TableRow>)
@@ -86,11 +88,12 @@ const FilesTableHeader = ({
     sortingColumns,
     onDropdownSelect,
     sortBy,
-    customEntriesPerPage
+    customEntriesPerPage,
+    customEntriesWidth
 }: FilesTableHeaderProps) => (
         <TableHeader>
             <TableRow>
-                <TableHeaderCell textAlign="left">
+                <TableHeaderCell textAlign="left" width="99%">
                     <Flex
                         alignItems="center"
                         onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
@@ -114,8 +117,8 @@ const FilesTableHeader = ({
                         iconName={toSortingIcon(sC!)}
                     />
                 ))}
-                <TableHeaderCell width="4rem" textAlign="right">
-                    <Flex style={{ whiteSpace: "nowrap" }}>{customEntriesPerPage}</Flex>
+                <TableHeaderCell width={customEntriesWidth}>
+                    <Flex>{customEntriesPerPage}</Flex>
                 </TableHeaderCell>
             </TableRow>
         </TableHeader>
@@ -167,8 +170,8 @@ export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHo
 );
 
 const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
-    <Label><Checkbox checked={checked} onClick={onClick} onChange={e => e.stopPropagation()} /></Label>
-) : null;
+    <Box><Label><Checkbox checked={checked} onClick={onClick} onChange={e => e.stopPropagation()} /></Label></Box>
+    ) : null;
 
 const PredicatedFavorite = ({ predicate, item, onClick }) =>
     predicate ? (
@@ -195,11 +198,11 @@ const FileLink = ({ file, children }: { file: File, children: any }) => {
 
 function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile, ...props }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
-    const checkbox = <Box ml="9px"><PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} /></Box>
+    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} />
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     const cursor = isDirectory(file) && !file.path.endsWith("/.") ? "pointer" : undefined;
     const icon = (
-        <Box mr="10px">
+        <Box mr="10px" cursor="inherit">
             <FileIcon
                 fileIcon={iconType}
                 size={size} link={file.link} shared={(file.acl !== undefined ? file.acl.length : 0) > 0}
@@ -218,20 +221,37 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             autoFocus
             onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
         />
-        <Icon size={"1em"} color="red" mr="10px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
+        <Icon size={"1em"} color="red" ml="9px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
     </>);
 
     const nameLink = !!props.onNavigationClick ?
-        <Flex onClick={() => isDirectory(file) ? props.onNavigationClick!(file.path) : null} alignItems="center">{icon}<Text cursor={cursor} mr="5px">{fileName}</Text></Flex>
-        : (<FileLink file={file}><Flex alignItems="center">{icon}<Text cursor={cursor} mr="5px">{fileName}</Text></Flex></FileLink>);
+        <Flex onClick={() => isDirectory(file) ? props.onNavigationClick!(file.path) : null}
+            alignItems="center"
+            width="100%"
+        >
+            {icon}
+            <Truncate cursor={cursor} mr="5px">{fileName}</Truncate>
+        </Flex>
+        :
+        <Box width="100%" >
+            <FileLink file={file}>
+                <Flex alignItems="center">
+                    {icon}
+                    <Truncate cursor={cursor} mr="5px">{fileName}</Truncate>
+                </Flex>
+            </FileLink>
+        </Box>;
+
     const fileBox = (<>
-        {nameLink}
+        <Flex flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
+            {nameLink}
+        </Flex>
         <GroupIcon isProject={isProject(file)} />
         <PredicatedFavorite predicate={!!onFavoriteFile} item={file} onClick={onFavoriteFile} />
     </>);
 
-    return <TableCell width="50%">
-        <Flex flexDirection="row" alignItems="center">
+    return <TableCell>
+        <Flex flexDirection="row" alignItems="center" mx="9px">
             {checkbox}
             <Box ml="5px" pr="5px" />
             {file.beingRenamed ? renameBox : fileBox}

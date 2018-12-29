@@ -29,7 +29,7 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
             )
     );
     return (
-        <PaginationGroup>
+        <PaginationGroup justifyContent="center" my="1em">
             <PaginationButton onClick={() => toPage(currentPage - 1)} unclickable={currentPage === 0}>{"⟨"}</PaginationButton>
             {buttons}
             <PaginationButton onClick={() => toPage(currentPage + 1)} unclickable={currentPage === totalPages - 1}>{"⟩"}</PaginationButton>

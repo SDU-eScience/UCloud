@@ -1,42 +1,44 @@
 import styled from 'styled-components'
 import {
   space,
-  width,
+  width, minWidth,
   height,
   color,
   alignItems,
   justifyContent,
-  flexWrap,
-  flexDirection,
-  SpaceProps, WidthProps, HeightProps, ColorProps, AlignItemsProps,
-  JustifyContentProps, FlexWrapProps, FlexDirectionProps
+  flexWrap, flexDirection, flex,
+  SpaceProps, WidthProps, MinWidthProps, HeightProps, 
+  ColorProps, AlignItemsProps, JustifyContentProps, 
+  FlexWrapProps, FlexDirectionProps, FlexProps
 } from 'styled-system'
 import theme from "./theme"
 
 
-export type FlexProps =
+export type FlexCProps =
   SpaceProps &
   WidthProps &
+  MinWidthProps &
   HeightProps &
   ColorProps &
   AlignItemsProps &
   JustifyContentProps &
   FlexWrapProps &
   FlexDirectionProps &
+  FlexProps &
   { cursor?: string }
 
 
-const Flex = styled.div<FlexProps>`
+const Flex = styled.div<FlexCProps>`
   cursor: ${props => props.cursor};
   display: flex;
-  ${space} ${width} ${height} ${color} ${alignItems} ${justifyContent}
-  ${flexDirection}
-  ${flexWrap}
+  ${space} ${width} ${minWidth} ${height} 
+  ${color} ${alignItems} ${justifyContent}
+  ${flexDirection} ${flexWrap} ${flex}
 `
 
 Flex.defaultProps = {
   theme,
-  cursor: "auto"
+  cursor: "inherit"
 }
 
 

@@ -153,6 +153,7 @@ export interface FilesTableHeaderProps {
     sortingColumns: [SortBy?, SortBy?]
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
     customEntriesPerPage?: React.ReactNode
+    customEntriesWidth?: string
 }
 
 export interface FilenameAndIconsProps {

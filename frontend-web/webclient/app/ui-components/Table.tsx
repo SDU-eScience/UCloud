@@ -1,14 +1,19 @@
 import styled from "styled-components";
-import { textAlign, TextAlignProps, WidthProps, width } from "styled-system";
+import { textAlign, TextAlignProps, WidthProps, width, MinWidthProps, minWidth } from "styled-system";
 import { HideProps, hidden } from "./Hide";
 import theme from "./theme";
 
-export const Table = styled.table`
-    width: 100%;
+export const Table = styled.table< WidthProps & MinWidthProps >`
     border: 0px;
     border-spacing: 0;
     table-layout: fixed;
+    ${width} ${minWidth}
 `;
+
+Table.defaultProps = {
+    width: "100%",
+    minWidth: "15em"
+}
 
 export const TableBody = styled.tbody``;
 
@@ -46,11 +51,11 @@ export const TableHeader = styled.thead`
     padding-bottom: 11px;
 `;
 
-export const TableHeaderCell = styled.th<TextAlignProps & HideProps & WidthProps>`
+export const TableHeaderCell = styled.th<TextAlignProps & HideProps & WidthProps >`
     border-spacing: 0;
     border: 0px;
     ${textAlign};
-    ${width}
+    ${width} ${minWidth}
     ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
 
