@@ -1,6 +1,6 @@
 import { HeaderSearchType } from "DefaultObjects";
 import { Upload } from "Uploader";
-declare module "*.png";
+// declare module "*.png";
 
 export type StatusLevel = "NO ISSUES" | "MAINTENANCE" | "UPCOMING MAINTENANCE" | "ERROR";
 

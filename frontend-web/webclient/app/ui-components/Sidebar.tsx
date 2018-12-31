@@ -7,14 +7,15 @@ import Box from "./Box";
 import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { PP } from "UtilityComponents";
 import { fileTablePage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading";
-import { Button, ExternalLink } from "ui-components";
+import { Button, ExternalLink, Hide } from "ui-components";
 import { successNotification, failureNotification } from "UtilityFunctions";
 import Relative from "./Relative";
 import TextArea from "./TextArea";
 import { KeyCode } from "DefaultObjects";
+import RBox from "Responsive/ScreenSize";
+
 
 const SidebarContainer = styled(Flex)`
     position: fixed;
@@ -39,7 +40,7 @@ const SidebarElementContainer = styled(Flex)`
 interface SidebarElementProps { icon: IconName, label: string, showLabel: boolean, to: string }
 const SidebarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => (
     <Link to={to}>
-        <SidebarElementContainer >
+        <SidebarElementContainer height="30px" >
             <Flex mx="22px" alignItems='center'>
                 <Icon cursor="pointer" name={icon} color="iconColor" color2="iconColor2" size="24" />
             </Flex>
@@ -237,8 +238,8 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
                 </React.Fragment>
             )}
             <SidebarPushToBottom />
-
-            <SidebarInfoBox>
+            { process.env.NODE_ENV === "development" ? <RBox /> : null }
+            <SidebarInfoBox> 
                 <Text fontSize={1}><Icon name={"id"} size="1em" /> {Cloud.username}</Text>
                 <Support />
                 <div>
@@ -247,8 +248,6 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
                     </ExternalLink>
                 </div>
             </SidebarInfoBox>
-            <PP visible={false} />
-
         </SidebarContainer>
     );
 };

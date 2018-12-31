@@ -26,29 +26,37 @@ import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSea
 import * as AppRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
 import { configureStore } from "Utilities/ReduxUtilities";
+import {responsiveStateReducer, responsiveStoreEnhancer, createResponsiveStateReducer } from 'redux-responsive';
+import { responsiveBP } from "ui-components/theme";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
 
-const store = configureStore(initObject(Cloud.homeFolder), {
-    activity,
-    files,
-    dashboard,
-    analyses,
-    applications,
-    header,
-    status,
-    zenodo,
-    sidebar,
-    uploader,
-    notifications,
-    detailedResult,
-    simpleSearch,
-    detailedFileSearch,
-    detailedApplicationSearch,
-    fileInfo,
-    ...AppRedux.reducers,
-    ...AccountingRedux.reducers
-});
+const store = configureStore(initObject(Cloud.homeFolder), 
+                            {
+                                activity,
+                                files,
+                                dashboard,
+                                analyses,
+                                applications,
+                                header,
+                                status,
+                                zenodo,
+                                sidebar,
+                                uploader,
+                                notifications,
+                                detailedResult,
+                                simpleSearch,
+                                detailedFileSearch,
+                                detailedApplicationSearch,
+                                fileInfo,
+                                ...AppRedux.reducers,
+                                ...AccountingRedux.reducers,
+                                responsive: createResponsiveStateReducer(
+                                    responsiveBP,
+                                    { infinity: "xxl" }),
+                            },
+                            responsiveStoreEnhancer
+                        );
 
 
 const GlobalStyle = createGlobalStyle`

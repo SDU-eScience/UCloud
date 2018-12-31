@@ -10,12 +10,12 @@ const addAliases = (arr: any, aliases: any[]) =>
     })
   )
 
-export const breakpoints = [32, 40, 48, 64].map(n => n + 'em');
+// export const breakpoints = [32, 40, 48, 64, 80].map(n => n + 'em')
+export const breakpoints = [512, 640, 768, 1024, 1280].map(n => n + 'px')
+const aliases = ['xs', 'sm', 'md', 'lg', 'xl']
+export const responsiveBP = { xs: 512-1, sm: 640-1, md: 768-1, lg: 1024-1, xl: 1280-1 } 
 
 export const mediaQueries = breakpoints.map(createMediaQuery)
-
-const aliases = ['sm', 'md', 'lg', 'xl']
-
 addAliases(breakpoints, aliases)
 addAliases(mediaQueries, aliases)
 

@@ -18,6 +18,7 @@ import { searchFiles } from "Search/Redux/SearchActions";
 import { searchPage } from "Utilities/SearchUtilities";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
 
+
 interface HeaderProps {
     sidebarOpen?: boolean
     prioritizedSearch: string
@@ -47,7 +48,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
         const { searchText } = this.state;
         const { prioritizedSearch, searchFiles } = this.props;
         return (
-            <HeaderContainer color="headerText" bg="headerBg">
+            <HeaderContainer color="headerText" bg={"headerBg"}>
                 <Logo />
                 <Box ml="auto" />
                 <BackgroundTask />

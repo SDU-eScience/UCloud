@@ -83,6 +83,22 @@ export interface ComponentWithPage<T> {
     error?: string
 }
 
+export interface ResponsiveReduxObject {
+    mediaType: string
+    orientation: string
+    lessThan: Record<string, boolean>
+    greaterThan: Record<string, boolean>
+    is: Record<string, boolean>
+} 
+
+export const initResponsive = (): ResponsiveReduxObject => ({
+    mediaType: "",
+    orientation: "",
+    lessThan: {},
+    greaterThan: {},
+    is: {},
+});
+
 export interface FilesReduxObject extends ComponentWithPage<File> {
     sortOrder: SortOrder
     sortBy: SortBy
@@ -190,6 +206,7 @@ interface LegacyReduxObject {
     detailedFileSearch: DetailedFileSearchReduxState
     detailedApplicationSearch: DetailedApplicationSearchReduxState
     fileInfo: FileInfoReduxObject
+    responsive: ResponsiveReduxObject | undefined
 }
 
 export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects;
@@ -244,7 +261,8 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     detailedFileSearch: initFilesDetailedSearch(),
     fileInfo: initFileInfo(),
     ...ApplicationRedux.init(),
-    ...AccountingRedux.init()
+    ...AccountingRedux.init(),
+    responsive: undefined,
 });
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
