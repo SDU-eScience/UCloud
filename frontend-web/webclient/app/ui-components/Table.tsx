@@ -17,11 +17,10 @@ Table.defaultProps = {
 
 export const TableBody = styled.tbody``;
 
-export const TableCell = styled.td<TextAlignProps & HideProps >`
+export const TableCell = styled.td<TextAlignProps >`
     border: 0px;
     border-spacing: 0;
     ${textAlign};
-    ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
 
 const highlighted = ({ highlighted }: { highlighted?: boolean }) => highlighted ? { backgroundColor: theme.colors.tableRowHighlight } : null;
@@ -51,12 +50,11 @@ export const TableHeader = styled.thead`
     padding-bottom: 11px;
 `;
 
-export const TableHeaderCell = styled.th<TextAlignProps & HideProps & WidthProps >`
+export const TableHeaderCell = styled.th<TextAlignProps & WidthProps >`
     border-spacing: 0;
     border: 0px;
     ${textAlign};
     ${width} ${minWidth}
-    ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
 
 

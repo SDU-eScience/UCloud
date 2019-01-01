@@ -1,5 +1,5 @@
 import * as React from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import Text from "./Text";
 import Icon, { IconName } from "./Icon";
 import Flex from "./Flex";
@@ -9,9 +9,37 @@ import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { fileTablePage } from "Utilities/FileUtilities";
 import { ExternalLink } from "ui-components";
-import RBox from "Responsive/ScreenSize";
+import { RBox } from "ui-components";
 import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
+
+
+const SidebarElementContainer = styled(Flex)`
+    justify-content: left;
+    flex-flow: row;
+    align-items: center;
+
+    & > ${Text} {
+        white-space: nowrap;
+    }
+`;
+
+//This is applied to SidebarContainer on small screens
+const HideText = css`
+    transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
+
+    & ${SidebarElementContainer} > ${Text} {
+        visibility: hidden;
+    }
+
+    :hover {
+        width: 190px;
+
+        & ${SidebarElementContainer} > ${Text} {
+            visibility: visible;
+        }
+    }
+`;
 
 
 const SidebarContainer = styled(Flex)`
@@ -22,58 +50,26 @@ const SidebarContainer = styled(Flex)`
     padding-top: 48px;
     height: 100%;
     border-right: 1px solid ${props => props.theme.colors.borderGray};
-
-    transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
-
-    :hover {
-        width: 190px;
-    }
 `;
 
-const SidebarElementContainer = styled(Flex)`
-    justify-content: left;
-    flex-flow: row;
-    align-items: center;
-    // &:hover {
-    //     svg {
-    //         filter: saturate(500%);
-    //     }
-    // }
-`;
+interface TextLabelProps { icon: IconName, label: string, height?: string, 
+                           color?: string, color2?: string, 
+                           iconSize?: string, textSize?: number, 
+                           space?: string, hover?: boolean }
+const TextLabel = ({ icon, label, height="30px", color="iconColor", color2="iconColor2", 
+                     iconSize="24", space="22px", textSize=3, hover=true }: TextLabelProps) => (
+    <SidebarElementContainer height={height} ml="22px">
+        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}
+            css={hover ? `${SidebarElementContainer}:hover & { filter: saturate(500%); }`: null} 
+            />
+        <Text fontSize={textSize} > {label} </Text>
+    </SidebarElementContainer>
+);
 
-const SidebarInfoBox = styled.div`
-flex-shrink: 0;
-margin: 18px;
-color: ${props => props.theme.colors.iconColor};
-
-& div {
-    width: 100%;
-}
-
-& a {
-    color: ${props => props.theme.colors.iconColor};
-}
-
-& a:hover {
-    color: ${props => props.theme.colors.blue};
-}
-`;
-
-
-interface SidebarElementProps { icon: IconName, label: string, showLabel: boolean, to: string }
-const SidebarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => (
+interface SidebarElementProps { icon: IconName, label: string, to: string, external?: boolean}
+const SidebarElement = ({ icon, label, to }: SidebarElementProps) => (
     <Link to={to}>
-        <SidebarElementContainer height="30px" >
-            <Flex mx="22px" alignItems='center'>
-                <Icon cursor="pointer" name={icon} color="iconColor" color2="iconColor2" size="24" 
-                css={`${SidebarElementContainer} :hover { filter: saturate(500%); }`} />
-            </Flex>
-            {showLabel &&
-                <Text cursor="pointer" fontSize={3} >
-                    {label}
-                </Text>
-            }
-        </SidebarElementContainer>
+        <TextLabel icon={icon} label={label} />
     </Link>
 );
 
@@ -106,9 +102,13 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
     auditing: { items: [{ icon: "activity", label: "Activity", to: "/activity/" }], predicate: () => true },
     admin: { items: [{ icon: "admin", label: "Admin", to: "/admin/userCreation/" }], predicate: () => Cloud.userIsAdmin }
 };
-interface SidebarProps {
+
+interface SidebarStateProps { 
+    responsiveState?: ResponsiveReduxObject
+}
+interface SidebarProps extends SidebarStateProps{
     sideBarEntries?: any 
-    responsiveState: ResponsiveReduxObject | undefined
+    responsiveState?: ResponsiveReduxObject
 }
 
 const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: SidebarProps )  => {
@@ -116,37 +116,37 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
     return (
-        <SidebarContainer color="text" bg="lightGray" 
+        <SidebarContainer color="text" bg="lightGray" flexDirection="column"
             width={responsiveState!.greaterThan.xl ? 190 : 68}
-            flexDirection="column"
-            >
+            css={responsiveState!.greaterThan.xl ? null : HideText }
+        >
             {sidebar.map((category, categoryIdx) =>
                 <React.Fragment key={categoryIdx}>
                     {category.items.map(({ icon, label, to }: MenuElement) => (
                         <React.Fragment key={label}>
                             {categoryIdx === 0 ? <SidebarSpacer /> : null}
-                            <SidebarElement icon={icon} label={label} showLabel={responsiveState!.greaterThan.xl} to={to} />
+                            <SidebarElement icon={icon} label={label} to={to} />
                         </React.Fragment>))}
                     {categoryIdx !== sidebar.length - 1 ? (<Divider mt="10px" mb="10px" />) : null}
                 </React.Fragment>
             )}
             <SidebarPushToBottom />
             {/* Screen size indicator */}
-            { process.env.NODE_ENV === "development" ? <RBox /> : null } 
-            <SidebarInfoBox> 
-                <Text fontSize={1}><Icon name={"id"} size="1em" /> {responsiveState!.greaterThan.xl ? Cloud.username : null }</Text>
-                <div>
-                    <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
-                        <Text fontSize={1}><Icon name="verified" size="1em" color2="lightGray" /> {responsiveState!.greaterThan.xl ? "SDU Data Protection": null}</Text>
-                    </ExternalLink>
-                </div>
-            </SidebarInfoBox>
+            { process.env.NODE_ENV === "development" ? <RBox /> : null }
+
+            <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" label={Cloud.username} />
+
+            <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse"> 
+                <TextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1} space=".5em" label={"SDU Data Protection"} />
+            </ExternalLink>
+            <Box mb="10px" />
+
         </SidebarContainer>
     );
 };
 
-const mapStateToProps = ({ responsive }: ReduxObject): SidebarProps   => ({
+const mapStateToProps = ({ responsive }: ReduxObject): SidebarStateProps   => ({
     responsiveState: responsive
 });
 
-export default connect(mapStateToProps, null )(Sidebar);
+export default connect<SidebarStateProps>(mapStateToProps)(Sidebar);

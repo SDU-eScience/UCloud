@@ -136,7 +136,7 @@ export const NewAppCard = styled(Link)`
     position: relative;
     /* flex: 1 0 auto; */
     overflow: hidden;
-    box-shadow: ${({ theme }) => theme.boxShadows[0]};
+    box-shadow: ${({ theme }) => theme.shadows["sm"]};
 
     transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
     &:hover {

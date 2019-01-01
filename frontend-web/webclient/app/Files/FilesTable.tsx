@@ -26,7 +26,7 @@ export const FilesTable = ({
                 sortFiles={sortFiles}
                 sortBy={sortBy}
                 customEntriesPerPage={customEntriesPerPage}
-                customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"}
+                customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"} //on modal thi is lenght=1
             />
             <TableBody>
                 {files.map((file, i) => (
@@ -40,7 +40,7 @@ export const FilesTable = ({
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
                         {sortingColumns.filter(it => it != null).map((sC, i) => (
-                            <TableCell key={i} xs sm md>{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
+                            <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                         ))}
                         <TableCell textAlign="center">
                             {fileOperations.length > 1 ?
@@ -64,7 +64,7 @@ const ResponsiveTableColumn = ({
     currentSelection,
     sortOrder
 }: ResponsiveTableColumnProps) => (
-        <TableHeaderCell width="10rem" xs sm md >
+        <TableHeaderCell width="10rem" >
             <Flex alignItems="center" justifyContent="left">
                 <Arrow name={iconName} />
                 <SortByDropdown

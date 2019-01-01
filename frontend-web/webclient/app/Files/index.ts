@@ -4,7 +4,7 @@ import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
 import { IconName } from "ui-components/Icon";
-import { ComponentWithPage } from "DefaultObjects";
+import { ComponentWithPage, ResponsiveReduxObject } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 import { RouterLocationProps } from "Utilities/URIUtilities";
 import { ThemeColor } from "ui-components/theme";
@@ -77,6 +77,7 @@ export interface FilesStateProps { // Redux Props
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
     invalidPath: boolean
+    responsiveState?: ResponsiveReduxObject
 }
 
 export interface FilesOperations { // Redux operations
@@ -124,7 +125,7 @@ export interface FilesTableProps {
     onNavigationClick?: (path: string) => void
     sortOrder: SortOrder
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
-    sortingColumns: [SortBy?, SortBy?]
+    sortingColumns: SortBy[]
     files: File[]
     masterCheckbox?: React.ReactNode
     sortingIcon?: (name: SortBy) => "arrowUp" | "arrowDown" | undefined
@@ -150,7 +151,7 @@ export interface FilesTableHeaderProps {
     sortOrder: SortOrder
     sortBy: SortBy
     masterCheckbox?: React.ReactNode
-    sortingColumns: [SortBy?, SortBy?]
+    sortingColumns: SortBy[]
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
     customEntriesPerPage?: React.ReactNode
     customEntriesWidth?: string

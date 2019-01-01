@@ -14,8 +14,7 @@ import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { TextSpan } from "ui-components/Text";
-
-
+import { MainContainer } from "MainContainer/MainContainer";
 
 class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState> {
     constructor(props: any) {
@@ -63,9 +62,7 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
         let { shares, errorMessage, byState } = this.state;
         const noSharesWith = shares.filter(it => !it.sharedByMe).length === 0;
         const noSharesBy = shares.filter(it => it.sharedByMe).length === 0;
-        return (
-            <>
-                <Error clearError={() => this.setState({ errorMessage: undefined })} error={errorMessage} />
+        const header = (
                 <Flex>
                     <Box ml="auto" />
                     <ClickableDropdown
@@ -76,6 +73,10 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
                         onChange={(it: ShareState) => this.updateShareState(it)}
                     />
                 </Flex>
+                );
+        const main = (
+            <>
+                <Error clearError={() => this.setState({ errorMessage: undefined })} error={errorMessage} />
                 {this.state.loading ? <LoadingIcon size={18} /> : null}
                 <Heading.h3>Shared with Me</Heading.h3>
                 {
@@ -106,6 +107,15 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
                     )
                 }
             </>
+        );
+
+
+        return ( 
+            <MainContainer
+                header={header}
+                main={main}
+                sidebar={null}
+            />
         );
     }
 

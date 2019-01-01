@@ -35,45 +35,43 @@ const Core = () => (
         <Header />
         <Uploader />
         <Sidebar />
-        <Box ml="190px" pt="48px" pl="14px" pr="0">
-            <Switch>
-                <Route exact path="/" component={Dashboard} />
-                <Route exact path="/dashboard" component={Dashboard} />
+        <Switch>
+            <Route exact path="/" component={Dashboard} />
+            <Route exact path="/dashboard" component={Dashboard} />
 
-                <Route exact path="/files/info" component={FileInfo} />
-                <Route exact path="/files/preview/*" component={FilePreview} />
-                <Route exact path="/files" component={Files} />
+            <Route exact path="/files/info" component={FileInfo} />
+            <Route exact path="/files/preview/*" component={FilePreview} />
+            <Route exact path="/files" component={Files} />
 
-                <Route exact path="/activity" component={Activity} />
-                <Route exact path="/status" component={Status} />
+            <Route exact path="/activity" component={Activity} />
+            <Route exact path="/status" component={Status} />
 
-                <Route exact path="/accounting/:resource/:subResource" component={Accounting.DetailedPage} />
+            <Route exact path="/accounting/:resource/:subResource" component={Accounting.DetailedPage} />
 
-                <Route exact path="/applications" component={Applications} />
-                <Route exact path="/applications/installed" component={ApplicationsInstalled.default} />
-                <Route exact path="/applications/details/:appName/:appVersion" component={ApplicationView} />
-                <Route exact path="/applications/results" component={JobResults} />
-                <Route exact path="/applications/results/:jobId" component={DetailedResult} />
-                <Route exact path="/applications/:appName/:appVersion" component={Run} />
+            <Route exact path="/applications" component={Applications} />
+            <Route exact path="/applications/installed" component={ApplicationsInstalled.default} />
+            <Route exact path="/applications/details/:appName/:appVersion" component={ApplicationView} />
+            <Route exact path="/applications/results" component={JobResults} />
+            <Route exact path="/applications/results/:jobId" component={DetailedResult} />
+            <Route exact path="/applications/:appName/:appVersion" component={Run} />
 
-                <Route exact path="/zenodo/" component={ZenodoHome} />
-                <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo} />
-                <Route exact path="/zenodo/publish/" component={ZenodoPublish} />
+            <Route exact path="/zenodo/" component={ZenodoHome} />
+            <Route exact path="/zenodo/info/:jobID" component={ZenodoInfo} />
+            <Route exact path="/zenodo/publish/" component={ZenodoPublish} />
 
-                <Route exact path="/shares" component={Share.List} />
+            <Route exact path="/shares" component={Share.List} />
 
-                <Route exact path="/projects/edit" component={Project.CreateUpdate} />
-                <Route exact path="/projects/view" component={Project.ManagedView} />
+            <Route exact path="/projects/edit" component={Project.CreateUpdate} />
+            <Route exact path="/projects/view" component={Project.ManagedView} />
 
-                <Route exact path="/admin/usercreation" component={UserCreation} />
+            <Route exact path="/admin/usercreation" component={UserCreation} />
 
-                <Route exact path="/users/settings" component={UserSettings} />
+            <Route exact path="/users/settings" component={UserSettings} />
 
-                <Route exact path="/search/:priority" component={Search} />
+            <Route exact path="/search/:priority" component={Search} />
 
-                <Route component={NotFound} />
-            </Switch>
-        </Box>
+            <Route component={NotFound} />
+        </Switch>
     </>
 );
 

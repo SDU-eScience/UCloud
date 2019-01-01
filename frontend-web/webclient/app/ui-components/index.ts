@@ -52,4 +52,6 @@ export { default as ActionButton } from "./ActionButton";
 export { default as ExternalLink } from "./ExternalLink";
 export { default as Markdown } from "./Markdown";
 
+export { default as RBox } from "./RBox"
+
 //export * from './theme'

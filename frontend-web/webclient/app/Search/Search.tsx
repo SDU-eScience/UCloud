@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
-import { ApplicationCard, NewApplicationCard } from "Applications/Card";
+import { NewApplicationCard } from "Applications/Card";
 import { ProjectMetadata } from "Project/api";
 import { SearchItem } from "Project/Search";
 import { AllFileOperations } from "Utilities/FileUtilities";
@@ -200,7 +200,7 @@ class Search extends React.Component<SearchProps> {
                 header={
                     <React.Fragment>
                         <Error error={errors.join("\n")} clearError={() => this.props.setError(undefined)} />
-                        <Hide xl md>
+                        <Hide xxl xl md>
                             <form onSubmit={e => { e.preventDefault(); this.search(); }}>
                                 <Input onChange={({ target: { value } }) => this.props.setSearch(value)} />
                             </form>

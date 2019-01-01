@@ -29,7 +29,7 @@ import * as Accounting from "Accounting";
 import { MainContainer } from "MainContainer/MainContainer";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
-    <Card height="auto" width={290} boxShadow='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+    <Card height="auto" width={290} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
             <Heading.h4>{title}</Heading.h4>
         </Flex>
@@ -191,7 +191,7 @@ interface DashboardNotificationProps {
 }
 
 const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: DashboardNotificationProps) => (
-    <Card height="auto" width={290} boxShadow='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+    <Card height="auto" width={290} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3}>
             <Heading.h4>Recent notifications</Heading.h4>
             <Box ml="auto" />

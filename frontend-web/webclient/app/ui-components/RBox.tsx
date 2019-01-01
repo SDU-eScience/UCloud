@@ -5,11 +5,13 @@ import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects";
 import { connect } from 'react-redux'
 
 
-interface RBoxProps {
+interface RBoxStateProps {
     responsiveState: ResponsiveReduxObject | undefined
 }
 
+interface RBoxProps extends RBoxStateProps {}
 
+// Responsive Box used for dev / testing
 const RBox = ({ responsiveState }: RBoxProps) => {
     let message = "";
     if (!responsiveState) {
@@ -36,8 +38,8 @@ const RBox = ({ responsiveState }: RBoxProps) => {
 }
 
 
-const mapStateToProps = ({ responsive }: ReduxObject): RBoxProps => ({
+const mapStateToProps = ({ responsive }: ReduxObject): RBoxStateProps => ({
     responsiveState: responsive
 });
 
-export default connect(mapStateToProps, null )(RBox);
+export default connect<RBoxStateProps>(mapStateToProps)(RBox);
