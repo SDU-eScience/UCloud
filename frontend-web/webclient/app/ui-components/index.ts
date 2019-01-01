@@ -36,12 +36,13 @@ export { default as Error } from "./Error";
 export { default as ContainerForText } from "./ContainerForText";
 export { default as Progress } from "./Progress";
 export { default as List } from './List'
-export { default as ButtonGroup } from "./ButtonGroup";
+export { default as ButtonGroup } from "./ButtonGroup"
 export { default as VerticalButtonGroup } from "./VerticalButtonGroup";
 export { default as DataList } from "./DataList";
 export { default as TextArea } from "./TextArea";
 
 export { default as Sidebar } from './Sidebar'
+export { default as Support } from './SupportBox'
 
 export { default as LoadingButton } from "./LoadingButton";
 

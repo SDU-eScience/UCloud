@@ -10,13 +10,14 @@ import { History } from "history";
 import { HeaderStateToProps } from "Navigation";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { ReduxObject, KeyCode } from "DefaultObjects";
-import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Divider } from "ui-components";
+import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Divider, Support } from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { searchFiles } from "Search/Redux/SearchActions";
 import { searchPage } from "Utilities/SearchUtilities";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
+
 
 
 interface HeaderProps {
@@ -58,6 +59,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                     searchText={searchText}
                     searchFiles={searchFiles}
                 />
+                <Support />
                 <Notification />
                 <ClickableDropdown width="180px" left={"-180%"} trigger={<Flex><UserAvatar /></Flex>}>
                     <Box style={{ backgroundColor: "unset" }}>Welcome, {Cloud.userInfo.firstNames}</Box>
@@ -168,7 +170,7 @@ const ClippedBox = styled(Flex)`
 `;
 
 const UserAvatar = () => (
-    <ClippedBox mr="8px" width="60px">
+    <ClippedBox mx="8px" width="60px">
         <Avatar
             avatarStyle="Circle"
             topType="ShortHairShortFlat"

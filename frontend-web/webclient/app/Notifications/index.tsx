@@ -88,7 +88,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
             <ClickableDropdown top="37px" width={"380px"} left={"-270px"} trigger={
                 <Flex>
                     <Relative top="0" left="0">
-                        <Flex justifyContent="center" width="60px">
+                        <Flex justifyContent="center" width="48px">
                             <Icon cursor="pointer" name="notification" color="headerIconColor" color2="headerIconColor2" />
                         </Flex>
                         {badgeCount > 0 ? <Absolute top="-12px" left="28px">
