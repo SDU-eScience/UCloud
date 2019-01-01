@@ -8,9 +8,7 @@ import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { fileTablePage } from "Utilities/FileUtilities";
-import * as Heading from "ui-components/Heading";
 import { ExternalLink } from "ui-components";
-import Support from "./SupportBox";
 import RBox from "Responsive/ScreenSize";
 import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
@@ -23,19 +21,24 @@ const SidebarContainer = styled(Flex)`
     left: 0;
     padding-top: 48px;
     height: 100%;
-    flex-flow: column;
     border-right: 1px solid ${props => props.theme.colors.borderGray};
+
+    transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
+
+    :hover {
+        width: 190px;
+    }
 `;
 
 const SidebarElementContainer = styled(Flex)`
     justify-content: left;
     flex-flow: row;
     align-items: center;
-    &:hover {
-        svg {
-            filter: saturate(500%);
-        }
-    }
+    // &:hover {
+    //     svg {
+    //         filter: saturate(500%);
+    //     }
+    // }
 `;
 
 const SidebarInfoBox = styled.div`
@@ -62,7 +65,8 @@ const SidebarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => 
     <Link to={to}>
         <SidebarElementContainer height="30px" >
             <Flex mx="22px" alignItems='center'>
-                <Icon cursor="pointer" name={icon} color="iconColor" color2="iconColor2" size="24" />
+                <Icon cursor="pointer" name={icon} color="iconColor" color2="iconColor2" size="24" 
+                css={`${SidebarElementContainer} :hover { filter: saturate(500%); }`} />
             </Flex>
             {showLabel &&
                 <Text cursor="pointer" fontSize={3} >
@@ -112,7 +116,10 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
     return (
-        <SidebarContainer color="text" bg="lightGray" width={responsiveState!.greaterThan.xl ? 190 : 68}>
+        <SidebarContainer color="text" bg="lightGray" 
+            width={responsiveState!.greaterThan.xl ? 190 : 68}
+            flexDirection="column"
+            >
             {sidebar.map((category, categoryIdx) =>
                 <React.Fragment key={categoryIdx}>
                     {category.items.map(({ icon, label, to }: MenuElement) => (
@@ -127,10 +134,10 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
             {/* Screen size indicator */}
             { process.env.NODE_ENV === "development" ? <RBox /> : null } 
             <SidebarInfoBox> 
-                <Text fontSize={1}><Icon name={"id"} size="1em" /> {Cloud.username}</Text>
+                <Text fontSize={1}><Icon name={"id"} size="1em" /> {responsiveState!.greaterThan.xl ? Cloud.username : null }</Text>
                 <div>
                     <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
-                        <Text fontSize={1}><Icon name="verified" size="1em" color2="lightGray" /> SDU Data Protection</Text>
+                        <Text fontSize={1}><Icon name="verified" size="1em" color2="lightGray" /> {responsiveState!.greaterThan.xl ? "SDU Data Protection": null}</Text>
                     </ExternalLink>
                 </div>
             </SidebarInfoBox>

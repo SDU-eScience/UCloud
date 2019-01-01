@@ -5,7 +5,7 @@ import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, JobSchedulingOptions, MaxTime, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput } from "."
+import { RunAppProps, RunAppState, MaxTime, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput } from "."
 import { Application } from ".";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";

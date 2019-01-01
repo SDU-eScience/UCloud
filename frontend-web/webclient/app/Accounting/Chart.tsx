@@ -1,5 +1,7 @@
 import * as React from "react";
 import * as API from "./api";
+import * as DataTypes from "./DataTypes";
+
 import * as MockedChart from "./mock/chart.json";
 import { LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line, ResponsiveContainer } from "recharts";
 import styled from "styled-components";
@@ -21,7 +23,7 @@ class Chart extends React.Component<ChartProps> {
         const chart: API.Chart<API.DataPoint2D> = this.props.chart || MockedChart.chart;
 
         const normalizedData = chart.data.map(d => {
-            const xType = getOrElse(0, API.DataTypes.NUMBER, chart.dataTypes)
+            const xType = getOrElse(0, DataTypes.NUMBER, chart.dataTypes)
             let result: { name: string, value: any } = {
                 name: API.formatDataType(xType, d.x),
                 value: d.y
@@ -40,13 +42,13 @@ class Chart extends React.Component<ChartProps> {
                 <YAxis
                     dataKey="value"
                     tickFormatter={(d: number) =>
-                        API.formatDataType(getOrElse(1, API.DataTypes.NUMBER, chart.dataTypes), d)}
+                        API.formatDataType(getOrElse(1, DataTypes.NUMBER, chart.dataTypes), d)}
                 />
 
                 <CartesianGrid strokeDasharray="3 3" />
                 <Tooltip
                     formatter={(d: number) =>
-                        API.formatDataType(getOrElse(1, API.DataTypes.NUMBER, chart.dataTypes), d)}
+                        API.formatDataType(getOrElse(1, DataTypes.NUMBER, chart.dataTypes), d)}
                 />
                 <Legend />
                 <Line

@@ -2,7 +2,7 @@ const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
 const path = require("path");
-const UglifyJsPlugin = require("uglifyjs-webpack-plugin");
+//const UglifyJsPlugin = require("uglifyjs-webpack-plugin");
 const baseHref = "/app";
 
 module.exports = {
@@ -21,29 +21,19 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.tsx?$/,
-                use: "ts-loader",
-                exclude: /node_modules/
+                test: /\.(jsx|tsx?)$/,
+                exclude: /node_modules/,
+                loader: 'babel-loader',
             },
-            // Is this actually in use, or is it just ts-loader doing all the work?
             {
                 test: /\.js$/,
-                use: "imports-loader?define=>false",
-                exclude: /node_modules/
-            },
-            {
-                test: /\.jsx?$/,
-                exclude: /node_modules/,
-                loader: "babel-loader",
-                query: {
-                    presets: ["es2015", "react"],
-                    compact: false
-                }
+                use: ["source-map-loader"],
+                enforce: "pre"
             },
             {
                 test: /\.css$/,
                 exclude: path.join(process.cwd(), '/app'),
-                use: [MiniCSSExtractPlugin.loader, "css-loader"]
+                use: ["style-loader", "css-loader"]
             },
             {
                 test: /\.(woff|woff2|svg|ttf|eot)$/,
@@ -65,11 +55,12 @@ module.exports = {
     optimization: {
         splitChunks: {
             name: "vendor",
-            filename: "vendor[hash:6].js"
+            filename: "vendor[hash:6].js",
+            chunks: 'all',
         },
-        minimizer: [
-            new UglifyJsPlugin()
-        ]
+        // minimizer: [
+        //     new UglifyJsPlugin()
+        // ]
     },
 
     plugins: [
