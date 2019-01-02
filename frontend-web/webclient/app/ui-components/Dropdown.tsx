@@ -1,6 +1,5 @@
 import styled from "styled-components";
 import { right, left, top, RightProps, LeftProps, TopProps, boxShadow, BoxShadowProps } from "styled-system";
-import { min } from "moment";
 import { Button } from "ui-components";
 
 interface FullWidthProps { fullWidth?: boolean }
