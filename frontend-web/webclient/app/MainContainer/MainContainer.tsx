@@ -84,10 +84,10 @@ export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Elem
 const HeaderContainer = styled(Absolute)`
     position: fixed;
     z-index: 50;
-`
+`;
 
 const SidebarContainer = styled(Absolute)`
     overflow-y: auto;
     position: fixed;
     z-index: 45;
-`
+`;

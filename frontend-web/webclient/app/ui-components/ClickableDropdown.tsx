@@ -44,7 +44,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
             this.setState(() => ({ open: false }));
     }
 
-    handleEscPress = event => {
+    handleEscPress = (event: { keyCode: KeyCode; }) => {
         if (event.keyCode === KeyCode.ESC && this.state.open) this.setState(() => ({ open: false }));
     }
 
@@ -53,7 +53,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
         let children: React.ReactNode[] = [];
         if (props.options !== undefined && props.onChange) {
             children = props.options.map((opt, i) =>
-                <Box width="auto" key={i} ml="-17px" pl="15px" mr="-17px" onClick={() => props.onChange!(opt.value)}>{opt.text}</Box>
+                <Box cursor="pointer" width="auto" key={i} ml="-17px" pl="15px" mr="-17px" onClick={() => props.onChange!(opt.value)}>{opt.text}</Box>
             )
         } else if (props.children) {
             children = props.children

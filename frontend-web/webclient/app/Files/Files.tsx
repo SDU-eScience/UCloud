@@ -91,6 +91,11 @@ class Files extends React.Component<FilesProps> {
         fetchPageFromPath: this.fetchPageFromPath
     };
 
+    refetch = () => {
+        const { path, page, sortOrder, sortBy} = this.props;
+        this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
+    }
+
     fileOperations: FileOperation[] = [
         {
             text: "Rename",
@@ -101,11 +106,6 @@ class Files extends React.Component<FilesProps> {
         },
         ...AllFileOperations(true, this.fileSelectorOperations, this.refetch, this.props.history)
     ];
-
-    refetch() {
-        const { path, page, sortOrder, sortBy} = this.props;
-        this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
-    }
 
     render() {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
