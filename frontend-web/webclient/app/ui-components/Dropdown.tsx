@@ -1,6 +1,7 @@
 import styled from "styled-components";
 import { right, left, top, RightProps, LeftProps, TopProps, boxShadow, BoxShadowProps } from "styled-system";
 import { min } from "moment";
+import { Button } from "ui-components";
 
 interface FullWidthProps { fullWidth?: boolean }
 const fullWidth = ({ fullWidth }: FullWidthProps) => fullWidth ? { width: "100%" } : null;
@@ -21,7 +22,6 @@ Dropdown.defaultProps = {
 }
 
 export const DropdownContent = styled.div<DropdownContentProps>`
-    ${left} ${top} ${right}
     border-radius: 5px;
     ${boxShadow}
     ${props => props.hover ? "display: none;" : ""}
@@ -39,10 +39,10 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     cursor: ${props => props.cursor};
 
     ${props => props.colorOnHover ? `
-        & > *:hover {
+        & > *:hover:not(${Button}) {
             background-color: rgba(0, 0, 0, 0.05);
         }` : null};
-    
+
     & svg {
         margin-right: 1em;
     }
@@ -51,7 +51,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
         margin-right: 1em;
     }
 
-    ${top}
+    ${top} ${left} ${right};
 `;
 
 DropdownContent.defaultProps = {
