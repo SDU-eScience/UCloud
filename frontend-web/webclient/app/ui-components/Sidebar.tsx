@@ -26,7 +26,7 @@ const SidebarElementContainer = styled(Flex)`
 
 //This is applied to SidebarContainer on small screens
 const HideText = css`
-    will-chage: transform, opacity;
+    will-change: transform, opacity;
     
     & { 
         transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
