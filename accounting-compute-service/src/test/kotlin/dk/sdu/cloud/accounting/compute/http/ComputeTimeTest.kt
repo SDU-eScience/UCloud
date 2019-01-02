@@ -2,8 +2,7 @@ package dk.sdu.cloud.accounting.compute.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.Role
-import dk.sdu.cloud.accounting.api.CurrentUsageResponse
+import dk.sdu.cloud.accounting.api.UsageResponse
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsHibernateDao
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
@@ -21,10 +20,7 @@ import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.handleRequest
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -125,7 +121,7 @@ class ComputeTimeTest {
                         )
                         request.assertSuccess()
 
-                        val items = mapper.readValue<CurrentUsageResponse>(request.response.content!!)
+                        val items = mapper.readValue<UsageResponse>(request.response.content!!)
                         assertEquals(3600000, items.usage)
                     }
                 }
