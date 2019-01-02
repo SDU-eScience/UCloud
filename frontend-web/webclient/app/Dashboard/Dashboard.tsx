@@ -150,7 +150,7 @@ const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean
 }
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
-    <DashboardCard title="Recently used files" isLoading={isLoading}>
+    <DashboardCard title="Recently Used Files" isLoading={isLoading}>
         <List>
             {files.map((file, i) => (
                 <Flex alignItems="center" key={i} pt="0.5em" pb="0.3em">
@@ -192,7 +192,7 @@ interface DashboardNotificationProps {
 const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: DashboardNotificationProps) => (
     <Card height="auto" width={290} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3}>
-            <Heading.h4>Recent notifications</Heading.h4>
+            <Heading.h4>Recent Notifications</Heading.h4>
             <Box ml="auto" />
             <Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />
         </Flex>

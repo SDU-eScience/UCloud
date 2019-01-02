@@ -54,7 +54,7 @@ export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize 
     );
 }
 
-const mapStateToProps = ({ responsive }: ReduxObject): MainContainerStateProps   => ({
+const mapStateToProps = ({ responsive }: ReduxObject): MainContainerStateProps => ({
     responsiveState: responsive
 });
 export const MainContainer = connect<MainContainerStateProps>(mapStateToProps)(_MainContainer);

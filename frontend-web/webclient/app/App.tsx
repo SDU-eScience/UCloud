@@ -28,35 +28,36 @@ import * as AccountingRedux from "Accounting/Redux";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { responsiveStoreEnhancer, createResponsiveStateReducer } from 'redux-responsive';
 import { responsiveBP } from "ui-components/theme";
+import "Vendor";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
 
-const store = configureStore(initObject(Cloud.homeFolder), 
-                            {
-                                activity,
-                                files,
-                                dashboard,
-                                analyses,
-                                applications,
-                                header,
-                                status,
-                                zenodo,
-                                sidebar,
-                                uploader,
-                                notifications,
-                                detailedResult,
-                                simpleSearch,
-                                detailedFileSearch,
-                                detailedApplicationSearch,
-                                fileInfo,
-                                ...AppRedux.reducers,
-                                ...AccountingRedux.reducers,
-                                responsive: createResponsiveStateReducer(
-                                    responsiveBP,
-                                    { infinity: "xxl" }),
-                            },
-                            responsiveStoreEnhancer
-                        );
+const store = configureStore(initObject(Cloud.homeFolder),
+    {
+        activity,
+        files,
+        dashboard,
+        analyses,
+        applications,
+        header,
+        status,
+        zenodo,
+        sidebar,
+        uploader,
+        notifications,
+        detailedResult,
+        simpleSearch,
+        detailedFileSearch,
+        detailedApplicationSearch,
+        fileInfo,
+        ...AppRedux.reducers,
+        ...AccountingRedux.reducers,
+        responsive: createResponsiveStateReducer(
+            responsiveBP,
+            { infinity: "xxl" }),
+    },
+    responsiveStoreEnhancer
+);
 
 
 const GlobalStyle = createGlobalStyle`
@@ -66,12 +67,12 @@ const GlobalStyle = createGlobalStyle`
 ReactDOM.render(
     <Provider store={store}>
         <ThemeProvider theme={theme}>
-        <>
-            <GlobalStyle />
-            <BrowserRouter basename="app">
-                <Core />
-            </BrowserRouter>
-        </>
+            <>
+                <GlobalStyle />
+                <BrowserRouter basename="app">
+                    <Core />
+                </BrowserRouter>
+            </>
         </ThemeProvider>
     </Provider>,
     document.getElementById("app")
