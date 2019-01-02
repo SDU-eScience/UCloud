@@ -120,7 +120,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
     }
 
     render() {
-        /* if (this.props.hidden) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) } */
+        if (this.props.hidden) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
         const { sensitivities, extensions, allowFiles, allowFolders } = this.props;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));
         const sensitivityDropdown = remainingSensitivities.length ? (
