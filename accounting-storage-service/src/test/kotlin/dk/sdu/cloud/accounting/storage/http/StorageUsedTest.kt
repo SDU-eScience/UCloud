@@ -96,6 +96,52 @@ class StorageUsedTest{
     }
 
     @Test
+    fun `list events no params`() {
+        withKtorTest(
+            setup,
+            test= {
+
+                val request = sendRequest(
+                    method = HttpMethod.Get,
+                    path = "/api/accounting/storage/bytesUsed/events",
+                    user = TestUsers.user
+                )
+
+                request.assertSuccess()
+                val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
+
+                assertEquals(11, response.itemsInTotal)
+                assertEquals(2, response.pagesInTotal)
+                assertEquals(0, response.pageNumber)
+                assertEquals(12345, response.items.first().bytesUsed)            }
+        )
+    }
+
+    @Test
+    fun `list events no events in time slot`() {
+        withKtorTest(
+            setup,
+            test= {
+
+                val request = sendRequest(
+                    method = HttpMethod.Get,
+                    path = "/api/accounting/storage/bytesUsed/events",
+                    user = TestUsers.user,
+                    params = mapOf("since" to "1044173471000", "until" to "1075709471000")
+                    // since 2003-02-02 to 2004-02-02
+                )
+
+                request.assertSuccess()
+                val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
+
+                assertEquals(0, response.itemsInTotal)
+                assertEquals(0, response.pagesInTotal)
+                assertEquals(0, response.pageNumber)
+            }
+        )
+    }
+
+    @Test
     fun `chart test`() {
         withKtorTest(
             setup,

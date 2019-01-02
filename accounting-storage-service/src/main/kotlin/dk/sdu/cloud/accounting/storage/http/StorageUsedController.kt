@@ -60,7 +60,6 @@ class StorageUsedController<DBSession>(
         }
 
         implement(StorageUsedResourceDescription.listEvents) { req ->
-            // TODO This doesn't actually live up to the correct API.
             ok(storageAccountingService.listEventsPage(req.normalize(), req, call.securityPrincipal.username))
         }
     }
