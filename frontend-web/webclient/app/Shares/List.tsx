@@ -29,7 +29,7 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
             byState: ShareState.REQUEST_SENT
         };
         // FIXME potentially move following to a parent component
-        if (!props.keepTitle)
+        if (!props.notInnerComponent)
             props.dispatch(updatePageTitle("Shares"))
     }
 
@@ -53,9 +53,9 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
             });
     }
 
-    private updateShareState(state: ShareState) {
-        this.setState(() => ({ byState: state }));
-        this.reload(state);
+    private updateShareState(byState: ShareState) {
+        this.setState(() => ({ byState }));
+        this.reload(byState);
     }
 
     public render() {
@@ -63,19 +63,20 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
         const noSharesWith = shares.filter(it => !it.sharedByMe).length === 0;
         const noSharesBy = shares.filter(it => it.sharedByMe).length === 0;
         const header = (
-                <Flex>
-                    <Box ml="auto" />
-                    <ClickableDropdown
-                        chevron
-                        width="150px"
-                        trigger={<TextSpan>Shares where: {prettierString(byState)}</TextSpan>}
-                        options={Object.keys(ShareState).map(v => ({ text: prettierString(v), value: v }))}
-                        onChange={(it: ShareState) => this.updateShareState(it)}
-                    />
-                </Flex>
-                );
+            <Flex>
+                <Box ml="auto" />
+                <ClickableDropdown
+                    chevron
+                    width="150px"
+                    trigger={<TextSpan>Shares where: {prettierString(byState)}</TextSpan>}
+                    options={Object.keys(ShareState).map(v => ({ text: prettierString(v), value: v }))}
+                    onChange={(it: ShareState) => this.updateShareState(it)}
+                />
+            </Flex>
+        );
         const main = (
             <>
+                {this.props.notInnerComponent ? null : header}
                 <Error clearError={() => this.setState({ errorMessage: undefined })} error={errorMessage} />
                 {this.state.loading ? <LoadingIcon size={18} /> : null}
                 <Heading.h3>Shared with Me</Heading.h3>
@@ -110,9 +111,9 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
         );
 
 
-        return ( 
+        return (
             <MainContainer
-                header={header}
+                header={this.props.notInnerComponent ? header : null}
                 main={main}
                 sidebar={null}
             />
@@ -210,9 +211,6 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         const shareComponents: JSX.Element[] = groupedShare.shares.map((e, i, { length }) => (
             <Box key={e.id}>
                 <Flex m="5px 5px 5px 5px">
-                    <Box>
-                        <i style={{ fontSize: 20, marginRight: "5px" }} className="fas fa-user-circle" />
-                    </Box>
                     <Box width="80%">
                         {e.sharedWith}
                         <AccessRightsDisplay rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />

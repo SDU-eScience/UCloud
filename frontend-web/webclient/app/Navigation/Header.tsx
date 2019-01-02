@@ -62,7 +62,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
                 <Support />
                 <Notification />
                 <ClickableDropdown width="180px" left={"-180%"} trigger={<Flex><UserAvatar /></Flex>}>
-                    <Box style={{ backgroundColor: "unset" }}>Welcome, {Cloud.userInfo.firstNames}</Box>
+                    <UserNameBox>Welcome, {Cloud.userInfo.firstNames}</UserNameBox>
                     <Divider />
                     <Box ml="-17px" mr="-17px" pl="15px">
                         <Link color="black" to={"/users/settings"}>
@@ -89,6 +89,10 @@ const HeaderContainer = styled(Flex)`
     top: 0;
     width: 100%;
     z-index: 100;
+`;
+
+const UserNameBox = styled(Box)`
+    background-color: unset;
 `;
 
 const Logo = () => (
@@ -152,7 +156,6 @@ const Search = ({ searchText, onChange, navigate, searchFiles }: Search) => (
                 noBorder
                 onChange={e => onChange(e.target.value)}
                 onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) { searchFiles(searchText); navigate(); } }}
-                placeholder=""
             />
             <Absolute left="6px" top="7px">
                 <Label htmlFor="search_input">
