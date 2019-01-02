@@ -119,7 +119,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
     }
 
     render() {
-        if (this.props.hidden) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
+        /* if (this.props.hidden) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) } */
         const { sensitivities, extensions, allowFiles, allowFolders } = this.props;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));
         const sensitivityDropdown = remainingSensitivities.length ? (
@@ -157,7 +157,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
-                                    placeholderText="Created after..."
+                                    placeholderText="After"
                                     selected={this.props.createdAfter}
                                     startDate={this.props.createdAfter}
                                     endDate={this.props.createdBefore}
@@ -176,7 +176,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     pt="8px"
                                     mt="-2px"
                                     selectsEnd
-                                    placeholderText="Created before..."
+                                    placeholderText="Before"
                                     selected={this.props.createdBefore}
                                     startDate={this.props.createdAfter}
                                     endDate={this.props.createdBefore}
@@ -196,7 +196,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
-                                    placeholderText="Modified after..."
+                                    placeholderText="After"
                                     selected={this.props.modifiedAfter}
                                     selectsStart
                                     startDate={this.props.modifiedAfter}
@@ -214,7 +214,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
-                                    placeholderText="Modified before..."
+                                    placeholderText="Before"
                                     selected={this.props.modifiedBefore}
                                     selectsEnd
                                     startDate={this.props.modifiedAfter}
@@ -261,8 +261,9 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 placeholder={"Add extensions..."}
                             />
                             <ClickableDropdown
+                                width={"100%"}
                                 chevron
-                                trigger={"Add extension preset"}
+                                trigger={"Extension presets"}
                                 onChange={value => this.onAddPresets(value)}
                                 options={extensionPresets}
                             />

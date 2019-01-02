@@ -1,5 +1,4 @@
 import * as React from "react";
-import { toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -111,7 +110,7 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
                 </CardGroup>
             </React.StrictMode>
         );
-        
+
         return (
             <MainContainer
                 main={main}

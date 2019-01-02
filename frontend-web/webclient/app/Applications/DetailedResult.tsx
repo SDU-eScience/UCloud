@@ -8,7 +8,7 @@ import { FilesTable } from "Files/FilesTable";
 import { List as PaginationList } from "Pagination";
 import { connect } from "react-redux";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { ReduxObject, DetailedResultReduxObject } from "DefaultObjects";
+import { ReduxObject, DetailedResultReduxObject, emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations, AppState } from ".";
 import { File, SortBy, SortOrder } from "Files";
 import { AllFileOperations, fileTablePage } from "Utilities/FileUtilities";
@@ -60,6 +60,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     componentWillUnmount() {
         if (this.state.reloadIntervalId) window.clearTimeout(this.state.reloadIntervalId);
         this.state.promises.cancelPromises();
+        this.props.receivePage(emptyPage);
     }
 
     static fileOperations = (history: History) => AllFileOperations(true, false, false, history);

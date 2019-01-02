@@ -14,7 +14,7 @@ export interface ListState {
 }
 
 export interface ListProps {
-    keepTitle?: boolean
+    notInnerComponent?: boolean
     byPath?: string
 }
 
