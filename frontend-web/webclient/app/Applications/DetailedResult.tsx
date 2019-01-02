@@ -139,7 +139,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     favoriteFile = (file: File) => this.props.receivePage(favoriteFileFromPage(this.props.page, [file], Cloud));
 
     renderProgressPanel = () => (
-        <div className="job-result-box">
+        <div>
             <h4>Progress</h4>
             <StepGroup>
                 <StepTrackerItem
@@ -244,7 +244,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     Standard Streams
                     &nbsp;
                     <Dropdown>
-                        <Icon name="information" />
+                        <Icon name="info" color="white" color2="black" />
                         <DropdownContent colorOnHover={false} color="white" backgroundColor="black">
                             <span>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</span>
                         </DropdownContent>

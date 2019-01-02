@@ -9,7 +9,7 @@ import {
   flexWrap, flexDirection, flex,
   SpaceProps, WidthProps, MinWidthProps, HeightProps, 
   ColorProps, AlignItemsProps, JustifyContentProps, 
-  FlexWrapProps, FlexDirectionProps, FlexProps
+  FlexWrapProps, FlexDirectionProps, FlexProps, ZIndexProps, zIndex
 } from 'styled-system'
 import theme from "./theme"
 
@@ -25,16 +25,17 @@ export type FlexCProps =
   FlexWrapProps &
   FlexDirectionProps &
   FlexProps &
+  ZIndexProps &
   { cursor?: string }
 
 
 const Flex = styled.div<FlexCProps>`
   cursor: ${props => props.cursor};
   display: flex;
-  ${space} ${width} ${minWidth} ${height} 
+  ${space} ${width} ${minWidth} ${height} ${zIndex}
   ${color} ${alignItems} ${justifyContent}
   ${flexDirection} ${flexWrap} ${flex}
-`
+`;
 
 Flex.defaultProps = {
   theme,
@@ -42,9 +43,9 @@ Flex.defaultProps = {
 }
 
 
-Flex.displayName = 'Flex'
+Flex.displayName = "Flex";
 
-export default Flex
+export default Flex;
 
 
 /*

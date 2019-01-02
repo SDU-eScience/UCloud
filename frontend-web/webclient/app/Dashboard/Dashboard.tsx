@@ -26,6 +26,7 @@ import Spinner from "LoadingIcon/LoadingIcon";
 import * as UF from "UtilityFunctions";
 import * as Accounting from "Accounting";
 import { MainContainer } from "MainContainer/MainContainer";
+import { EveryIcon } from "ui-components/Icon";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={290} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
