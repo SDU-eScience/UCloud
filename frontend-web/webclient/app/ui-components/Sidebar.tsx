@@ -117,8 +117,8 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
         .filter(it => it.predicate());
     return (
         <SidebarContainer color="text" bg="lightGray" flexDirection="column"
-            width={responsiveState!.greaterThan.xl ? 190 : 68}
-            css={responsiveState!.greaterThan.xl ? null : HideText }
+            width={ responsiveState!.greaterThan.xl ? 190 : 68 }
+            css={ responsiveState!.greaterThan.xl ? null : HideText }
         >
             {sidebar.map((category, categoryIdx) =>
                 <React.Fragment key={categoryIdx}>

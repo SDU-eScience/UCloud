@@ -12,7 +12,6 @@ import * as Share from "Shares";
 import * as Project from "Project";
 import Activity from "Activity/Activity";
 import Uploader from "Uploader/Uploader";
-import { Box } from "ui-components";
 
 // use `const COMPNAME = React.lazy(() => import("${path}"));` when react router is updated
 import Search from "Search/Search";

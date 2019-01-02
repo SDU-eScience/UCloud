@@ -79,9 +79,9 @@ const Header = () => (
             <TableHeaderCell textAlign="left">App Name</TableHeaderCell>
             <TableHeaderCell textAlign="left">Job Id</TableHeaderCell>
             <TableHeaderCell textAlign="left">State</TableHeaderCell>
-            <TableHeaderCell textAlign="left" xs sm>Status</TableHeaderCell>
-            <TableHeaderCell textAlign="left" xs sm>Started at</TableHeaderCell>
-            <TableHeaderCell textAlign="left" xs sm>Last updated at</TableHeaderCell>
+            <TableHeaderCell textAlign="left">Status</TableHeaderCell>
+            <TableHeaderCell textAlign="left">Started at</TableHeaderCell>
+            <TableHeaderCell textAlign="left">Last updated at</TableHeaderCell>
         </TableRow>
     </TableHeader>
 );
@@ -94,9 +94,9 @@ const Analysis = ({ analysis, to }) => {
             <TableCell>{analysis.appName}@{analysis.appVersion}</TableCell>
             <TableCell><span title={jobIdField}>{shortUUID(jobIdField)}</span></TableCell>
             <TableCell>{toLowerCaseAndCapitalize(analysis.state)}</TableCell>
-            <TableCell xs sm>{analysis.status}</TableCell>
-            <TableCell xs sm>{formatDate(analysis.createdAt)}</TableCell>
-            <TableCell xs sm>{formatDate(analysis.modifiedAt)}</TableCell>
+            <TableCell>{analysis.status}</TableCell>
+            <TableCell>{formatDate(analysis.createdAt)}</TableCell>
+            <TableCell>{formatDate(analysis.modifiedAt)}</TableCell>
         </TableRow>)
 };
 
