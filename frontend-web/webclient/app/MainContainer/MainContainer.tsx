@@ -41,7 +41,7 @@ export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize 
                         top="0" right="0"
                         px={pad}
                         width={sidebarSize}
-                        bg="white">
+                    >
                         {sidebar}
                     </SidebarContainer>
                 }

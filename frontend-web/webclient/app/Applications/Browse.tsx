@@ -12,7 +12,7 @@ import { NewApplicationCard } from "./Card";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import { Link } from "ui-components";
-import { CardGroup } from "ui-components/Card";
+import { GridCardGroup } from "ui-components/Grid";
 import { getQueryParam, RouterLocationProps, getQueryParamOrElse } from "Utilities/URIUtilities";
 import * as Pages from "./Pages";
 import { Type as ReduxType } from "./Redux/BrowseObject";
@@ -20,6 +20,7 @@ import * as Actions from "./Redux/BrowseActions";
 import { loadingEvent } from "LoadableContent";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { gridGap } from "styled-system";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -63,6 +64,7 @@ export interface ApplicationsOperations {
 }
 
 export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocationProps;
+
 
 class Applications extends React.Component<ApplicationsProps> {
     componentDidMount() {
@@ -126,7 +128,7 @@ class Applications extends React.Component<ApplicationsProps> {
                 loading={this.props.applications.loading}
                 onRefresh={() => this.fetch(this.props)}
                 pageRenderer={(page: Page<Application>) =>
-                    <CardGroup>
+                    <GridCardGroup>
                         {page.items.map((app, index) =>
                             <NewApplicationCard
                                 key={index}
@@ -138,7 +140,7 @@ class Applications extends React.Component<ApplicationsProps> {
                                 isFavorite={app.favorite}
                             />
                         )}
-                    </CardGroup>
+                    </GridCardGroup>
                 }
                 page={this.props.applications.content as Page<Application>}
                 onItemsPerPageChanged={size => this.props.history.push(this.updateItemsPerPage(size))}

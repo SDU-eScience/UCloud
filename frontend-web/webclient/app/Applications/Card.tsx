@@ -126,7 +126,7 @@ export const ApplicationCard = ({ app, onFavorite, isFavorite, linkToRun }: Appl
 
 export const NewAppCard = styled(Link)`
     padding: 10px;
-    width: 30%;
+    width: 100%;
     min-width: 350px;
     height: 128px;
     display: flex;
@@ -147,15 +147,16 @@ export const NewAppCard = styled(Link)`
     &:before {
         content: "";
         position: absolute;
-        width: 110%;
-        height: 190%;
-        top: -45%;
-        left: -5%;
+        width: 104%;
+        height: 280%;
+        top: 0;
+        left: 0;
         z-index: -1;
         background-color: #ebeff3;
         background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
         background-repeat: repeat;
-        transform: rotate(15deg);
+        transform: rotate(15deg) translate(0,-60%);
+        transform-origin: 0 0;
         }
 
     &:after {
