@@ -22,7 +22,7 @@ class BackgroundTasks extends React.Component {
 
 const TasksIconBase = styled(Icon)`
     animation: spin 4s linear infinite;
-    margin-right: 5px;
+    margin-right: 8px;
 
     @keyframes spin {
       0% { transform: rotate(0deg); }
