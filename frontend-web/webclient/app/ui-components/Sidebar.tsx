@@ -12,7 +12,6 @@ import { ExternalLink, RatingBadge } from "ui-components";
 import { RBox } from "ui-components";
 import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
-import { alignContent, justifyContent } from "styled-system";
 
 
 const SidebarElementContainer = styled(Flex)`
@@ -27,6 +26,8 @@ const SidebarElementContainer = styled(Flex)`
 
 //This is applied to SidebarContainer on small screens
 const HideText = css`
+    will-chage: transform, opacity;
+    
     & { 
         transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
         transform: translate(-122px,0); //122 = 190-68 (original - final width)

@@ -134,13 +134,15 @@ export const NewAppCard = styled(Link)`
     align-items: flex-start;
     border-radius: ${props => props.theme.radius};
     position: relative;
-    /* flex: 1 0 auto; */
     overflow: hidden;
     box-shadow: ${({ theme }) => theme.shadows["sm"]};
+    //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
-    transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
+    transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.transitionDelays.small};
+    will-change: transform;
+
     &:hover {
-        transform: scale(1.03);
+        transform: scale(1.02);
     }
 
     // Background
@@ -166,15 +168,18 @@ export const NewAppCard = styled(Link)`
         height: 100%;
         top: 0;
         left: 0;
-        z-index: -1;
-        border: solid #c9d3df 1px;
+        z-index: 1;
+        border: 2px solid ${props => props.theme.colors.textHighlight};
+        opacity: 0;
         border-radius: ${props => props.theme.radius};
         pointer-events: none; //needed for star-badge
+        will-change: opacity;
     }
 
     &:hover:after {
-        border-color: ${props => props.theme.colors.textHighlight};
-        z-index: 1;
+        // border-color: ${props => props.theme.colors.textHighlight};
+        // z-index: 1;
+        opacity: 1;
     }
 `;
 
@@ -523,9 +528,11 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
 
 
 const AppRibbonContainer = styled(Absolute)`
-    transition: ease 0.2s;
+    transition: transform ease 0.1s;
+    will-change: transform;
+
     &:hover {
-        top: 0
+        transform: translate(0,0)
     }
 `
 
@@ -563,7 +570,8 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
                 <AppRibbonContainer
                     cursor="inherit"
                     right={0}
-                    top={isFavorite ? 0 : -30}
+                    top={0}
+                    css={isFavorite ? undefined : `transform: translate(0,-30px)`}
                     onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(appDesc.info.name, appDesc.info.version)) : undefined}
                 >
                     <Icon name={"starRibbon"} color="red" size={48} />
