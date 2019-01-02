@@ -149,7 +149,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 width="100%"
                                 placeholder="Filename must include..."
                                 defaultValue={this.props.fileName}
-                                onChange={({ target: { value } }) => this.props.setFilename(value)}
+                                onChange={({ target }) => this.props.setFilename(target.value)}
                             />
                             <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
                             <InputGroup>
@@ -170,6 +170,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
+                                    withPortal
                                 />
                                 <DatePicker
                                     popperPlacement="left"
@@ -188,6 +189,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
+                                    withPortal
                                 />
                             </InputGroup>
                             <Heading.h5 pb="0.3em" pt="0.5em">Modified at</Heading.h5>
@@ -209,6 +211,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
+                                    withPortal
                                 />
                                 <DatePicker
                                     popperPlacement="left"
@@ -227,6 +230,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
+                                    withPortal
                                 />
                             </InputGroup>
                             <Heading.h5 pb="0.3em" pt="0.5em">File Types</Heading.h5>
@@ -314,6 +318,7 @@ const mapStateToProps = ({ detailedFileSearch }: ReduxObject): DetailedFileSearc
 import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import { DETAILED_FILES_ADD_EXTENSIONS, DETAILED_FILES_REMOVE_EXTENSIONS, DETAILED_FILES_ADD_SENSITIVITIES, DETAILED_FILES_REMOVE_SENSITIVITIES, DETAILED_FILES_ADD_TAGS, DETAILED_FILES_REMOVE_TAGS } from "./Redux/DetailedFileSearchReducer";
 import { searchFiles } from "Search/Redux/SearchActions";
+import { zIndex } from "styled-system";
 const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations => ({
     toggleHidden: () => dispatch(DFSActions.toggleFilesSearchHidden()),
     addExtensions: ext => dispatch(DFSActions.extensionAction(DETAILED_FILES_ADD_EXTENSIONS, ext)),
