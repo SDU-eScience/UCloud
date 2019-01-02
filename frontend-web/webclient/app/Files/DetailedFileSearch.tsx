@@ -5,7 +5,6 @@ import {
     AdvancedSearchRequest, DetailedFileSearchOperations
 } from ".";
 import { DatePicker } from "ui-components/DatePicker";
-import "react-datepicker/dist/react-datepicker.css";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { Flex, Input, Label, Stamp, InputGroup, OldStamp, Checkbox, Error, OutlineButton, LoadingButton, Icon } from "ui-components";
