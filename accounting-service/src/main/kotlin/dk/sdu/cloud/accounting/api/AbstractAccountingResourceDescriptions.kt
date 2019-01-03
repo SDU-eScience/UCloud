@@ -74,12 +74,12 @@ data class ChartResponse(
 /**
  * @see [AbstractAccountingResourceDescriptions.currentUsage]
  */
-typealias CurrentUsageRequest = ContextQueryImpl
+typealias UsageRequest = ContextQueryImpl
 
 /**
  * @see [AbstractAccountingResourceDescriptions.currentUsage]
  */
-data class CurrentUsageResponse(
+data class UsageResponse(
     val usage: Long,
     val quota: Long? = null,
     val dataType: String? = null,
@@ -272,10 +272,10 @@ abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
     }
 
     /**
-     * Returns the current usage for this resource
+     * Returns usage for this resource for a given time period.
      */
-    val currentUsage = callDescription<CurrentUsageRequest, CurrentUsageResponse, CommonErrorMessage> {
-        name = "currentUsage"
+    val usage = callDescription<UsageRequest, UsageResponse, CommonErrorMessage> {
+        name = "usage"
         method = HttpMethod.Get
 
         auth {
@@ -288,9 +288,9 @@ abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
         }
 
         params {
-            +boundTo(CurrentUsageRequest::context)
-            +boundTo(CurrentUsageRequest::since)
-            +boundTo(CurrentUsageRequest::until)
+            +boundTo(UsageRequest::context)
+            +boundTo(UsageRequest::since)
+            +boundTo(UsageRequest::until)
         }
     }
 }

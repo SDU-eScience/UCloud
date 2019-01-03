@@ -11,7 +11,6 @@ import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
 import dk.sdu.cloud.storage.util.createDummyFS
 import io.mockk.Runs
 import io.mockk.coEvery
-import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
 import org.junit.Assert
@@ -42,12 +41,6 @@ class FavoriteTest {
         Assert.assertFalse(File(fsRoot, favoriteLink).exists())
         runner.withBlockingContext("user1") { service.markAsFavorite(it, fileToFavorite) }
         Assert.assertTrue(File(fsRoot, favoriteLink).exists())
-
-        Thread.sleep(1000)
-
-        coVerify {
-            emitter.emit(match { it is StorageEvent.CreatedOrRefreshed && it.path == "/$favoriteLink" })
-        }
     }
 
     @Test

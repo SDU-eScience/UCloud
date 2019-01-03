@@ -10,7 +10,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { PP } from "UtilityComponents";
 import { fileTablePage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading";
-import { Button } from "ui-components";
+import { Button, ExternalLink } from "ui-components";
 import { successNotification, failureNotification } from "UtilityFunctions";
 import Relative from "./Relative";
 import TextArea from "./TextArea";
@@ -187,7 +187,7 @@ class Support extends React.Component<{}, SupportState> {
 
     render() {
         return <div>
-            <a href="#support" onClick={e => this.onSupportClick(e)}><Text fontSize={1}>Support</Text></a>
+            <Link to="#support" onClick={e => this.onSupportClick(e)}><Text fontSize={1}>Support</Text></Link>
             <Relative>
                 <SupportBox ref={this.supportBox} visible={this.state.visible}>
                     <Box>
@@ -243,7 +243,9 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { s
                 <SidebarSpacer />
                 <Support />
                 <div>
-                    <a href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse" target="_blank" rel="noopener"><Text fontSize={1}>Data Protection at SDU</Text></a>
+                    <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
+                        <Text fontSize={1}>Data Protection at SDU</Text>
+                    </ExternalLink>
                 </div>
             </SidebarInfoBox>
             <PP visible={false} />

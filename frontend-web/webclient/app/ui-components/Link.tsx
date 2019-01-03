@@ -1,35 +1,11 @@
-import styled from 'styled-components';
 import { Link as ReactRouterLink } from "react-router-dom";
-import { style, space, color, SpaceProps, ColorProps } from 'styled-system';
+import BaseLink from "./BaseLink";
 
-interface LinkProps extends SpaceProps, ColorProps 
-{
-  hoverColor?: string
-}
-
-const hoverColor = style({
-  prop: 'hoverColor',
-  cssProperty: 'color',
-  key: 'colors'
-})
-
-const Link = styled(ReactRouterLink) <LinkProps>`
-  cursor: pointer;
-  text-decoration: none;
-  display: inherit;
-  ${space}
-  ${color}
-
-  &:hover {
-    ${hoverColor}
-  }
-`
-
+const Link = BaseLink.withComponent(ReactRouterLink);
 Link.defaultProps = {
   color: "text",
   hoverColor: "textHighlight"
 };
 
-Link.displayName = "Link";
 
 export default Link;

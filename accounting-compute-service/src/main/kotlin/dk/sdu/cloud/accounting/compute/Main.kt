@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.compute
 
 import dk.sdu.cloud.accounting.compute.api.AccountingComputeServiceDescription
+import dk.sdu.cloud.accounting.compute.http.ComputeTimeController
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Micro
@@ -10,6 +11,7 @@ import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.kafka
 import dk.sdu.cloud.service.runScriptHandler
 import dk.sdu.cloud.service.serverProvider
+import java.io.File
 
 fun main(args: Array<String>) {
     val micro = Micro().apply {

@@ -58,6 +58,8 @@ class UnixFSCommandRunner(
             String(serverBoundary, Charsets.UTF_8)
         )
 
+        log.debug("Invoking command: " + (prefix + command).toString())
+
         ProcessBuilder().apply { command(prefix + command) }.start().also { process ->
             val bytes = ByteArray(serverBoundary.size)
             var ptr = 0
@@ -68,6 +70,8 @@ class UnixFSCommandRunner(
                 read = process.errorStream.read(bytes, ptr, ptr - bytes.size)
                 ptr += read
             }
+
+            log.debug("We are ready!")
 
             if (!process.isAlive) {
                 throw FSException.NotReady()

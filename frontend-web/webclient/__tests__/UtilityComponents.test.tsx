@@ -13,7 +13,6 @@ describe("RefreshButton", () => {
             <RefreshButton
                 loading={false}
                 onClick={() => null}
-                className="name-of-class"
             />).toJSON()).toMatchSnapshot()
     });
 

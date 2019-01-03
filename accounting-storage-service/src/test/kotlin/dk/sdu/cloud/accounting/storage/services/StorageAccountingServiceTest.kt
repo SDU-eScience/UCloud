@@ -145,10 +145,10 @@ class StorageAccountingServiceTest {
         TestUsers.user.username
     )
 
-    @Test
+    @Test (expected = RPCException::class)
     fun `List all Test`() {
         val storageAccountingService = setupService()
-        assertTrue(storageAccountingService.listEvents(context, TestUsers.user.username).isEmpty())
+        storageAccountingService.listEvents(context, TestUsers.user.username)
     }
 
     @Test

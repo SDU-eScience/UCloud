@@ -25,6 +25,7 @@ import { allFilesHasAccessRight } from "Utilities/FileUtilities";
 import { AccessRight } from "Types";
 import { FilesTable, ContextBar } from "./FilesTable";
 import { MainContainer } from "MainContainer/MainContainer";
+import { Spacer } from "ui-components/Spacer";
 
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
@@ -72,7 +73,7 @@ class Files extends React.Component<FilesProps> {
         history.push(fileTablePage(getParentPath(path)))
     }
 
-    shouldComponentUpdate(nextProps: FilesProps): boolean {;
+    shouldComponentUpdate(nextProps: FilesProps): boolean {
         const { fetchFiles, page, loading, sortOrder, sortBy } = this.props;
         const nextPath = this.urlPathFromProps(nextProps);
         if (nextProps.path !== nextPath && !loading) {
@@ -100,48 +101,50 @@ class Files extends React.Component<FilesProps> {
             },
             ...AllFileOperations(true, fileSelectorOperations, refetch, this.props.history)
         ];
+
+        const header = (<Spacer
+            left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />}
+            right={<CustomEntriesPerPage
+                entriesPerPage={page.itemsPerPage}
+                text="Files per page"
+                onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                loading={loading}
+                onRefreshClick={refetch}
+            />}>
+        </Spacer>)
+
         const main = (
-            <>
-                <BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />
-                <Pagination.List
-                    loading={loading}
-                    errorMessage={props.error}
-                    onErrorDismiss={props.dismissError}
-                    customEmptyPage={(<Heading.h3>No files in current folder</Heading.h3>)}
-                    pageRenderer={page => (
-                        <FilesTable
-                            onFavoriteFile={favoriteFile}
-                            fileOperations={fileOperations}
-                            sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
-                            sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
-                            sortOrder={sortOrder}
-                            sortingColumns={[leftSortingColumn, rightSortingColumn]}
-                            refetchFiles={() => refetch()}
-                            onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
-                            masterCheckbox={
-                                <MasterCheckbox
-                                    checked={page.items.length === selectedFiles.length && page.items.length > 0}
-                                    onClick={this.props.checkAllFiles}
-                                />}
-                            onRenameFile={this.onRenameFile}
-                            files={page.items}
-                            sortBy={sortBy}
-                            onCheckFile={(checked, file) => checkFile(checked, file.path)}
-                            customEntriesPerPage={<CustomEntriesPerPage
-                                entriesPerPage={page.itemsPerPage}
-                                text="Files per page"
-                                onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
-                                loading={loading}
-                                onRefreshClick={refetch}
+            <Pagination.List
+                loading={loading}
+                errorMessage={props.error}
+                onErrorDismiss={props.dismissError}
+                customEmptyPage={(<Heading.h3>No files in current folder</Heading.h3>)}
+                pageRenderer={page => (
+                    <FilesTable
+                        onFavoriteFile={favoriteFile}
+                        fileOperations={fileOperations}
+                        sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                        sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
+                        sortOrder={sortOrder}
+                        sortingColumns={[leftSortingColumn, rightSortingColumn]}
+                        refetchFiles={() => refetch()}
+                        onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
+                        masterCheckbox={
+                            <MasterCheckbox
+                                checked={page.items.length === selectedFiles.length && page.items.length > 0}
+                                onClick={this.props.checkAllFiles}
                             />}
-                        />
-                    )}
-                    customEntriesPerPage
-                    onItemsPerPageChanged={pageSize => fetchFiles(path, pageSize, 0, sortOrder, sortBy)}
-                    page={page}
-                    onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
-                />
-            </>
+                        onRenameFile={this.onRenameFile}
+                        files={page.items}
+                        sortBy={sortBy}
+                        onCheckFile={(checked, file) => checkFile(checked, file.path)}
+                    />
+                )}
+                customEntriesPerPage
+                onItemsPerPageChanged={pageSize => fetchFiles(path, pageSize, 0, sortOrder, sortBy)}
+                page={page}
+                onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
+            />
         )
 
         const sidebar = (
@@ -178,6 +181,7 @@ class Files extends React.Component<FilesProps> {
 
         return (
             <MainContainer
+                header={header}
                 main={main}
                 sidebar={sidebar}
                 additional={additional}

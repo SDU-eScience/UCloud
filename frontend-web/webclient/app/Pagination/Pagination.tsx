@@ -14,7 +14,10 @@ const EntriesPerPageSelectorOptions = [
 interface PaginationButtons { totalPages: number, currentPage: number, toPage: (p: number) => void }
 export function PaginationButtons({ totalPages, currentPage, toPage }: PaginationButtons) {
     if (totalPages <= 1) return null;
-    const pages = [...new Set([0, totalPages - 1, currentPage - 1, currentPage, currentPage + 1].sort((a, b) => a - b))];
+    const half = (totalPages - 1) / 2 | 0;
+    const upperQuarter = (half + half / 2) | 0;
+    const lowerQuarter = (half - half / 2) | 0;
+    const pages = [...new Set([0, totalPages - 1, currentPage - 1, currentPage, currentPage + 1, half, upperQuarter, lowerQuarter].sort((a, b) => a - b))];
     const buttons = pages.filter(i => i >= 0 && i < totalPages).map((it, i, arr) =>
         it - arr[i + 1] < -1 ? ( // If the two numbers do not immediately follow each other, insert ellipses
             <React.Fragment key={it}>
@@ -27,11 +30,9 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
     );
     return (
         <PaginationGroup>
-            <PaginationButton onClick={() => toPage(0)} unclickable={currentPage === 0}>{"⟨⟨"}</PaginationButton>
             <PaginationButton onClick={() => toPage(currentPage - 1)} unclickable={currentPage === 0}>{"⟨"}</PaginationButton>
             {buttons}
             <PaginationButton onClick={() => toPage(currentPage + 1)} unclickable={currentPage === totalPages - 1}>{"⟩"}</PaginationButton>
-            <PaginationButton onClick={() => toPage(totalPages)} unclickable={currentPage === totalPages - 1}>{"⟩⟩"}</PaginationButton>
         </PaginationGroup>
     );
 };

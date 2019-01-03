@@ -2,6 +2,7 @@ import * as React from "react";
 import * as API from "./api";
 import * as MockedChart from "./mock/chart.json";
 import { LineChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Line, ResponsiveContainer } from "recharts";
+import styled from "styled-components";
 
 interface ChartProps {
     chart?: API.Chart<API.DataPoint2D>
@@ -29,7 +30,7 @@ class Chart extends React.Component<ChartProps> {
             return result;
         });
 
-        return <ResponsiveContainer aspect={16 / 9} maxHeight={576}>
+        return <Container aspect={16 / 9} maxHeight={576}>
             <LineChart data={normalizedData}>
                 <XAxis
                     dataKey="name"
@@ -38,14 +39,14 @@ class Chart extends React.Component<ChartProps> {
 
                 <YAxis
                     dataKey="value"
-                    tickFormatter={(d: number) => 
-                        API.formatDataType(getOrElse(1, API.DataTypes.NUMBER, chart.dataTypes), d)} 
+                    tickFormatter={(d: number) =>
+                        API.formatDataType(getOrElse(1, API.DataTypes.NUMBER, chart.dataTypes), d)}
                 />
 
                 <CartesianGrid strokeDasharray="3 3" />
-                <Tooltip 
-                    formatter={(d: number) => 
-                        API.formatDataType(getOrElse(1, API.DataTypes.NUMBER, chart.dataTypes), d)} 
+                <Tooltip
+                    formatter={(d: number) =>
+                        API.formatDataType(getOrElse(1, API.DataTypes.NUMBER, chart.dataTypes), d)}
                 />
                 <Legend />
                 <Line
@@ -55,8 +56,14 @@ class Chart extends React.Component<ChartProps> {
                     name={chart.dataTitle || "Value"}
                 />
             </LineChart>
-        </ResponsiveContainer>;
+        </Container>;
     }
 }
 
+
+const Container = styled(ResponsiveContainer)`
+    & > div > svg { 
+        overflow: visible
+    }
+`;
 export default Chart;

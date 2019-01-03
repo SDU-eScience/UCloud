@@ -373,38 +373,4 @@ class UserTest {
             }
         )
     }
-
-    @Test
-    fun `get all users test`() {
-        withKtorTest(
-            setup = {
-                micro.install(HibernateFeature)
-                val userDao = UserHibernateDAO(passwordHashingService)
-                val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
-                configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
-            },
-            test = {
-                with(engine) {
-                    for (i in 1..20) {
-                        sendJson(
-                            method = HttpMethod.Post,
-                            path = "/auth/users/register",
-                            user = TestUsers.admin,
-                            request = CreateUserRequest("user$i", "pass", Role.USER)
-                        ).assertSuccess()
-
-                    }
-
-                    val request = sendRequest(
-                        method = HttpMethod.Get,
-                        path = "/auth/users/all",
-                        user = TestUsers.service.copy(username = "_accounting")
-                    )
-
-                    request.assertSuccess()
-                    println(request.response.content)
-                }
-            }
-        )
-    }
 }
