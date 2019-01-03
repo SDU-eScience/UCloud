@@ -8,7 +8,7 @@ import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { fileTablePage } from "Utilities/FileUtilities";
-import { ExternalLink } from "ui-components";
+import { ExternalLink, RatingBadge } from "ui-components";
 import { RBox } from "ui-components";
 import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
@@ -26,21 +26,41 @@ const SidebarElementContainer = styled(Flex)`
 
 //This is applied to SidebarContainer on small screens
 const HideText = css`
-    transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
+    will-change: transform, opacity;
+    
+    & { 
+        transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
+        transform: translate(-122px,0); //122 = 190-68 (original - final width)
+    }
+
+    & ${Icon},${RatingBadge} {
+        transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
+        transform: translate(122px,0); //inverse transformation; same transition function!
+    }
 
     & ${SidebarElementContainer} > ${Text} {
-        visibility: hidden;
+        // transition: ${({ theme }) => theme.timingFunctions.easeOutQuit} ${({ theme }) => theme.transitionDelays.xsmall};
+        transition: ${({ theme }) => theme.timingFunctions.stepStart} ${({ theme }) => theme.transitionDelays.small};
+        opacity: 0;
     }
 
-    :hover {
-        width: 190px;
 
-        & ${SidebarElementContainer} > ${Text} {
-            visibility: visible;
+    &:hover { 
+            transform: translate(0,0);
+
+            & ${Icon},${RatingBadge} {
+                transform: translate(0,0); //inverter transformation
+            }
+
+            ${SidebarElementContainer} > ${Text} {
+                // transition: ${({ theme }) => theme.timingFunctions.easeInQuint} ${({ theme }) => theme.transitionDelays.small};
+                transition: ${({ theme }) => theme.timingFunctions.stepEnd} ${({ theme }) => theme.transitionDelays.small};
+                opacity: 1;
+            }
+        
         }
-    }
-`;
 
+`;
 
 const SidebarContainer = styled(Flex)`
     position: fixed;
@@ -49,6 +69,7 @@ const SidebarContainer = styled(Flex)`
     left: 0;
     padding-top: 48px;
     height: 100%;
+    background-color: ${props => props.theme.colors.lightGray}; 
     border-right: 1px solid ${props => props.theme.colors.borderGray};
 `;
 
@@ -116,8 +137,8 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
     return (
-        <SidebarContainer color="text" bg="lightGray" flexDirection="column"
-            width={ responsiveState!.greaterThan.xl ? 190 : 68 }
+        <SidebarContainer color="text" flexDirection="column"
+            width={ 190 }
             css={ responsiveState!.greaterThan.xl ? null : HideText }
         >
             {sidebar.map((category, categoryIdx) =>
@@ -132,7 +153,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
             )}
             <SidebarPushToBottom />
             {/* Screen size indicator */}
-            { process.env.NODE_ENV === "development" ? <RBox /> : null }
+            { process.env.NODE_ENV === "development" ? <Flex mb={"5px"} width={ 190 } ml={19} justifyContent="left"><RBox /> </Flex>: null }
 
             <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" label={Cloud.username} />
 

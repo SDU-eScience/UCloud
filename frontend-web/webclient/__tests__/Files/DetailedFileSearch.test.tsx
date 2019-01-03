@@ -9,7 +9,6 @@ import { mount, configure } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import * as moment from "moment";
 import { DatePicker } from "ui-components/DatePicker"
-import "react-datepicker/dist/react-datepicker.css";
 import { Input, Button, Label } from "ui-components";
 
 configure({ adapter: new Adapter() });

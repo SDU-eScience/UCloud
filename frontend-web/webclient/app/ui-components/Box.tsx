@@ -24,7 +24,7 @@ export type BoxProps =
   FlexShrinkProps &
   ZIndexProps &
   TextAlignProps &
-  { cursor?: string };
+  { cursor?: string }
 
 interface FlexGrowProps {
   flexGrow?: number

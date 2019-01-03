@@ -356,15 +356,24 @@ export const duration = {
 const easeInOut = 'cubic-bezier(0.5, 0, 0.25, 1)'
 const easeOut = 'cubic-bezier(0, 0, 0.25, 1)'
 const easeIn = 'cubic-bezier(0.5, 0, 1, 1)'
+const easeInQuint = 'cubic-bezier(0.755, 0.05, 0.855, 0.06)' //This is a steep easeIn curve
+const easeOutQuint = 'cubic-bezier(0.23, 1, 0.32, 1)'
+const stepStart = 'step-start'
+const stepEnd = 'step-end'
 
 const timingFunctions = {
   easeInOut,
   easeOut,
-  easeIn
+  easeIn,
+  easeInQuint,
+  easeOutQuint,
+  stepStart,
+  stepEnd,
 }
 
 // animation delay
 const transitionDelays = {
+  xsmall: `40ms`,
   small: `60ms`,
   medium: `160ms`,
   large: `260ms`,

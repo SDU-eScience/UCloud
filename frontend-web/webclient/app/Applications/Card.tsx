@@ -126,7 +126,7 @@ export const ApplicationCard = ({ app, onFavorite, isFavorite, linkToRun }: Appl
 
 export const NewAppCard = styled(Link)`
     padding: 10px;
-    width: 30%;
+    width: 100%;
     min-width: 350px;
     height: 128px;
     display: flex;
@@ -134,28 +134,31 @@ export const NewAppCard = styled(Link)`
     align-items: flex-start;
     border-radius: ${props => props.theme.radius};
     position: relative;
-    /* flex: 1 0 auto; */
     overflow: hidden;
     box-shadow: ${({ theme }) => theme.shadows["sm"]};
+    //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
-    transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
+    transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.transitionDelays.small};
+    will-change: transform;
+
     &:hover {
-        transform: scale(1.03);
+        transform: scale(1.02);
     }
 
     // Background
     &:before {
         content: "";
         position: absolute;
-        width: 110%;
-        height: 190%;
-        top: -45%;
-        left: -5%;
+        width: 104%;
+        height: 280%;
+        top: 0;
+        left: 0;
         z-index: -1;
         background-color: #ebeff3;
         background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSI1MCI+CiAgPGcgdHJhbnNmb3JtPSJzY2FsZSgwLjUpIj4KPHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+CjxwYXRoIGQ9Ik0yOCAwTDI4IDM0TDAgNTBMMCA4NEwyOCAxMDBMNTYgODRMNTYgNTBMMjggMzQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2M5ZDNkZjQ0IiBzdHJva2Utd2lkdGg9IjQiPjwvcGF0aD4KICA8L2c+Cjwvc3ZnPg==");
         background-repeat: repeat;
-        transform: rotate(15deg);
+        transform: rotate(15deg) translate(0,-60%);
+        transform-origin: 0 0;
         }
 
     &:after {
@@ -165,15 +168,18 @@ export const NewAppCard = styled(Link)`
         height: 100%;
         top: 0;
         left: 0;
-        z-index: -1;
-        border: solid #c9d3df 1px;
+        z-index: 1;
+        border: 2px solid ${props => props.theme.colors.textHighlight};
+        opacity: 0;
         border-radius: ${props => props.theme.radius};
         pointer-events: none; //needed for star-badge
+        will-change: opacity;
     }
 
     &:hover:after {
-        border-color: ${props => props.theme.colors.textHighlight};
-        z-index: 1;
+        // border-color: ${props => props.theme.colors.textHighlight};
+        // z-index: 1;
+        opacity: 1;
     }
 `;
 
@@ -522,9 +528,11 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
 
 
 const AppRibbonContainer = styled(Absolute)`
-    transition: ease 0.2s;
+    transition: transform ease 0.1s;
+    will-change: transform;
+
     &:hover {
-        top: 0
+        transform: translate(0,0)
     }
 `
 
@@ -562,7 +570,8 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
                 <AppRibbonContainer
                     cursor="inherit"
                     right={0}
-                    top={isFavorite ? 0 : -30}
+                    top={0}
+                    css={isFavorite ? undefined : `transform: translate(0,-30px)`}
                     onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(appDesc.info.name, appDesc.info.version)) : undefined}
                 >
                     <Icon name={"starRibbon"} color="red" size={48} />
