@@ -28,7 +28,6 @@ import * as AccountingRedux from "Accounting/Redux";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { responsiveStoreEnhancer, createResponsiveStateReducer } from 'redux-responsive';
 import { responsiveBP } from "ui-components/theme";
-import "Vendor";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
 
