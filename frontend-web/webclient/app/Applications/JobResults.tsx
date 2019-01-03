@@ -66,11 +66,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
             onPageChanged={pageNumber => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
         />;
 
-        return (
-            <React.StrictMode>
-                <MainContainer main={content} />
-            </React.StrictMode>
-        )
+        return (<MainContainer main={content} />);
     }
 }
 

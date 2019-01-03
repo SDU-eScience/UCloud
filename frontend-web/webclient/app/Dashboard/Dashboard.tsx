@@ -79,7 +79,7 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         const main = (
             <React.StrictMode>
                 <Error error={errors.join(",\n")} clearError={props.errorDismiss} />
-                <GridCardGroup>
+                <GridCardGroup minmax={290}>
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
                         isLoading={favoriteLoading}
