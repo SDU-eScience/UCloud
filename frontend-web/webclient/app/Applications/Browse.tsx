@@ -20,7 +20,6 @@ import * as Actions from "./Redux/BrowseActions";
 import { loadingEvent } from "LoadableContent";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { gridGap } from "styled-system";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -150,6 +149,7 @@ class Applications extends React.Component<ApplicationsProps> {
 
         return (
             <LoadingMainContainer
+                header={<Heading.h1>Browse</Heading.h1>}
                 loadable={this.props.applications}
                 main={main}
                 fallbackSidebar={<Sidebar />}

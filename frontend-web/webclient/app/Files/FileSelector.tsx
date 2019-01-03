@@ -96,15 +96,17 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
     }
 }
 
+const FileSelectorModalStyle = {
+    content: {
+        top: "80px",
+        left: "25%",
+        right: "25%"
+    }
+}
+
 export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorModalProps) => (
     <ReactModal isOpen={props.show} shouldCloseOnEsc ariaHideApp={false} onRequestClose={props.onHide}
-        style={{
-            content: {
-                top: "80px",
-                left: "25%",
-                right: "25%"
-            }
-        }}
+        style={FileSelectorModalStyle}
     >
         <Spacer alignItems="center"
             left={<Heading.h3>File selector</Heading.h3>}
@@ -120,8 +122,8 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
                 <CustomEntriesPerPage
                     entriesPerPage={props.page.itemsPerPage}
                     text="Files per page"
-                    onChange={itemsPerPage => props.fetchFiles(props.path, Math.trunc(props.page.itemsPerPage*props.page.pageNumber/itemsPerPage), itemsPerPage)}
-                    loading={props.loading} 
+                    onChange={itemsPerPage => props.fetchFiles(props.path, Math.trunc(props.page.itemsPerPage * props.page.pageNumber / itemsPerPage), itemsPerPage)}
+                    loading={props.loading}
                     onRefreshClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)}
                 />}
         />

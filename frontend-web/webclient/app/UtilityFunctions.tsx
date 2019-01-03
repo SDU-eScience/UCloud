@@ -97,7 +97,6 @@ export const shareSwal = () => swal({
     inputPlaceholder: "Enter username...",
     focusConfirm: false,
     inputValidator: (value: string) => {
-        console.log(elementValue("read_edit"))
         if (!value) return "Username missing";
         if (!(elementValue("read") || elementValue("read_edit"))) return "Select at least one access right";
         return null;

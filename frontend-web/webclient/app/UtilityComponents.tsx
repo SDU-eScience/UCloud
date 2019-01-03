@@ -1,14 +1,15 @@
 import * as React from "react";
-import { Icon, FtIcon, Heading, Absolute, Flex, Text, Label, Checkbox } from "ui-components";
+import { Icon, FtIcon, Heading, Absolute, Flex, Text, Label, Checkbox, Input } from "ui-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
 import { FtIconProps } from "UtilityFunctions";
 import { EntriesPerPageSelector } from "Pagination";
+import styled from "styled-components";
 
 
 interface FileIconProps { link?: boolean, shared?: boolean, fileIcon: FtIconProps, size?: string | number  }
 export const FileIcon = ({ shared = false, link = false, fileIcon }: FileIconProps) => 
     link || shared ?
-    <Flex style={{position: "relative"}}>
+    <RelativeFlex>
         <FtIcon size={30} fileIcon={fileIcon}/>
         <Absolute bottom={"-6px"} right={"-2px"}>
             <Dropdown>
@@ -18,8 +19,11 @@ export const FileIcon = ({ shared = false, link = false, fileIcon }: FileIconPro
                 </DropdownContent>
             </Dropdown>
         </Absolute>
-    </Flex> : <FtIcon size={30} fileIcon={fileIcon}/>
+    </RelativeFlex> : <FtIcon size={30} fileIcon={fileIcon}/>
 
+const RelativeFlex = styled(Flex)`
+    position: relative;
+`
 
 interface Arrow { name: "arrowUp" | "arrowDown" | undefined}
 export function Arrow({ name }: Arrow) {
@@ -105,11 +109,15 @@ export class PP extends React.Component<{ visible: boolean}, {duration: number}>
                     <animate attributeName="cy" dur={`${this.state.duration}ms`} repeatCount="indefinite" keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1" values="62;56;59;65;67;73;76;81;74;70;62"/>
                 </ellipse>
             </svg>
-            <input style={{ direction: "rtl" }} type="range" min="200" max="2000" value={this.state.duration} step="1" id="animationDuration" onChange={({target}) => this.updateDuration(parseInt(target.value))}/>
+            <RTLInput type="range" min="200" max="2000" value={this.state.duration} step="1" id="animationDuration" onChange={({target}) => this.updateDuration(parseInt(target.value))}/>
             </div>
             )
     }
 }
+
+const RTLInput = styled(Input)`
+    direction: rtl;
+`;
 
 interface MasterCheckbox {
     onClick: (e: boolean) => void

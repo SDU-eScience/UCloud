@@ -6,20 +6,14 @@ import { DetailedApplicationSearchReduxState, DetailedApplicationOperations } fr
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { setAppName, setVersion, fetchApplicationPageFromName, fetchApplicationPageFromTag } from "./Redux/DetailedApplicationSearchActions";
-import { object } from "prop-types";
 import { History } from "history";
 import { searchPage } from "Utilities/SearchUtilities";
+import { withRouter } from "react-router";
 
 type DetailedApplicationSearchProps = DetailedApplicationOperations & DetailedApplicationSearchReduxState;
-class DetailedApplicationSearch extends React.Component<DetailedApplicationSearchProps> {
+class DetailedApplicationSearch extends React.Component<DetailedApplicationSearchProps & { history: History }> {
     constructor(props: any) {
         super(props);
-    }
-
-    context: { router: { history: History } }
-
-    static contextTypes = {
-        router: object
     }
 
     private inputField = React.createRef<HTMLInputElement>();
@@ -33,7 +27,7 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
             this.inputField.current.value,
             25,
             0,
-            () => this.context.router.history.push(searchPage("applications", inputFieldValue))
+            () => this.props.history.push(searchPage("applications", inputFieldValue))
         );
     }
 
@@ -57,8 +51,6 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
                         />
                         <Flex mt="1em">
                             <LoadingButton type="submit" loading={this.props.loading} content="By Name" color="blue" />
-                            <Box ml="auto" />
-                            <LoadingButton type="submit" loading={false} color="blue" content="By Tag" disabled />
                         </Flex>
                     </form>
                 </Box>
@@ -68,8 +60,8 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
 
 const mapStateToProps = ({ detailedApplicationSearch }: ReduxObject) => detailedApplicationSearch;
 const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations => ({
-    setAppName: (appName) => dispatch(setAppName(appName)),
-    setVersionName: (version) => dispatch(setVersion(version)),
+    setAppName: appName => dispatch(setAppName(appName)),
+    setVersionName: version => dispatch(setVersion(version)),
     fetchApplicationsFromName: async (query, itemsPerPage, page, callback) => {
         dispatch(await fetchApplicationPageFromName(query, itemsPerPage, page));
         if (typeof callback === "function") callback();
@@ -80,4 +72,4 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations =
     }
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(DetailedApplicationSearch);
+export default connect(mapStateToProps, mapDispatchToProps)(withRouter(DetailedApplicationSearch));

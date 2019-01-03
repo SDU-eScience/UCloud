@@ -7,24 +7,17 @@ import {
 import { DatePicker } from "ui-components/DatePicker";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Flex, Input, Label, Stamp, InputGroup, OldStamp, Checkbox, Error, OutlineButton, LoadingButton, Icon } from "ui-components";
+import { Flex, Input, Label, Stamp, InputGroup, Checkbox, Error, OutlineButton, LoadingButton } from "ui-components";
 import * as Heading from "ui-components/Heading";
+import { History } from "history";
 import { ReduxObject, KeyCode } from "DefaultObjects";
 import { Dispatch } from "redux";
-import { History } from "history";
 import { searchPage } from "Utilities/SearchUtilities";
-import * as PropTypes from "prop-types";
 
-class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
+class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { history: History }> {
 
     constructor(props) {
         super(props);
-    }
-
-    context: { router: { history: History } }
-
-    static contextTypes = {
-        router: PropTypes.object
     }
 
     private extensionsInput = React.createRef<HTMLInputElement>();
@@ -114,7 +107,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
             itemsPerPage: 25,
             page: 0
         }
-        this.props.fetchPage(request, () => this.context.router.history.push(searchPage("files", this.props.fileName)));
+        this.props.fetchPage(request, () => this.props.history.push(searchPage("files", this.props.fileName)));
         this.props.setLoading(true);
     }
 
@@ -138,7 +131,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                 <OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Hide Advanced Search</OutlineButton>
                 <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                     <Box mt="0.5em">
-                        <form onSubmit={e => { e.preventDefault(); this.onSearch() }}>
+                        <form onSubmit={e => (e.preventDefault(), this.onSearch()) }>
                             <Error error={this.props.error} clearError={() => this.props.setError()} />
                             <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
                             <Input
@@ -317,7 +310,7 @@ const mapStateToProps = ({ detailedFileSearch }: ReduxObject): DetailedFileSearc
 import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import { DETAILED_FILES_ADD_EXTENSIONS, DETAILED_FILES_REMOVE_EXTENSIONS, DETAILED_FILES_ADD_SENSITIVITIES, DETAILED_FILES_REMOVE_SENSITIVITIES, DETAILED_FILES_ADD_TAGS, DETAILED_FILES_REMOVE_TAGS } from "./Redux/DetailedFileSearchReducer";
 import { searchFiles } from "Search/Redux/SearchActions";
-import { zIndex } from "styled-system";
+import { withRouter } from "react-router";
 const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations => ({
     toggleHidden: () => dispatch(DFSActions.toggleFilesSearchHidden()),
     addExtensions: ext => dispatch(DFSActions.extensionAction(DETAILED_FILES_ADD_EXTENSIONS, ext)),
@@ -339,4 +332,4 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations =>
     setError: error => dispatch(DFSActions.setErrorMessage(error))
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(DetailedFileSearch);
+export default connect(mapStateToProps, mapDispatchToProps)(withRouter(DetailedFileSearch));

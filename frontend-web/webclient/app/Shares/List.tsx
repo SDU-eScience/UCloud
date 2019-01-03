@@ -175,7 +175,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
             <Card width="100%" height="auto" p="10px 10px 10px 10px">
                 <Heading.h4>
                     <Flex>
-                        <i style={{ marginLeft: "3px", marginRight: "3px", fontSize: "24px" }} className="fas fa-folder" /> {getFilenameFromPath(groupedShare.path)}
+                        <Icon ml="3px" mr="3px" size={"24px"} name="ftFolder" /> {getFilenameFromPath(groupedShare.path)}
                         <Box ml="auto" />
                         <AccessRightsDisplay floated disabled rights={actualShare.rights} />
                     </Flex>
@@ -211,7 +211,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         const shareComponents: JSX.Element[] = groupedShare.shares.map((e, i, { length }) => (
             <Box key={e.id}>
                 <Flex m="5px 5px 5px 5px">
-                    <Box width="80%">
+                    <Box width="90%">
                         {e.sharedWith}
                         <AccessRightsDisplay rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />
                     </Box>
@@ -238,7 +238,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         return (
             <Card width="100%" p="10px 10px 10px 10px" height="auto">
                 <Heading.h4>
-                    <i style={{ marginLeft: "3px", marginRight: "3px", fontSize: "24px" }} className="fas fa-folder" /> {getFilenameFromPath(groupedShare.path)}
+                    <Icon ml="3px" mr="3px" size={"24px"} name="ftFolder" /> {getFilenameFromPath(groupedShare.path)}
                     <TextSpan fontSize={1} ml="0.8em" mr="0.8em" color="text">Shared with {groupedShare.shares.length} collaborators</TextSpan>
                     <LoadingButton
                         size={"small"}
