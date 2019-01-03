@@ -6,7 +6,7 @@ import { Link } from "ui-components";
 import { List } from "Pagination/List";
 import { connect } from "react-redux";
 import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
-import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps, Analysis } from ".";
+import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } from ".";
 import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
