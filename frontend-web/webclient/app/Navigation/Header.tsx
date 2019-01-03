@@ -2,7 +2,6 @@ import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import Link from "ui-components/Link";
-import * as PropTypes from "prop-types";
 import { Dispatch } from "redux";
 import { setSidebarState } from "./Redux/SidebarActions";
 import Avatar from "avataaars";
@@ -17,6 +16,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import { searchFiles } from "Search/Redux/SearchActions";
 import { searchPage } from "Utilities/SearchUtilities";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
+import { withRouter } from "react-router";
 
 
 
@@ -29,7 +29,7 @@ interface HeaderState {
     searchText: string
 }
 
-class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState> {
+class Header extends React.Component<HeaderProps & HeaderOperations & { history: History }, HeaderState> {
     constructor(props: any) {
         super(props);
         this.state = {
@@ -38,16 +38,9 @@ class Header extends React.Component<HeaderProps & HeaderOperations, HeaderState
         props.fetchLoginStatus()
     }
 
-    context: { router: { history: History } }
-
-    static contextTypes = {
-        router: PropTypes.object
-    }
-
     public render() {
-        const { history } = this.context.router;
         const { searchText } = this.state;
-        const { prioritizedSearch, searchFiles } = this.props;
+        const { prioritizedSearch, searchFiles, history } = this.props;
         return (
             <HeaderContainer color="headerText" bg={"headerBg"}>
                 <Logo />
@@ -206,4 +199,4 @@ const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps =
     prioritizedSearch: header.prioritizedSearch
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(Header);
+export default connect(mapStateToProps, mapDispatchToProps)(withRouter(Header));

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { identifierTypes } from "DefaultObjects";
-import { allLicenses } from "./licenses";
+import { allLicenses, License } from "./licenses";
 import { Contributor, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
 import { blankOrUndefined } from "UtilityFunctions";
 import * as PropTypes from "prop-types";
@@ -12,6 +12,7 @@ import { Input, DataList, Box, Button, Flex, TextArea, Text, Label } from "ui-co
 import { contentValuePairLicenses, contentValuePairIdentifierTypes } from "ui-components/DataList";
 import { TextSpan } from "ui-components/Text";
 import { connect } from "react-redux";
+import { license } from "ui-components/icons";
 
 // FIXME: MISSING TYPESAFETY THROUGHOUT
 
@@ -43,15 +44,16 @@ const filePathFromProps = (props: CreateUpdateProps): string | null =>
     getQueryParam(props, "filePath");
 
 
+
 class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     constructor(props) {
         super(props);
         const path = filePathFromProps(props);
         this.state = {
-            path,
+            path: path!,
             title: "",
             description: "",
-            license: null,
+            license: undefined,
             keywords: [""],
             notes: "",
             dataManagementPlan: "",
@@ -65,10 +67,6 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         props.dispatch(updatePageTitle("Edit Project"));
         this.setStateEv = this.setStateEv.bind(this);
         this.setStateEvList = this.setStateEvList.bind(this);
-    }
-
-    static contextTypes = {
-        store: PropTypes.object
     }
 
     componentDidMount() {

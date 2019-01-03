@@ -60,8 +60,8 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
 
 const mapStateToProps = ({ detailedApplicationSearch }: ReduxObject) => detailedApplicationSearch;
 const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations => ({
-    setAppName: (appName) => dispatch(setAppName(appName)),
-    setVersionName: (version) => dispatch(setVersion(version)),
+    setAppName: appName => dispatch(setAppName(appName)),
+    setVersionName: version => dispatch(setVersion(version)),
     fetchApplicationsFromName: async (query, itemsPerPage, page, callback) => {
         dispatch(await fetchApplicationPageFromName(query, itemsPerPage, page));
         if (typeof callback === "function") callback();

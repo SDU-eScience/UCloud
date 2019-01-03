@@ -18,10 +18,6 @@ export interface ListProps {
     byPath?: string
 }
 
-export interface ListContext {
-    store: Store
-}
-
 export interface Share {
     id: ShareId,
     sharedWith: String,
