@@ -8,10 +8,11 @@ import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { fileTablePage } from "Utilities/FileUtilities";
-import { ExternalLink, RatingBadge } from "ui-components";
+import { ExternalLink, RatingBadge, Hide } from "ui-components";
 import { RBox } from "ui-components";
 import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
+import { FlexCProps } from "./Flex";
 
 
 const SidebarElementContainer = styled(Flex)`
@@ -26,6 +27,8 @@ const SidebarElementContainer = styled(Flex)`
 
 //This is applied to SidebarContainer on small screens
 const HideText = css`
+${({ theme }) => theme.mediaQueryLT["xl"]} {
+    
     will-change: transform, opacity;
     
     & { 
@@ -59,10 +62,11 @@ const HideText = css`
             }
         
         }
-
+    
+}
 `;
 
-const SidebarContainer = styled(Flex)`
+const SidebarContainer = styled(Flex)<FlexCProps>`
     position: fixed;
     z-index: 80;
     top: 0;
@@ -71,6 +75,8 @@ const SidebarContainer = styled(Flex)`
     height: 100%;
     background-color: ${props => props.theme.colors.lightGray}; 
     border-right: 1px solid ${props => props.theme.colors.borderGray};
+
+    ${HideText}
 `;
 
 interface TextLabelProps { icon: IconName, label: string, height?: string, 
@@ -135,11 +141,11 @@ interface SidebarProps extends SidebarStateProps{
 const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: SidebarProps )  => {
     let sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
-        .filter(it => it.predicate());
+        .filter(it => it.predicate())
     return (
         <SidebarContainer color="text" flexDirection="column"
             width={ 190 }
-            css={ responsiveState!.greaterThan.xl ? null : HideText }
+            // css={ responsiveState!.greaterThan.xl ? null : HideText }
         >
             {sidebar.map((category, categoryIdx) =>
                 <React.Fragment key={categoryIdx}>

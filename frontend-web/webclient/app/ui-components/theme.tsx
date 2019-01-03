@@ -1,4 +1,5 @@
-const createMediaQuery = (n: string | number) => `@media screen and (min-width:${n})`
+const createMinMediaQuery = (n: number) => `@media screen and (min-width:${n}px)`
+const createMaxMediaQuery = (n: number) => `@media screen and (max-width:${n-1}px)`
 
 const addAliases = (arr: any, aliases: any[]) =>
   aliases.forEach((key, i) =>
@@ -11,13 +12,17 @@ const addAliases = (arr: any, aliases: any[]) =>
   )
 
 // export const breakpoints = [32, 40, 48, 64, 80].map(n => n + 'em')
-export const breakpoints = [512, 640, 768, 1024, 1280].map(n => n + 'px')
+const bp = [512, 640, 768, 1024, 1280]
 const aliases = ['xs', 'sm', 'md', 'lg', 'xl']
-export const responsiveBP = { xs: 512-1, sm: 640-1, md: 768-1, lg: 1024-1, xl: 1280-1 } 
+export const breakpoints = bp.map(n => n + 'px')
+export const responsiveBP = bp.map((n,i) => ({[aliases[i]]: n-1})).reduce((obj, item) => ({...obj, ...item}) ,{})
+//export const responsiveBP = { xs: 512-1, sm: 640-1, md: 768-1, lg: 1024-1, xl: 1280-1 } 
 
-export const mediaQueries = breakpoints.map(createMediaQuery)
+export const mediaQueryGT = bp.map(createMinMediaQuery)
+export const mediaQueryLT = bp.map(createMaxMediaQuery)
 addAliases(breakpoints, aliases)
-addAliases(mediaQueries, aliases)
+addAliases(mediaQueryGT, aliases)
+addAliases(mediaQueryLT, aliases)
 
 export const space = [0, 4, 8, 16, 32, 64, 128]
 
@@ -382,7 +387,8 @@ const transitionDelays = {
 
 const theme = {
   breakpoints,
-  mediaQueries,
+  mediaQueryGT,
+  mediaQueryLT,
   space,
   fontFamily,
   fontSizes,
