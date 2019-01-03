@@ -26,7 +26,7 @@ import Spinner from "LoadingIcon/LoadingIcon";
 import * as UF from "UtilityFunctions";
 import * as Accounting from "Accounting";
 import { MainContainer } from "MainContainer/MainContainer";
-import { EveryIcon } from "ui-components/Icon";
+import { Spacer } from "ui-components/Spacer";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={290} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
@@ -193,9 +193,10 @@ interface DashboardNotificationProps {
 const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: DashboardNotificationProps) => (
     <Card height="auto" width={290} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3}>
-            <Heading.h4>Recent Notifications</Heading.h4>
-            <Box ml="auto" />
-            <Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />
+            <Spacer
+                left={<Heading.h4>Recent Notifications</Heading.h4>}
+                right={<Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />}
+            />
         </Flex>
         <Box px={3} py={1}>
             {notifications.length === 0 ? <Heading.h6>No notifications</Heading.h6> : null}

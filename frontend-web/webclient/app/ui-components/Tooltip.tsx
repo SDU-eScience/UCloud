@@ -1,9 +1,12 @@
+// FIXME: Is this file even in use?
+
 import * as React from "react";
 import Box, { BoxProps } from "./Box"
 
 import theme from "./theme"
 
 import styled from "styled-components"
+import { Relative } from "ui-components";
 
 const arrowShadow = (props: { top?: boolean }) => {
   return props.top
@@ -113,11 +116,11 @@ const defaultProps = {
 
 const Tooltip = ({ children, ...props }: any) => {
   return (
-    <div style={{ position: "relative", zIndex: props.zIndex }}>
+    <Relative zIndex={props.zIndex}>
       <TooltipContent p={2} mb={3} mt={2} {...props}>
         {children}
       </TooltipContent>
-    </div>
+    </Relative>
   )
 }
 
