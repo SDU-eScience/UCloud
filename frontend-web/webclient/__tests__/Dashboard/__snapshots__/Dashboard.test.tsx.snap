@@ -39,105 +39,109 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         fontSize="large"
       >
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX gLDgFo"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 43 56"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M29 0H1.463C.655 0 0 .655 0 1.926v52.611C.009 55.246.655 56 1.463 56h40.074c.808 0 1.453-.709 1.463-1.463V10L29 0z"
-              fill="#ebeff3"
-            />
-            <circle
-              cx={639}
-              cy={571}
-              fill="#ffd900"
-              r={6}
-              transform="translate(-629 -561)"
-            />
-            <ellipse
-              cx={646.5}
-              cy={569}
-              fill="#87c7ff"
-              rx={3.5}
-              ry={3}
-              transform="translate(-624.5 -551.143)"
-            />
-            <ellipse
-              cx={648.5}
-              cy={566.429}
-              fill="#87c7ff"
-              rx={3.5}
-              ry={2.571}
-              transform="translate(-623 -551.286)"
-            />
-            <ellipse
-              cx={650}
-              cy={570.429}
-              fill="#87c7ff"
-              rx={3}
-              ry={2.571}
-              transform="translate(-623 -551)"
-            />
-            <ellipse
-              cx={654}
-              cy={568.571}
-              fill="#87c7ff"
-              rx={3}
-              ry={2.571}
-              transform="translate(-624 -551.286)"
-            />
-            <path
-              d="M0 39l12-18 7.999 10.857L32 16l11 14v9H0z"
-              fill="#3d4d65"
-            />
-            <path
-              d="M29 0l14 10-12 2-2-12z"
-              fill="#8393A7"
-            />
-            <path
-              d="M41.537 56H1.463A1.463 1.463 0 0 1 0 54.537V39h43v15.537c0 .808-.655 1.463-1.463 1.463z"
-              fill="red"
-            />
-            <text
-              fill="#fff"
-              style={
-                Object {
-                  "fontSize": "15px",
-                  "fontWeight": "bold",
-                  "letterSpacing": "1px",
-                  "textTransform": "uppercase",
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 43 56"
+              width={30}
+            >
+              <path
+                d="M29 0H1.463C.655 0 0 .655 0 1.926v52.611C.009 55.246.655 56 1.463 56h40.074c.808 0 1.453-.709 1.463-1.463V10L29 0z"
+                fill="#ebeff3"
+              />
+              <circle
+                cx={639}
+                cy={571}
+                fill="#ffd900"
+                r={6}
+                transform="translate(-629 -561)"
+              />
+              <ellipse
+                cx={646.5}
+                cy={569}
+                fill="#87c7ff"
+                rx={3.5}
+                ry={3}
+                transform="translate(-624.5 -551.143)"
+              />
+              <ellipse
+                cx={648.5}
+                cy={566.429}
+                fill="#87c7ff"
+                rx={3.5}
+                ry={2.571}
+                transform="translate(-623 -551.286)"
+              />
+              <ellipse
+                cx={650}
+                cy={570.429}
+                fill="#87c7ff"
+                rx={3}
+                ry={2.571}
+                transform="translate(-623 -551)"
+              />
+              <ellipse
+                cx={654}
+                cy={568.571}
+                fill="#87c7ff"
+                rx={3}
+                ry={2.571}
+                transform="translate(-624 -551.286)"
+              />
+              <path
+                d="M0 39l12-18 7.999 10.857L32 16l11 14v9H0z"
+                fill="#3d4d65"
+              />
+              <path
+                d="M29 0l14 10-12 2-2-12z"
+                fill="#8393A7"
+              />
+              <path
+                d="M41.537 56H1.463A1.463 1.463 0 0 1 0 54.537V39h43v15.537c0 .808-.655 1.463-1.463 1.463z"
+                fill="red"
+              />
+              <text
+                fill="#fff"
+                style={
+                  Object {
+                    "fontSize": "15px",
+                    "fontWeight": "bold",
+                    "letterSpacing": "1px",
+                    "textTransform": "uppercase",
+                  }
                 }
-              }
-              textAnchor="middle"
-              x="21.5"
-              y="53"
+                textAnchor="middle"
+                x="21.5"
+                y="53"
+              >
+                png
+              </text>
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
+              ml="0.5em"
+              onClick={[Function]}
             >
-              png
-            </text>
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM fAKqce"
-              fontSize={2}
-              width={200}
-            >
-              Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
-            </div>
-          </a>
+              <div
+                className="sc-EHOje sc-bZQynM fAKqce"
+                fontSize={2}
+                width={200}
+              >
+                Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -159,39 +163,43 @@ exports[`Dashboard Component Mount with favorites 1`] = `
           </svg>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX gLDgFo"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM fAKqce"
-              fontSize={2}
-              width={200}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              AABA
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM fAKqce"
+                fontSize={2}
+                width={200}
+              >
+                AABA
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -213,39 +221,43 @@ exports[`Dashboard Component Mount with favorites 1`] = `
           </svg>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX gLDgFo"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM fAKqce"
-              fontSize={2}
-              width={200}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              Favorites
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM fAKqce"
+                fontSize={2}
+                width={200}
+              >
+                Favorites
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -267,39 +279,43 @@ exports[`Dashboard Component Mount with favorites 1`] = `
           </svg>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX gLDgFo"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM fAKqce"
-              fontSize={2}
-              width={200}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              Jobs
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM fAKqce"
+                fontSize={2}
+                width={200}
+              >
+                Jobs
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -321,39 +337,43 @@ exports[`Dashboard Component Mount with favorites 1`] = `
           </svg>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX gLDgFo"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM fAKqce"
-              fontSize={2}
-              width={200}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              A folder the sequel
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM fAKqce"
+                fontSize={2}
+                width={200}
+              >
+                A folder the sequel
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -375,39 +395,43 @@ exports[`Dashboard Component Mount with favorites 1`] = `
           </svg>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX gLDgFo"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM fAKqce"
-              fontSize={2}
-              width={200}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              B
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM fAKqce"
+                fontSize={2}
+                width={200}
+              >
+                B
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -429,39 +453,43 @@ exports[`Dashboard Component Mount with favorites 1`] = `
           </svg>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX gLDgFo"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM fAKqce"
-              fontSize={2}
-              width={200}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              rehjoerijhoerijh
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM fAKqce"
+                fontSize={2}
+                width={200}
+              >
+                rehjoerijhoerijh
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -483,39 +511,43 @@ exports[`Dashboard Component Mount with favorites 1`] = `
           </svg>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX gLDgFo"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM fAKqce"
-              fontSize={2}
-              width={200}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              Test
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM fAKqce"
+                fontSize={2}
+                width={200}
+              >
+                Test
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -537,39 +569,43 @@ exports[`Dashboard Component Mount with favorites 1`] = `
           </svg>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX gLDgFo"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM fAKqce"
-              fontSize={2}
-              width={200}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM fAKqce"
+                fontSize={2}
+                width={200}
+              >
+                somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -591,39 +627,43 @@ exports[`Dashboard Component Mount with favorites 1`] = `
           </svg>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX gLDgFo"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM fAKqce"
-              fontSize={2}
-              width={200}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM fAKqce"
+                fontSize={2}
+                width={200}
+              >
+                somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -752,14 +792,13 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         cursor="auto"
       />
       <svg
-        className="sc-gzVnrw gCVALd"
+        className="sc-gzVnrw kKzmRK"
         clipRule="evenodd"
         color2="#8393A7"
         cursor="pointer"
         fill="currentcolor"
         fillRule="evenodd"
         height={24}
-        m="5px"
         onClick={[Function]}
         title="Mark all as read"
         viewBox="0 0 24 14"
@@ -830,36 +869,36 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-hqyNC fqKDmH"
+          className="sc-dNLxif cjFzxQ"
           height={24}
           width={24}
         >
           <div
-            className="sc-jbKcbu sc-dNLxif elDiOj"
+            className="sc-jqCOkK sc-uJMKN dwmSIB"
           />
           <div
-            className="sc-jbKcbu sc-jqCOkK jnruQM"
+            className="sc-jqCOkK sc-bbmXgH ldwYB"
           />
           <div
-            className="sc-jbKcbu sc-uJMKN gufTgM"
+            className="sc-jqCOkK sc-gGBfsJ gSwopv"
           />
           <div
-            className="sc-jbKcbu sc-bbmXgH ggFzrt"
+            className="sc-jqCOkK sc-jnlKLf brcsKI"
           />
           <div
-            className="sc-jbKcbu sc-gGBfsJ hBlAin"
+            className="sc-jqCOkK sc-fYxtnH bHUzFw"
           />
           <div
-            className="sc-jbKcbu sc-jnlKLf deMkin"
+            className="sc-jqCOkK sc-tilXH iPPHde"
           />
           <div
-            className="sc-jbKcbu sc-fYxtnH koUAlR"
+            className="sc-jqCOkK sc-hEsumM kKzPLK"
           />
           <div
-            className="sc-jbKcbu sc-tilXH fLDXAY"
+            className="sc-jqCOkK sc-ktHwxA fRpOUA"
           />
           <div
-            className="sc-jbKcbu sc-hEsumM iJSkkm"
+            className="sc-jqCOkK sc-cIShpX cGDmmd"
           />
         </div>
       </div>
@@ -900,36 +939,36 @@ exports[`Dashboard Component Mount with favorites 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-ktHwxA jhOlMX"
+          className="sc-kafWEX eCLwzo"
           height={24}
           width={24}
         >
           <div
-            className="sc-cIShpX sc-kafWEX fqrKvo"
+            className="sc-feJyhm sc-iELTvK kWVTbR"
           />
           <div
-            className="sc-cIShpX sc-feJyhm dHyTzJ"
+            className="sc-feJyhm sc-cmTdod jsQOqK"
           />
           <div
-            className="sc-cIShpX sc-iELTvK ZtFFl"
+            className="sc-feJyhm sc-jwKygS jwxzmR"
           />
           <div
-            className="sc-cIShpX sc-cmTdod fDvFOw"
+            className="sc-feJyhm sc-btzYZH eybrZn"
           />
           <div
-            className="sc-cIShpX sc-jwKygS gxGspV"
+            className="sc-feJyhm sc-lhVmIH ifTeFQ"
           />
           <div
-            className="sc-cIShpX sc-btzYZH eksEpi"
+            className="sc-feJyhm sc-bYSBpT gIyotQ"
           />
           <div
-            className="sc-cIShpX sc-lhVmIH fRACGj"
+            className="sc-feJyhm sc-elJkPf jkgXTX"
           />
           <div
-            className="sc-cIShpX sc-bYSBpT czzcz"
+            className="sc-feJyhm sc-jtRfpW begvvJ"
           />
           <div
-            className="sc-cIShpX sc-elJkPf jtkvtn"
+            className="sc-feJyhm sc-kTUwUJ bGByMu"
           />
         </div>
       </div>
@@ -1020,105 +1059,109 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         fontSize="large"
       >
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX yeoxf"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 43 56"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M29 0H1.463C.655 0 0 .655 0 1.926v52.611C.009 55.246.655 56 1.463 56h40.074c.808 0 1.453-.709 1.463-1.463V10L29 0z"
-              fill="#ebeff3"
-            />
-            <circle
-              cx={639}
-              cy={571}
-              fill="#ffd900"
-              r={6}
-              transform="translate(-629 -561)"
-            />
-            <ellipse
-              cx={646.5}
-              cy={569}
-              fill="#87c7ff"
-              rx={3.5}
-              ry={3}
-              transform="translate(-624.5 -551.143)"
-            />
-            <ellipse
-              cx={648.5}
-              cy={566.429}
-              fill="#87c7ff"
-              rx={3.5}
-              ry={2.571}
-              transform="translate(-623 -551.286)"
-            />
-            <ellipse
-              cx={650}
-              cy={570.429}
-              fill="#87c7ff"
-              rx={3}
-              ry={2.571}
-              transform="translate(-623 -551)"
-            />
-            <ellipse
-              cx={654}
-              cy={568.571}
-              fill="#87c7ff"
-              rx={3}
-              ry={2.571}
-              transform="translate(-624 -551.286)"
-            />
-            <path
-              d="M0 39l12-18 7.999 10.857L32 16l11 14v9H0z"
-              fill="#3d4d65"
-            />
-            <path
-              d="M29 0l14 10-12 2-2-12z"
-              fill="#8393A7"
-            />
-            <path
-              d="M41.537 56H1.463A1.463 1.463 0 0 1 0 54.537V39h43v15.537c0 .808-.655 1.463-1.463 1.463z"
-              fill="red"
-            />
-            <text
-              fill="#fff"
-              style={
-                Object {
-                  "fontSize": "15px",
-                  "fontWeight": "bold",
-                  "letterSpacing": "1px",
-                  "textTransform": "uppercase",
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 43 56"
+              width={30}
+            >
+              <path
+                d="M29 0H1.463C.655 0 0 .655 0 1.926v52.611C.009 55.246.655 56 1.463 56h40.074c.808 0 1.453-.709 1.463-1.463V10L29 0z"
+                fill="#ebeff3"
+              />
+              <circle
+                cx={639}
+                cy={571}
+                fill="#ffd900"
+                r={6}
+                transform="translate(-629 -561)"
+              />
+              <ellipse
+                cx={646.5}
+                cy={569}
+                fill="#87c7ff"
+                rx={3.5}
+                ry={3}
+                transform="translate(-624.5 -551.143)"
+              />
+              <ellipse
+                cx={648.5}
+                cy={566.429}
+                fill="#87c7ff"
+                rx={3.5}
+                ry={2.571}
+                transform="translate(-623 -551.286)"
+              />
+              <ellipse
+                cx={650}
+                cy={570.429}
+                fill="#87c7ff"
+                rx={3}
+                ry={2.571}
+                transform="translate(-623 -551)"
+              />
+              <ellipse
+                cx={654}
+                cy={568.571}
+                fill="#87c7ff"
+                rx={3}
+                ry={2.571}
+                transform="translate(-624 -551.286)"
+              />
+              <path
+                d="M0 39l12-18 7.999 10.857L32 16l11 14v9H0z"
+                fill="#3d4d65"
+              />
+              <path
+                d="M29 0l14 10-12 2-2-12z"
+                fill="#8393A7"
+              />
+              <path
+                d="M41.537 56H1.463A1.463 1.463 0 0 1 0 54.537V39h43v15.537c0 .808-.655 1.463-1.463 1.463z"
+                fill="red"
+              />
+              <text
+                fill="#fff"
+                style={
+                  Object {
+                    "fontSize": "15px",
+                    "fontWeight": "bold",
+                    "letterSpacing": "1px",
+                    "textTransform": "uppercase",
+                  }
                 }
-              }
-              textAnchor="middle"
-              x="21.5"
-              y="53"
+                textAnchor="middle"
+                x="21.5"
+                y="53"
+              >
+                png
+              </text>
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
+              ml="0.5em"
+              onClick={[Function]}
             >
-              png
-            </text>
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2F"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM dUBznq"
-              fontSize={2}
-              width={130}
-            >
-              Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
-            </div>
-          </a>
+              <div
+                className="sc-EHOje sc-bZQynM dUBznq"
+                fontSize={2}
+                width={130}
+              >
+                Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -1133,39 +1176,43 @@ exports[`Dashboard Component Mount with recent files 1`] = `
           </div>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX yeoxf"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM dUBznq"
-              fontSize={2}
-              width={130}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              AABA
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FAABA"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM dUBznq"
+                fontSize={2}
+                width={130}
+              >
+                AABA
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -1180,39 +1227,43 @@ exports[`Dashboard Component Mount with recent files 1`] = `
           </div>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX yeoxf"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM dUBznq"
-              fontSize={2}
-              width={130}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              Favorites
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FFavorites"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM dUBznq"
+                fontSize={2}
+                width={130}
+              >
+                Favorites
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -1227,39 +1278,43 @@ exports[`Dashboard Component Mount with recent files 1`] = `
           </div>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX yeoxf"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM dUBznq"
-              fontSize={2}
-              width={130}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              Jobs
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FJobs"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM dUBznq"
+                fontSize={2}
+                width={130}
+              >
+                Jobs
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -1274,39 +1329,43 @@ exports[`Dashboard Component Mount with recent files 1`] = `
           </div>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX yeoxf"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM dUBznq"
-              fontSize={2}
-              width={130}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              A folder the sequel
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FA%20folder%20the%20sequel"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM dUBznq"
+                fontSize={2}
+                width={130}
+              >
+                A folder the sequel
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -1321,39 +1380,43 @@ exports[`Dashboard Component Mount with recent files 1`] = `
           </div>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX yeoxf"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM dUBznq"
-              fontSize={2}
-              width={130}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              B
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FB"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM dUBznq"
+                fontSize={2}
+                width={130}
+              >
+                B
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -1368,39 +1431,43 @@ exports[`Dashboard Component Mount with recent files 1`] = `
           </div>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX yeoxf"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM dUBznq"
-              fontSize={2}
-              width={130}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              rehjoerijhoerijh
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2Frehjoerijhoerijh"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM dUBznq"
+                fontSize={2}
+                width={130}
+              >
+                rehjoerijhoerijh
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -1415,39 +1482,43 @@ exports[`Dashboard Component Mount with recent files 1`] = `
           </div>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX yeoxf"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM dUBznq"
-              fontSize={2}
-              width={130}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              Test
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2FTest"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM dUBznq"
+                fontSize={2}
+                width={130}
+              >
+                Test
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -1462,39 +1533,43 @@ exports[`Dashboard Component Mount with recent files 1`] = `
           </div>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX yeoxf"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM dUBznq"
-              fontSize={2}
-              width={130}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM dUBznq"
+                fontSize={2}
+                width={130}
+              >
+                somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -1509,39 +1584,43 @@ exports[`Dashboard Component Mount with recent files 1`] = `
           </div>
         </div>
         <div
-          className="sc-ifAKCX fdcbWa"
+          className="sc-ifAKCX yeoxf"
         >
-          <svg
-            className="sc-jzJRlG kzvOTf"
-            clipRule="evenodd"
-            cursor="inherit"
-            fillRule="evenodd"
-            height={30}
-            viewBox="0 0 24 22"
-            width={30}
+          <div
+            className="sc-ifAKCX bjQOJc"
           >
-            <path
-              d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
-              fill="#8393A7"
-              fillRule="nonzero"
-            />
-          </svg>
-          <a
-            className="sc-kEYyzF bSXGUo"
-            color="text"
-            hoverColor="textHighlight"
-            href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
-            ml="0.5em"
-            onClick={[Function]}
-          >
-            <div
-              className="sc-EHOje sc-bZQynM dUBznq"
-              fontSize={2}
-              width={130}
+            <svg
+              className="sc-jzJRlG kzvOTf"
+              clipRule="evenodd"
+              cursor="inherit"
+              fillRule="evenodd"
+              height={30}
+              viewBox="0 0 24 22"
+              width={30}
             >
-              somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
-            </div>
-          </a>
+              <path
+                d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+                fill="#8393A7"
+                fillRule="nonzero"
+              />
+            </svg>
+            <a
+              className="sc-kEYyzF fxVpHk"
+              color="text"
+              hoverColor="textHighlight"
+              href="/files?path=%2Fhome%2Fuser%40user.telecity%2Fsomefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB"
+              ml="0.5em"
+              onClick={[Function]}
+            >
+              <div
+                className="sc-EHOje sc-bZQynM dUBznq"
+                fontSize={2}
+                width={130}
+              >
+                somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB
+              </div>
+            </a>
+          </div>
           <div
             className="sc-bdVaJa duHGOK"
             cursor="auto"
@@ -1627,14 +1706,13 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         cursor="auto"
       />
       <svg
-        className="sc-gzVnrw gCVALd"
+        className="sc-gzVnrw kKzmRK"
         clipRule="evenodd"
         color2="#8393A7"
         cursor="pointer"
         fill="currentcolor"
         fillRule="evenodd"
         height={24}
-        m="5px"
         onClick={[Function]}
         title="Mark all as read"
         viewBox="0 0 24 14"
@@ -1705,36 +1783,36 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-jtRfpW fckqwG"
+          className="sc-dqBHgY keEKRs"
           height={24}
           width={24}
         >
           <div
-            className="sc-kTUwUJ sc-dqBHgY gctcgQ"
+            className="sc-gxMtzJ sc-dfVpRl gSTqeV"
           />
           <div
-            className="sc-kTUwUJ sc-gxMtzJ cfErJF"
+            className="sc-gxMtzJ sc-gzOgki iYsPvs"
           />
           <div
-            className="sc-kTUwUJ sc-dfVpRl bvtFoG"
+            className="sc-gxMtzJ sc-iyvyFf bjVELi"
           />
           <div
-            className="sc-kTUwUJ sc-gzOgki cIjMRc"
+            className="sc-gxMtzJ sc-hwwEjo gQcako"
           />
           <div
-            className="sc-kTUwUJ sc-iyvyFf drbswX"
+            className="sc-gxMtzJ sc-kPVwWT kdaZNh"
           />
           <div
-            className="sc-kTUwUJ sc-hwwEjo hzGxbW"
+            className="sc-gxMtzJ sc-kfGgVZ eMDznJ"
           />
           <div
-            className="sc-kTUwUJ sc-kPVwWT liiLhy"
+            className="sc-gxMtzJ sc-esjQYD cfAbDM"
           />
           <div
-            className="sc-kTUwUJ sc-kfGgVZ csrGNa"
+            className="sc-gxMtzJ sc-kIPQKe dHRJoG"
           />
           <div
-            className="sc-kTUwUJ sc-esjQYD iGwYDU"
+            className="sc-gxMtzJ sc-eXEjpC jnFpmv"
           />
         </div>
       </div>
@@ -1775,36 +1853,36 @@ exports[`Dashboard Component Mount with recent files 1`] = `
         cursor="auto"
       >
         <div
-          className="sc-kIPQKe Pvsnd"
+          className="sc-ibxdXY bMsPNE"
           height={24}
           width={24}
         >
           <div
-            className="sc-eXEjpC sc-ibxdXY huzKvo"
+            className="sc-RefOD sc-iQKALj jjVILk"
           />
           <div
-            className="sc-eXEjpC sc-RefOD flOESk"
+            className="sc-RefOD sc-bwCtUz cSRypf"
           />
           <div
-            className="sc-eXEjpC sc-iQKALj cKJlBb"
+            className="sc-RefOD sc-hrWEMg kbdefG"
           />
           <div
-            className="sc-eXEjpC sc-bwCtUz lYLYi"
+            className="sc-RefOD sc-eTuwsz jQvmSG"
           />
           <div
-            className="sc-eXEjpC sc-hrWEMg gEqfMo"
+            className="sc-RefOD sc-gwVKww jOlzQw"
           />
           <div
-            className="sc-eXEjpC sc-eTuwsz dTJCow"
+            className="sc-RefOD sc-hXRMBi jqzVwI"
           />
           <div
-            className="sc-eXEjpC sc-gwVKww hAxggQ"
+            className="sc-RefOD sc-epnACN eTBpiA"
           />
           <div
-            className="sc-eXEjpC sc-hXRMBi jTLFXJ"
+            className="sc-RefOD sc-iQNlJl bmXAHd"
           />
           <div
-            className="sc-eXEjpC sc-epnACN bpIRJz"
+            className="sc-RefOD sc-bsbRJL bNlrPc"
           />
         </div>
       </div>

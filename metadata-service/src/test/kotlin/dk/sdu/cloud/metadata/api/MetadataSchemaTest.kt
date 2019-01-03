@@ -137,7 +137,6 @@ class MetadataSchemaTest {
         assertEquals("term", metadata.subjects?.get(0)?.term)
         assertEquals("scheme", metadata.subjects?.get(0)?.scheme)
 
-        assertEquals("isCitedBy", metadata.relatedIdentifiers?.get(0)?.relation)
         assertEquals("id", metadata.relatedIdentifiers?.get(0)?.identifier)
 
         assertEquals("Jtitle", metadata.journalInformation?.title)

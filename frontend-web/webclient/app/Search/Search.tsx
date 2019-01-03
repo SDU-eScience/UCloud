@@ -13,7 +13,7 @@ import { Page } from "Types";
 import { Dispatch } from "redux";
 import { File, SortOrder, SortBy, AdvancedSearchRequest, FileType } from "Files";
 import * as SSActions from "./Redux/SearchActions";
-import { Error, Hide, Input, OutlineButton, Text, Flex, ToggleBadge } from "ui-components";
+import { Error, Hide, Input, OutlineButton, Text, Flex, ToggleBadge, theme } from "ui-components";
 import Card, { CardGroup } from "ui-components/Card";
 import { MainContainer } from "MainContainer/MainContainer";
 import DetailedFileSearch from "Files/DetailedFileSearch";
@@ -23,6 +23,7 @@ import { setAppName } from "Applications/Redux/DetailedApplicationSearchActions"
 import { FilesTable } from "Files/FilesTable";
 import { searchPage } from "Utilities/SearchUtilities";
 import { getQueryParamOrElse } from "Utilities/URIUtilities";
+import styled from "styled-components";
 
 interface SearchPane {
     headerType: HeaderSearchType
@@ -118,11 +119,11 @@ class Search extends React.Component<SearchProps> {
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
         const fileOperations = AllFileOperations(true, false, false, this.props.history);
-
+        // FIXME: Search Pane approach is obsolete
         const panes: SearchPane[] = [
             {
                 headerType: "files",
-                menuItem: "Files", 
+                menuItem: "Files",
                 render: () => (
                     <Pagination.List
                         loading={filesLoading}
@@ -146,7 +147,7 @@ class Search extends React.Component<SearchProps> {
             },
             {
                 headerType: "projects",
-                menuItem: "Projects", 
+                menuItem: "Projects",
                 render: () => (
                     <Pagination.List
                         loading={projectsLoading}
@@ -159,7 +160,7 @@ class Search extends React.Component<SearchProps> {
             },
             {
                 headerType: "applications",
-                menuItem: "Applications", 
+                menuItem: "Applications",
                 render: () => (
                     <Pagination.List
                         loading={applicationsLoading}
@@ -184,17 +185,15 @@ class Search extends React.Component<SearchProps> {
         const activeIndex = SearchPriorityToNumber(this.props.match.params.priority);
 
         const Tab = ({ pane, index }: { pane: SearchPane, index: number }): JSX.Element => (
-            <ToggleBadge 
-                bg="lightGray" 
-                pb="12px" 
-                pt="10px" 
-                fontSize={2} 
-                onClick={() => this.setPath(pane.headerType)} 
-                color={"black"} 
+            <SelectableText
+                cursor="pointer"
+                fontSize={2}
+                onClick={() => this.setPath(pane.headerType)}
                 selected={activeIndex === index}
+                mr="1em"
             >
                 {pane.menuItem}
-            </ToggleBadge>
+            </SelectableText>
         );
         return (
             <MainContainer
@@ -206,11 +205,9 @@ class Search extends React.Component<SearchProps> {
                                 <Input onChange={({ target: { value } }) => this.props.setSearch(value)} />
                             </form>
                         </Hide>
-                        <Card mt="0.5em" height="3em" width="100%">
-                            <Flex>
-                                {panes.map((pane, index) => <Tab pane={pane} index={index} key={index} />)}
-                            </Flex>
-                        </Card>
+                        <SearchOptions>
+                            {panes.map((pane, index) => <Tab pane={pane} index={index} key={index} />)}
+                        </SearchOptions>
                     </React.Fragment>
                 }
                 main={panes[activeIndex].render()}
@@ -219,6 +216,14 @@ class Search extends React.Component<SearchProps> {
         );
     }
 };
+
+const SearchOptions = styled(Flex)`
+    border-bottom: 1px solid ${theme.colors.lightGray};
+`;
+
+const SelectableText = styled(Text) <{ selected: boolean }>`
+    border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : undefined};
+`
 
 type MenuItemName = "Files" | "Projects" | "Applications";
 type SearchBarProps = { active: MenuItemName }

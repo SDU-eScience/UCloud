@@ -64,7 +64,7 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-kEYyzF dnEJKT"
+            className="sc-kEYyzF kBHEWJ"
             color="text"
             hoverColor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
@@ -123,7 +123,7 @@ Array [
             fontSize="large"
           >
             <a
-              className="sc-hMqMXs jvXQSL"
+              className="sc-hMqMXs iBxVEb"
               color="text"
               href="https://spdx.org/licenses/AML.html"
               rel="noopener"
@@ -194,8 +194,8 @@ Array [
             fontSize="large"
           >
             <div
-              className="sc-brqgnP fWStYE"
-              color="black"
+              className="sc-brqgnP iHrXtE"
+              color="lightGray"
               fontSize={0}
             >
               Example
@@ -287,7 +287,7 @@ Array [
       }
     >
       <div
-        className="sc-bdVaJa hORKfa"
+        className="sc-bdVaJa sc-cHGsZl bPQttJ"
         cursor="auto"
       >
         <div
@@ -326,7 +326,7 @@ Array [
             </div>
           </h4>
           <a
-            className="sc-kEYyzF dnEJKT"
+            className="sc-kEYyzF kBHEWJ"
             color="text"
             hoverColor="textHighlight"
             href="/projects/edit?filePath=%2Fhome%2Fjonas%40hinchely.dk%2FThe%20Project"
@@ -385,7 +385,7 @@ Array [
             fontSize="large"
           >
             <a
-              className="sc-hMqMXs jvXQSL"
+              className="sc-hMqMXs iBxVEb"
               color="text"
               href="https://spdx.org/licenses/AML.html"
               rel="noopener"
@@ -456,8 +456,8 @@ Array [
             fontSize="large"
           >
             <div
-              className="sc-brqgnP fWStYE"
-              color="black"
+              className="sc-brqgnP iHrXtE"
+              color="lightGray"
               fontSize={0}
             >
               Example

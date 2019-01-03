@@ -3,6 +3,7 @@ import { Flex, Box, Hide } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { LoadableContent } from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
+import styled from "styled-components";
 
 export interface MainContainerProps { sidebar?: React.ReactNode, main?: React.ReactNode, additional?: React.ReactNode, header?: React.ReactNode }
 export const MainContainer = ({ sidebar, main, additional, header }: MainContainerProps) => (
@@ -18,9 +19,9 @@ export const MainContainer = ({ sidebar, main, additional, header }: MainContain
                 {main}
             </Box>
             <Hide xs sm md lg width={[0, sidebar != null ? 3 / 16 : 0]}>
-                <Box pl="1.0em">
+                <SidebarBox>
                     {sidebar}
-                </Box>
+                </SidebarBox>
             </Hide>
             {additional}
         </Flex>
@@ -46,3 +47,9 @@ export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Elem
         return <MainContainer {...props} />
     }
 }
+
+const SidebarBox = styled(Box)`
+    position: sticky;
+    top: 60px;
+    padding-left: 1em;
+`

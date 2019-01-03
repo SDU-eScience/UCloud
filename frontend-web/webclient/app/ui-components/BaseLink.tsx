@@ -11,14 +11,14 @@ const hoverColor = style({
   key: 'colors'
 })
 
-const BaseLink = styled("a")<BaseLinkProps>`
+const BaseLink = styled.a<BaseLinkProps>`
   cursor: pointer;
   text-decoration: none;
-  ${space}
-  ${color}
+  ${space};
+  ${color};
 
   &:hover {
-    ${hoverColor}
+    ${hoverColor};
   }
 `;
 

@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { left } from "styled-system";
+import { left, top } from "styled-system";
 import { min } from "moment";
 
 interface FullWidthProps { fullWidth?: boolean }
@@ -50,6 +50,8 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     & > svg ~ span {
         margin-right: 1em;
     }
+
+    ${top}
 `;
 
 DropdownContent.defaultProps = {
@@ -66,6 +68,7 @@ DropdownContent.defaultProps = {
 
 interface DropdownContentProps {
     left?: number | string
+    top?: number | string
     hover?: boolean
     width?: string | number
     disabled?: boolean

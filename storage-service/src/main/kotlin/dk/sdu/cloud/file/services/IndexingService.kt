@@ -81,6 +81,7 @@ class IndexingService<Ctx : FSUserContext>(
             throw ex
         }
 
+        BackgroundScope.reset()
         val job = BackgroundScope.launch {
             try {
                 rootToReference.map { (root, reference) ->

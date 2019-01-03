@@ -134,7 +134,7 @@ exports[`UserSettings Mount 1`] = `
             className="sc-bZQynM bqIUrb"
           >
             <a
-              className="sc-hMqMXs jvXQSL"
+              className="sc-hMqMXs iBxVEb"
               color="text"
               href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us"
               rel="noopener"
@@ -147,7 +147,7 @@ exports[`UserSettings Mount 1`] = `
               />
             </a>
             <a
-              className="sc-hMqMXs jvXQSL"
+              className="sc-hMqMXs iBxVEb"
               color="text"
               href="https://itunes.apple.com/us/app/google-authenticator/id388497605"
               rel="noopener"
@@ -209,7 +209,7 @@ exports[`UserSettings Mount 1`] = `
         }
       >
         <div
-          className="sc-htpNat fsPsYE"
+          className="sc-htpNat sc-cHGsZl bPQttJ"
           cursor="auto"
         />
       </div>

@@ -19,7 +19,7 @@ import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { RefreshButton } from "UtilityComponents";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
-import { Flex, Box, List, Card } from "ui-components";
+import { Flex, Box, List, Card, Hide } from "ui-components";
 import { Step, StepGroup } from "ui-components/Step";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
@@ -183,9 +183,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             case AppState.SUCCESS:
                 domEntries.push(
                     <Box pt="0.8em" pb="0.8em">
-                        Application has completed successfully. Click
-                            <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}> here </Link>
-                        to go to the output.
+                        Application has completed successfully.
+                        Click <Link to={fileTablePage(`/home/${Cloud.username}/Jobs/${this.jobId}`)}>here</Link> to go to the output.
                     </Box>
                 );
                 break;
