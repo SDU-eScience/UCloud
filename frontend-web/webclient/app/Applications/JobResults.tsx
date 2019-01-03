@@ -6,7 +6,7 @@ import { Link } from "ui-components";
 import { List } from "Pagination/List";
 import { connect } from "react-redux";
 import { setLoading, fetchAnalyses } from "./Redux/AnalysesActions";
-import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } from ".";
+import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps, Analysis } from ".";
 import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
@@ -14,6 +14,7 @@ import { Heading } from "ui-components";
 import { fileTablePage } from "Utilities/FileUtilities";
 import { MainContainer } from "MainContainer/MainContainer";
 import { History } from "history";
+import { ReduxObject } from "DefaultObjects";
 
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props) {
@@ -36,7 +37,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
         clearInterval(this.state.reloadIntervalId);
     }
 
-    getAnalyses(silent) {
+    getAnalyses(silent: boolean) {
         const { page } = this.props;
         if (!silent) this.props.setLoading(true);
         this.props.fetchAnalyses(page.itemsPerPage, page.pageNumber);
@@ -55,7 +56,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
                     <Header />
                     <TableBody>
                         {page.items.map((a, i) => <Analysis
-                            to={() => history.push(`/applications/results/${a.jobId}`)} analysis={a} key={i} 
+                            to={() => history.push(`/applications/results/${a.jobId}`)} analysis={a} key={i}
                         />)}
                     </TableBody>
                 </Table>
@@ -86,6 +87,7 @@ const Header = () => (
     </TableHeader>
 );
 
+// FIXME: Typesafety. But how has this worked setting Link as title?
 const Analysis = ({ analysis, to }) => {
     const jobIdField = analysis.status === "COMPLETE" ?
         (<Link to={fileTablePage(`${Cloud.jobFolder}/${analysis.jobId}`)}>{analysis.jobId}</Link>) : analysis.jobId;
@@ -100,14 +102,14 @@ const Analysis = ({ analysis, to }) => {
         </TableRow>)
 };
 
-const formatDate = (millis) => {
+const formatDate = (millis: number) => {
     let d = new Date(millis);
     return `${pad(d.getDate(), 2)}/${pad(d.getMonth() + 1, 2)}/` +
         `${pad(d.getFullYear(), 2)} ${pad(d.getHours(), 2)}:` +
         `${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}`;
 };
 
-const pad = (value, length) =>
+const pad = (value: string | number, length: number) =>
     (value.toString().length < length) ? pad("0" + value, length) : value;
 
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
@@ -117,5 +119,5 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     fetchAnalyses: async (itemsPerPage: number, pageNumber: number) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber))
 });
 
-const mapStateToProps = ({ analyses }): AnalysesStateProps => analyses;
+const mapStateToProps = ({ analyses }: ReduxObject): AnalysesStateProps => analyses;
 export default connect(mapStateToProps, mapDispatchToProps)(JobResults);

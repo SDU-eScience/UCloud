@@ -211,7 +211,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         const shareComponents: JSX.Element[] = groupedShare.shares.map((e, i, { length }) => (
             <Box key={e.id}>
                 <Flex m="5px 5px 5px 5px">
-                    <Box width="80%">
+                    <Box width="90%">
                         {e.sharedWith}
                         <AccessRightsDisplay rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />
                     </Box>

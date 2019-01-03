@@ -131,7 +131,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                 <OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Hide Advanced Search</OutlineButton>
                 <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                     <Box mt="0.5em">
-                        <form onSubmit={e => { e.preventDefault(); this.onSearch() }}>
+                        <form onSubmit={e => (e.preventDefault(), this.onSearch()) }>
                             <Error error={this.props.error} clearError={() => this.props.setError()} />
                             <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
                             <Input

@@ -25,9 +25,9 @@ export const fontFamily = `'IBM Plex Sans', sans-serif`
 
 export const fontSizes = [10, 14, 16, 20, 24, 32, 40, 56, 72]
 
-export const medium = 300
-export const bold = 700
-export const regular = 400
+export const medium = 300;
+export const bold = 700;
+export const regular = 400;
 
 // styled-system's `fontWeight` function can hook into the `fontWeights` object
 export const fontWeights = {

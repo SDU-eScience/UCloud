@@ -13,6 +13,7 @@ import { GridCardGroup } from "ui-components/Grid";
 import * as Actions from "./Redux/FavoriteActions";
 import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { loadingEvent } from "LoadableContent";
+import * as Heading from "ui-components/Heading";
 
 interface InstalledOperations {
     onInit: () => void
@@ -46,6 +47,7 @@ class Installed extends React.Component<InstalledProps> {
 
         return (
             <LoadingMainContainer
+                header={<Heading.h1>My Apps</Heading.h1>}
                 loadable={this.props.applications}
                 main={main}
                 sidebar={null}
