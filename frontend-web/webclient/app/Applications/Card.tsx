@@ -125,6 +125,7 @@ export const ApplicationCard = ({ app, onFavorite, isFavorite, linkToRun }: Appl
 );
 
 export const NewAppCard = styled(Link)`
+
     padding: 10px;
     width: 100%;
     min-width: 350px;
@@ -138,15 +139,17 @@ export const NewAppCard = styled(Link)`
     box-shadow: ${({ theme }) => theme.shadows["sm"]};
     //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
-    transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.transitionDelays.small};
+    transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
     will-change: transform;
 
     &:hover {
+        transition: transform ${({ theme }) => theme.timingFunctions.easeOut} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
         transform: scale(1.02);
     }
 
     // Background
     &:before {
+        pointer-events: none;
         content: "";
         position: absolute;
         width: 104%;
@@ -177,8 +180,6 @@ export const NewAppCard = styled(Link)`
     }
 
     &:hover:after {
-        // border-color: ${props => props.theme.colors.textHighlight};
-        // z-index: 1;
         opacity: 1;
     }
 `;
@@ -562,8 +563,8 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
     const hash = hashF(appDesc.title);
     const appC = appColor(hash);
     return (
-        <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
-            <Absolute right={0} top={0} cursor="inherit" >
+        <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)} hoverColor={null}>
+            <Absolute right={0} top={0} cursor="inherit" css={`pointer-events: none;`} >
                 <AppBg_triangle {...bgGradients[appC]} />
             </Absolute>
             {!onFavorite ? null :
@@ -590,6 +591,6 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
                 {appDesc.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
-        </NewAppCard>
+        </NewAppCard> 
     );
 };

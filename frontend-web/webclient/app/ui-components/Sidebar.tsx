@@ -29,35 +29,36 @@ const SidebarElementContainer = styled(Flex)`
 const HideText = css`
 ${({ theme }) => theme.mediaQueryLT["xl"]} {
     
-    will-change: transform, opacity;
-    
-    & { 
-        transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
-        transform: translate(-122px,0); //122 = 190-68 (original - final width)
-    }
+    will-change: transform;
+    transition: transform ${({ theme }) => theme.timingFunctions.easeOut} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+    transform: translate(-122px,0); //122 = 190-68 (original - final width)
 
     & ${Icon},${RatingBadge} {
-        transition: ${({ theme }) => theme.timingFunctions.easeInOut} ${({ theme }) => theme.transitionDelays.small};
+        will-change: transform;
+        transition: transform ${({ theme }) => theme.timingFunctions.easeOut} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
         transform: translate(122px,0); //inverse transformation; same transition function!
     }
 
     & ${SidebarElementContainer} > ${Text} {
-        // transition: ${({ theme }) => theme.timingFunctions.easeOutQuit} ${({ theme }) => theme.transitionDelays.xsmall};
-        transition: ${({ theme }) => theme.timingFunctions.stepStart} ${({ theme }) => theme.transitionDelays.small};
+        // transition: opacity ${({ theme }) => theme.timingFunctions.easeOutQuit} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+        transition: opacity ${({ theme }) => theme.timingFunctions.stepStart} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
         opacity: 0;
+        will-change: opacity;
     }
 
 
     &:hover { 
+            transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
             transform: translate(0,0);
 
             & ${Icon},${RatingBadge} {
+                transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
                 transform: translate(0,0); //inverter transformation
             }
 
             ${SidebarElementContainer} > ${Text} {
-                // transition: ${({ theme }) => theme.timingFunctions.easeInQuint} ${({ theme }) => theme.transitionDelays.small};
-                transition: ${({ theme }) => theme.timingFunctions.stepEnd} ${({ theme }) => theme.transitionDelays.small};
+                // transition: opacity ${({ theme }) => theme.timingFunctions.easeInQuint} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+                transition: opacity ${({ theme }) => theme.timingFunctions.stepEnd} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
                 opacity: 1;
             }
         

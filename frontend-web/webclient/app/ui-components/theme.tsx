@@ -351,6 +351,7 @@ addAliases(shadows, BoxShadowsAliases);
 
 // animation duration
 export const duration = {
+  fastest: `100ms`,
   fast: `150ms`,
   normal: `300ms`,
   slow: `450ms`,
@@ -362,6 +363,7 @@ const easeInOut = 'cubic-bezier(0.5, 0, 0.25, 1)'
 const easeOut = 'cubic-bezier(0, 0, 0.25, 1)'
 const easeIn = 'cubic-bezier(0.5, 0, 1, 1)'
 const easeInQuint = 'cubic-bezier(0.755, 0.05, 0.855, 0.06)' //This is a steep easeIn curve
+const easeInQuintR = `cubic-bezier(${1-0.855}, ${1-0.06}, ${1-0.755}, ${1-0.05})` //This is a steep easeIn curve
 const easeOutQuint = 'cubic-bezier(0.23, 1, 0.32, 1)'
 const stepStart = 'step-start'
 const stepEnd = 'step-end'
@@ -371,6 +373,7 @@ const timingFunctions = {
   easeOut,
   easeIn,
   easeInQuint,
+  easeInQuintR,
   easeOutQuint,
   stepStart,
   stepEnd,
