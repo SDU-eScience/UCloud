@@ -25,8 +25,8 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
                 <PaginationButton onClick={() => undefined} unclickable>{"..."}</PaginationButton>
             </React.Fragment>
         ) : (
-                <PaginationButton key={it} unclickable={currentPage === it} color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
-            )
+            <PaginationButton key={it} unclickable={currentPage === it} color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
+        )
     );
     return (
         <PaginationGroup justifyContent="center" my="1em">

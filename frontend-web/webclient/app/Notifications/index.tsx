@@ -154,6 +154,7 @@ const NotificationWrapper = styled(Flex)`
     padding: 0.3em 0.3em 0.3em 0.3em;
     border-radius: 3px;
     cursor: pointer;
+    width: 100%;
     &:hover {
         background-color: ${theme.colors.lightGray};
     }
