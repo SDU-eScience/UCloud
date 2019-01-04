@@ -27,7 +27,6 @@ import Spinner from "LoadingIcon/LoadingIcon";
 import * as UF from "UtilityFunctions";
 import * as Accounting from "Accounting";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Spacer } from "ui-components/Spacer";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
@@ -232,14 +231,14 @@ const statusToColor = (status: AppState) => status === AppState.FAILURE ? "red" 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     errorDismiss: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, undefined)),
     updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
-    setAllLoading: (loading) => dispatch(setAllLoading(loading)),
+    setAllLoading: loading => dispatch(setAllLoading(loading)),
     fetchFavorites: async () => dispatch(await fetchFavorites()),
     fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
     // FIXME: Make action instead
-    receiveFavorites: (files) => dispatch(receiveFavorites(files))
+    receiveFavorites: files => dispatch(receiveFavorites(files))
 });
 
 const mapStateToProps = (state: ReduxObject): DashboardStateProps => {

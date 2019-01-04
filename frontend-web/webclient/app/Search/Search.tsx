@@ -140,6 +140,7 @@ class Search extends React.Component<SearchProps> {
                             />
                         )}
                         page={files}
+                        onRefresh={() => this.props.searchFiles(this.fileSearchBody)}
                         onItemsPerPageChanged={itemsPerPage => this.props.searchFiles({ ...this.fileSearchBody, page: 0, itemsPerPage })}
                         onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
                     />
@@ -176,6 +177,7 @@ class Search extends React.Component<SearchProps> {
                             </CardGroup>
                         }
                         page={applications}
+                        onRefresh={() => this.props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage)}
                         onItemsPerPageChanged={(itemsPerPage) => this.props.searchApplications(search, 0, itemsPerPage)}
                         onPageChanged={(pageNumber) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
                     />
