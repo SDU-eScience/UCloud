@@ -72,7 +72,7 @@ interface TooltipContentProps extends BoxProps {
 
 const TooltipContent = styled(Box) <TooltipContentProps>`
   display: inline;
-  box-shadow: ${({ theme }) => theme.boxShadows[1]};
+  box-shadow: ${({ theme }) => theme.shadows["sm"]};
   font-size: ${({ theme }) => theme.fontSizes[0]}px;
   position: absolute;
   border-radius: ${({ theme }) => theme.radii[1]}px;

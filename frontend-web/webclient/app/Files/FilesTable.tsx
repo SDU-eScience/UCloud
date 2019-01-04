@@ -11,6 +11,7 @@ import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getF
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
 import { KeyCode } from "DefaultObjects";
+import styled from "styled-components";
 
 export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
@@ -56,6 +57,13 @@ export const FilesTable = ({
         </Table>
     );
 
+const FileTableHeaderCell = styled(TableHeaderCell)`
+    position: sticky;
+    top: 144px; //topmenu + header size
+    z-index: 10;
+    background-color: white;
+`;
+
 const ResponsiveTableColumn = ({
     asDropdown,
     iconName,
@@ -64,7 +72,7 @@ const ResponsiveTableColumn = ({
     currentSelection,
     sortOrder
 }: ResponsiveTableColumnProps) => (
-        <TableHeaderCell width="10rem" >
+        <FileTableHeaderCell width="10rem" >
             <Flex alignItems="center" justifyContent="left">
                 <Arrow name={iconName} />
                 <SortByDropdown
@@ -74,7 +82,7 @@ const ResponsiveTableColumn = ({
                     currentSelection={currentSelection}
                     sortOrder={sortOrder} />
             </Flex>
-        </TableHeaderCell>
+        </FileTableHeaderCell>
     );
 
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
@@ -93,7 +101,7 @@ const FilesTableHeader = ({
 }: FilesTableHeaderProps) => (
         <TableHeader>
             <TableRow>
-                <TableHeaderCell textAlign="left" width="99%">
+                <FileTableHeaderCell textAlign="left" width="99%">
                     <Flex
                         alignItems="center"
                         onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
@@ -105,7 +113,7 @@ const FilesTableHeader = ({
                             Filename
                         </Box>
                     </Flex>
-                </TableHeaderCell>
+                </FileTableHeaderCell>
                 {sortingColumns.filter(it => it != null).map((sC, i) => (
                     <ResponsiveTableColumn
                         key={i}
@@ -117,9 +125,9 @@ const FilesTableHeader = ({
                         iconName={toSortingIcon(sC!)}
                     />
                 ))}
-                <TableHeaderCell width={customEntriesWidth}>
+                <FileTableHeaderCell width={customEntriesWidth}>
                     <Flex>{customEntriesPerPage}</Flex>
-                </TableHeaderCell>
+                </FileTableHeaderCell>
             </TableRow>
         </TableHeader>
     );

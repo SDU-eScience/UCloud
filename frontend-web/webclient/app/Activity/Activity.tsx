@@ -45,7 +45,7 @@ class Activity extends React.Component<ActivityProps> {
 
         const header = (
             <React.StrictMode>
-                <Heading.h1>File Activity</Heading.h1>
+                <Heading.h2>File Activity</Heading.h2>
             </React.StrictMode>
         );
 
@@ -62,9 +62,9 @@ class Activity extends React.Component<ActivityProps> {
 const ActivityFeedGrouped = ({ activity }: { activity: GroupedActivity[] }) => activity.length ? (
     <Table>
         <TableHeader>
-            <TableHeaderCell width={"20%"} />
-            <TableHeaderCell width={"20%"} />
-            <TableHeaderCell width={"60%"} />
+            <TableHeaderCell width={"7em"} />
+            <TableHeaderCell width={"10em"} />
+            <TableHeaderCell width={"99%"} />
         </TableHeader>
         <TableBody>
             {activity.map((a, i) => <TrackedFeedActivity key={i} activity={a} />)}

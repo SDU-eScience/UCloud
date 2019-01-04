@@ -1,6 +1,6 @@
 import * as React from "react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Icon, Box, Text, Flex, Button, theme } from "ui-components";
+import { Text, Flex, Button, theme } from "ui-components";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 
@@ -51,6 +51,7 @@ const PaginationButtonBase = styled(Button) <{ unclickable?: boolean }>`
         filter: brightness(100%);
         background-color: ${props => props.unclickable ? null : props.theme.colors.paginationHoverColor};
         cursor: ${props => props.unclickable ? "default" : null};
+        transform: none;
     }
 `;
 

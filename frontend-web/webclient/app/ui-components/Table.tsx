@@ -1,6 +1,5 @@
 import styled from "styled-components";
 import { textAlign, TextAlignProps, WidthProps, width, MinWidthProps, minWidth } from "styled-system";
-import { HideProps, hidden } from "./Hide";
 import theme from "./theme";
 
 export const Table = styled.table< WidthProps & MinWidthProps >`
