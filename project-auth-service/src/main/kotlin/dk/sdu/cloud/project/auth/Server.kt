@@ -2,12 +2,19 @@ package dk.sdu.cloud.project.auth
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.project.auth.http.ProjectAuthController
+import dk.sdu.cloud.project.auth.processors.ProjectEventProcessor
+import dk.sdu.cloud.project.auth.services.AuthTokenDao
+import dk.sdu.cloud.project.auth.services.AuthTokenHibernateDao
+import dk.sdu.cloud.project.auth.services.TokenInvalidator
+import dk.sdu.cloud.project.auth.services.TokenRefresher
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
@@ -34,9 +41,21 @@ class Server(
 
     override fun start() {
         // Initialize services here
+        val db = micro.hibernateDatabase
+        val tokenDao: AuthTokenDao<HibernateSession> = AuthTokenHibernateDao()
+        val tokenInvalidator = TokenInvalidator(cloud, db, tokenDao)
+        val tokenRefresher = TokenRefresher(cloud, db, tokenDao, tokenInvalidator)
 
         // Initialize consumers here:
-        // addConsumers(...)
+        addConsumers(
+            ProjectEventProcessor(
+                cloud,
+                db,
+                tokenDao,
+                tokenInvalidator,
+                kafka
+            ).init()
+        )
 
         // Initialize server
         httpServer = ktor {
@@ -44,7 +63,7 @@ class Server(
 
             routing {
                 configureControllers(
-                    ProjectAuthController()
+                    ProjectAuthController(tokenRefresher)
                 )
             }
         }

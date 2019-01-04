@@ -43,6 +43,13 @@ class ProjectService<DBSession>(
         }
     }
 
+    fun viewMemberInProject(user: String, projectId: String): ProjectMember {
+        return db.withTransaction { session ->
+            dao.findRoleOfMember(session, projectId, user)?.let { ProjectMember(user, it) }
+                ?: throw ProjectException.NotFound()
+        }
+    }
+
     suspend fun addMember(user: String, projectId: String, member: ProjectMember) {
         db.withTransaction { session ->
             val project = findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))

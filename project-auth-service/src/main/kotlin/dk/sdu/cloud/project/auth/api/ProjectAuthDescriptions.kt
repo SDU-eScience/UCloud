@@ -4,13 +4,19 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
+
+data class FetchTokenRequest(val project: String)
+typealias FetchTokenResponse = ProjectAuthenticationToken
+
+data class ProjectAuthenticationToken(val accessToken: String)
 
 object ProjectAuthDescriptions : RESTDescriptions("project.auth") {
     val baseContext = "/api/projects/auth"
 
-    val fetchTokens = callDescription<Unit, Unit, CommonErrorMessage> {
-        name = "fetchTokens"
+    val fetchToken = callDescription<FetchTokenRequest, FetchTokenResponse, CommonErrorMessage> {
+        name = "fetchToken"
         method = HttpMethod.Post
 
         auth {
@@ -20,33 +26,7 @@ object ProjectAuthDescriptions : RESTDescriptions("project.auth") {
         path {
             using(baseContext)
         }
-    }
 
-    val invalidateTokens = callDescription<Unit, Unit, CommonErrorMessage> {
-        name = "invalidateTokens"
-        method = HttpMethod.Post
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        path {
-            using(baseContext)
-            +"invalidate"
-        }
-    }
-
-    val refresh = callDescription<Unit, Unit, CommonErrorMessage> {
-        name = "refresh"
-        method = HttpMethod.Post
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        path {
-            using(baseContext)
-            +"refresh"
-        }
+        body { bindEntireRequestFromBody() }
     }
 }

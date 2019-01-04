@@ -182,6 +182,13 @@ data class AccessTokenAndCsrf(
     override fun toString(): String = "AccessTokenAndCsrf()"
 }
 
+data class RefreshTokenAndCsrf(
+    override val refreshToken: String,
+    override val csrfToken: String?
+) : WithOptionalRefreshToken, WithOptionalCsrfToken {
+    override fun toString(): String = "RefreshTokenAndCsrf()"
+}
+
 data class AuthenticationTokens(
     override val accessToken: String,
     override val refreshToken: String,
