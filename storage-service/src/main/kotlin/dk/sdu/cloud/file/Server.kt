@@ -96,7 +96,9 @@ class Server(
                 kBuilder.stream(AuthStreams.UserUpdateStream),
                 micro.developmentModeEnabled,
                 cloudToCephFsDao,
-                externalFileService
+                externalFileService,
+                processRunner,
+                coreFileSystem
             ).init()
         }
 
