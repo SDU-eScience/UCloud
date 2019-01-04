@@ -180,8 +180,8 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                         <AccessRightsDisplay floated disabled rights={actualShare.rights} />
                     </Flex>
                 </Heading.h4>
-                <TextSpan color="text">Shared by {groupedShare.sharedBy}</TextSpan>
-                <TextSpan mt="4px" mb="4px">{message}</TextSpan>
+                <Text color="text">Shared by {groupedShare.sharedBy}</Text>
+                <Text mt="4px" mb="4px">{message}</Text>
                 <Flex>
                     <Box ml="auto" />
                     {groupedShare.shares[0].state !== ShareState.REQUEST_SENT ?

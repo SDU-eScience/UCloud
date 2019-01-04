@@ -286,7 +286,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
 
                             <Button type="button" onClick={e => this.addRow(e, "keywords")}>
                                 New keyword
-                </Button>
+                            </Button>
                         </Box>
 
                         <Box mb="1em">
@@ -301,9 +301,8 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                         </Box>
 
                         <Box mb="1em">
-
                             <label>Data Management Plan
-                    <TextArea
+                                <TextArea
                                     width={1}
                                     value={this.state.dataManagementPlan}
                                     placeholder="Data Management Plan..."
@@ -366,9 +365,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                         </Box>
                         <Button mb="1em" type="button" onClick={e => this.addSubject(e)} >
                             Add subject
-                </Button>
-
-
+                        </Button>
                         <Box mb="1em">
                             <label><TextSpan bold>Related identifiers</TextSpan>
                                 <RelatedIdentifiers
