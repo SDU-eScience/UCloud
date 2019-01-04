@@ -194,10 +194,9 @@ interface DashboardNotificationProps {
 const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: DashboardNotificationProps) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3}>
-            <Spacer
-                left={<Heading.h4>Recent Notifications</Heading.h4>}
-                right={<Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />}
-            />
+            <Heading.h4>Recent Notifications</Heading.h4>
+            <Box ml="auto" />
+            <Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />
         </Flex>
         <Box px={3} py={1}>
             {notifications.length === 0 ? <Heading.h6>No notifications</Heading.h6> : null}
