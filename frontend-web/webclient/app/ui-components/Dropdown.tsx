@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { right, left, top, RightProps, LeftProps, TopProps, boxShadow, BoxShadowProps } from "styled-system";
+import { right, left, top, RightProps, LeftProps, TopProps, boxShadow, BoxShadowProps, bottom, BottomProps, height } from "styled-system";
 import { Button } from "ui-components";
 
 interface FullWidthProps { fullWidth?: boolean }
@@ -50,7 +50,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
         margin-right: 1em;
     }
 
-    ${top} ${left} ${right};
+    ${top} ${left} ${right} ${bottom} ${height};
 `;
 
 DropdownContent.defaultProps = {
@@ -62,14 +62,14 @@ DropdownContent.defaultProps = {
     disabled: false,
     cursor: "pointer",
     minWidth: "138px",
-    maxHeight: "300px",
     boxShadow: "sm",
 }
 
-interface DropdownContentProps extends RightProps, LeftProps, TopProps, BoxShadowProps {
+interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps, BoxShadowProps {
     hover?: boolean
     width?: string | number
     disabled?: boolean
+    height?: string | number
     minWidth?: string
     maxHeight?: number | string
     cursor?: string // FIXME There must be a type

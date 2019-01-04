@@ -10,12 +10,16 @@ type ClickableDropdownProps = {
     children?: any
     trigger: React.ReactNode
     fullWidth?: boolean
+    height?: string | number
     width?: string | number
     minWidth?: string
     left?: string
     top?: string
+    bottom?: string
+    right?: string
     options?: { text: string, value: string }[]
     chevron?: boolean
+    colorOnHover?: boolean
     onChange?: (key: string) => void
 }
 
@@ -49,11 +53,11 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
     }
 
     render() {
-        const { ...props } = this.props;
+        const { onChange, ...props } = this.props;
         let children: React.ReactNode[] = [];
-        if (props.options !== undefined && props.onChange) {
+        if (props.options !== undefined && onChange) {
             children = props.options.map((opt, i) =>
-                <Box cursor="pointer" width="auto" key={i} ml="-17px" pl="15px" mr="-17px" onClick={() => props.onChange!(opt.value)}>{opt.text}</Box>
+                <Box cursor="pointer" width="auto" key={i} ml="-17px" pl="15px" mr="-17px" onClick={() => onChange!(opt.value)}>{opt.text}</Box>
             )
         } else if (props.children) {
             children = props.children
@@ -66,7 +70,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em" /> : null}
                 </Text.TextSpan>
                 {this.state.open && !emptyChildren ?
-                    <DropdownContent cursor="pointer" top={props.top} left={props.left} minWidth={this.props.minWidth} width={width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
+                    <DropdownContent cursor="pointer" {...props} width={width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
                         {children}
                     </DropdownContent> : null}
             </Dropdown>
