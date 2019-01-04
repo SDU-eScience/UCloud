@@ -13,7 +13,7 @@ import { fileInfoPage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading"
 import Icon, { IconName } from "ui-components/Icon";
 import { Flex, Text, Link } from "ui-components";
-import Table, { TableRow, TableCell, TableBody } from "ui-components/Table";
+import Table, { TableRow, TableCell, TableBody, TableHeader, TableHeaderCell } from "ui-components/Table";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { MainContainer } from "MainContainer/MainContainer";
@@ -61,6 +61,11 @@ class Activity extends React.Component<ActivityProps> {
 
 const ActivityFeedGrouped = ({ activity }: { activity: GroupedActivity[] }) => activity.length ? (
     <Table>
+        <TableHeader>
+            <TableHeaderCell width={"20%"} />
+            <TableHeaderCell width={"20%"} />
+            <TableHeaderCell width={"60%"} />
+        </TableHeader>
         <TableBody>
             {activity.map((a, i) => <TrackedFeedActivity key={i} activity={a} />)}
         </TableBody>
