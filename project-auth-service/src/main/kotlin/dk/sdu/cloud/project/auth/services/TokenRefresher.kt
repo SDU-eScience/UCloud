@@ -57,6 +57,7 @@ class TokenRefresher<DBSession>(
         }
 
         log.debug("Token refreshed for $username/$role")
+        TODO("FIXME THIS IS NOT SUPPOSED TO BE DONE BY THE SERVICE. THIS IS NOT GETTING THE CORRECT AUDIT INFORMATION")
         return ProjectAuthenticationToken(accessToken)
     }
 
