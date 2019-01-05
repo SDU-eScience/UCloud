@@ -8,6 +8,7 @@ import { KeyCode } from "DefaultObjects";
 type ClickableDropdownState = { open: boolean }
 type ClickableDropdownProps = {
     children?: any
+    keepOpenOnClick?: boolean
     trigger: React.ReactNode
     fullWidth?: boolean
     height?: string | number
@@ -44,8 +45,9 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
 
     // https://stackoverflow.com/questions/32553158/detect-click-outside-react-component#42234988
     handleClickOutside = event => {
-        if (this.ref.current && !this.ref.current.contains(event.target) && this.state.open)
+        if (this.ref.current && !this.ref.current.contains(event.target) && this.state.open) {
             this.setState(() => ({ open: false }));
+        }
     }
 
     handleEscPress = (event: { keyCode: KeyCode; }) => {
@@ -53,7 +55,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
     }
 
     render() {
-        const { onChange, ...props } = this.props;
+        const { keepOpenOnClick, onChange, ...props } = this.props;
         let children: React.ReactNode[] = [];
         if (props.options !== undefined && onChange) {
             children = props.options.map((opt, i) =>
@@ -70,7 +72,12 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em" /> : null}
                 </Text.TextSpan>
                 {this.state.open && !emptyChildren ?
-                    <DropdownContent cursor="pointer" {...props} width={width} hover={false} onClick={() => this.setState(() => ({ open: false }))}>
+                    <DropdownContent
+                        cursor="pointer" 
+                        {...props} 
+                        width={width}
+                        hover={false}
+                        onClick={() => !keepOpenOnClick ? this.setState(() => ({ open: false })) : null}>
                         {children}
                     </DropdownContent> : null}
             </Dropdown>
