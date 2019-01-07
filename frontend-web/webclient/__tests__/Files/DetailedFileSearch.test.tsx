@@ -10,6 +10,7 @@ import * as Adapter from "enzyme-adapter-react-16";
 import * as moment from "moment";
 import { DatePicker } from "ui-components/DatePicker"
 import { Input, Button, Label } from "ui-components";
+import "jest-styled-components";
 
 configure({ adapter: new Adapter() });
 

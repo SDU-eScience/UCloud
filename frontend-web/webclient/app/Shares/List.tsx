@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { AccessRight, Page, AccessRightValues } from "Types";
-import { shareSwal, prettierString } from "UtilityFunctions";
+import { shareSwal, prettierString, iconFromFilePath } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -15,6 +15,7 @@ import { Dispatch } from "redux";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { TextSpan } from "ui-components/Text";
 import { MainContainer } from "MainContainer/MainContainer";
+import { FileIcon } from "UtilityComponents";
 
 class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState> {
     constructor(props: any) {
@@ -93,7 +94,7 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
                             onError={it => this.setState({ errorMessage: it })} />
                     )
                 }
-                <Heading.h3>Shared by Me</Heading.h3>
+                <Heading.h3 pt="25px">Shared by Me</Heading.h3>
                 {
                     noSharesBy ? <NoShares /> : shares.filter(it => it.sharedByMe).map(it =>
                         <ListEntry
@@ -171,11 +172,12 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
             `${groupedShare.sharedBy} has shared ${groupedShare.path} with you.` :
             `${groupedShare.sharedBy} wishes to share ${groupedShare.path} with you.`
 
+        const icon = iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder);
         return (
             <Card width="100%" height="auto" p="10px 10px 10px 10px">
                 <Heading.h4>
                     <Flex>
-                        <Icon ml="3px" mr="3px" size={"24px"} name="ftFolder" /> {getFilenameFromPath(groupedShare.path)}
+                        <Box ml="3px" mr="3px"><FileIcon fileIcon={icon} /></Box>{getFilenameFromPath(groupedShare.path)}
                         <Box ml="auto" />
                         <AccessRightsDisplay floated disabled rights={actualShare.rights} />
                     </Flex>
@@ -213,7 +215,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                 <Flex m="5px 5px 5px 5px">
                     <Box width="90%">
                         {e.sharedWith}
-                        <AccessRightsDisplay rights={e.rights} onRightsToggle={(it) => this.onRightsToggle(e, it)} />
+                        <AccessRightsDisplay rights={e.rights} onRightsToggle={it => this.onRightsToggle(e, it)} />
                     </Box>
                     <Box width="10%">
                         <LoadingButton
@@ -235,10 +237,15 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
             </Box>
         ));
 
+        const icon = iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder);
+
         return (
             <Card width="100%" p="10px 10px 10px 10px" height="auto">
                 <Heading.h4>
-                    <Icon ml="3px" mr="3px" size={"24px"} name="ftFolder" /> {getFilenameFromPath(groupedShare.path)}
+                    <Flex>
+                        <Box ml="3px" mr="3px"><FileIcon fileIcon={icon} /></Box>
+                        {getFilenameFromPath(groupedShare.path)}
+                    </Flex>
                     <TextSpan fontSize={1} ml="0.8em" mr="0.8em" color="text">Shared with {groupedShare.shares.length} collaborators</TextSpan>
                     <LoadingButton
                         size={"small"}
@@ -377,6 +384,12 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
     );
 }
 
+function fileTypeGuess({ path }: { path: string }) {
+    const hasExtension = path.split("/").pop()!.includes(".");
+    const fileType = hasExtension ? "FILE" : "DIRECTORY";
+    return fileType;
+}
+
 async function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
     let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
     if (byState) url += `&state=${encodeURIComponent(byState)}`;
@@ -385,7 +398,6 @@ async function retrieveShares(page: Number, itemsPerPage: Number, byState?: Shar
 
 const acceptShare = async (shareId: ShareId): Promise<any> =>
     (await Cloud.post(`/shares/accept/${encodeURIComponent(shareId)}`)).response; // FIXME Add error handling
-
 
 const revokeShare = async (shareId: ShareId): Promise<any> =>
     (await Cloud.post(`/shares/revoke/${encodeURIComponent(shareId)}`)).response; // FIXME Add error handling
