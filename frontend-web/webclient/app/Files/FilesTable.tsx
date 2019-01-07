@@ -15,10 +15,11 @@ import styled from "styled-components";
 
 export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
-    fileOperations, sortOrder, onFavoriteFile, sortBy, customEntriesPerPage, onNavigationClick
+    fileOperations, sortOrder, onFavoriteFile, sortBy, customEntriesPerPage, onNavigationClick, notStickyHeader
 }: FilesTableProps) => (
         <Table>
             <FilesTableHeader
+                notStickyHeader={notStickyHeader}
                 onDropdownSelect={onDropdownSelect}
                 sortOrder={sortOrder}
                 sortingColumns={sortingColumns}
@@ -57,11 +58,14 @@ export const FilesTable = ({
         </Table>
     );
 
-const FileTableHeaderCell = styled(TableHeaderCell)`
-    position: sticky;
+const notSticky = ({ notSticky }: { notSticky?: boolean }): { position: "sticky" } | null =>
+    notSticky ? null : { position: "sticky" };
+
+const FileTableHeaderCell = styled(TableHeaderCell) <{ notSticky?: boolean }>`
     top: 144px; //topmenu + header size
     z-index: 10;
     background-color: white;
+    ${notSticky}
 `;
 
 const ResponsiveTableColumn = ({
@@ -70,9 +74,10 @@ const ResponsiveTableColumn = ({
     onSelect = (_1: SortOrder, _2: SortBy) => null,
     isSortedBy,
     currentSelection,
-    sortOrder
+    sortOrder,
+    notSticky
 }: ResponsiveTableColumnProps) => (
-        <FileTableHeaderCell width="10rem" >
+        <FileTableHeaderCell notSticky={notSticky} width="10rem" >
             <Flex alignItems="center" justifyContent="left">
                 <Arrow name={iconName} />
                 <SortByDropdown
@@ -97,21 +102,18 @@ const FilesTableHeader = ({
     onDropdownSelect,
     sortBy,
     customEntriesPerPage,
-    customEntriesWidth
+    customEntriesWidth,
+    notStickyHeader
 }: FilesTableHeaderProps) => (
         <TableHeader>
             <TableRow>
-                <FileTableHeaderCell textAlign="left" width="99%">
+                <FileTableHeaderCell notSticky={notStickyHeader} textAlign="left" width="99%">
                     <Flex
                         alignItems="center"
                         onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
-                        <Box mx="9px" onClick={e => e.stopPropagation()}>
-                            {masterCheckbox}
-                        </Box>
+                        <Box mx="9px" onClick={e => e.stopPropagation()}>{masterCheckbox}</Box>
                         <Arrow name={toSortingIcon(SortBy.PATH)} />
-                        <Box>
-                            Filename
-                        </Box>
+                        <Box>Filename</Box>
                     </Flex>
                 </FileTableHeaderCell>
                 {sortingColumns.filter(it => it != null).map((sC, i) => (
@@ -179,7 +181,7 @@ export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHo
 
 const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
     <Box><Label><Checkbox checked={checked} onClick={onClick} onChange={e => e.stopPropagation()} /></Label></Box>
-    ) : null;
+) : null;
 
 const PredicatedFavorite = ({ predicate, item, onClick }) =>
     predicate ? (

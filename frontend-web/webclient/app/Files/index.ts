@@ -138,6 +138,7 @@ export interface FilesTableProps {
     onFavoriteFile?: (f: File[]) => void
     fileOperations: FileOperation[]
     customEntriesPerPage?: React.ReactNode
+    notStickyHeader?: boolean
 }
 
 export interface CreateFolderProps {
@@ -155,6 +156,7 @@ export interface FilesTableHeaderProps {
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
     customEntriesPerPage?: React.ReactNode
     customEntriesWidth?: string
+    notStickyHeader?: boolean
 }
 
 export interface FilenameAndIconsProps {
@@ -279,7 +281,11 @@ export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalid
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 
-export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: "arrowUp" | "arrowDown", minWidth?: number }
+export interface ResponsiveTableColumnProps extends SortByDropdownProps {
+    iconName?: "arrowUp" | "arrowDown"
+    minWidth?: number
+    notSticky?: boolean
+}
 
 export interface FileInfoState {
     activity: Page<Activity>

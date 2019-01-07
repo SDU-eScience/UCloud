@@ -56,5 +56,4 @@ export const TableHeaderCell = styled.th<TextAlignProps & WidthProps >`
     ${width} ${minWidth}
 `;
 
-
 export default Table;

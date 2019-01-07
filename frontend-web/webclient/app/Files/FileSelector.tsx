@@ -4,8 +4,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import { replaceHomeFolder, isDirectory, newMockFolder, resolvePath } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
-import { KeyCode } from "DefaultObjects";
-import { RefreshButton, CustomEntriesPerPage } from "UtilityComponents";
+import { CustomEntriesPerPage } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
 import { filepathQuery } from "Utilities/FileUtilities";
@@ -157,21 +156,20 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
     if (canSelectFolders) relativeFolders.push(newMockFolder(`${props.path}/.`, false));
     const ops: FileOperation[] = [];
     if (canSelectFolders) {
-        ops.push(
-            {
-                text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
-                disabled: (files: File[], cloud: SDUCloud) => false
-            })
+        ops.push({
+            text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
+            disabled: (files: File[], cloud: SDUCloud) => false
+        })
     }
     else {
-        ops.push(
-            {
-                text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
-                disabled: (files: File[], cloud: SDUCloud) => isDirectory(files[0])
-            })
+        ops.push({
+            text: "Select", onClick: (files: File[], cloud: SDUCloud) => props.setSelectedFile(files[0]),
+            disabled: (files: File[], cloud: SDUCloud) => isDirectory(files[0])
+        })
     }
     return (
         <FilesTable
+            notStickyHeader
             onNavigationClick={props.fetchFiles}
             files={relativeFolders.concat(files)}
             sortOrder={SortOrder.ASCENDING}
