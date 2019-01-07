@@ -310,6 +310,20 @@ fun TestApplicationEngine.annotate(
     )
 }
 
+fun TestApplicationEngine.findHome(
+    username: String,
+    user: String = "user1",
+    role: Role = Role.ADMIN
+): TestApplicationResponse {
+    return call(
+        HttpMethod.Get,
+        "/api/files/homeFolder",
+        rawBody = """{ "username": "$username"}""",
+        user = user,
+        role = role
+    )
+}
+
 fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
     val token = TokenValidationMock.createTokenForUser(username, role)
     addHeader(HttpHeaders.Authorization, "Bearer $token")

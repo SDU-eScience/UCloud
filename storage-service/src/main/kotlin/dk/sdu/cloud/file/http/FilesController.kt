@@ -6,6 +6,7 @@ import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.WriteConflictPolicy
@@ -357,6 +358,10 @@ class FilesController<Ctx : FSUserContext>(
                 sensitivityService.setSensitivityLevel(ctx, req.path, req.sensitivity, user)
             }
             ok(Unit)
+        }
+
+        implement(FileDescriptions.findHomeFolder) { req ->
+            ok(FindHomeFolderResponse("/home/${req.username}"))
         }
     }
 
