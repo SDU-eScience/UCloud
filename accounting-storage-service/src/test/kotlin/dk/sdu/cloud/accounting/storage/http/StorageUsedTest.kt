@@ -65,7 +65,7 @@ private fun KtorApplicationTestSetupContext.configureComputeTimeServer(
 ): List<Controller> {
     return listOf(
         StorageUsedController(storageAccountingService),
-        StorageAccountingController(storageAccountingService)
+        StorageAccountingController(storageAccountingService, micro.authenticatedCloud)
     )
 }
 

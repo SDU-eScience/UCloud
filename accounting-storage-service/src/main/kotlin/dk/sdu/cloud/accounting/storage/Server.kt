@@ -66,7 +66,7 @@ class Server(
 
             routing {
                 configureControllers(
-                    StorageAccountingController(storageAccountingService),
+                    StorageAccountingController(storageAccountingService, cloud),
                     StorageUsedController(storageAccountingService)
                 )
             }
