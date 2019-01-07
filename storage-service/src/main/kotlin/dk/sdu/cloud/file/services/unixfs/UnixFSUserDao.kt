@@ -64,7 +64,7 @@ class UnixFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
         if (verify) TODO("Username verification not yet implemented")
 
         return if (isDevelopment) {
-            cloudToUser[cloudUser]
+            cloudToUser[cloudUser] ?: SERVICE_UNIX_USER
         } else {
             B64_PREFIX + encoder.encodeToString(
                 cloudUser.toByteArray(

@@ -43,14 +43,17 @@ class UserProcessor<FSCtx : CommandRunner>(
                         }
 
                         val projectName = event.userId.substring(0, indexOfSplit)
-                        val type = event.userId.substring(indexOfSplit + 1)
-
-                        if (type == "PI") {
-                            log.info("Creating a home folder for project: $event ($projectName)")
-                            createHomeFolder(event.userId, projectName)
-                        } else {
-                            createUser(event.userId)
+                        val rootExists = runnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
+                            coreFs.exists(ctx, "/home/$projectName")
                         }
+
+                        if (!rootExists) {
+                            log.info("Creating a home folder for project: $event ($projectName)")
+                            createHomeFolder("$projectName#PI", projectName)
+                        }
+
+                        log.info("Creating user for project: ${event.userCreated.id}")
+                        createUser(event.userId)
 
                         runnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
                             coreFs.createSymbolicLink(ctx, "/home/$projectName", homeDirectory(event.userId))
@@ -81,6 +84,7 @@ class UserProcessor<FSCtx : CommandRunner>(
         val prefix = if (isDevelopment) emptyList() else listOf("sudo")
         val command =
             listOf("sdu_cloud_add_user", userDao.findStorageUser(owner), folderName, "yes")
+        log.debug(command.toString())
 
         val process = ProcessBuilder().apply { command(prefix + command) }.start()
         if (process.waitFor() != 0) {

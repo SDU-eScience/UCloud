@@ -18,7 +18,8 @@ import dk.sdu.cloud.service.TYPE_PROPERTY
 @JsonSubTypes(
     JsonSubTypes.Type(value = Person.ByWAYF::class, name = "wayf"),
     JsonSubTypes.Type(value = Person.ByPassword::class, name = "password"),
-    JsonSubTypes.Type(value = ServicePrincipal::class, name = "service")
+    JsonSubTypes.Type(value = ServicePrincipal::class, name = "service"),
+    JsonSubTypes.Type(value = ProjectProxy::class, name = "project_proxy")
 )
 sealed class Principal {
     /**

@@ -63,7 +63,7 @@ class Server(
 
             routing {
                 configureControllers(
-                    ProjectAuthController(tokenRefresher)
+                    ProjectAuthController(tokenRefresher, cloud.parent)
                 )
             }
         }
