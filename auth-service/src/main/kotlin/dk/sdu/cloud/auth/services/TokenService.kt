@@ -9,6 +9,7 @@ import dk.sdu.cloud.auth.api.OneTimeAccessToken
 import dk.sdu.cloud.auth.api.OptionalAuthenticationTokens
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.auth.api.RefreshTokenAndCsrf
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
@@ -247,14 +248,30 @@ class TokenService<DBSession>(
     }
 
     fun logout(refreshToken: String, csrfToken: String? = null) {
+        bulkLogout(listOf(RefreshTokenAndCsrf(refreshToken, csrfToken)), suppressExceptions = false)
+    }
+
+    fun bulkLogout(tokens: List<RefreshTokenAndCsrf>, suppressExceptions: Boolean = false) {
         db.withTransaction {
-            if (csrfToken == null) {
-                if (!refreshTokenDao.delete(it, refreshToken)) throw RefreshTokenException.InvalidToken()
-            } else {
-                val userAndToken =
-                    refreshTokenDao.findById(it, refreshToken) ?: throw RefreshTokenException.InvalidToken()
-                if (csrfToken != userAndToken.csrf) throw RefreshTokenException.InvalidToken()
-                if (!refreshTokenDao.delete(it, refreshToken)) throw RefreshTokenException.InvalidToken()
+            tokens.forEach { (refreshToken, csrfToken) ->
+                if (csrfToken == null) {
+                    if (!refreshTokenDao.delete(it, refreshToken)) {
+                        if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
+                    }
+                } else {
+                    val userAndToken = refreshTokenDao.findById(it, refreshToken) ?: run {
+                        if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
+                        else return@forEach
+                    }
+
+                    if (csrfToken != userAndToken.csrf) {
+                        if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
+                        else return@forEach
+                    }
+                    if (!refreshTokenDao.delete(it, refreshToken)) {
+                        if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
+                    }
+                }
             }
         }
     }

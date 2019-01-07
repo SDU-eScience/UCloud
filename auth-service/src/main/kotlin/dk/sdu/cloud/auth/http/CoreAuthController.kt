@@ -8,6 +8,7 @@ import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LoginPageRequest
+import dk.sdu.cloud.auth.api.RefreshTokenAndCsrf
 import dk.sdu.cloud.auth.api.TokenExtensionAudit
 import dk.sdu.cloud.auth.api.TwoFactorPageRequest
 import dk.sdu.cloud.auth.services.OneTimeTokenDAO
@@ -406,6 +407,16 @@ class CoreAuthController<DBSession>(
             tokenService.logout(refreshToken, csrfToken)
             call.response.cookies.appendExpired(REFRESH_WEB_REFRESH_TOKEN_COOKIE, path = "/")
             call.respond(HttpStatusCode.NoContent)
+        }
+
+        implement(AuthDescriptions.bulkInvalidate) { req ->
+            // We suppress all exceptions when invalidating in bulk. This is mostly done by services to ensure that all
+            // of their tokens are invalidated. This will also ensure that a single invalid token won't cause remaining
+            // tokens to not be invalidated.
+
+            val tokens = req.tokens.map { RefreshTokenAndCsrf(it, null) }
+            tokenService.bulkLogout(tokens, suppressExceptions = true)
+            ok(Unit)
         }
     }
 

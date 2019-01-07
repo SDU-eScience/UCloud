@@ -100,14 +100,16 @@ class HibernateFeature : MicroFeature {
             }
 
             ctx.optionallyAddScriptHandler(SCRIPT_MIGRATE) {
-                val flyway = Flyway()
                 val username = configuration.credentials?.username ?: ""
                 val password = configuration.credentials?.password ?: ""
                 val jdbcUrl = ctx.jdbcUrl
-                flyway.setDataSource(jdbcUrl, username, password)
-                flyway.setSchemas(safeSchemaName(serviceDescription))
-                flyway.migrate()
 
+                val flyway = Flyway.configure().apply {
+                    dataSource(jdbcUrl, username, password)
+                    schemas(safeSchemaName(serviceDescription))
+                }.load()
+
+                flyway.migrate()
                 ScriptHandlerResult.STOP
             }
         }

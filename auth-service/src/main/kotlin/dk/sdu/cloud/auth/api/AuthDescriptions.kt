@@ -71,6 +71,9 @@ data class TokenExtensionAudit(
     val allowRefreshes: Boolean
 )
 
+data class BulkInvalidateRequest(val tokens: List<String>)
+typealias BulkInvalidateResponse = Unit
+
 object AuthDescriptions : RESTDescriptions("auth") {
     const val baseContext = "/auth"
 
@@ -103,6 +106,24 @@ object AuthDescriptions : RESTDescriptions("auth") {
             +"refresh"
             +"web"
         }
+    }
+
+    val bulkInvalidate = callDescriptionWithAudit<BulkInvalidateRequest, BulkInvalidateResponse, CommonErrorMessage, Unit> {
+        name = "bulkInvalidate"
+        method = HttpMethod.Post
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"logout"
+            +"bulk"
+        }
+
+        body { bindEntireRequestFromBody() }
     }
 
     val logout = callDescription<Unit, Unit, Unit> {
@@ -177,6 +198,7 @@ object AuthDescriptions : RESTDescriptions("auth") {
         name = "tokenExtension"
 
         auth {
+            roles = setOf(Role.USER, Role.SERVICE, Role.ADMIN)
             access = AccessRight.READ_WRITE
         }
 

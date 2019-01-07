@@ -2,6 +2,7 @@ package dk.sdu.cloud.project.http
 
 import dk.sdu.cloud.project.api.CreateProjectResponse
 import dk.sdu.cloud.project.api.ProjectDescriptions
+import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
 import dk.sdu.cloud.project.services.ProjectService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -41,6 +42,10 @@ class ProjectController(
 
         implement(ProjectDescriptions.view) { req ->
             ok(service.view(call.securityPrincipal.username, req.id))
+        }
+
+        implement(ProjectDescriptions.viewMemberInProject) { req ->
+            ok(ViewMemberInProjectResponse(service.viewMemberInProject(req.username, req.projectId)))
         }
     }
 

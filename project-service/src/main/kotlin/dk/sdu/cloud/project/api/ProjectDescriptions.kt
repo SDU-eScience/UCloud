@@ -18,6 +18,9 @@ typealias CreateProjectResponse = FindByStringId
 typealias ViewProjectRequest = FindByStringId
 typealias ViewProjectResponse = Project
 
+data class ViewMemberInProjectRequest(val projectId: String, val username: String)
+data class ViewMemberInProjectResponse(val member: ProjectMember)
+
 typealias DeleteProjectRequest = FindByStringId
 typealias DeleteProjectResponse = Unit
 
@@ -62,6 +65,26 @@ object ProjectDescriptions : RESTDescriptions("project") {
         }
 
         params { +boundTo(ViewProjectRequest::id) }
+    }
+
+    val viewMemberInProject = callDescription<ViewMemberInProjectRequest, ViewMemberInProjectResponse, CommonErrorMessage> {
+        name = "viewMemberInProject"
+        method = HttpMethod.Get
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"member"
+        }
+
+        params {
+            +boundTo(ViewMemberInProjectRequest::projectId)
+            +boundTo(ViewMemberInProjectRequest::username)
+        }
     }
 
     val delete = callDescription<DeleteProjectRequest, DeleteProjectResponse, CommonErrorMessage> {

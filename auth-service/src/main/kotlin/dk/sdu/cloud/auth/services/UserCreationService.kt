@@ -22,12 +22,20 @@ class UserCreationService<DBSession>(
     private val userEventProducer: UserEventProducer
 ) {
     suspend fun createUser(user: Principal) {
+        createUsers(listOf(user))
+    }
+
+    suspend fun createUsers(users: List<Principal>) {
         db.withTransaction {
-            log.info("Creating user: $user")
-            userDao.insert(it, user)
+            users.forEach { user ->
+                log.info("Creating user: $user")
+                userDao.insert(it, user)
+            }
         }
 
-        userEventProducer.emit(UserEvent.Created(user.id, user))
+        users.forEach { user ->
+            userEventProducer.emit(UserEvent.Created(user.id, user))
+        }
     }
 
     fun blockingCreateUser(user: Principal) {

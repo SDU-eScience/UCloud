@@ -13,13 +13,16 @@ data class LookupUsersRequest(val users: List<String>)
 data class UserLookup(val subject: String, val role: Role)
 data class LookupUsersResponse(val results: Map<String, UserLookup?>)
 
-data class CreateUserAudit(val username: String, val role: Role?)
+typealias CreateUserAudit = List<CreateSingleUserAudit>
+data class CreateSingleUserAudit(val username: String, val role: Role?)
 
-data class CreateUserRequest(val username: String, val password: String, val role: Role?) {
+typealias CreateUserRequest = List<CreateSingleUserRequest>
+data class CreateSingleUserRequest(val username: String, val password: String?, val role: Role?) {
     override fun toString() = "CreateUserRequest(username = $username, role = $role)"
 }
 
-typealias CreateUserResponse = AuthenticationTokens
+typealias CreateUserResponse = List<CreateSingleUserResponse>
+typealias CreateSingleUserResponse = AuthenticationTokens
 
 class ChangePasswordAudit
 
