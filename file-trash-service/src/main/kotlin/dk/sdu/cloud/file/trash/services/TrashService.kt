@@ -7,11 +7,11 @@ import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.MoveRequest
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.trash.api.trashDirectory
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.orThrow
 import io.ktor.http.HttpStatusCode
@@ -19,10 +19,19 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
+suspend fun trashDirectory(username: String, cloud: AuthenticatedCloud): String {
+    val homeFolder = FileDescriptions.findHomeFolder.call(
+        FindHomeFolderRequest(username),
+        cloud
+    ).orThrow().path
+    return joinPath(homeFolder, "Trash")
+}
+
 class TrashService {
+
     suspend fun emptyTrash(username: String, userCloud: AuthenticatedCloud) {
         validateTrashDirectory(username, userCloud)
-        FileDescriptions.deleteFile.call(DeleteFileRequest(trashDirectory(username)), userCloud)
+        FileDescriptions.deleteFile.call(DeleteFileRequest(trashDirectory(username, userCloud)), userCloud)
     }
 
     suspend fun moveFilesToTrash(files: List<String>, username: String, userCloud: AuthenticatedCloud): List<String> {
@@ -38,7 +47,7 @@ class TrashService {
         val result = FileDescriptions.move.call(
             MoveRequest(
                 path = file,
-                newPath = joinPath(trashDirectory(username), file.fileName())
+                newPath = joinPath(trashDirectory(username, userCloud), file.fileName())
             ),
             userCloud
         )
@@ -47,7 +56,7 @@ class TrashService {
     }
 
     private suspend fun validateTrashDirectory(username: String, userCloud: AuthenticatedCloud) {
-        val trashDirectoryPath = trashDirectory(username)
+        val trashDirectoryPath = trashDirectory(username, userCloud)
 
         suspend fun createTrashDirectory() {
             FileDescriptions.createDirectory.call(

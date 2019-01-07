@@ -10,7 +10,6 @@ import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.UploadRequest
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.orThrow

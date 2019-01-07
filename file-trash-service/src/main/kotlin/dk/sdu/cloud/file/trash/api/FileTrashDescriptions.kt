@@ -13,10 +13,6 @@ import io.ktor.http.HttpMethod
 data class TrashRequest(val files: List<String>)
 data class TrashResponse(val failures: List<String>)
 
-//TODO how to add Cloud??
-fun trashDirectory(username: String): String = joinPath(homeDirectory(username), "Trash")
-
-
 object FileTrashDescriptions : RESTDescriptions("files.trash") {
     val baseContext = "/api/files/trash"
 

@@ -27,8 +27,6 @@ class FileStatsController(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(FileStatsDescriptions.usage) { req ->
-
-
             val path = req.path ?: FileDescriptions.findHomeFolder.call(
                 FindHomeFolderRequest(
                     call.securityPrincipal.username
