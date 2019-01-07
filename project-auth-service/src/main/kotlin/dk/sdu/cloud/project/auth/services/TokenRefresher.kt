@@ -66,7 +66,7 @@ class TokenRefresher<DBSession>(
             AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(
                     validJWT = accessToken,
-                    requestedScopes = listOf(SecurityScope.ALL_SCOPE),
+                    requestedScopes = listOf(SecurityScope.ALL_WRITE.toString()),
                     expiresIn = 1000 * 60 * 5L,
                     allowRefreshes = false
                 ),

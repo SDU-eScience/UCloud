@@ -11,6 +11,8 @@ import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.bearer
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.jobId
+import dk.sdu.cloud.service.optionallyCausedBy
+import dk.sdu.cloud.service.safeJobId
 import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.service.withCausedBy
 import io.ktor.application.ApplicationCall
@@ -33,7 +35,7 @@ class ProjectAuthController(
         cloudContext
             .jwtAuth(
                 request.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-            ).withCausedBy(request.jobId)
+            ).optionallyCausedBy(request.safeJobId)
 
     companion object : Loggable {
         override val log = logger()
