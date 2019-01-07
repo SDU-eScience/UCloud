@@ -10,9 +10,9 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
 import java.util.*
@@ -44,34 +44,33 @@ class StorageUsedController<DBSession>(
             val homefolder = FileDescriptions.findHomeFolder.call(
                 FindHomeFolderRequest(call.securityPrincipal.username),
                 cloud
-            )
-            if (homefolder is RESTResponse.Ok) {
-                val usage =
-                    when {
-                        req.until == null -> storageAccountingService.calculateUsage(
-                            homefolder.result.path,
-                            call.securityPrincipal.username
-                        ).first().units
-                        req.until!!.toLong() > Date().time - 1000 * 60 * 60 * 3 -> storageAccountingService.calculateUsage(
-                            homefolder.result.path,
-                            call.securityPrincipal.username
-                        ).first().units
-                        else -> storageAccountingService.listEvents(
-                            req,
-                            call.securityPrincipal.username
-                        ).last().bytesUsed
-                    }
+            ).orThrow().path
+            val usage =
+                when {
+                    req.until == null -> storageAccountingService.calculateUsage(
+                        homefolder,
+                        call.securityPrincipal.username
+                    ).first().units
+                    req.until!!.toLong() > Date().time - 1000 * 60 * 60 * 3 -> storageAccountingService.calculateUsage(
+                        homefolder,
+                        call.securityPrincipal.username
+                    ).first().units
+                    else -> storageAccountingService.listEvents(
+                        req,
+                        call.securityPrincipal.username
+                    ).last().bytesUsed
+                }
 
-                ok(
-                    UsageResponse(
-                        usage = usage,
-                        dataType = ChartDataTypes.BYTES,
-                        title = "Storage Used",
-                        quota = null
-                    )
+            ok(
+                UsageResponse(
+                    usage = usage,
+                    dataType = ChartDataTypes.BYTES,
+                    title = "Storage Used",
+                    quota = null
                 )
-            }
+            )
         }
+
 
         implement(StorageUsedResourceDescription.listEvents) { req ->
             ok(storageAccountingService.listEventsPage(req.normalize(), req, call.securityPrincipal.username))

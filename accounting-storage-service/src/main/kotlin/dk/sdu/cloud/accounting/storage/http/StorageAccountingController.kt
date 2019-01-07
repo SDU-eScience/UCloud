@@ -15,6 +15,7 @@ import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
+import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
@@ -33,17 +34,19 @@ class StorageAccountingController<DBSession>(
                 )
             } else {
                 val storageUsed = storageAccountingService
-                val homefolder = FileDescriptions.findHomeFolder.call(FindHomeFolderRequest(req.user), cloud)
-                if (homefolder is RESTResponse.Ok) {
-                    return@implement ok(
-                        BuildReportResponse(
-                            storageUsed.calculateUsage(
-                                homefolder.result.path,
-                                req.user
-                            )
+                val homefolder = FileDescriptions.findHomeFolder.call(
+                    FindHomeFolderRequest(req.user),
+                    cloud
+                ).orThrow().path
+                return@implement ok(
+                    BuildReportResponse(
+                        storageUsed.calculateUsage(
+                            homefolder,
+                            req.user
                         )
                     )
-                }
+                )
+
             }
         }
     }

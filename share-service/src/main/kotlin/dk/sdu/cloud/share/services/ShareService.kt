@@ -17,6 +17,7 @@ import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.fileName
@@ -256,8 +257,13 @@ class ShareService<DBSession>(
         }
     }
 
-    private fun defaultLinkToShare(share: InternalShare) =
-        joinPath(homeDirectory(share.sharedWith), share.path.fileName())
+    private suspend fun defaultLinkToShare(share: InternalShare): String {
+        val homeFolder = FileDescriptions.findHomeFolder.call(
+            FindHomeFolderRequest(share.sharedWith),
+            serviceCloud
+        ).orThrow().path
+        return joinPath(homeFolder, share.path.fileName())
+    }
 
     suspend fun deleteShare(
         user: String,

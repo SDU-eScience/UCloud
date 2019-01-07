@@ -318,7 +318,9 @@ fun TestApplicationEngine.findHome(
     return call(
         HttpMethod.Get,
         "/api/files/homeFolder",
-        rawBody = """{ "username": "$username"}""",
+        params = mapOf(
+            "username" to username
+        ),
         user = user,
         role = role
     )

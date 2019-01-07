@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
@@ -48,7 +49,7 @@ class Server(
 
             routing {
                 configureControllers(
-                    FileStatsController(recentFilesService, usageFileService)
+                    FileStatsController(recentFilesService, usageFileService, cloud)
                 )
             }
         }

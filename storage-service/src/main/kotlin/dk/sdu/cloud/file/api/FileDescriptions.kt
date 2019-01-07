@@ -578,7 +578,9 @@ object FileDescriptions : RESTDescriptions("files") {
             +"homeFolder"
         }
 
-        body { bindEntireRequestFromBody() }
+        params {
+            +boundTo(FindHomeFolderRequest::username)
+        }
 
     }
 }

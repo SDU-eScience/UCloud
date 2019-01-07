@@ -6,6 +6,7 @@ import dk.sdu.cloud.client.StreamingFile
 import dk.sdu.cloud.client.jwtAuth
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.UploadRequest
@@ -19,7 +20,7 @@ import kotlinx.coroutines.io.ByteReadChannel
 import java.io.File
 
 class JobFileService(
-    cloud: AuthenticatedCloud
+    val cloud: AuthenticatedCloud
 ) {
     private val cloudContext = cloud.parent
 
@@ -79,7 +80,16 @@ class JobFileService(
         )
     }
 
-    private fun jobFolder(jobId: String, user: String): String = joinPath(homeDirectory(user), "Jobs", jobId)
+    private suspend fun jobFolder(jobId: String, user: String): String {
+        val homeFolder = FileDescriptions.findHomeFolder.call(
+            FindHomeFolderRequest(user),
+            cloud
+        ).orThrow().path
+        return joinPath(homeFolder, "Jobs", jobId)
+    }
+
+
+
 
     companion object : Loggable {
         override val log = logger()

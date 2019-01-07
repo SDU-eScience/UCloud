@@ -225,7 +225,7 @@ class BulkUploadTest {
         }
     }
 
-    @Test(expected = FSException.AlreadyExists::class)
+    @Test
     fun testReject() {
         val originalContents = "original"
         val fsRoot = createFileSystem {
@@ -267,7 +267,7 @@ class BulkUploadTest {
             assertEquals(originalContents, origTestFile.readText())
 
             assertEquals(1, result.size)
-            assertEquals(listOf("/home/user/test/file"), result)
+            assertEquals(listOf("/home/user/test"), result)
         }
     }
 

@@ -1,6 +1,8 @@
 package dk.sdu.cloud.file.stats.services
 
 import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.stats.api.SearchResult
 import dk.sdu.cloud.indexing.api.AllOf
@@ -20,7 +22,10 @@ class RecentFilesService(
         username: String,
         causedById: String? = null
     ): List<SearchResult> {
-        val homeDir = homeDirectory(username)
+        val homeDir = FileDescriptions.findHomeFolder.call(
+            FindHomeFolderRequest(username),
+            serviceCloud
+        ).orThrow().path
         val result = QueryDescriptions.query.call(
             QueryRequest(
                 query = FileQuery(
