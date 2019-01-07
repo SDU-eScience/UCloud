@@ -1,6 +1,7 @@
 package dk.sdu.cloud.auth.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
@@ -153,7 +154,7 @@ class TokenService<DBSession>(
                     it.segments.first() != SecurityScope.SPECIAL_SCOPE
         }
 
-        if (!noSpecialScopes) {
+        if (!noSpecialScopes && token.principal.role != Role.PROJECT_PROXY) {
             throw ExtensionException.Unauthorized("Cannot request special scopes")
         }
 

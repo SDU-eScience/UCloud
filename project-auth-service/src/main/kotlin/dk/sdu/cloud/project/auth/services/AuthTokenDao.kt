@@ -19,4 +19,5 @@ interface AuthTokenDao<Session> {
 
 sealed class AuthTokenException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
     class NotFound : AuthTokenException("Not found", HttpStatusCode.NotFound)
+    class InternalError : AuthTokenException("Internal Server Error", HttpStatusCode.InternalServerError)
 }

@@ -1,6 +1,8 @@
 package dk.sdu.cloud.project.auth.services
 
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.client.jwtAuth
@@ -10,11 +12,10 @@ import dk.sdu.cloud.project.auth.api.ProjectAuthenticationToken
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.withSession
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.orRethrowAs
 import dk.sdu.cloud.service.orThrow
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.isSuccess
 
 class TokenRefresher<DBSession>(
     private val serviceCloud: AuthenticatedCloud,
@@ -24,7 +25,11 @@ class TokenRefresher<DBSession>(
 ) {
     private val cloudContext = serviceCloud.parent
 
-    suspend fun refreshTokenForUser(username: String, project: String): ProjectAuthenticationToken {
+    suspend fun refreshTokenForUser(
+        username: String,
+        userCloud: AuthenticatedCloud,
+        project: String
+    ): ProjectAuthenticationToken {
         log.debug("Refreshing token for user=$username, project=$project")
 
         val role = ProjectDescriptions.viewMemberInProject.call(
@@ -36,29 +41,44 @@ class TokenRefresher<DBSession>(
         ).orThrow().member.role
 
         log.debug("$username is a $role in $project")
-        val token = db.withTransaction { tokenDao.retrieveTokenForProjectInRole(it, project, role) }
+        val refreshToken = db.withTransaction { tokenDao.retrieveTokenForProjectInRole(it, project, role) }
 
-        log.debug("Retrieved refresh token for $project/$role. Refreshing at central auth!")
-        val accessTokenResponse = AuthDescriptions.refresh
-            .call(Unit, cloudContext.jwtAuth(token.authRefreshToken))
+        val userToken = run {
+            log.debug("Retrieved refresh token for $project/$role. Refreshing at central auth!")
+            val accessTokenResponse = AuthDescriptions.refresh
+                .call(Unit, cloudContext.jwtAuth(refreshToken.authRefreshToken))
 
-        val statusCode = HttpStatusCode.fromValue(accessTokenResponse.status)
-        val accessToken = when {
-            accessTokenResponse is RESTResponse.Ok -> accessTokenResponse.result.accessToken
+            val statusCode = HttpStatusCode.fromValue(accessTokenResponse.status)
+            val accessToken = when {
+                accessTokenResponse is RESTResponse.Ok -> accessTokenResponse.result.accessToken
 
-            statusCode in setOf(HttpStatusCode.Forbidden, HttpStatusCode.Unauthorized) -> {
-                log.warn("$statusCode while refreshing token for user=$username and project=$project")
-                log.warn("Invalidating all remaining tokens")
-                tokenInvalidator.invalidateTokensForProject(project)
+                statusCode in setOf(HttpStatusCode.Forbidden, HttpStatusCode.Unauthorized) -> {
+                    log.warn("$statusCode while refreshing token for user=$username and project=$project")
+                    log.warn("Invalidating all remaining tokens")
+                    tokenInvalidator.invalidateTokensForProject(project)
 
-                throw RPCException.fromStatusCode(statusCode)
+                    throw RPCException.fromStatusCode(statusCode)
+                }
+                else -> throw RPCException.fromStatusCode(statusCode)
             }
-            else -> throw RPCException.fromStatusCode(statusCode)
+
+            log.debug("Extending token for user...")
+            AuthDescriptions.tokenExtension.call(
+                TokenExtensionRequest(
+                    validJWT = accessToken,
+                    requestedScopes = listOf(SecurityScope.ALL_SCOPE),
+                    expiresIn = 1000 * 60 * 5L,
+                    allowRefreshes = false
+                ),
+                userCloud
+            ).orRethrowAs {
+                log.warn("Caught and exception while extending token for user (${it.status}: ${it.error})")
+                throw AuthTokenException.InternalError()
+            }.accessToken
         }
 
         log.debug("Token refreshed for $username/$role")
-        TODO("FIXME THIS IS NOT SUPPOSED TO BE DONE BY THE SERVICE. THIS IS NOT GETTING THE CORRECT AUDIT INFORMATION")
-        return ProjectAuthenticationToken(accessToken)
+        return ProjectAuthenticationToken(userToken)
     }
 
     companion object : Loggable {
