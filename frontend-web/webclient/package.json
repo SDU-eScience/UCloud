@@ -92,14 +92,14 @@
     "@babel/preset-typescript": "^7.1.0",
     "@types/enzyme": "^3.1.15",
     "@types/enzyme-adapter-react-16": "^1.0.3",
-    "@types/jest": "23.3.11",
+    "@types/jest": "23.3.12",
     "@types/json-schema": "^7.0.1",
     "@types/jsonwebtoken": "^8.3.0",
     "@types/moment-timezone": "^0.5.10",
     "@types/react": "^16.7.18",
     "@types/react-datepicker": "2.0.2",
     "@types/react-dom": "^16.0.11",
-    "@types/react-modal": "3.6.0",
+    "@types/react-modal": "3.8.0",
     "@types/react-redux": "^6.0.12",
     "@types/react-router": "^4.4.3",
     "@types/react-router-dom": "^4.3.1",
@@ -133,12 +133,12 @@
     "style-loader": "0.23.1",
     "terser-webpack-plugin": "^1.2.1",
     "ts-jest": "^23.10.5",
-    "ts-loader": "^5.3.2",
+    "ts-loader": "^5.3.3",
     "typescript": "3.2.2",
     "url-loader": "1.1.2",
     "webpack": "4.28.3",
     "webpack-cli": "^3.2.0",
     "webpack-dev-server": "3.1.14",
-    "webpack-merge": "4.1.5"
+    "webpack-merge": "4.2.1"
   }
 }
