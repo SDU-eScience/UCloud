@@ -31,6 +31,8 @@
       "json",
       "node"
     ],
+    "preset": "ts-jest",
+    "testMatch": null,
     "globals": {
       "ts-jest": {
         "ts-config": "tsconfig.json"
@@ -42,7 +44,7 @@
     "clean": "rm -rf dist/",
     "build": "npm run clean && npm run prepare-icons && webpack --config webpack.prod.js --progress --profile --bail",
     "install": "napa && npm run prepare-icons",
-    "test": "npm run prepare-icons && jest",
+    "test": "npm run prepare-icons && jest --no-cache",
     "prepare-icons": "npm run icons-clean && npm run icons-components && npm run icons-index",
     "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
     "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components",

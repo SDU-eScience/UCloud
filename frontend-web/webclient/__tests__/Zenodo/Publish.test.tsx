@@ -10,7 +10,8 @@ import { configure } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import { mount } from "enzyme";
 import * as ZenodoActions from "Zenodo/Redux/ZenodoActions";
-import { Button } from "ui-components";
+import { Button, theme } from "ui-components";
+import { ThemeProvider } from "styled-components";
 
 configure({ adapter: new Adapter });
 
@@ -18,9 +19,11 @@ describe("Zenodo Publish", () => {
     test("Mount Zenodo component", () => {
         expect(create(
             <Provider store={configureStore({ zenodo: initZenodo() }, { zenodo })}>
-                <MemoryRouter>
-                    <ZenodoPublish />
-                </MemoryRouter>
+                <ThemeProvider theme={theme}>
+                    <MemoryRouter>
+                        <ZenodoPublish />
+                    </MemoryRouter>
+                </ThemeProvider>
             </Provider>
         ).toJSON()).toMatchSnapshot()
     });
@@ -31,9 +34,11 @@ describe("Zenodo Publish", () => {
         store.dispatch(ZenodoActions.setZenodoLoading(false));
         const publishWrapper = mount(
             <Provider store={store}>
-                <MemoryRouter>
-                    <ZenodoPublish />
-                </MemoryRouter>
+                <ThemeProvider theme={theme}>
+                    <MemoryRouter>
+                        <ZenodoPublish />
+                    </MemoryRouter>
+                </ThemeProvider>
             </Provider>
         );
 
