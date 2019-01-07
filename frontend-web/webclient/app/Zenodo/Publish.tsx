@@ -99,37 +99,39 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
             </>)
 
         const main = (
-            <form onSubmit={(e) => this.submit(e)}>
-                <FileSelections
-                    handleFileSelection={this.handleFileSelection}
-                    files={this.state.files}
-                    removeFile={this.removeFile}
-                />
-                <Label>Publication Name
+            <Box mt="5px">
+                <form onSubmit={(e) => this.submit(e)}>
+                    <FileSelections
+                        handleFileSelection={this.handleFileSelection}
+                        files={this.state.files}
+                        removeFile={this.removeFile}
+                    />
+                    <Label>Publication Name
                     <Input
-                        required={true}
-                        value={name}
-                        type="text"
-                        onChange={({ target: { value } }) => this.setState(() => ({ name: value }))}
-                    />
-                </Label>
-                <Flex mt="0.5em">
-                    <Button
-                        color="green"
-                        type="button"
-                        onClick={() => this.newFile()}
-                    >Add file</Button>
-                    <Box ml="auto" />
-                    <LoadingButton
-                        disabled={!name || this.state.files.filter(p => p).length === 0}
-                        color="blue"
-                        type="submit"
-                        loading={this.state.requestSent}
-                        content="Upload files"
-                        onClick={this.submit}
-                    />
-                </Flex>
-            </form>);
+                            required={true}
+                            value={name}
+                            type="text"
+                            onChange={({ target: { value } }) => this.setState(() => ({ name: value }))}
+                        />
+                    </Label>
+                    <Flex mt="0.5em">
+                        <Button
+                            color="green"
+                            type="button"
+                            onClick={() => this.newFile()}
+                        >Add file</Button>
+                        <Box ml="auto" />
+                        <LoadingButton
+                            disabled={!name || this.state.files.filter(p => p).length === 0}
+                            color="blue"
+                            type="submit"
+                            loading={this.state.requestSent}
+                            content="Upload files"
+                            onClick={this.submit}
+                        />
+                    </Flex>
+                </form>
+            </Box>);
 
         const sidebar = (<Link to="/zenodo/"><Button fullWidth color="green">Publications</Button></Link>)
 
