@@ -16,6 +16,7 @@ import dk.sdu.cloud.project.auth.services.TokenRefresher
 import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.service.cloudContext
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
@@ -65,7 +66,7 @@ class HttpTest {
                     }
                 }
 
-                listOf(ProjectAuthController(tokenRefresher))
+                listOf(ProjectAuthController(tokenRefresher, micro.cloudContext))
             },
 
             test = test

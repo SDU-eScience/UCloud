@@ -2,9 +2,9 @@ package dk.sdu.cloud.file.api
 
 import java.io.File
 
-fun homeDirectory(user: String): String = "/home/$user/"
+internal fun homeDirectory(user: String): String = "/home/$user/"
 
-fun favoritesDirectory(user: String): String = joinPath(homeDirectory(user), "Favorites", isDirectory = true)
+internal fun favoritesDirectory(user: String): String = joinPath(homeDirectory(user), "Favorites", isDirectory = true)
 
 fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
     return File(components.joinToString("/") + (if (isDirectory) "/" else "")).normalize().path

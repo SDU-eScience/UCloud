@@ -5,8 +5,7 @@ USER=$1
 PRETTY=$2
 CREATE_DIR=$3
 
-#useradd -d / -s /bin/false "${USER}" # Compatible with CentOS
-adduser -D -H -s /bin/false "${USER}" # Compatible with Alpine (busybox)
+id -u "${USER}" || adduser -D -H -s /bin/false "${USER}" # Compatible with Alpine (busybox)
 
 if [ ! -f /mnt/cephfs/home ]; then
     mkdir -p /mnt/cephfs/home
@@ -15,11 +14,11 @@ fi
 
 if [ "${CREATE_DIR}" != "no" ]; then
     # User initialization
-    mkdir -m771 "/mnt/cephfs/home/${PRETTY}/"
-    mkdir -m771 "/mnt/cephfs/home/${PRETTY}/Favorites"
-    mkdir -m771 "/mnt/cephfs/home/${PRETTY}/Jobs"
-    mkdir -m771 "/mnt/cephfs/home/${PRETTY}/Uploads"
-    mkdir -m771 "/mnt/cephfs/home/${PRETTY}/Trash"
+    mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/"
+    mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/Favorites"
+    mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/Jobs"
+    mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/Uploads"
+    mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/Trash"
 
     # For some reason busybox is having problems chowning directly on the username
     # TODO That will likely become a problem later
