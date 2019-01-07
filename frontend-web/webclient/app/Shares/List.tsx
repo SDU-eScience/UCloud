@@ -386,8 +386,7 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
 
 function fileTypeGuess({ path }: { path: string }) {
     const hasExtension = path.split("/").pop()!.includes(".");
-    const fileType = hasExtension ? "FILE" : "DIRECTORY";
-    return fileType;
+    return hasExtension ? "FILE" : "DIRECTORY";
 }
 
 async function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
