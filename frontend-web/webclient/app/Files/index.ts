@@ -157,6 +157,7 @@ export interface FilesTableHeaderProps {
     customEntriesPerPage?: React.ReactNode
     customEntriesWidth?: string
     notStickyHeader?: boolean
+    children: React.ReactNode
 }
 
 export interface FilenameAndIconsProps {
