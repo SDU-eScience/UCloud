@@ -14,7 +14,7 @@ import { ReduxObject, KeyCode } from "DefaultObjects";
 import { Dispatch } from "redux";
 import { searchPage } from "Utilities/SearchUtilities";
 
-class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { history: History }> {
+class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { history: History, cantHide?: boolean, omitFileName?: boolean }> {
 
     constructor(props) {
         super(props);
@@ -23,8 +23,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
     private extensionsInput = React.createRef<HTMLInputElement>();
 
     componentWillUnmount() {
-        if (!this.props.hidden)
-            this.props.toggleHidden();
+        if (!this.props.hidden) this.props.toggleHidden();
     }
 
     onAddExtension() {
@@ -40,7 +39,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
         this.props.addExtensions(ext);
     }
 
-    // FIXME, should show errors in fields instead, the upper corner error is not very noticeable;
     validateAndSetDate(m: Date | null, property: PossibleTime) {
         const { setTimes, setError, createdBefore, modifiedBefore, createdAfter, modifiedAfter } = this.props;
         if (m == null) { setTimes({ [property]: undefined }); return }
@@ -112,7 +110,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
     }
 
     render() {
-        if (this.props.hidden) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
+        if (this.props.hidden && !this.props.cantHide) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
         const { sensitivities, extensions, allowFiles, allowFolders } = this.props;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));
         const sensitivityDropdown = remainingSensitivities.length ? (
@@ -131,7 +129,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                 <OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Hide Advanced Search</OutlineButton>
                 <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                     <Box mt="0.5em">
-                        <form onSubmit={e => (e.preventDefault(), this.onSearch()) }>
+                        <form onSubmit={e => (e.preventDefault(), this.onSearch())}>
                             <Error error={this.props.error} clearError={() => this.props.setError()} />
                             <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
                             <Input

@@ -37,7 +37,7 @@ export class DataList extends React.PureComponent<DataListProps, { text: string,
     get options(): Fuse.FuseOptions<ContentValuePair> {
         return {
             shouldSort: true,
-            threshold: 0.6,
+            threshold: 0.2,
             location: 0,
             distance: 100,
             maxPatternLength: 32,
@@ -49,9 +49,9 @@ export class DataList extends React.PureComponent<DataListProps, { text: string,
     }
 
     render() {
-        const results = this.state.text ? this.props.options.slice(0, this.totalShown) : this.state.fuse.search(this.state.text);
+        const results = this.state.text ? this.state.fuse.search(this.state.text) : this.props.options.slice(0, this.totalShown);
         return (
-            <ClickableDropdown fullWidth trigger={
+            <ClickableDropdown colorOnHover={results.length !== 0} fullWidth trigger={
                 <FormField>
                     <Input
                         placeholder={this.props.placeholder}

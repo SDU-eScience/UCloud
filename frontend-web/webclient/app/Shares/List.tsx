@@ -303,8 +303,8 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
         this.state.promises.makeCancelable(revokeShare(share.id))
             .promise
-            .then(() => { this.maybeInvoke(share, this.props.onRevoked); this.setState(() => ({ isLoading: false })); })
-            .catch(e => { this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError); this.setState(() => ({ isLoading: false })) });
+            .then(() => (this.maybeInvoke(share, this.props.onRevoked), this.setState(() => ({ isLoading: false }))))
+            .catch(e => (this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError), this.setState(() => ({ isLoading: false }))));
     }
 
     onAccept(share: Share) {
