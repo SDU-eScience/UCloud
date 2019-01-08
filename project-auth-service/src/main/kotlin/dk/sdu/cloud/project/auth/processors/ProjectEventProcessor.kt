@@ -7,6 +7,7 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.auth.api.ProjectAuthEvent
 import dk.sdu.cloud.project.auth.api.usernameForProjectInRole
 import dk.sdu.cloud.project.auth.services.AuthToken
 import dk.sdu.cloud.project.auth.services.AuthTokenDao
@@ -15,6 +16,7 @@ import dk.sdu.cloud.project.auth.services.TokenInvalidator
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.consumeAndCommit
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -28,14 +30,9 @@ class ProjectEventProcessor<DBSession>(
     private val authTokenDao: AuthTokenDao<DBSession>,
     private val tokenInvalidator: TokenInvalidator<DBSession>,
     private val eventConsumerFactory: EventConsumerFactory,
+    private val eventProducer: MappedEventProducer<*, ProjectAuthEvent>,
     private val parallelism: Int = 4
 ) {
-    private val listeners = ArrayList<ProjectInitializedListener>()
-
-    fun addListener(listener: ProjectInitializedListener) {
-        listeners.add(listener)
-    }
-
     fun init(): List<EventConsumer<*>> = (0 until parallelism).map { _ ->
         eventConsumerFactory.createConsumer(ProjectEvents.events).configure { root ->
             root.consumeAndCommit { (_, event) ->
@@ -65,8 +62,7 @@ class ProjectEventProcessor<DBSession>(
                                 }
                             }
 
-                            // TODO If this crashes we end up in a bad state. We should instead emit another event.
-                            listeners.forEach { it.onProjectCreated(event, rolesAndTokens) }
+                            eventProducer.emit(ProjectAuthEvent.Initialized(projectId))
                         }
 
                         is ProjectEvent.Deleted -> {

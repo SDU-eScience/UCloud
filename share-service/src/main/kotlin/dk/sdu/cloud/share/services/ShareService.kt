@@ -45,6 +45,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import java.util.*
 
 class ShareService<DBSession>(
     private val serviceCloud: AuthenticatedCloud,
@@ -214,7 +215,8 @@ class ShareService<DBSession>(
     suspend fun acceptShare(
         user: String,
         shareId: ShareId,
-        userCloud: JWTAuthenticatedCloud
+        userCloud: JWTAuthenticatedCloud,
+        createLink: Boolean = true
     ) {
         val auth = AuthRequirements(user, ShareRole.RECIPIENT)
         val existingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
@@ -241,18 +243,23 @@ class ShareService<DBSession>(
                 ).orThrow()
             }
 
-            val linkCall = async {
-                FileDescriptions.createLink.call(
-                    CreateLinkRequest(
-                        linkPath = defaultLinkToShare(existingShare),
-                        linkTargetPath = existingShare.path
-                    ),
-                    userCloud
-                ).orThrow()
-            }
+            val createdLink = if (createLink) {
+                val linkCall = async {
+                    FileDescriptions.createLink.call(
+                        CreateLinkRequest(
+                            linkPath = defaultLinkToShare(existingShare),
+                            linkTargetPath = existingShare.path
+                        ),
+                        userCloud
+                    ).orThrow()
+                }
 
-            val createdLink = linkCall.await()
-            updateCall.await()
+                val createdLink = linkCall.await()
+                updateCall.await()
+
+                createdLink
+            } else null
+
             val tokenExtension = extendCall.await().refreshToken
                 ?: throw ShareException.InternalError("bad response from token extension. refreshToken == null")
 
@@ -263,7 +270,7 @@ class ShareService<DBSession>(
                     shareId,
                     recipientToken = tokenExtension,
                     state = ShareState.ACCEPTED,
-                    linkId = createdLink.fileId
+                    linkId = createdLink?.fileId
                 )
             }
         }

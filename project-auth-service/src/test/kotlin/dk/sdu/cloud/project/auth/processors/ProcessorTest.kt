@@ -6,6 +6,7 @@ import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.auth.api.ProjectAuthEvents
 import dk.sdu.cloud.project.auth.services.AuthTokenDao
 import dk.sdu.cloud.project.auth.services.AuthTokenHibernateDao
 import dk.sdu.cloud.project.auth.services.TokenInvalidator
@@ -17,8 +18,10 @@ import dk.sdu.cloud.service.cloudContext
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.kafka
 import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.MockedEventConsumerFactory
 import dk.sdu.cloud.service.test.TestCallResult
@@ -59,6 +62,7 @@ class ProcessorTest {
             authTokenDao,
             tokenInvalidator,
             MockedEventConsumerFactory,
+            micro.kafka.producer.forStream(ProjectAuthEvents.events),
             parallelism = 1
         )
 

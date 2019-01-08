@@ -122,7 +122,7 @@ class TokensTest {
 
         assertThatProperty(
             instance = runCatching {
-                tokenRefresher.refreshTokenForUser("myuser", projectA)
+                tokenRefresher.refreshTokenForUser("myuser", micro.authenticatedCloud, projectA)
             }.exceptionOrNull(),
             property = { it },
             matcher = { it is RPCException && it.httpStatusCode == authRefreshStatus }
@@ -146,7 +146,7 @@ class TokensTest {
             { TestCallResult.Ok(ViewMemberInProjectResponse(ProjectMember(it.username, ProjectRole.USER))) }
         )
 
-        val result = tokenRefresher.refreshTokenForUser("myuser", projectA)
+        val result = tokenRefresher.refreshTokenForUser("myuser", micro.authenticatedCloud, projectA)
         assertEquals(accessToken, result.accessToken)
     }
 
@@ -158,7 +158,13 @@ class TokensTest {
             { TestCallResult.Error(error = null, statusCode = HttpStatusCode.NotFound) }
         )
 
-        val exception = runCatching { tokenRefresher.refreshTokenForUser("myuser", projectA) }.exceptionOrNull()
+        val exception = runCatching {
+            tokenRefresher.refreshTokenForUser(
+                "myuser",
+                micro.authenticatedCloud,
+                projectA
+            )
+        }.exceptionOrNull()
         assertThatInstance(exception) { it is RPCException && it.httpStatusCode == HttpStatusCode.NotFound }
     }
 
@@ -176,7 +182,13 @@ class TokensTest {
             { TestCallResult.Error(error = null, statusCode = HttpStatusCode.InternalServerError) }
         )
 
-        val exception = runCatching { tokenRefresher.refreshTokenForUser("myuser", projectA) }.exceptionOrNull()
+        val exception = runCatching {
+            tokenRefresher.refreshTokenForUser(
+                "myuser",
+                micro.authenticatedCloud,
+                projectA
+            )
+        }.exceptionOrNull()
         assertThatInstance(exception) { it is RPCException && it.httpStatusCode == HttpStatusCode.InternalServerError }
     }
 

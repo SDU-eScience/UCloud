@@ -1,23 +1,24 @@
 package dk.sdu.cloud.project.auth.services
 
-import dk.sdu.cloud.auth.api.CreateSingleUserResponse
-import dk.sdu.cloud.client.CloudContext
-import dk.sdu.cloud.client.JWTAuthenticatedCloud
-import dk.sdu.cloud.client.jwtAuth
+import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.ListDirectoryRequest
-import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.auth.api.usernameForProjectInRole
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.orThrow
+import dk.sdu.cloud.share.api.AcceptShareRequest
 import dk.sdu.cloud.share.api.CreateShareRequest
 import dk.sdu.cloud.share.api.ShareDescriptions
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 import org.slf4j.Logger
 
 /**
@@ -28,44 +29,47 @@ import org.slf4j.Logger
  * many of these "ProjectInitializedListeners" we should start moving them into their own services.
  */
 class StorageInitializer(
-    private val cloudContext: CloudContext
+    private val refreshTokenCloudFactory: (String) -> AuthenticatedCloud
 ) : ProjectInitializedListener {
-    override suspend fun onProjectCreated(
-        event: ProjectEvent.Created,
-        users: List<Pair<ProjectRole, CreateSingleUserResponse>>
-    ) {
-        log.info("Handling storage hook for $event")
+    override suspend fun onProjectCreated(projectId: String, users: List<AuthToken>) {
+        log.info("Handling storage hook for $projectId")
 
-        val projectHome = "/home/${event.project.id}"
-        val piCloud = cloudContext.jwtAuth(
-            (users.find { it.first == ProjectRole.PI }
-                ?: throw IllegalArgumentException("Bad input")).second.accessToken
+        val projectHome = "/home/$projectId"
+        val piCloud = refreshTokenCloudFactory(
+            (users.find { it.role == ProjectRole.PI }
+                ?: throw IllegalArgumentException("Bad input")).authRefreshToken
         )
 
         awaitFileSystem(projectHome, piCloud)
 
-        users.asSequence().filter { it.first != ProjectRole.PI }.forEach { (role, tokens) ->
-            val username = usernameForProjectInRole(event.project.id, role)
-            val userCloud = cloudContext.jwtAuth(tokens.accessToken)
+        users.filter { it.role != ProjectRole.PI }.map { tokens ->
+            GlobalScope.launch {
+                val username = usernameForProjectInRole(projectId, tokens.role)
+                log.debug("Creating share for $username")
+                val userCloud = refreshTokenCloudFactory(tokens.authRefreshToken)
 
-            val shareId = ShareDescriptions.create.call(
-                CreateShareRequest(
-                    sharedWith = username,
-                    path = projectHome,
-                    rights = AccessRight.values().toSet()
-                ),
-                piCloud
-            ).orThrow()
+                val shareResponse = ShareDescriptions.create.call(
+                    CreateShareRequest(
+                        sharedWith = username,
+                        path = projectHome,
+                        rights = AccessRight.values().toSet()
+                    ),
+                    piCloud
+                )
 
-            ShareDescriptions.accept.call(
-                shareId,
-                userCloud
-            ).orThrow()
-        }
+                if (HttpStatusCode.fromValue(shareResponse.status) == HttpStatusCode.Conflict) return@launch
+                val shareId = shareResponse.orThrow()
+
+                ShareDescriptions.accept.call(
+                    AcceptShareRequest(shareId.id, createLink = false),
+                    userCloud
+                ).orThrow()
+            }
+        }.joinAll()
     }
 
-    private suspend fun awaitFileSystem(projectHome: String, piCloud: JWTAuthenticatedCloud) {
-        for (attempt in 1..30) {
+    private suspend fun awaitFileSystem(projectHome: String, piCloud: AuthenticatedCloud) {
+        for (attempt in 1..100) {
             log.debug("Awaiting ready status from project home ($projectHome)")
             val status = FileDescriptions.listAtPath.call(
                 ListDirectoryRequest(
@@ -82,7 +86,7 @@ class StorageInitializer(
                 break
             } else if (status == HttpStatusCode.ExpectationFailed || status == HttpStatusCode.NotFound) {
                 log.debug("FS is not yet ready!")
-                delay(1000)
+                delay(100)
             } else {
                 throw RPCException.fromStatusCode(status)
             }
