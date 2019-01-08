@@ -8,6 +8,7 @@ import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
@@ -46,7 +47,8 @@ class Server(
             serviceCloud = cloud,
             db = micro.hibernateDatabase,
             shareDao = shareDao,
-            userCloudFactory = { RefreshingJWTAuthenticatedCloud(cloud.parent, it, jwtValidation) }
+            userCloudFactory = { RefreshingJWTAuthenticatedCloud(cloud.parent, it, jwtValidation) },
+            devMode = micro.developmentModeEnabled
         )
 
         // Initialize consumers here:

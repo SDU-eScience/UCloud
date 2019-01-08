@@ -5,6 +5,7 @@ import dk.sdu.cloud.project.auth.http.ProjectAuthController
 import dk.sdu.cloud.project.auth.processors.ProjectEventProcessor
 import dk.sdu.cloud.project.auth.services.AuthTokenDao
 import dk.sdu.cloud.project.auth.services.AuthTokenHibernateDao
+import dk.sdu.cloud.project.auth.services.StorageInitializer
 import dk.sdu.cloud.project.auth.services.TokenInvalidator
 import dk.sdu.cloud.project.auth.services.TokenRefresher
 import dk.sdu.cloud.service.CommonServer
@@ -45,17 +46,20 @@ class Server(
         val tokenDao: AuthTokenDao<HibernateSession> = AuthTokenHibernateDao()
         val tokenInvalidator = TokenInvalidator(cloud, db, tokenDao)
         val tokenRefresher = TokenRefresher(cloud, db, tokenDao, tokenInvalidator)
+        val storageInitializer = StorageInitializer(cloud.parent)
 
         // Initialize consumers here:
-        addConsumers(
-            ProjectEventProcessor(
-                cloud,
-                db,
-                tokenDao,
-                tokenInvalidator,
-                kafka
-            ).init()
-        )
+        ProjectEventProcessor(
+            cloud,
+            db,
+            tokenDao,
+            tokenInvalidator,
+            kafka
+        ).apply {
+            addListener(storageInitializer)
+
+            addConsumers(init())
+        }
 
         // Initialize server
         httpServer = ktor {

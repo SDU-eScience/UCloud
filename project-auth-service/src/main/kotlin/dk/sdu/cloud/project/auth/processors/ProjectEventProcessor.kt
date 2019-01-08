@@ -10,6 +10,7 @@ import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.auth.api.usernameForProjectInRole
 import dk.sdu.cloud.project.auth.services.AuthToken
 import dk.sdu.cloud.project.auth.services.AuthTokenDao
+import dk.sdu.cloud.project.auth.services.ProjectInitializedListener
 import dk.sdu.cloud.project.auth.services.TokenInvalidator
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.EventConsumerFactory
@@ -29,6 +30,12 @@ class ProjectEventProcessor<DBSession>(
     private val eventConsumerFactory: EventConsumerFactory,
     private val parallelism: Int = 4
 ) {
+    private val listeners = ArrayList<ProjectInitializedListener>()
+
+    fun addListener(listener: ProjectInitializedListener) {
+        listeners.add(listener)
+    }
+
     fun init(): List<EventConsumer<*>> = (0 until parallelism).map { _ ->
         eventConsumerFactory.createConsumer(ProjectEvents.events).configure { root ->
             root.consumeAndCommit { (_, event) ->
@@ -51,11 +58,15 @@ class ProjectEventProcessor<DBSession>(
                                 serviceCloud
                             ).orThrow()
 
+                            val rolesAndTokens = ProjectRole.values().zip(tokens)
                             db.withTransaction { session ->
-                                ProjectRole.values().zip(tokens).forEach { (role, token) ->
+                                rolesAndTokens.forEach { (role, token) ->
                                     authTokenDao.storeToken(session, AuthToken(token.refreshToken, projectId, role))
                                 }
                             }
+
+                            // TODO If this crashes we end up in a bad state. We should instead emit another event.
+                            listeners.forEach { it.onProjectCreated(event, rolesAndTokens) }
                         }
 
                         is ProjectEvent.Deleted -> {

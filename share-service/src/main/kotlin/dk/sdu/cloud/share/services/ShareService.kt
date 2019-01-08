@@ -50,42 +50,51 @@ class ShareService<DBSession>(
     private val serviceCloud: AuthenticatedCloud,
     private val db: DBSessionFactory<DBSession>,
     private val shareDao: ShareDAO<DBSession>,
-    private val userCloudFactory: (refreshToken: String) -> AuthenticatedCloud
+    private val userCloudFactory: (refreshToken: String) -> AuthenticatedCloud,
+    private val devMode: Boolean = false
 ) {
     suspend fun create(
         user: String,
         share: CreateShareRequest,
         userCloud: BearerTokenAuthenticatedCloud
     ): ShareId {
+        log.debug("Creating share for $user $share")
         lateinit var fileId: String
         lateinit var ownerToken: String
 
         // Verify request
         coroutineScope {
+            log.debug("Verifying file exists")
             val statJob = async {
                 FileDescriptions.stat
                     .call(FindByPath(share.path), userCloud)
                     .orNull()
-                    ?.takeIf { it.ownerName == user } ?: throw ShareException.NotFound()
+                    ?.takeIf { devMode || it.ownerName == user } ?: throw ShareException.NotFound()
             }
 
+            log.debug("Verifying that user exists")
             val lookupJob = launch {
                 val lookup = UserDescriptions.lookupUsers.call(
                     LookupUsersRequest(listOf(share.sharedWith)),
                     serviceCloud
                 ) as? RESTResponse.Ok ?: throw ShareException.InternalError("Could not look up user")
 
+                log.debug("Lookup success!")
+
                 lookup.result.results[share.sharedWith]
                     ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
             }
 
             fileId = statJob.await().fileId
+            log.debug("File exists")
             lookupJob.join()
+            log.debug("User exists")
         }
 
         // Acquire token for owner
         // TODO If DB is failing we should delete this token
         coroutineScope {
+            log.debug("Creating token for user")
             val extendJob = async {
                 AuthDescriptions.tokenExtension.call(
                     TokenExtensionRequest(
@@ -105,6 +114,7 @@ class ShareService<DBSession>(
         }
 
         // Save internal state
+        log.debug("Saving internal state...")
         val result = db.withTransaction {
             shareDao.create(
                 it,
@@ -118,6 +128,7 @@ class ShareService<DBSession>(
         }
 
         // Notify recipient
+        log.debug("Sending notification...")
         coroutineScope {
             launch {
                 NotificationDescriptions.create.call(
@@ -139,6 +150,7 @@ class ShareService<DBSession>(
             }
         }
 
+        log.debug("File share request sent!")
         return result
     }
 
