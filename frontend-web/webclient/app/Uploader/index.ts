@@ -1,6 +1,5 @@
 import Uploader from "./Uploader";
 export { Uploader };
-import { Dispatch} from "redux";
 import { Sensitivity } from "DefaultObjects";
 
 
@@ -14,7 +13,7 @@ export interface Upload {
     uploadEvents: { progressInBytes: number, timestamp: number }[]
 }
 
-export interface UploaderProps {
+export interface UploaderStateProps {
     error?: string
     visible: boolean
     uploads: Upload[]
@@ -22,3 +21,11 @@ export interface UploaderProps {
     location: string
     onFilesUploaded?: (path: string) => void
 }
+
+export interface UploadOperations {
+    setUploads: (uploads: Upload[]) => void
+    setUploaderError: (err?: string) => void
+    setUploaderVisible: (visible: boolean) => void
+}
+
+export type UploaderProps = UploadOperations & UploaderStateProps;

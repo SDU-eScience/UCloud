@@ -4,7 +4,7 @@ import { Page } from "Types";
 
 export interface ZenodoOperations {
     onErrorDismiss: () => void
-    fetchPublications: (a: number, b: number ) => void
+    fetchPublications: (a: number, b: number) => void
     updatePageTitle: () => void
 }
 
@@ -45,11 +45,16 @@ export type ZenodoInfoProps = {
 }
 
 
-export interface ZenodoHomeProps {
+export interface ZenodoHomeStateProps {
     error?: string
     connected: boolean
     loading: boolean
     page: Page<Publication>
+}
+
+export type ZenodoHomeProps = ZenodoHomeStateProps & ZenodoHomeOperations
+
+export interface ZenodoHomeOperations {
     onErrorDismiss: () => void
     fetchPublications: (pageNo: Number, pageSize: number) => void
     updatePageTitle: () => void

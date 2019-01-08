@@ -8,7 +8,7 @@ import { sizeToString } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
 import { ReduxObject, Sensitivity } from "DefaultObjects";
-import { Upload, UploaderProps } from ".";
+import { Upload, UploadOperations, UploaderProps } from ".";
 import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
 import { Box, Flex, Error } from "ui-components";
@@ -53,7 +53,7 @@ function calculateSpeed(upload: Upload): number {
     return (bytesTransferred / timespan) * 1000;
 }
 
-class Uploader extends React.Component<UploaderProps & UploadOperations> {
+class Uploader extends React.Component<UploaderProps> {
     constructor(props) {
         super(props);
     }
@@ -335,11 +335,6 @@ const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
     error: uploader.error
 });
 
-interface UploadOperations {
-    setUploads: (uploads: Upload[]) => void
-    setUploaderError: (err?: string) => void
-    setUploaderVisible: (visible: boolean) => void
-}
 const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploads: uploads => dispatch(setUploads(uploads)),
     setUploaderError: err => dispatch(setUploaderError(err)),
