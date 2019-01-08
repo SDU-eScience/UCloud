@@ -118,7 +118,7 @@ class Search extends React.Component<SearchProps> {
 
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
-        const fileOperations = AllFileOperations(true, false, false, this.props.history);
+        const fileOperations = AllFileOperations(true, false, false, false, this.props.history);
         // FIXME: Search Pane approach is obsolete
         const panes: SearchPane[] = [
             {
@@ -219,17 +219,18 @@ class Search extends React.Component<SearchProps> {
     }
 };
 
-const SearchOptions = styled(Flex)`
+export const SearchOptions = styled(Flex)`
     border-bottom: 1px solid ${theme.colors.lightGray};
 `;
 
-const SelectableText = styled(Text) <{ selected: boolean }>`
+export const SelectableText = styled(Text) <{ selected: boolean }>`
     border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : undefined};
 `
 
 type MenuItemName = "Files" | "Projects" | "Applications";
 type SearchBarProps = { active: MenuItemName }
 const SearchBar = (props: SearchBarProps) => {
+    return null;
     switch (props.active) {
         case "Files":
             return <DetailedFileSearch />
@@ -247,10 +248,10 @@ const SearchPriorityToNumber = (search: string): number => {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
-    setFilesLoading: (loading) => dispatch(SSActions.setFilesLoading(loading)),
-    setApplicationsLoading: (loading) => dispatch(SSActions.setApplicationsLoading(loading)),
-    setProjectsLoading: (loading) => dispatch(SSActions.setProjectsLoading(loading)),
-    setError: (error) => dispatch(SSActions.setErrorMessage(error)),
+    setFilesLoading: loading => dispatch(SSActions.setFilesLoading(loading)),
+    setApplicationsLoading: loading => dispatch(SSActions.setApplicationsLoading(loading)),
+    setProjectsLoading: loading => dispatch(SSActions.setProjectsLoading(loading)),
+    setError: error => dispatch(SSActions.setErrorMessage(error)),
     searchFiles: async (body) => {
         dispatch(SSActions.setFilesLoading(true));
         dispatch(await SSActions.searchFiles(body));
@@ -265,11 +266,11 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
         dispatch(SSActions.setProjectsLoading(true));
         dispatch(await SSActions.searchProjects(query, page, itemsPerPage));
     },
-    setFilesPage: (page: Page<File>) => dispatch(SSActions.receiveFiles(page)),
-    setApplicationsPage: (page: Page<Application>) => dispatch(SSActions.receiveApplications(page)),
-    setProjectsPage: (page: Page<ProjectMetadata>) => dispatch(SSActions.receiveProjects(page)),
-    setSearch: (search) => dispatch(SSActions.setSearch(search)),
-    setPrioritizedSearch: (sT: HeaderSearchType) => dispatch(setPrioritizedSearch(sT)),
+    setFilesPage: page => dispatch(SSActions.receiveFiles(page)),
+    setApplicationsPage: page => dispatch(SSActions.receiveApplications(page)),
+    setProjectsPage: page => dispatch(SSActions.receiveProjects(page)),
+    setSearch: search => dispatch(SSActions.setSearch(search)),
+    setPrioritizedSearch: sT => dispatch(setPrioritizedSearch(sT)),
     toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden())
 });
 

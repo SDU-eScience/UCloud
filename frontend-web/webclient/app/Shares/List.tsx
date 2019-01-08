@@ -18,7 +18,7 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { FileIcon } from "UtilityComponents";
 import { setsDiffer } from "Utilities/CollectionUtilities";
 
-class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState> {
+class List extends React.Component<ListProps & SharesOperations, ListState> {
     constructor(props: any) {
         super(props);
         this.state = {
@@ -32,7 +32,7 @@ class List extends React.Component<ListProps & { dispatch: Dispatch }, ListState
         };
         // FIXME potentially move following to a parent component
         if (!props.notInnerComponent)
-            props.dispatch(updatePageTitle("Shares"))
+            this.props.updatePageTitle();
     }
 
     public componentDidMount = () => this.reload();
@@ -454,4 +454,12 @@ const sharesByPath = async (path: string): Promise<any> => ({
 });
 
 
-export default connect()(List);
+interface SharesOperations {
+    updatePageTitle: () => void
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): SharesOperations => ({
+    updatePageTitle: () => dispatch(updatePageTitle("Shares"))
+});
+
+export default connect(() => ({}), mapDispatchToProps)(List);

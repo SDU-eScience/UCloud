@@ -14,10 +14,12 @@ import { ReduxObject, KeyCode } from "DefaultObjects";
 import { Dispatch } from "redux";
 import { searchPage } from "Utilities/SearchUtilities";
 
-class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { history: History, cantHide?: boolean, omitFileName?: boolean }> {
+// FIXME: Props can be defined properly
+class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { history: History, defaultFilename?: string, cantHide?: boolean, omitFileName?: boolean }> {
 
     constructor(props) {
         super(props);
+        if (!!this.props.defaultFilename) this.props.setFilename(this.props.defaultFilename);
     }
 
     private extensionsInput = React.createRef<HTMLInputElement>();
@@ -96,8 +98,9 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
             after: !!this.props.modifiedAfter ? this.props.modifiedAfter.valueOf() : undefined,
             before: !!this.props.modifiedBefore ? this.props.modifiedBefore.valueOf() : undefined,
         };
+        const fileName = this.props.externalFileName || this.props.fileName;
         const request: AdvancedSearchRequest = {
-            fileName: this.props.fileName,
+            fileName,
             extensions: [...this.props.extensions],
             fileTypes,
             createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
@@ -110,7 +113,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
     }
 
     render() {
-        if (this.props.hidden && !this.props.cantHide) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
+        const { hidden, cantHide, externalFileName } = this.props;
+        if (hidden && !cantHide) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
         const { sensitivities, extensions, allowFiles, allowFolders } = this.props;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));
         const sensitivityDropdown = remainingSensitivities.length ? (
@@ -126,7 +130,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
 
         return (
             <>
-                <OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Hide Advanced Search</OutlineButton>
+                {!cantHide ? <OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Hide Advanced Search</OutlineButton> : null}
                 <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                     <Box mt="0.5em">
                         <form onSubmit={e => (e.preventDefault(), this.onSearch())}>

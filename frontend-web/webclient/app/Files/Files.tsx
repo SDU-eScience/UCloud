@@ -180,7 +180,6 @@ class Files extends React.Component<FilesProps> {
                         createFolder={() => props.createFolder()}
                         toHome={() => navigate(Cloud.homeFolder)}
                     />
-                    <DetailedFileSearch />
                 </Box> : null
         );
         const additional = (

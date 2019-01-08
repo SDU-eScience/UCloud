@@ -8,7 +8,7 @@ import Avatar from "avataaars";
 import { History } from "history";
 import { HeaderStateToProps } from "Navigation";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
-import { ReduxObject, KeyCode } from "DefaultObjects";
+import { ReduxObject, KeyCode, HeaderSearchType } from "DefaultObjects";
 import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Divider, Support } from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
@@ -17,6 +17,11 @@ import { searchFiles } from "Search/Redux/SearchActions";
 import { searchPage } from "Utilities/SearchUtilities";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
 import { withRouter } from "react-router";
+import DetailedFileSearch from "Files/DetailedFileSearch";
+import { Dropdown } from "ui-components/Dropdown";
+import { SelectableText, SearchOptions } from "Search/Search";
+import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
+import { prettierString } from "UtilityFunctions";
 
 
 
@@ -27,13 +32,15 @@ interface HeaderProps {
 
 interface HeaderState {
     searchText: string
+    searchType: HeaderSearchType
 }
 
 class Header extends React.Component<HeaderProps & HeaderOperations & { history: History }, HeaderState> {
     constructor(props: any) {
         super(props);
         this.state = {
-            searchText: ""
+            searchText: "",
+            searchType: "files"
         };
         props.fetchLoginStatus()
     }
@@ -45,13 +52,16 @@ class Header extends React.Component<HeaderProps & HeaderOperations & { history:
             <HeaderContainer color="headerText" bg={"headerBg"}>
                 <Logo />
                 <Box ml="auto" />
-                <BackgroundTask />
                 <Search
+                    searchType={this.state.searchType}
                     onChange={searchText => this.setState(() => ({ searchText }))}
                     navigate={() => history.push(searchPage(prioritizedSearch, searchText))}
                     searchText={searchText}
                     searchFiles={searchFiles}
+                    setSearchType={st => this.setState(() => ({ searchType: st }))}
                 />
+                <Box mr="auto" />
+                <BackgroundTask />
                 <Support />
                 <Notification />
                 <ClickableDropdown width="180px" left={"-180%"} trigger={<Flex><UserAvatar /></Flex>}>
@@ -97,7 +107,7 @@ const Logo = () => (
 );
 
 const SearchInput = styled(Flex)`
-    width: 300px;
+    width: 350px;
     height: 36px;
     align-items: center;
     color: white;
@@ -125,7 +135,8 @@ const SearchInput = styled(Flex)`
         background-color: white; 
     }
 
-    input {
+    & > ${Dropdown} > ${Text} > input {
+        width: 350px;
         height: 36px;
         padding-right: 10px;
         padding-left: 30px;
@@ -134,11 +145,13 @@ const SearchInput = styled(Flex)`
 
 interface Search {
     searchText: string
+    searchType: HeaderSearchType
     onChange: (input: string) => void
     navigate: () => void
     searchFiles: (input: string) => void
+    setSearchType: (st: HeaderSearchType) => void
 }
-const Search = ({ searchText, onChange, navigate, searchFiles }: Search) => (
+const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSearchType }: Search) => (
     <Relative>
         <SearchInput>
             <Input
@@ -155,9 +168,35 @@ const Search = ({ searchText, onChange, navigate, searchFiles }: Search) => (
                     <Icon name="search" size="20" />
                 </Label>
             </Absolute>
+            <ClickableDropdown
+                left={-350}
+                top={15}
+                width="350px"
+                colorOnHover={false}
+                keepOpenOnClick
+                squareTop
+                trigger={
+                    <Absolute top={-12.5} right={12} bottom={0} left={-28}>
+                        <Icon color="black" name="chevronDown" size="15px" />
+                    </Absolute>
+                }>
+                <SearchOptions>
+                    <Box ml="auto" />
+                    {searchTypes.map(it =>
+                        <SelectableText onClick={() => setSearchType(it)} mr="1em" selected={it === searchType}>
+                            {prettierString(it)}
+                        </SelectableText>
+                    )}
+                    <Box mr="auto" />
+                </SearchOptions>
+                {searchType === "files" ? <DetailedFileSearch defaultFilename={searchText} cantHide /> :
+                searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchText} /> : null}
+            </ClickableDropdown>
         </SearchInput>
-    </Relative>
+    </Relative >
 );
+
+const searchTypes: HeaderSearchType[] = ["files", "projects", "applications"]
 
 const ClippedBox = styled(Flex)`
     align-items: center;

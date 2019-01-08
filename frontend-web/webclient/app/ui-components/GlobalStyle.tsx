@@ -611,12 +611,6 @@ textarea,
 .ReactModal__Overlay {
     z-index: 100;
     height: auto;
-}
-
-.react-datepicker__portal {
-  background-color: rgba(0, 0, 0, 0) !important;
-}
-
-`;
+}`;
 
 export default UIGlobalStyle;

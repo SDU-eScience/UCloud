@@ -14,13 +14,14 @@ type ClickableDropdownProps = {
     height?: string | number
     width?: string | number
     minWidth?: string
-    left?: string
-    top?: string
-    bottom?: string
-    right?: string
+    left?: string | number
+    top?: string | number
+    bottom?: string | number
+    right?: string | number
     options?: { text: string, value: string }[]
     chevron?: boolean
     colorOnHover?: boolean
+    squareTop?: boolean
     onChange?: (key: string) => void
 }
 
@@ -73,6 +74,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
                 </Text.TextSpan>
                 {this.state.open && !emptyChildren ?
                     <DropdownContent
+                        squareTop={this.props.squareTop}
                         cursor="pointer" 
                         {...props} 
                         width={width}
