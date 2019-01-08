@@ -92,7 +92,7 @@ class Files extends React.Component<FilesProps> {
     };
 
     refetch = () => {
-        const { path, page, sortOrder, sortBy} = this.props;
+        const { path, page, sortOrder, sortBy } = this.props;
         this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
@@ -104,7 +104,12 @@ class Files extends React.Component<FilesProps> {
             icon: "rename",
             color: undefined
         },
-        ...AllFileOperations(true, this.fileSelectorOperations, this.refetch, this.props.history)
+        ...AllFileOperations(
+            true,
+            this.fileSelectorOperations,
+            this.refetch,
+            () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
+            this.props.history)
     ];
 
     render() {
@@ -119,15 +124,15 @@ class Files extends React.Component<FilesProps> {
                 right={<CustomEntriesPerPage
                     entriesPerPage={page.itemsPerPage}
                     text="Files per page"
-                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, Math.trunc(page.itemsPerPage*page.pageNumber/itemsPerPage), sortOrder, sortBy)}
+                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, Math.trunc(page.itemsPerPage * page.pageNumber / itemsPerPage), sortOrder, sortBy)}
                     loading={loading}
                     onRefreshClick={this.refetch}
                 />}>
             </Spacer>
         );
-        const columns = responsiveState!.greaterThan.md ? 
-                            ( responsiveState!.greaterThan.lg ? [leftSortingColumn, rightSortingColumn] : [ rightSortingColumn ] ) 
-                        : [] ; //on md or smaller display 0 columns
+        const columns = responsiveState!.greaterThan.md ?
+            (responsiveState!.greaterThan.lg ? [leftSortingColumn, rightSortingColumn] : [rightSortingColumn])
+            : []; //on md or smaller display 0 columns
 
         const main = (
             <Pagination.List

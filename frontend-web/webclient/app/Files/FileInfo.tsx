@@ -75,9 +75,11 @@ class FileInfo extends React.Component<FileInfo> {
                             onFavorite={() => props.receiveFileStat(favoriteFile(file, Cloud))}
                             onReclassify={async level => props.receiveFileStat(await reclassifyFile(file, level, Cloud))} />
                         {activity.items.length ? (
-                            <Card mt="1em" mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
-                                <ActivityFeed activity={activity.items} />
-                            </Card>) : null}
+                            <Flex flexDirection="row" justifyContent="center">
+                                <Card mt="1em" maxWidth={"75%"} mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
+                                    <ActivityFeed activity={activity.items} />
+                                </Card>
+                            </Flex>) : null}
                         <ShareList byPath={file.path} />
                         {loading ? <LoadingIcon size={18} /> : null}
                     </>}
@@ -124,7 +126,7 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
                     <ClickableDropdown
                         chevron
                         trigger={SensitivityLevel[file.sensitivityLevel]}
-                        onChange={(e) => onReclassify(e as SensitivityLevelMap)}
+                        onChange={e => onReclassify(e as SensitivityLevelMap)}
                         options={
                             Object.keys(SensitivityLevel).map(key => ({
                                 text: SensitivityLevel[key],

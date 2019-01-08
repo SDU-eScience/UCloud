@@ -36,7 +36,7 @@ describe("Detailed Result", () => {
         let wrapper = shallow(
             <Provider store={store}>
                 <DetailedResult
-                    match={{ params: { jobId: "J0B1D" } }}
+                    match={{ jobId: "J0B1D" }}
                 />
             </Provider>);
         wrapper.update();

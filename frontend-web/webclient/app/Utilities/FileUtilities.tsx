@@ -133,13 +133,6 @@ export const MoveFileToTrashOperation = (onMoved: () => void): Operation[] => [
         color: "red"
     },
     {
-        text: "Clear Trash",
-        onClick: (files, cloud) => clearTrash(cloud, onMoved),
-        disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
-        icon: "trash",
-        color: "red"
-    },
-    {
         text: "Delete Files",
         onClick: (files, cloud) => batchDeleteFiles(files, cloud, onMoved),
         disabled: (files, cloud) => !files.every(f => getParentPath(f.path) === cloud.trashFolder),
@@ -147,6 +140,16 @@ export const MoveFileToTrashOperation = (onMoved: () => void): Operation[] => [
         color: "red"
     }
 ];
+
+export const ClearTrashOperations = (toHome: () => void) => [
+    {
+        text: "Clear Trash",
+        onClick: (files, cloud) => clearTrash(cloud, toHome),
+        disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
+        icon: "trash",
+        color: "red"
+    },
+]
 
 /**
  * @returns Properties and Project Operations for files.
@@ -186,12 +189,13 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
-export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: (() => void) | false, history: History | false) {
+export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: (() => void) | false, onClearTrash: (() => void) | false, history: History | false) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps) : [];
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted) : [];
+    const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history) : [];
-    return [...stateLessOperations, ...fileSelectorOperations, ...deleteOperation, ...historyOperations];
+    return [...stateLessOperations, ...fileSelectorOperations, ...deleteOperation, ...clearTrash, ...historyOperations];
 };
 
 
@@ -339,7 +343,7 @@ export const clearTrash = (cloud: SDUCloud, callback: () => void) =>
         if (result.dismiss) {
             return;
         } else {
-            cloud.post("/files/trash/clear", {}).then(() => callback ? callback() : null);
+            cloud.post("/files/trash/clear", {}).then(() => callback());
         }
     });
 

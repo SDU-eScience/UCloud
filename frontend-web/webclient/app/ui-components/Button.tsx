@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { space, ButtonStyleProps, SpaceProps, SizeProps } from "styled-system";
+import { space, ButtonStyleProps, SpaceProps, SizeProps, height, HeightProps } from "styled-system";
 import theme, { Theme, ThemeColor } from "./theme";
 
 const size = ({ size, theme }: { size: string, theme: Theme }) => {
@@ -34,7 +34,7 @@ const size = ({ size, theme }: { size: string, theme: Theme }) => {
 
 export const fullWidth = (props: { fullWidth?: boolean }) => (props.fullWidth ? { width: "100%" } : null)
 
-export type ButtonProps = ButtonStyleProps & { fullWidth?: boolean, textColor?: ThemeColor, lineHeight?: number | string } & SpaceProps & SizeProps & { title?: string }
+export type ButtonProps = ButtonStyleProps & HeightProps & { fullWidth?: boolean, textColor?: ThemeColor, lineHeight?: number | string } & SpaceProps & SizeProps & { title?: string }
 
 const Button = styled.button<ButtonProps>` 
   -webkit-font-smoothing: antialiased;
@@ -66,7 +66,7 @@ const Button = styled.button<ButtonProps>`
     transform: scale(1.03);
   }
 
-  ${fullWidth} ${size} ${space};
+  ${fullWidth} ${size} ${space} ${height};
 `;
 
 Button.defaultProps = {

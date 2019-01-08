@@ -10,6 +10,7 @@ import * as Adapter from "enzyme-adapter-react-16";
 import * as moment from "moment";
 import { DatePicker } from "ui-components/DatePicker"
 import { Input, Button, Label } from "ui-components";
+import "jest-styled-components";
 
 configure({ adapter: new Adapter() });
 
@@ -49,22 +50,6 @@ describe("DetailedFileSearch", () => {
         expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).state("createdAfter"))).toEqual(m);
         expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).state("modifiedBefore"))).toEqual(m);
         expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).state("modifiedAfter"))).toEqual(m);
-    });
-
-    test.skip("Add date, causing one field to disappear, and render an error message", () => {
-        const m1 = moment(new Date());
-        const m2 = moment(new Date(new Date().getMilliseconds() - 500));
-        const detailedFileSearchWrapper = mount(
-            <Provider store={store}>
-                <DetailedFileSearch />
-            </Provider>
-        );
-        detailedFileSearchWrapper.find(Button).simulate("click");
-        detailedFileSearchWrapper.find(DatePicker).first().find("input").simulate("change", { target: { value: m1 } });
-        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).createdAfter).toBeDefined();
-        detailedFileSearchWrapper.find(DatePicker).slice(1, 2).find("input").simulate("change", { target: { value: m2 } });
-        expect((detailedFileSearchWrapper.find(DetailedFileSearch).childAt(0).instance().state as any).createdAfter).toBeUndefined();
-        // FIXME When error messages are better handled for detailedFileSearch, dismiss error;
     });
 
     test.skip("Deselect folder and file checkboxes", () => {
@@ -124,13 +109,5 @@ describe("DetailedFileSearch", () => {
         const extensionDropdown = detailedFileSearchWrapper.find("Dropdown").findWhere(it => it.props().text === "Add extension preset");
         // FIXME
 
-    });
-
-    test.skip("Add extensions from presets, clear one, clear all", () => {
-        // FIXME
-    });
-
-    test.skip("Add tag filename, clear one, clear all", () => {
-        // FIXME
     });
 });

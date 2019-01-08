@@ -8,6 +8,7 @@ import * as AnalysesActions from "Applications/Redux/AnalysesActions";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
 import { analyses as analysesPage } from "../mock/Analyses";
+import { createMemoryHistory } from "history";
 
 describe("Analyses component", () => {
     test.skip("Mount component", () => {
@@ -15,7 +16,7 @@ describe("Analyses component", () => {
         expect(create(
             <Provider store={store}>
                 <MemoryRouter>
-                    <JobResults />
+                    <JobResults history={createMemoryHistory()} />
                 </MemoryRouter>
             </Provider>).toJSON()).toMatchSnapshot();
     });
@@ -26,7 +27,7 @@ describe("Analyses component", () => {
         expect(create(
             <Provider store={store}>
                 <MemoryRouter>
-                    <JobResults />
+                    <JobResults history={createMemoryHistory()} />
                 </MemoryRouter>
             </Provider>).toJSON()).toMatchSnapshot();
     });

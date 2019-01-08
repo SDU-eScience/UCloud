@@ -31,7 +31,8 @@ const Grid = styled.div<GridProps>`
     ${space} ${width} ${height} ${color}
     ${alignItems} ${justifyItems} ${gridGap}
     ${gridTemplateColumns} ${gridTemplateRows}
-`
+`;
+
 export const GridCardGroup = ({ minmax = 350, ...props }) => (<Grid width={"100%"} gridTemplateColumns={`repeat(auto-fill, minmax(${minmax}px, 1fr) )`} gridGap={10} {...props} />)
 
 Grid.displayName = "Grid"

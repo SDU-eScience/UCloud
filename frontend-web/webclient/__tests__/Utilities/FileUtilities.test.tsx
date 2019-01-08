@@ -5,7 +5,7 @@ import { createMemoryHistory } from "history";
 
 describe("File Operations", () => {
     test("No file operations", () =>
-        expect(FileUtils.AllFileOperations(false, false, false, false)).toEqual([])
+        expect(FileUtils.AllFileOperations(false, false, false, false, false)).toEqual([])
     );
 })
 

@@ -1,9 +1,9 @@
 import * as React from "react";
-import { File } from "Files";
+import { File, FileOperation } from "Files";
 import { Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader } from "ui-components/Table";
 import { FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps } from "Files";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Text, Input, Truncate } from "ui-components";
+import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Input, Truncate } from "ui-components";
 import * as UF from "UtilityFunctions"
 import { Arrow, FileIcon } from "UtilityComponents";
 import { TextSpan } from "ui-components/Text";
@@ -16,7 +16,10 @@ import styled from "styled-components";
 export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
     fileOperations, sortOrder, onFavoriteFile, sortBy, customEntriesPerPage, onNavigationClick, notStickyHeader
-}: FilesTableProps) => (
+}: FilesTableProps) => {
+    const checkedFiles = files.filter(it => it.isChecked);
+    const checkedCount = checkedFiles.length;
+    return (
         <Table>
             <FilesTableHeader
                 notStickyHeader={notStickyHeader}
@@ -29,7 +32,11 @@ export const FilesTable = ({
                 sortBy={sortBy}
                 customEntriesPerPage={customEntriesPerPage}
                 customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"} //on modal thi is lenght=1
-            />
+            >
+                {/* FIXME: Figure out how to handle responsiveness for FileOperations */}
+                {checkedCount === -1 ? <FileOperationsWrapper fileOperations={fileOperations} files={checkedFiles} /> : null}
+            </FilesTableHeader>
+
             <TableBody>
                 {files.map((file, i) => (
                     <TableRow highlighted={file.isChecked} key={i}>
@@ -45,18 +52,24 @@ export const FilesTable = ({
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                         ))}
                         <TableCell textAlign="center">
-                            {fileOperations.length > 1 ?
-                                <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" size="1em" rotation="90" />}>
-                                    <FileOperations files={[file]} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
-                                </ClickableDropdown> :
-                                <FileOperations files={[file]} fileOperations={fileOperations} As={OutlineButton} />
-                            }
+                            {checkedCount === 0 ? (<FileOperationsWrapper
+                                files={[file]}
+                                fileOperations={fileOperations}
+                            />) : null}
                         </TableCell>
                     </TableRow>)
                 )}
             </TableBody>
-        </Table>
+        </Table >
     );
+}
+
+interface FileOperationWrapper { files: File[], fileOperations: FileOperation[] }
+const FileOperationsWrapper = ({ files, fileOperations }: FileOperationWrapper) => fileOperations.length ?
+    <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" size="1em" rotation="90" />}>
+        <FileOperations files={files} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
+    </ClickableDropdown> :
+    <FileOperations files={files} fileOperations={fileOperations} As={OutlineButton} />;
 
 const notSticky = ({ notSticky }: { notSticky?: boolean }): { position: "sticky" } | null =>
     notSticky ? null : { position: "sticky" };
@@ -103,7 +116,8 @@ const FilesTableHeader = ({
     sortBy,
     customEntriesPerPage,
     customEntriesWidth,
-    notStickyHeader
+    notStickyHeader,
+    children
 }: FilesTableHeaderProps) => (
         <TableHeader>
             <TableRow>
@@ -128,7 +142,7 @@ const FilesTableHeader = ({
                     />
                 ))}
                 <FileTableHeaderCell width={customEntriesWidth}>
-                    <Flex>{customEntriesPerPage}</Flex>
+                    <Flex>{customEntriesPerPage}{children}</Flex>
                 </FileTableHeaderCell>
             </TableRow>
         </TableHeader>
@@ -171,11 +185,9 @@ export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHo
         <Button color="blue" onClick={showUploader}>Upload Files</Button>
         <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton>
         {inTrashFolder ?
-            <Button color="red"
-                onClick={() => clearTrash(Cloud, () => toHome())}
-            >
+            <Button color="red" onClick={() => clearTrash(Cloud, () => toHome())}>
                 Empty trash
-                </Button> : null}
+            </Button> : null}
     </VerticalButtonGroup>
 );
 
@@ -223,6 +235,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
         {icon}
         <Input
             placeholder={getFilenameFromPath(file.path)}
+            defaultValue={getFilenameFromPath(file.path)}
             p="0"
             noBorder
             borderRadius="0px"
