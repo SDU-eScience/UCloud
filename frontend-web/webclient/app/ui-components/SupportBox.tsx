@@ -86,7 +86,7 @@ class Support extends React.Component<{}, SupportState> {
                     <form onSubmit={e => this.onSubmit(e)}>
                         <TextArea width="100%" ref={this.textArea} rows={6} />
                         <Button mt="0.4em" fullWidth type="submit" disabled={this.state.loading}>
-                            <Icon name="mail" size="1em" mr=".5em" color2="midGray" />
+                            <Icon name="mail" size="1em" mr=".5em" color="lightGray" color2="white" />
                             Send
                         </Button>
                     </form>
