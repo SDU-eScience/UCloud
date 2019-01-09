@@ -36,7 +36,13 @@ describe("Detailed Result", () => {
         let wrapper = shallow(
             <Provider store={store}>
                 <DetailedResult
-                    match={{ jobId: "J0B1D" }}
+                    history={createMemoryHistory()}
+                    match={{
+                        isExact: true,
+                        url: "",
+                        path: "",
+                        params: { jobId: "J0B1D" }
+                    }}
                 />
             </Provider>);
         wrapper.update();
