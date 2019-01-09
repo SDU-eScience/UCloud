@@ -27,12 +27,12 @@ class AvataaarModification extends React.Component<void, AvataaarModificationSta
             top: Options.Top.NoHair,
             accessories: Options.TopAccessory.Blank,
             hairColor: Options.HairColor.Auburn,
-            facialHair: Options.FacialHair.BeardMedium,
+            facialHair: Options.FacialHair.Blank,
             facialHairColor: Options.FacialHairColor.Auburn,
             clothes: Options.Clothes.BlazerShirt,
             clothesFabric: Options.ColorFabric.Black,
             clothesGraphic: Options.ClothesGraphic.Bat,
-            eyes: Options.Eyes.Cry,
+            eyes: Options.Eyes.Default,
             eyebrow: Options.Eyebrows.DefaultNatural,
             mouth: Options.MouthTypes.Concerned,
             skin: Options.SkinColors.Pale
@@ -74,72 +74,84 @@ class AvataaarModification extends React.Component<void, AvataaarModificationSta
                             <Box mr="auto" />
                         </Flex>
                         <AvatarSelect
+                            defaultValue={state.top}
                             update={value => this.setState(() => ({ top: value }))}
                             options={Options.Top}
                             title="Top"
                             disabled={false}
                         />
                         <AvatarSelect
+                            defaultValue={state.accessories}
                             update={value => this.setState(() => ({ accessories: value }))}
                             options={Options.TopAccessory}
                             title="Accessories"
                             disabled={state.top === "Eyepatch"}
                         />
                         <AvatarSelect
+                            defaultValue={state.hairColor}
                             update={value => this.setState(() => ({ hairColor: value }))}
                             options={Options.HairColor}
                             title="Hair color"
                             disabled={!state.top.includes("Long") || state.top === "LongHairFrida"}
                         />
                         <AvatarSelect
+                            defaultValue={state.facialHair}
                             update={value => this.setState(() => ({ facialHair: value }))}
                             options={Options.FacialHair}
                             title="Facial Hair"
                             disabled={state.top === "Hijab"}
                         />
                         <AvatarSelect
+                            defaultValue={state.facialHairColor}
                             update={value => this.setState(() => ({ facialHairColor: value }))}
                             options={Options.FacialHairColor}
                             title="Facial Hair Color"
                             disabled={state.facialHair === "Blank"}
                         />
                         <AvatarSelect
+                            defaultValue={state.clothes}
                             update={value => this.setState(() => ({ clothes: value }))}
                             options={Options.Clothes}
                             title="Clothes"
                             disabled={false}
                         />
                         <AvatarSelect
+                            defaultValue={state.clothesFabric}
                             title="Clothes Fabric"
                             options={Options.ColorFabric}
                             update={value => this.setState(() => ({ clothesFabric: value }))}
                             disabled={state.clothes === "BlazerShirt" || state.clothes === "BlazerSweater"}
                         />
                         <AvatarSelect
+                            defaultValue={state.clothesGraphic}
                             title="Graphic"
                             update={value => this.setState(() => ({ clothesGraphic: value }))}
                             options={Options.ClothesGraphic}
                             disabled={state.clothes !== "GraphicShirt"}
                         />
                         <AvatarSelect
+                            defaultValue={state.eyes}
                             title="Eyes"
                             options={Options.Eyes}
                             update={value => this.setState(() => ({ eyes: value }))}
                             disabled={false}
                         />
                         <AvatarSelect
+                            defaultValue={state.eyebrow}
                             title="Eyebrow"
                             options={Options.Eyebrows}
                             update={value => this.setState(() => ({ eyebrow: value }))}
                             disabled={false}
                         />
                         <AvatarSelect
+                            defaultValue={state.mouth}
                             title="Mouth type"
                             options={Options.MouthTypes}
                             update={value => this.setState(() => ({ mouth: value }))}
                             disabled={false}
                         />
                         <AvatarSelect
+                            defaultValue={state.skin}
                             title={"Skin color"}
                             options={Options.SkinColors}
                             update={value => this.setState(() => ({ skin: value }))}
@@ -153,16 +165,17 @@ class AvataaarModification extends React.Component<void, AvataaarModificationSta
 
 interface AvatarSelect<T> {
     update: (value: keyof T) => void
+    defaultValue: keyof T
     options: T
     title: string
     disabled: boolean
 }
 
-function AvatarSelect<T>({ update, options, title, disabled }: AvatarSelect<T>) {
+function AvatarSelect<T>({ update, options, title, disabled, defaultValue }: AvatarSelect<T>) {
     if (disabled) return null;
     return (
         <Label mt="0.8em">{title}
-            <Select onChange={({ target: { value } }) => update(value as keyof T)}>
+            <Select defaultValue={defaultValue} onChange={({ target: { value } }) => update(value as keyof T)}>
                 {Object.keys(options).map(it => <option key={it}>{it}</option>)}
             </Select>
         </Label>

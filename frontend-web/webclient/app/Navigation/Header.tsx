@@ -75,6 +75,12 @@ class Header extends React.Component<HeaderProps & HeaderOperations & { history:
                             </Flex>
                         </Link>
                     </Box>
+                    <Flex ml="-17px" mr="-17px" pl="15px">
+                        <Link to={"/users/avatar"}>
+                            <Icon name="chevron" mr="0.5em" my="0.2em" size="1.3em" />
+                            Edit Avatar
+                        </Link>
+                    </Flex>
                     <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
                         <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                         Logout
@@ -190,7 +196,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSe
                     <Box mr="auto" />
                 </SearchOptions>
                 {searchType === "files" ? <DetailedFileSearch defaultFilename={searchText} cantHide /> :
-                searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchText} /> : null}
+                    searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchText} /> : null}
             </ClickableDropdown>
         </SearchInput>
     </Relative >
