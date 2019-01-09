@@ -3,6 +3,8 @@ import * as React from "react";
 import * as Options from "./AvatarOptions";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Select, Label, Box, Flex } from "ui-components";
+import { connect } from "react-redux";
+import { ReduxObject } from "DefaultObjects";
 
 
 interface AvataaarModificationState {
@@ -20,22 +22,24 @@ interface AvataaarModificationState {
     skin: Options.SkinColorOptions
 }
 
-class AvataaarModification extends React.Component<void, AvataaarModificationState> {
+type AvataaarModificationStateProps = typeof defaultAvatar
+
+class AvataaarModification extends React.Component<AvataaarModificationStateProps, AvataaarModificationState> {
     constructor(props) {
         super(props);
         this.state = {
-            top: Options.Top.NoHair,
-            accessories: Options.TopAccessory.Blank,
-            hairColor: Options.HairColor.Auburn,
-            facialHair: Options.FacialHair.Blank,
-            facialHairColor: Options.FacialHairColor.Auburn,
-            clothes: Options.Clothes.BlazerShirt,
-            clothesFabric: Options.ColorFabric.Black,
-            clothesGraphic: Options.ClothesGraphic.Bat,
-            eyes: Options.Eyes.Default,
-            eyebrow: Options.Eyebrows.DefaultNatural,
-            mouth: Options.MouthTypes.Concerned,
-            skin: Options.SkinColors.Pale
+            top: this.props.top,
+            accessories: this.props.accessories,
+            hairColor: this.props.hairColor,
+            facialHair: this.props.facialHair,
+            facialHairColor: this.props.facialHairColor,
+            clothes: this.props.clothes,
+            clothesFabric: this.props.clothesFabric,
+            clothesGraphic: this.props.clothesGraphic,
+            eyes: this.props.eyes,
+            eyebrow: this.props.eyebrow,
+            mouth: this.props.mouth,
+            skin: this.props.skin
         }
     }
 
@@ -49,8 +53,6 @@ class AvataaarModification extends React.Component<void, AvataaarModificationSta
         const { ...state } = this.state;
         return (
             <MainContainer
-
-
                 main={
                     <>
                         <Flex>
@@ -182,4 +184,23 @@ function AvatarSelect<T>({ update, options, title, disabled, defaultValue }: Ava
     )
 }
 
-export default AvataaarModification;
+const mapStateToProps = ({ avatar }: ReduxObject) => avatar
+const mapDispatchToProps = ({ }) => ({})
+
+const defaultAvatar = ({
+    top: Options.Top.NoHair,
+    accessories: Options.TopAccessory.Blank,
+    hairColor: Options.HairColor.Auburn,
+    facialHair: Options.FacialHair.Blank,
+    facialHairColor: Options.FacialHairColor.Auburn,
+    clothes: Options.Clothes.BlazerShirt,
+    clothesFabric: Options.ColorFabric.Black,
+    clothesGraphic: Options.ClothesGraphic.Bat,
+    eyes: Options.Eyes.Default,
+    eyebrow: Options.Eyebrows.DefaultNatural,
+    mouth: Options.MouthTypes.Default,
+    skin: Options.SkinColors.Pale
+});
+
+export default connect(mapStateToProps, mapDispatchToProps)(AvataaarModification);
+export { defaultAvatar }

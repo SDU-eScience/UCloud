@@ -22,20 +22,14 @@ import { Dropdown } from "ui-components/Dropdown";
 import { SelectableText, SearchOptions } from "Search/Search";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import { prettierString } from "UtilityFunctions";
-
-
-
-interface HeaderProps {
-    sidebarOpen?: boolean
-    prioritizedSearch: string
-}
+import { defaultAvatar } from "UserSettings/Avataaar";
 
 interface HeaderState {
     searchText: string
     searchType: HeaderSearchType
 }
 
-class Header extends React.Component<HeaderProps & HeaderOperations & { history: History }, HeaderState> {
+class Header extends React.Component<HeaderStateToProps & HeaderOperations & { history: History }, HeaderState> {
     constructor(props: any) {
         super(props);
         this.state = {
@@ -64,7 +58,7 @@ class Header extends React.Component<HeaderProps & HeaderOperations & { history:
                 <BackgroundTask />
                 <Support />
                 <Notification />
-                <ClickableDropdown width="180px" left={"-180%"} trigger={<Flex><UserAvatar /></Flex>}>
+                <ClickableDropdown width="180px" left={"-180%"} trigger={<Flex><UserAvatar avatar={this.props.avatar} /></Flex>}>
                     <UserNameBox>Welcome, {Cloud.userInfo.firstNames}</UserNameBox>
                     <Divider />
                     <Box ml="-17px" mr="-17px" pl="15px">
@@ -210,19 +204,25 @@ const ClippedBox = styled(Flex)`
     height: 48px;
 `;
 
-const UserAvatar = () => (
+const UserAvatar = ({ avatar }: { avatar: typeof defaultAvatar }) => (
     <ClippedBox mx="8px" width="60px">
         <Avatar
+            /* pieceType
+            pieceSize */
+
             avatarStyle="Circle"
-            topType="ShortHairShortFlat"
-            accessoriesType="Blank"
-            hairColor="Black"
-            facialHairType="Blank"
-            clotheType="BlazerShirt"
-            eyeType="Default"
-            eyebrowType="Default"
-            mouthType="Default"
-            skinColor="Light"
+            topType={avatar.top}
+            accessoriesType={avatar.accessories}
+            hairColor={avatar.hairColor}
+            facialHairType={avatar.facialHair}
+            facialHairColor={avatar.facialHairColor}
+            clotheType={avatar.clothes}
+            clotheColor={avatar.clothesFabric}
+            graphicType={avatar.clothesGraphic}  
+            eyeType={avatar.eyes}
+            eyebrowType={avatar.eyebrow}
+            mouthType={avatar.mouth}
+            skinColor={avatar.skin}
         />
     </ClippedBox>
 );
@@ -239,9 +239,10 @@ const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     searchFiles: async fileName => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] }))
 });
 
-const mapStateToProps = ({ sidebar, header }: ReduxObject): HeaderStateToProps => ({
+const mapStateToProps = ({ sidebar, header, avatar }: ReduxObject): HeaderStateToProps => ({
     sidebarOpen: sidebar.open,
-    prioritizedSearch: header.prioritizedSearch
+    prioritizedSearch: header.prioritizedSearch,
+    avatar
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(withRouter(Header));
