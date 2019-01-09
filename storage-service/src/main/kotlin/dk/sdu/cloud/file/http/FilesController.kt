@@ -368,7 +368,8 @@ class FilesController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, req))
             val user = call.securityPrincipal.username
             tryWithFS(commandRunnerFactory, user) { ctx ->
-                fileLookupService.stat(ctx, req.path)
+                val fileID = fileLookupService.stat(ctx, req.path).fileId
+                audit(SingleFileAudit(fileID, req))
             }
 
             val uploader = when {
