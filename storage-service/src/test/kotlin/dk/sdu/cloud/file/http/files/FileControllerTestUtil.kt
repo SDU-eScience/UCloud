@@ -318,7 +318,7 @@ fun TestApplicationEngine.extract(
     return call(
         HttpMethod.Post,
         "/api/files/extract",
-        rawBody = """{ "path": "$path"}""",
+        params = mapOf("path" to path),
         user = user,
         role = role
     )

@@ -58,16 +58,21 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
                 var entry: ZipEntry? = zipStream.nextEntry
                 while (entry != null) {
                     val initialTargetPath = joinPath(path, entry.name)
-                    if (entry.isDirectory) {
-                        yield(ArchiveEntry.Directory(initialTargetPath))
+                    if (entry.name.contains("__MACOSX")) {
+                        log.debug("Skipping Entry: " + entry.name)
+                        entry = zipStream.nextEntry
                     } else {
-                        yield(ArchiveEntry.File(
-                            path = initialTargetPath,
-                            stream = zipStream,
-                            dispose = { zipStream.closeEntry() }
-                        ))
+                        if (entry.isDirectory) {
+                            yield(ArchiveEntry.Directory(initialTargetPath))
+                        } else {
+                            yield(ArchiveEntry.File(
+                                path = initialTargetPath,
+                                stream = zipStream,
+                                dispose = { zipStream.closeEntry() }
+                            ))
+                        }
+                        entry = zipStream.nextEntry
                     }
-                    entry = zipStream.nextEntry
                 }
             }
         })

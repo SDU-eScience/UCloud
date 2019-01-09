@@ -365,7 +365,11 @@ class FilesController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.extract) { req ->
+            audit(SingleFileAudit(null, req))
             val user = call.securityPrincipal.username
+            tryWithFS(commandRunnerFactory, user) { ctx ->
+                fileLookupService.stat(ctx, req.path)
+            }
 
             val uploader = when {
                 req.path.endsWith(".tar.gz") -> BulkUploader.fromFormat("tgz", commandRunnerFactory.type)
@@ -389,6 +393,7 @@ class FilesController<Ctx : FSUserContext>(
                             fileInputStream
                         )
                     }
+
                 }
             }
 

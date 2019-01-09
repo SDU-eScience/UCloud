@@ -562,10 +562,11 @@ object FileDescriptions : RESTDescriptions("files") {
         body { bindEntireRequestFromBody() }
     }
 
-    val extract = callDescription<
+    val extract = callDescriptionWithAudit<
             ExtractRequest,
             Unit,
-            CommonErrorMessage
+            CommonErrorMessage,
+            SingleFileAudit<ExtractRequest>
             > {
         name = "extract"
         method = HttpMethod.Post
@@ -579,6 +580,8 @@ object FileDescriptions : RESTDescriptions("files") {
             +"extract"
         }
 
-        body { bindEntireRequestFromBody() }
+        params {
+            +boundTo(ExtractRequest::path)
+        }
     }
 }
