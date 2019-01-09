@@ -5,19 +5,20 @@ import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 
 fun FileRow.toCreatedEvent() = StorageEvent.CreatedOrRefreshed(
-    inode,
-    path,
-    owner,
-    timestamps.created,
-    fileType,
-    timestamps,
-    size,
-    checksum,
-    isLink,
-    if (isLink) linkTarget else null,
-    if (isLink) linkInode else null,
-    annotations,
-    sensitivityLevel
+    id = inode,
+    path = path,
+    creator = owner,
+    owner = xowner,
+    timestamp = timestamps.created,
+    fileType = fileType,
+    fileTimestamps = timestamps,
+    size = size,
+    checksum = checksum,
+    isLink = isLink,
+    linkTarget = if (isLink) linkTarget else null,
+    linkTargetId = if (isLink) linkInode else null,
+    annotations = annotations,
+    sensitivityLevel = sensitivityLevel
 )
 
 /**
@@ -35,5 +36,6 @@ val STORAGE_EVENT_MODE = setOf(
     FileAttribute.LINK_TARGET,
     FileAttribute.LINK_INODE,
     FileAttribute.ANNOTATIONS,
-    FileAttribute.SENSITIVITY
+    FileAttribute.SENSITIVITY,
+    FileAttribute.XOWNER
 )

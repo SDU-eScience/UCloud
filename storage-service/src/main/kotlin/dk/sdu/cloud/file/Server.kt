@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.http.FilesController
 import dk.sdu.cloud.file.http.IndexingController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
+import dk.sdu.cloud.file.processors.StorageEventProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLService
 import dk.sdu.cloud.file.services.BackgroundScope
@@ -95,6 +96,16 @@ class Server(
         log.info("Core services constructed!")
 
         // Kafka
+        addProcessors(
+            StorageEventProcessor(
+                listeners = listOf(
+                    fileOwnerService
+                ),
+                commandRunnerFactory = processRunner,
+                eventConsumerFactory = kafka
+            ).init()
+        )
+
         kStreams = buildStreams { kBuilder ->
             UserProcessor(
                 kBuilder.stream(AuthStreams.UserUpdateStream),
@@ -124,7 +135,6 @@ class Server(
                         fileLookupService,
                         sensitivityService,
                         aclService,
-                        fileOwnerService,
                         config.filePermissionAcl
                     ),
 
@@ -144,15 +154,13 @@ class Server(
                     MultiPartUploadController(
                         processRunner,
                         coreFileSystem,
-                        sensitivityService,
-                        fileOwnerService
+                        sensitivityService
                     ),
 
                     MultiPartUploadController(
                         processRunner,
                         coreFileSystem,
                         sensitivityService,
-                        fileOwnerService,
                         baseContextOverride = "/api/upload" // backwards-comparability
                     )
                 )

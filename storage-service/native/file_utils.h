@@ -96,7 +96,7 @@ bool std_starts_with(const std::string &str, const std::string &prefix);
 #define CHECKSUM_TYPE_MAX 256
 
 #define CREATED_OR_MODIFIED (FILE_TYPE | INODE | PATH | TIMESTAMPS | OWNER | SIZE | CHECKSUM | \
-    IS_LINK | LINK_TARGET |LINK_INODE | ANNOTATIONS | SENSITIVITY)
+    IS_LINK | LINK_TARGET |LINK_INODE | ANNOTATIONS | SENSITIVITY | XOWNER)
 
 int print_file_information(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode);
 

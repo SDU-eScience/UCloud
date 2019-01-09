@@ -21,12 +21,13 @@ class FileSensitivityService<Ctx : FSUserContext>(
         BackgroundScope.launch {
             storageEventProducer.emit(
                 StorageEvent.SensitivityUpdated(
-                    stat.inode,
-                    stat.path,
-                    stat.owner,
-                    System.currentTimeMillis(),
-                    level,
-                    eventCausedBy
+                    id = stat.inode,
+                    path = stat.path,
+                    owner = stat.xowner,
+                    creator = stat.owner,
+                    timestamp = System.currentTimeMillis(),
+                    sensitivityLevel = level,
+                    eventCausedBy = eventCausedBy
                 )
             )
         }

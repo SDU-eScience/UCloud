@@ -46,7 +46,6 @@ class FilesController<Ctx : FSUserContext>(
     private val fileLookupService: FileLookupService<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val aclService: ACLService<Ctx>,
-    private val fileOwnerService: FileOwnerService<Ctx>,
     private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {
     override val baseContext = FileDescriptions.baseContext
@@ -157,7 +156,6 @@ class FilesController<Ctx : FSUserContext>(
                 tryWithFSAndTimeout(commandRunnerFactory, req.owner) {
                     coreFs.makeDirectory(it, req.path)
                     sensitivityService.setSensitivityLevel(it, req.path, req.sensitivity, null)
-                    fileOwnerService.writeFileOwner(it, req.path)
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
             } else {
@@ -169,7 +167,6 @@ class FilesController<Ctx : FSUserContext>(
                         req.sensitivity,
                         call.securityPrincipal.username
                     )
-                    fileOwnerService.writeFileOwner(it, req.path)
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
             }
@@ -236,6 +233,7 @@ class FilesController<Ctx : FSUserContext>(
                 FileAttribute.FILE_TYPE,
                 FileAttribute.UNIX_MODE,
                 FileAttribute.OWNER,
+                FileAttribute.XOWNER,
                 FileAttribute.GROUP,
                 FileAttribute.SIZE,
                 FileAttribute.TIMESTAMPS,
@@ -360,7 +358,6 @@ class FilesController<Ctx : FSUserContext>(
                 audit(SingleFileAudit(stat.inode, req))
 
                 sensitivityService.setSensitivityLevel(ctx, req.path, req.sensitivity, user)
-                fileOwnerService.writeFileOwner(ctx, req.path)
             }
             ok(Unit)
         }

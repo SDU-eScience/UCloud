@@ -67,10 +67,9 @@ class MultipartUploadTest {
         TestContext.micro = micro
         val storageEventProducer = micro.kafka.producer.forStream(StorageEvents.events)
         val coreFs = CoreFileSystemService(fs, storageEventProducer)
-        val fileOwnerService = FileOwnerService(runner, fs, coreFs)
 
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
-        val controller = MultiPartUploadController(runner, coreFs, sensitivityService, fileOwnerService)
+        val controller = MultiPartUploadController(runner, coreFs, sensitivityService)
 
         installDefaultFeatures(micro)
 

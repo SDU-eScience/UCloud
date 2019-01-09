@@ -113,7 +113,14 @@ class UnixFileSystem(
                         realFrom
                     }
 
-                    StorageEvent.Moved(it.inode, it.path, it.owner, timestamp, oldPath)
+                    StorageEvent.Moved(
+                        id = it.inode,
+                        path = it.path,
+                        owner = it.xowner,
+                        creator = it.owner,
+                        timestamp = timestamp,
+                        oldPath = oldPath
+                    )
                 }
             }
         )
@@ -146,11 +153,12 @@ class UnixFileSystem(
                     DELETED_ATTRIBUTES
                 ).asFSResult {
                     StorageEvent.Deleted(
-                        it.inode,
-                        it.path,
-                        it.owner,
-                        timestamp,
-                        ctx.user
+                        id = it.inode,
+                        path = it.path,
+                        owner = it.xowner,
+                        creator = it.owner,
+                        timestamp = timestamp,
+                        eventCausedBy = ctx.user
                     )
                 }
             }
@@ -479,7 +487,8 @@ class UnixFileSystem(
         return StorageEvent.CreatedOrRefreshed(
             id = it.inode,
             path = it.path,
-            owner = it.owner,
+            owner = it.xowner,
+            creator = it.owner,
             timestamp = it.timestamps.modified,
 
             fileType = it.fileType,
@@ -587,6 +596,7 @@ class UnixFileSystem(
             FileAttribute.PATH,
             FileAttribute.TIMESTAMPS,
             FileAttribute.OWNER,
+            FileAttribute.XOWNER,
             FileAttribute.SIZE,
             FileAttribute.CHECKSUM,
             FileAttribute.IS_LINK,
@@ -601,7 +611,8 @@ class UnixFileSystem(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
             FileAttribute.PATH,
-            FileAttribute.OWNER
+            FileAttribute.OWNER,
+            FileAttribute.XOWNER
         )
 
         @Suppress("ObjectPropertyNaming")
@@ -609,6 +620,7 @@ class UnixFileSystem(
             FileAttribute.FILE_TYPE,
             FileAttribute.INODE,
             FileAttribute.OWNER,
+            FileAttribute.XOWNER,
             FileAttribute.GROUP,
             FileAttribute.PATH
         )

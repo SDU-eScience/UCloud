@@ -65,6 +65,12 @@ sealed class StorageEvent {
     abstract val owner: String
 
     /**
+     * The SDUCloud username of the creator of this file
+     */
+    open val creator: String
+        get() = owner
+
+    /**
      * Internal timestamp for when the event occurred
      *
      * Format is milliseconds since unix epoch
@@ -105,6 +111,7 @@ sealed class StorageEvent {
 
         val sensitivityLevel: SensitivityLevel,
 
+        override val creator: String = owner,
         override val eventCausedBy: String? = null
     ) : StorageEvent()
 
@@ -119,6 +126,7 @@ sealed class StorageEvent {
 
         val sensitivityLevel: SensitivityLevel,
 
+        override val creator: String = owner,
         override val eventCausedBy: String? = null
     ) : StorageEvent()
 
@@ -135,6 +143,7 @@ sealed class StorageEvent {
 
         val annotations: Set<String>,
 
+        override val creator: String = owner,
         override val eventCausedBy: String? = null
     ) : StorageEvent()
 
@@ -147,6 +156,7 @@ sealed class StorageEvent {
         override val owner: String,
         override val timestamp: Long,
 
+        override val creator: String = owner,
         override val eventCausedBy: String? = null
     ) : StorageEvent()
 
@@ -162,6 +172,7 @@ sealed class StorageEvent {
         override val timestamp: Long,
         val oldPath: String,
 
+        override val creator: String = owner,
         override val eventCausedBy: String? = null
     ) : StorageEvent()
 
@@ -180,6 +191,7 @@ sealed class StorageEvent {
         override val owner: String,
         override val timestamp: Long,
 
+        override val creator: String = owner,
         override val eventCausedBy: String? = null
     ) : StorageEvent()
 }

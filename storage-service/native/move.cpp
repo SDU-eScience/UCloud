@@ -39,7 +39,7 @@ int move_command(const char *from, const char *to, bool allow_overwrite) {
     status = lstat(to, &s);
     if (status != 0) return -errno;
 
-    uint64_t mode = FILE_TYPE | INODE | PATH | OWNER;
+    uint64_t mode = FILE_TYPE | INODE | PATH | OWNER | XOWNER;
     if (S_ISDIR(s.st_mode)) {
         tree_command(to, mode);
     } else {
@@ -48,5 +48,6 @@ int move_command(const char *from, const char *to, bool allow_overwrite) {
 
     free(resolved_from_parent);
     free(resolved_to_parent);
+    fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
     return 0;
 }

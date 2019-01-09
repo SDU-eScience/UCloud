@@ -45,7 +45,7 @@ int delete_command(const char *path_inp) {
             &compare
     );
 
-    mode = FILE_TYPE | INODE | OWNER | GROUP | PATH;
+    mode = FILE_TYPE | INODE | XOWNER | OWNER | GROUP | PATH;
 
     status = -1;
     if (nullptr != file_system) {

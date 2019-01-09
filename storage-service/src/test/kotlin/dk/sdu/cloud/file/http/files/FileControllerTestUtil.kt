@@ -87,7 +87,6 @@ fun Application.configureServerWithFileController(
     val favoriteService = FavoriteService(coreFs)
     val sensitivityService = FileSensitivityService(fs, eventProducer)
     val aclService = ACLService(fs)
-    val fileOwnerService = FileOwnerService(runner, fs, coreFs)
 
     val ctx = FileControllerContext(
         cloud = cloud,
@@ -111,8 +110,7 @@ fun Application.configureServerWithFileController(
                     favoriteService,
                     lookupService,
                     sensitivityService,
-                    aclService,
-                    fileOwnerService
+                    aclService
                 )
             }
         )
