@@ -1,8 +1,22 @@
 package dk.sdu.cloud.avatar.api
 
+import java.lang.IllegalArgumentException
+
 data class Avatar (
     val user: String,
-    val id: Long
+    val id: Long,
+    val top: Top,
+    val topAccessory: TopAccessory,
+    val hairColor: HairColor,
+    val facialHair: FacialHair,
+    val facialHairColor: FacialHairColor,
+    val clothes: Clothes,
+    val colorFabric: ColorFabric,
+    val eyes: Eyes,
+    val eyebrows: Eyebrows,
+    val mouthTypes: MouthTypes,
+    val skinColors: SkinColors,
+    val clothesGraphic: ClothesGraphic
 )
 
 
@@ -41,7 +55,12 @@ enum class Top(val string: String) {
     SHORT_HAIR_SHORT_WAVED("ShortHairShortWaved"),
     SHORT_HAIR_SIDES("ShortHairSides"),
     SHORT_HAIR_THE_CAESAR("ShortHairTheCaesar"),
-    SHORT_HAIR_THE_CAESAR_SIDE_PART("ShortHairTheCaesarSidePart")
+    SHORT_HAIR_THE_CAESAR_SIDE_PART("ShortHairTheCaesarSidePart");
+
+    companion object {
+        private val map = Top.values().associateBy(Top::string)
+        fun fromString(type: String): Top = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class TopAccessory(val string: String) {
@@ -51,7 +70,12 @@ enum class TopAccessory(val string: String) {
     PRESCRIPTION02("Prescription02"),
     ROUND("Round"),
     SUNGLASSES("Sunglasses"),
-    WAYFARERS("Wayfarers")
+    WAYFARERS("Wayfarers");
+
+    companion object {
+        private val map = TopAccessory.values().associateBy(TopAccessory::string)
+        fun fromString(type: String): TopAccessory = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class HairColor(val string: String) {
@@ -64,7 +88,12 @@ enum class HairColor(val string: String) {
     PASTEL_PINK("PastelPink"),
     PLATINUM("Platinum"),
     RED("Red"),
-    SILVER_GRAY("SilverGray")
+    SILVER_GRAY("SilverGray");
+
+    companion object {
+        private val map = HairColor.values().associateBy(HairColor::string)
+        fun fromString(type: String): HairColor = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class FacialHair(val string: String) {
@@ -73,7 +102,12 @@ enum class FacialHair(val string: String) {
     BEARD_LIGHT("BeardLight"),
     BEARD_MAGESTIC("BeardMagestic"),
     MOUSTACHE_FANCY("MoustacheFancy"),
-    MOUSTACHE_MAGNUM("MoustacheMagnum")
+    MOUSTACHE_MAGNUM("MoustacheMagnum");
+
+    companion object {
+        private val map = FacialHair.values().associateBy(FacialHair::string)
+        fun fromString(type: String): FacialHair  = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class FacialHairColor(val string: String) {
@@ -84,7 +118,12 @@ enum class FacialHairColor(val string: String) {
     BROWN("Brown"),
     BROWN_DARK("BrownDark"),
     PLATINUM("Platinum"),
-    RED("Red")
+    RED("Red");
+
+    companion object {
+        private val map = FacialHairColor.values().associateBy(FacialHairColor::string)
+        fun fromString(type: String): FacialHairColor  = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class Clothes(val string: String) {
@@ -96,7 +135,12 @@ enum class Clothes(val string: String) {
     OVERALL("Overall"),
     SHIRT_CREW_NECK("ShirtCrewNeck"),
     SHIRT_SCOOP_NECK("ShirtScoopNeck"),
-    SHIRT_V_NECK("ShirtVNeck")
+    SHIRT_V_NECK("ShirtVNeck");
+
+    companion object {
+        private val map = Clothes.values().associateBy(Clothes::string)
+        fun fromString(type: String): Clothes  = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class ColorFabric(val string: String) {
@@ -114,7 +158,12 @@ enum class ColorFabric(val string: String) {
     PASTEL_YELLOW("PastelYellow"),
     PINK("Pink"),
     RED("Red"),
-    WHITE("White")
+    WHITE("White");
+
+    companion object {
+        private val map = ColorFabric.values().associateBy(ColorFabric::string)
+        fun fromString(type: String): ColorFabric  = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class Eyes(val string: String) {
@@ -129,7 +178,12 @@ enum class Eyes(val string: String) {
     SQUINT("Squint"),
     SURPRISED("Surprised"),
     WINK("Wink"),
-    WINK_WACKY("WinkWacky")
+    WINK_WACKY("WinkWacky");
+
+    companion object {
+        private val map = Eyes.values().associateBy(Eyes::string)
+        fun fromString(type: String): Eyes = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class Eyebrows(val string: String) {
@@ -144,7 +198,12 @@ enum class Eyebrows(val string: String) {
     SAD_CONCERNED_NATURAL("SadConcernedNatural"),
     UNIBROW_NATURAL("UnibrowNatural"),
     UP_DOWN("UpDown"),
-    UP_DOWN_NATURAL("UpDownNatural")
+    UP_DOWN_NATURAL("UpDownNatural");
+
+    companion object {
+        private val map = Eyebrows.values().associateBy(Eyebrows::string)
+        fun fromString(type: String): Eyebrows = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class MouthTypes(val string: String) {
@@ -159,7 +218,12 @@ enum class MouthTypes(val string: String) {
     SMILE("Smile"),
     TONGUE("Tongue"),
     TWINKLE("Twinkle"),
-    VOMIT("Vomit")
+    VOMIT("Vomit");
+
+    companion object {
+        private val map = MouthTypes.values().associateBy(MouthTypes::string)
+        fun fromString(type: String): MouthTypes = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class SkinColors(val string: String) {
@@ -169,7 +233,12 @@ enum class SkinColors(val string: String) {
     LIGHT("Light"),
     BROWN("Brown"),
     DARK_BROWN("Dark_Brown"),
-    BLACK("Black")
+    BLACK("Black");
+
+    companion object {
+        private val map = SkinColors.values().associateBy(SkinColors::string)
+        fun fromString(type: String): SkinColors = map[type] ?: throw IllegalArgumentException()
+    }
 }
 
 enum class ClothesGraphic(val string: String) {
@@ -183,5 +252,10 @@ enum class ClothesGraphic(val string: String) {
     SELENA("Selena"),
     BEAR("Bear"),
     SKULL_OUTLINE("SkullOutline"),
-    SKULL("Skull")
+    SKULL("Skull");
+
+    companion object {
+        private val map = ClothesGraphic.values().associateBy(ClothesGraphic::string)
+        fun fromString(type: String): ClothesGraphic = map[type] ?: throw IllegalArgumentException()
+    }
 }

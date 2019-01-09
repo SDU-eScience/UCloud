@@ -8,7 +8,10 @@ class AvatarDaoTest{
 
     @Test
     fun `test avatar`() {
-        val avatar = Avatar("user", 22)
         println(Top.EYEPATCH.string)
+
+        println(Top.fromString("WinterHat4"))
     }
+
+
 }

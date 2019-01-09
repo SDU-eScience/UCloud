@@ -11,6 +11,7 @@ import dk.sdu.cloud.service.runScriptHandler
 import dk.sdu.cloud.service.serverProvider
 import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.service.hibernateDatabase
 
 fun main(args: Array<String>) {
     val micro = Micro().apply {
@@ -25,6 +26,7 @@ fun main(args: Array<String>) {
         micro.kafka,
         micro.serverProvider,
         micro.refreshingJwtCloud,
+        micro.hibernateDatabase,
         micro
     ).start()
 }
