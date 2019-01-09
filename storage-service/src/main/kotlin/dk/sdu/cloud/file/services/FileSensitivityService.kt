@@ -15,7 +15,7 @@ class FileSensitivityService<Ctx : FSUserContext>(
 ) {
     suspend fun setSensitivityLevel(ctx: Ctx, path: String, level: SensitivityLevel, eventCausedBy: String?) {
         log.debug("setSensitivityLevel(path = $path, level = $level)")
-        fs.setExtendedAttribute(ctx, path, SENSITIVITY_ATTRIBUTE, level.name)
+        fs.setExtendedAttribute(ctx, path, XATTRIBUTE, level.name)
         val stat = fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap()
 
         BackgroundScope.launch {
@@ -35,6 +35,6 @@ class FileSensitivityService<Ctx : FSUserContext>(
     companion object : Loggable {
         override val log: Logger = logger()
 
-        const val SENSITIVITY_ATTRIBUTE = "sensitivity"
+        const val XATTRIBUTE = "sensitivity"
     }
 }

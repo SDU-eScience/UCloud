@@ -12,6 +12,7 @@ import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
+import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.service.Controller
@@ -29,6 +30,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
+    private val fileOwnerService: FileOwnerService<Ctx>,
     baseContextOverride: String? = null
 ) : Controller {
     override val baseContext = baseContextOverride ?: MultiPartUploadDescriptions.baseContext
@@ -60,6 +62,8 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                         }
 
                         sensitivityService.setSensitivityLevel(ctx, req.location, req.sensitivity, owner)
+                        fileOwnerService.writeFileOwner(ctx, req.location)
+                        Unit
                     }
                 }
             }

@@ -29,7 +29,7 @@ class UnixFileSystem(
     private val fsRoot: String
 ) : LowLevelFileSystemInterface<UnixFSCommandRunner> {
     // TODO This attribute probably needs to live somewhere else
-    private val attributesToCopy = listOf(FileSensitivityService.SENSITIVITY_ATTRIBUTE)
+    private val attributesToCopy = listOf(FileSensitivityService.XATTRIBUTE)
 
     override suspend fun copy(
         ctx: UnixFSCommandRunner,

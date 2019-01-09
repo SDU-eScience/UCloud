@@ -25,7 +25,8 @@ class FileRow(
     private val _annotations: Set<String>?,
     private val _checksum: FileChecksum?,
     private val _sensitivityLevel: SensitivityLevel?,
-    private val _linkInode: String?
+    private val _linkInode: String?,
+    private val _xowner: String?
 ) {
     val fileType: FileType get() = _fileType!!
     val isLink: Boolean get() = _isLink!!
@@ -43,6 +44,7 @@ class FileRow(
     val checksum: FileChecksum get() = _checksum!!
     val sensitivityLevel: SensitivityLevel get() = _sensitivityLevel!!
     val linkInode: String get() = _linkInode!!
+    val xowner: String get() = _xowner!!
 
     fun convertToCloud(usernameConverter: (String) -> String, pathConverter: (String) -> String): FileRow {
         fun normalizeShares(incoming: List<AccessEntry>): List<AccessEntry> {
@@ -72,7 +74,8 @@ class FileRow(
             _annotations,
             _checksum,
             _sensitivityLevel,
-            _linkInode
+            _linkInode,
+            _xowner
         )
     }
 }

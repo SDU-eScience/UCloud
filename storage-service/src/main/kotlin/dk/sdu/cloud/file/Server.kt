@@ -16,6 +16,7 @@ import dk.sdu.cloud.file.services.ExternalFileService
 import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
@@ -88,6 +89,9 @@ class Server(
 
         val externalFileService =
             ExternalFileService(processRunner, coreFileSystem, storageEventProducer)
+
+        val fileOwnerService = FileOwnerService(processRunner, fs, coreFileSystem)
+
         log.info("Core services constructed!")
 
         // Kafka
@@ -120,6 +124,7 @@ class Server(
                         fileLookupService,
                         sensitivityService,
                         aclService,
+                        fileOwnerService,
                         config.filePermissionAcl
                     ),
 
@@ -139,13 +144,15 @@ class Server(
                     MultiPartUploadController(
                         processRunner,
                         coreFileSystem,
-                        sensitivityService
+                        sensitivityService,
+                        fileOwnerService
                     ),
 
                     MultiPartUploadController(
                         processRunner,
                         coreFileSystem,
                         sensitivityService,
+                        fileOwnerService,
                         baseContextOverride = "/api/upload" // backwards-comparability
                     )
                 )

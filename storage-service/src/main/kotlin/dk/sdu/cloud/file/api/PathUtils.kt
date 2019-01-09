@@ -26,7 +26,7 @@ fun String.parent(): String {
     return if (path == "/") path else "$path/"
 }
 
-fun String.components(): List<String> = removeSuffix("/").split("/")
+fun String.components(): List<String> = removePrefix("/").removeSuffix("/").split("/")
 
 fun String.fileName(): String = File(this).name
 

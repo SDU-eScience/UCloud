@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.favoritesDirectory
 
 class FavoriteService<Ctx : FSUserContext>(val fs: CoreFileSystemService<Ctx>) {
@@ -30,22 +31,26 @@ class FavoriteService<Ctx : FSUserContext>(val fs: CoreFileSystemService<Ctx>) {
         retrieveFavorites(ctx).asSequence().map { it.inode }.toSet()
 
     suspend fun retrieveFavorites(ctx: Ctx): List<FavoritedFile> {
-        return fs.listDirectory(
-            ctx, favoritesDirectory(ctx), setOf(
-                FileAttribute.FILE_TYPE,
-                FileAttribute.PATH,
-                FileAttribute.LINK_TARGET,
-                FileAttribute.LINK_INODE,
-                FileAttribute.INODE
-            )
-        ).map {
-            FavoritedFile(
-                type = it.fileType,
-                from = it.path,
-                to = it.linkTarget,
-                inode = it.linkInode,
-                favInode = it.inode
-            )
+        return try {
+            fs.listDirectory(
+                ctx, favoritesDirectory(ctx), setOf(
+                    FileAttribute.FILE_TYPE,
+                    FileAttribute.PATH,
+                    FileAttribute.LINK_TARGET,
+                    FileAttribute.LINK_INODE,
+                    FileAttribute.INODE
+                )
+            ).map {
+                FavoritedFile(
+                    type = it.fileType,
+                    from = it.path,
+                    to = it.linkTarget,
+                    inode = it.linkInode,
+                    favInode = it.inode
+                )
+            }
+        } catch (ex: FSException.NotFound) {
+           emptyList()
         }
     }
 }

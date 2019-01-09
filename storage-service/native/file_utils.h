@@ -88,6 +88,7 @@ bool std_starts_with(const std::string &str, const std::string &prefix);
 #define ANNOTATIONS     (1 << 13)
 #define CHECKSUM        (1 << 14)
 #define SENSITIVITY     (1 << 15)
+#define XOWNER          (1 << 16)
 
 #define USER_MAX 256
 #define GROUP_MAX 256
