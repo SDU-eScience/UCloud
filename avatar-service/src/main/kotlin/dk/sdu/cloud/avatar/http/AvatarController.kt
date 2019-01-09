@@ -10,8 +10,13 @@ class AvatarController : Controller {
     override val baseContext = AvatarDescriptions.baseContext
 
     override fun configure(routing: Route): Unit = with(routing) {
-        implement(AvatarDescriptions.call) {
+        implement(AvatarDescriptions.create) {
             // Implement call here
+            ok(Unit)
+        }
+
+        implement(AvatarDescriptions.update) {
+
             ok(Unit)
         }
     }
