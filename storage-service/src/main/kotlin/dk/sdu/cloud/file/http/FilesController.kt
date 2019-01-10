@@ -21,6 +21,7 @@ import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.CallResult
 import dk.sdu.cloud.file.util.FSException
@@ -49,6 +50,7 @@ class FilesController<Ctx : FSUserContext>(
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val aclService: ACLService<Ctx>,
     private val fileOwnerService: FileOwnerService<Ctx>,
+    private val homeFolderService: HomeFolderService,
     private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {
     override val baseContext = FileDescriptions.baseContext
@@ -369,7 +371,7 @@ class FilesController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.findHomeFolder) { req ->
-            ok(FindHomeFolderResponse("/home/${req.username}"))
+            ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(req.username)))
         }
     }
 

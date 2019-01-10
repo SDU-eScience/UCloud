@@ -36,15 +36,14 @@ class UserProcessor<FSCtx : CommandRunner>(
                     }
 
                     Role.PROJECT_PROXY -> {
-                        val indexOfSplit = event.userId.indexOf('#')
-                        if (indexOfSplit == -1 || indexOfSplit == event.userId.length - 1) {
+                        if (!event.userId.contains('#')) {
                             log.warn("Bad project user! $event")
                             return
                         }
 
-                        val projectName = event.userId.substring(0, indexOfSplit)
+                        val projectName = event.userId.substringBeforeLast('#')
                         val rootExists = runnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
-                            coreFs.exists(ctx, "/home/$projectName")
+                            coreFs.exists(ctx, homeDirectory(projectName))
                         }
 
                         if (!rootExists) {
@@ -56,7 +55,7 @@ class UserProcessor<FSCtx : CommandRunner>(
                         createUser(event.userId)
 
                         runnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
-                            coreFs.createSymbolicLink(ctx, "/home/$projectName", homeDirectory(event.userId))
+                            coreFs.createSymbolicLink(ctx, homeDirectory(projectName), homeDirectory(event.userId))
                         }
                     }
 

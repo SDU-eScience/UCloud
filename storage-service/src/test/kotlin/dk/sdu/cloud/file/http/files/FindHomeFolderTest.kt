@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
+import dk.sdu.cloud.file.api.normalize
 import io.ktor.server.testing.withTestApplication
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -19,7 +20,7 @@ class FindHomeFolderTest{
             test = {
                 val response = findHome("user@name.dk")
                 val result = defaultMapper.readValue<FindHomeFolderResponse>(response.content!!)
-                assertEquals("/home/user@name.dk", result.path)
+                assertEquals("/home/user@name.dk".normalize(), result.path.normalize())
             }
         )
     }

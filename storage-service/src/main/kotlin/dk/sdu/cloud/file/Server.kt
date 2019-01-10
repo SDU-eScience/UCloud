@@ -19,6 +19,7 @@ import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFSUserDao
@@ -97,6 +98,8 @@ class Server(
 
         val fileOwnerService = FileOwnerService(processRunner, fs, coreFileSystem)
 
+        val homeFolderService = HomeFolderService(cloud)
+
         log.info("Core services constructed!")
 
         // Kafka
@@ -140,6 +143,7 @@ class Server(
                         sensitivityService,
                         aclService,
                         fileOwnerService,
+                        homeFolderService,
                         config.filePermissionAcl
                     ),
 
