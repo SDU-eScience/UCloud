@@ -22,7 +22,7 @@ import { Dropdown } from "ui-components/Dropdown";
 import { SelectableText, SearchOptions } from "Search/Search";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import { prettierString } from "UtilityFunctions";
-import { defaultAvatar } from "UserSettings/Avataaar";
+import { defaultAvatar, AvatarType } from "UserSettings/Avataaar";
 
 interface HeaderState {
     searchText: string
@@ -36,7 +36,7 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
             searchText: "",
             searchType: "files"
         };
-        props.fetchLoginStatus()
+        props.fetchLoginStatus();
     }
 
     public render() {
@@ -204,7 +204,7 @@ const ClippedBox = styled(Flex)`
     height: 48px;
 `;
 
-const UserAvatar = ({ avatar }: { avatar: typeof defaultAvatar }) => (
+const UserAvatar = ({ avatar }: { avatar: AvatarType }) => (
     <ClippedBox mx="8px" width="60px">
         <Avatar
             /* pieceType

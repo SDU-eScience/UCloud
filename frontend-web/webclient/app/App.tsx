@@ -8,6 +8,7 @@ import { createGlobalStyle, ThemeProvider } from "styled-components";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { initObject } from "DefaultObjects";
 import Core from "Core";
+import avatar from "UserSettings/Redux/AvataaarReducer";
 import header from "Navigation/Redux/HeaderReducer";
 import files from "Files/Redux/FilesReducer";
 import status from "Navigation/Redux/StatusReducer";
@@ -51,6 +52,7 @@ const store = configureStore(initObject(Cloud.homeFolder),
         fileInfo,
         ...AppRedux.reducers,
         ...AccountingRedux.reducers,
+        avatar,
         responsive: createResponsiveStateReducer(
             responsiveBP,
             { infinity: "xxl" }),
