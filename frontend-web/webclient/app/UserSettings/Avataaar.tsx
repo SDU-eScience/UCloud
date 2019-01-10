@@ -2,9 +2,12 @@ import { default as Avataaar } from "avataaars";
 import * as React from "react";
 import * as Options from "./AvatarOptions";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Select, Label, Box, Flex } from "ui-components";
+import { Select, Label, Box, Flex, Button, OutlineButton } from "ui-components";
 import { connect } from "react-redux";
 import { ReduxObject } from "DefaultObjects";
+import { Dispatch } from "redux";
+import { saveAvataaar } from "./Redux/AvataaarActions";
+
 
 
 interface AvataaarModificationState {
@@ -22,9 +25,12 @@ interface AvataaarModificationState {
     skin: Options.SkinColorOptions
 }
 
-type AvataaarModificationStateProps = typeof defaultAvatar
+type AvataaarModificationStateProps = AvatarType
+interface AvataaarModificationOperations {
+    save: (avatar: AvatarType) => void
+}
 
-class AvataaarModification extends React.Component<AvataaarModificationStateProps, AvataaarModificationState> {
+class AvataaarModification extends React.Component<AvataaarModificationStateProps & AvataaarModificationOperations, AvataaarModificationState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -43,38 +49,51 @@ class AvataaarModification extends React.Component<AvataaarModificationStateProp
         }
     }
 
-    private extractAvataaar() {
-        return {
-
-        }
+    private save() {
+        this.props.save(this.state as AvatarType)
     }
 
     render() {
         const { ...state } = this.state;
         return (
             <MainContainer
+                headerSize={220}
+                header={<>
+                    <Flex>
+                        <Box ml="auto" />
+                        <Avataaar
+                            style={{ height: "150px" }}
+                            avatarStyle="circle"
+                            topType={state.top}
+                            accessoriesType={state.accessories}
+                            hairColor={state.hairColor}
+                            facialHairType={state.facialHair}
+                            facialHairColor={state.facialHairColor}
+                            clotheType={state.clothes}
+                            clotheColor={state.clothesFabric}
+                            graphicType={state.clothesGraphic}
+                            eyeType={state.eyes}
+                            eyebrowType={state.eyebrow}
+                            mouthType={state.mouth}
+                            skinColor={state.skin}
+                        />
+                        <Box mr="auto" />
+                    </Flex>
+                    <Flex>
+                        <OutlineButton
+                            ml="auto"
+                            mr="auto"
+                            onClick={() => this.save()}
+                            mt="5px"
+                            mb="5px"
+                            color="blue"
+                        >Update avatar</OutlineButton>
+                    </Flex></>}
+
                 main={
                     <>
-                        <Flex>
-                            <Box ml="auto" />
-                            <Avataaar
-                                style={{ height: "150px" }}
-                                avatarStyle="circle"
-                                topType={state.top}
-                                accessoriesType={state.accessories}
-                                hairColor={state.hairColor}
-                                facialHairType={state.facialHair}
-                                facialHairColor={state.facialHairColor}
-                                clotheType={state.clothes}
-                                clotheColor={state.clothesFabric}
-                                graphicType={state.clothesGraphic}
-                                eyeType={state.eyes}
-                                eyebrowType={state.eyebrow}
-                                mouthType={state.mouth}
-                                skinColor={state.skin}
-                            />
-                            <Box mr="auto" />
-                        </Flex>
+
+
                         <AvatarSelect
                             defaultValue={state.top}
                             update={value => this.setState(() => ({ top: value }))}
@@ -184,8 +203,10 @@ function AvatarSelect<T>({ update, options, title, disabled, defaultValue }: Ava
     )
 }
 
-const mapStateToProps = ({ avatar }: ReduxObject) => avatar
-const mapDispatchToProps = ({ }) => ({})
+const mapStateToProps = ({ avatar }: ReduxObject) => avatar;
+const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations => ({
+    save: avatar => dispatch(saveAvataaar(avatar))
+});
 
 const defaultAvatar = ({
     top: Options.Top.NoHair,
@@ -202,5 +223,6 @@ const defaultAvatar = ({
     skin: Options.SkinColors.Pale
 });
 
+type AvatarType = typeof defaultAvatar;
 export default connect(mapStateToProps, mapDispatchToProps)(AvataaarModification);
-export { defaultAvatar }
+export { defaultAvatar, AvatarType }

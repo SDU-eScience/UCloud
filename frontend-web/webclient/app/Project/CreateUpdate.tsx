@@ -1,9 +1,7 @@
 import * as React from "react";
-import { identifierTypes } from "DefaultObjects";
-import { allLicenses, License } from "./licenses";
+import { allLicenses } from "./licenses";
 import { Contributor, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
 import { blankOrUndefined } from "UtilityFunctions";
-import * as PropTypes from "prop-types";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 import { getQueryParam } from "Utilities/URIUtilities";
@@ -12,7 +10,6 @@ import { Input, DataList, Box, Button, Flex, TextArea, Text, Label } from "ui-co
 import { contentValuePairLicenses, contentValuePairIdentifierTypes } from "ui-components/DataList";
 import { TextSpan } from "ui-components/Text";
 import { connect } from "react-redux";
-import { license } from "ui-components/icons";
 import { MainContainer } from "MainContainer/MainContainer";
 
 // FIXME: MISSING TYPESAFETY THROUGHOUT
@@ -111,7 +108,6 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         e.preventDefault();
 
         const hasErrors = this.validateForm();
-        console.log(hasErrors);
 
         if (!hasErrors) {
             const s = this.state;
