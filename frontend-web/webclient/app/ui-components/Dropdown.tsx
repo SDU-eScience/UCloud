@@ -39,6 +39,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     overflow-x: hidden;
     text-align: left;
     cursor: ${props => props.cursor};
+    opacity: ${props => props.visible ? 1 : 0}
 
     ${props => props.colorOnHover ? `
         & > *:hover:not(${Button}) {
@@ -67,6 +68,7 @@ DropdownContent.defaultProps = {
     cursor: "pointer",
     minWidth: "138px",
     boxShadow: "sm",
+    visible: false,
 }
 
 interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps, BoxShadowProps {
@@ -80,4 +82,5 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     backgroundColor?: string
     colorOnHover?: boolean
     squareTop?: boolean
+    visible?: boolean
 }

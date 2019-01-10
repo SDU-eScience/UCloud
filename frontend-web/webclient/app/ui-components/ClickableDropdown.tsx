@@ -72,13 +72,14 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
                 <Text.TextSpan cursor="pointer" onClick={() => this.setState(() => ({ open: !this.state.open }))}>
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em" /> : null}
                 </Text.TextSpan>
-                {this.state.open && !emptyChildren ?
+                {!emptyChildren ?
                     <DropdownContent
                         squareTop={this.props.squareTop}
                         cursor="pointer" 
                         {...props} 
                         width={width}
                         hover={false}
+                        visible={this.state.open}
                         onClick={() => !keepOpenOnClick ? this.setState(() => ({ open: false })) : null}>
                         {children}
                     </DropdownContent> : null}

@@ -177,7 +177,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSe
                 squareTop
                 trigger={
                     <Absolute top={-12.5} right={12} bottom={0} left={-28}>
-                        <Icon color="black" name="chevronDown" size="15px" />
+                        <Icon name="chevronDown" size="15px" />
                     </Absolute>
                 }>
                 <SearchOptions>
