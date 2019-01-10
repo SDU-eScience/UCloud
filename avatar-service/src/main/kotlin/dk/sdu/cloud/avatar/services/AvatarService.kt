@@ -27,7 +27,7 @@ interface AvatarDAO<Session> {
         session: Session,
         user: String,
         avatar: Avatar
-    ) : Long
+    ): Long
 
     fun update(
         session: Session,
@@ -38,5 +38,5 @@ interface AvatarDAO<Session> {
     fun findByUser(
         session: Session,
         user: String
-    ) : Avatar?
+    ): Avatar?
 }

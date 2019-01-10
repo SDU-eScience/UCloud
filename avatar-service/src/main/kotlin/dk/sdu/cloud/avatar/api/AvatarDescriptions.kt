@@ -44,9 +44,7 @@ data class UpdateRequest(
 
 typealias UpdateResponse = Unit
 
-data class FindRequest(
-    val user: String
-)
+typealias FindRequest = Unit
 
 data class FindResponse(
     val top: String,
@@ -109,10 +107,6 @@ object AvatarDescriptions : RESTDescriptions("avatar") {
         path {
             using(baseContext)
             +"find"
-        }
-
-        params {
-            +boundTo(FindRequest::user)
         }
     }
 }

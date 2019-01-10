@@ -104,7 +104,29 @@ class AvatarHibernateDAO : AvatarDAO<HibernateSession>{
         user: String,
         avatar: Avatar
     ) {
-        session.update(avatar.toEntity())
+        val foundAvatar = findInternal(session, user) ?: throw AvatarRPCException.NotFound()
+        foundAvatar.top = avatar.top.string
+        foundAvatar.topAccessory = avatar.topAccessory.string
+        foundAvatar.hairColor = avatar.hairColor.string
+        foundAvatar.facialHair = avatar.facialHair.string
+        foundAvatar.facialHairColor = avatar.facialHairColor.string
+        foundAvatar.clothes = avatar.clothes.string
+        foundAvatar.colorFabric = avatar.colorFabric.string
+        foundAvatar.eyes = avatar.eyes.string
+        foundAvatar.eyebrows = avatar.eyebrows.string
+        foundAvatar.mouthTypes = avatar.mouthTypes.string
+        foundAvatar.skinColors = avatar.skinColors.string
+        foundAvatar.clothesGraphic = avatar.clothesGraphic.string
+        session.update(foundAvatar)
+    }
+
+    private fun findInternal(
+        session: HibernateSession,
+        user: String
+    ) : AvatarEntity? {
+        return session.criteria<AvatarEntity> {
+            (entity[AvatarEntity::username] equal user)
+        }.uniqueResult()
     }
 
     override fun findByUser(

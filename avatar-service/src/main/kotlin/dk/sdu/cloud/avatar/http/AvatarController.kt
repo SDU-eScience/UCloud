@@ -59,7 +59,6 @@ class AvatarController<DBSession> (
 
         implement(AvatarDescriptions.update) { req ->
             val user = call.securityPrincipal.username
-            val id = avatarService.findByUser(user)?.id
             val avatar = approvedAvatar(
                 user,
                 req.top,
@@ -73,8 +72,7 @@ class AvatarController<DBSession> (
                 req.eyebrows,
                 req.mouthTypes,
                 req.skinColors,
-                req.clothesGraphic,
-                id
+                req.clothesGraphic
             )
             if (avatar != null) {
                 avatarService.update(user, avatar)
@@ -85,8 +83,8 @@ class AvatarController<DBSession> (
             }
         }
 
-        implement(AvatarDescriptions.findAvatar) { req ->
-            val avatar = avatarService.findByUser(req.user) ?: return@implement error(CommonErrorMessage("Not Found"), HttpStatusCode.NotFound)
+        implement(AvatarDescriptions.findAvatar) {
+            val avatar = avatarService.findByUser(call.securityPrincipal.username) ?: return@implement error(CommonErrorMessage("Not Found"), HttpStatusCode.NotFound)
             ok(FindResponse(
                 avatar.top.string,
                 avatar.topAccessory.string,
