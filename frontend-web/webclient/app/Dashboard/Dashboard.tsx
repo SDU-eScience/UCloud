@@ -128,8 +128,7 @@ const DashboardFavoriteFiles = ({ files, isLoading, favorite }: { files: File[],
             {files.map((file, i) => (
                 <Flex alignItems="center" key={i} pt="0.5em" pb="6.4px">
                     <ListFileContent file={file} link={false} pixelsWide={200} />
-                    <Box ml="auto" />
-                    <Icon name="starFilled" color="blue" cursor="pointer" onClick={() => favorite(file)} />
+                    <Icon ml="auto" size="1em" name="starFilled" color="blue" cursor="pointer" onClick={() => favorite(file)} />
                 </Flex>)
             )}
         </List>
