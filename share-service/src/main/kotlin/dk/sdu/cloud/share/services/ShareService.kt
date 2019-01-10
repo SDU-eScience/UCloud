@@ -21,7 +21,6 @@ import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupRequest
@@ -45,7 +44,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
-import java.util.*
 
 class ShareService<DBSession>(
     private val serviceCloud: AuthenticatedCloud,

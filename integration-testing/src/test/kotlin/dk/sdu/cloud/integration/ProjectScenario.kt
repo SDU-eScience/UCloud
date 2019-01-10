@@ -4,6 +4,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.CreateSingleUserRequest
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.JWTAuthenticatedCloud
 import dk.sdu.cloud.client.MultipartRequest
 import dk.sdu.cloud.client.StreamingFile
@@ -43,31 +44,7 @@ import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-data class IntegrationTestConfiguration(
-    val adminRefreshToken: String
-)
-
 class ProjectScenario {
-    val micro = Micro().apply {
-        initWithDefaultFeatures(
-            IntegrationTestingServiceDescription, arrayOf(
-                "--dev",
-                "--config-dir",
-                "${System.getProperty("user.home")}/sducloud"
-            )
-        )
-    }
-
-    val cloudContext = micro.cloudContext
-    val tokenValidation = micro.tokenValidation as TokenValidationJWT
-
-    val config = micro.configuration.requestChunkAt<IntegrationTestConfiguration>("test", "integration")
-    val adminCloud = RefreshingJWTAuthenticatedCloud(
-        cloudContext,
-        config.adminRefreshToken,
-        tokenValidation
-    )
-
     @Test
     fun runScenario() = runBlocking {
         log.info("Running project scenario...")
@@ -83,7 +60,7 @@ class ProjectScenario {
             adminCloud
         ).orThrow()
 
-        val userClouds = users.map { RefreshingJWTAuthenticatedCloud(cloudContext, it.refreshToken, tokenValidation) }
+        val userClouds = users.map { it.cloud() }
 
         val piUsername = names[0]
         val piCloud = userClouds[0]
@@ -202,7 +179,7 @@ class ProjectScenario {
 
     private suspend fun createProjectCloud(
         projectId: String,
-        userCloud: RefreshingJWTAuthenticatedCloud
+        userCloud: AuthenticatedCloud
     ): JWTAuthenticatedCloud {
         log.info("Creating accessToken for project")
 

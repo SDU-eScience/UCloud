@@ -139,6 +139,7 @@ class Server(
                         fileLookupService,
                         sensitivityService,
                         aclService,
+                        fileOwnerService,
                         config.filePermissionAcl
                     ),
 

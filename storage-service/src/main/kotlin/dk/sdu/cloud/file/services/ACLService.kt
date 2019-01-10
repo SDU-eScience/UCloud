@@ -13,19 +13,6 @@ class ACLService<Ctx : FSUserContext>(private val fs: LowLevelFileSystemInterfac
         rights: Set<AccessRight>,
         recursive: Boolean = true
     ) {
-        val parents: List<String> = run {
-            if (path == "/") throw FSException.BadRequest("Cannot grant rights on root")
-            val parents = path.parents()
-
-            parents.filter { it != "/" && it != "/home/" }
-        }
-
-        // Execute rights are required on all parent directories (otherwise we cannot perform the
-        // traversal to the share)
-        parents.forEach {
-            fs.createACLEntry(ctx, it, entity, setOf(AccessRight.EXECUTE)).unwrap()
-        }
-
         // Add to both the default and the actual list. This needs to be recursively applied
         fs.createACLEntry(ctx, path, entity, rights, defaultList = true, recursive = recursive).setfaclUnwrap()
         fs.createACLEntry(ctx, path, entity, rights, defaultList = false, recursive = recursive).setfaclUnwrap()

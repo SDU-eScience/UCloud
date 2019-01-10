@@ -56,7 +56,7 @@ class FileOwnerService<Ctx : FSUserContext>(
             }
     }
 
-    private suspend fun lookupOwner(path: String): String {
+    suspend fun lookupOwner(path: String): String {
         val components = path.components()
         log.debug("$path components are $components")
         if (components.size >= 2 && components.first() == "home") {
