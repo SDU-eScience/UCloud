@@ -16,6 +16,9 @@ class AvatarService<DBSession>(
     fun update(user: String, avatar: Avatar) {
         db.withTransaction { dao.update(it, user, avatar) }
     }
+
+    fun findByUser(user: String): Avatar? =
+        db.withTransaction { dao.findByUser(it, user) }
 }
 
 
@@ -33,8 +36,8 @@ interface AvatarDAO<Session> {
         avatar: Avatar
     )
 
-    fun find(
+    fun findByUser(
         session: Session,
         user: String
-    ) : AvatarEntity?
+    ) : Avatar?
 }

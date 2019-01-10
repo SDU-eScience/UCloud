@@ -21,10 +21,10 @@ data class Avatar (
     val clothesGraphic: ClothesGraphic
 )
 
-sealed class AvatarRPCException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode)
-
-class Duplicate : AvatarRPCException("Avatar already exists", HttpStatusCode.Conflict)
-class NotFound : AvatarRPCException("Avatar not found", HttpStatusCode.NotFound)
+sealed class AvatarRPCException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
+    class Duplicate : AvatarRPCException("Avatar already exists", HttpStatusCode.Conflict)
+    class NotFound : AvatarRPCException("Avatar not found", HttpStatusCode.NotFound)
+}
 
 enum class Top(val string: String) {
     NO_HAIR("NoHair"),

@@ -1,10 +1,10 @@
 package dk.sdu.cloud.avatar.services
 
 import dk.sdu.cloud.avatar.api.Avatar
+import dk.sdu.cloud.avatar.api.AvatarRPCException
 import dk.sdu.cloud.avatar.api.Clothes
 import dk.sdu.cloud.avatar.api.ClothesGraphic
 import dk.sdu.cloud.avatar.api.ColorFabric
-import dk.sdu.cloud.avatar.api.Duplicate
 import dk.sdu.cloud.avatar.api.Eyebrows
 import dk.sdu.cloud.avatar.api.Eyes
 import dk.sdu.cloud.avatar.api.FacialHair
@@ -14,16 +14,18 @@ import dk.sdu.cloud.avatar.api.MouthTypes
 import dk.sdu.cloud.avatar.api.SkinColors
 import dk.sdu.cloud.avatar.api.Top
 import dk.sdu.cloud.avatar.api.TopAccessory
-import dk.sdu.cloud.avatar.api.UpdateRequest
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.get
 import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.GeneratedValue
 import javax.persistence.Id
 import javax.persistence.Index
 import javax.persistence.Table
+import javax.persistence.criteria.Expression
 
 @Entity
 @Table(name = "avatars",
@@ -92,8 +94,8 @@ class AvatarHibernateDAO : AvatarDAO<HibernateSession>{
         user: String,
         avatar: Avatar
     ) : Long {
-        val exists = find(session, user) != null
-        if (exists) throw Duplicate()
+        val exists = findByUser(session, user) != null
+        if (exists) throw AvatarRPCException.Duplicate()
         val entity = avatar.toEntity()
         return session.save(entity) as Long
     }
@@ -103,14 +105,16 @@ class AvatarHibernateDAO : AvatarDAO<HibernateSession>{
         user: String,
         avatar: Avatar
     ) {
-        val result = find(session, user)
-        result?.id
+        val result = findByUser(session, user) ?: throw AvatarRPCException.NotFound()
+
     }
 
-    override fun find(
+    override fun findByUser(
         session: HibernateSession,
         user: String
-    ) : AvatarEntity? {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    ) : Avatar? {
+        return session.criteria<AvatarEntity> {
+            (entity[AvatarEntity::username] equal user)
+        }.uniqueResult()?.toModel()
     }
 }
