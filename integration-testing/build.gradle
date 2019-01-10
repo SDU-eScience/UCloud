@@ -2,7 +2,7 @@ group 'dk.sdu.cloud'
 version '0.1.0-SNAPSHOT'
 
 apply plugin: 'application'
-mainClassName = "dk.sdu.cloud.project.auth.MainKt"
+mainClassName = "dk.sdu.cloud.integration.MainKt"
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.5/sdu-cloud.gradle"
 
@@ -15,11 +15,10 @@ dependencies {
     compile 'dk.sdu.cloud:service-common:0.23.0'
     compile 'dk.sdu.cloud:auth-api:1.14.0'
     compile 'dk.sdu.cloud:project-api:0.1.0'
-
-    compile 'dk.sdu.cloud:file-api:0.16.1-SNAPSHOT'
-    compile 'dk.sdu.cloud:share-api:0.2.0-SNAPSHOT'
-
+    compile 'dk.sdu.cloud:project-auth-api:0.1.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:file-api:0.16.2-SNAPSHOT'
     testCompile 'dk.sdu.cloud:service-common-test:0.23.0'
 }
 
-sduCloud.createTasksForApiJar("project.auth", [])
+
+sduCloud.createTasksForApiJar("integration-testing", [])

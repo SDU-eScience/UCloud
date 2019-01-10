@@ -66,10 +66,14 @@ class Server(
     override fun start() {
         log.info("Creating core services")
         BackgroundScope.init()
-        val cloudToCephFsDao = UnixFSUserDao(micro.developmentModeEnabled)
+        val useFakeUsers = micro.developmentModeEnabled && !micro.commandLineArguments.contains("--real-users")
+        val cloudToCephFsDao = UnixFSUserDao(useFakeUsers)
         val processRunner =
-            UnixFSCommandRunnerFactory(cloudToCephFsDao, micro.developmentModeEnabled)
-        val fsRoot = File(if (micro.developmentModeEnabled) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
+            UnixFSCommandRunnerFactory(cloudToCephFsDao, useFakeUsers)
+        val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() } ?:
+            if (micro.developmentModeEnabled) File("./") else throw IllegalStateException("No mount found!")
+
+        val fsRoot = fsRootFile.normalize().absolutePath
 
         val fs = UnixFileSystem(cloudToCephFsDao, fsRoot)
         val storageEventProducer = kafka.producer.forStream(StorageEvents.events)

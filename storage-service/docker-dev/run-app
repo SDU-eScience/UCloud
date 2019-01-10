@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+(cd /usr/src/app ; gradle run -PappArgs='["--dev", "--real-users", "--config-dir", "/root/sducloud", "--config-dir", "/root/config"]')

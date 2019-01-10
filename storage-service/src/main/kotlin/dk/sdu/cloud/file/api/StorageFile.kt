@@ -27,7 +27,7 @@ data class StorageFile(
     val link: Boolean = false,
     val annotations: Set<String> = emptySet(),
     val fileId: String = "",
-    var creator: String
+    val creator: String
 )
 
 /**

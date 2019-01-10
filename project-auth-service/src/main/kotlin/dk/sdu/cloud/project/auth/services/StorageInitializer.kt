@@ -15,7 +15,6 @@ import dk.sdu.cloud.share.api.ShareDescriptions
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
@@ -47,6 +46,7 @@ class StorageInitializer(
                 val username = usernameForProjectInRole(projectId, tokens.role)
                 log.debug("Creating share for $username")
                 val userCloud = refreshTokenCloudFactory(tokens.authRefreshToken)
+                awaitFileSystem(projectHome, userCloud)
 
                 val shareResponse = ShareDescriptions.create.call(
                     CreateShareRequest(
@@ -68,21 +68,22 @@ class StorageInitializer(
         }.joinAll()
     }
 
-    private suspend fun awaitFileSystem(projectHome: String, piCloud: AuthenticatedCloud) {
+    private suspend fun awaitFileSystem(homeFolder: String, cloud: AuthenticatedCloud) {
         for (attempt in 1..100) {
-            log.debug("Awaiting ready status from project home ($projectHome)")
+            log.debug("Awaiting ready status from project home ($homeFolder)")
             val status = FileDescriptions.listAtPath.call(
                 ListDirectoryRequest(
-                    path = projectHome,
+                    path = homeFolder,
                     itemsPerPage = null,
                     page = null,
                     order = null,
                     sortBy = null
                 ),
-                piCloud
+                cloud
             ).status.let { HttpStatusCode.fromValue(it) }
 
-            if (status.isSuccess()) {
+            // Forbidden is a good indicator that the FS is ready but we don't have permissions yet.
+            if (status.isSuccess() || status == HttpStatusCode.Forbidden) {
                 break
             } else if (status == HttpStatusCode.ExpectationFailed || status == HttpStatusCode.NotFound) {
                 log.debug("FS is not yet ready!")
