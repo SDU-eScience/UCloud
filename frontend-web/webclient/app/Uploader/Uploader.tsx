@@ -18,6 +18,7 @@ import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 import { Dispatch } from "redux";
 import { FileIcon } from "UtilityComponents";
+import { withRouter } from "react-router";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -53,7 +54,9 @@ function calculateSpeed(upload: Upload): number {
     return (bytesTransferred / timespan) * 1000;
 }
 
-class Uploader extends React.Component<UploaderProps> {
+type UploaderState = { foo: "bar" }
+
+class Uploader extends React.Component<UploaderProps, UploaderState> {
     constructor(props) {
         super(props);
     }
@@ -338,4 +341,4 @@ const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploaderVisible: visible => dispatch(setUploaderVisible(visible))
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(Uploader);
+export default connect<UploaderProps, UploadOperations>(mapStateToProps, mapDispatchToProps)(Uploader);

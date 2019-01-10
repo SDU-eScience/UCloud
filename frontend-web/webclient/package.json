@@ -40,6 +40,8 @@
     }
   },
   "scripts": {
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "npm run type-check -- --watch",
     "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
     "clean": "rm -rf dist/",
     "build": "npm run clean && npm run prepare-icons && webpack --config webpack.prod.js --progress --profile --bail",
@@ -52,6 +54,7 @@
   },
   "dependencies": {
     "@svgr/cli": "^4.1.0",
+    "@types/history": "^4.7.2",
     "@types/recharts": "^1.1.6",
     "avataaars": "^1.2.1",
     "fuse.js": "^3.3.0",

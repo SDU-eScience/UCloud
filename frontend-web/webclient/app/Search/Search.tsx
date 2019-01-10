@@ -118,7 +118,7 @@ class Search extends React.Component<SearchProps> {
 
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
-        const fileOperations = AllFileOperations(true, false, false, false, this.props.history);
+        const fileOperations = AllFileOperations(true, false, false, false, false, this.props.history);
         // FIXME: Search Pane approach is obsolete
         const panes: SearchPane[] = [
             {
@@ -188,6 +188,7 @@ class Search extends React.Component<SearchProps> {
 
         const Tab = ({ pane, index }: { pane: SearchPane, index: number }): JSX.Element => (
             <SelectableText
+                key={index}
                 cursor="pointer"
                 fontSize={2}
                 onClick={() => this.setPath(pane.headerType)}
@@ -231,6 +232,7 @@ type MenuItemName = "Files" | "Projects" | "Applications";
 type SearchBarProps = { active: MenuItemName }
 const SearchBar = (props: SearchBarProps) => {
     return null;
+    // @ts-ignore
     switch (props.active) {
         case "Files":
             return <DetailedFileSearch />
@@ -255,7 +257,7 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     searchFiles: async (body) => {
         dispatch(SSActions.setFilesLoading(true));
         dispatch(await SSActions.searchFiles(body));
-        dispatch(setFilename(body.fileName ? body.fileName : ""));
+        dispatch(setFilename(body.fileName || ""));
     },
     searchApplications: async (query, page, itemsPerPage) => {
         dispatch(SSActions.setApplicationsLoading(true));

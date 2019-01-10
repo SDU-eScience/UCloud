@@ -4,7 +4,7 @@ import files from "Files/Redux/FilesReducer";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initFiles } from "DefaultObjects";
 import { Provider } from "react-redux";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Switch } from "react-router-dom";
 import FileInfo from "Files/FileInfo";
 import { updatePath, updateFiles } from "Files/Redux/FilesActions";
 import { mockFiles_SensitivityConfidential } from "../mock/Files";
@@ -20,9 +20,6 @@ describe("FileInfo", () => {
         expect(Renderer.create(
             <Provider store={emptyPageStore}>
                 <MemoryRouter>
-                    <FileInfo
-                        match={{ params: ["/home/folder"] }}
-                    />
                 </MemoryRouter>
             </Provider>
         ).toJSON()).toMatchSnapshot();
@@ -33,9 +30,7 @@ describe("FileInfo", () => {
         expect(Renderer.create(
             <Provider store={pageStore}>
                 <MemoryRouter>
-                    <FileInfo
-                        match={{ params: ["/home/user@user.telecity/Screenshot_2018-08-09 SDU-eScience SDUCloud-1.png"] }}
-                    />
+                    
                 </MemoryRouter>
             </Provider>
         ).toJSON()).toMatchSnapshot();
@@ -46,9 +41,9 @@ describe("FileInfo", () => {
         expect(Renderer.create(
             <Provider store={pageStore}>
                 <MemoryRouter>
-                    <FileInfo
-                        match={{ params: ["/home/folder"] }}
-                    />
+                    
+                    
+                    
                 </MemoryRouter>
             </Provider>
         ).toJSON()).toMatchSnapshot();

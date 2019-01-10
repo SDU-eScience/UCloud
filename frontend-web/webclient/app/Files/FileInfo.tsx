@@ -157,4 +157,4 @@ const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
     receiveFileStat: file => dispatch(receiveFileStat(file))
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(FileInfo);
+export default connect<FileInfoReduxObject, FileInfoOperations>(mapStateToProps, mapDispatchToProps)(FileInfo);

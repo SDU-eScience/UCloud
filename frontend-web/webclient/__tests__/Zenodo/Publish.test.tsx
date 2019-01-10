@@ -12,6 +12,7 @@ import { mount } from "enzyme";
 import * as ZenodoActions from "Zenodo/Redux/ZenodoActions";
 import { Button, theme } from "ui-components";
 import { ThemeProvider } from "styled-components";
+import { createMemoryHistory } from "history";
 
 configure({ adapter: new Adapter });
 
@@ -21,7 +22,14 @@ describe("Zenodo Publish", () => {
             <Provider store={configureStore({ zenodo: initZenodo() }, { zenodo })}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <ZenodoPublish />
+                        <ZenodoPublish
+                            updatePageTitle={() => undefined}
+                            setErrorMessage={() => undefined}
+                            setLoading={() => undefined}
+                            history={createMemoryHistory()}
+                            connected={true}
+                            loading={false}
+                        />
                     </MemoryRouter>
                 </ThemeProvider>
             </Provider>
@@ -36,7 +44,14 @@ describe("Zenodo Publish", () => {
             <Provider store={store}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <ZenodoPublish />
+                        <ZenodoPublish
+                            updatePageTitle={() => undefined}
+                            setErrorMessage={() => undefined}
+                            setLoading={() => undefined}
+                            history={createMemoryHistory()}
+                            connected={true}
+                            loading={false}
+                        />
                     </MemoryRouter>
                 </ThemeProvider>
             </Provider>
@@ -58,7 +73,14 @@ describe("Zenodo Publish", () => {
         const publishWrapper = mount(
             <Provider store={store}>
                 <MemoryRouter>
-                    <ZenodoPublish />
+                    <ZenodoPublish
+                        updatePageTitle={() => undefined}
+                        setErrorMessage={() => undefined}
+                        setLoading={() => undefined}
+                        history={createMemoryHistory()}
+                        connected={true}
+                        loading={false}
+                    />
                 </MemoryRouter>
             </Provider>
         );

@@ -37,7 +37,7 @@ interface ZenodoPublishOperations {
 }
 
 class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOperations, ZenodoPublishState> {
-    constructor(props: any) {
+    constructor(props) {
         super(props);
         this.state = {
             files: [""],

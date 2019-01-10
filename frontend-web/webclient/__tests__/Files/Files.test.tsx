@@ -37,7 +37,7 @@ const fileOperations = AllFileOperations(true, {
     showFileSelector: nullOp,
     setDisallowedPaths: nullOp,
     fetchPageFromPath: nullOp,
-}, nullOp, nullOp, mockHistory);
+}, nullOp, nullOp, nullOp, mockHistory);
 
 describe("FilesTable", () => {
     test.skip("Render empty", () => {

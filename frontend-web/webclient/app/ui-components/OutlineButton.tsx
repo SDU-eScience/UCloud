@@ -56,6 +56,8 @@ const OutlineButton = styled(Button) <OutlineButtonProps>`
   ${size}
 `;
 
+// FIXME
+// @ts-ignore
 OutlineButton.defaultProps = {
   theme
 };

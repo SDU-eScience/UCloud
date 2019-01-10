@@ -183,7 +183,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSe
                 <SearchOptions>
                     <Box ml="auto" />
                     {searchTypes.map(it =>
-                        <SelectableText onClick={() => setSearchType(it)} mr="1em" selected={it === searchType}>
+                        <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em" selected={it === searchType}>
                             {prettierString(it)}
                         </SelectableText>
                     )}
@@ -245,4 +245,4 @@ const mapStateToProps = ({ sidebar, header, avatar }: ReduxObject): HeaderStateT
     avatar
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(withRouter(Header));
+export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));
