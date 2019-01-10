@@ -63,7 +63,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         this.props.receivePage(emptyPage);
     }
 
-    static fileOperations = (history: History) => AllFileOperations(true, false, false, false, history);
+    static fileOperations = (history: History) => AllFileOperations(true, false, false, false, false, history);
 
     scrollIfNeeded() {
         if (!this.stdoutEl || !this.stderrEl) return;

@@ -9,6 +9,8 @@ export const Table = styled.table< WidthProps & MinWidthProps >`
     ${width} ${minWidth}
 `;
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 Table.defaultProps = {
     width: "100%",
     minWidth: "15em"
@@ -40,6 +42,8 @@ export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string
     }
 `;
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 TableRow.defaultProps = {
     cursor: "auto"
 }

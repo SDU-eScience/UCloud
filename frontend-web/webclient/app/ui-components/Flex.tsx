@@ -37,6 +37,9 @@ const Flex = styled.div<FlexCProps>`
   ${flexDirection} ${flexWrap} ${flex}
 `;
 
+
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 Flex.defaultProps = {
   theme,
   cursor: "inherit"

@@ -50,7 +50,9 @@ const OutlineButton = styled(Button) <OutlineButtonProps>`
     background-color: transparent;
     transition: ease 0.1s;
   }
-
+  
+  // FIXME: Workaround, not a fix.
+  // @ts-ignore
   ${size}
 `;
 

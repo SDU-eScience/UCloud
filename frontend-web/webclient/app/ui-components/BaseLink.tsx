@@ -22,6 +22,8 @@ const BaseLink = styled.a<BaseLinkProps>`
   }
 `;
 
+// FIXME
+// @ts-ignore
 BaseLink.defaultProps = {
   color: "text",
   hoverColor: "textHighlight"
