@@ -4,7 +4,7 @@ import dk.sdu.cloud.avatar.api.Avatar
 import dk.sdu.cloud.avatar.api.Clothes
 import dk.sdu.cloud.avatar.api.ClothesGraphic
 import dk.sdu.cloud.avatar.api.ColorFabric
-import dk.sdu.cloud.avatar.api.CreateRequest
+import dk.sdu.cloud.avatar.api.Duplicate
 import dk.sdu.cloud.avatar.api.Eyebrows
 import dk.sdu.cloud.avatar.api.Eyes
 import dk.sdu.cloud.avatar.api.FacialHair
@@ -18,7 +18,6 @@ import dk.sdu.cloud.avatar.api.UpdateRequest
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
-import java.lang.IllegalArgumentException
 import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.GeneratedValue
@@ -54,8 +53,8 @@ class AvatarEntity(
 }
 
 fun AvatarEntity.toModel() : Avatar = Avatar(
-    username,
     id,
+    username,
     Top.fromString(top),
     TopAccessory.fromString(topAccessory),
     HairColor.fromString(hairColor),
@@ -90,24 +89,28 @@ class AvatarHibernateDAO : AvatarDAO<HibernateSession>{
 
     override fun insert(
         session: HibernateSession,
-        creationRequest: CreateRequest
-    ) {
-        //val entity = AvatarEntity(creationRequest.user)
-        //session.save(entity)
+        user: String,
+        avatar: Avatar
+    ) : Long {
+        val exists = find(session, user) != null
+        if (exists) throw Duplicate()
+        val entity = avatar.toEntity()
+        return session.save(entity) as Long
     }
 
     override fun update(
         session: HibernateSession,
-        updateRequest: UpdateRequest
+        user: String,
+        avatar: Avatar
     ) {
-        val result = find(session, updateRequest.user)
-
+        val result = find(session, user)
+        result?.id
     }
 
     override fun find(
         session: HibernateSession,
         user: String
-    ) : Avatar {
+    ) : AvatarEntity? {
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 }

@@ -10,34 +10,38 @@ import io.ktor.http.HttpMethod
 
 data class CreateRequest(
     val user: String,
-    val top: Top,
-    val topAccessory: TopAccessory,
-    val hairColor: HairColor,
-    val facialHair: FacialHair,
-    val facialHairColor: FacialHairColor,
-    val clothes: Clothes,
-    val colorFabric: ColorFabric,
-    val eyes: Eyes,
-    val eyebrows: Eyebrows,
-    val mouthTypes: MouthTypes,
-    val skinColors: SkinColors,
-    val clothesGraphic: ClothesGraphic
+    val top: String,
+    val topAccessory: String,
+    val hairColor: String,
+    val facialHair: String,
+    val facialHairColor: String,
+    val clothes: String,
+    val colorFabric: String,
+    val eyes: String,
+    val eyebrows: String,
+    val mouthTypes: String,
+    val skinColors: String,
+    val clothesGraphic: String
+)
+
+data class CreateResponse(
+    val id: Long
 )
 
 data class UpdateRequest(
     val user: String,
-    val top: Top,
-    val topAccessory: TopAccessory,
-    val hairColor: HairColor,
-    val facialHair: FacialHair,
-    val facialHairColor: FacialHairColor,
-    val clothes: Clothes,
-    val colorFabric: ColorFabric,
-    val eyes: Eyes,
-    val eyebrows: Eyebrows,
-    val mouthTypes: MouthTypes,
-    val skinColors: SkinColors,
-    val clothesGraphic: ClothesGraphic
+    val top: String,
+    val topAccessory: String,
+    val hairColor: String,
+    val facialHair: String,
+    val facialHairColor: String,
+    val clothes: String,
+    val colorFabric: String,
+    val eyes: String,
+    val eyebrows: String,
+    val mouthTypes: String,
+    val skinColors: String,
+    val clothesGraphic: String
 )
 
 data class FindRequest(
@@ -62,7 +66,7 @@ data class FindResponse(
 object AvatarDescriptions : RESTDescriptions("avatar") {
     val baseContext = "/api/avatar"
 
-    val create = callDescription<CreateRequest, Unit, CommonErrorMessage> {
+    val create = callDescription<CreateRequest, CreateResponse, CommonErrorMessage> {
         name = "create"
         method = HttpMethod.Post
 

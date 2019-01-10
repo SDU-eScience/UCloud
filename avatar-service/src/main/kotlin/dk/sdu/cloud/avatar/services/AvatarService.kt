@@ -1,7 +1,6 @@
 package dk.sdu.cloud.avatar.services
 
 import dk.sdu.cloud.avatar.api.Avatar
-import dk.sdu.cloud.avatar.api.CreateRequest
 import dk.sdu.cloud.avatar.api.UpdateRequest
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -11,27 +10,31 @@ class AvatarService<DBSession>(
     private val dao: AvatarDAO<DBSession>
 ) {
 
-    fun insert(creationRequest: CreateRequest) {
-        db.withTransaction { session ->
-           // dao.insert(session, )
-        }
-    }
+    fun insert(user: String, avatar: Avatar): Long =
+        db.withTransaction { dao.insert(it, user, avatar) }
 
+    fun update(user: String, avatar: Avatar) {
+        db.withTransaction { dao.update(it, user, avatar) }
+    }
 }
+
+
 
 interface AvatarDAO<Session> {
     fun insert(
         session: Session,
-        creationRequest: CreateRequest
-    )
+        user: String,
+        avatar: Avatar
+    ) : Long
 
     fun update(
         session: Session,
-        updateRequest: UpdateRequest
+        user: String,
+        avatar: Avatar
     )
 
     fun find(
         session: Session,
         user: String
-    ) : Avatar
+    ) : AvatarEntity?
 }
