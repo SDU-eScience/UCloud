@@ -3,7 +3,6 @@ package dk.sdu.cloud.avatar
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.auth.api.refreshingJwtCloud
 import dk.sdu.cloud.avatar.api.AvatarServiceDescription
-import dk.sdu.cloud.service.configuration
 import dk.sdu.cloud.service.initWithDefaultFeatures
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.kafka

@@ -59,6 +59,7 @@ class AvatarController<DBSession> (
 
         implement(AvatarDescriptions.update) { req ->
             val user = call.securityPrincipal.username
+            val id = avatarService.findByUser(user)?.id
             val avatar = approvedAvatar(
                 user,
                 req.top,
@@ -72,7 +73,8 @@ class AvatarController<DBSession> (
                 req.eyebrows,
                 req.mouthTypes,
                 req.skinColors,
-                req.clothesGraphic
+                req.clothesGraphic,
+                id
             )
             if (avatar != null) {
                 avatarService.update(user, avatar)
@@ -115,11 +117,12 @@ class AvatarController<DBSession> (
         eyebrows: String,
         mouthTypes: String,
         skinColors: String,
-        clothesGraphic: String
+        clothesGraphic: String,
+        id : Long? = null
     ) : Avatar? {
         return try {
             Avatar(
-                null,
+                id,
                 user,
                 Top.fromString(top),
                 TopAccessory.fromString(topAccessory),

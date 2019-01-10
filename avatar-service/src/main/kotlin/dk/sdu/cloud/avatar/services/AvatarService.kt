@@ -1,7 +1,6 @@
 package dk.sdu.cloud.avatar.services
 
 import dk.sdu.cloud.avatar.api.Avatar
-import dk.sdu.cloud.avatar.api.UpdateRequest
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 

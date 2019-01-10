@@ -25,7 +25,6 @@ import javax.persistence.GeneratedValue
 import javax.persistence.Id
 import javax.persistence.Index
 import javax.persistence.Table
-import javax.persistence.criteria.Expression
 
 @Entity
 @Table(name = "avatars",
@@ -105,8 +104,7 @@ class AvatarHibernateDAO : AvatarDAO<HibernateSession>{
         user: String,
         avatar: Avatar
     ) {
-        val result = findByUser(session, user) ?: throw AvatarRPCException.NotFound()
-
+        session.update(avatar.toEntity())
     }
 
     override fun findByUser(
