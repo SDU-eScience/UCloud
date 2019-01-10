@@ -407,7 +407,7 @@ export const sizeToString = (bytes: number): string => {
 };
 
 export const shareFiles = (files: File[], cloud: SDUCloud) =>
-    UF.shareSwal().then((input) => {
+    UF.shareSwal().then(input => {
         if (input.dismiss) return;
         const rights: string[] = [];
         if (UF.elementValue("read")) rights.push("READ")
@@ -422,7 +422,7 @@ export const shareFiles = (files: File[], cloud: SDUCloud) =>
             cloud.put(`/shares/`, body).then(() => { if (++iteration === paths.length) UF.successNotification("Files shared successfully") })
                 .catch(({ response }) => UF.failureNotification(`${response.why}`));
         });
-    }); // FIXME Error handling
+    });
 
 const moveToTrashSwal = (filePaths: string[]) => {
     const moveText = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :

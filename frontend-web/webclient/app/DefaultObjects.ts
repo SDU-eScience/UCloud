@@ -12,6 +12,7 @@ import { Reducer } from "redux";
 import { SimpleSearchStateProps } from "Search";
 import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
+import Avataaar, { defaultAvatar } from "UserSettings/Avataaar";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -206,7 +207,8 @@ interface LegacyReduxObject {
     detailedFileSearch: DetailedFileSearchReduxState
     detailedApplicationSearch: DetailedApplicationSearchReduxState
     fileInfo: FileInfoReduxObject
-    responsive: ResponsiveReduxObject | undefined
+    avatar: AvatarReduxObject
+    responsive?: ResponsiveReduxObject
 }
 
 export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects;
@@ -262,8 +264,13 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     fileInfo: initFileInfo(),
     ...ApplicationRedux.init(),
     ...AccountingRedux.init(),
+    avatar: initAvatar(),
     responsive: undefined,
 });
+
+
+type AvatarReduxObject = typeof defaultAvatar;
+export const initAvatar = () => defaultAvatar;
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
     files: emptyPage,

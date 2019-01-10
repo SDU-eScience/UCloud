@@ -21,7 +21,10 @@ Dropdown.defaultProps = {
 }
 
 export const DropdownContent = styled.div<DropdownContentProps>`
-    border-radius: 5px;
+    border-bottom-left-radius: 5px;
+    border-bottom-right-radius: 5px;
+    border-top-left-radius: ${props => props.squareTop ? "0" : "5px"};
+    border-top-right-radius: ${props => props.squareTop ? "0" : "5px"};
     ${boxShadow}
     ${props => props.hover ? "display: none;" : ""}
     position: absolute;
@@ -54,6 +57,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
 `;
 
 DropdownContent.defaultProps = {
+    squareTop: false,
     hover: true,
     width: "138px",
     backgroundColor: "white",
@@ -75,4 +79,5 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     cursor?: string // FIXME There must be a type
     backgroundColor?: string
     colorOnHover?: boolean
+    squareTop?: boolean
 }

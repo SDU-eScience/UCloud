@@ -26,6 +26,7 @@ import ApplicationView from "Applications/View";
 import * as ApplicationsInstalled from "Applications/Installed";
 import * as Accounting from "Accounting";
 import Status from "Navigation/StatusPage";
+import AvataaarModification from "UserSettings/Avataaar";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
@@ -66,6 +67,7 @@ const Core = () => (
             <Route exact path="/admin/usercreation" component={UserCreation} />
 
             <Route exact path="/users/settings" component={UserSettings} />
+            <Route exact path="/users/avatar" component={AvataaarModification} />
 
             <Route exact path="/search/:priority" component={Search} />
 

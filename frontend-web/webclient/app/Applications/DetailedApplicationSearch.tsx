@@ -11,9 +11,10 @@ import { searchPage } from "Utilities/SearchUtilities";
 import { withRouter } from "react-router";
 
 type DetailedApplicationSearchProps = DetailedApplicationOperations & DetailedApplicationSearchReduxState;
-class DetailedApplicationSearch extends React.Component<DetailedApplicationSearchProps & { history: History }> {
+class DetailedApplicationSearch extends React.Component<DetailedApplicationSearchProps & { history: History, defaultAppName?: string }> {
     constructor(props: any) {
         super(props);
+        if (!!this.props.defaultAppName) this.props.setAppName(this.props.defaultAppName);
     }
 
     private inputField = React.createRef<HTMLInputElement>();
@@ -35,7 +36,6 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
         return (
             <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                 <Box mt="0.5em">
-                    <Heading.h3>Search</Heading.h3>
                     {/* FIXME: Clear Error */}
                     <Error clearError={console.log} error={this.props.error} />
                     <form onSubmit={e => this.onSearch(e)}>
