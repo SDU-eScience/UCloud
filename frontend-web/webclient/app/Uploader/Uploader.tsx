@@ -4,7 +4,7 @@ import { Progress, Icon, Button, ButtonGroup, Heading, Divider } from "ui-compon
 import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs } from "UtilityFunctions";
-import { sizeToString } from "Utilities/FileUtilities";
+import { sizeToString, archiveExtensions, isArchiveExtension } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
 import { ReduxObject, Sensitivity } from "DefaultObjects";
@@ -321,9 +321,6 @@ const UploaderRow = (p: {
         </Flex>
     );
 }
-
-const archiveExtensions: string[] = [".tar.gz", ".zip"]
-const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 
 const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
     activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),

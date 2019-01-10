@@ -119,6 +119,23 @@ export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperation
     }
 ];
 
+export const archiveExtensions: string[] = [".tar.gz", ".zip"]
+export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
+
+/**
+ * 
+ * @param onFinished called when extraction is completed successfully.
+ */
+export const ExtractionOperation = (onFinished: () => void): Operation[] => [
+    {
+        text: "Extract archive",
+        onClick: (files, cloud) => extractArchive(files, cloud, onFinished),
+        disabled: (files, cloud) => files.length > 1 && !isArchiveExtension(files[0].path),
+        icon: "chevronDown",
+        color: undefined
+    }
+];
+
 /**
  * 
  * @param onMoved To be called on completed deletion of files
@@ -141,7 +158,7 @@ export const MoveFileToTrashOperation = (onMoved: () => void): Operation[] => [
     }
 ];
 
-export const ClearTrashOperations = (toHome: () => void) => [
+export const ClearTrashOperations = (toHome: () => void): Operation[] => [
     {
         text: "Clear Trash",
         onClick: (files, cloud) => clearTrash(cloud, toHome),
@@ -189,13 +206,21 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
-export function AllFileOperations(stateless: boolean, fileSelectorOps: MoveCopyOperations | false, onDeleted: (() => void) | false, onClearTrash: (() => void) | false, history: History | false) {
+export function AllFileOperations(
+    stateless: boolean,
+    fileSelectorOps: MoveCopyOperations | false,
+    onDeleted: (() => void) | false,
+    onExtracted: (() => void) | false,
+    onClearTrash: (() => void) | false,
+    history: History | false
+) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps) : [];
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history) : [];
-    return [...stateLessOperations, ...fileSelectorOperations, ...deleteOperation, ...clearTrash, ...historyOperations];
+    const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
+    return [...stateLessOperations, ...fileSelectorOperations, ...deleteOperation, ...extractionOperations, ...clearTrash, ...historyOperations];
 };
 
 
@@ -310,7 +335,6 @@ export const reclassifyFile = async (file: File, sensitivity: SensitivityLevelMa
         UF.failureNotification((callResult as ErrorMessage).errorMessage)
         return file;
     }
-
     return { ...file, sensitivityLevel: sensitivity };
 }
 
@@ -337,6 +361,12 @@ export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callba
         }
     });
 
+export const extractArchive = async (files: File[], cloud: SDUCloud, onFinished: () => void) => {
+    cloud.post("/files/extract", { path: files[0].path }).then(it => (UF.successNotification("File extracted"), onFinished()))
+        .catch(it => UF.failureNotification(`An error occurred extracting file.`))
+}
+
+
 
 export const clearTrash = (cloud: SDUCloud, callback: () => void) =>
     clearTrashSwal().then((result: any) => {
@@ -358,9 +388,9 @@ export const getParentPath = (path: string): string => {
     return parentPath;
 };
 
-const goUpDirectory = (count: number, path: string) => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
+const goUpDirectory = (count: number, path: string): string => count ? goUpDirectory(count - 1, getParentPath(path)) : path;
 
-const toFileName = (path: string) => path.split("/").filter(p => p).pop()!;
+const toFileName = (path: string): string => path.split("/").filter(p => p).pop()!;
 
 export function getFilenameFromPath(path: string): string {
     const replacedHome = replaceHomeFolder(path, Cloud.homeFolder)
