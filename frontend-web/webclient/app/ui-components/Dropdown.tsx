@@ -39,7 +39,9 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     overflow-x: hidden;
     text-align: left;
     cursor: ${props => props.cursor};
-    opacity: ${props => props.visible ? 1 : 0}
+    // visibility: ${props => props.visible ? "visible" : "hidden"}
+    opacity: ${props => props.visible ? 1 : 0};
+    pointer-events: ${props => props.visible ? "auto" : "none"};
 
     ${props => props.colorOnHover ? `
         & > *:hover:not(${Button}) {
