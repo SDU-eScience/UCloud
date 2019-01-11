@@ -141,7 +141,7 @@ const FilesTableHeader = ({
                         iconName={toSortingIcon(sC!)}
                     />
                 ))}
-                <FileTableHeaderCell width={customEntriesWidth}>
+                <FileTableHeaderCell notSticky={notStickyHeader} width={customEntriesWidth}>
                     <Flex>{customEntriesPerPage}{children}</Flex>
                 </FileTableHeaderCell>
             </TableRow>
