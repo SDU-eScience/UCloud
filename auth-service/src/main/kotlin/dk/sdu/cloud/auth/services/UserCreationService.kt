@@ -23,8 +23,13 @@ class UserCreationService<DBSession>(
 ) {
     suspend fun createUser(user: Principal) {
         db.withTransaction {
-            log.info("Creating user: $user")
-            userDao.insert(it, user)
+            val exists = userDao.findByIdOrNull(it, user.id) != null
+            if (exists) {
+                throw UserException.AlreadyExists()
+            } else {
+                log.info("Creating user: $user")
+                userDao.insert(it, user)
+            }
         }
 
         userEventProducer.emit(UserEvent.Created(user.id, user))
