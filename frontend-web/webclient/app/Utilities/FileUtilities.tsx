@@ -111,7 +111,7 @@ export const StateLessOperations = (): Operation[] => [
 export const CreateLinkOperation = (fetchPageFromPath: (p: string) => void) => [{
     text: "Create link",
     onClick: (files: File[], cloud: SDUCloud) => createFileLink(files[0], cloud, fetchPageFromPath),
-    disabled: (files: File[], cloud: SDUCloud) => files.length > 1 && allFilesHasAccessRight("WRITE", files),
+    disabled: (files: File[], cloud: SDUCloud) => files.length > 1,
     icon: "link",
     color: undefined
 }]
