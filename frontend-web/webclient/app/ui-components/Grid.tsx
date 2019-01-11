@@ -5,7 +5,10 @@ import {
     height, HeightProps,
     color, ColorProps,
     alignItems, AlignItemsProps,
-    justifyItems, JustifyItemsProps,
+    // FIXME Missing from @types files
+    // @ts-ignore
+    justifyItems,
+    JustifyItemsProps,
     gridGap, GridGapProps,
     gridTemplateColumns, GridTemplatesColumnsProps,
     gridTemplateRows, GridTemplatesRowsProps,
