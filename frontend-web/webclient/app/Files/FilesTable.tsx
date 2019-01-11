@@ -65,7 +65,7 @@ export const FilesTable = ({
 }
 
 interface FileOperationWrapper { files: File[], fileOperations: FileOperation[] }
-const FileOperationsWrapper = ({ files, fileOperations }: FileOperationWrapper) => fileOperations.length ?
+const FileOperationsWrapper = ({ files, fileOperations }: FileOperationWrapper) => fileOperations.length > 1 ?
     <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" size="1em" rotation="90" />}>
         <FileOperations files={files} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
     </ClickableDropdown> :
