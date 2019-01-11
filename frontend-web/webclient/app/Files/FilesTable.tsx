@@ -52,7 +52,7 @@ export const FilesTable = ({
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                         ))}
                         <TableCell textAlign="center">
-                            {checkedCount === 0 ? (<FileOperationsWrapper
+                            {checkedCount === 0 && !file.isMockFolder ? (<FileOperationsWrapper
                                 files={[file]}
                                 fileOperations={fileOperations}
                             />) : null}
@@ -65,7 +65,7 @@ export const FilesTable = ({
 }
 
 interface FileOperationWrapper { files: File[], fileOperations: FileOperation[] }
-const FileOperationsWrapper = ({ files, fileOperations }: FileOperationWrapper) => fileOperations.length ?
+const FileOperationsWrapper = ({ files, fileOperations }: FileOperationWrapper) => fileOperations.length > 1 ?
     <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" size="1em" rotation="90" />}>
         <FileOperations files={files} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
     </ClickableDropdown> :
@@ -141,7 +141,7 @@ const FilesTableHeader = ({
                         iconName={toSortingIcon(sC!)}
                     />
                 ))}
-                <FileTableHeaderCell width={customEntriesWidth}>
+                <FileTableHeaderCell notSticky={notStickyHeader} width={customEntriesWidth}>
                     <Flex>{customEntriesPerPage}{children}</Flex>
                 </FileTableHeaderCell>
             </TableRow>
