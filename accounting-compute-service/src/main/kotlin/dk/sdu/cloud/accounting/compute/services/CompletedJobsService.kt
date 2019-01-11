@@ -1,23 +1,38 @@
 package dk.sdu.cloud.accounting.compute.services
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.BillableItem
 import dk.sdu.cloud.accounting.api.ContextQuery
 import dk.sdu.cloud.accounting.api.ContextQueryImpl
 import dk.sdu.cloud.accounting.api.Currencies
 import dk.sdu.cloud.accounting.api.SerializedMoney
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.orRethrowAs
+import io.ktor.http.HttpStatusCode
 import java.math.BigDecimal
 
 class CompletedJobsService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
-    private val dao: CompletedJobsDao<DBSession>
+    private val dao: CompletedJobsDao<DBSession>,
+    private val serviceCloud: AuthenticatedCloud
 ) {
+    /**
+     * Inserts a single event. Assumes input to be normalized, see [normalizeUsername].
+     */
     fun insert(event: AccountingJobCompletedEvent): Unit = insertBatch(listOf(event))
 
+    /**
+     * Inserts batch events. Assumes input to be normalized, see [normalizeUsername].
+     */
     fun insertBatch(events: List<AccountingJobCompletedEvent>) {
         db.withTransaction { session ->
             events.forEach {
@@ -26,40 +41,52 @@ class CompletedJobsService<DBSession>(
         }
     }
 
-    fun listAllEvents(
+    suspend fun listAllEvents(
         context: ContextQuery,
-        user: String
+        user: String,
+        role: Role?
     ): List<AccountingJobCompletedEvent> {
+        val normalizedUser = normalizeUserInput(user, role)
         return db.withTransaction {
-            dao.listAllEvents(it, context, user)
+            dao.listAllEvents(it, context, normalizedUser)
         }
     }
 
-    fun listEvents(
+    suspend fun listEvents(
         paging: NormalizedPaginationRequest,
         context: ContextQuery,
-        user: String
+        user: String,
+        role: Role?
     ): Page<AccountingJobCompletedEvent> {
+        val normalizedUser = normalizeUserInput(user, role)
         return db.withTransaction {
-            dao.listEvents(it, paging, context, user)
+            dao.listEvents(it, paging, context, normalizedUser)
         }
     }
 
-    fun computeUsage(
+    suspend fun computeUsage(
         context: ContextQuery,
-        user: String
+        user: String,
+        role: Role?
     ): Long {
+        val normalizedUser = normalizeUserInput(user, role)
         return db.withTransaction {
-            dao.computeUsage(it, context, user)
+            dao.computeUsage(it, context, normalizedUser)
         }
     }
 
-    fun computeBillableItems(
+    suspend fun computeBillableItems(
         since: Long,
         until: Long,
-        user: String
+        user: String,
+        role: Role?
     ): List<BillableItem> {
-        val usageInMillis = db.withTransaction { dao.computeUsage(it, ContextQueryImpl(since, until, null), user) }
+        val normalizedUser = normalizeUserInput(user, role)
+
+        val usageInMillis =
+            db.withTransaction { dao.computeUsage(it, ContextQueryImpl(since, until, null), normalizedUser) }
+        log.debug("Normalized user: $normalizedUser")
+        log.debug("usageInMillis: $usageInMillis")
         // In this example we only bill the for an integer amount of minutes. The remainder is discarded.
         val billableUnits = usageInMillis / MINUTES_MS
         val pricePerUnit = BigDecimal("0.0001")
@@ -68,6 +95,29 @@ class CompletedJobsService<DBSession>(
         return listOf(
             BillableItem("Compute time (minutes)", billableUnits, SerializedMoney(pricePerUnit, currencyName))
         )
+    }
+
+    private suspend fun normalizeUserInput(user: String, role: Role?): String {
+        if (role != null) return normalizeUsername(user, role)
+        log.info("Before call!")
+        val call = UserDescriptions.lookupUsers
+            .call(LookupUsersRequest(listOf(user)), serviceCloud)
+        log.info("Got call: $call")
+        val actualRole = call
+            .orRethrowAs {
+                log.warn("Caught an exception while normalizing user: ${it.error} ${it.status}")
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
+            .results[user]?.role
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized).also {
+                log.info("User does not exist: $user")
+            }
+
+        return normalizeUsername(user, actualRole)
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 

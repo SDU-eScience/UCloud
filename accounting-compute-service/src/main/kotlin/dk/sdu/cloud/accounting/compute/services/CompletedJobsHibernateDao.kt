@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.compute.services
 import dk.sdu.cloud.accounting.api.ContextQuery
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.CriteriaBuilderContext
@@ -27,7 +28,7 @@ import javax.persistence.criteria.Predicate
  */
 @Entity
 @Table(name = "job_completed_events")
-class JobCompletedEntity(
+data class JobCompletedEntity(
     var applicationName: String,
     var applicationVersion: String,
     var durationInMs: Long,
@@ -52,6 +53,8 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
 
         val entity = event.toEntity()
         session.saveOrUpdate(entity)
+
+        log.info("entity: $entity")
     }
 
     override fun listAllEvents(
@@ -60,7 +63,7 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
         user: String
     ): List<AccountingJobCompletedEvent> {
         return session.criteria<JobCompletedEntity>(
-            orderBy = { listOf(descinding(entity[JobCompletedEntity::timestamp])) },
+            orderBy = { listOf(descending(entity[JobCompletedEntity::timestamp])) },
 
             predicate = {
                 (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
@@ -76,7 +79,7 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
     ): Page<AccountingJobCompletedEvent> {
         return session.paginatedCriteria<JobCompletedEntity>(
             paging,
-            orderBy = { listOf(descinding(entity[JobCompletedEntity::timestamp])) },
+            orderBy = { listOf(descending(entity[JobCompletedEntity::timestamp])) },
             predicate = {
                 (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
             }
@@ -84,6 +87,9 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
     }
 
     override fun computeUsage(session: HibernateSession, context: ContextQuery, user: String): Long {
+        log.info("Context: $context, user: $user")
+        log.info("All events: " + session.criteria<JobCompletedEntity> { literal(true).toPredicate() }.list())
+
         return session.createCriteriaBuilder<Long, JobCompletedEntity>().run {
             criteria.select(sum(entity[JobCompletedEntity::durationInMs]))
             criteria.where(
@@ -109,6 +115,10 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
         }
 
         return builder
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
