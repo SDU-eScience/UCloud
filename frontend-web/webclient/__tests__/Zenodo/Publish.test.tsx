@@ -14,13 +14,20 @@ import { Button, theme } from "ui-components";
 import { ThemeProvider } from "styled-components";
 import { createMemoryHistory } from "history";
 import "jest-styled-components";
+import { createResponsiveStateReducer } from "redux-responsive";
+import { responsiveBP } from "ui-components/theme";
+
+const responsive = createResponsiveStateReducer(
+    responsiveBP,
+    { infinity: "xxl" }
+)
 
 configure({ adapter: new Adapter });
 
 describe("Zenodo Publish", () => {
     test("Mount Zenodo component", () => {
         expect(create(
-            <Provider store={configureStore({ zenodo: initZenodo() }, { zenodo })}>
+            <Provider store={configureStore({ zenodo: initZenodo() }, { zenodo, responsive })}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
                         <ZenodoPublish
@@ -38,7 +45,7 @@ describe("Zenodo Publish", () => {
     });
 
     test.skip("Add and remove file row", () => {
-        const store = configureStore({ zenodo: initZenodo() }, { zenodo })
+        const store = configureStore({ zenodo: initZenodo() }, { zenodo, responsive })
         store.dispatch(ZenodoActions.receiveLoginStatus(true));
         store.dispatch(ZenodoActions.setZenodoLoading(false));
         const publishWrapper = mount(
@@ -69,7 +76,7 @@ describe("Zenodo Publish", () => {
 
     test("Update name", () => {
         const pubName = "Publication name";
-        const store = configureStore({ zenodo: initZenodo() }, { zenodo })
+        const store = configureStore({ zenodo: initZenodo() }, { zenodo, responsive })
         store.dispatch(ZenodoActions.receiveLoginStatus(true));
         const publishWrapper = mount(
             <Provider store={store}>

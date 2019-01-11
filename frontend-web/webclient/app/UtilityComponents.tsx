@@ -115,7 +115,7 @@ export class PP extends React.Component<{ visible: boolean}, {duration: number}>
     }
 }
 
-const RTLInput = styled(Input)`
+export const RTLInput = styled(Input)`
     direction: rtl;
 `;
 

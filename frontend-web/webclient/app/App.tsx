@@ -32,33 +32,30 @@ import { responsiveBP } from "ui-components/theme";
 
 window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
 
-const store = configureStore(initObject(Cloud.homeFolder),
-    {
-        activity,
-        files,
-        dashboard,
-        analyses,
-        applications,
-        header,
-        status,
-        zenodo,
-        sidebar,
-        uploader,
-        notifications,
-        detailedResult,
-        simpleSearch,
-        detailedFileSearch,
-        detailedApplicationSearch,
-        fileInfo,
-        ...AppRedux.reducers,
-        ...AccountingRedux.reducers,
-        avatar,
-        responsive: createResponsiveStateReducer(
-            responsiveBP,
-            { infinity: "xxl" }),
-    },
-    responsiveStoreEnhancer
-);
+const store = configureStore(initObject(Cloud.homeFolder), {
+    activity,
+    files,
+    dashboard,
+    analyses,
+    applications,
+    header,
+    status,
+    zenodo,
+    sidebar,
+    uploader,
+    notifications,
+    detailedResult,
+    simpleSearch,
+    detailedFileSearch,
+    detailedApplicationSearch,
+    fileInfo,
+    ...AppRedux.reducers,
+    ...AccountingRedux.reducers,
+    avatar,
+    responsive: createResponsiveStateReducer(
+        responsiveBP,
+        { infinity: "xxl" }),
+}, responsiveStoreEnhancer);
 
 
 const GlobalStyle = createGlobalStyle`

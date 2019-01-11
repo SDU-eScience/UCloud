@@ -12,7 +12,7 @@ import { Provider } from "react-redux";
 import { createMemoryHistory } from "history";
 import files from "Files/Redux/FilesReducer";
 import { AllFileOperations } from "Utilities/FileUtilities";
-import { configureStore } from "Utilities/ReduxUtilities";
+import { configureStore, responsive } from "Utilities/ReduxUtilities";
 import { initFiles } from "DefaultObjects";
 import { configure, mount } from "enzyme";
 import { Page } from "Types";
@@ -21,9 +21,14 @@ import "jest-styled-components";
 // 
 // configure({ adapter: new Adapter() });
 
+import { responsiveBP } from "ui-components/theme";
+import { createResponsiveStateReducer } from "redux-responsive";
 
 const createMockStore = (filesPage?: Page<File>) => {
-    const store = configureStore({ files: initFiles("/home/user@test.abc/") }, { files });
+    const store = configureStore({ files: initFiles("/home/user@test.abc/") }, {
+        files,
+        responsive
+    })
     if (!!filesPage) {
         store.dispatch(updateFiles(filesPage));
     }

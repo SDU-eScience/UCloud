@@ -9,12 +9,15 @@ import { connect } from 'react-redux'
 
 export interface MainContainerStateProps {
     responsiveState?: ResponsiveReduxObject
-  }
-export interface MainContainerProps extends MainContainerStateProps { sidebar?: React.ReactNode, sidebarSize?: number,
-                                      main?: React.ReactNode, additional?: React.ReactNode,
-                                      header?: React.ReactNode,  headerSize?: number,
-                                    }
-export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize = 240, headerSize = 96, responsiveState }: MainContainerProps ) => {
+}
+
+export interface MainContainerProps extends MainContainerStateProps {
+    sidebar?: React.ReactNode, sidebarSize?: number,
+    main?: React.ReactNode, additional?: React.ReactNode,
+    header?: React.ReactNode, headerSize?: number,
+}
+
+export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize = 240, headerSize = 96, responsiveState }: MainContainerProps) => {
     const leftSidebarsize = responsiveState!.greaterThan.xl ? 190 : 68; //main webside sidebar H size
     const topMenuSize = 48; //main website top manu V size
     const pad = 14; //padding unit
@@ -57,8 +60,8 @@ export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize 
 const mapStateToProps = ({ responsive }: ReduxObject): MainContainerStateProps => ({
     responsiveState: responsive
 });
-export const MainContainer = connect<MainContainerStateProps>(mapStateToProps)(_MainContainer);
 
+export const MainContainer = connect<MainContainerStateProps>(mapStateToProps)(_MainContainer);
 
 export interface LoadingMainContainerProps<T = any> extends MainContainerProps {
     loadable: LoadableContent<T>

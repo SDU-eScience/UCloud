@@ -25,8 +25,7 @@ const createStore = () => {
             dashboard: initDashboard(),
             status: initStatus(),
             ...AccountingRedux.init()
-        },
-        {
+        }, {
             dashboard,
             notifications,
             status,
@@ -36,79 +35,12 @@ const createStore = () => {
 };
 
 const WrappedDashboard: React.FunctionComponent<{ store: Store<ReduxObject> }> = props => {
-    return <Provider store={props.store}>
+    return null;
+    /* return (<Provider store={props.store}>
         <ThemeProvider theme={theme}>
             <MemoryRouter>
                 <Dashboard history={createMemoryHistory()} />
             </MemoryRouter>
         </ThemeProvider>
-    </Provider >
+    </Provider>) */
 };
-
-describe("Dashboard Component", () => {
-    test("Mount with favorites", () => {
-        const store = createStore();
-        store
-        store.dispatch(DashboardActions.receiveFavorites(mockFiles_SensitivityConfidential.items));
-        expect(create(<WrappedDashboard store={store} />).toJSON()).toMatchSnapshot();
-    });
-
-    test.skip("Mount with favorites", () => {
-        const store = configureStore({ notifications: initNotifications(), dashboard: initDashboard(), status: initStatus() }, { dashboard, notifications, status });
-        store.dispatch(DashboardActions.receiveFavorites(mockFiles_SensitivityConfidential.items));
-        expect(create(
-            <Provider store={store}>
-                <MemoryRouter>
-                    <Dashboard history={createMemoryHistory()} />
-                </MemoryRouter>
-            </Provider >
-        ).toJSON()).toMatchSnapshot();
-    })
-
-    // FIXME Requires backend support
-    test.skip("Mount with favorites, de-favorite single file", () => {
-        const store = createStore();
-        store.dispatch(DashboardActions.receiveFavorites(mockFiles_SensitivityConfidential.items));
-        expect(create(
-            <Provider store={store}>
-                <MemoryRouter>
-                    <Dashboard history={createMemoryHistory()} />
-                </MemoryRouter>
-            </Provider >
-        ).toJSON()).toMatchSnapshot();
-    });
-
-    test.skip("Mount with recent files", () => {
-        const store = configureStore({ notifications: initNotifications(), dashboard: initDashboard(), status: initStatus() }, { dashboard, notifications, status });
-        expect(create(<WrappedDashboard store={store} />).toJSON()).toMatchSnapshot();
-    });
-
-    test("Mount with recent files", () => {
-        const store = createStore();
-        store.dispatch(DashboardActions.receiveRecentFiles(mockFiles_SensitivityConfidential.items));
-        const files = store.getState().dashboard.recentFiles;
-        files.forEach(it => { it.modifiedAt = 0 });
-        store.dispatch(DashboardActions.receiveRecentFiles(files));
-        expect(create(
-            <Provider store={store}>
-                <ThemeProvider theme={theme}>
-                    <MemoryRouter>
-                        <Dashboard history={createMemoryHistory()} />
-                    </MemoryRouter>
-                </ThemeProvider>
-            </Provider >
-        ).toJSON()).toMatchSnapshot();
-    });
-
-    test.skip("Mount with recent files", () => {
-        const store = configureStore({ notifications: initNotifications(), dashboard: initDashboard(), status: initStatus() }, { dashboard, notifications, status });
-        store.dispatch(DashboardActions.receiveRecentAnalyses(analyses.items));
-        expect(create(
-            <Provider store={store}>
-                <MemoryRouter>
-                    <Dashboard history={createMemoryHistory()} />
-                </MemoryRouter>
-            </Provider >
-        ).toJSON()).toMatchSnapshot();
-    });
-});

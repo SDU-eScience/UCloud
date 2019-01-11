@@ -204,7 +204,7 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
 ];
 
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
-export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
+export function fileTablePage(path: string): string { return `/files?path=${encodeURIComponent(resolvePath(path))}`;}
 
 export function AllFileOperations(
     stateless: boolean,
