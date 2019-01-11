@@ -13,6 +13,7 @@ import * as ZenodoActions from "Zenodo/Redux/ZenodoActions";
 import { Button, theme } from "ui-components";
 import { ThemeProvider } from "styled-components";
 import { createMemoryHistory } from "history";
+import "jest-styled-components";
 
 configure({ adapter: new Adapter });
 
