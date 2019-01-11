@@ -124,7 +124,7 @@ class ProjectHibernateDao : ProjectDao<HibernateSession> {
         session.deleteCriteria<ProjectMemberEntity> {
             (entity[ProjectMemberEntity::project][ProjectEntity::id] equal projectId) and
                     (entity[ProjectMemberEntity::username] equal member)
-        }.executeUpdate().takeIf { it == 1 } ?: throw ProjectException.NotFound()
+        }.executeUpdate().takeIf { it == 1 } ?: throw ProjectException.UserDoesNotExist()
     }
 
     override fun changeMemberRole(session: HibernateSession, projectId: String, member: String, newRole: ProjectRole) {

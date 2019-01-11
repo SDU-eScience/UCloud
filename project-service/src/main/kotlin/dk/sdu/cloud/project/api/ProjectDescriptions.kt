@@ -78,7 +78,7 @@ object ProjectDescriptions : RESTDescriptions("project") {
 
         path {
             using(baseContext)
-            +"member"
+            +"members"
         }
 
         params {
@@ -138,7 +138,6 @@ object ProjectDescriptions : RESTDescriptions("project") {
     val changeUserRole = callDescription<ChangeUserRoleRequest, ChangeUserRoleResponse, CommonErrorMessage> {
         name = "changeUserRole"
         method = HttpMethod.Post
-
         auth {
             access = AccessRight.READ_WRITE
         }

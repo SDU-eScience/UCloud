@@ -42,7 +42,8 @@ class Server(
         val projectService = ProjectService(
             micro.hibernateDatabase,
             projectDao,
-            kafka.producer.forStream(ProjectEvents.events)
+            kafka.producer.forStream(ProjectEvents.events),
+            cloud
         )
 
         // Initialize consumers here:
