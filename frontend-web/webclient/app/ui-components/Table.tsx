@@ -1,22 +1,27 @@
 import styled from "styled-components";
-import { textAlign, TextAlignProps, WidthProps, width } from "styled-system";
-import { HideProps, hidden } from "./Hide";
+import { textAlign, TextAlignProps, WidthProps, width, MinWidthProps, minWidth } from "styled-system";
 import theme from "./theme";
 
-export const Table = styled.table`
-    width: 100%;
+export const Table = styled.table< WidthProps & MinWidthProps >`
     border: 0px;
     border-spacing: 0;
+    table-layout: fixed;
+    ${width} ${minWidth}
 `;
+
+// FIXME: Workaround, not a fix.
+// @ts-ignore
+Table.defaultProps = {
+    width: "100%",
+    minWidth: "15em"
+}
 
 export const TableBody = styled.tbody``;
 
-export const TableCell = styled.td<TextAlignProps & HideProps & WidthProps>`
+export const TableCell = styled.td<TextAlignProps >`
     border: 0px;
     border-spacing: 0;
-    ${width};
     ${textAlign};
-    ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
 `;
 
 const highlighted = ({ highlighted }: { highlighted?: boolean }) => highlighted ? { backgroundColor: theme.colors.tableRowHighlight } : null;
@@ -37,6 +42,8 @@ export const TableRow = styled.tr<{ highlighted?: boolean, contentAlign?: string
     }
 `;
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 TableRow.defaultProps = {
     cursor: "auto"
 }
@@ -46,12 +53,11 @@ export const TableHeader = styled.thead`
     padding-bottom: 11px;
 `;
 
-export const TableHeaderCell = styled.th<TextAlignProps & HideProps>`
+export const TableHeaderCell = styled.th<TextAlignProps & WidthProps >`
     border-spacing: 0;
     border: 0px;
     ${textAlign};
-    ${hidden("xs")} ${hidden("sm")} ${hidden("md")} ${hidden("lg")} ${hidden("xl")};
+    ${width} ${minWidth}
 `;
-
 
 export default Table;

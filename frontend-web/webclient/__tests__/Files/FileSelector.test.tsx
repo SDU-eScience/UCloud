@@ -1,13 +1,11 @@
 import * as React from "react";
-import * as TestUtils from "react-dom/test-utils";
-import * as ReactDom from "react-dom";
 import * as Renderer from "react-test-renderer";
-import FileSelector, { FileSelectorModal } from "Files/FileSelector";
+import { FileSelectorModal } from "Files/FileSelector";
 import files from "Files/Redux/FilesReducer";
 import { initFiles } from "DefaultObjects";
 import { configureStore } from "Utilities/ReduxUtilities";
-import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
+import "jest-styled-components";
 
 const emptyPageStore = configureStore({ files: initFiles("/home/user@test.abc/") }, { files });
 

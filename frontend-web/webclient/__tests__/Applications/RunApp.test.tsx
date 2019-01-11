@@ -5,6 +5,7 @@ import { init } from "Applications/Redux/BrowseObject";
 import applications from "Applications/Redux/BrowseReducer";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
+import "jest-styled-components";
 
 describe("RunApp component", () => {
 

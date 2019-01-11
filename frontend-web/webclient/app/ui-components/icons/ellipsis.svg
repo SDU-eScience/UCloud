@@ -1,12 +1,11 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 21.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 24 24" style="enable-background:new 0 0 24 24;" xml:space="preserve">
-<style type="text/css">
-	.st0{fill:#001833;}
-</style>
-<!-- Learn about this code on MDN: https://developer.mozilla.org/en-US/docs/Web/SVG/Element/ellipse -->
-  <ellipse cx="5" cy="12" rx="3" ry="3" />
-  <ellipse cx="12" cy="12" rx="3" ry="3" />
-  <ellipse cx="19" cy="12" rx="3" ry="3" />
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 24 6" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+    <g transform="matrix(1,0,0,1,-991.999,-497.039)">
+        <g transform="matrix(4.59243e-18,-0.075,0.075,4.59243e-18,984.799,519.239)">
+            <g id="ellipsis">
+                <path d="M296,136C296,113.998 278.002,96 256,96C233.998,96 216,113.998 216,136C216,158.002 233.998,176 256,176C278.002,176 296,158.002 296,136ZM296,376C296,353.998 278.002,336 256,336C233.998,336 216,353.998 216,376C216,398.002 233.998,416 256,416C278.002,416 296,398.002 296,376ZM296,256C296,233.998 278.002,216 256,216C233.998,216 216,233.998 216,256C216,278.002 233.998,296 256,296C278.002,296 296,278.002 296,256Z" style="fill:rgb(83,101,125);fill-rule:nonzero;"/>
+            </g>
+        </g>
+    </g>
 </svg>

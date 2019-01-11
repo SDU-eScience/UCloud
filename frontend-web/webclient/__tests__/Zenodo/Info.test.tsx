@@ -6,6 +6,7 @@ import { Provider } from "react-redux";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initZenodo } from "DefaultObjects";
 import zenodo from "Zenodo/Redux/ZenodoReducer";
+import "jest-styled-components";
 
 describe("Zenodo Info", () => {
     test.skip("Mount component", () =>

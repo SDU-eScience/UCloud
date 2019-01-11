@@ -1,5 +1,5 @@
 import * as React from "react";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import Text from "./Text";
 import Icon, { IconName } from "./Icon";
 import Flex from "./Flex";
@@ -7,48 +7,97 @@ import Box from "./Box";
 import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { PP } from "UtilityComponents";
 import { fileTablePage } from "Utilities/FileUtilities";
-import * as Heading from "ui-components/Heading";
-import { Button, ExternalLink } from "ui-components";
-import { successNotification, failureNotification } from "UtilityFunctions";
-import Relative from "./Relative";
-import TextArea from "./TextArea";
-import { KeyCode } from "DefaultObjects";
+import { ExternalLink, RatingBadge, Hide } from "ui-components";
+import { RBox } from "ui-components";
+import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects"
+import { connect } from 'react-redux'
+import { FlexCProps } from "./Flex";
 
-const SidebarContainer = styled(Flex)`
-    position: fixed;
-    z-index: 100;
-    top: 48px;
-    height: calc(100% - 48px);
-    flex-flow: column;
-    border-right: 1px solid ${props => props.theme.colors.borderGray};
-`;
 
 const SidebarElementContainer = styled(Flex)`
     justify-content: left;
     flex-flow: row;
     align-items: center;
-    &:hover {
-        svg {
-            filter: saturate(500%);
-        }
+
+    & > ${Text} {
+        white-space: nowrap;
     }
 `;
 
-interface SidebarElementProps { icon: IconName, label: string, showLabel: boolean, to: string }
-const SidebarElement = ({ icon, label, showLabel, to }: SidebarElementProps) => (
-    <Link to={to}>
-        <SidebarElementContainer >
-            <Flex mx="22px" alignItems='center'>
-                <Icon cursor="pointer" name={icon} color="iconColor" color2="iconColor2" size="24" />
-            </Flex>
-            {showLabel &&
-                <Text cursor="pointer" fontSize={3} >
-                    {label}
-                </Text>
+//This is applied to SidebarContainer on small screens
+const HideText = css`
+${({ theme }) => theme.mediaQueryLT["xl"]} {
+    
+    will-change: transform;
+    transition: transform ${({ theme }) => theme.timingFunctions.easeOut} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+    transform: translate(-122px,0); //122 = 190-68 (original - final width)
+
+    & ${Icon},${RatingBadge} {
+        will-change: transform;
+        transition: transform ${({ theme }) => theme.timingFunctions.easeOut} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+        transform: translate(122px,0); //inverse transformation; same transition function!
+    }
+
+    & ${SidebarElementContainer} > ${Text} {
+        // transition: opacity ${({ theme }) => theme.timingFunctions.easeOutQuit} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+        transition: opacity ${({ theme }) => theme.timingFunctions.stepStart} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+        opacity: 0;
+        will-change: opacity;
+    }
+
+
+    &:hover { 
+            transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+            transform: translate(0,0);
+
+            & ${Icon},${RatingBadge} {
+                transition: transform ${({ theme }) => theme.timingFunctions.easeIn} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+                transform: translate(0,0); //inverter transformation
             }
-        </SidebarElementContainer>
+
+            ${SidebarElementContainer} > ${Text} {
+                // transition: opacity ${({ theme }) => theme.timingFunctions.easeInQuint} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+                transition: opacity ${({ theme }) => theme.timingFunctions.stepEnd} ${({ theme }) => theme.duration.fastest} ${({ theme }) => theme.transitionDelays.xsmall};
+                opacity: 1;
+            }
+        
+        }
+    
+}
+`;
+
+const SidebarContainer = styled(Flex)<FlexCProps>`
+    position: fixed;
+    z-index: 80;
+    top: 0;
+    left: 0;
+    padding-top: 48px;
+    height: 100%;
+    background-color: ${props => props.theme.colors.lightGray}; 
+    border-right: 1px solid ${props => props.theme.colors.borderGray};
+
+    ${HideText}
+`;
+
+interface TextLabelProps { icon: IconName, label: string, height?: string, 
+                           color?: string, color2?: string, 
+                           iconSize?: string, textSize?: number, 
+                           space?: string, hover?: boolean }
+const TextLabel = ({ icon, label, height="30px", color="iconColor", color2="iconColor2", 
+                     iconSize="24", space="22px", textSize=3, hover=true }: TextLabelProps) => (
+    <SidebarElementContainer height={height} ml="22px">
+        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}
+            css={hover ? `${SidebarElementContainer}:hover & { filter: saturate(500%); }`: null} 
+            />
+        <Text fontSize={textSize} > {label} </Text>
+    </SidebarElementContainer>
+);
+
+interface SidebarElementProps { icon: IconName, label: string, to: string, external?: boolean}
+const SidebarElement = ({ icon, label, to }: SidebarElementProps) => (
+    <Link to={to}>
+        <TextLabel icon={icon} label={label} />
     </Link>
 );
 
@@ -60,148 +109,10 @@ const SidebarPushToBottom = styled.div`
     flex-grow: 1;
 `;
 
-const SidebarInfoBox = styled.div`
-    flex-shrink: 0;
-    margin: 22px;
-    color: ${props => props.theme.colors.iconColor};
-
-    & div {
-        width: 100%;
-    }
-
-    & a {
-        color: ${props => props.theme.colors.iconColor};
-    }
-
-    & a:hover {
-        color: ${props => props.theme.colors.blue};
-    }
-`;
-
 type MenuElement = { icon: IconName, label: string, to: string };
 type SidebarMenuElements = {
     items: MenuElement[]
     predicate: () => boolean
-}
-
-
-// FIXME, move to own file
-type SupportBoxProps = { visible: boolean }
-const SupportBox = styled.div<SupportBoxProps>`
-    display: ${props => props.visible ? "block" : "none"};
-    position: absolute;
-    left: 150px;
-    top: -282px;
-    border: 1px solid ${props => props.theme.colors.borderGray};
-    background-color: ${props => props.theme.colors.white};
-
-    &&&&&&&&&&& {
-        width: 600px;
-        height: 300px;
-    }
-
-    &:before {
-        display: block;
-        width: 16px;
-        height: 16px;
-        content: '';
-        transform: rotate(45deg);
-        position: relative;
-        top: 265px;
-        left: -9px;
-        background: ${props => props.theme.colors.white};
-        border-left: 1px solid ${props => props.theme.colors.borderGray};
-        border-bottom: 1px solid ${props => props.theme.colors.borderGray};
-    }
-
-    & ${TextArea} {
-        width: 100%;
-        border: 1px solid ${props => props.theme.colors.borderGray};
-    }
-
-    & ${Box} {
-        margin: 16px;
-        overflow-y: auto;
-        height: calc(100% - 32px);
-        width: calc(100% - 32px);
-    }
-`;
-
-interface SupportState {
-    visible: boolean
-    loading: boolean
-}
-
-class Support extends React.Component<{}, SupportState> {
-    private textArea = React.createRef<HTMLTextAreaElement>();
-    private supportBox = React.createRef<HTMLDivElement>();
-
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            visible: false,
-            loading: false
-        };
-        document.addEventListener("keydown", this.handleESC);
-        document.addEventListener("mousedown", this.handleClickOutside);
-    }
-
-    componentWillUnmount = () => {
-        document.removeEventListener("keydown", this.handleESC);
-        document.removeEventListener("mousedown", this.handleClickOutside);
-    }
-
-    private handleESC = (e) => {
-        if (e.keyCode == KeyCode.ESC) this.setState(() => ({ visible: false }))
-    }
-
-    onSupportClick(event: React.SyntheticEvent) {
-        event.preventDefault();
-        this.setState(() => ({ visible: !this.state.visible }));
-    }
-
-    private handleClickOutside = event => {
-        if (this.supportBox.current && !this.supportBox.current.contains(event.target) && this.state.visible)
-            this.setState(() => ({ visible: false }));
-    }
-
-    onSubmit(event: React.FormEvent) {
-        event.preventDefault();
-        const text = this.textArea.current;
-        if (!!text) {
-            this.setState(() => ({ loading: true }));
-            Cloud.post("/support/ticket", { message: text.value }).then(e => {
-                text.value = "";
-                this.setState(({ visible: false, loading: false }));
-                successNotification("Support ticket submitted!");
-            }).catch(e => {
-                if (!!e.response.why) {
-                    failureNotification(e.response.why);
-                } else {
-                    failureNotification("An error occured");
-                }
-            });
-        }
-    }
-
-    render() {
-        return <div>
-            <Link to="#support" onClick={e => this.onSupportClick(e)}><Text fontSize={1}>Support</Text></Link>
-            <Relative>
-                <SupportBox ref={this.supportBox} visible={this.state.visible}>
-                    <Box>
-                        <Heading.h3>Support Form</Heading.h3>
-                        <p>Describe your problem below and we will investigate it.</p>
-                        <form onSubmit={e => this.onSubmit(e)}>
-                            <TextArea ref={this.textArea} rows={6} />
-                            <Button fullWidth type="submit" disabled={this.state.loading}>Submit</Button>
-                        </form>
-                    </Box>
-                </SupportBox>
-            </Relative>
-        </div>;
-    }
 }
 
 export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements } = {
@@ -212,7 +123,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
             { icon: "share", label: "Shares", to: "/shares/" },
             { icon: "apps", label: "My Apps", to: "/applications/installed/" },
             { icon: "appStore", label: "App Store", to: "/applications/" },
-            { icon: "information", label: "My Results", to: "/applications/results/" }
+            { icon: "results", label: "My Results", to: "/applications/results/" }
         ], predicate: () => true
     },
     dev: { items: [{ icon: "publish", label: "Publish", to: "/zenodo/publish/" }], predicate: () => process.env.NODE_ENV === "development" },
@@ -220,38 +131,50 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
     admin: { items: [{ icon: "admin", label: "Admin", to: "/admin/userCreation/" }], predicate: () => Cloud.userIsAdmin }
 };
 
-const Sidebar = ({ sideBarEntries = sideBarMenuElements, showLabel = true }: { sideBarEntries?: any, showLabel?: boolean }) => {
+interface SidebarStateProps { 
+    responsiveState?: ResponsiveReduxObject
+}
+interface SidebarProps extends SidebarStateProps{
+    sideBarEntries?: any 
+    responsiveState?: ResponsiveReduxObject
+}
+
+const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: SidebarProps )  => {
     let sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
-        .filter(it => it.predicate());
+        .filter(it => it.predicate())
     return (
-        <SidebarContainer color="text" bg="lightGray" width={190}>
+        <SidebarContainer color="text" flexDirection="column"
+            width={ 190 }
+            // css={ responsiveState!.greaterThan.xl ? null : HideText }
+        >
             {sidebar.map((category, categoryIdx) =>
                 <React.Fragment key={categoryIdx}>
                     {category.items.map(({ icon, label, to }: MenuElement) => (
                         <React.Fragment key={label}>
                             {categoryIdx === 0 ? <SidebarSpacer /> : null}
-                            <SidebarElement icon={icon} label={label} showLabel={showLabel} to={to} />
+                            <SidebarElement icon={icon} label={label} to={to} />
                         </React.Fragment>))}
                     {categoryIdx !== sidebar.length - 1 ? (<Divider mt="10px" mb="10px" />) : null}
                 </React.Fragment>
             )}
             <SidebarPushToBottom />
+            {/* Screen size indicator */}
+            { process.env.NODE_ENV === "development" ? <Flex mb={"5px"} width={ 190 } ml={19} justifyContent="left"><RBox /> </Flex>: null }
 
-            <SidebarInfoBox>
-                <Text fontSize={1}>ID: {Cloud.username}</Text>
-                <SidebarSpacer />
-                <Support />
-                <div>
-                    <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
-                        <Text fontSize={1}>Data Protection at SDU</Text>
-                    </ExternalLink>
-                </div>
-            </SidebarInfoBox>
-            <PP visible={false} />
+            <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" label={Cloud.username} />
+
+            <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse"> 
+                <TextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1} space=".5em" label={"SDU Data Protection"} />
+            </ExternalLink>
+            <Box mb="10px" />
 
         </SidebarContainer>
     );
 };
 
-export default Sidebar;
+const mapStateToProps = ({ responsive }: ReduxObject): SidebarStateProps   => ({
+    responsiveState: responsive
+});
+
+export default connect<SidebarStateProps>(mapStateToProps)(Sidebar);

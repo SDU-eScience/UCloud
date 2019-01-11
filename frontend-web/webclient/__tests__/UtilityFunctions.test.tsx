@@ -310,10 +310,13 @@ test("shareSwal", () => {
     expect(JSON.parse(JSON.stringify(swal.params))).toEqual(JSON.parse(JSON.stringify({
         title: "Share",
         input: "text",
-        html: `<select id="access-select">
-                <option value="read">Can View</option>
-                <option value="read_edit">Can View and Edit</option>
-            </select>`,
+        html: `<div>
+                <input name="access" type="radio" value="read" id="read"/>
+                <label for="read">Can View</label>
+                <span style="margin-left:20px" />
+                <input name="access" type="radio" value="read_edit" id="read_edit"/>
+                <label for="read_edit">Can View and Edit</label>
+            </div>`,
         showCloseButton: true,
         showCancelButton: true,
         inputPlaceholder: "Enter username...",

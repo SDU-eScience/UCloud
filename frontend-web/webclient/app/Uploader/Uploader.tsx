@@ -4,11 +4,11 @@ import { Progress, Icon, Button, ButtonGroup, Heading, Divider } from "ui-compon
 import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs } from "UtilityFunctions";
-import { sizeToString } from "Utilities/FileUtilities";
+import { sizeToString, archiveExtensions, isArchiveExtension } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, BulkUploadPolicy } from "./api";
 import { connect } from "react-redux";
 import { ReduxObject, Sensitivity } from "DefaultObjects";
-import { Upload, UploaderProps } from ".";
+import { Upload, UploadOperations, UploaderProps } from ".";
 import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
 import { Box, Flex, Error } from "ui-components";
@@ -17,6 +17,8 @@ import { Toggle } from "ui-components/Toggle";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 import { Dispatch } from "redux";
+import { FileIcon } from "UtilityComponents";
+import { withRouter } from "react-router";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -52,7 +54,9 @@ function calculateSpeed(upload: Upload): number {
     return (bytesTransferred / timespan) * 1000;
 }
 
-class Uploader extends React.Component<UploaderProps & UploadOperations> {
+type UploaderState = { foo: "bar" }
+
+class Uploader extends React.Component<UploaderProps, UploaderState> {
     constructor(props) {
         super(props);
     }
@@ -68,7 +72,7 @@ class Uploader extends React.Component<UploaderProps & UploadOperations> {
         }
     }
 
-    beforeUnload = e => {
+    beforeUnload = (e: { returnValue: string; }) => {
         e.returnValue = "foo";
         uploadsNotifications(finishedUploads(this.props.uploads), this.props.uploads.length)
         return e;
@@ -110,11 +114,11 @@ class Uploader extends React.Component<UploaderProps & UploadOperations> {
                     this.props.setUploads(this.props.uploads);
                 },
                 (err) => this.props.setUploaderError(err)
-                ).then(xhr => onThen(xhr)); // FIXME Add error handling
+            ).then(xhr => onThen(xhr)); // FIXME Add error handling
         }
     }
 
-    startAllUploads = event => {
+    startAllUploads = (event: { preventDefault: () => void; }) => {
         event.preventDefault();
         const length = this.props.uploads.length;
         for (let i = 0; i < length; i++) {
@@ -144,23 +148,24 @@ class Uploader extends React.Component<UploaderProps & UploadOperations> {
         this.props.setUploads(uploads);
     }
 
-    updateSensitivity(index: number, sensitivity: Sensitivity) {
+    private updateSensitivity(index: number, sensitivity: Sensitivity) {
         const uploads = this.props.uploads;
         uploads[index].sensitivity = sensitivity;
         this.props.setUploads(uploads);
     }
 
+    private readonly modalStyle = {
+        content: {
+            top: "80px",
+            margin: "0 auto",
+            maxWidth: "80%"
+        }
+    }
+
     render() {
         return (
             <Modal isOpen={this.props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={() => this.props.setUploaderVisible(false)}
-                style={{
-                    content: {
-                        top: "80px",
-                        left: "10%",
-                        right: "10%",
-                        height: "auto"
-                    }
-                }}
+                style={this.modalStyle}
             >
                 <Heading>Upload Files</Heading>
                 <Divider />
@@ -169,41 +174,39 @@ class Uploader extends React.Component<UploaderProps & UploadOperations> {
                         <Error error={this.props.error} clearError={() => this.props.setUploaderError()} />
                     </Box> : null}
                 <Box>
-                    <div>
-                        {this.props.uploads.map((upload, index) => (
-                            <UploaderRow
-                                key={index}
-                                upload={upload}
-                                setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
-                                onExtractChange={value => this.onExtractChange(index, value)}
-                                onUpload={() => this.startUpload(index)}
-                                onDelete={it => { it.preventDefault(); this.removeUpload(index) }}
-                                onAbort={it => { it.preventDefault(); this.abort(index) }}
-                            />
-                        ))}
+                    {this.props.uploads.map((upload, index) => (
+                        <UploaderRow
+                            key={index}
+                            upload={upload}
+                            setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
+                            onExtractChange={value => this.onExtractChange(index, value)}
+                            onUpload={() => this.startUpload(index)}
+                            onDelete={it => { it.preventDefault(); this.removeUpload(index) }}
+                            onAbort={it => { it.preventDefault(); this.abort(index) }}
+                        />
+                    ))}
 
-                        {this.props.uploads.filter(it => !it.isUploading).length > 1 ?
-                            <Button
-                                fullWidth
-                                color={"green"}
-                                onClick={this.startAllUploads}
-                            ><Icon name={"upload"} />Start all!</Button>
-                            : null}
-                        <ReactDropzone onDrop={this.onFilesAdded}>
-                            {({ getRootProps, getInputProps }) =>
-                                <DropZoneBox {...getRootProps()}>
-                                    <input {...getInputProps()} />
-                                    <p>
-                                        <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
-                                        <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">{" browse"}</a>
-                                    </p>
-                                    <p>
-                                        <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
-                                    </p>
-                                </DropZoneBox>
-                            }
-                        </ReactDropzone>
-                    </div>
+                    {this.props.uploads.filter(it => !it.isUploading).length > 1 ?
+                        <Button
+                            fullWidth
+                            color={"green"}
+                            onClick={this.startAllUploads}
+                        ><Icon name={"upload"} />Start all!</Button>
+                        : null}
+                    <ReactDropzone onDrop={this.onFilesAdded}>
+                        {({ getRootProps, getInputProps }) =>
+                            <DropZoneBox {...getRootProps()}>
+                                <input {...getInputProps()} />
+                                <p>
+                                    <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
+                                    <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">{" browse"}</a>
+                                </p>
+                                <p>
+                                    <b>Bulk upload</b> supported for file types: <i><code>{archiveExtensions.join(", ")}</code></i>
+                                </p>
+                            </DropZoneBox>
+                        }
+                    </ReactDropzone>
                 </Box>
             </Modal>
 
@@ -314,16 +317,13 @@ const UploaderRow = (p: {
 
     return (
         <Flex flexDirection="row">
-            <Box width={0.08} textAlign="center">
-                <Icon name={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)} />
+            <Box width={0.04} textAlign="center">
+                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)} />
             </Box>
-            <Flex width={0.92}>{body}</Flex>
+            <Flex width={0.96}>{body}</Flex>
         </Flex>
     );
 }
-
-const archiveExtensions: string[] = [".tar.gz", ".zip"]
-const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 
 const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
     activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
@@ -335,15 +335,10 @@ const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
     error: uploader.error
 });
 
-interface UploadOperations {
-    setUploads: (uploads: Upload[]) => void
-    setUploaderError: (err?: string) => void
-    setUploaderVisible: (visible :boolean) => void
-}
 const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploads: uploads => dispatch(setUploads(uploads)),
     setUploaderError: err => dispatch(setUploaderError(err)),
     setUploaderVisible: visible => dispatch(setUploaderVisible(visible))
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(Uploader);
+export default connect<UploaderProps, UploadOperations>(mapStateToProps, mapDispatchToProps)(Uploader);

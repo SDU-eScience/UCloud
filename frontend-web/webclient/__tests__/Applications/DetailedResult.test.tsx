@@ -6,10 +6,9 @@ import { configureStore } from "Utilities/ReduxUtilities";
 import { initAnalyses, initDetailedResult } from "DefaultObjects";
 import analyses from "Applications/Redux/AnalysesReducer";
 import { Provider } from "react-redux";
-import { configure, shallow } from "enzyme";
+import { shallow } from "enzyme";
 import detailedResult from "Applications/Redux/DetailedResultReducer";
-import * as Adapter from "enzyme-adapter-react-16";
-
+import "jest-styled-components";
 // configure({ adapter: new Adapter() });
 
 
@@ -36,7 +35,13 @@ describe("Detailed Result", () => {
         let wrapper = shallow(
             <Provider store={store}>
                 <DetailedResult
-                    match={{ params: { jobId: "J0B1D" } }}
+                    history={createMemoryHistory()}
+                    match={{
+                        isExact: true,
+                        url: "",
+                        path: "",
+                        params: { jobId: "J0B1D" }
+                    }}
                 />
             </Provider>);
         wrapper.update();

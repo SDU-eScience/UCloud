@@ -6,6 +6,7 @@ import { Provider } from "react-redux";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initStatus } from "DefaultObjects";
 import status from "Navigation/Redux/StatusReducer";
+import "jest-styled-components";
 
 describe("CreateUpdate Component", () => {
     test.skip("Mount", () => {

@@ -131,11 +131,11 @@ export type MaxTime = {
     seconds: number
 }
 
-export interface JobSchedulingOptions {
-    maxTime: MaxTime
-    numberOfNodes: number | null
-    tasksPerNode: number | null
-}
+// export interface JobSchedulingOptions {
+//     maxTime: MaxTime
+//     numberOfNodes: number | null
+//     tasksPerNode: number | null
+// }
 
 export interface MaxTimeForInput {
     hours: number | null,

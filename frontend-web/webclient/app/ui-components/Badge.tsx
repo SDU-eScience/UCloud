@@ -70,6 +70,8 @@ interface BadgeProps {
   py?: NumberOrStringOrArray
 }
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 Badge.defaultProps = {
   px: 2,
   py: 1,

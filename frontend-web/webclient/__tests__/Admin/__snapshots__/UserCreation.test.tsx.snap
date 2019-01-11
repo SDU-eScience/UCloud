@@ -1,16 +1,147 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`UserCreation Mount 1`] = `
+.c1 {
+  cursor: auto;
+  width: 70%;
+}
+
+.c0 {
+  cursor: inherit;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-flex-direction: column;
+  -ms-flex-direction: column;
+  flex-direction: column;
+}
+
+.c2 {
+  cursor: inherit;
+  font-size: 48px;
+  margin: 0px;
+}
+
+.c5 {
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  vertical-align: middle;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #00C05A;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c5:disabled {
+  opacity: 0.25;
+}
+
+.c5:focus {
+  outline: none;
+}
+
+.c5:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c3 {
+  font-size: 10px;
+  -webkit-letter-spacing: 0.2px;
+  -moz-letter-spacing: 0.2px;
+  -ms-letter-spacing: 0.2px;
+  letter-spacing: 0.2px;
+  display: block;
+  width: 100%;
+  margin: 0;
+  margin-bottom: 1em;
+  font-size: 14px;
+  color: #000;
+  font-weight: 700;
+}
+
+.c4 {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  font-size: 14px;
+  background-color: transparent;
+  border-width: 0px;
+  border-style: solid;
+  border-color: #c9d3df;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0;
+  border-color: #8393A7;
+  box-shadow: 0 0 0 1px #8393A7;
+  border-radius: 5px;
+}
+
+.c4::-webkit-input-placeholder {
+  color: #8393A7;
+}
+
+.c4::-moz-placeholder {
+  color: #8393A7;
+}
+
+.c4:-ms-input-placeholder {
+  color: #8393A7;
+}
+
+.c4::placeholder {
+  color: #8393A7;
+}
+
+.c4::-ms-clear {
+  display: none;
+}
+
+.c4:focus {
+  outline: none;
+}
+
+.c4:focus {
+  outline: 0;
+  border-color: #8393A7;
+  box-shadow: 0 0 0 2px #8393A7;
+}
+
 <div
-  className="sc-ifAKCX LORpy"
+  className="c0"
+  cursor="inherit"
 >
   <div
-    className="sc-bdVaJa hsfjeU"
+    className="c1"
     cursor="auto"
     width={0.7}
   >
     <h1
-      className="sc-EHOje dGldvs"
+      className="c2"
       cursor="inherit"
       fontSize={6}
     >
@@ -23,14 +154,14 @@ exports[`UserCreation Mount 1`] = `
       onSubmit={[Function]}
     >
       <label
-        className="sc-ckVGcZ dcNvEi"
+        className="c3"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Username
         <input
-          className="sc-chPdSV bDEuVj"
+          className="c4"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -39,14 +170,14 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="sc-ckVGcZ dcNvEi"
+        className="c3"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Password
         <input
-          className="sc-chPdSV bDEuVj"
+          className="c4"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -56,14 +187,14 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="sc-ckVGcZ dcNvEi"
+        className="c3"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Repeat password
         <input
-          className="sc-chPdSV bDEuVj"
+          className="c4"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -73,7 +204,7 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <button
-        className="sc-htoDjs hMOnGI"
+        className="c5"
         color="green"
         content="Create user"
         type="submit"

@@ -294,7 +294,7 @@ export default class SDUCloud {
         return tokenPromise;
     }
 
-    createOneTimeTokenWithPermission(permission) {
+    createOneTimeTokenWithPermission(permission): Promise<any> {
         return this.receiveAccessTokenOrRefreshIt()
             .then((token) => {
                 let oneTimeToken = `${this.context}${this.authContext}/request/?audience=${permission}`;

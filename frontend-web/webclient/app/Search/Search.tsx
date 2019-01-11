@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
-import { ApplicationCard, NewApplicationCard } from "Applications/Card";
+import { NewApplicationCard } from "Applications/Card";
 import { ProjectMetadata } from "Project/api";
 import { SearchItem } from "Project/Search";
 import { AllFileOperations } from "Utilities/FileUtilities";
@@ -118,7 +118,7 @@ class Search extends React.Component<SearchProps> {
 
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
-        const fileOperations = AllFileOperations(true, false, false, this.props.history);
+        const fileOperations = AllFileOperations(true, false, false, false, false, this.props.history);
         // FIXME: Search Pane approach is obsolete
         const panes: SearchPane[] = [
             {
@@ -140,6 +140,7 @@ class Search extends React.Component<SearchProps> {
                             />
                         )}
                         page={files}
+                        onRefresh={() => this.props.searchFiles(this.fileSearchBody)}
                         onItemsPerPageChanged={itemsPerPage => this.props.searchFiles({ ...this.fileSearchBody, page: 0, itemsPerPage })}
                         onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
                     />
@@ -176,6 +177,7 @@ class Search extends React.Component<SearchProps> {
                             </CardGroup>
                         }
                         page={applications}
+                        onRefresh={() => this.props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage)}
                         onItemsPerPageChanged={(itemsPerPage) => this.props.searchApplications(search, 0, itemsPerPage)}
                         onPageChanged={(pageNumber) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
                     />
@@ -186,6 +188,7 @@ class Search extends React.Component<SearchProps> {
 
         const Tab = ({ pane, index }: { pane: SearchPane, index: number }): JSX.Element => (
             <SelectableText
+                key={index}
                 cursor="pointer"
                 fontSize={2}
                 onClick={() => this.setPath(pane.headerType)}
@@ -200,7 +203,7 @@ class Search extends React.Component<SearchProps> {
                 header={
                     <React.Fragment>
                         <Error error={errors.join("\n")} clearError={() => this.props.setError(undefined)} />
-                        <Hide xl md>
+                        <Hide xxl xl md>
                             <form onSubmit={e => { e.preventDefault(); this.search(); }}>
                                 <Input onChange={({ target: { value } }) => this.props.setSearch(value)} />
                             </form>
@@ -217,17 +220,19 @@ class Search extends React.Component<SearchProps> {
     }
 };
 
-const SearchOptions = styled(Flex)`
+export const SearchOptions = styled(Flex)`
     border-bottom: 1px solid ${theme.colors.lightGray};
 `;
 
-const SelectableText = styled(Text) <{ selected: boolean }>`
+export const SelectableText = styled(Text) <{ selected: boolean }>`
     border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : undefined};
 `
 
 type MenuItemName = "Files" | "Projects" | "Applications";
 type SearchBarProps = { active: MenuItemName }
 const SearchBar = (props: SearchBarProps) => {
+    return null;
+    // @ts-ignore
     switch (props.active) {
         case "Files":
             return <DetailedFileSearch />
@@ -245,14 +250,14 @@ const SearchPriorityToNumber = (search: string): number => {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
-    setFilesLoading: (loading) => dispatch(SSActions.setFilesLoading(loading)),
-    setApplicationsLoading: (loading) => dispatch(SSActions.setApplicationsLoading(loading)),
-    setProjectsLoading: (loading) => dispatch(SSActions.setProjectsLoading(loading)),
-    setError: (error) => dispatch(SSActions.setErrorMessage(error)),
+    setFilesLoading: loading => dispatch(SSActions.setFilesLoading(loading)),
+    setApplicationsLoading: loading => dispatch(SSActions.setApplicationsLoading(loading)),
+    setProjectsLoading: loading => dispatch(SSActions.setProjectsLoading(loading)),
+    setError: error => dispatch(SSActions.setErrorMessage(error)),
     searchFiles: async (body) => {
         dispatch(SSActions.setFilesLoading(true));
         dispatch(await SSActions.searchFiles(body));
-        dispatch(setFilename(body.fileName ? body.fileName : ""));
+        dispatch(setFilename(body.fileName || ""));
     },
     searchApplications: async (query, page, itemsPerPage) => {
         dispatch(SSActions.setApplicationsLoading(true));
@@ -263,11 +268,11 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
         dispatch(SSActions.setProjectsLoading(true));
         dispatch(await SSActions.searchProjects(query, page, itemsPerPage));
     },
-    setFilesPage: (page: Page<File>) => dispatch(SSActions.receiveFiles(page)),
-    setApplicationsPage: (page: Page<Application>) => dispatch(SSActions.receiveApplications(page)),
-    setProjectsPage: (page: Page<ProjectMetadata>) => dispatch(SSActions.receiveProjects(page)),
-    setSearch: (search) => dispatch(SSActions.setSearch(search)),
-    setPrioritizedSearch: (sT: HeaderSearchType) => dispatch(setPrioritizedSearch(sT)),
+    setFilesPage: page => dispatch(SSActions.receiveFiles(page)),
+    setApplicationsPage: page => dispatch(SSActions.receiveApplications(page)),
+    setProjectsPage: page => dispatch(SSActions.receiveProjects(page)),
+    setSearch: search => dispatch(SSActions.setSearch(search)),
+    setPrioritizedSearch: sT => dispatch(setPrioritizedSearch(sT)),
     toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden())
 });
 

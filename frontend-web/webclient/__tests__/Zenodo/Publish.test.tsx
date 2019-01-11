@@ -10,30 +10,58 @@ import { configure } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import { mount } from "enzyme";
 import * as ZenodoActions from "Zenodo/Redux/ZenodoActions";
-import { Button } from "ui-components";
+import { Button, theme } from "ui-components";
+import { ThemeProvider } from "styled-components";
+import { createMemoryHistory } from "history";
+import "jest-styled-components";
+import { createResponsiveStateReducer } from "redux-responsive";
+import { responsiveBP } from "ui-components/theme";
+
+const responsive = createResponsiveStateReducer(
+    responsiveBP,
+    { infinity: "xxl" }
+)
 
 configure({ adapter: new Adapter });
 
 describe("Zenodo Publish", () => {
     test("Mount Zenodo component", () => {
         expect(create(
-            <Provider store={configureStore({ zenodo: initZenodo() }, { zenodo })}>
-                <MemoryRouter>
-                    <ZenodoPublish />
-                </MemoryRouter>
+            <Provider store={configureStore({ zenodo: initZenodo() }, { zenodo, responsive })}>
+                <ThemeProvider theme={theme}>
+                    <MemoryRouter>
+                        <ZenodoPublish
+                            updatePageTitle={() => undefined}
+                            setErrorMessage={() => undefined}
+                            setLoading={() => undefined}
+                            history={createMemoryHistory()}
+                            connected={true}
+                            loading={false}
+                        />
+                    </MemoryRouter>
+                </ThemeProvider>
             </Provider>
         ).toJSON()).toMatchSnapshot()
     });
 
     test.skip("Add and remove file row", () => {
-        const store = configureStore({ zenodo: initZenodo() }, { zenodo })
+        const store = configureStore({ zenodo: initZenodo() }, { zenodo, responsive })
         store.dispatch(ZenodoActions.receiveLoginStatus(true));
         store.dispatch(ZenodoActions.setZenodoLoading(false));
         const publishWrapper = mount(
             <Provider store={store}>
-                <MemoryRouter>
-                    <ZenodoPublish />
-                </MemoryRouter>
+                <ThemeProvider theme={theme}>
+                    <MemoryRouter>
+                        <ZenodoPublish
+                            updatePageTitle={() => undefined}
+                            setErrorMessage={() => undefined}
+                            setLoading={() => undefined}
+                            history={createMemoryHistory()}
+                            connected={true}
+                            loading={false}
+                        />
+                    </MemoryRouter>
+                </ThemeProvider>
             </Provider>
         );
 
@@ -48,12 +76,19 @@ describe("Zenodo Publish", () => {
 
     test("Update name", () => {
         const pubName = "Publication name";
-        const store = configureStore({ zenodo: initZenodo() }, { zenodo })
+        const store = configureStore({ zenodo: initZenodo() }, { zenodo, responsive })
         store.dispatch(ZenodoActions.receiveLoginStatus(true));
         const publishWrapper = mount(
             <Provider store={store}>
                 <MemoryRouter>
-                    <ZenodoPublish />
+                    <ZenodoPublish
+                        updatePageTitle={() => undefined}
+                        setErrorMessage={() => undefined}
+                        setLoading={() => undefined}
+                        history={createMemoryHistory()}
+                        connected={true}
+                        loading={false}
+                    />
                 </MemoryRouter>
             </Provider>
         );

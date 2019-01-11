@@ -55,7 +55,7 @@ const RadioIcon = styled(Icon)`
 `;
 
 Radio.defaultProps = {
-  theme: theme
+  theme
 };
 
 export default Radio;

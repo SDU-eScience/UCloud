@@ -1,10 +1,12 @@
 import styled from "styled-components";
-import { space, width, minWidth, color, textAlign, 
-         SpaceProps, WidthProps, MinWidthProps, 
-         ColorProps, AlignItemsProps, TopProps, 
-         minHeight, MinHeightProps, HeightProps, 
-         height, MaxHeightProps, MaxWidthProps, 
-         maxWidth, maxHeight, TextAlignProps } from "styled-system";
+import {
+  space, width, minWidth, color, textAlign,
+  SpaceProps, WidthProps, MinWidthProps,
+  ColorProps, AlignItemsProps, TopProps,
+  minHeight, MinHeightProps, HeightProps,
+  height, MaxHeightProps, MaxWidthProps,
+  maxWidth, maxHeight, TextAlignProps, zIndex, ZIndexProps
+} from "styled-system";
 import theme from "./theme";
 
 export type BoxProps =
@@ -20,8 +22,9 @@ export type BoxProps =
   MaxWidthProps &
   FlexGrowProps &
   FlexShrinkProps &
+  ZIndexProps &
   TextAlignProps &
-  { cursor?: string };
+  { cursor?: string }
 
 interface FlexGrowProps {
   flexGrow?: number
@@ -36,6 +39,7 @@ const flexShrink = ({ flexShrink }: FlexShrinkProps) => flexShrink ? { flexShrin
 
 const Box = styled.div<BoxProps>`
   cursor: ${props => props.cursor};
+  ${zIndex};
   ${flexGrow}
   ${flexShrink}
   ${space} 
@@ -51,6 +55,8 @@ const Box = styled.div<BoxProps>`
 
 Box.displayName = "Box";
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 Box.defaultProps = {
   theme,
   cursor: "auto"

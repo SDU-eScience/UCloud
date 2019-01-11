@@ -132,7 +132,7 @@ const Sidebar: React.StatelessComponent<MainContentProps> = props => (
                 onClick={() => { if (!!props.onFavorite) props.onFavorite() }}
                 loadable={props.favorite as LoadableContent}
                 color={"blue"}>
-                {props.application.favorite ? "Remove from My Applications" : "Add to My Applications"}
+                {props.application.favorite ? "Remove from My Apps" : "Add to My Apps"}
             </ActionButton>
 
             <Link to={Pages.runApplication(props.application)}>

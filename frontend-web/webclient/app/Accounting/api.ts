@@ -1,6 +1,7 @@
 import * as moment from "moment";
 import { sizeToString } from "Utilities/FileUtilities";
 import { humanReadableNumber } from "UtilityFunctions";
+import * as DataTypes from "./DataTypes";
 
 export interface DataPoint {
     label: string | null
@@ -49,19 +50,6 @@ export interface AccountingEvent {
     title: string
     description?: string
     timestamp: number
-}
-
-/**
- * Contains known data types. 
- * 
- * A data type is allowed to not be one of the following.
- */
-export namespace DataTypes {
-    export const BYTES = "bytes"
-    export const DURATION = "duration"
-    export const DATE = "date"
-    export const DATETIME = "datetime"
-    export const NUMBER = "number";
 }
 
 export function formatDataType(type: string, value: any): string {

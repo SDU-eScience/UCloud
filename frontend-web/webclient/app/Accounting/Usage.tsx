@@ -1,5 +1,6 @@
 import * as React from "react";
 import * as API from "./api";
+import * as DataTypes from "./DataTypes";
 import { Box, Link } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { resourceName, emptyResourceState } from "./Redux/AccountingObject";
@@ -46,7 +47,7 @@ const Usage: React.FunctionComponent<{
     renderTitle?: boolean 
 }> = props => {
     const { usage } = props;
-    const type = (usage.dataType || API.DataTypes.NUMBER);
+    const type = (usage.dataType || DataTypes.NUMBER);
     return <>
         <Heading.h2 title={API.formatDataTypeLong(type, usage.usage)}>
             {API.formatDataType(type, usage.usage)}

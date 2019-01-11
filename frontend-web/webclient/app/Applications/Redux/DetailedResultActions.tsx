@@ -7,7 +7,7 @@ import { File } from "Files";
 export const fetchPage = (username: string, jobId: string, pageNumber: number, itemsPerPage: number): Promise<any> =>
     Cloud.get(filepathQuery(`/home/${username}/Jobs/${jobId}`, pageNumber, itemsPerPage)).then(({ response }) => 
         receivePage(response)
-    ).catch(_ =>
+    ).catch(() =>
         detailedResultError("An error occurred fetching files")
     );
 

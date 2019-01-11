@@ -6,7 +6,10 @@ const Truncate = styled(Text)`
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-`
+`;
+
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 Truncate.defaultProps = {
   theme: theme
 }
