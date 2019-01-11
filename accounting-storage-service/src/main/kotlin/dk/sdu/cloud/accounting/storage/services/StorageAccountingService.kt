@@ -103,9 +103,11 @@ class StorageAccountingService<DBSession>(
         context: ContextQuery,
         user: String
     ) : List<StorageUsedEvent> {
-        return db.withTransaction {
+        val returnList =  db.withTransaction {
             dao.findAllList(it, context, user)
         }
+        if (returnList.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        return returnList
     }
 
     companion object : Loggable {

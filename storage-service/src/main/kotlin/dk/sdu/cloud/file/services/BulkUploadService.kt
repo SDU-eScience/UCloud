@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
 import org.slf4j.Logger
@@ -20,7 +21,7 @@ import kotlin.reflect.KClass
 sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: KClass<Ctx>) {
     abstract suspend fun upload(
         fs: CoreFileSystemService<Ctx>,
-        ctx: Ctx,
+        contextFactory: () -> Ctx,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream
@@ -45,28 +46,33 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
 
     override suspend fun upload(
         fs: CoreFileSystemService<UnixFSCommandRunner>,
-        ctx: UnixFSCommandRunner,
+        contextFactory: () -> UnixFSCommandRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream
     ): List<String> {
-        return BasicUploader.uploadFromSequence(fs, ctx, conflictPolicy, sequence {
+        return BasicUploader.uploadFromSequence(fs, contextFactory, conflictPolicy, sequence {
             yield(ArchiveEntry.Directory(path))
 
             ZipInputStream(stream).use { zipStream ->
                 var entry: ZipEntry? = zipStream.nextEntry
                 while (entry != null) {
                     val initialTargetPath = joinPath(path, entry.name)
-                    if (entry.isDirectory) {
-                        yield(ArchiveEntry.Directory(initialTargetPath))
+                    if (entry.name.contains("__MACOSX")) {
+                        log.debug("Skipping Entry: " + entry.name)
+                        entry = zipStream.nextEntry
                     } else {
-                        yield(ArchiveEntry.File(
-                            path = initialTargetPath,
-                            stream = zipStream,
-                            dispose = { zipStream.closeEntry() }
-                        ))
+                        if (entry.isDirectory) {
+                            yield(ArchiveEntry.Directory(initialTargetPath))
+                        } else {
+                            yield(ArchiveEntry.File(
+                                path = initialTargetPath,
+                                stream = zipStream,
+                                dispose = { zipStream.closeEntry() }
+                            ))
+                        }
+                        entry = zipStream.nextEntry
                     }
-                    entry = zipStream.nextEntry
                 }
             }
         })
@@ -79,12 +85,12 @@ object TarGzUploader : BulkUploader<UnixFSCommandRunner>("tgz", UnixFSCommandRun
 
     override suspend fun upload(
         fs: CoreFileSystemService<UnixFSCommandRunner>,
-        ctx: UnixFSCommandRunner,
+        contextFactory: () -> UnixFSCommandRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream
     ): List<String> {
-        return BasicUploader.uploadFromSequence(fs, ctx, conflictPolicy, sequence {
+        return BasicUploader.uploadFromSequence(fs, contextFactory, conflictPolicy, sequence {
             TarInputStream(GZIPInputStream(stream)).use {
                 var entry: TarEntry? = it.nextEntry
                 while (entry != null) {
@@ -132,7 +138,7 @@ private object BasicUploader : Loggable {
 
     suspend fun <Ctx : FSUserContext> uploadFromSequence(
         fs: CoreFileSystemService<Ctx>,
-        ctx: Ctx,
+        contextFactory: () -> Ctx,
         conflictPolicy: WriteConflictPolicy,
         sequence: Sequence<ArchiveEntry>
     ): List<String> {
@@ -140,76 +146,88 @@ private object BasicUploader : Loggable {
         val rejectedDirectories = ArrayList<String>()
         val createdDirectories = HashSet<String>()
 
-        sequence.forEach { entry ->
-            try {
-                log.debug("New entry $entry")
-                if (rejectedDirectories.any { entry.path.startsWith(it) }) {
-                    log.debug("Skipping entry: $entry")
-                    rejectedFiles += entry.path
-                    return@forEach
-                }
+        var ctx = contextFactory()
 
-                log.debug("Downloading $entry")
+        try {
+            sequence.forEach { entry ->
+                try {
+                    log.debug("New entry $entry")
+                    if (rejectedDirectories.any { entry.path.startsWith(it) }) {
+                        log.debug("Skipping entry: $entry")
+                        rejectedFiles += entry.path
+                        return@forEach
+                    }
 
-                val existing = fs.statOrNull(ctx, entry.path, setOf(FileAttribute.FILE_TYPE))
+                    log.debug("Downloading $entry")
 
-                val targetPath: String? = if (existing != null) {
-                    // TODO This is technically handled by upload also
-                    val existingIsDirectory = existing.fileType == FileType.DIRECTORY
-                    if (entry is ArchiveEntry.Directory != existingIsDirectory) {
-                        log.debug("Type of existing and new does not match. Rejecting regardless of policy")
-                        rejectedDirectories += entry.path
-                        null
-                    } else {
-                        if (entry is ArchiveEntry.Directory) {
-                            log.debug("Directory already exists. Skipping")
+                    val existing = fs.statOrNull(ctx, entry.path, setOf(FileAttribute.FILE_TYPE))
+
+                    val targetPath: String? = if (existing != null) {
+                        // TODO This is technically handled by upload also
+                        val existingIsDirectory = existing.fileType == FileType.DIRECTORY
+                        if (entry is ArchiveEntry.Directory != existingIsDirectory) {
+                            log.debug("Type of existing and new does not match. Rejecting regardless of policy")
+                            rejectedDirectories += entry.path
                             null
                         } else {
-                            entry.path // Renaming/rejection handled by upload
-                        }
-                    }
-                } else {
-                    log.debug("File does not exist")
-                    entry.path
-                }
-
-                if (targetPath != null) {
-                    log.debug("Accepting file ${entry.path} ($targetPath)")
-
-                    try {
-                        when (entry) {
-                            is ArchiveEntry.Directory -> {
-                                createdDirectories += targetPath
-                                fs.makeDirectory(ctx, targetPath)
+                            if (entry is ArchiveEntry.Directory) {
+                                log.debug("Directory already exists. Skipping")
+                                null
+                            } else {
+                                entry.path // Renaming/rejection handled by upload
                             }
+                        }
+                    } else {
+                        log.debug("File does not exist")
+                        entry.path
+                    }
 
-                            is ArchiveEntry.File -> {
-                                val parentDir = File(targetPath).parentFile.path
-                                if (parentDir !in createdDirectories) {
-                                    createdDirectories += parentDir
-                                    try {
-                                        fs.makeDirectory(ctx, parentDir)
-                                    } catch (ex: FSException.AlreadyExists) {
-                                        log.debug("Parent directory already exists")
-                                    }
+                    if (targetPath != null) {
+                        log.debug("Accepting file ${entry.path} ($targetPath)")
+
+                        try {
+                            when (entry) {
+                                is ArchiveEntry.Directory -> {
+                                    createdDirectories += targetPath
+                                    fs.makeDirectory(ctx, targetPath)
                                 }
 
-                                fs.write(ctx, targetPath, conflictPolicy) { entry.stream.copyTo(this) }
+                                is ArchiveEntry.File -> {
+                                    val parentDir = File(targetPath).parentFile.path
+                                    if (parentDir !in createdDirectories) {
+                                        createdDirectories += parentDir
+                                        try {
+                                            fs.makeDirectory(ctx, parentDir)
+                                        } catch (ex: FSException.AlreadyExists) {
+                                            log.debug("Parent directory already exists")
+                                        }
+                                    }
+
+                                    fs.write(ctx, targetPath, conflictPolicy) { entry.stream.copyTo(this) }
+                                }
                             }
+                        } catch (ex: FSException.PermissionException) {
+                            log.debug("Skipping $entry because of permissions")
+                            rejectedFiles += entry.path
                         }
-                    } catch (ex: FSException.PermissionException) {
-                        log.debug("Skipping $entry because of permissions")
+                    } else {
+                        log.debug("Skipping $entry because we could not rename")
                         rejectedFiles += entry.path
                     }
-                } else {
-                    log.debug("Skipping $entry because we could not rename")
-                    rejectedFiles += entry.path
-                }
-            } finally {
-                if (entry is ArchiveEntry.File) {
-                    entry.dispose()
+                } catch (ex: Exception) {
+                    log.warn("Caught exception while extracting archive!")
+                    log.warn(ex.stackTraceToString())
+                    runCatching { ctx.close() }
+
+                    ctx = contextFactory()
+                } finally {
+                    if (entry is ArchiveEntry.File) {
+                        entry.dispose()
+                    }
                 }
             }
+        } finally {
+            runCatching { ctx.close() }
         }
 
         return rejectedFiles

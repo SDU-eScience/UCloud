@@ -1,13 +1,7 @@
 package dk.sdu.cloud.accounting.storage.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.fasterxml.jackson.module.kotlin.readValues
-import dk.sdu.cloud.accounting.api.BillableItem
-import dk.sdu.cloud.accounting.api.BuildReportRequest
-import dk.sdu.cloud.accounting.api.ChartResponse
-import dk.sdu.cloud.accounting.api.Currencies
-import dk.sdu.cloud.accounting.api.CurrentUsageResponse
-import dk.sdu.cloud.accounting.api.SerializedMoney
+import dk.sdu.cloud.accounting.api.UsageResponse
 import dk.sdu.cloud.accounting.storage.Configuration
 import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingHibernateDao
@@ -30,18 +24,12 @@ import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withDatabase
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.mockk.coEvery
-import io.mockk.every
-import io.mockk.mockk
-import org.h2.engine.Session
 import org.junit.Test
-import java.math.BigDecimal
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -68,16 +56,6 @@ private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
             }
         }
     }
-
-    CloudMock.mockCallSuccess(
-        QueryDescriptions,
-        { QueryDescriptions.statistics },
-        StatisticsResponse(
-            22,
-            NumericStatistics(null, null, null, 150.4, emptyList()),
-            NumericStatistics(null, null, null, null, emptyList())
-        )
-    )
 
     configureComputeTimeServer(storageAccountingService)
 }
@@ -108,7 +86,7 @@ class StorageUsedTest{
 
                 request.assertSuccess()
                 val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
-                println(response)
+
                 assertEquals(11, response.itemsInTotal)
                 assertEquals(2, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
@@ -118,10 +96,66 @@ class StorageUsedTest{
     }
 
     @Test
+    fun `list events no params`() {
+        withKtorTest(
+            setup,
+            test= {
+
+                val request = sendRequest(
+                    method = HttpMethod.Get,
+                    path = "/api/accounting/storage/bytesUsed/events",
+                    user = TestUsers.user
+                )
+
+                request.assertSuccess()
+                val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
+
+                assertEquals(11, response.itemsInTotal)
+                assertEquals(2, response.pagesInTotal)
+                assertEquals(0, response.pageNumber)
+                assertEquals(12345, response.items.first().bytesUsed)            }
+        )
+    }
+
+    @Test
+    fun `list events no events in time slot`() {
+        withKtorTest(
+            setup,
+            test= {
+
+                val request = sendRequest(
+                    method = HttpMethod.Get,
+                    path = "/api/accounting/storage/bytesUsed/events",
+                    user = TestUsers.user,
+                    params = mapOf("since" to "1044173471000", "until" to "1075709471000")
+                    // since 2003-02-02 to 2004-02-02
+                )
+
+                request.assertSuccess()
+                val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
+
+                assertEquals(0, response.itemsInTotal)
+                assertEquals(0, response.pagesInTotal)
+                assertEquals(0, response.pageNumber)
+            }
+        )
+    }
+
+    @Test
     fun `chart test`() {
         withKtorTest(
             setup,
             test= {
+                CloudMock.mockCallSuccess(
+                    QueryDescriptions,
+                    { QueryDescriptions.statistics },
+                    StatisticsResponse(
+                        22,
+                        NumericStatistics(null, null, null, 150.4, emptyList()),
+                        NumericStatistics(null, null, null, null, emptyList())
+                    )
+                )
+
                 val request = sendRequest(
                     method = HttpMethod.Get,
                     path = "/api/accounting/storage/bytesUsed/chart",
@@ -138,13 +172,22 @@ class StorageUsedTest{
     }
 
     @Test
-    fun `Test currentUsage`() {
+    fun `Test Usage - no params`() {
         withKtorTest(
             setup,
             test = {
                 with(engine) {
-                    run {
+                    CloudMock.mockCallSuccess(
+                        QueryDescriptions,
+                        { QueryDescriptions.statistics },
+                        StatisticsResponse(
+                            22,
+                            NumericStatistics(null, null, null, 150.4, emptyList()),
+                            NumericStatistics(null, null, null, null, emptyList())
+                        )
+                    )
 
+                    run {
                         val request = sendRequest(
                             method = HttpMethod.Get,
                             path = "/api/accounting/storage/bytesUsed/usage",
@@ -152,7 +195,159 @@ class StorageUsedTest{
                         )
                         request.assertSuccess()
 
-                        val items = defaultMapper.readValue<CurrentUsageResponse>(request.response.content!!)
+                        val items = defaultMapper.readValue<UsageResponse>(request.response.content!!)
+                        assertEquals(150, items.usage)
+                    }
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Test Usage - since and until `() {
+        withKtorTest(
+            setup,
+            test = {
+                with(engine) {
+                    withDatabase { db ->
+                        db.withTransaction { session ->
+                            session.save(
+                                StorageForUserEntity(
+                                    TestUsers.user.username,
+                                    Date(946800671000), //2000-01-02
+                                    11
+                                )
+                            )
+                            session.save(
+                                StorageForUserEntity(
+                                    TestUsers.user.username,
+                                    Date(978423071000), //2001-01-02
+                                    1
+                                )
+                            )
+                        }
+                    }
+                    run {
+
+                        val request = sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/accounting/storage/bytesUsed/usage",
+                            user = TestUsers.user,
+                            params = mapOf("since" to "941443871000", "until" to "949479071000")
+                            // since 1999-11-02 until 2000-02-02
+                        )
+                        request.assertSuccess()
+
+                        val items = defaultMapper.readValue<UsageResponse>(request.response.content!!)
+                        assertEquals(11, items.usage)
+                    }
+
+                    run {
+                        val request = sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/accounting/storage/bytesUsed/usage",
+                            user = TestUsers.user,
+                            params = mapOf("since" to "941443871000", "until" to "981101471000")
+                            // since 1999-11-02 until 2001-02-02
+                        )
+                        request.assertSuccess()
+
+                        val items = defaultMapper.readValue<UsageResponse>(request.response.content!!)
+                        assertEquals(1, items.usage)
+                    }
+
+                    //No entries in time slot
+                    run {
+                        val request = sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/accounting/storage/bytesUsed/usage",
+                            user = TestUsers.user,
+                            params = mapOf("since" to "1012637471000", "until" to "1044173471000")
+                            // since 2002-02-02 until 2003-02-02
+                        )
+                        request.assertStatus(HttpStatusCode.NotFound)
+                    }
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `Test Usage - no since but until `() {
+        withKtorTest(
+            setup,
+            test = {
+                with(engine) {
+                    withDatabase { db ->
+                        db.withTransaction { session ->
+                            session.save(
+                                StorageForUserEntity(
+                                    TestUsers.user.username,
+                                    Date(946800671000), //2000-01-02
+                                    11
+                                )
+                            )
+                            session.save(
+                                StorageForUserEntity(
+                                    TestUsers.user.username,
+                                    Date(978423071000), //2001-01-02
+                                    1
+                                )
+                            )
+                        }
+                    }
+                    run {
+
+                        val request = sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/accounting/storage/bytesUsed/usage",
+                            user = TestUsers.user,
+                            params = mapOf("until" to "949479071000")
+                            //until 2000-02-02
+                        )
+                        request.assertSuccess()
+
+                        val items = defaultMapper.readValue<UsageResponse>(request.response.content!!)
+                        assertEquals(11, items.usage)
+                    }
+
+                    run {
+
+                        val request = sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/accounting/storage/bytesUsed/usage",
+                            user = TestUsers.user,
+                            params = mapOf("until" to "981101471000")
+                            //until 2001-02-02
+                        )
+                        request.assertSuccess()
+
+                        val items = defaultMapper.readValue<UsageResponse>(request.response.content!!)
+                        assertEquals(1, items.usage)
+                    }
+
+                    run {
+
+                        CloudMock.mockCallSuccess(
+                            QueryDescriptions,
+                            { QueryDescriptions.statistics },
+                            StatisticsResponse(
+                                22,
+                                NumericStatistics(null, null, null, 150.4, emptyList()),
+                                NumericStatistics(null, null, null, null, emptyList())
+                            )
+                        )
+
+                        val request = sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/accounting/storage/bytesUsed/usage",
+                            user = TestUsers.user,
+                            params = mapOf("until" to Date().time)
+                            //until now
+                        )
+                        request.assertSuccess()
+
+                        val items = defaultMapper.readValue<UsageResponse>(request.response.content!!)
                         assertEquals(150, items.usage)
                     }
                 }

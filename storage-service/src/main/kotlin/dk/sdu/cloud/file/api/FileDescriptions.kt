@@ -52,6 +52,10 @@ data class CreateDirectoryRequest(
     val sensitivity: SensitivityLevel = SensitivityLevel.PRIVATE
 )
 
+data class ExtractRequest(
+    val path: String
+)
+
 enum class FileSortBy {
     TYPE,
     PATH,
@@ -556,5 +560,28 @@ object FileDescriptions : RESTDescriptions("files") {
         }
 
         body { bindEntireRequestFromBody() }
+    }
+
+    val extract = callDescriptionWithAudit<
+            ExtractRequest,
+            Unit,
+            CommonErrorMessage,
+            SingleFileAudit<ExtractRequest>
+            > {
+        name = "extract"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+            +"extract"
+        }
+
+        params {
+            +boundTo(ExtractRequest::path)
+        }
     }
 }

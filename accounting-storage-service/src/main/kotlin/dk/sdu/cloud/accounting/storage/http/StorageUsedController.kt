@@ -3,7 +3,7 @@ package dk.sdu.cloud.accounting.storage.http
 import dk.sdu.cloud.accounting.api.ChartDataTypes
 import dk.sdu.cloud.accounting.api.ChartResponse
 import dk.sdu.cloud.accounting.api.ChartingHelpers
-import dk.sdu.cloud.accounting.api.CurrentUsageResponse
+import dk.sdu.cloud.accounting.api.UsageResponse
 import dk.sdu.cloud.accounting.storage.api.StorageUsedResourceDescription
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingService
 import dk.sdu.cloud.file.api.homeDirectory
@@ -11,6 +11,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
+import java.util.*
 
 class StorageUsedController<DBSession>(
     private val storageAccountingService: StorageAccountingService<DBSession>
@@ -34,15 +35,22 @@ class StorageUsedController<DBSession>(
             )
         }
 
-        implement(StorageUsedResourceDescription.currentUsage) {
-            // TODO FIXME This doesn't actually live up to the correct API.
-            val usage = storageAccountingService.calculateUsage(
-                homeDirectory(call.securityPrincipal.username),
-                call.securityPrincipal.username
-            ).first().units
+        implement(StorageUsedResourceDescription.usage) { req ->
+            val usage =
+                when {
+                    req.until == null -> storageAccountingService.calculateUsage(
+                        homeDirectory(call.securityPrincipal.username),
+                        call.securityPrincipal.username
+                        ).first().units
+                    req.until!!.toLong() > Date().time - 1000*60*60*3 -> storageAccountingService.calculateUsage(
+                        homeDirectory(call.securityPrincipal.username),
+                        call.securityPrincipal.username
+                        ).first().units
+                    else -> storageAccountingService.listEvents(req, call.securityPrincipal.username).last().bytesUsed
+                }
 
             ok(
-                CurrentUsageResponse(
+                UsageResponse(
                     usage = usage,
                     dataType = ChartDataTypes.BYTES,
                     title = "Storage Used",
@@ -52,7 +60,6 @@ class StorageUsedController<DBSession>(
         }
 
         implement(StorageUsedResourceDescription.listEvents) { req ->
-            // TODO This doesn't actually live up to the correct API.
             ok(storageAccountingService.listEventsPage(req.normalize(), req, call.securityPrincipal.username))
         }
     }
