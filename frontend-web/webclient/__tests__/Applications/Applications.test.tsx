@@ -7,6 +7,7 @@ import applicationsReducer from "Applications/Redux/BrowseReducer";
 import { applicationsPage } from "../mock/Applications";
 import { MemoryRouter } from "react-router";
 import { shallow } from "enzyme";
+import "jest-styled-components";
 
 const emptyPageStore = configureStore({ applications: init() }, { applications: applicationsReducer });
 const fullPageStore = {

@@ -6,6 +6,7 @@ import { configure } from "enzyme";
 import { detailedApplication } from "../mock/Applications";
 import * as Adapter from "enzyme-adapter-react-16";
 import { MemoryRouter } from "react-router";
+import "jest-styled-components";
 
 configure({ adapter: new Adapter() });
 

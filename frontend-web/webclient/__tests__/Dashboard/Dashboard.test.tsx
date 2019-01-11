@@ -16,6 +16,7 @@ import * as AccountingRedux from "Accounting/Redux";
 import { ThemeProvider } from "styled-components";
 import { theme } from "ui-components";
 import { Store } from "redux";
+import "jest-styled-components";
 
 const createStore = () => {
     return configureStore(

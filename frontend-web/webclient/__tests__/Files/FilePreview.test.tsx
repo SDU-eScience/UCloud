@@ -6,6 +6,7 @@ import { Provider } from "react-redux";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initFiles } from "DefaultObjects";
 import files from "Files/Redux/FilesReducer";
+import "jest-styled-components";
 
 describe("File Preview", () => {
     test.skip("Mount preview", () => {

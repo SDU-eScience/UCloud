@@ -4,11 +4,11 @@ import { create } from "react-test-renderer";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initAnalyses } from "DefaultObjects";
 import analyses from "Applications/Redux/AnalysesReducer";
-import * as AnalysesActions from "Applications/Redux/AnalysesActions";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
 import { analyses as analysesPage } from "../mock/Analyses";
 import { createMemoryHistory } from "history";
+import "jest-styled-components";
 
 describe("Analyses component", () => {
     test.skip("Mount component", () => {

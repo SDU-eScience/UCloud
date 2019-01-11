@@ -4,10 +4,10 @@ import files from "Files/Redux/FilesReducer";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { initFiles } from "DefaultObjects";
 import { Provider } from "react-redux";
-import { MemoryRouter, Switch } from "react-router-dom";
-import FileInfo from "Files/FileInfo";
+import { MemoryRouter } from "react-router-dom";
 import { updatePath, updateFiles } from "Files/Redux/FilesActions";
 import { mockFiles_SensitivityConfidential } from "../mock/Files";
+import "jest-styled-components";
 
 const emptyPageStore = configureStore({ files: initFiles("/home/user@test.abc/") }, { files });
 const pageStore = configureStore({ files: initFiles("/home/user@user.telecity/") }, { files });
