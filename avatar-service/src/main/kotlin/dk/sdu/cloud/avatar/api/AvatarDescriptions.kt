@@ -8,25 +8,6 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
 
-data class CreateRequest(
-    val top: String,
-    val topAccessory: String,
-    val hairColor: String,
-    val facialHair: String,
-    val facialHairColor: String,
-    val clothes: String,
-    val colorFabric: String,
-    val eyes: String,
-    val eyebrows: String,
-    val mouthTypes: String,
-    val skinColors: String,
-    val clothesGraphic: String
-)
-
-data class CreateResponse(
-    val id: Long
-)
-
 data class UpdateRequest(
     val top: String,
     val topAccessory: String,
@@ -63,22 +44,6 @@ data class FindResponse(
 
 object AvatarDescriptions : RESTDescriptions("avatar") {
     val baseContext = "/api/avatar"
-
-    val create = callDescription<CreateRequest, CreateResponse, CommonErrorMessage> {
-        name = "create"
-        method = HttpMethod.Post
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        path {
-            using(baseContext)
-            +"create"
-        }
-
-        body { bindEntireRequestFromBody() }
-    }
 
     val update = callDescription<UpdateRequest, UpdateResponse, CommonErrorMessage> {
         name = "update"

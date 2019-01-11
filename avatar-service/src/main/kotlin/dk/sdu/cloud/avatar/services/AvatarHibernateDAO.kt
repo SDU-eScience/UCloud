@@ -1,7 +1,6 @@
 package dk.sdu.cloud.avatar.services
 
 import dk.sdu.cloud.avatar.api.Avatar
-import dk.sdu.cloud.avatar.api.AvatarRPCException
 import dk.sdu.cloud.avatar.api.Clothes
 import dk.sdu.cloud.avatar.api.ClothesGraphic
 import dk.sdu.cloud.avatar.api.ColorFabric
@@ -21,109 +20,139 @@ import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import javax.persistence.Column
 import javax.persistence.Entity
-import javax.persistence.GeneratedValue
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
 import javax.persistence.Id
-import javax.persistence.Index
 import javax.persistence.Table
 
 @Entity
-@Table(name = "avatars",
-    indexes = [Index(columnList = "username")])
+@Table(name = "avatars")
 class AvatarEntity(
     @Column
+    @Id
     var username: String,
 
-    var top: String,
-    var topAccessory: String,
-    var hairColor: String,
-    var facialHair: String,
-    var facialHairColor: String,
-    var clothes: String,
-    var colorFabric: String,
-    var eyes: String,
-    var eyebrows: String,
-    var mouthTypes: String,
-    var skinColors: String,
-    var clothesGraphic: String,
+    @Enumerated(EnumType.STRING)
+    var top: Top,
 
-    @Id
-    @GeneratedValue
-    var id: Long = 0
+    @Enumerated(EnumType.STRING)
+    var topAccessory: TopAccessory,
+
+    @Enumerated(EnumType.STRING)
+    var hairColor: HairColor,
+
+    @Enumerated(EnumType.STRING)
+    var facialHair: FacialHair,
+
+    @Enumerated(EnumType.STRING)
+    var facialHairColor: FacialHairColor,
+
+    @Enumerated(EnumType.STRING)
+    var clothes: Clothes,
+
+    @Enumerated(EnumType.STRING)
+    var colorFabric: ColorFabric,
+
+    @Enumerated(EnumType.STRING)
+    var eyes: Eyes,
+
+    @Enumerated(EnumType.STRING)
+    var eyebrows: Eyebrows,
+
+    @Enumerated(EnumType.STRING)
+    var mouthTypes: MouthTypes,
+
+    @Enumerated(EnumType.STRING)
+    var skinColors: SkinColors,
+
+    @Enumerated(EnumType.STRING)
+    var clothesGraphic: ClothesGraphic
 ) {
-    companion object : HibernateEntity<AvatarEntity>, WithId<Long>
+    companion object : HibernateEntity<AvatarEntity>, WithId<String>
 }
 
-fun AvatarEntity.toModel() : Avatar = Avatar(
-    id,
+private fun defaultAvatar(user: String): Avatar =
+    Avatar(
+        user,
+        Top.HAT,
+        TopAccessory.BLANK,
+        HairColor.BLACK,
+        FacialHair.BLANK,
+        FacialHairColor.BLACK,
+        Clothes.SHIRT_CREW_NECK,
+        ColorFabric.BLACK,
+        Eyes.SURPRISED,
+        Eyebrows.DEFAULT,
+        MouthTypes.SMILE,
+        SkinColors.YELLOW,
+        ClothesGraphic.BEAR
+    )
+
+
+fun AvatarEntity.toModel(): Avatar = Avatar(
     username,
-    Top.fromString(top),
-    TopAccessory.fromString(topAccessory),
-    HairColor.fromString(hairColor),
-    FacialHair.fromString(facialHair),
-    FacialHairColor.fromString(facialHairColor),
-    Clothes.fromString(clothes),
-    ColorFabric.fromString(colorFabric),
-    Eyes.fromString(eyes),
-    Eyebrows.fromString(eyebrows),
-    MouthTypes.fromString(mouthTypes),
-    SkinColors.fromString(skinColors),
-    ClothesGraphic.fromString(clothesGraphic)
+    top,
+    topAccessory,
+    hairColor,
+    facialHair,
+    facialHairColor,
+    clothes,
+    colorFabric,
+    eyes,
+    eyebrows,
+    mouthTypes,
+    skinColors,
+    clothesGraphic
 )
 
-fun Avatar.toEntity() : AvatarEntity = AvatarEntity(
+fun Avatar.toEntity(): AvatarEntity = AvatarEntity(
     user,
-    top.string,
-    topAccessory.string,
-    hairColor.string,
-    facialHair.string,
-    facialHairColor.string,
-    clothes.string,
-    colorFabric.string,
-    eyes.string,
-    eyebrows.string,
-    mouthTypes.string,
-    skinColors.string,
-    clothesGraphic.string
+    top,
+    topAccessory,
+    hairColor,
+    facialHair,
+    facialHairColor,
+    clothes,
+    colorFabric,
+    eyes,
+    eyebrows,
+    mouthTypes,
+    skinColors,
+    clothesGraphic
 )
 
-class AvatarHibernateDAO : AvatarDAO<HibernateSession>{
+class AvatarHibernateDAO: AvatarDAO<HibernateSession>{
 
-    override fun insert(
-        session: HibernateSession,
-        user: String,
-        avatar: Avatar
-    ) : Long {
-        val exists = findByUser(session, user) != null
-        if (exists) throw AvatarRPCException.Duplicate()
-        val entity = avatar.toEntity()
-        return session.save(entity) as Long
-    }
-
-    override fun update(
+    override fun upsert(
         session: HibernateSession,
         user: String,
         avatar: Avatar
     ) {
-        val foundAvatar = findInternal(session, user) ?: throw AvatarRPCException.NotFound()
-        foundAvatar.top = avatar.top.string
-        foundAvatar.topAccessory = avatar.topAccessory.string
-        foundAvatar.hairColor = avatar.hairColor.string
-        foundAvatar.facialHair = avatar.facialHair.string
-        foundAvatar.facialHairColor = avatar.facialHairColor.string
-        foundAvatar.clothes = avatar.clothes.string
-        foundAvatar.colorFabric = avatar.colorFabric.string
-        foundAvatar.eyes = avatar.eyes.string
-        foundAvatar.eyebrows = avatar.eyebrows.string
-        foundAvatar.mouthTypes = avatar.mouthTypes.string
-        foundAvatar.skinColors = avatar.skinColors.string
-        foundAvatar.clothesGraphic = avatar.clothesGraphic.string
-        session.update(foundAvatar)
+        val foundAvatar = findInternal(session, user)
+        if (foundAvatar != null) {
+            foundAvatar.top = avatar.top
+            foundAvatar.topAccessory = avatar.topAccessory
+            foundAvatar.hairColor = avatar.hairColor
+            foundAvatar.facialHair = avatar.facialHair
+            foundAvatar.facialHairColor = avatar.facialHairColor
+            foundAvatar.clothes = avatar.clothes
+            foundAvatar.colorFabric = avatar.colorFabric
+            foundAvatar.eyes = avatar.eyes
+            foundAvatar.eyebrows = avatar.eyebrows
+            foundAvatar.mouthTypes = avatar.mouthTypes
+            foundAvatar.skinColors = avatar.skinColors
+            foundAvatar.clothesGraphic = avatar.clothesGraphic
+            session.update(foundAvatar)
+        } else {
+            val entity = avatar.toEntity()
+            session.save(entity)
+        }
     }
 
     private fun findInternal(
         session: HibernateSession,
         user: String
-    ) : AvatarEntity? {
+    ): AvatarEntity? {
         return session.criteria<AvatarEntity> {
             (entity[AvatarEntity::username] equal user)
         }.uniqueResult()
@@ -132,9 +161,9 @@ class AvatarHibernateDAO : AvatarDAO<HibernateSession>{
     override fun findByUser(
         session: HibernateSession,
         user: String
-    ) : Avatar? {
+    ): Avatar {
         return session.criteria<AvatarEntity> {
             (entity[AvatarEntity::username] equal user)
-        }.uniqueResult()?.toModel()
+        }.uniqueResult()?.toModel() ?: defaultAvatar(user)
     }
 }

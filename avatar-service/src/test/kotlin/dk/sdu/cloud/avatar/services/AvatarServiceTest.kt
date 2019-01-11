@@ -1,7 +1,17 @@
 package dk.sdu.cloud.avatar.services
 
-import dk.sdu.cloud.avatar.api.AvatarRPCException
+import dk.sdu.cloud.avatar.api.Clothes
+import dk.sdu.cloud.avatar.api.ClothesGraphic
+import dk.sdu.cloud.avatar.api.ColorFabric
+import dk.sdu.cloud.avatar.api.Eyebrows
+import dk.sdu.cloud.avatar.api.Eyes
+import dk.sdu.cloud.avatar.api.FacialHair
+import dk.sdu.cloud.avatar.api.FacialHairColor
 import dk.sdu.cloud.avatar.api.HairColor
+import dk.sdu.cloud.avatar.api.MouthTypes
+import dk.sdu.cloud.avatar.api.SkinColors
+import dk.sdu.cloud.avatar.api.Top
+import dk.sdu.cloud.avatar.api.TopAccessory
 import dk.sdu.cloud.avatar.avatar
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.withDatabase
@@ -21,15 +31,30 @@ class AvatarServiceTest {
             val dao = AvatarHibernateDAO()
             val service = AvatarService(db, dao)
 
+            // Nothing inserted - Finds Default
             var findResult = service.findByUser(user)
-            assertNull(findResult)
+            assertNotNull(findResult)
 
-            val id = service.insert(user, avatar)
+            assertEquals(user, findResult.user)
+            assertEquals(Top.HAT, findResult.top)
+            assertEquals(TopAccessory.BLANK, findResult.topAccessory)
+            assertEquals(HairColor.BLACK, findResult.hairColor)
+            assertEquals(FacialHair.BLANK, findResult.facialHair)
+            assertEquals(FacialHairColor.BLACK, findResult.facialHairColor)
+            assertEquals(Clothes.SHIRT_CREW_NECK, findResult.clothes)
+            assertEquals(ColorFabric.BLACK, findResult.colorFabric)
+            assertEquals(Eyes.SURPRISED, findResult.eyes)
+            assertEquals(Eyebrows.DEFAULT, findResult.eyebrows)
+            assertEquals(MouthTypes.SMILE, findResult.mouthTypes)
+            assertEquals(SkinColors.YELLOW, findResult.skinColors)
+            assertEquals(ClothesGraphic.BEAR, findResult.clothesGraphic)
+
+            service.upsert(user, avatar)
 
             findResult = service.findByUser(user)
             assertNotNull(findResult)
 
-            assertEquals(1, id)
+            assertEquals(user, findResult.user)
             assertEquals(avatar.top, findResult.top)
             assertEquals(avatar.topAccessory, findResult.topAccessory)
             assertEquals(avatar.hairColor, findResult.hairColor)
@@ -53,14 +78,14 @@ class AvatarServiceTest {
             val service = AvatarService(db, dao)
 
             var findResult = service.findByUser(user)
-            assertNull(findResult)
+            assertNotNull(findResult)
 
-            val id = service.insert(user, avatar)
+            service.upsert(user, avatar)
 
             findResult = service.findByUser(user)
             assertNotNull(findResult)
 
-            assertEquals(1, id)
+            assertEquals(user, findResult.user)
             assertEquals(avatar.top, findResult.top)
             assertEquals(avatar.topAccessory, findResult.topAccessory)
             assertEquals(avatar.hairColor, findResult.hairColor)
@@ -74,13 +99,13 @@ class AvatarServiceTest {
             assertEquals(avatar.skinColors, findResult.skinColors)
             assertEquals(avatar.clothesGraphic, findResult.clothesGraphic)
 
-            service.update(user, avatar.copy(id = 1, hairColor = HairColor.RED))
+            service.upsert(user, avatar.copy(hairColor = HairColor.RED))
 
 
             findResult = service.findByUser(user)
             assertNotNull(findResult)
 
-            assertEquals(1, id)
+            assertEquals(user, findResult.user)
             assertEquals(avatar.top, findResult.top)
             assertEquals(avatar.topAccessory, findResult.topAccessory)
             assertEquals(HairColor.RED, findResult.hairColor)
@@ -94,40 +119,6 @@ class AvatarServiceTest {
             assertEquals(avatar.skinColors, findResult.skinColors)
             assertEquals(avatar.clothesGraphic, findResult.clothesGraphic)
 
-        }
-    }
-
-    @Test (expected = AvatarRPCException.Duplicate::class)
-    fun `Insert twice`() {
-        withDatabase { db ->
-
-            val dao = AvatarHibernateDAO()
-            val service = AvatarService(db, dao)
-
-            var findResult = service.findByUser(user)
-            assertNull(findResult)
-
-            service.insert(user, avatar)
-
-            findResult = service.findByUser(user)
-            assertNotNull(findResult)
-
-            service.insert(user, avatar)
-
-        }
-    }
-
-    @Test (expected = AvatarRPCException.NotFound::class)
-    fun `Update non existing`() {
-        withDatabase { db ->
-
-            val dao = AvatarHibernateDAO()
-            val service = AvatarService(db, dao)
-
-            val findResult = service.findByUser(user)
-            assertNull(findResult)
-
-            service.update(user, avatar)
         }
     }
 }

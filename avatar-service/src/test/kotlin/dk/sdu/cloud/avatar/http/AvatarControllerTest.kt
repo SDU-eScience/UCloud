@@ -1,24 +1,17 @@
 package dk.sdu.cloud.avatar.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.avatar.api.AvatarDescriptions
-import dk.sdu.cloud.avatar.api.CreateRequest
-import dk.sdu.cloud.avatar.api.CreateResponse
-import dk.sdu.cloud.avatar.api.FindRequest
 import dk.sdu.cloud.avatar.api.FindResponse
-import dk.sdu.cloud.avatar.api.HairColor
 import dk.sdu.cloud.avatar.avatar
-import dk.sdu.cloud.avatar.createRequest
 import dk.sdu.cloud.avatar.services.AvatarService
+import dk.sdu.cloud.avatar.updateRequest
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
@@ -39,59 +32,17 @@ class AvatarControllerTest{
     }
 
     @Test
-    fun `Insert test - success`() {
-        withKtorTest(
-            setup,
-            test = {
-                every { service.insert(any(), any()) } answers {
-                    10L
-                }
-
-                val createResponse = sendJson(
-                    method = HttpMethod.Post,
-                    path = "api/avatar/create",
-                    user = TestUsers.user,
-                    request = createRequest
-                )
-
-                createResponse.assertSuccess()
-                val response = defaultMapper.readValue<CreateResponse>(createResponse.response.content!!)
-                assertEquals(10, response.id)
-            }
-        )
-    }
-
-    @Test
-    fun `Insert test - bad input`() {
-        withKtorTest(
-            setup,
-            test = {
-
-                val createResponse = sendJson(
-                    method = HttpMethod.Post,
-                    path = "api/avatar/create",
-                    user = TestUsers.user,
-                    request = createRequest.copy(top = "notAvail")
-                )
-
-                createResponse.assertStatus(HttpStatusCode.BadRequest)
-
-            }
-        )
-    }
-
-    @Test
     fun `Update test - success`() {
         withKtorTest(
             setup,
             test = {
-                every { service.update(any(), any()) } just Runs
+                every { service.upsert(any(), any()) } just Runs
 
                 sendJson(
                     method = HttpMethod.Post,
                     path = "api/avatar/update",
                     user = TestUsers.user,
-                    request = createRequest
+                    request = updateRequest
                 ).assertSuccess()
             }
         )
@@ -107,7 +58,7 @@ class AvatarControllerTest{
                     method = HttpMethod.Post,
                     path = "api/avatar/update",
                     user = TestUsers.user,
-                    request = createRequest.copy(top = "notAvail")
+                    request = updateRequest.copy(top = "notAvail")
                 )
 
                 createResponse.assertStatus(HttpStatusCode.BadRequest)
@@ -147,28 +98,6 @@ class AvatarControllerTest{
                 assertEquals(avatar.mouthTypes.string, response.mouthTypes)
                 assertEquals(avatar.skinColors.string, response.skinColors)
                 assertEquals(avatar.clothesGraphic.string, response.clothesGraphic)
-            }
-        )
-    }
-
-    @Test
-    fun `FindByUser test - not found`() {
-        withKtorTest(
-            setup,
-            test = {
-
-                every { service.findByUser(any()) } answers {
-                    null
-                }
-
-                val findResponse = sendRequest(
-                    method = HttpMethod.Get,
-                    path = "api/avatar/find",
-                    user = TestUsers.user
-                )
-
-                findResponse.assertStatus(HttpStatusCode.NotFound)
-
             }
         )
     }

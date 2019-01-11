@@ -1,11 +1,8 @@
 package dk.sdu.cloud.avatar.api
 
-import dk.sdu.cloud.service.RPCException
-import io.ktor.http.HttpStatusCode
 import java.lang.IllegalArgumentException
 
-data class Avatar (
-    val id: Long?,
+data class Avatar(
     val user: String,
     val top: Top,
     val topAccessory: TopAccessory,
@@ -20,11 +17,6 @@ data class Avatar (
     val skinColors: SkinColors,
     val clothesGraphic: ClothesGraphic
 )
-
-sealed class AvatarRPCException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
-    class Duplicate : AvatarRPCException("Avatar already exists", HttpStatusCode.Conflict)
-    class NotFound : AvatarRPCException("Avatar not found", HttpStatusCode.NotFound)
-}
 
 enum class Top(val string: String) {
     NO_HAIR("NoHair"),

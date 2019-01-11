@@ -9,27 +9,19 @@ class AvatarService<DBSession>(
     private val dao: AvatarDAO<DBSession>
 ) {
 
-    fun insert(user: String, avatar: Avatar): Long =
-        db.withTransaction { dao.insert(it, user, avatar) }
-
-    fun update(user: String, avatar: Avatar) {
-        db.withTransaction { dao.update(it, user, avatar) }
+    fun upsert(user: String, avatar: Avatar) {
+        db.withTransaction { dao.upsert(it, user, avatar) }
     }
 
-    fun findByUser(user: String): Avatar? =
+    fun findByUser(user: String): Avatar =
         db.withTransaction { dao.findByUser(it, user) }
 }
 
 
 
 interface AvatarDAO<Session> {
-    fun insert(
-        session: Session,
-        user: String,
-        avatar: Avatar
-    ): Long
 
-    fun update(
+    fun upsert(
         session: Session,
         user: String,
         avatar: Avatar
@@ -38,5 +30,5 @@ interface AvatarDAO<Session> {
     fun findByUser(
         session: Session,
         user: String
-    ): Avatar?
+    ): Avatar
 }
