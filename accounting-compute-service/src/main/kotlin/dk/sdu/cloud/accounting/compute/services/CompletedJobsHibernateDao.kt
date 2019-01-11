@@ -53,8 +53,6 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
 
         val entity = event.toEntity()
         session.saveOrUpdate(entity)
-
-        log.info("entity: $entity")
     }
 
     override fun listAllEvents(
@@ -87,9 +85,6 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
     }
 
     override fun computeUsage(session: HibernateSession, context: ContextQuery, user: String): Long {
-        log.info("Context: $context, user: $user")
-        log.info("All events: " + session.criteria<JobCompletedEntity> { literal(true).toPredicate() }.list())
-
         return session.createCriteriaBuilder<Long, JobCompletedEntity>().run {
             criteria.select(sum(entity[JobCompletedEntity::durationInMs]))
             criteria.where(

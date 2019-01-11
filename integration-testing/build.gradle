@@ -17,7 +17,9 @@ dependencies {
     compile 'dk.sdu.cloud:project-api:0.1.0'
     compile 'dk.sdu.cloud:project-auth-api:0.1.0-SNAPSHOT'
     compile 'dk.sdu.cloud:file-api:0.16.2-SNAPSHOT'
+    compile 'dk.sdu.cloud:app-api:0.11.9-SNAPSHOT'
     compile 'dk.sdu.cloud:share-api:0.2.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:accounting-compute-api:0.4.0'
     testCompile 'dk.sdu.cloud:service-common-test:0.23.0'
 }
 

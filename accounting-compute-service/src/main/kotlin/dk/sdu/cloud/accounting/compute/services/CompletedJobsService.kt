@@ -85,8 +85,6 @@ class CompletedJobsService<DBSession>(
 
         val usageInMillis =
             db.withTransaction { dao.computeUsage(it, ContextQueryImpl(since, until, null), normalizedUser) }
-        log.debug("Normalized user: $normalizedUser")
-        log.debug("usageInMillis: $usageInMillis")
         // In this example we only bill the for an integer amount of minutes. The remainder is discarded.
         val billableUnits = usageInMillis / MINUTES_MS
         val pricePerUnit = BigDecimal("0.0001")
@@ -99,11 +97,8 @@ class CompletedJobsService<DBSession>(
 
     private suspend fun normalizeUserInput(user: String, role: Role?): String {
         if (role != null) return normalizeUsername(user, role)
-        log.info("Before call!")
-        val call = UserDescriptions.lookupUsers
+        val actualRole = UserDescriptions.lookupUsers
             .call(LookupUsersRequest(listOf(user)), serviceCloud)
-        log.info("Got call: $call")
-        val actualRole = call
             .orRethrowAs {
                 log.warn("Caught an exception while normalizing user: ${it.error} ${it.status}")
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
