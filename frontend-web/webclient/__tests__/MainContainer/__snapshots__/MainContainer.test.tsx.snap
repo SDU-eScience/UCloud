@@ -1,0 +1,135 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Main container Main container with header 1`] = `
+.c0 {
+  cursor: auto;
+  margin-left: 190px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+  padding-top: 48px;
+}
+
+.c2 {
+  cursor: auto;
+  padding-right: 14px;
+  padding-top: 96px;
+}
+
+.c1 {
+  cursor: auto;
+  padding-left: 204px;
+  padding-right: 14px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  width: 100%;
+  height: 96px;
+  background-color: #fff;
+  position: absolute;
+  top: 48px;
+  left: 0;
+  position: fixed;
+  z-index: 50;
+}
+
+<div
+  className="c0"
+  cursor="auto"
+>
+  <div
+    className="c1"
+    cursor="auto"
+    height={96}
+    width={1}
+  >
+    <div />
+  </div>
+  <div
+    className="c2"
+    cursor="auto"
+  >
+    <div />
+  </div>
+</div>
+`;
+
+exports[`Main container Main container with sidebar 1`] = `
+.c0 {
+  cursor: auto;
+  margin-left: 190px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+  padding-top: 48px;
+}
+
+.c2 {
+  cursor: auto;
+  padding-right: 240px;
+  padding-top: 14px;
+}
+
+.c1 {
+  cursor: auto;
+  padding-top: 62px;
+  padding-left: 14px;
+  padding-right: 14px;
+  width: 240px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  overflow-y: auto;
+  position: fixed;
+  z-index: 45;
+}
+
+<div
+  className="c0"
+  cursor="auto"
+>
+  <div
+    className="c1"
+    cursor="auto"
+    height="100%"
+    width={240}
+  >
+    <div />
+  </div>
+  <div
+    className="c2"
+    cursor="auto"
+  >
+    <div />
+  </div>
+</div>
+`;
+
+exports[`Main container Only main container 1`] = `
+.c0 {
+  cursor: auto;
+  margin-left: 190px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+  padding-top: 48px;
+}
+
+.c1 {
+  cursor: auto;
+  padding-right: 14px;
+  padding-top: 14px;
+}
+
+<div
+  className="c0"
+  cursor="auto"
+>
+  <div
+    className="c1"
+    cursor="auto"
+  >
+    <div />
+  </div>
+</div>
+`;
