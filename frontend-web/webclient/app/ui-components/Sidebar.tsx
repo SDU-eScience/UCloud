@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled, { css } from "styled-components";
-import Text from "./Text";
+import Text, { EllipsedText } from "./Text";
 import Icon, { IconName } from "./Icon";
 import Flex from "./Flex";
 import Box from "./Box";
@@ -67,7 +67,7 @@ ${({ theme }) => theme.mediaQueryLT["xl"]} {
 }
 `;
 
-const SidebarContainer = styled(Flex)<FlexCProps>`
+const SidebarContainer = styled(Flex) <FlexCProps>`
     position: fixed;
     z-index: 80;
     top: 0;
@@ -80,30 +80,32 @@ const SidebarContainer = styled(Flex)<FlexCProps>`
     ${HideText}
 `;
 
-interface TextLabelProps { icon: IconName, label: string, height?: string, 
-                           color?: string, color2?: string, 
-                           iconSize?: string, textSize?: number, 
-                           space?: string, hover?: boolean }
-const TextLabel = ({ icon, label, height="30px", color="iconColor", color2="iconColor2", 
-                     iconSize="24", space="22px", textSize=3, hover=true }: TextLabelProps) => (
-    <SidebarElementContainer height={height} ml="22px">
-        <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}
-            css={hover ? `${SidebarElementContainer}:hover & { filter: saturate(500%); }`: null} 
-            />
-        <Text fontSize={textSize} > {label} </Text>
-    </SidebarElementContainer>
-);
+interface TextLabelProps {
+    icon: IconName, children: any, height?: string,
+    color?: string, color2?: string,
+    iconSize?: string, textSize?: number,
+    space?: string, hover?: boolean
+    title?: string
+}
 
-interface SidebarElementProps { icon: IconName, label: string, to: string, external?: boolean}
-const SidebarElement = ({ icon, label, to }: SidebarElementProps) => (
+const TextLabel = ({ icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
+    iconSize = "24", space = "22px", textSize = 3, hover = true }: TextLabelProps) => (
+        <SidebarElementContainer title={title} height={height} ml="22px">
+            <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}
+                css={hover ? `${SidebarElementContainer}:hover & { filter: saturate(500%); }` : null}
+            />
+            <Text fontSize={textSize}> {children} </Text>
+        </SidebarElementContainer>
+    );
+
+interface SidebarElement { icon: IconName, label: string, to: string, external?: boolean }
+const SidebarElement = ({ icon, label, to }: SidebarElement) => (
     <Link to={to}>
-        <TextLabel icon={icon} label={label} />
+        <TextLabel icon={icon}>{label}</TextLabel>
     </Link>
 );
 
-const SidebarSpacer = () => (
-    <Box mt="20px" />
-);
+const SidebarSpacer = () => (<Box mt="20px" />);
 
 const SidebarPushToBottom = styled.div`
     flex-grow: 1;
@@ -131,22 +133,22 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
     admin: { items: [{ icon: "admin", label: "Admin", to: "/admin/userCreation/" }], predicate: () => Cloud.userIsAdmin }
 };
 
-interface SidebarStateProps { 
+interface SidebarStateProps {
     responsiveState?: ResponsiveReduxObject
 }
-interface SidebarProps extends SidebarStateProps{
-    sideBarEntries?: any 
+interface SidebarProps extends SidebarStateProps {
+    sideBarEntries?: any
     responsiveState?: ResponsiveReduxObject
 }
 
-const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: SidebarProps )  => {
+const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: SidebarProps) => {
     let sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate())
     return (
         <SidebarContainer color="text" flexDirection="column"
-            width={ 190 }
-            // css={ responsiveState!.greaterThan.xl ? null : HideText }
+            width={190}
+        // css={ responsiveState!.greaterThan.xl ? null : HideText }
         >
             {sidebar.map((category, categoryIdx) =>
                 <React.Fragment key={categoryIdx}>
@@ -160,12 +162,16 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
             )}
             <SidebarPushToBottom />
             {/* Screen size indicator */}
-            { process.env.NODE_ENV === "development" ? <Flex mb={"5px"} width={ 190 } ml={19} justifyContent="left"><RBox /> </Flex>: null }
+            {process.env.NODE_ENV === "development" ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
 
-            <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" label={Cloud.username} />
+            <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username}>
+                <EllipsedText width={"140px"}>{Cloud.username}</EllipsedText>
+            </TextLabel>
 
-            <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse"> 
-                <TextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1} space=".5em" label={"SDU Data Protection"} />
+            <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
+                <TextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1} space=".5em">
+                    SDU Data Protection
+                </TextLabel>
             </ExternalLink>
             <Box mb="10px" />
 
@@ -173,7 +179,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
     );
 };
 
-const mapStateToProps = ({ responsive }: ReduxObject): SidebarStateProps   => ({
+const mapStateToProps = ({ responsive }: ReduxObject): SidebarStateProps => ({
     responsiveState: responsive
 });
 
