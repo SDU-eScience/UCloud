@@ -71,7 +71,7 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
                     </Box>
                     <Flex ml="-17px" mr="-17px" pl="15px">
                         <Link to={"/users/avatar"}>
-                            <Icon name="chevron" mr="0.5em" my="0.2em" size="1.3em" />
+                            <Icon name="edit" mr="0.5em" my="0.2em" size="1.3em" />
                             Edit Avatar
                         </Link>
                     </Flex>
@@ -204,7 +204,8 @@ const ClippedBox = styled(Flex)`
     height: 48px;
 `;
 
-const UserAvatar = ({ avatar }: { avatar: AvatarType }) => (
+interface UserAvatar { avatar: AvatarType }
+const UserAvatar = ({ avatar }: UserAvatar) => (
     <ClippedBox mx="8px" width="60px">
         <Avatar
             /* pieceType
@@ -218,7 +219,7 @@ const UserAvatar = ({ avatar }: { avatar: AvatarType }) => (
             facialHairColor={avatar.facialHairColor}
             clotheType={avatar.clothes}
             clotheColor={avatar.clothesFabric}
-            graphicType={avatar.clothesGraphic}  
+            graphicType={avatar.clothesGraphic}
             eyeType={avatar.eyes}
             eyebrowType={avatar.eyebrow}
             mouthType={avatar.mouth}

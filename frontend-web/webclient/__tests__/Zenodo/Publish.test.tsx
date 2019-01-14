@@ -80,16 +80,18 @@ describe("Zenodo Publish", () => {
         store.dispatch(ZenodoActions.receiveLoginStatus(true));
         const publishWrapper = mount(
             <Provider store={store}>
-                <MemoryRouter>
-                    <ZenodoPublish
-                        updatePageTitle={() => undefined}
-                        setErrorMessage={() => undefined}
-                        setLoading={() => undefined}
-                        history={createMemoryHistory()}
-                        connected={true}
-                        loading={false}
-                    />
-                </MemoryRouter>
+                <ThemeProvider theme={theme}>
+                    <MemoryRouter>
+                        <ZenodoPublish
+                            updatePageTitle={() => undefined}
+                            setErrorMessage={() => undefined}
+                            setLoading={() => undefined}
+                            history={createMemoryHistory()}
+                            connected={true}
+                            loading={false}
+                        />
+                    </MemoryRouter>
+                </ThemeProvider>
             </Provider>
         );
         store.dispatch(ZenodoActions.setZenodoLoading(false));

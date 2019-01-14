@@ -13,7 +13,7 @@ export interface MainContainerStateProps {
 
 export interface MainContainerProps extends MainContainerStateProps {
     sidebar?: React.ReactNode, sidebarSize?: number,
-    main?: React.ReactNode, additional?: React.ReactNode,
+    main: React.ReactNode, additional?: React.ReactNode,
     header?: React.ReactNode, headerSize?: number,
 }
 
