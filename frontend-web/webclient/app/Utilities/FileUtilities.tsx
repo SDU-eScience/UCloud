@@ -85,7 +85,7 @@ export const createFileLink = (file: File, cloud: SDUCloud, pageFromPath: (p: st
     cloud.post("/files/create-link", {
         linkTargetPath: file.path,
         linkPath: linkPath
-    }).then(it => pageFromPath(linkPath)).catch(it => console.log("esfjop"));
+    }).then(it => pageFromPath(linkPath)).catch(it => UF.failureNotification("An error occurred creating link."));
 };
 
 /**
@@ -148,7 +148,7 @@ export const ExtractionOperation = (onFinished: () => void): Operation[] => [
         text: "Extract archive",
         onClick: (files, cloud) => extractArchive(files, cloud, onFinished),
         disabled: (files, cloud) => files.length > 1 || !isArchiveExtension(files[0].path),
-        icon: "chevronDown",
+        icon: "open",
         color: undefined
     }
 ];

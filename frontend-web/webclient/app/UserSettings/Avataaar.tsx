@@ -6,7 +6,7 @@ import { Select, Label, Box, Flex, Button, OutlineButton } from "ui-components";
 import { connect } from "react-redux";
 import { ReduxObject } from "DefaultObjects";
 import { Dispatch } from "redux";
-import { saveAvataaar } from "./Redux/AvataaarActions";
+import { updateAvatar, findAvatar } from "./Redux/AvataaarActions";
 
 
 
@@ -28,6 +28,7 @@ interface AvataaarModificationState {
 type AvataaarModificationStateProps = AvatarType
 interface AvataaarModificationOperations {
     save: (avatar: AvatarType) => void
+    findAvatar: () => void
 }
 
 class AvataaarModification extends React.Component<AvataaarModificationStateProps & AvataaarModificationOperations, AvataaarModificationState> {
@@ -46,7 +47,8 @@ class AvataaarModification extends React.Component<AvataaarModificationStateProp
             eyebrow: this.props.eyebrow,
             mouth: this.props.mouth,
             skin: this.props.skin
-        }
+        };
+        this.props.findAvatar();
     }
 
     private save() {
@@ -205,9 +207,10 @@ function AvatarSelect<T>({ update, options, title, disabled, defaultValue }: Ava
 
 const mapStateToProps = ({ avatar }: ReduxObject) => avatar;
 const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations => ({
-    save: avatar => dispatch(saveAvataaar(avatar))
+    save: async avatar => dispatch(await updateAvatar(avatar)),
+    findAvatar: async () => dispatch(await findAvatar())
 });
-
+ 
 const defaultAvatar = ({
     top: Options.Top.NoHair,
     accessories: Options.TopAccessory.Blank,
