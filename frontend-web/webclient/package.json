@@ -126,8 +126,6 @@
     "jest-styled-components": "^6.3.1",
     "mini-css-extract-plugin": "^0.5.0",
     "napa": "3.0.0",
-    "node-sass": "4.11.0",
-    "phantomjs-prebuilt": "2.1.16",
     "raw-loader": "1.0.0",
     "react-test-renderer": "16.7.0",
     "redux-devtools-extension": "^2.13.7",
