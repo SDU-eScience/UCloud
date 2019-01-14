@@ -147,6 +147,13 @@ sealed class JWTException(why: String, httpStatusCode: HttpStatusCode) : RPCExce
     class MissingScope : JWTException("Missing scope", HttpStatusCode.Unauthorized)
 }
 
+private fun <T> DecodedJWT.optionalClaim(
+    name: String,
+    mapper: (Claim) -> T
+): T? {
+    return runCatching { requiredClaim(name, mapper) }.getOrNull()
+}
+
 private fun <T> DecodedJWT.requiredClaim(
     name: String,
     mapper: (Claim) -> T
@@ -162,26 +169,19 @@ private fun <T> DecodedJWT.requiredClaim(
 
 fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
     val validatedToken = this
-    val role = validatedToken.requiredClaim("role") { Role.valueOf(it.asString()) }
-    val firstNames =
-        if (role in setOf(
-                Role.USER,
-                Role.ADMIN
-            )
-        ) validatedToken.requiredClaim("firstNames") { it.asString() } else subject
-    val lastName = if (role in setOf(
-            Role.USER,
-            Role.ADMIN
-        )
-    ) validatedToken.requiredClaim("lastName") { it.asString() } else subject
+    val role = validatedToken.optionalClaim("role") { Role.valueOf(it.asString()) } ?: Role.UNKNOWN
+    val firstNames = validatedToken.optionalClaim("firstNames") { it.asString() } ?: subject
+    val lastName = validatedToken.optionalClaim("lastName") { it.asString() } ?: subject
 
     val publicSessionReference = validatedToken
         .getClaim("publicSessionReference")
-        .takeIf { !it.isNull }?.asString()
+        .takeIf { !it.isNull }
+        ?.asString()
 
     val extendedBy = validatedToken
         .getClaim("extendedBy")
-        .takeIf { !it.isNull }?.asString()
+        .takeIf { !it.isNull }
+        ?.asString()
 
     val principal = SecurityPrincipal(
         validatedToken.subject,
@@ -203,13 +203,19 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
             }
         }
 
+    val extendedByChain = validatedToken
+        .getClaim("extendedByChain")
+        .takeIf { !it.isNull }
+        ?.asList(String::class.java) ?: emptyList()
+
     return SecurityPrincipalToken(
         principal,
         scopes,
         issuedAt,
         expiresAt,
         publicSessionReference,
-        extendedBy
+        extendedBy,
+        extendedByChain
     )
 }
 
