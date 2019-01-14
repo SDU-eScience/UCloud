@@ -1,9 +1,6 @@
 package dk.sdu.cloud.avatar.api
 
-import java.lang.IllegalArgumentException
-
 data class Avatar(
-    val user: String,
     val top: Top,
     val topAccessory: TopAccessory,
     val hairColor: HairColor,
@@ -104,7 +101,7 @@ enum class FacialHair(val string: String) {
 
     companion object {
         private val map = FacialHair.values().associateBy(FacialHair::string)
-        fun fromString(type: String): FacialHair  = map[type] ?: throw IllegalArgumentException()
+        fun fromString(type: String): FacialHair = map[type] ?: throw IllegalArgumentException()
     }
 }
 
@@ -120,7 +117,7 @@ enum class FacialHairColor(val string: String) {
 
     companion object {
         private val map = FacialHairColor.values().associateBy(FacialHairColor::string)
-        fun fromString(type: String): FacialHairColor  = map[type] ?: throw IllegalArgumentException()
+        fun fromString(type: String): FacialHairColor = map[type] ?: throw IllegalArgumentException()
     }
 }
 
@@ -137,7 +134,7 @@ enum class Clothes(val string: String) {
 
     companion object {
         private val map = Clothes.values().associateBy(Clothes::string)
-        fun fromString(type: String): Clothes  = map[type] ?: throw IllegalArgumentException()
+        fun fromString(type: String): Clothes = map[type] ?: throw IllegalArgumentException()
     }
 }
 
@@ -160,7 +157,7 @@ enum class ColorFabric(val string: String) {
 
     companion object {
         private val map = ColorFabric.values().associateBy(ColorFabric::string)
-        fun fromString(type: String): ColorFabric  = map[type] ?: throw IllegalArgumentException()
+        fun fromString(type: String): ColorFabric = map[type] ?: throw IllegalArgumentException()
     }
 }
 

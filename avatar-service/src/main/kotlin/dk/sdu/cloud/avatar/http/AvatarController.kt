@@ -23,9 +23,8 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
-import java.lang.IllegalArgumentException
 
-class AvatarController<DBSession> (
+class AvatarController<DBSession>(
     private val avatarService: AvatarService<DBSession>
 ) : Controller {
     override val baseContext = AvatarDescriptions.baseContext
@@ -35,7 +34,6 @@ class AvatarController<DBSession> (
         implement(AvatarDescriptions.update) { req ->
             val user = call.securityPrincipal.username
             val avatar = approvedAvatar(
-                user,
                 req.top,
                 req.topAccessory,
                 req.hairColor,
@@ -52,33 +50,33 @@ class AvatarController<DBSession> (
             if (avatar != null) {
                 avatarService.upsert(user, avatar)
                 ok(Unit)
-            }
-            else {
+            } else {
                 error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
             }
         }
 
         implement(AvatarDescriptions.findAvatar) {
             val avatar = avatarService.findByUser(call.securityPrincipal.username)
-            ok(FindResponse(
-                avatar.top.string,
-                avatar.topAccessory.string,
-                avatar.hairColor.string,
-                avatar.facialHair.string,
-                avatar.facialHairColor.string,
-                avatar.clothes.string,
-                avatar.colorFabric.string,
-                avatar.eyes.string,
-                avatar.eyebrows.string,
-                avatar.mouthTypes.string,
-                avatar.skinColors.string,
-                avatar.clothesGraphic.string)
+            ok(
+                FindResponse(
+                    avatar.top.string,
+                    avatar.topAccessory.string,
+                    avatar.hairColor.string,
+                    avatar.facialHair.string,
+                    avatar.facialHairColor.string,
+                    avatar.clothes.string,
+                    avatar.colorFabric.string,
+                    avatar.eyes.string,
+                    avatar.eyebrows.string,
+                    avatar.mouthTypes.string,
+                    avatar.skinColors.string,
+                    avatar.clothesGraphic.string
+                )
             )
         }
     }
 
-    private fun approvedAvatar (
-        user: String,
+    private fun approvedAvatar(
         top: String,
         topAccessory: String,
         hairColor: String,
@@ -91,10 +89,9 @@ class AvatarController<DBSession> (
         mouthTypes: String,
         skinColors: String,
         clothesGraphic: String
-    ) : Avatar? {
+    ): Avatar? {
         return try {
             Avatar(
-                user,
                 Top.fromString(top),
                 TopAccessory.fromString(topAccessory),
                 HairColor.fromString(hairColor),

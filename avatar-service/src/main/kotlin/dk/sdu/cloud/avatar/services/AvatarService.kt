@@ -18,7 +18,6 @@ class AvatarService<DBSession>(
 }
 
 
-
 interface AvatarDAO<Session> {
 
     fun upsert(

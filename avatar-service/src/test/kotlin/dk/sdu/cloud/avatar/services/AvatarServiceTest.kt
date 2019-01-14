@@ -18,10 +18,8 @@ import dk.sdu.cloud.service.test.withDatabase
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
 class AvatarServiceTest {
-
     private val user = TestUsers.user.username
 
     @Test
@@ -35,7 +33,6 @@ class AvatarServiceTest {
             var findResult = service.findByUser(user)
             assertNotNull(findResult)
 
-            assertEquals(user, findResult.user)
             assertEquals(Top.HAT, findResult.top)
             assertEquals(TopAccessory.BLANK, findResult.topAccessory)
             assertEquals(HairColor.BLACK, findResult.hairColor)
@@ -54,7 +51,6 @@ class AvatarServiceTest {
             findResult = service.findByUser(user)
             assertNotNull(findResult)
 
-            assertEquals(user, findResult.user)
             assertEquals(avatar.top, findResult.top)
             assertEquals(avatar.topAccessory, findResult.topAccessory)
             assertEquals(avatar.hairColor, findResult.hairColor)
@@ -85,7 +81,6 @@ class AvatarServiceTest {
             findResult = service.findByUser(user)
             assertNotNull(findResult)
 
-            assertEquals(user, findResult.user)
             assertEquals(avatar.top, findResult.top)
             assertEquals(avatar.topAccessory, findResult.topAccessory)
             assertEquals(avatar.hairColor, findResult.hairColor)
@@ -105,7 +100,6 @@ class AvatarServiceTest {
             findResult = service.findByUser(user)
             assertNotNull(findResult)
 
-            assertEquals(user, findResult.user)
             assertEquals(avatar.top, findResult.top)
             assertEquals(avatar.topAccessory, findResult.topAccessory)
             assertEquals(HairColor.RED, findResult.hairColor)

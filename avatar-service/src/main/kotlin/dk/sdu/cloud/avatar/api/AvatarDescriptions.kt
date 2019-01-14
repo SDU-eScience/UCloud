@@ -2,13 +2,14 @@ package dk.sdu.cloud.avatar.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
 
-data class UpdateRequest(
+/**
+ * A serialized avatar. Should be used whenever going over the wire.
+ */
+data class SerializedAvatar(
     val top: String,
     val topAccessory: String,
     val hairColor: String,
@@ -22,25 +23,14 @@ data class UpdateRequest(
     val skinColors: String,
     val clothesGraphic: String
 )
+
+typealias UpdateRequest = SerializedAvatar
 
 typealias UpdateResponse = Unit
 
 typealias FindRequest = Unit
 
-data class FindResponse(
-    val top: String,
-    val topAccessory: String,
-    val hairColor: String,
-    val facialHair: String,
-    val facialHairColor: String,
-    val clothes: String,
-    val colorFabric: String,
-    val eyes: String,
-    val eyebrows: String,
-    val mouthTypes: String,
-    val skinColors: String,
-    val clothesGraphic: String
-)
+typealias FindResponse = SerializedAvatar
 
 object AvatarDescriptions : RESTDescriptions("avatar") {
     val baseContext = "/api/avatar"

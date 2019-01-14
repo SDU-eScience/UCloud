@@ -15,10 +15,8 @@ import dk.sdu.cloud.avatar.api.SkinColors
 import dk.sdu.cloud.avatar.api.Top
 import dk.sdu.cloud.avatar.api.TopAccessory
 import dk.sdu.cloud.avatar.api.UpdateRequest
-import dk.sdu.cloud.service.test.TestUsers
 
 val avatar = Avatar(
-    TestUsers.user.username,
     Top.HAT,
     TopAccessory.KURT,
     HairColor.BLACK,

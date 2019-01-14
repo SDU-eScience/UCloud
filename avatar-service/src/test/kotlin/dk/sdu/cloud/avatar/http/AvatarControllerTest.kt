@@ -24,7 +24,7 @@ import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class AvatarControllerTest{
+class AvatarControllerTest {
     val service = mockk<AvatarService<HibernateSession>>()
 
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {

@@ -71,9 +71,8 @@ class AvatarEntity(
     companion object : HibernateEntity<AvatarEntity>, WithId<String>
 }
 
-private fun defaultAvatar(user: String): Avatar =
+private fun defaultAvatar(): Avatar =
     Avatar(
-        user,
         Top.HAT,
         TopAccessory.BLANK,
         HairColor.BLACK,
@@ -90,7 +89,6 @@ private fun defaultAvatar(user: String): Avatar =
 
 
 fun AvatarEntity.toModel(): Avatar = Avatar(
-    username,
     top,
     topAccessory,
     hairColor,
@@ -105,7 +103,7 @@ fun AvatarEntity.toModel(): Avatar = Avatar(
     clothesGraphic
 )
 
-fun Avatar.toEntity(): AvatarEntity = AvatarEntity(
+fun Avatar.toEntity(user: String): AvatarEntity = AvatarEntity(
     user,
     top,
     topAccessory,
@@ -121,7 +119,7 @@ fun Avatar.toEntity(): AvatarEntity = AvatarEntity(
     clothesGraphic
 )
 
-class AvatarHibernateDAO: AvatarDAO<HibernateSession>{
+class AvatarHibernateDAO : AvatarDAO<HibernateSession> {
 
     override fun upsert(
         session: HibernateSession,
@@ -144,7 +142,7 @@ class AvatarHibernateDAO: AvatarDAO<HibernateSession>{
             foundAvatar.clothesGraphic = avatar.clothesGraphic
             session.update(foundAvatar)
         } else {
-            val entity = avatar.toEntity()
+            val entity = avatar.toEntity(user)
             session.save(entity)
         }
     }
@@ -164,6 +162,6 @@ class AvatarHibernateDAO: AvatarDAO<HibernateSession>{
     ): Avatar {
         return session.criteria<AvatarEntity> {
             (entity[AvatarEntity::username] equal user)
-        }.uniqueResult()?.toModel() ?: defaultAvatar(user)
+        }.uniqueResult()?.toModel() ?: defaultAvatar()
     }
 }

@@ -16,7 +16,6 @@ import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
-import org.apache.http.HttpHost
 import org.apache.kafka.streams.KafkaStreams
 
 class Server(
