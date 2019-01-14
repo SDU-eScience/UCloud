@@ -13,10 +13,12 @@ const saveAvataaar = (avatar: AvatarType): SaveAvataaar => ({
     payload: { avatar }
 });
 
-export const updateAvatar = (avatar: AvatarType): Promise<SaveAvataaar> =>
+export const saveAvatar = (avatar: AvatarType): Promise<SaveAvataaar> =>
     Cloud.post(saveAvatarQuery, { ...avatar }).then(it =>
         saveAvataaar(avatar)
     ).catch(it => (failureNotification("Updating of avatar failed"), saveAvataaar(avatar)));
+
+export const updateAvatar = (avatar: AvatarType): SaveAvataaar => saveAvataaar(avatar);
 
 export const findAvatar = (): Promise<SaveAvataaar> =>
     Cloud.get<AvatarType>(findAvatarQuery)

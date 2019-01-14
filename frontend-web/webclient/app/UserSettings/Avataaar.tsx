@@ -2,57 +2,67 @@ import { default as Avataaar } from "avataaars";
 import * as React from "react";
 import * as Options from "./AvatarOptions";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Select, Label, Box, Flex, Button, OutlineButton } from "ui-components";
+import { Select, Label, Box, Flex, OutlineButton } from "ui-components";
+import Spinner from "LoadingIcon/LoadingIcon";
 import { connect } from "react-redux";
 import { ReduxObject } from "DefaultObjects";
 import { Dispatch } from "redux";
 import { updateAvatar, findAvatar } from "./Redux/AvataaarActions";
+import PromiseKeeper from "PromiseKeeper";
+import { findAvatarQuery } from "Utilities/AvatarUtilities";
+import { Cloud } from "Authentication/SDUCloudObject";
+import { failureNotification } from "UtilityFunctions";
 
 
 
 interface AvataaarModificationState {
     top: Options.TopOptions
-    accessories: Options.TopAccessoryOptions
+    topAccessory: Options.TopAccessoryOptions
     hairColor: Options.HairColorOptions
     facialHair: Options.FacialHairOptions
     facialHairColor: Options.FacialHairColorOptions
     clothes: Options.ClothesOptions
-    clothesFabric: Options.ColorFabricOptions
+    colorFabric: Options.ColorFabricOptions
     clothesGraphic: Options.ClothesGraphicOptions
     eyes: Options.EyeOptions
-    eyebrow: Options.EyeBrowOptions
-    mouth: Options.MouthTypeOptions
-    skin: Options.SkinColorOptions
+    eyebrows: Options.EyeBrowOptions
+    mouthTypes: Options.MouthTypeOptions
+    skinColors: Options.SkinColorOptions
+    promises: PromiseKeeper
+    loading: boolean
 }
 
-type AvataaarModificationStateProps = AvatarType
+type AvataaarModificationStateProps = AvatarType;
 interface AvataaarModificationOperations {
     save: (avatar: AvatarType) => void
     findAvatar: () => void
 }
 
-class AvataaarModification extends React.Component<AvataaarModificationStateProps & AvataaarModificationOperations, AvataaarModificationState> {
+type AvataaarModificationProps = AvataaarModificationStateProps & AvataaarModificationOperations;
+
+class AvataaarModification extends React.Component<AvataaarModificationProps, AvataaarModificationState> {
     constructor(props) {
         super(props);
         this.state = {
-            top: this.props.top,
-            accessories: this.props.accessories,
-            hairColor: this.props.hairColor,
-            facialHair: this.props.facialHair,
-            facialHairColor: this.props.facialHairColor,
-            clothes: this.props.clothes,
-            clothesFabric: this.props.clothesFabric,
-            clothesGraphic: this.props.clothesGraphic,
-            eyes: this.props.eyes,
-            eyebrow: this.props.eyebrow,
-            mouth: this.props.mouth,
-            skin: this.props.skin
+            ...props,
+            loading: true,
+            promises: new PromiseKeeper()
         };
-        this.props.findAvatar();
+        this.fetchCurrentAvatar()
+    }
+
+    private fetchCurrentAvatar() {
+        this.state.promises.makeCancelable(Cloud.get(findAvatarQuery)).promise
+            .then(it => this.setState(() => ({ ...it.response, loading: false })))
+            .catch(it => (failureNotification("An error occurred fetching current Avatar"), this.setState(() => ({ loading: false }))))
     }
 
     private save() {
         this.props.save(this.state as AvatarType)
+    }
+
+    componentWillUnmount() {
+        this.state.promises.cancelPromises();
     }
 
     render() {
@@ -67,17 +77,17 @@ class AvataaarModification extends React.Component<AvataaarModificationStateProp
                             style={{ height: "150px" }}
                             avatarStyle="circle"
                             topType={state.top}
-                            accessoriesType={state.accessories}
+                            accessoriesType={state.topAccessory}
                             hairColor={state.hairColor}
                             facialHairType={state.facialHair}
                             facialHairColor={state.facialHairColor}
                             clotheType={state.clothes}
-                            clotheColor={state.clothesFabric}
+                            clotheColor={state.colorFabric}
                             graphicType={state.clothesGraphic}
                             eyeType={state.eyes}
-                            eyebrowType={state.eyebrow}
-                            mouthType={state.mouth}
-                            skinColor={state.skin}
+                            eyebrowType={state.eyebrows}
+                            mouthType={state.mouthTypes}
+                            skinColor={state.skinColors}
                         />
                         <Box mr="auto" />
                     </Flex>
@@ -93,9 +103,7 @@ class AvataaarModification extends React.Component<AvataaarModificationStateProp
                     </Flex></>}
 
                 main={
-                    <>
-
-
+                    this.state.loading ? (<Spinner size={24} />) : <>
                         <AvatarSelect
                             defaultValue={state.top}
                             update={value => this.setState(() => ({ top: value }))}
@@ -104,8 +112,8 @@ class AvataaarModification extends React.Component<AvataaarModificationStateProp
                             disabled={false}
                         />
                         <AvatarSelect
-                            defaultValue={state.accessories}
-                            update={value => this.setState(() => ({ accessories: value }))}
+                            defaultValue={state.topAccessory}
+                            update={value => this.setState(() => ({ topAccessory: value }))}
                             options={Options.TopAccessory}
                             title="Accessories"
                             disabled={state.top === "Eyepatch"}
@@ -139,10 +147,10 @@ class AvataaarModification extends React.Component<AvataaarModificationStateProp
                             disabled={false}
                         />
                         <AvatarSelect
-                            defaultValue={state.clothesFabric}
+                            defaultValue={state.colorFabric}
                             title="Clothes Fabric"
                             options={Options.ColorFabric}
-                            update={value => this.setState(() => ({ clothesFabric: value }))}
+                            update={value => this.setState(() => ({ colorFabric: value }))}
                             disabled={state.clothes === "BlazerShirt" || state.clothes === "BlazerSweater"}
                         />
                         <AvatarSelect
@@ -160,24 +168,24 @@ class AvataaarModification extends React.Component<AvataaarModificationStateProp
                             disabled={false}
                         />
                         <AvatarSelect
-                            defaultValue={state.eyebrow}
+                            defaultValue={state.eyebrows}
                             title="Eyebrow"
                             options={Options.Eyebrows}
-                            update={value => this.setState(() => ({ eyebrow: value }))}
+                            update={value => this.setState(() => ({ eyebrows: value }))}
                             disabled={false}
                         />
                         <AvatarSelect
-                            defaultValue={state.mouth}
+                            defaultValue={state.mouthTypes}
                             title="Mouth type"
                             options={Options.MouthTypes}
-                            update={value => this.setState(() => ({ mouth: value }))}
+                            update={value => this.setState(() => ({ mouthTypes: value }))}
                             disabled={false}
                         />
                         <AvatarSelect
-                            defaultValue={state.skin}
+                            defaultValue={state.skinColors}
                             title={"Skin color"}
                             options={Options.SkinColors}
-                            update={value => this.setState(() => ({ skin: value }))}
+                            update={value => this.setState(() => ({ skinColors: value }))}
                             disabled={false}
                         />
                     </>
@@ -210,22 +218,35 @@ const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations 
     save: async avatar => dispatch(await updateAvatar(avatar)),
     findAvatar: async () => dispatch(await findAvatar())
 });
- 
+
+
+/*  
+    val user: String,
+    
+    val clothes: Clothes,
+    val colorFabric: ColorFabric,
+    val eyes: Eyes,
+    val eyebrows: Eyebrows,
+    val mouthTypes: MouthTypes,
+    val skinColors: SkinColors,
+    val clothesGraphic: ClothesGraphic
+*/
+
 const defaultAvatar = ({
     top: Options.Top.NoHair,
-    accessories: Options.TopAccessory.Blank,
+    topAccessory: Options.TopAccessory.Blank,
     hairColor: Options.HairColor.Auburn,
     facialHair: Options.FacialHair.Blank,
     facialHairColor: Options.FacialHairColor.Auburn,
     clothes: Options.Clothes.BlazerShirt,
-    clothesFabric: Options.ColorFabric.Black,
+    colorFabric: Options.ColorFabric.Black,
     clothesGraphic: Options.ClothesGraphic.Bat,
     eyes: Options.Eyes.Default,
-    eyebrow: Options.Eyebrows.DefaultNatural,
-    mouth: Options.MouthTypes.Default,
-    skin: Options.SkinColors.Pale
+    eyebrows: Options.Eyebrows.DefaultNatural,
+    mouthTypes: Options.MouthTypes.Default,
+    skinColors: Options.SkinColors.Pale
 });
 
 type AvatarType = typeof defaultAvatar;
-export default connect(mapStateToProps, mapDispatchToProps)(AvataaarModification);
+export default connect<AvataaarModificationStateProps, AvataaarModificationOperations>(mapStateToProps, mapDispatchToProps)(AvataaarModification);
 export { defaultAvatar, AvatarType }
