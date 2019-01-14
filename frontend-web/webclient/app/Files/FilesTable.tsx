@@ -7,7 +7,7 @@ import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, L
 import * as UF from "UtilityFunctions"
 import { Arrow, FileIcon } from "UtilityComponents";
 import { TextSpan } from "ui-components/Text";
-import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText } from "Utilities/FileUtilities";
+import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText, filePreviewPage } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
 import { KeyCode } from "DefaultObjects";
@@ -212,7 +212,7 @@ const FileLink = ({ file, children }: { file: File, children: any }) => {
     if (isDirectory(file)) {
         return (<Link to={fileTablePage(file.path)}>{children}</Link>);
     } else if (previewSupportedExtension(file.path)) {
-        return (<Link to={`/files/preview/${file.path}`}>{children}</Link>);
+        return (<Link to={filePreviewPage(file.path)}>{children}</Link>);
     } else {
         return (<>{children}</>);
     }
