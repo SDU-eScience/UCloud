@@ -17,7 +17,6 @@ import { Error, Box, Flex, Card, Text, Link, Icon } from "ui-components";
 import { EllipsedText } from "ui-components/Text"
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
-import { CardGroup } from "ui-components/Card";
 import { GridCardGroup } from "ui-components/Grid";
 import { TextSpan } from "ui-components/Text";
 import { fileTablePage } from "Utilities/FileUtilities";

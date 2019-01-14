@@ -13,8 +13,7 @@ const arrowShadow = (props: { top?: boolean }) => {
     ? {
       'box-shadow':
         '-9.66px 9.66px 8px 0 rgba(0,0,0,0.04), -4px 4px 4px 0 rgba(0,0,0,0.08)'
-    }
-    : {
+    } : {
       'box-shadow':
         '-1.41px 1.41px 1px 0 rgba(0,0,0,0.01), -3.66px 3.66px 8px 0 rgba(0,0,0,0.04)'
     }

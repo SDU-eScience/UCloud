@@ -11,7 +11,7 @@ const Truncate = styled(Text)`
 // FIXME: Workaround, not a fix.
 // @ts-ignore
 Truncate.defaultProps = {
-  theme: theme
+  theme
 }
 
 Truncate.displayName = "Truncate";

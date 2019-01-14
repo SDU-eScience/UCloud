@@ -19,7 +19,6 @@ import {
 import { Box } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { Dispatch } from "redux";
-import DetailedFileSearch from "./DetailedFileSearch";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
 import { allFilesHasAccessRight } from "Utilities/FileUtilities";
 import { AccessRight } from "Types";
@@ -84,19 +83,19 @@ class Files extends React.Component<FilesProps> {
         return true;
     }
 
-    fileSelectorOperations = {
+    private readonly fileSelectorOperations = {
         setDisallowedPaths: this.props.setDisallowedPaths,
         setFileSelectorCallback: this.props.setFileSelectorCallback,
         showFileSelector: this.props.showFileSelector,
         fetchPageFromPath: this.fetchPageFromPath
     };
 
-    refetch = () => {
+    private readonly refetch = () => {
         const { path, page, sortOrder, sortBy } = this.props;
         this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
-    fileOperations: FileOperation[] = [
+    private readonly fileOperations: FileOperation[] = [
         {
             text: "Rename",
             onClick: files => this.props.updateFiles(startRenamingFiles(files, this.props.page)),

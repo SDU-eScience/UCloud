@@ -102,7 +102,7 @@ class Uploader extends React.Component<UploaderProps, UploaderState> {
                     addProgressEvent(upload, e);
                     this.props.setUploads(this.props.uploads);
                 },
-                (err) => this.props.setUploaderError(err)
+                err => this.props.setUploaderError(err)
             ).then(xhr => onThen(xhr)); // FIXME Add error handling
         } else {
             bulkUpload(
@@ -113,7 +113,7 @@ class Uploader extends React.Component<UploaderProps, UploaderState> {
                     addProgressEvent(upload, e);
                     this.props.setUploads(this.props.uploads);
                 },
-                (err) => this.props.setUploaderError(err)
+                err => this.props.setUploaderError(err)
             ).then(xhr => onThen(xhr)); // FIXME Add error handling
         }
     }
