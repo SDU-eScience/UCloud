@@ -367,7 +367,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     receivePage: page => dispatch(receivePage(page)),
     fetchPage: async (jobId, pageNumber, itemsPerPage) => {
         dispatch(setLoading(true));
-        dispatch(await fetchPage(Cloud.username, jobId, pageNumber, itemsPerPage));
+        dispatch(await fetchPage(Cloud.username || "", jobId, pageNumber, itemsPerPage));
     }
 });
 

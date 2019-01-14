@@ -164,7 +164,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
             {/* Screen size indicator */}
             {process.env.NODE_ENV === "development" ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
 
-            <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username}>
+            <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username || ""}>
                 <EllipsedText width={"140px"}>{Cloud.username}</EllipsedText>
             </TextLabel>
 

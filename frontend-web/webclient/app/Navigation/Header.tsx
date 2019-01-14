@@ -23,6 +23,7 @@ import { SelectableText, SearchOptions } from "Search/Search";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import { prettierString } from "UtilityFunctions";
 import { defaultAvatar, AvatarType } from "UserSettings/Avataaar";
+import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 
 interface HeaderState {
     searchText: string
@@ -37,6 +38,7 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
             searchType: "files"
         };
         props.fetchLoginStatus();
+        props.fetchAvatar();
     }
 
     public render() {
@@ -210,20 +212,19 @@ const UserAvatar = ({ avatar }: UserAvatar) => (
         <Avatar
             /* pieceType
             pieceSize */
-
             avatarStyle="Circle"
             topType={avatar.top}
-            accessoriesType={avatar.accessories}
+            accessoriesType={avatar.topAccessory}
             hairColor={avatar.hairColor}
             facialHairType={avatar.facialHair}
             facialHairColor={avatar.facialHairColor}
             clotheType={avatar.clothes}
-            clotheColor={avatar.clothesFabric}
+            clotheColor={avatar.colorFabric}
             graphicType={avatar.clothesGraphic}
             eyeType={avatar.eyes}
-            eyebrowType={avatar.eyebrow}
-            mouthType={avatar.mouth}
-            skinColor={avatar.skin}
+            eyebrowType={avatar.eyebrows}
+            mouthType={avatar.mouthTypes}
+            skinColor={avatar.skinColors}
         />
     </ClippedBox>
 );
@@ -231,12 +232,14 @@ const UserAvatar = ({ avatar }: UserAvatar) => (
 interface HeaderOperations {
     setSidebarOpen: (open: boolean) => void
     fetchLoginStatus: () => void
+    fetchAvatar: () => void
     searchFiles: (fileName: string) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     setSidebarOpen: open => dispatch(setSidebarState(open)),
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
+    fetchAvatar: async () => dispatch(await findAvatar()),
     searchFiles: async fileName => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] }))
 });
 
