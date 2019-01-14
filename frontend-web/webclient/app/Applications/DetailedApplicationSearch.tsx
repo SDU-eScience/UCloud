@@ -5,7 +5,7 @@ import { ReduxObject } from "DefaultObjects";
 import { DetailedApplicationSearchReduxState, DetailedApplicationOperations } from "Applications";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
-import { setAppName, setVersion, fetchApplicationPageFromName, fetchApplicationPageFromTag } from "./Redux/DetailedApplicationSearchActions";
+import { setAppName, setVersion, fetchApplicationPageFromName, fetchApplicationPageFromTag, setError } from "./Redux/DetailedApplicationSearchActions";
 import { History } from "history";
 import { searchPage } from "Utilities/SearchUtilities";
 import { withRouter } from "react-router";
@@ -36,8 +36,7 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
         return (
             <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                 <Box mt="0.5em">
-                    {/* FIXME: Clear Error */}
-                    <Error clearError={console.log} error={this.props.error} />
+                    <Error clearError={() => this.props.setError()} error={this.props.error} />
                     <form onSubmit={e => this.onSearch(e)}>
                         <Heading.h5 pb="0.3em" pt="0.5em">Application Name</Heading.h5>
                         <Input
@@ -62,6 +61,7 @@ const mapStateToProps = ({ detailedApplicationSearch }: ReduxObject) => detailed
 const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations => ({
     setAppName: appName => dispatch(setAppName(appName)),
     setVersionName: version => dispatch(setVersion(version)),
+    setError: err => dispatch(setError(err)),
     fetchApplicationsFromName: async (query, itemsPerPage, page, callback) => {
         dispatch(await fetchApplicationPageFromName(query, itemsPerPage, page));
         if (typeof callback === "function") callback();
