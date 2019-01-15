@@ -1,9 +1,7 @@
 import * as React from "react";
-import { identifierTypes } from "DefaultObjects";
 import { allLicenses } from "./licenses";
 import { Contributor, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
 import { blankOrUndefined } from "UtilityFunctions";
-import * as PropTypes from "prop-types";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
 import { getQueryParam } from "Utilities/URIUtilities";
@@ -12,6 +10,7 @@ import { Input, DataList, Box, Button, Flex, TextArea, Text, Label } from "ui-co
 import { contentValuePairLicenses, contentValuePairIdentifierTypes } from "ui-components/DataList";
 import { TextSpan } from "ui-components/Text";
 import { connect } from "react-redux";
+import { MainContainer } from "MainContainer/MainContainer";
 
 // FIXME: MISSING TYPESAFETY THROUGHOUT
 
@@ -43,15 +42,16 @@ const filePathFromProps = (props: CreateUpdateProps): string | null =>
     getQueryParam(props, "filePath");
 
 
+
 class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     constructor(props) {
         super(props);
         const path = filePathFromProps(props);
         this.state = {
-            path,
+            path: path!,
             title: "",
             description: "",
-            license: null,
+            license: undefined,
             keywords: [""],
             notes: "",
             dataManagementPlan: "",
@@ -65,10 +65,6 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         props.dispatch(updatePageTitle("Edit Project"));
         this.setStateEv = this.setStateEv.bind(this);
         this.setStateEvList = this.setStateEvList.bind(this);
-    }
-
-    static contextTypes = {
-        store: PropTypes.object
     }
 
     componentDidMount() {
@@ -112,7 +108,6 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         e.preventDefault();
 
         const hasErrors = this.validateForm();
-        console.log(hasErrors);
 
         if (!hasErrors) {
             const s = this.state;
@@ -225,174 +220,174 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
 
     render() {
         return (
-            <form onSubmit={this.onSubmit}>
-                <Box mb="1em">
-                    <Label><TextSpan bold>Title</TextSpan><Required />
-                        <Input
-                            placeholder="Title"
-                            type="text"
-                            value={this.state.title}
-                            error={this.state.errors.title}
-                            onChange={this.setStateEv("title")}
-                            required
-                        />
-                    </Label>
-                </Box>
-                <Box mb="1em">
-                    <Label>
-                        <TextSpan bold>Description</TextSpan><Required />
-                        <TextArea
-                            width={1}
-                            rows={6}
-                            value={this.state.description}
-                            placeholder="Description"
-                            onChange={this.setStateEv("description")}
-                            required
-                        />
-                    </Label>
-                </Box>
-                <Box mb="1em">
-                    <label>
-                        <Text bold>License</Text>
-                        {this.state.license ?
-                            <Flex>
-                                <TextSpan mr="0.4em">Selected</TextSpan>
-                                <a href={this.state.license.link}>
-                                    {this.state.license.title}
-                                </a>
-                                <Box ml="auto" />
-                                {/* <Button onClick={() => this.setState({ license: null })}><Icon name="close"/></Button> */}
-                            </Flex>
+            <MainContainer
+                main={
+                    <form onSubmit={this.onSubmit}>
+                        <Box mb="1em">
+                            <Label><TextSpan bold>Title</TextSpan><Required />
+                                <Input
+                                    placeholder="Title"
+                                    type="text"
+                                    value={this.state.title}
+                                    error={this.state.errors.title}
+                                    onChange={this.setStateEv("title")}
+                                    required
+                                />
+                            </Label>
+                        </Box>
+                        <Box mb="1em">
+                            <Label>
+                                <TextSpan bold>Description</TextSpan><Required />
+                                <TextArea
+                                    width={1}
+                                    rows={6}
+                                    value={this.state.description}
+                                    placeholder="Description"
+                                    onChange={this.setStateEv("description")}
+                                    required
+                                />
+                            </Label>
+                        </Box>
+                        <Box mb="1em">
+                            <label>
+                                <Text bold>License</Text>
+                                {this.state.license ?
+                                    <Flex>
+                                        <TextSpan mr="0.4em">Selected</TextSpan>
+                                        <a href={this.state.license.link}>
+                                            {this.state.license.title}
+                                        </a>
+                                        <Box ml="auto" />
+                                        {/* <Button onClick={() => this.setState({ license: null })}><Icon name="close"/></Button> */}
+                                    </Flex>
 
-                            :
+                                    :
 
-                            <Box>
-                                No license selected
+                                    <Box>
+                                        No license selected
                             </Box>
-                        }
-                        <LicenseDropdown onChange={this.setStateEv("license")} />
-                    </label>
-                </Box>
-                <Box mb="1em">
-                    <label>
-                        <TextSpan bold>Keywords</TextSpan>
-                        <FormFieldList
-                            items={this.state.keywords}
-                            name="keyword"
-                            onChange={this.setStateEvList("keywords")}
-                        />
-                    </label>
+                                }
+                                <LicenseDropdown onChange={this.setStateEv("license")} />
+                            </label>
+                        </Box>
+                        <Box mb="1em">
+                            <label>
+                                <TextSpan bold>Keywords</TextSpan>
+                                <FormFieldList
+                                    items={this.state.keywords}
+                                    name="keyword"
+                                    onChange={this.setStateEvList("keywords")}
+                                />
+                            </label>
 
-                    <Button type="button" onClick={e => this.addRow(e, "keywords")}>
-                        New keyword
-                </Button>
-                </Box>
+                            <Button type="button" onClick={e => this.addRow(e, "keywords")}>
+                                New keyword
+                            </Button>
+                        </Box>
 
-                <Box mb="1em">
-                    <label>Notes
+                        <Box mb="1em">
+                            <label>Notes
                     <TextArea
-                            width={1}
-                            value={this.state.notes}
-                            placeholder="Notes..."
-                            onChange={this.setStateEv("notes")}
-                        />
-                    </label>
-                </Box>
+                                    width={1}
+                                    value={this.state.notes}
+                                    placeholder="Notes..."
+                                    onChange={this.setStateEv("notes")}
+                                />
+                            </label>
+                        </Box>
 
-                <Box mb="1em">
+                        <Box mb="1em">
+                            <label>Data Management Plan
+                                <TextArea
+                                    width={1}
+                                    value={this.state.dataManagementPlan}
+                                    placeholder="Data Management Plan..."
+                                    onChange={this.setStateEv("dataManagementPlan")}
+                                />
+                            </label>
+                        </Box>
 
-                    <label>Data Management Plan
-                    <TextArea
-                            width={1}
-                            value={this.state.dataManagementPlan}
-                            placeholder="Data Management Plan..."
-                            onChange={this.setStateEv("dataManagementPlan")}
-                        />
-                    </label>
-                </Box>
+                        <Box mb="1em">
+                            <label><TextSpan bold>Contributors</TextSpan>
+                                <Contributors
+                                    contributors={this.state.contributors}
+                                    errors={this.state.errors.contributors}
+                                    onChange={this.setStateEvList("contributors")}
+                                />
+                            </label>
+                            <Button mt="0.5em"
+                                type="button"
+                                onClick={e => this.addCollaborator(e)}
+                            >Add collaborator</Button>
+                        </Box>
 
-                <Box mb="1em">
-                    <label><TextSpan bold>Contributors</TextSpan>
-                        <Contributors
-                            contributors={this.state.contributors}
-                            errors={this.state.errors.contributors}
-                            onChange={this.setStateEvList("contributors")}
-                        />
-                    </label>
-                    <Button mt="0.5em"
-                        type="button"
-                        onClick={e => this.addCollaborator(e)}
-                    >Add collaborator</Button>
-                </Box>
+                        <Box mb="1em">
+                            <label><TextSpan bold>References</TextSpan>
+                                <FormFieldList
+                                    name="reference"
+                                    items={this.state.references}
+                                    onChange={this.setStateEvList("references")}
+                                />
+                            </label>
+                            <Button
+                                type="button"
+                                onClick={e => this.addRow(e, "references")}
+                            >Add reference</Button>
+                        </Box>
 
-                <Box mb="1em">
-                    <label><TextSpan bold>References</TextSpan>
-                        <FormFieldList
-                            name="reference"
-                            items={this.state.references}
-                            onChange={this.setStateEvList("references")}
-                        />
-                    </label>
-                    <Button
-                        type="button"
-                        onClick={e => this.addRow(e, "references")}
-                    >Add reference</Button>
-                </Box>
-
-                <Box mb="1em">
-                    <label><TextSpan bold>Grants</TextSpan>
-                        <FormFieldList
-                            name="grant"
-                            items={this.state.grants}
-                            onChange={this.setStateEvList("grants")}
-                        />
-                    </label>
-                    <Button
-                        type="button"
-                        onClick={e => this.addRow(e, "grants")}
-                    >Add grant</Button>
-                </Box>
-
-
-                <Box mb="1em">
-                    <label><TextSpan bold>Subjects</TextSpan>
-                        <Subjects
-                            subjects={this.state.subjects}
-                            onChange={this.setStateEvList("subjects")}
-                            errors={this.state.errors.subjects}
-                        />
-                    </label>
-                </Box>
-                <Button mb="1em" type="button" onClick={e => this.addSubject(e)} >
-                    Add subject
-                </Button>
+                        <Box mb="1em">
+                            <label><TextSpan bold>Grants</TextSpan>
+                                <FormFieldList
+                                    name="grant"
+                                    items={this.state.grants}
+                                    onChange={this.setStateEvList("grants")}
+                                />
+                            </label>
+                            <Button
+                                type="button"
+                                onClick={e => this.addRow(e, "grants")}
+                            >Add grant</Button>
+                        </Box>
 
 
-                <Box mb="1em">
-                    <label><TextSpan bold>Related identifiers</TextSpan>
-                        <RelatedIdentifiers
-                            relatedIdentifiers={this.state.relatedIdentifiers}
-                            onChange={this.setStateEvList("relatedIdentifiers")}
-                            errors={this.state.errors.relatedIdentifiers}
-                        />
-                    </label>
-                </Box>
-                <Button
-                    type="button"
-                    onClick={e => this.addIdentifier(e)}
-                >Add identifier</Button>
-
-                <Flex>
-                    <Box ml="auto" />
-                    <Box mb="1em" mt="1em">
+                        <Box mb="1em">
+                            <label><TextSpan bold>Subjects</TextSpan>
+                                <Subjects
+                                    subjects={this.state.subjects}
+                                    onChange={this.setStateEvList("subjects")}
+                                    errors={this.state.errors.subjects}
+                                />
+                            </label>
+                        </Box>
+                        <Button mb="1em" type="button" onClick={e => this.addSubject(e)} >
+                            Add subject
+                        </Button>
+                        <Box mb="1em">
+                            <label><TextSpan bold>Related identifiers</TextSpan>
+                                <RelatedIdentifiers
+                                    relatedIdentifiers={this.state.relatedIdentifiers}
+                                    onChange={this.setStateEvList("relatedIdentifiers")}
+                                    errors={this.state.errors.relatedIdentifiers}
+                                />
+                            </label>
+                        </Box>
                         <Button
-                            color="green"
                             type="button"
-                            onClick={(e) => this.onSubmit(e)}
-                        >Submit</Button>
-                    </Box>
-                </Flex>
-            </form >
+                            onClick={e => this.addIdentifier(e)}
+                        >Add identifier</Button>
+
+                        <Flex>
+                            <Box ml="auto" />
+                            <Box mb="1em" mt="1em">
+                                <Button
+                                    color="green"
+                                    type="button"
+                                    onClick={(e) => this.onSubmit(e)}
+                                >Submit</Button>
+                            </Box>
+                        </Flex>
+                    </form >}
+            />
         )
     }
 }

@@ -607,6 +607,10 @@ textarea,
   display: inherit;
   position: absolute;
 }
-`;
+
+.ReactModal__Overlay {
+    z-index: 100;
+    height: auto;
+}`;
 
 export default UIGlobalStyle;

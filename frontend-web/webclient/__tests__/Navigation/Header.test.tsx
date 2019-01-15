@@ -9,6 +9,7 @@ import uploader from "Uploader/Redux/UploaderReducer";
 import notifications from "Notifications/Redux/NotificationsReducer";
 import zenodo from "Zenodo/Redux/ZenodoReducer";
 import { MemoryRouter } from "react-router";
+import "jest-styled-components";
 
 describe("Header", () => {
     // FIXME Will try to contact backend and get wrong result, overwriting the page

@@ -1,5 +1,5 @@
 import styled from 'styled-components'
-import { space, themeGet, BorderProps, SpaceProps } from 'styled-system'
+import { space, themeGet, BorderProps, SpaceProps, BorderRadiusProps, borderRadius } from 'styled-system'
 import defaultTheme from './theme'
 
 export const borders = ({ color, theme, noBorder }: { color?: string, theme?: any, noBorder?: boolean }) => {
@@ -17,7 +17,7 @@ export const borders = ({ color, theme, noBorder }: { color?: string, theme?: an
   }
 }
 
-export interface InputProps extends BorderProps, SpaceProps {
+export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps {
   id?: string
   color?: string
   noBorder?: boolean
@@ -32,7 +32,6 @@ const Input = styled.input<InputProps>`
   color: ${props => props.error ? "red" : "inherit"};
   font-size: ${themeGet("fontSizes.1")}px;
   background-color: transparent;
-  border-radius: ${themeGet("radius")};
   border-width: 0px;
   border-style: solid;
   border-color: ${themeGet("colors.borderGray")};
@@ -56,15 +55,18 @@ const Input = styled.input<InputProps>`
     outline: none;
   }
 
-  ${borders} ${space};
+  ${borders} ${space} ${borderRadius}
 `;
 
 Input.displayName = "Input";
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 Input.defaultProps = {
   id: "default",
   theme: defaultTheme,
-  noBorder: false
+  noBorder: false,
+  borderRadius: "5px",
 };
 
 export const HiddenInputField = styled(Input)`

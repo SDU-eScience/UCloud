@@ -1,6 +1,7 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.LoginRequest
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.PersonService
@@ -19,8 +20,10 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.service.tokenValidation
@@ -152,18 +155,19 @@ class PasswordTest {
                 }
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/login?")
-                        {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                            setUser(role = Role.ADMIN)
-                            setBody("username=user1&password=pass1234&service=_service")
-                        }.response
-
-                    assertEquals(HttpStatusCode.Found, response.status())
-                    val result = response.headers[HttpHeaders.Location]
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Post,
+                            path = "/auth/login?",
+                            user = null,
+                            configure = {
+                                addHeader(HttpHeaders.ContentType, "application/x-www-form-urlencoded")
+                                setBody("username=user1&password=pass1234&service=_service")
+                            }
+                        )
+                    request.assertStatus(HttpStatusCode.Found)
+                    val result = request.response.headers[HttpHeaders.Location]
                     assertEquals("/auth/login?service=_service&invalid", result)
                 }
             }
@@ -179,18 +183,20 @@ class PasswordTest {
                 }
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/login?")
-                        {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                            setUser(role = Role.ADMIN)
-                            setBody("username=user1&password=pass1234")
-                        }.response
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Post,
+                            path = "/auth/login?",
+                            user = null,
+                            configure = {
+                                addHeader(HttpHeaders.ContentType, "application/x-www-form-urlencoded")
+                                setBody("username=user1&password=pass1234")
+                            }
+                        )
 
-                    assertEquals(HttpStatusCode.Found, response.status())
-                    val result = response.headers.values("Location").toString().trim('[', ']')
+                    request.assertStatus(HttpStatusCode.Found)
+                    val result = request.response.headers.values("Location").toString().trim('[', ']')
                     assertEquals("/auth/login?invalid", result)
                 }
             }
@@ -206,31 +212,38 @@ class PasswordTest {
                 }
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/login?")
-                        {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                            setUser(role = Role.ADMIN)
-                            setBody("username=user1&service=_service")
-                        }.response
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Post,
+                            path = "/auth/login?",
+                            user = null,
+                            configure = {
+                                addHeader(HttpHeaders.ContentType, "application/x-www-form-urlencoded")
+                                setBody("username=user1&service=_service")
+                            }
+                        )
 
-                    assertEquals(HttpStatusCode.Found, response.status())
-                    val result = response.headers.values("Location").toString().trim('[', ']')
+                    request.assertStatus(HttpStatusCode.Found)
+                    val result = request.response.headers.values("Location").toString().trim('[', ']')
                     assertEquals("/auth/login?service=_service&invalid", result)
 
-                    val response2 =
-                        handleRequest(HttpMethod.Post, "/auth/login?")
-                        {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                            setUser(role = Role.ADMIN)
-                            setBody("password=pass1234&service=_service")
-                        }.response
+                }
 
-                    assertEquals(HttpStatusCode.Found, response2.status())
-                    val result2 = response2.headers.values("Location").toString().trim('[', ']')
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Post,
+                            path = "/auth/login?",
+                            user = null,
+                            configure = {
+                                addHeader(HttpHeaders.ContentType, "application/x-www-form-urlencoded")
+                                setBody("password=pass1234&service=_service")
+                            }
+                        )
+
+                    request.assertStatus(HttpStatusCode.Found)
+                    val result2 = request.response.headers.values("Location").toString().trim('[', ']')
                     assertEquals("/auth/login?service=_service&invalid", result2)
                 }
             }
@@ -246,14 +259,16 @@ class PasswordTest {
                 }
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/login") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                        }.response
-                    assertNull(response.content)
-                    val result = response.headers.values("Location").toString().trim('[', ']')
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Post,
+                            path = "/auth/login",
+                            user = null
+                        )
+
+                    assertNull(request.response.content)
+                    val result = request.response.headers.values("Location").toString().trim('[', ']')
                     assertEquals("/auth/login?invalid", result)
                 }
             }

@@ -5,21 +5,16 @@ import { ReduxObject } from "DefaultObjects";
 import { DetailedApplicationSearchReduxState, DetailedApplicationOperations } from "Applications";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
-import { setAppName, setVersion, fetchApplicationPageFromName, fetchApplicationPageFromTag } from "./Redux/DetailedApplicationSearchActions";
-import { object } from "prop-types";
+import { setAppName, setVersion, fetchApplicationPageFromName, fetchApplicationPageFromTag, setError } from "./Redux/DetailedApplicationSearchActions";
 import { History } from "history";
 import { searchPage } from "Utilities/SearchUtilities";
+import { withRouter } from "react-router";
 
 type DetailedApplicationSearchProps = DetailedApplicationOperations & DetailedApplicationSearchReduxState;
-class DetailedApplicationSearch extends React.Component<DetailedApplicationSearchProps> {
+class DetailedApplicationSearch extends React.Component<DetailedApplicationSearchProps & { history: History, defaultAppName?: string }> {
     constructor(props: any) {
         super(props);
-    }
-
-    context: { router: { history: History } }
-
-    static contextTypes = {
-        router: object
+        if (!!this.props.defaultAppName) this.props.setAppName(this.props.defaultAppName);
     }
 
     private inputField = React.createRef<HTMLInputElement>();
@@ -33,7 +28,7 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
             this.inputField.current.value,
             25,
             0,
-            () => this.context.router.history.push(searchPage("applications", inputFieldValue))
+            () => this.props.history.push(searchPage("applications", inputFieldValue))
         );
     }
 
@@ -41,9 +36,7 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
         return (
             <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                 <Box mt="0.5em">
-                    <Heading.h3>Search</Heading.h3>
-                    {/* FIXME: Clear Error */}
-                    <Error clearError={console.log} error={this.props.error} />
+                    <Error clearError={() => this.props.setError()} error={this.props.error} />
                     <form onSubmit={e => this.onSearch(e)}>
                         <Heading.h5 pb="0.3em" pt="0.5em">Application Name</Heading.h5>
                         <Input
@@ -57,8 +50,6 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
                         />
                         <Flex mt="1em">
                             <LoadingButton type="submit" loading={this.props.loading} content="By Name" color="blue" />
-                            <Box ml="auto" />
-                            <LoadingButton type="submit" loading={false} color="blue" content="By Tag" disabled />
                         </Flex>
                     </form>
                 </Box>
@@ -68,8 +59,9 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
 
 const mapStateToProps = ({ detailedApplicationSearch }: ReduxObject) => detailedApplicationSearch;
 const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations => ({
-    setAppName: (appName) => dispatch(setAppName(appName)),
-    setVersionName: (version) => dispatch(setVersion(version)),
+    setAppName: appName => dispatch(setAppName(appName)),
+    setVersionName: version => dispatch(setVersion(version)),
+    setError: err => dispatch(setError(err)),
     fetchApplicationsFromName: async (query, itemsPerPage, page, callback) => {
         dispatch(await fetchApplicationPageFromName(query, itemsPerPage, page));
         if (typeof callback === "function") callback();
@@ -80,4 +72,4 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedApplicationOperations =
     }
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(DetailedApplicationSearch);
+export default connect(mapStateToProps, mapDispatchToProps)(withRouter(DetailedApplicationSearch));

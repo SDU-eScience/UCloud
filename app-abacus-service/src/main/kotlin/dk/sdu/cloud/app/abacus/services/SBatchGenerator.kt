@@ -51,7 +51,7 @@ class SBatchGenerator {
             ToolBackend.UDOCKER -> {
                 ArrayList<String>().apply {
                     val containerWorkDir = "/scratch"
-                    addAll(listOf("udocker-prep", "-q", "run", "--rm"))
+                    addAll(listOf("/home/sducloudapps/bin/udocker-prep", "-q", "run", "--rm"))
                     add("--workdir=$containerWorkDir")
                     add("--volume=${safeBashArgument(workDir)}:$containerWorkDir")
                     add(safeBashArgument(tool.container))

@@ -8,8 +8,11 @@ import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.api.UserProjectSummary
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -56,6 +59,12 @@ class ProjectService<DBSession>(
         return db.withTransaction { session ->
             dao.findRoleOfMember(session, projectId, user)?.let { ProjectMember(user, it) }
                 ?: throw ProjectException.NotFound()
+        }
+    }
+
+    fun listProjects(user: String, pagination: NormalizedPaginationRequest): Page<UserProjectSummary> {
+        return db.withTransaction { session ->
+            dao.listProjectsForUser(session, user, pagination)
         }
     }
 

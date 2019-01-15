@@ -13,6 +13,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import { TextSpan } from "ui-components/Text";
 import styled from "styled-components";
 import { IconName } from "ui-components/Icon";
+import { ReduxObject } from "DefaultObjects";
 
 interface NotificationProps {
     page: Page<Notification>
@@ -52,7 +53,7 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
     }
 
     public render() {
-        const { activeUploads, page } = this.props;
+        const { page } = this.props;
         const entries: JSX.Element[] = page.items.map((notification, index) =>
             <NotificationEntry
                 key={index}
@@ -67,38 +68,26 @@ class Notifications extends React.Component<NotificationProps & NotificationsDis
         }
 
         const unreadLength = page.items.filter((e) => !e.read).length;
-        const uploads = activeUploads > 0 ? (
-            <>
-                <Divider />
-                <UploaderButton
-                    fullWidth
-                    onClick={() => this.props.showUploader()}
-                >
-                    {`${activeUploads} active upload${activeUploads > 1 ? "s" : ""} in progress.`}
-                </UploaderButton>
-            </>
-        ) : null;
         const readAllButton = unreadLength ? (
             <>
                 <Button onClick={() => this.props.readAll()} fullWidth>Mark all as read</Button>
                 <Divider />
             </>) : null;
-        const badgeCount = unreadLength + activeUploads;
+        const badgeCount = unreadLength;
         return (
             <ClickableDropdown top="37px" width={"380px"} left={"-270px"} trigger={
                 <Flex>
                     <Relative top="0" left="0">
-                        <Flex justifyContent="center" width="60px">
+                        <Flex justifyContent="center" width="48px">
                             <Icon cursor="pointer" name="notification" color="headerIconColor" color2="headerIconColor2" />
                         </Flex>
                         {badgeCount > 0 ? <Absolute top="-12px" left="28px">
-                            <Badge bg="red">{unreadLength + activeUploads}</Badge>
+                            <Badge bg="red">{unreadLength}</Badge>
                         </Absolute> : null}
                     </Relative>
                 </Flex>
             }>
                 {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
-                {uploads}
             </ClickableDropdown>
         );
     }
@@ -110,7 +99,7 @@ export interface Notification {
     type: string
     id: any
     message: string
-    ts: Number
+    ts: number
     read: boolean
     meta: any
 }
@@ -150,7 +139,7 @@ export class NotificationEntry extends React.Component<NotificationEntryProps, a
 
     private resolveEventIcon(eventType: string): IconName {
         switch (eventType) {
-            case "APP_COMPLETE": return "information";
+            case "APP_COMPLETE": return "info";
             case "SHARE_REQUEST": return "share";
             default: return "warning";
         }
@@ -165,17 +154,11 @@ const NotificationWrapper = styled(Flex)`
     padding: 0.3em 0.3em 0.3em 0.3em;
     border-radius: 3px;
     cursor: pointer;
+    width: 100%;
     &:hover {
         background-color: ${theme.colors.lightGray};
     }
 `;
-
-const UploaderButton = styled(Button)`
-    background-color: ${props => props.theme.colors.green};
-    &:hover {
-        background-color: ${props => props.theme.colors.green};
-    }
-`
 
 interface NotificationsDispatchToProps {
     fetchNotifications: () => void
@@ -189,10 +172,6 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsDispatchToProps =>
     showUploader: () => dispatch(setUploaderVisible(true)),
     readAll: async () => dispatch(await readAllNotifications())
 });
-const mapStateToProps = (state) => ({
-    ...state.notifications,
-    activeUploads: state.uploader.uploads.filter(it => it.uploadXHR &&
-        it.uploadXHR.readyState > XMLHttpRequest.UNSENT && it.uploadXHR.readyState < XMLHttpRequest.DONE).length
-});
+const mapStateToProps = (state: ReduxObject) => state.notifications;
 
 export default connect(mapStateToProps, mapDispatchToProps)(withRouter(Notifications));

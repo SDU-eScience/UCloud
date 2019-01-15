@@ -21,6 +21,7 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) : TokenGenerationService {
             if (contents.extendedBy != null) withClaim(CLAIM_EXTENDED_BY, contents.extendedBy)
             if (contents.claimableId != null) withJWTId(contents.claimableId)
             if (contents.sessionReference != null) withClaim(CLAIM_SESSION_REFERENCE, contents.sessionReference)
+            withArrayClaim(CLAIM_EXTENDED_BY_CHAIN, contents.extendedByChain.toTypedArray())
             sign(jwtAlg)
         }
     }
@@ -57,5 +58,6 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) : TokenGenerationService {
     companion object {
         const val CLAIM_EXTENDED_BY = "extendedBy"
         const val CLAIM_SESSION_REFERENCE = "publicSessionReference"
+        const val CLAIM_EXTENDED_BY_CHAIN = "extendedByChain"
     }
 }

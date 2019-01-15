@@ -13,9 +13,11 @@ import { fileInfoPage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading"
 import Icon, { IconName } from "ui-components/Icon";
 import { Flex, Text, Link } from "ui-components";
-import Table, { TableRow, TableCell } from "ui-components/Table";
+import Table, { TableRow, TableCell, TableBody, TableHeader, TableHeaderCell } from "ui-components/Table";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { MainContainer } from "MainContainer/MainContainer";
+import styled from "styled-components";
 
 class Activity extends React.Component<ActivityProps> {
     componentDidMount = () => {
@@ -25,9 +27,9 @@ class Activity extends React.Component<ActivityProps> {
 
     render() {
         const { fetchActivity, page, error, setError, loading, groupedEntries } = this.props;
-        return (
+
+        const main = (
             <React.StrictMode>
-                <Heading.h1>File Activity</Heading.h1>
                 <Pagination.List
                     loading={loading}
                     errorMessage={error}
@@ -40,17 +42,33 @@ class Activity extends React.Component<ActivityProps> {
                 />
             </React.StrictMode>
         );
+
+        const header = (
+            <React.StrictMode>
+                <Heading.h2>File Activity</Heading.h2>
+            </React.StrictMode>
+        );
+
+        return (
+            <MainContainer
+                main={main}
+                header={header}
+            />
+        );
     }
 }
 
 
 const ActivityFeedGrouped = ({ activity }: { activity: GroupedActivity[] }) => activity.length ? (
     <Table>
-        {
-            activity.map((a, i) => {
-                return <TrackedFeedActivity key={i} activity={a} />
-            })
-        }
+        <TableHeader>
+            <TableHeaderCell width={"7em"} />
+            <TableHeaderCell width={"10em"} />
+            <TableHeaderCell width={"99%"} />
+        </TableHeader>
+        <TableBody>
+            {activity.map((a, i) => <TrackedFeedActivity key={i} activity={a} />)}
+        </TableBody>
     </Table>
 ) : null;
 
@@ -96,7 +114,7 @@ const ActivityEvent: React.FunctionComponent<{ event: Module.Activity }> = props
 );
 
 const TrackedFeedActivity = ({ activity }: { activity: GroupedActivity }) => (
-    <TableRow style={{ verticalAlign: "top" }}>
+    <TFRow>
         <TableCell>
             <Dropdown>
                 <Text fontSize={1} color="text">{moment(new Date(activity.timestamp)).fromNow()}</Text>
@@ -116,7 +134,7 @@ const TrackedFeedActivity = ({ activity }: { activity: GroupedActivity }) => (
                 <ActivityEvent key={idx} event={item} />
             )}
         </TableCell>
-    </TableRow>
+    </TFRow>
 );
 
 const operationToPastTense = (operation: Module.ActivityType): string => {
@@ -195,6 +213,10 @@ function groupActivity(items: Module.Activity[] = []): GroupedActivity[] {
     pushGroup();
     return result;
 }
+
+const TFRow = styled(TableRow)`
+    vertical-align: top;
+`
 
 const mapStateToProps = ({ activity }: ReduxObject): ActivityReduxObject & Module.ActivityOwnProps => ({
     ...activity,

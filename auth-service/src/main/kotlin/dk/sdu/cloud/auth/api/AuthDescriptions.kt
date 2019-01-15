@@ -58,7 +58,14 @@ data class TokenExtensionRequest(
      * This will happen through a refresh token passed via [OptionalAuthenticationTokens.refreshToken].
      */
     val allowRefreshes: Boolean = false
-)
+) {
+    override fun toString(): String =
+        "TokenExtensionRequest(" +
+                "requestedScopes = $requestedScopes, " +
+                "expiresIn = $expiresIn, " +
+                "allowRefreshes = $allowRefreshes" +
+                ")"
+}
 
 typealias TokenExtensionResponse = OptionalAuthenticationTokens
 

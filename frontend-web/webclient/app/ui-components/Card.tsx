@@ -3,32 +3,15 @@ import styled from "styled-components";
 import Box, { BoxProps } from "./Box";
 import theme from "./theme";
 import { borderRadius, 
-         BoxShadowProps, 
          BorderProps, 
          BorderRadiusProps, 
          BorderColorProps, 
          HeightProps, 
-         height } from "styled-system";
+         height,
+         boxShadow,
+         BoxShadowProps,         
+        } from "styled-system";
 import Icon from "./Icon";
-
-
-const boxShadow = props => {
-  const boxShadows = {
-    sm: {
-      "box-shadow": props.theme.boxShadows[0]
-    },
-    md: {
-      "box-shadow": props.theme.boxShadows[1]
-    },
-    lg: {
-      "box-shadow": props.theme.boxShadows[2]
-    },
-    xl: {
-      "box-shadow": props.theme.boxShadows[3]
-    }
-  }
-  return boxShadows[props.boxShadowSize]
-}
 
 const boxBorder = props => ({
   border: `${props.borderWidth}px solid ${props.theme.colors[props.borderColor]}`
@@ -36,13 +19,14 @@ const boxBorder = props => ({
 
 export interface CardProps extends HeightProps, BoxProps, BorderColorProps, BoxShadowProps, BorderProps, BorderRadiusProps {
   borderWidth?: number | string
-  boxShadowSize?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 export const Card = styled(Box) <CardProps>`
   ${height} ${boxShadow} ${boxBorder} ${borderRadius};
 `;
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 Card.defaultProps = {
   borderColor: "borderGray",
   borderRadius: 1,

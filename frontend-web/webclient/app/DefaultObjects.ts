@@ -1,6 +1,6 @@
 import { SidebarOption, Page } from "Types";
 import { Status } from "Navigation";
-import { Analysis, Application, DetailedApplicationSearchReduxState } from "Applications";
+import { Analysis, DetailedApplicationSearchReduxState } from "Applications";
 import { File, DetailedFileSearchReduxState } from "Files";
 import { SortOrder, SortBy } from "Files";
 import { DashboardStateProps } from "Dashboard";
@@ -12,6 +12,7 @@ import { Reducer } from "redux";
 import { SimpleSearchStateProps } from "Search";
 import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
+import { defaultAvatar } from "UserSettings/Avataaar";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -82,6 +83,22 @@ export interface ComponentWithPage<T> {
     loading: boolean
     error?: string
 }
+
+export interface ResponsiveReduxObject {
+    mediaType: string
+    orientation: string
+    lessThan: Record<string, boolean>
+    greaterThan: Record<string, boolean>
+    is: Record<string, boolean>
+} 
+
+export const initResponsive = (): ResponsiveReduxObject => ({
+    mediaType: "",
+    orientation: "",
+    lessThan: {},
+    greaterThan: {},
+    is: {},
+});
 
 export interface FilesReduxObject extends ComponentWithPage<File> {
     sortOrder: SortOrder
@@ -190,6 +207,8 @@ interface LegacyReduxObject {
     detailedFileSearch: DetailedFileSearchReduxState
     detailedApplicationSearch: DetailedApplicationSearchReduxState
     fileInfo: FileInfoReduxObject
+    avatar: AvatarReduxObject
+    responsive?: ResponsiveReduxObject
 }
 
 export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects;
@@ -244,8 +263,14 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     detailedFileSearch: initFilesDetailedSearch(),
     fileInfo: initFileInfo(),
     ...ApplicationRedux.init(),
-    ...AccountingRedux.init()
+    ...AccountingRedux.init(),
+    avatar: initAvatar(),
+    responsive: undefined,
 });
+
+
+type AvatarReduxObject = typeof defaultAvatar;
+export const initAvatar = () => defaultAvatar;
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
     files: emptyPage,
@@ -296,57 +321,6 @@ export const initFileInfo = (): FileInfoReduxObject => ({
     loading: false
 });
 
-export const identifierTypes = [
-    {
-        text: "Cited by",
-        value: "isCitedBy"
-    },
-    {
-        text: "Cites",
-        value: "cites"
-    },
-    {
-        text: "Supplement to",
-        value: "isSupplementTo"
-    },
-    {
-        text: "Supplemented by",
-        value: "“isSupplementedBy”"
-    },
-    {
-        text: "New version of",
-        value: "isNewVersionOf"
-    },
-    {
-        text: "Previous version of",
-        value: "isPreviousVersionOf"
-    },
-    {
-        text: "Part of",
-        value: "“isPartOf”"
-    },
-    {
-        text: "Has part",
-        value: "“hasPart”"
-    },
-    {
-        text: "Compiles",
-        value: "compiles"
-    },
-    {
-        text: "Is compiled by",
-        value: "isCompiledBy"
-    },
-    {
-        text: "Identical to",
-        value: "isIdenticalTo"
-    },
-    {
-        text: "Alternative identifier",
-        value: "IsAlternateIdentifier"
-    }
-];
-
 export const initFiles = (homeFolder: string): FilesReduxObject => ({
     page: emptyPage,
     sortOrder: SortOrder.ASCENDING,
@@ -389,6 +363,6 @@ export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchRedux
     loading: false,
     hidden: true,
     appName: "",
-    appVersion: "", // Makes sense as range instead
+    appVersion: "",
     tags: ""
 });

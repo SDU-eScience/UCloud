@@ -8,6 +8,8 @@ import dk.sdu.cloud.accounting.storage.Configuration
 import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.StatisticsResponse
@@ -111,6 +113,14 @@ class StorageAccountingServiceTest {
                     2 -> TestCallResult.Ok(emptyList())
                     else -> TestCallResult.Error(CommonErrorMessage("ERROR"), HttpStatusCode.BadRequest)
                 }
+            }
+        )
+
+        CloudMock.mockCall(
+            FileDescriptions,
+            { FileDescriptions.findHomeFolder },
+            {
+                TestCallResult.Ok(FindHomeFolderResponse("/home/${it.username}"))
             }
         )
 

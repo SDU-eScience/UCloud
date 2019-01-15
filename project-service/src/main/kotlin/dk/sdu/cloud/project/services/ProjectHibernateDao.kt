@@ -3,16 +3,24 @@ package dk.sdu.cloud.project.services
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.api.UserProjectSummary
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.WithTimestamps
+import dk.sdu.cloud.service.db.createCriteriaBuilder
+import dk.sdu.cloud.service.db.createQuery
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.deleteCriteria
 import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedList
 import dk.sdu.cloud.service.db.updateCriteria
 import org.hibernate.annotations.NaturalId
+import org.hibernate.query.Query
+import java.sql.ResultSet
 import java.util.*
 import javax.persistence.CascadeType
 import javax.persistence.Column
@@ -142,6 +150,48 @@ class ProjectHibernateDao : ProjectDao<HibernateSession> {
             (entity[ProjectMemberEntity::username] equal member) and
                     (entity[ProjectMemberEntity::project][ProjectEntity::id] equal projectId)
         }.uniqueResult()?.role
+    }
+
+    override fun listProjectsForUser(
+        session: HibernateSession,
+        user: String,
+        pagination: NormalizedPaginationRequest
+    ): Page<UserProjectSummary> {
+        val itemsInTotal = session.createCriteriaBuilder<Long, ProjectMemberEntity>().run {
+            criteria.where(entity[ProjectMemberEntity::username] equal user)
+            criteria.select(count(entity))
+        }.createQuery(session).uniqueResult()
+
+        @Suppress("UNCHECKED_CAST")
+        val items = (session
+            .createQuery(
+                //language=HQL
+                """
+                select mem.role, project.id, project.title
+                from ProjectMemberEntity as mem
+                    inner join mem.project as project
+                where
+                    mem.username = :username
+                order by project.id
+                """.trimIndent()
+            ) as Query<Array<Any>>)
+            .setParameter("username", user)
+            .paginatedList(pagination)
+            .map {
+                val role = it[0] as ProjectRole
+                val id = it[1] as String
+                val title = it[2] as String
+
+
+                UserProjectSummary(id, title, ProjectMember(user, role))
+            }
+
+        return Page(
+            itemsInTotal.toInt(),
+            pagination.itemsPerPage,
+            pagination.page,
+            items
+        )
     }
 
     companion object : Loggable {

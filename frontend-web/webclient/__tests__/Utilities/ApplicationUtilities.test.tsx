@@ -1,7 +1,6 @@
-import { extractParameters, hpcJobQuery, hpcJobsQuery, hpcApplicationsQuery, favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
-import { applicationsPage } from "../mock/Applications";
-import Cloud from "Authentication/lib";
+import { extractParameters, hpcJobQuery, hpcJobsQuery, hpcApplicationsQuery } from "Utilities/ApplicationUtilities";
 import { ParameterTypes } from "Applications";
+import "jest-styled-components";
 
 
 describe("Application Utilities", () => {

@@ -6,13 +6,38 @@ import Icon from "./Icon"
 import theme from "./theme"
 import { FtIconProps as UFFtIconProps, extensionType } from "UtilityFunctions";
 
+
+const ftColor = (fType: string): string => {
+  switch (fType) {
+    case "code":
+      return theme.appColors[0][2];
+    case "image":
+      return theme.appColors[1][2];
+    case "text":
+      return theme.appColors[2][2];
+    case "audio":
+      return theme.appColors[3][2];
+    case "video":
+      return theme.appColors[4][2];
+    case "archive":
+      return theme.appColors[5][2];
+    case "pdf":
+      return theme.appColors[6][2];
+    case "binary":
+      return theme.appColors[7][2];
+    default:
+      return "red";
+  }
+}
+
 // Label for file type icons
-const SvgFtLabel = ({hasExt, ext}) => {
+const SvgFtLabel = ({hasExt, ext, type}) => {
   if (!hasExt) {
     return null;
   }
 
-  const color3="red";
+//  const color3="red";
+  const color3 = ftColor(type);
 
   return (
     <>
@@ -160,7 +185,7 @@ const SvgFt = ({color, color2, hasExt, ext, type, ...props}) => (
       d="M29 0l14 10-12 2-2-12z"
       fill={color2}
     />
-    <SvgFtLabel hasExt={hasExt} ext={ext} />
+    <SvgFtLabel hasExt={hasExt} ext={ext} type={type} />
 
   </svg>
 );
@@ -226,8 +251,10 @@ const FtIcon = styled(FtIconBase) <FtIconProps>`
   ${space} ${color};
 `;
 
-FtIcon.displayName = "FtIcon"
+FtIcon.displayName = "FtIcon";
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 FtIcon.defaultProps = {
   theme,
   cursor: "inherit",

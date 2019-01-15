@@ -1,11 +1,17 @@
 package dk.sdu.cloud.auth.http
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.ChangePasswordRequest
+import dk.sdu.cloud.auth.api.CreateSingleUserRequest
 import dk.sdu.cloud.auth.api.CreateUserRequest
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
+import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
@@ -14,22 +20,20 @@ import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.TokenValidationMock
+import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.createTokenForService
 import dk.sdu.cloud.service.test.createTokenForUser
 import dk.sdu.cloud.service.test.sendJson
-import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationRequest
-import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.setBody
 import io.mockk.mockk
 import org.hibernate.Session
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 fun createTokenForUser(username: String = "user", role: Role = Role.USER): String {
     return when (role) {
@@ -47,6 +51,10 @@ fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.
 class UserTest {
     private val passwordHashingService = PasswordHashingService()
     private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
+
+    private val password = "ThisIsPassword"
+    private val adminUser = TestUsers.admin
+
 
     private fun KtorApplicationTestSetupContext.configureAuthServer(
         userDao: UserHibernateDAO,
@@ -75,45 +83,93 @@ class UserTest {
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/users/register") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                """
-                                {
-                                    "username":"User1",
-                                    "password":"ThisIsPassword",
-                                }
-                            """.trimIndent()
-                            )
-                        }.response
+                val lookup1 = adminUser.username
+                val lookup2 = "User2"
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/lookup",
+                            user = adminUser,
+                            request = LookupUsersRequest(listOf(lookup1, lookup2))
+                        )
 
-                    assertEquals(HttpStatusCode.OK, response.status())
+                    request.assertSuccess()
+                    val response = defaultMapper.readValue<LookupUsersResponse>(request.response.content!!)
+                    assertEquals(2, response.results.size)
+                    assertNull(response.results[lookup1])
+                    assertNull(response.results[lookup2])
 
-
-                    val response2 =
-                        handleRequest(HttpMethod.Post, "/auth/users/lookup") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                """
-                                {
-                                    "users":
-                                    [
-                                        "User1",
-                                        "User2"
-                                    ]
-                                }
-                            """.trimIndent()
-                            )
-                        }.response
-
-                    println(response2.content)
-
-                    assertEquals(HttpStatusCode.OK, response2.status())
                 }
+
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/register",
+                            user = adminUser,
+                            request = listOf(CreateSingleUserRequest(adminUser.username, password, adminUser.role))
+                        )
+
+                    request.assertSuccess()
+                }
+
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/lookup",
+                            user = adminUser,
+                            request = LookupUsersRequest(listOf(lookup1, lookup2))
+                        )
+
+                    request.assertSuccess()
+
+                    val response = defaultMapper.readValue<LookupUsersResponse>(request.response.content!!)
+                    assertEquals(2, response.results.size)
+                    assertEquals(lookup1, response.results[lookup1]?.subject)
+                    assertEquals(adminUser.role, response.results[lookup1]?.role)
+                    assertNull(response.results[lookup2])
+                }
+
+            }
+        )
+    }
+
+    @Test
+    fun `create user - duplicate`() {
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                val userDao = UserHibernateDAO(passwordHashingService)
+                val userCreationService = UserCreationService(micro.hibernateDatabase, userDao, mockk(relaxed = true))
+                configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
+            },
+            test = {
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/register",
+                            user = adminUser,
+                            request = listOf(CreateSingleUserRequest(adminUser.username, password, adminUser.role))
+                        )
+
+                    request.assertSuccess()
+                }
+
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/register",
+                            user = adminUser,
+                            request = listOf(CreateSingleUserRequest(adminUser.username, password, adminUser.role))
+                        )
+
+                    request.assertStatus(HttpStatusCode.Conflict)
+                }
+
             }
         )
     }
@@ -129,24 +185,16 @@ class UserTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/users/register") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                            setBody(
-                                """
-                                {
-                                    "username":"User1",
-                                    "password":"ThisIsPassword",
-                                }
-                            """.trimIndent()
-                            )
-                        }.response
+                val user = TestUsers.user
+                val request =
+                    sendJson(
+                        method = HttpMethod.Post,
+                        path = "/auth/users/register",
+                        user = user,
+                        request = listOf(CreateSingleUserRequest(user.username, password, user.role))
+                    )
 
-                    assertEquals(HttpStatusCode.Unauthorized, response.status())
-
-                }
+                request.assertStatus(HttpStatusCode.Unauthorized)
             }
         )
     }
@@ -161,22 +209,16 @@ class UserTest {
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/users/register") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                """
-                                {
-                                    "username":
-                                }
-                            """.trimIndent()
-                            )
-                        }.response
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/register",
+                            user = adminUser,
+                            request = ChangePasswordRequest("wrong", "request")
+                        )
 
-                    assertEquals(HttpStatusCode.BadRequest, response.status())
-
+                    request.assertStatus(HttpStatusCode.BadRequest)
                 }
             }
         )
@@ -192,38 +234,30 @@ class UserTest {
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/users/register") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                """
-                                {
-                                    "username":"user",
-                                    "password":"ThisIsPassword",
-                                }
-                            """.trimIndent()
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/register",
+                            user = adminUser,
+                            request = listOf(CreateSingleUserRequest(adminUser.username, password, adminUser.role))
+                        )
+
+                    request.assertSuccess()
+                }
+
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/password",
+                            user = adminUser,
+                            request = ChangePasswordRequest(
+                                currentPassword = password,
+                                newPassword = "Pass"
                             )
-                        }.response
-
-                    assertEquals(HttpStatusCode.OK, response.status())
-
-                    val response2 =
-                        handleRequest(HttpMethod.Post, "/auth/users/password") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                """
-                                {
-                                    "currentPassword":"ThisIsPassword",
-                                    "newPassword":"Pass",
-                                }
-                            """.trimIndent()
-                            )
-                        }.response
-
-                    assertEquals(HttpStatusCode.OK, response2.status())
+                        )
+                    request.assertSuccess()
                 }
             }
         )
@@ -239,38 +273,30 @@ class UserTest {
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/users/register") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                """
-                                {
-                                    "username":"user",
-                                    "password":"ThisIsPassword",
-                                }
-                            """.trimIndent()
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/register",
+                            user = adminUser,
+                            request = listOf(CreateSingleUserRequest(adminUser.username, password, adminUser.role))
+                        )
+
+                    request.assertSuccess()
+                }
+
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/password",
+                            user = adminUser,
+                            request = ChangePasswordRequest(
+                                currentPassword = "Wrong password",
+                                newPassword = "Pass"
                             )
-                        }.response
-
-                    assertEquals(HttpStatusCode.OK, response.status())
-
-                    val response2 =
-                        handleRequest(HttpMethod.Post, "/auth/users/password") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                """
-                                {
-                                    "currentPassword":"ThisPassword",
-                                    "newPassword":"Pass",
-                                }
-                            """.trimIndent()
-                            )
-                        }.response
-
-                    assertEquals(HttpStatusCode.BadRequest, response2.status())
+                        )
+                    request.assertStatus(HttpStatusCode.BadRequest)
                 }
             }
         )
@@ -286,21 +312,16 @@ class UserTest {
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/users/password") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                """
-                                {
-                                    "currentPassword":
-                                }
-                            """.trimIndent()
-                            )
-                        }.response
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/password",
+                            user = adminUser,
+                            request = listOf(CreateSingleUserRequest("wrong", "request", adminUser.role))
+                        )
 
-                    assertEquals(HttpStatusCode.BadRequest, response.status())
+                    request.assertStatus(HttpStatusCode.BadRequest)
                 }
             }
         )
@@ -316,26 +337,15 @@ class UserTest {
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/users/lookup") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                            setBody(
-                                """
-                                {
-                                    "users":
-                                    [
-                                        "user1",
-                                        "user2",
-                                        "user3"
-                                    ]
-                                }
-                            """.trimIndent()
-                            )
-                        }.response
-
-                    assertEquals(HttpStatusCode.Unauthorized, response.status())
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "auth/users/lookup",
+                            user = TestUsers.user,
+                            request = LookupUsersRequest(listOf("user1", "user2", "user3"))
+                        )
+                    request.assertStatus(HttpStatusCode.Unauthorized)
                 }
             }
         )
@@ -351,24 +361,16 @@ class UserTest {
                 configureAuthServer(userDao, micro.hibernateDatabase, userCreationService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/users/lookup") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                """
-                                {
-                                    "users":
-                                    [
-                                        "use
-                                    ]
-                                }
-                            """.trimIndent()
-                            )
-                        }.response
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/auth/users/lookup",
+                            user = adminUser,
+                            request = listOf(CreateSingleUserRequest("wrong", "request", adminUser.role))
+                        )
 
-                    assertEquals(HttpStatusCode.BadRequest, response.status())
+                    request.assertStatus(HttpStatusCode.BadRequest)
                 }
             }
         )

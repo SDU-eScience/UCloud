@@ -45,6 +45,8 @@ const ProgressBase = styled(Box) <ProgressBaseProps>`
     }
 `;
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 ProgressBase.defaultProps = {
     color: "green",
     height: "30px",

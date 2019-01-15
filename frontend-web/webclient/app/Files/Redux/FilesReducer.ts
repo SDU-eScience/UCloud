@@ -20,7 +20,7 @@ export const CHECK_FILE = "CHECK_FILE";
 export const CREATE_FOLDER = "CREATE_FOLDER";
 export const FILES_INVALID_PATH = "FILES_INVALID_PATH";
 
-const files = (state: FilesReduxObject = initFiles(""), action: FileActions): FilesReduxObject => {
+function files(state: FilesReduxObject = initFiles(""), action: FileActions): FilesReduxObject {
     switch (action.type) {
         case RECEIVE_FILES: {
             return {
@@ -58,7 +58,7 @@ const files = (state: FilesReduxObject = initFiles(""), action: FileActions): Fi
             return { ...state, fileSelectorCallback: action.payload.callback };
         }
         case SET_FILE_SELECTOR_ERROR: {
-            return { ...state, fileSelectorError: action.payload.error }
+            return { ...state, fileSelectorError: action.payload.error, fileSelectorLoading: false }
         }
         case SET_DISALLOWED_PATHS: {
             return { ...state, disallowedPaths: action.payload.paths }

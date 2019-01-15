@@ -85,23 +85,27 @@ export const uploadsNotifications = (finished: number, total: number) => swal({
 export const shareSwal = () => swal({
     title: "Share",
     input: "text",
-    html: `<select id="access-select">
-                <option value="read">Can View</option>
-                <option value="read_edit">Can View and Edit</option>
-            </select>`,
+    html: `<div>
+                <input name="access" type="radio" value="read" id="read"/>
+                <label for="read">Can View</label>
+                <span style="margin-left:20px" />
+                <input name="access" type="radio" value="read_edit" id="read_edit"/>
+                <label for="read_edit">Can View and Edit</label>
+            </div>`,
     showCloseButton: true,
     showCancelButton: true,
     inputPlaceholder: "Enter username...",
     focusConfirm: false,
     inputValidator: (value: string) => {
         if (!value) return "Username missing";
-        if (!(elementValue("access-select"))) return "Select at least one access right";
+        if (!(elementValue("read") || elementValue("read_edit"))) return "Select at least one access right";
         return null;
     }
 
 });
 
-export const elementValue = (id: string): string => (document.getElementById(id) as HTMLOptionElement).value;
+export const elementValue = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
+
 
 export const inputSwal = (inputName: string) => ({
     title: "Share",
@@ -347,8 +351,8 @@ export function timestampUnixMs(): number {
 }
 
 export function humanReadableNumber(
-    number: number, 
-    sectionDelim: string = ",", 
+    number: number,
+    sectionDelim: string = ",",
     decimalDelim: string = ".",
     numDecimals: number = 2
 ): string {

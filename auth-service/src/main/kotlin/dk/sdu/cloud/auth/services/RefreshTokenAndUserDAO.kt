@@ -37,7 +37,9 @@ data class RefreshTokenAndUser(
 
     val scopes: List<SecurityScope> = listOf(SecurityScope.ALL_WRITE),
 
-    val extendedBy: String? = null
+    val extendedBy: String? = null,
+
+    val extendedByChain: List<String> = emptyList()
 )
 
 interface RefreshTokenDAO<Session> {
@@ -55,6 +57,7 @@ interface RefreshTokenDAO<Session> {
  * - V3__Session_id.sql
  * - V5__Refresh_Templates.sql
  * - V6__Refresh_Expiry.sql
+ * - V9__Extended_by_chain.sql
  */
 @Entity
 @Table(name = "refresh_tokens")
@@ -77,7 +80,10 @@ data class RefreshTokenEntity(
     @Type(type = JSONB_TYPE)
     var scopes: List<String>,
 
-    var extendedBy: String?
+    var extendedBy: String?,
+
+    @Type(type = JSONB_TYPE)
+    var extendedByChain: List<String>
 ) {
     companion object : HibernateEntity<RefreshTokenEntity>, WithId<String>
 }
@@ -109,7 +115,8 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
                 publicSessionReference = tokenAndUser.publicSessionReference,
                 expiresAfter = tokenAndUser.expiresAfter,
                 scopes = tokenAndUser.scopes.map { it.toString() },
-                extendedBy = tokenAndUser.extendedBy
+                extendedBy = tokenAndUser.extendedBy,
+                extendedByChain = tokenAndUser.extendedByChain
             )
         )
     }
@@ -135,6 +142,7 @@ fun RefreshTokenEntity.toModel(): RefreshTokenAndUser {
         publicSessionReference = publicSessionReference,
         expiresAfter = expiresAfter,
         scopes = scopes.map { SecurityScope.parseFromString(it) },
-        extendedBy = extendedBy
+        extendedBy = extendedBy,
+        extendedByChain = extendedByChain
     )
 }

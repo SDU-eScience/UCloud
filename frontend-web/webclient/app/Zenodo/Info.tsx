@@ -119,7 +119,7 @@ const FilesList = ({ files }) =>
             <Table.TableBody>
                 {files.map((file, index) =>
                     <Table.TableRow key={index}>
-                        <Table.TableCell width="75%">{replaceHomeFolder(file.dataObject, Cloud.homeFolder)}</Table.TableCell>
+                        <Table.TableCell>{replaceHomeFolder(file.dataObject, Cloud.homeFolder)}</Table.TableCell>
                         <Table.TableCell>{file.hasBeenTransmitted ? "Uploaded" : "Pending"}</Table.TableCell>
                     </Table.TableRow>
                 )}

@@ -10,7 +10,7 @@ spec:
   - host: cloud.sdu.dk
     http:
       paths:
-      - path: /api/project
+      - path: /api/projects
         backend:
           serviceName: project
           servicePort: 8080

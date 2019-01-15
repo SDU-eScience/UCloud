@@ -35,8 +35,8 @@ dependencies {
     compile 'com.google.zxing:javase:3.3.0'
 
     // Internal services
-    compile 'dk.sdu.cloud:service-common:0.23.0'
-    testCompile 'dk.sdu.cloud:service-common-test:0.23.0'
+    compile 'dk.sdu.cloud:service-common:0.23.1'
+    testCompile 'dk.sdu.cloud:service-common-test:0.23.1'
 }
 
 sduCloud.createTasksForApiJar("auth", [])

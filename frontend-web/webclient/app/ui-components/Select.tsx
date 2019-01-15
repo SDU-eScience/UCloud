@@ -1,5 +1,5 @@
 import * as React from 'react';
-import styled, { ThemeProps } from 'styled-components';
+import styled from 'styled-components';
 import { space, fontSize, themeGet } from 'styled-system';
 
 import theme from './theme';
@@ -28,6 +28,8 @@ const SelectBase = styled("select") <any>`
   }
 `;
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 SelectBase.defaultProps = {
   theme,
   fontSize: 1,
@@ -40,7 +42,7 @@ SelectBase.defaultProps = {
 const Select = styled((props: any) => (
   <Flex width={1} alignItems="center">
     <SelectBase {...props} />
-    <ClickableIcon ml={-32} name="chevronDown" color="gray" />
+    <ClickableIcon ml={-32} name="chevronDown" color="gray" size="0.7em"/>
   </Flex>
 ))``;
 

@@ -89,6 +89,7 @@ class TokenService<DBSession>(
             expiresAfter = expiresAfter,
             scopes = tokenTemplate.scopes,
             extendedBy = tokenTemplate.extendedBy,
+            extendedByChain = tokenTemplate.extendedByChain,
             refreshTokenExpiry = refreshTokenExpiry
         )
 
@@ -108,10 +109,12 @@ class TokenService<DBSession>(
         requestedBy: String,
         allowRefreshes: Boolean
     ): OptionalAuthenticationTokens {
+        log.debug("Validating token extension request")
         if (expiresIn < 0 || expiresIn > MAX_EXTENSION_TIME_IN_MS) {
             throw ExtensionException.BadRequest("Bad request (expiresIn)")
         }
 
+        log.debug("Parsing requested scopes")
         val requestedScopes = rawSecurityScopes.map {
             try {
                 SecurityScope.parseFromString(it)
@@ -123,7 +126,9 @@ class TokenService<DBSession>(
 
         // Request and scope validation (only needed for non project users)
         if (token.principal.role != Role.PROJECT_PROXY) {
+            log.debug("Checking extension allowed by service")
             val extensions = allowedServiceExtensionScopes[requestedBy] ?: emptySet()
+            log.debug("Allowed extensions: $extensions")
             val allRequestedScopesAreCoveredByPolicy = requestedScopes.all { requestedScope ->
                 extensions.any { userScope ->
                     requestedScope.isCoveredBy(userScope)
@@ -138,6 +143,7 @@ class TokenService<DBSession>(
             }
 
             // Require, additionally, that no all or special scopes are requested
+            log.debug("Checking for special scopes")
             val noSpecialScopes = requestedScopes.all {
                 it.segments.first() != SecurityScope.ALL_SCOPE &&
                         it.segments.first() != SecurityScope.SPECIAL_SCOPE
@@ -150,6 +156,7 @@ class TokenService<DBSession>(
 
         // We must ensure that the token we receive has enough permissions.
         // This is needed since we would otherwise have privilege escalation here
+        log.debug("Checking if all requested scopes are covered by our user scopes")
         val allRequestedScopesAreCoveredByUserScopes = requestedScopes.all { requestedScope ->
             token.scopes.any { userScope ->
                 requestedScope.isCoveredBy(userScope)
@@ -161,6 +168,7 @@ class TokenService<DBSession>(
         }
 
         // Find user
+        log.debug("Looking up user")
         val user = db.withTransaction {
             userDao.findByIdOrNull(it, token.principal.username)
         } ?: throw ExtensionException.InternalError("Could not find user in database")
@@ -170,10 +178,12 @@ class TokenService<DBSession>(
             scopes = requestedScopes,
             createdAt = System.currentTimeMillis(),
             expiresAt = System.currentTimeMillis() + expiresIn,
-            extendedBy = requestedBy
+            extendedBy = requestedBy,
+            extendedByChain = token.extendedByChain + listOf(requestedBy)
         )
 
         return if (allowRefreshes) {
+            log.debug("Creating token (with refreshes)")
             val result = createAndRegisterTokenFor(
                 user,
                 tokenTemplate
@@ -181,6 +191,7 @@ class TokenService<DBSession>(
 
             OptionalAuthenticationTokens(result.accessToken, result.csrfToken, result.refreshToken)
         } else {
+            log.debug(("Creating token (without refreshes)"))
             OptionalAuthenticationTokens(jwtFactory.generate(tokenTemplate), null, null)
         }
     }
@@ -225,7 +236,8 @@ class TokenService<DBSession>(
                 System.currentTimeMillis() + token.expiresAfter,
                 claimableId = null,
                 sessionReference = token.publicSessionReference,
-                extendedBy = token.extendedBy
+                extendedBy = token.extendedBy,
+                extendedByChain = token.extendedByChain
             )
         )
         return AccessTokenAndCsrf(accessToken, token.csrf)

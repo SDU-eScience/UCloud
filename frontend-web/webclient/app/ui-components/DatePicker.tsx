@@ -1,4 +1,5 @@
 import ReactDatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import styled from "styled-components";
 import { themeGet, borders, space } from "styled-system";
 import { InputProps } from "./Input";

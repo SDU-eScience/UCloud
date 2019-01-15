@@ -20,6 +20,9 @@ const BackgroundImage = styled("div")<BackgroundImageProps>`
   background-color: ${props => props.theme.colors.gray};
   ${image} ${height} ${width};
 `
+
+// FIXME A workaround not fix
+// @ts-ignore
 BackgroundImage.defaultProps = {
   theme: theme
 }

@@ -26,6 +26,8 @@ const InputGroup = styled.div<InputGroupProps>`
   }
 `;
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 InputGroup.defaultProps = {
   theme,
   borderColor: 'borderGray'

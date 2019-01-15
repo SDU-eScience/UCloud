@@ -5,17 +5,17 @@ import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, JobSchedulingOptions, MaxTime, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput } from "."
+import { RunAppProps, RunAppState, MaxTime, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput } from "."
 import { Application } from ".";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Box, Flex, Button, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
+import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter } from "./ParameterWidgets";
-import { Header } from "./Header";
 import { extractParameters } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
+import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 
 type Tool = any;
 
@@ -94,7 +94,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         });
     }
 
-    onInputChange = (parameterName, value) =>
+    onInputChange = (parameterName: string, value: string | number | object) =>
         this.setState(() => ({ parameterValues: { ...this.state.parameterValues, [parameterName]: value } }));
 
     extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
@@ -122,7 +122,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 application: app,
                 loading: false
             }));
-        }).catch(_ => this.setState(() => ({
+        }).catch(() => this.setState(() => ({
             loading: false,
             error: `An error occurred fetching ${name}`
         })));
@@ -222,6 +222,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             </ContainerForText>
         );
 
+        const requiredKeys = application.description.parameters.filter(it => !it.optional).map(it => ({ name: it.name, title: it.title }));
+        let disabled = requiredKeys.map(it => it.name).some(it => !parameterValues[it]);
+        let title: string | undefined = undefined;
+        title = `Missing input for fields ${requiredKeys.map(it => it.title).join(", ")}.`
+
         const sidebar = (
             <VerticalButtonGroup>
                 <OutlineButton
@@ -235,15 +240,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     Import parameters
                     <HiddenInputField
                         type="file"
-                        onChange={(e) => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
+                        onChange={e => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
                 </OutlineButton>
-                <LoadingButton onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>
+                <Dropdown>
+                    <LoadingButton disabled={disabled} onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>
+                    {disabled ? <DropdownContent width={"auto"} colorOnHover={false} color="white" backgroundColor="black">
+                        <Text>{title}</Text>
+                    </DropdownContent> : null}
+                </Dropdown>
             </VerticalButtonGroup>
         );
 
         return (
             <MainContainer
                 header={header}
+                headerSize={192}
                 main={main}
                 sidebar={sidebar}
             />
@@ -260,7 +271,7 @@ interface ParameterProps {
     parameters: ApplicationParameter[],
     schedulingOptions: JobSchedulingOptionsForInput,
     app: Application,
-    onChange: (name, value) => void,
+    onChange: (name: string, value: any) => void,
     onSubmit: (e: React.FormEvent) => void,
     onJobSchedulingParamsChange: (field, value, subField) => void,
 }

@@ -17,6 +17,7 @@ import List from "ui-components/List";
 import * as Heading from "ui-components/Heading"
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { FileInfoReduxObject } from "DefaultObjects";
+import { MainContainer } from "MainContainer/MainContainer";
 
 interface FileInfoOperations {
     updatePageTitle: () => void
@@ -58,25 +59,31 @@ class FileInfo extends React.Component<FileInfo> {
     render() {
         const { loading, file, activity, ...props } = this.props;
         if (loading) return (<LoadingIcon size={18} />);
-        if (!file) return <Error error={this.props.error} clearError={() => this.props.setError()} />;
+        if (!file) return <MainContainer main={<Error error={this.props.error} clearError={() => this.props.setError()} />} />;
         const fileName = replaceHomeFolder(isDirectory(file) ? addTrailingSlash(file.path) : file.path, Cloud.homeFolder);
         return (
-            <Flex alignItems="center" flexDirection="column">
-                <Box width={0.7}>
-                    <Heading.h2>{fileName}</Heading.h2>
-                    <Heading.h5 color="gray">{toLowerCaseAndCapitalize(file.fileType)}</Heading.h5>
-                    <FileView
-                        file={file}
-                        onFavorite={() => props.receiveFileStat(favoriteFile(file, Cloud))}
-                        onReclassify={async level => props.receiveFileStat(await reclassifyFile(file, level, Cloud))} />
-                    {activity.items.length ? (
-                        <Card mt="1em" mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
-                            <ActivityFeed activity={activity.items} />
-                        </Card>) : null}
-                    <ShareList byPath={file.path} />
-                    {loading ? <LoadingIcon size={18} /> : null}
-                </Box>
-            </Flex>
+            <MainContainer
+                header={
+                    <>
+                        <Heading.h2>{fileName}</Heading.h2>
+                        <Heading.h5 color="gray">{toLowerCaseAndCapitalize(file.fileType)}</Heading.h5>
+                    </>}
+                main={
+                    <>
+                        <FileView
+                            file={file}
+                            onFavorite={() => props.receiveFileStat(favoriteFile(file, Cloud))}
+                            onReclassify={async level => props.receiveFileStat(await reclassifyFile(file, level, Cloud))} />
+                        {activity.items.length ? (
+                            <Flex flexDirection="row" justifyContent="center">
+                                <Card mt="1em" maxWidth={"75%"} mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
+                                    <ActivityFeed activity={activity.items} />
+                                </Card>
+                            </Flex>) : null}
+                        <ShareList byPath={file.path} />
+                        {loading ? <LoadingIcon size={18} /> : null}
+                    </>}
+            />
         );
     };
 }
@@ -119,7 +126,7 @@ const FileView = ({ file, onFavorite, onReclassify }: FileViewProps) =>
                     <ClickableDropdown
                         chevron
                         trigger={SensitivityLevel[file.sensitivityLevel]}
-                        onChange={(e) => onReclassify(e as SensitivityLevelMap)}
+                        onChange={e => onReclassify(e as SensitivityLevelMap)}
                         options={
                             Object.keys(SensitivityLevel).map(key => ({
                                 text: SensitivityLevel[key],
@@ -150,4 +157,4 @@ const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
     receiveFileStat: file => dispatch(receiveFileStat(file))
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(FileInfo);
+export default connect<FileInfoReduxObject, FileInfoOperations>(mapStateToProps, mapDispatchToProps)(FileInfo);

@@ -24,6 +24,10 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.assertStatus
+import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.service.tokenValidation
 import io.ktor.http.ContentType
@@ -132,15 +136,16 @@ class SAMLTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/auth/saml/metadata") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                        }.response
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/auth/saml/metadata",
+                            user = TestUsers.admin
+                        )
 
-                    assertEquals(HttpStatusCode.OK, response.status())
-                    assertEquals(metadataString, response.content)
+                    request.assertSuccess()
+                    assertEquals(metadataString, request.response.content)
                 }
             }
         )
@@ -173,17 +178,17 @@ class SAMLTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/auth/saml/login?service=_service") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                        }.response
-
-                    assertEquals(HttpStatusCode.Found, response.status())
-                    assertTrue(response.headers.values("Location").toString().contains("https://ThisURLForSSO.com"))
-                    assertTrue(response.headers.values("Location").toString().contains("SAMLRequest"))
-                    assertTrue(response.headers.values("Location").toString().contains("RelayState"))
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Get,
+                            path =  "/auth/saml/login?service=_service",
+                            user = TestUsers.admin
+                        )
+                    request.assertStatus(HttpStatusCode.Found)
+                    assertTrue(request.response.headers.values("Location").toString().contains("https://ThisURLForSSO.com"))
+                    assertTrue(request.response.headers.values("Location").toString().contains("SAMLRequest"))
+                    assertTrue(request.response.headers.values("Location").toString().contains("RelayState"))
                 }
             }
         )
@@ -196,15 +201,16 @@ class SAMLTest {
                 createSamlController().controllers
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/auth/saml/login") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                        }.response
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/auth/saml/login",
+                            user = TestUsers.admin
+                        )
 
-                    assertEquals(HttpStatusCode.Found, response.status())
-                    val result = response.headers.values("Location").toString().trim('[', ']')
+                    request.assertStatus(HttpStatusCode.Found)
+                    val result = request.response.headers.values("Location").toString().trim('[', ']')
                     assertEquals("/auth/login", result)
                 }
             }
@@ -219,17 +225,19 @@ class SAMLTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/saml/acs") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                            setUser(role = Role.ADMIN)
-                            setBody("RelayState=Flimflam")
-                        }.response
-
-                    assertEquals(HttpStatusCode.Found, response.status())
-                    val result = response.headers.values("Location").toString().trim('[', ']')
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Post,
+                            path =  "/auth/saml/acs",
+                            user = TestUsers.admin,
+                            configure = {
+                                addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+                                setBody("RelayState=Flimflam")
+                            }
+                        )
+                    request.assertStatus(HttpStatusCode.Found)
+                    val result = request.response.headers.values("Location").toString().trim('[', ']')
                     assertEquals("/auth/login", result)
                 }
             }
@@ -262,19 +270,22 @@ class SAMLTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/saml/acs") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                            setBody(
-                                "RelayState=http://thisIsAWebSite.com/auth/saml/login?service=_service" +
-                                        "&" +
-                                        "SAMLResponse=$samlResponse"
-                            )
-                        }.response
-
-                    assertEquals(HttpStatusCode.OK, response.status())
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Post,
+                            path = "/auth/saml/acs",
+                            user = null,
+                            configure = {
+                                addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+                                setBody(
+                                    "RelayState=http://thisIsAWebSite.com/auth/saml/login?service=_service" +
+                                            "&" +
+                                            "SAMLResponse=$samlResponse"
+                                )
+                            }
+                        )
+                    request.assertSuccess()
                 }
             }
         )
@@ -296,21 +307,22 @@ class SAMLTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/saml/acs") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                "RelayState=http://thisIsAWebSite.com/auth/saml/login?service=_service" +
-                                        "&" +
-                                        "SAMLResponse=$samlResponse"
-                            )
-                        }.response
-
-                    assertEquals(HttpStatusCode.Unauthorized, response.status())
-
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Post,
+                            path = "/auth/saml/acs",
+                            user = TestUsers.admin,
+                            configure = {
+                                addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+                                setBody(
+                                    "RelayState=http://thisIsAWebSite.com/auth/saml/login?service=_service" +
+                                            "&" +
+                                            "SAMLResponse=$samlResponse"
+                                )
+                            }
+                        )
+                    request.assertStatus(HttpStatusCode.Unauthorized)
                 }
             }
         )
@@ -332,20 +344,22 @@ class SAMLTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/saml/acs") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
-                            setUser(role = Role.ADMIN)
-                            setBody(
-                                "RelayState=http://thisIsAWebSite.com/auth/saml/login?service=_service" +
-                                        "&" +
-                                        "SAMLResponse=$samlResponse"
-                            )
-                        }.response
-
-                    assertEquals(HttpStatusCode.Unauthorized, response.status())
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Post,
+                            path =  "/auth/saml/acs",
+                            user = TestUsers.admin,
+                            configure = {
+                                addHeader(HttpHeaders.ContentType, ContentType.Application.FormUrlEncoded.toString())
+                                setBody(
+                                    "RelayState=http://thisIsAWebSite.com/auth/saml/login?service=_service" +
+                                            "&" +
+                                            "SAMLResponse=$samlResponse"
+                                )
+                            }
+                        )
+                    request.assertStatus(HttpStatusCode.Unauthorized)
                 }
             }
         )
@@ -359,15 +373,18 @@ class SAMLTest {
             },
 
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/auth/saml/acs") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser(role = Role.ADMIN)
-                            setBody("null")
-                        }.response
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Post,
+                            path = "/auth/saml/acs",
+                            user = TestUsers.admin,
+                            configure = {
+                                setBody("null")
+                            }
+                        )
 
-                    assertEquals(HttpStatusCode.BadRequest, response.status())
+                    request.assertStatus(HttpStatusCode.BadRequest)
                 }
             }
         )

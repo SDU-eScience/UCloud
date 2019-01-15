@@ -214,7 +214,9 @@ class ZenodoTest {
                                 TokenValidationMock.createTokenForUser(
                                     "user",
                                     Role.USER
-                                )
+                                ),
+                                null,
+                                null
                             )
                         )
                     }
@@ -284,7 +286,9 @@ class ZenodoTest {
                                 TokenValidationMock.createTokenForUser(
                                     "user",
                                     Role.USER
-                                )
+                                ),
+                                null,
+                                null
                             )
                         )
                     }

@@ -70,6 +70,10 @@ import java.net.MalformedURLException
 import java.net.URL
 import kotlin.collections.set
 
+// TODO FIXME Move the DAOs out of here and into services
+// TODO FIXME Move the trustedOrigins out of here
+// TODO FIXME Move WAYF into its own controller
+// TODO FIXME Split this into multiple controllers
 class CoreAuthController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val ottDao: OneTimeTokenDAO<DBSession>,
@@ -327,11 +331,13 @@ class CoreAuthController<DBSession>(
 
             audit(auditMessage)
 
+            log.debug("Validating input token")
             val token = tokenValidation.validateOrNull(req.validJWT)?.toSecurityToken() ?: return@implement error(
                 CommonErrorMessage("Unauthorized"),
                 HttpStatusCode.Unauthorized
             )
 
+            log.debug("Validating extender role versus input token")
             if (token.principal.role != Role.PROJECT_PROXY && call.securityPrincipal.role !in Roles.PRIVILEDGED) {
                 error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
                 return@implement
@@ -339,6 +345,7 @@ class CoreAuthController<DBSession>(
 
             audit(auditMessage.copy(username = token.principal.username, role = token.principal.role))
 
+            log.debug("Extension is OK to proceed")
             ok(
                 tokenService.extendToken(
                     token,

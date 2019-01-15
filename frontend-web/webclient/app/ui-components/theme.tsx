@@ -1,4 +1,5 @@
-const createMediaQuery = (n: string | number) => `@media screen and (min-width:${n})`
+const createMinMediaQuery = (n: number) => `@media screen and (min-width:${n}px)`
+const createMaxMediaQuery = (n: number) => `@media screen and (max-width:${n-1}px)`
 
 const addAliases = (arr: any, aliases: any[]) =>
   aliases.forEach((key, i) =>
@@ -10,14 +11,18 @@ const addAliases = (arr: any, aliases: any[]) =>
     })
   )
 
-export const breakpoints = [32, 40, 48, 64].map(n => n + 'em');
+// export const breakpoints = [32, 40, 48, 64, 80].map(n => n + 'em')
+const bp = [512, 640, 768, 1024, 1280]
+const aliases = ['xs', 'sm', 'md', 'lg', 'xl']
+export const breakpoints = bp.map(n => n + 'px')
+export const responsiveBP = bp.map((n,i) => ({[aliases[i]]: n-1})).reduce((obj, item) => ({...obj, ...item}) ,{})
+//export const responsiveBP = { xs: 512-1, sm: 640-1, md: 768-1, lg: 1024-1, xl: 1280-1 } 
 
-export const mediaQueries = breakpoints.map(createMediaQuery)
-
-const aliases = ['sm', 'md', 'lg', 'xl']
-
+export const mediaQueryGT = bp.map(createMinMediaQuery)
+export const mediaQueryLT = bp.map(createMaxMediaQuery)
 addAliases(breakpoints, aliases)
-addAliases(mediaQueries, aliases)
+addAliases(mediaQueryGT, aliases)
+addAliases(mediaQueryLT, aliases)
 
 export const space = [0, 4, 8, 16, 32, 64, 128]
 
@@ -25,9 +30,9 @@ export const fontFamily = `'IBM Plex Sans', sans-serif`
 
 export const fontSizes = [10, 14, 16, 20, 24, 32, 40, 56, 72]
 
-export const medium = 300
-export const bold = 700
-export const regular = 400
+export const medium = 300;
+export const bold = 700;
+export const regular = 400;
 
 // styled-system's `fontWeight` function can hook into the `fontWeights` object
 export const fontWeights = {
@@ -124,7 +129,8 @@ const darkGray = "#53657d";
 //// Blue
 const lightBlue = "#f0f6ff";
 const lightBlue2 = "#cdf";
-const blue = "#0055d5";
+const blue = "#0055d5"; 
+// const blue = "#007bff"; 
 const darkBlue = "#049";
 //// Green
 const lightGreen = "#00ff77";
@@ -140,6 +146,25 @@ const darkOrange = "#a50";
 //// Purple
 const lightPurple = "#ecf";
 const purple = "#70b"; // secondary
+
+// Colors in the array come in 3 shades: light, medium , dark
+// last color is for logo centers only
+const appColors = [
+  //["#0096ff", "#043eff"], // blue
+  ["#F7D06A", "#E98C33", "#C46927"], // gold
+  ["#EC6F8E", "#C75480", "#AA2457"], // salmon
+  ["#B8D1E3", "#7C8DB3", "#5B698C"], // silver
+  ["#83D8F9", "#3F80F6", "#2951BE"], // blue
+  ["#AE83CF", "#9065D1", "#68449E"], // violet
+  ["#E392CC", "#E2689D", "#B33B6D"], // pink
+  ["#ECB08C", "#EA7B4B", "#BC4F33"], // bronze
+  ["#90DCA1", "#69C97D", "#4D9161"], // green
+  ["#F3B576", "#B77D50", "#7C4C3C"], // brown
+  ["#D57AC5", "#E439C9", "#A1328F"], // purple
+  ["#98E0F9", "#53A5F5", "#3E79C0"], // lightblue
+  ["#DC6AA6", "#C62A5A", "#AA2457"], // red
+  ["#C9D3DF", "#8393A7", "#53657D"], // gray colors from the theme
+];
 
 // Color Themes
 // should use colors from the palette above
@@ -314,16 +339,19 @@ export const radius = '5px'
 
 export const maxContainerWidth = '1280px'
 
-// boxShadows
-export const boxShadows = [
+// boxShadows: styled-systems hooks into shadows
+export const shadows = [
   `0 0 2px 0 rgba(0,0,0,.08),0 1px 4px 0 rgba(0,0,0,.16)`,
   `0 0 2px 0 rgba(0,0,0,.08),0 2px 8px 0 rgba(0,0,0,.16)`,
   `0 0 2px 0 rgba(0,0,0,.08),0 4px 16px 0 rgba(0,0,0,.16)`,
   `0 0 2px 0 rgba(0,0,0,.08),0 8px 32px 0 rgba(0,0,0,.16)`
 ]
+const BoxShadowsAliases = ['sm', 'md', 'lg', 'xl'];
+addAliases(shadows, BoxShadowsAliases);
 
 // animation duration
 export const duration = {
+  fastest: `100ms`,
   fast: `150ms`,
   normal: `300ms`,
   slow: `450ms`,
@@ -334,15 +362,26 @@ export const duration = {
 const easeInOut = 'cubic-bezier(0.5, 0, 0.25, 1)'
 const easeOut = 'cubic-bezier(0, 0, 0.25, 1)'
 const easeIn = 'cubic-bezier(0.5, 0, 1, 1)'
+const easeInQuint = 'cubic-bezier(0.755, 0.05, 0.855, 0.06)' //This is a steep easeIn curve
+const easeInQuintR = `cubic-bezier(${1-0.855}, ${1-0.06}, ${1-0.755}, ${1-0.05})` //This is a steep easeIn curve
+const easeOutQuint = 'cubic-bezier(0.23, 1, 0.32, 1)'
+const stepStart = 'step-start'
+const stepEnd = 'step-end'
 
 const timingFunctions = {
   easeInOut,
   easeOut,
-  easeIn
+  easeIn,
+  easeInQuint,
+  easeInQuintR,
+  easeOutQuint,
+  stepStart,
+  stepEnd,
 }
 
 // animation delay
 const transitionDelays = {
+  xsmall: `40ms`,
   small: `60ms`,
   medium: `160ms`,
   large: `260ms`,
@@ -351,7 +390,8 @@ const transitionDelays = {
 
 const theme = {
   breakpoints,
-  mediaQueries,
+  mediaQueryGT,
+  mediaQueryLT,
   space,
   fontFamily,
   fontSizes,
@@ -363,9 +403,10 @@ const theme = {
   textStyles,
   colors,
   colorStyles,
+  appColors,
   radii,
   radius,
-  boxShadows,
+  shadows,
   maxContainerWidth,
   duration,
   timingFunctions,

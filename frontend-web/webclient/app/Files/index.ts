@@ -4,7 +4,7 @@ import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
 import { IconName } from "ui-components/Icon";
-import { ComponentWithPage } from "DefaultObjects";
+import { ComponentWithPage, ResponsiveReduxObject } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 import { RouterLocationProps } from "Utilities/URIUtilities";
 import { ThemeColor } from "ui-components/theme";
@@ -50,7 +50,7 @@ export enum SortBy {
     SENSITIVITY = "SENSITIVITY"
 }
 
-export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps {}
+export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps { }
 
 export interface MockedTableProps {
     onCreateFolder: (a: number, c: number) => void
@@ -77,6 +77,7 @@ export interface FilesStateProps { // Redux Props
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
     invalidPath: boolean
+    responsiveState?: ResponsiveReduxObject
 }
 
 export interface FilesOperations { // Redux operations
@@ -102,12 +103,12 @@ export interface FilesOperations { // Redux operations
 
 export interface FileSelectorProps {
     allowUpload?: boolean
-    onFileSelect: Function
+    onFileSelect: (file: { path: string }) => void
     path: string
     isRequired?: boolean
     canSelectFolders?: boolean
     onlyAllowFolders?: boolean
-    remove?: Function
+    remove?: () => void
 }
 
 export interface FileSelectorState {
@@ -124,7 +125,7 @@ export interface FilesTableProps {
     onNavigationClick?: (path: string) => void
     sortOrder: SortOrder
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
-    sortingColumns: [SortBy?, SortBy?]
+    sortingColumns: SortBy[]
     files: File[]
     masterCheckbox?: React.ReactNode
     sortingIcon?: (name: SortBy) => "arrowUp" | "arrowDown" | undefined
@@ -137,6 +138,7 @@ export interface FilesTableProps {
     onFavoriteFile?: (f: File[]) => void
     fileOperations: FileOperation[]
     customEntriesPerPage?: React.ReactNode
+    notStickyHeader?: boolean
 }
 
 export interface CreateFolderProps {
@@ -150,9 +152,12 @@ export interface FilesTableHeaderProps {
     sortOrder: SortOrder
     sortBy: SortBy
     masterCheckbox?: React.ReactNode
-    sortingColumns: [SortBy?, SortBy?]
+    sortingColumns: SortBy[]
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
     customEntriesPerPage?: React.ReactNode
+    customEntriesWidth?: string
+    notStickyHeader?: boolean
+    children: React.ReactNode
 }
 
 export interface FilenameAndIconsProps {
@@ -227,7 +232,7 @@ export interface MobileButtonsProps {
 }
 
 export type PredicatedOperation = { predicate: (files: File[], cloud: Cloud) => boolean, onTrue: Operation, onFalse: Operation }
-export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon?: IconName, color?: ThemeColor }
+export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) => void, disabled: (files: File[], cloud: Cloud) => boolean, icon?: string, color?: string }
 export type FileOperation = Operation | PredicatedOperation
 
 export interface ContextButtonsProps {
@@ -277,7 +282,11 @@ export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalid
 
 export type PossibleTime = "createdBefore" | "createdAfter" | "modifiedBefore" | "modifiedAfter";
 
-export interface ResponsiveTableColumnProps extends SortByDropdownProps { iconName?: "arrowUp" | "arrowDown", minWidth?: number }
+export interface ResponsiveTableColumnProps extends SortByDropdownProps {
+    iconName?: "arrowUp" | "arrowDown"
+    minWidth?: number
+    notSticky?: boolean
+}
 
 export interface FileInfoState {
     activity: Page<Activity>

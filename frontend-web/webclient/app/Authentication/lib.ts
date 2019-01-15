@@ -223,7 +223,7 @@ export default class SDUCloud {
     /**
      * @returns the username of the authenticated user or null
      */
-    get username() {
+    get username(): string | null {
         let info = this.userInfo;
         if (info) return info.sub;
         else return null
@@ -294,7 +294,7 @@ export default class SDUCloud {
         return tokenPromise;
     }
 
-    createOneTimeTokenWithPermission(permission) {
+    createOneTimeTokenWithPermission(permission): Promise<any> {
         return this.receiveAccessTokenOrRefreshIt()
             .then((token) => {
                 let oneTimeToken = `${this.context}${this.authContext}/request/?audience=${permission}`;

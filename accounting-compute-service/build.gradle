@@ -9,7 +9,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 dependencies {
     compile 'dk.sdu.cloud:service-common:0.23.1'
     compile "dk.sdu.cloud:app-api:0.11.9-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.12.0-SNAPSHOT"
+    compile "dk.sdu.cloud:auth-api:1.14.0"
     compile "dk.sdu.cloud:accounting-api:0.3.5"
     testCompile 'dk.sdu.cloud:service-common-test:0.23.1'
 }
@@ -17,6 +17,6 @@ dependencies {
 sduCloud.createTasksForApiJar(
         "accounting.compute",
         [
-                "dk.sdu.cloud:accounting-api:0.3.5"
+                "dk.sdu.cloud:accounting-api:0.4.0"
         ]
 )

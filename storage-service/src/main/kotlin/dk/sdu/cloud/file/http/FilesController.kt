@@ -10,7 +10,10 @@ import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.services.ACLService
+import dk.sdu.cloud.file.services.BackgroundScope
+import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSACLEntity
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
@@ -38,6 +41,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import kotlinx.coroutines.io.writeStringUtf8
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
 // TODO Split this into multiple controllers
@@ -367,6 +371,43 @@ class FilesController<Ctx : FSUserContext>(
 
                 sensitivityService.setSensitivityLevel(ctx, req.path, req.sensitivity, user)
             }
+            ok(Unit)
+        }
+
+        implement(FileDescriptions.extract) { req ->
+            audit(SingleFileAudit(null, req))
+            val user = call.securityPrincipal.username
+            tryWithFS(commandRunnerFactory, user) { ctx ->
+                val fileID = fileLookupService.stat(ctx, req.path).fileId
+                audit(SingleFileAudit(fileID, req))
+            }
+
+            val uploader = when {
+                req.path.endsWith(".tar.gz") -> BulkUploader.fromFormat("tgz", commandRunnerFactory.type)
+                req.path.endsWith(".zip") -> BulkUploader.fromFormat("zip", commandRunnerFactory.type)
+                else -> null
+            } ?: return@implement error(
+                CommonErrorMessage("Unsupported format"),
+                HttpStatusCode.BadRequest
+            )
+
+            BackgroundScope.launch {
+                commandRunnerFactory.withContext(user) { readContext ->
+                    coreFs.read(readContext, req.path) {
+                        val fileInputStream = this
+
+                        uploader.upload(
+                            coreFs,
+                            { commandRunnerFactory(user) },
+                            req.path.parent(),
+                            WriteConflictPolicy.RENAME,
+                            fileInputStream
+                        )
+                    }
+
+                }
+            }
+
             ok(Unit)
         }
 

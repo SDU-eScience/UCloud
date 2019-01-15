@@ -1,5 +1,4 @@
 export { default as List } from "./List";
-import { Store } from "redux";
 import { AccessRightValues } from "Types";
 import PromiseKeeper from "PromiseKeeper";
 
@@ -14,12 +13,8 @@ export interface ListState {
 }
 
 export interface ListProps {
-    keepTitle?: boolean
+    notInnerComponent?: boolean
     byPath?: string
-}
-
-export interface ListContext {
-    store: Store
 }
 
 export interface Share {
@@ -27,6 +22,7 @@ export interface Share {
     sharedWith: String,
     rights: AccessRightValues[],
     state: ShareStateValues
+    pendingRightChanges?: Set<AccessRightValues>
 }
 
 // FIXME Singular instead of plural?
@@ -39,8 +35,8 @@ export enum ShareState {
 
 export type ShareId = string
 export interface SharesByPath {
-    path: string,
-    sharedBy: string,
-    sharedByMe: boolean,
+    path: string
+    sharedBy: string
+    sharedByMe: boolean
     shares: Share[]
 }

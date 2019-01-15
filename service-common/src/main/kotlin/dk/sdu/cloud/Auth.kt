@@ -47,7 +47,17 @@ enum class Role {
      *
      * These can be created for OAuth or similar purposes.
      */
-    THIRD_PARTY_APP
+    THIRD_PARTY_APP,
+
+    /**
+     * The user role is unknown.
+     *
+     * If the action is somewhat low-sensitivity it should be fairly safe to assume [USER]/[THIRD_PARTY_APP]
+     * privileges. This means no special privileges should be granted to the user.
+     *
+     * This will only happen if we are sent a token of a newer version that what we can parse.
+     */
+    UNKNOWN
 }
 
 object Roles {
@@ -123,7 +133,17 @@ data class SecurityPrincipalToken(
     /**
      * The username of the principal extending this token
      */
-    val extendedBy: String? = null
+    val extendedBy: String? = null,
+
+    /**
+     * The chain of all token extensions.
+     *
+     * They are ordered from the first extension to the last extension. The extension chain will always include
+     * [extendedBy] as the last element.
+     *
+     * An empty list implies that [extendedBy] is null.
+     */
+    val extendedByChain: List<String> = emptyList()
 
     // NOTE: DO NOT ADD SENSITIVE DATA TO THIS CLASS (INCLUDING JWT)
     // IT IS USED IN THE AUDIT SYSTEM

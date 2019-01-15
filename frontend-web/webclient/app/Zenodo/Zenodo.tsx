@@ -8,13 +8,14 @@ import { SET_ZENODO_ERROR } from "./Redux/ZenodoReducer";
 import { connect } from "react-redux";
 import { dateToString } from "Utilities/DateUtilities";
 import { List } from "Pagination/List";
-import { ZenodoHomeProps, ZenodoHomeState, ZenodoOperations } from ".";
+import { ZenodoHomeProps, ZenodoHomeState, ZenodoOperations, ZenodoHomeStateProps } from ".";
 import { Dispatch } from "redux";
 import { OutlineButton } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { MainContainer } from "MainContainer/MainContainer";
 import Table, { TableHeaderCell, TableRow, TableCell, TableBody, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import { ReduxObject } from "DefaultObjects";
 
 class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
     constructor(props) {
@@ -113,5 +114,5 @@ const mapDispatchToProps = (dispatch: Dispatch): ZenodoOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Zenodo Overview"))
 });
 
-const mapStateToProps = (state) => state.zenodo;
+const mapStateToProps = (state: ReduxObject): ZenodoHomeStateProps => state.zenodo;
 export default connect(mapStateToProps, mapDispatchToProps)(ZenodoHome);

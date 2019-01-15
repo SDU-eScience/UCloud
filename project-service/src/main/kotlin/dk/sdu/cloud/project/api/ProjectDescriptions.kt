@@ -6,6 +6,8 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
 import io.ktor.http.HttpMethod
 
 data class CreateProjectRequest(
@@ -32,6 +34,14 @@ typealias DeleteMemberResponse = Unit
 
 data class ChangeUserRoleRequest(val projectId: String, val member: String, val newRole: ProjectRole)
 typealias ChangeUserRoleResponse = Unit
+
+/**
+ * A project summary from a user's perspective
+ */
+data class UserProjectSummary(val id: String, val title: String, val whoami: ProjectMember)
+
+typealias ListProjectsRequest = PaginationRequest
+typealias ListProjectsResponse = Page<UserProjectSummary>
 
 object ProjectDescriptions : RESTDescriptions("project") {
     val baseContext = "/api/projects"
@@ -149,5 +159,24 @@ object ProjectDescriptions : RESTDescriptions("project") {
         }
 
         body { bindEntireRequestFromBody() }
+    }
+
+    val listProjects = callDescription<ListProjectsRequest, ListProjectsResponse, CommonErrorMessage> {
+        name = "listProjects"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"list"
+        }
+
+        params {
+            +boundTo(ListProjectsRequest::itemsPerPage)
+            +boundTo(ListProjectsRequest::page)
+        }
     }
 }
