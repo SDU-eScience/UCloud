@@ -18,7 +18,6 @@ import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 import { Dispatch } from "redux";
 import { FileIcon } from "UtilityComponents";
-import { withRouter } from "react-router";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -54,16 +53,15 @@ function calculateSpeed(upload: Upload): number {
     return (bytesTransferred / timespan) * 1000;
 }
 
-type UploaderState = { foo: "bar" }
-
-class Uploader extends React.Component<UploaderProps, UploaderState> {
+class Uploader extends React.Component<UploaderProps> {
     constructor(props) {
         super(props);
     }
 
     onFilesAdded = (files: File[]) => {
         if (files.some(it => it.size === 0)) infoNotification("It is not possible to upload empty files.");
-        const filteredFiles = files.filter(it => it.size > 0).map(it => newUpload(it));
+        if (files.some(it => it.name.length < 1025)) infoNotification("Filenames can't exceed a length of 1024 characters.");
+        const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it));
         if (filteredFiles.length == 0) return;
         if (this.props.allowMultiple !== false) { // true if no value
             this.props.setUploads(this.props.uploads.concat(filteredFiles))

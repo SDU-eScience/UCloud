@@ -191,7 +191,8 @@ export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHo
     </VerticalButtonGroup>
 );
 
-const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
+interface PredicatedCheckbox { predicate: boolean, checked: boolean, onClick: (e: any) => void }
+const PredicatedCheckbox = ({ predicate, checked, onClick }: PredicatedCheckbox) => predicate ? (
     <Box><Label><Checkbox checked={checked} onClick={onClick} onChange={e => e.stopPropagation()} /></Label></Box>
 ) : null;
 
@@ -220,7 +221,7 @@ const FileLink = ({ file, children }: { file: File, children: any }) => {
 
 function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile, ...props }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
-    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} />
+    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={!!file.isChecked} onClick={e => onCheckFile(e.target.checked)} />
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     const cursor = isDirectory(file) && !file.path.endsWith("/.") ? "pointer" : undefined;
     const icon = (
@@ -238,6 +239,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             defaultValue={getFilenameFromPath(file.path)}
             p="0"
             noBorder
+            maxLength={1024}
             borderRadius="0px"
             type="text"
             width="100%"
