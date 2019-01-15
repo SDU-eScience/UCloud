@@ -11,6 +11,7 @@ import styled from "styled-components";
 import { Dispatch } from "redux";
 import { fetchProjectMembers, setError } from "./Redux/ManagementActions";
 import { ReduxObject } from "DefaultObjects";
+import { TextSpan } from "ui-components/Text";
 
 enum ProjectRole {
     PI = "PI",
@@ -67,21 +68,25 @@ interface Admins { members: string[], title: string, except: string, setRole: (r
 const MemberList = ({ members, setRole, title, except }: Admins) => (
     <Box mb="1.5em">
         <Heading.h3>{title}</Heading.h3>
-        {members.map(it => (<Spacer
-            left={<>
-                <UserAvatar avatar={defaultAvatar} />
-                {it}
-            </>}
-            right={<Flex>
-                {/* Check if member role is equal to select, if so, render button  */}
-                <MemberSelect>
-                    {Object.keys(ProjectRole).filter(it => it !== "PI").map(r =>
-                        except !== r ? <option onClick={() => setRole(r)}>{prettierString(r)}</option> : null
-                    )}
-                </MemberSelect>
-                <Button ml="30px" color="red">Remove</Button>
-            </Flex>}
-        />))}
+        {members.map(it => (
+            <>
+                <Box mb="5px" />
+                <Spacer
+                    left={<>
+                        <UserAvatar avatar={defaultAvatar} />
+                        <TextSpan>{it}</TextSpan>
+                    </>}
+                    right={<Flex>
+                        <MemberSelect>
+                            {Object.keys(ProjectRole).filter(it => it !== "PI").map(r =>
+                                except !== r ? <option onClick={() => setRole(r)}>{prettierString(r)}</option> : null
+                            )}
+                        </MemberSelect>
+                        <Button onClick={() => successNotification("Wouldn't it be great if this button worked?")} color="green" ml="30px" mr="10px">Update</Button>
+                        <Button onClick={() => successNotification("Wouldn't it be great if this button worked?")} color="red">Remove</Button>
+                    </Flex>}
+                />
+            </>))}
     </Box>);
 
 
