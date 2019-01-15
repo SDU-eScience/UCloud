@@ -12,6 +12,7 @@ import { Dispatch } from "redux";
 import { fetchProjectMembers, setError } from "./Redux/ManagementActions";
 import { ReduxObject } from "DefaultObjects";
 import { TextSpan } from "ui-components/Text";
+import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
 
 enum ProjectRole {
     PI = "PI",
@@ -34,9 +35,10 @@ class Management extends React.Component<ManagementOperations, {
             datastewards: ["Foo", "Bar"],
             users: ["Foo", "Bar"]
         };
-        console.log((this.props as any).location)
-        this.props.fetchProjectMembers("17");
+        this.props.fetchProjectMembers(this.projectId(props));
     }
+
+    private projectId = (props: RouterLocationProps): string => getQueryParamOrElse(props, "projectId", "");
 
     render() {
         const { ...state } = this.state;
