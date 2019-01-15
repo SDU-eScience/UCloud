@@ -10,6 +10,7 @@ import files from "Files/Redux/FilesReducer";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
 import * as UploaderActions from "Uploader/Redux/UploaderActions";
+import "jest-styled-components";
 
 
 // configure({ adapter: new Adapter() });

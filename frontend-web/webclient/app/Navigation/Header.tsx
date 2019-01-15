@@ -23,6 +23,7 @@ import { SelectableText, SearchOptions } from "Search/Search";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import { prettierString } from "UtilityFunctions";
 import { defaultAvatar, AvatarType } from "UserSettings/Avataaar";
+import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 
 interface HeaderState {
     searchText: string
@@ -37,6 +38,7 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
             searchType: "files"
         };
         props.fetchLoginStatus();
+        props.fetchAvatar();
     }
 
     public render() {
@@ -71,7 +73,7 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
                     </Box>
                     <Flex ml="-17px" mr="-17px" pl="15px">
                         <Link to={"/users/avatar"}>
-                            <Icon name="chevron" mr="0.5em" my="0.2em" size="1.3em" />
+                            <Icon name="edit" mr="0.5em" my="0.2em" size="1.3em" />
                             Edit Avatar
                         </Link>
                     </Flex>
@@ -183,7 +185,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSe
                 <SearchOptions>
                     <Box ml="auto" />
                     {searchTypes.map(it =>
-                        <SelectableText onClick={() => setSearchType(it)} mr="1em" selected={it === searchType}>
+                        <SelectableText key={it} onClick={() => setSearchType(it)} mr="1em" selected={it === searchType}>
                             {prettierString(it)}
                         </SelectableText>
                     )}
@@ -204,25 +206,25 @@ const ClippedBox = styled(Flex)`
     height: 48px;
 `;
 
-const UserAvatar = ({ avatar }: { avatar: AvatarType }) => (
+interface UserAvatar { avatar: AvatarType }
+export const UserAvatar = ({ avatar }: UserAvatar) => (
     <ClippedBox mx="8px" width="60px">
         <Avatar
             /* pieceType
             pieceSize */
-
             avatarStyle="Circle"
             topType={avatar.top}
-            accessoriesType={avatar.accessories}
+            accessoriesType={avatar.topAccessory}
             hairColor={avatar.hairColor}
             facialHairType={avatar.facialHair}
             facialHairColor={avatar.facialHairColor}
             clotheType={avatar.clothes}
-            clotheColor={avatar.clothesFabric}
-            graphicType={avatar.clothesGraphic}  
+            clotheColor={avatar.colorFabric}
+            graphicType={avatar.clothesGraphic}
             eyeType={avatar.eyes}
-            eyebrowType={avatar.eyebrow}
-            mouthType={avatar.mouth}
-            skinColor={avatar.skin}
+            eyebrowType={avatar.eyebrows}
+            mouthType={avatar.mouthTypes}
+            skinColor={avatar.skinColors}
         />
     </ClippedBox>
 );
@@ -230,12 +232,14 @@ const UserAvatar = ({ avatar }: { avatar: AvatarType }) => (
 interface HeaderOperations {
     setSidebarOpen: (open: boolean) => void
     fetchLoginStatus: () => void
+    fetchAvatar: () => void
     searchFiles: (fileName: string) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     setSidebarOpen: open => dispatch(setSidebarState(open)),
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
+    fetchAvatar: async () => dispatch(await findAvatar()),
     searchFiles: async fileName => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] }))
 });
 
@@ -245,4 +249,4 @@ const mapStateToProps = ({ sidebar, header, avatar }: ReduxObject): HeaderStateT
     avatar
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(withRouter(Header));
+export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));

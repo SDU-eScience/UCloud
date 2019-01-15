@@ -98,7 +98,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
             after: !!this.props.modifiedAfter ? this.props.modifiedAfter.valueOf() : undefined,
             before: !!this.props.modifiedBefore ? this.props.modifiedBefore.valueOf() : undefined,
         };
-        const fileName = this.props.externalFileName || this.props.fileName;
+        const fileName = this.props.fileName;
         const request: AdvancedSearchRequest = {
             fileName,
             extensions: [...this.props.extensions],
@@ -113,7 +113,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
     }
 
     render() {
-        const { hidden, cantHide, externalFileName } = this.props;
+        const { hidden, cantHide } = this.props;
         if (hidden && !cantHide) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
         const { sensitivities, extensions, allowFiles, allowFolders } = this.props;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));

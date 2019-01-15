@@ -61,4 +61,4 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
-    app: {{ serviceName }}-service
+    app: {{ serviceName }}

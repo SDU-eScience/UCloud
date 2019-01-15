@@ -79,6 +79,15 @@ const hasAccess = (accessRight: AccessRight, file: File) => {
 export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) =>
     files.every(f => hasAccess(accessRight, f));
 
+export const createFileLink = (file: File, cloud: SDUCloud, pageFromPath: (p: string) => void) => {
+    const fileName = getFilenameFromPath(file.path);
+    const linkPath = file.path.replace(fileName, `Link to ${fileName}`)
+    cloud.post("/files/create-link", {
+        linkTargetPath: file.path,
+        linkPath: linkPath
+    }).then(it => pageFromPath(linkPath)).catch(it => UF.failureNotification("An error occurred creating link."));
+};
+
 /**
  * @returns Share and Download operations for files
  */
@@ -98,6 +107,14 @@ export const StateLessOperations = (): Operation[] => [
         color: undefined
     }
 ];
+
+export const CreateLinkOperation = (fetchPageFromPath: (p: string) => void) => [{
+    text: "Create link",
+    onClick: (files: File[], cloud: SDUCloud) => createFileLink(files[0], cloud, fetchPageFromPath),
+    disabled: (files: File[], cloud: SDUCloud) => files.length > 1,
+    icon: "link",
+    color: undefined
+}]
 
 /**
  * @returns Move and Copy operations for files
@@ -130,8 +147,8 @@ export const ExtractionOperation = (onFinished: () => void): Operation[] => [
     {
         text: "Extract archive",
         onClick: (files, cloud) => extractArchive(files, cloud, onFinished),
-        disabled: (files, cloud) => files.length > 1 && !isArchiveExtension(files[0].path),
-        icon: "chevronDown",
+        disabled: (files, cloud) => files.length > 1 || !isArchiveExtension(files[0].path),
+        icon: "open",
         color: undefined
     }
 ];
@@ -165,8 +182,8 @@ export const ClearTrashOperations = (toHome: () => void): Operation[] => [
         disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
         icon: "trash",
         color: "red"
-    },
-]
+    }
+];
 
 /**
  * @returns Properties and Project Operations for files.
@@ -192,7 +209,7 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
                 UF.createProject(
                     files[0].path,
                     cloud,
-                    (projectPath: string) => history.push(projectViewPage(projectPath))
+                    projectPath => history.push(projectViewPage(projectPath))
                 ),
             disabled: (files: File[], cloud: SDUCloud) =>
                 files.length !== 1 || !canBeProject(files, cloud.homeFolder) ||
@@ -204,6 +221,7 @@ export const HistoryFilesOperations = (history: History): [Operation, Predicated
 ];
 
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
+export const filePreviewPage = (path: string) => `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
 export function AllFileOperations(
@@ -212,6 +230,7 @@ export function AllFileOperations(
     onDeleted: (() => void) | false,
     onExtracted: (() => void) | false,
     onClearTrash: (() => void) | false,
+    onLinkCreate: ((p: string) => void) | false,
     history: History | false
 ) {
     const stateLessOperations = stateless ? StateLessOperations() : [];
@@ -219,8 +238,17 @@ export function AllFileOperations(
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history) : [];
+    const createLink = !!onLinkCreate ? CreateLinkOperation(onLinkCreate) : [];
     const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
-    return [...stateLessOperations, ...fileSelectorOperations, ...deleteOperation, ...extractionOperations, ...clearTrash, ...historyOperations];
+    return [
+        ...stateLessOperations,
+        ...fileSelectorOperations,
+        ...deleteOperation,
+        ...extractionOperations,
+        ...clearTrash,
+        ...historyOperations,
+        ...createLink
+    ];
 };
 
 

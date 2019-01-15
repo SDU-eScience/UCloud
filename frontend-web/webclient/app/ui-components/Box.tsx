@@ -55,6 +55,8 @@ const Box = styled.div<BoxProps>`
 
 Box.displayName = "Box";
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 Box.defaultProps = {
   theme,
   cursor: "auto"

@@ -223,7 +223,7 @@ export default class SDUCloud {
     /**
      * @returns the username of the authenticated user or null
      */
-    get username() {
+    get username(): string | null {
         let info = this.userInfo;
         if (info) return info.sub;
         else return null

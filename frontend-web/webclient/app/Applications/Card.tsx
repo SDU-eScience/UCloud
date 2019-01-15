@@ -4,7 +4,7 @@ import { Relative, Box, Absolute, Text, Icon, Flex, RatingBadge, Card } from "ui
 import { EllipsedText } from "ui-components/Text";
 import * as Pages from "./Pages";
 import { Application } from ".";
-import styled from "styled-components";
+import styled, { css } from "styled-components";
 import * as Heading from "ui-components/Heading"
 import theme from "ui-components/theme"
 
@@ -492,7 +492,7 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
 
     const rot = [0, 15, 30];
     const i3 = (hash >>> 10) % rot.length;
-    
+
 
     const s32 = Math.sqrt(3) * .5;
     const r1 = 0.5; //inner radius of outer element (outer radius is 1)
@@ -528,12 +528,13 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
 }
 
 
-const AppRibbonContainer = styled(Absolute)`
+const AppRibbonContainer = styled(Absolute) <{ favorite?: boolean }>`
+    ${({ favorite }) => favorite ? css`transform: translate(0,-30px)` : null};
     transition: transform ease 0.1s;
     will-change: transform;
 
-    &:hover {
-        transform: translate(0,0)
+    &: hover {
+        transform: translate(0, 0);
     }
 `
 
@@ -549,7 +550,7 @@ export function hashF(str: string): number {
     /* JavaScript does bitwise operations (like XOR, above) on 32-bit signed
      * integers. Since we want the results to be always positive, convert the
      * signed int to an unsigned by doing an unsigned bitshift. */
- 
+
     return hash >>> 0;
 
 }
@@ -558,21 +559,25 @@ function appColor(hash: number): number {
     return (hash >>> 22) % (nColors - 1); //last color not used
 }
 
+const AbsoluteNoPointerEvents = styled(Absolute)`
+    pointer-events: none;
+`
+
 export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
     const appDesc = app.description;
     const hash = hashF(appDesc.title);
     const appC = appColor(hash);
     return (
         <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)} hoverColor={null}>
-            <Absolute right={0} top={0} cursor="inherit" css={`pointer-events: none;`} >
+            <AbsoluteNoPointerEvents right={0} top={0} cursor="inherit">
                 <AppBg_triangle {...bgGradients[appC]} />
-            </Absolute>
+            </AbsoluteNoPointerEvents>
             {!onFavorite ? null :
                 <AppRibbonContainer
                     cursor="inherit"
                     right={0}
                     top={0}
-                    css={isFavorite ? undefined : `transform: translate(0,-30px)`}
+                    favorite={isFavorite}
                     onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(appDesc.info.name, appDesc.info.version)) : undefined}
                 >
                     <Icon name={"starRibbon"} color="red" size={48} />
@@ -582,7 +587,7 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
                 <AppLogo size={"48px"} hash={hash} />
                 <Flex flexDirection={"column"} ml="10px">
                     <Heading.h4>{appDesc.title}</Heading.h4>
-                    <EllipsedText width={200} title={`by ${appDesc.authors.join(", ")}`} color="gray">
+                    <EllipsedText width={200} title={`by ${appDesc.authors.join(", ")} `} color="gray">
                         by {appDesc.authors.join(", ")}
                     </EllipsedText>
                 </Flex>
@@ -591,6 +596,6 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
                 {appDesc.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
-        </NewAppCard> 
+        </NewAppCard>
     );
 };

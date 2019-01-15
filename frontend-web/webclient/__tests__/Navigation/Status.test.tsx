@@ -6,6 +6,7 @@ import { configureStore } from "Utilities/ReduxUtilities";
 import { initStatus } from "DefaultObjects";
 import status from "Navigation/Redux/StatusReducer";
 import { MemoryRouter } from "react-router";
+import "jest-styled-components";
 
 describe("Status", () => {
     test("Mount component", () => {

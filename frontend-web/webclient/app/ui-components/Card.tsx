@@ -25,6 +25,8 @@ export const Card = styled(Box) <CardProps>`
   ${height} ${boxShadow} ${boxBorder} ${borderRadius};
 `;
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 Card.defaultProps = {
   borderColor: "borderGray",
   borderRadius: 1,

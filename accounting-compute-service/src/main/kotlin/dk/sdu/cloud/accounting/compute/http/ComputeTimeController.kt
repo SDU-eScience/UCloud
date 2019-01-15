@@ -3,7 +3,7 @@ package dk.sdu.cloud.accounting.compute.http
 import dk.sdu.cloud.accounting.api.ChartDataTypes
 import dk.sdu.cloud.accounting.api.ChartResponse
 import dk.sdu.cloud.accounting.api.ChartingHelpers
-import dk.sdu.cloud.accounting.api.CurrentUsageResponse
+import dk.sdu.cloud.accounting.api.UsageResponse
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingTimeDescriptions
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.accounting.compute.services.toMillis
@@ -28,9 +28,9 @@ class ComputeTimeController<DBSession>(
 
             ok(
                 ChartResponse(
-                    chart = ChartingHelpers.basicChartFromEvents(
+                    chart = ChartingHelpers.absoluteChartFromEvents(
                         events,
-                        yAxisDataType = ChartDataTypes.DURATION,
+                        dataType = ChartDataTypes.DURATION,
                         dataTitle = "Compute Time Used",
                         dataSelector = { it.totalDuration.toMillis() }
                     ),
@@ -39,9 +39,9 @@ class ComputeTimeController<DBSession>(
             )
         }
 
-        implement(ComputeAccountingTimeDescriptions.currentUsage) { req ->
+        implement(ComputeAccountingTimeDescriptions.usage) { req ->
             ok(
-                CurrentUsageResponse(
+                UsageResponse(
                     usage = completedJobsService.computeUsage(req, call.securityPrincipal.username),
                     quota = null,
                     dataType = ChartDataTypes.DURATION,

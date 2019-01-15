@@ -1,0 +1,72 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: avatar
+  labels:
+    app: avatar
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: avatar
+  template:
+    metadata:
+      labels:
+        app: avatar
+    spec:
+      containers:
+      - name: avatar
+        image: registry.cloud.sdu.dk/sdu-cloud/avatar-service:0.1.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/psql
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/psql
+          name: avatar-psql
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: avatar-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+      - name: avatar-psql
+        secret:
+          optional: false
+          secretName: avatar-psql
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: avatar
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: avatar

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { File, FileOperation } from "Files";
+import { File, FileOperation, PredicatedOperation } from "Files";
 import { Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader } from "ui-components/Table";
 import { FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps } from "Files";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -7,11 +7,12 @@ import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, L
 import * as UF from "UtilityFunctions"
 import { Arrow, FileIcon } from "UtilityComponents";
 import { TextSpan } from "ui-components/Text";
-import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText } from "Utilities/FileUtilities";
+import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText, filePreviewPage } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
 import { KeyCode } from "DefaultObjects";
 import styled from "styled-components";
+import { SpaceProps } from "styled-system";
 
 export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
@@ -52,7 +53,7 @@ export const FilesTable = ({
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                         ))}
                         <TableCell textAlign="center">
-                            {checkedCount === 0 ? (<FileOperationsWrapper
+                            {checkedCount === 0 && !file.isMockFolder ? (<FileOperationsWrapper
                                 files={[file]}
                                 fileOperations={fileOperations}
                             />) : null}
@@ -65,7 +66,7 @@ export const FilesTable = ({
 }
 
 interface FileOperationWrapper { files: File[], fileOperations: FileOperation[] }
-const FileOperationsWrapper = ({ files, fileOperations }: FileOperationWrapper) => fileOperations.length ?
+const FileOperationsWrapper = ({ files, fileOperations }: FileOperationWrapper) => fileOperations.length > 1 ?
     <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" size="1em" rotation="90" />}>
         <FileOperations files={files} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
     </ClickableDropdown> :
@@ -141,7 +142,7 @@ const FilesTableHeader = ({
                         iconName={toSortingIcon(sC!)}
                     />
                 ))}
-                <FileTableHeaderCell width={customEntriesWidth}>
+                <FileTableHeaderCell notSticky={notStickyHeader} width={customEntriesWidth}>
                     <Flex>{customEntriesPerPage}{children}</Flex>
                 </FileTableHeaderCell>
             </TableRow>
@@ -191,7 +192,8 @@ export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHo
     </VerticalButtonGroup>
 );
 
-const PredicatedCheckbox = ({ predicate, checked, onClick }) => predicate ? (
+interface PredicatedCheckbox { predicate: boolean, checked: boolean, onClick: (e: any) => void }
+const PredicatedCheckbox = ({ predicate, checked, onClick }: PredicatedCheckbox) => predicate ? (
     <Box><Label><Checkbox checked={checked} onClick={onClick} onChange={e => e.stopPropagation()} /></Label></Box>
 ) : null;
 
@@ -206,13 +208,15 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
         />
     ) : null;
 
-const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
+
+interface Groupicon { isProject: boolean }
+const GroupIcon = ({ isProject }: Groupicon) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
 
 const FileLink = ({ file, children }: { file: File, children: any }) => {
     if (isDirectory(file)) {
         return (<Link to={fileTablePage(file.path)}>{children}</Link>);
     } else if (previewSupportedExtension(file.path)) {
-        return (<Link to={`/files/preview/${file.path}`}>{children}</Link>);
+        return (<Link to={filePreviewPage(file.path)}>{children}</Link>);
     } else {
         return (<>{children}</>);
     }
@@ -220,7 +224,7 @@ const FileLink = ({ file, children }: { file: File, children: any }) => {
 
 function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onCheckFile = () => null, hasCheckbox = false, onFavoriteFile, ...props }: FilenameAndIconsProps) {
     const fileName = getFilenameFromPath(file.path);
-    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={file.isChecked} onClick={e => onCheckFile(e.target.checked)} />
+    const checkbox = <PredicatedCheckbox predicate={hasCheckbox} checked={!!file.isChecked} onClick={e => onCheckFile(e.target.checked)} />
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
     const cursor = isDirectory(file) && !file.path.endsWith("/.") ? "pointer" : undefined;
     const icon = (
@@ -238,6 +242,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             defaultValue={getFilenameFromPath(file.path)}
             p="0"
             noBorder
+            maxLength={1024}
             borderRadius="0px"
             type="text"
             width="100%"
@@ -289,11 +294,12 @@ const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.lengt
     </Box>
 ) : null;
 
-export const FileOperations = ({ files, fileOperations, As, ...props }) => files.length && fileOperations.length ?
+interface FileOperations extends SpaceProps { files: File[], fileOperations: FileOperation[], As: any }
+export const FileOperations = ({ files, fileOperations, As, ...props }/* :FileOperations */) => files.length && fileOperations.length ?
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
-        if (fileOp.predicate) {
-            operation = fileOp.predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
+        if ("predicate" in operation) {
+            operation = (fileOp as PredicatedOperation).predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
         }
         operation = operation as Operation;
         return !operation.disabled(files, Cloud) ? (

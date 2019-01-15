@@ -4,6 +4,7 @@ import { RouterLocationProps } from "Utilities/URIUtilities";
 import { License } from "./licenses";
 export { default as CreateUpdate } from "./CreateUpdate";
 export { ManagedView, View } from "./View";
+export { default as Manage } from "./Management"
 
 export interface CreateUpdateState {
     id?: string

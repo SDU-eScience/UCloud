@@ -60,7 +60,8 @@ class Uploader extends React.Component<UploaderProps> {
 
     onFilesAdded = (files: File[]) => {
         if (files.some(it => it.size === 0)) infoNotification("It is not possible to upload empty files.");
-        const filteredFiles = files.filter(it => it.size > 0).map(it => newUpload(it));
+        if (files.some(it => it.name.length < 1025)) infoNotification("Filenames can't exceed a length of 1024 characters.");
+        const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it));
         if (filteredFiles.length == 0) return;
         if (this.props.allowMultiple !== false) { // true if no value
             this.props.setUploads(this.props.uploads.concat(filteredFiles))
@@ -99,7 +100,7 @@ class Uploader extends React.Component<UploaderProps> {
                     addProgressEvent(upload, e);
                     this.props.setUploads(this.props.uploads);
                 },
-                (err) => this.props.setUploaderError(err)
+                err => this.props.setUploaderError(err)
             ).then(xhr => onThen(xhr)); // FIXME Add error handling
         } else {
             bulkUpload(
@@ -110,7 +111,7 @@ class Uploader extends React.Component<UploaderProps> {
                     addProgressEvent(upload, e);
                     this.props.setUploads(this.props.uploads);
                 },
-                (err) => this.props.setUploaderError(err)
+                err => this.props.setUploaderError(err)
             ).then(xhr => onThen(xhr)); // FIXME Add error handling
         }
     }
@@ -338,4 +339,4 @@ const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploaderVisible: visible => dispatch(setUploaderVisible(visible))
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(Uploader);
+export default connect<UploaderProps, UploadOperations>(mapStateToProps, mapDispatchToProps)(Uploader);

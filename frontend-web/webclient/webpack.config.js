@@ -2,14 +2,11 @@ const webpack = require("webpack");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
 const path = require("path");
-//const UglifyJsPlugin = require("uglifyjs-webpack-plugin");
 const baseHref = "/app";
 
 module.exports = {
 
-    entry: {
-        app: "./app/App.tsx"
-    },
+    entry: "./app/App.tsx",
 
     resolve: {
         //root: path.join(__dirname, ''),
@@ -20,9 +17,9 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.(jsx|tsx?)$/,
+                test: /\.(js|ts)x?$/,
                 exclude: /node_modules/,
-                loader: 'babel-loader',
+                loader: ["ts-loader"],
             },
             {
                 test: /\.js$/,
@@ -40,13 +37,6 @@ module.exports = {
             }, {
                 test: /\.(png|jpg|gif)$/,
                 use: "url-loader?limit=10000"
-            }, {
-                test: /\.scss$/,
-                use: [
-                    "style-loader",
-                    "css-loader",
-                    "sass-loader",
-                ]
             }
         ]
     },

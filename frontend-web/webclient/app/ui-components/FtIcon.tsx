@@ -251,8 +251,10 @@ const FtIcon = styled(FtIconBase) <FtIconProps>`
   ${space} ${color};
 `;
 
-FtIcon.displayName = "FtIcon"
+FtIcon.displayName = "FtIcon";
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 FtIcon.defaultProps = {
   theme,
   cursor: "inherit",

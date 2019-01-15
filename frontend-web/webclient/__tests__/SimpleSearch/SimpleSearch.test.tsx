@@ -8,6 +8,7 @@ import notifications from "Notifications/Redux/NotificationsReducer";
 import { configure } from "enzyme";
 import simpleSearch from "Search/Redux/SearchReducer";
 import * as Adapter from "enzyme-adapter-react-16";
+import "jest-styled-components";
 
 configure({ adapter: new Adapter() });
 

@@ -63,7 +63,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         this.props.receivePage(emptyPage);
     }
 
-    static fileOperations = (history: History) => AllFileOperations(true, false, false, false, history);
+    static fileOperations = (history: History) => AllFileOperations(true, false, false, false, false, false, history);
 
     scrollIfNeeded() {
         if (!this.stdoutEl || !this.stderrEl) return;
@@ -367,7 +367,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     receivePage: page => dispatch(receivePage(page)),
     fetchPage: async (jobId, pageNumber, itemsPerPage) => {
         dispatch(setLoading(true));
-        dispatch(await fetchPage(Cloud.username, jobId, pageNumber, itemsPerPage));
+        dispatch(await fetchPage(Cloud.username || "", jobId, pageNumber, itemsPerPage));
     }
 });
 

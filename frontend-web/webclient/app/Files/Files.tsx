@@ -19,7 +19,6 @@ import {
 import { Box } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { Dispatch } from "redux";
-import DetailedFileSearch from "./DetailedFileSearch";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
 import { allFilesHasAccessRight } from "Utilities/FileUtilities";
 import { AccessRight } from "Types";
@@ -40,7 +39,7 @@ class Files extends React.Component<FilesProps> {
         props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
-    urlPathFromProps = (props: RouterLocationProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
+    private urlPathFromProps = (props: RouterLocationProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
 
     get urlPath(): string {
         return this.urlPathFromProps(this.props);
@@ -84,19 +83,19 @@ class Files extends React.Component<FilesProps> {
         return true;
     }
 
-    fileSelectorOperations = {
+    private readonly fileSelectorOperations = {
         setDisallowedPaths: this.props.setDisallowedPaths,
         setFileSelectorCallback: this.props.setFileSelectorCallback,
         showFileSelector: this.props.showFileSelector,
         fetchPageFromPath: this.fetchPageFromPath
     };
 
-    refetch = () => {
+    private readonly refetch = () => {
         const { path, page, sortOrder, sortBy } = this.props;
         this.props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
-    fileOperations: FileOperation[] = [
+    private readonly fileOperations: FileOperation[] = [
         {
             text: "Rename",
             onClick: files => this.props.updateFiles(startRenamingFiles(files, this.props.page)),
@@ -110,6 +109,7 @@ class Files extends React.Component<FilesProps> {
             this.refetch,
             this.refetch,
             () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
+            (p) => this.props.fetchPageFromPath(p, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy),
             this.props.history)
     ];
 
