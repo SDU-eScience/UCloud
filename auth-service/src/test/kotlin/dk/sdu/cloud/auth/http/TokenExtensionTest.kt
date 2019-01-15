@@ -1,7 +1,11 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.AccessRight
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.auth.api.AccessToken
+import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.auth.services.JWTFactory
@@ -20,11 +24,13 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.parseSuccessful
 import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.service.tokenValidation
 import io.ktor.http.HttpMethod
@@ -75,6 +81,40 @@ class TokenExtensionTest {
         return listOf(CoreAuthController(db, ottDao, tokenService, true, false, tokenValidationJWT))
     }
 
+    private fun createUser(securityPrincipal: SecurityPrincipal): Person.ByPassword {
+        val principal = personService.createUserByPassword(
+            email = securityPrincipal.username,
+            firstNames = securityPrincipal.firstName,
+            lastName = securityPrincipal.lastName,
+            role = securityPrincipal.role,
+            password = "asdqwe"
+        )
+
+        userCreationService.blockingCreateUser(principal)
+        return principal
+    }
+
+    private fun KtorApplicationTestContext.extendToken(
+        currentToken: String,
+        scope: SecurityScope,
+        extender: SecurityPrincipal,
+        allowRefreshes: Boolean
+    ): TokenExtensionResponse {
+        return sendJson(
+            HttpMethod.Post,
+            "/auth/extend",
+            TokenExtensionRequest(
+                validJWT = currentToken,
+                requestedScopes = listOf(
+                    scope.toString()
+                ),
+                expiresIn = 1000L * 60,
+                allowRefreshes = allowRefreshes
+            ),
+            extender
+        ).parseSuccessful()
+    }
+
     @Test
     fun `test extension chaining (no refreshing)`() {
         val securityPrincipal = TestUsers.user
@@ -89,37 +129,17 @@ class TokenExtensionTest {
             },
 
             test = {
-                val principal = personService.createUserByPassword(
-                    email = securityPrincipal.username,
-                    firstNames = securityPrincipal.firstName,
-                    lastName = securityPrincipal.lastName,
-                    role = securityPrincipal.role,
-                    password = "asdqwe"
-                )
+                val principal = createUser(securityPrincipal)
 
-                userCreationService.blockingCreateUser(principal)
                 val initialToken = tokenService.createAndRegisterTokenFor(principal).accessToken
                 val initialPrincipalToken =
                     tokenValidationJWT.decodeToken(tokenValidationJWT.validate(initialToken))
                 assertThatPropertyEquals(initialPrincipalToken, { it.extendedByChain.size }, 0)
                 assertThatPropertyEquals(initialPrincipalToken, { it.extendedBy }, null)
 
-
                 var currentToken = initialToken
                 realExtensionChain.forEachIndexed { i, extender ->
-                    val response = sendJson(
-                        HttpMethod.Post,
-                        "/auth/extend",
-                        TokenExtensionRequest(
-                            validJWT = currentToken,
-                            requestedScopes = listOf(
-                                scope.toString()
-                            ),
-                            expiresIn = 1000L * 60
-                        ),
-                        extender
-                    ).parseSuccessful<TokenExtensionResponse>()
-
+                    val response = extendToken(currentToken, scope, extender, allowRefreshes = false)
                     currentToken = response.accessToken
 
                     val currentPrincipalToken =
@@ -150,15 +170,7 @@ class TokenExtensionTest {
             },
 
             test = {
-                val principal = personService.createUserByPassword(
-                    email = securityPrincipal.username,
-                    firstNames = securityPrincipal.firstName,
-                    lastName = securityPrincipal.lastName,
-                    role = securityPrincipal.role,
-                    password = "asdqwe"
-                )
-
-                userCreationService.blockingCreateUser(principal)
+                val principal = createUser(securityPrincipal)
                 val initialToken = tokenService.createAndRegisterTokenFor(principal).accessToken
                 val initialPrincipalToken =
                     tokenValidationJWT.decodeToken(tokenValidationJWT.validate(initialToken))
@@ -168,32 +180,44 @@ class TokenExtensionTest {
 
                 var currentToken = initialToken
                 realExtensionChain.forEachIndexed { i, extender ->
-                    val response = sendJson(
-                        HttpMethod.Post,
-                        "/auth/extend",
-                        TokenExtensionRequest(
-                            validJWT = currentToken,
-                            requestedScopes = listOf(
-                                scope.toString()
-                            ),
-                            expiresIn = 1000L * 60
-                        ),
-                        extender
-                    ).parseSuccessful<TokenExtensionResponse>()
 
+
+                    val response = extendToken(currentToken, scope, extender, allowRefreshes = true)
                     currentToken = response.accessToken
-
                     val currentPrincipalToken =
                         tokenValidationJWT.decodeToken(tokenValidationJWT.validate(currentToken))
+                    validateToken(realExtensionChain, currentPrincipalToken, extender, i)
 
-                    assertThatPropertyEquals(
-                        currentPrincipalToken,
-                        { it.extendedByChain },
-                        realExtensionChain.subList(0, i + 1).map { it.username }
-                    )
-                    assertThatPropertyEquals(currentPrincipalToken, { it.extendedBy }, extender.username)
+                    // Refresh the extended token. It should still contain the same chain.
+                    val refreshedToken = sendRequest(
+                        HttpMethod.Post,
+                        "/auth/refresh",
+                        null,
+                        configure = {
+                            addHeader("Authorization", "Bearer ${response.refreshToken}")
+                        }
+                    ).parseSuccessful<AccessToken>().accessToken
+
+                    val refreshedPrincipalToken =
+                        tokenValidationJWT.decodeToken(tokenValidationJWT.validate(refreshedToken))
+
+                    validateToken(realExtensionChain, refreshedPrincipalToken, extender, i)
                 }
             }
         )
+    }
+
+    private fun validateToken(
+        realExtensionChain: List<SecurityPrincipal>,
+        currentPrincipalToken: SecurityPrincipalToken,
+        extender: SecurityPrincipal,
+        i: Int
+    ) {
+        assertThatPropertyEquals(
+            currentPrincipalToken,
+            { it.extendedByChain },
+            realExtensionChain.subList(0, i + 1).map { it.username }
+        )
+        assertThatPropertyEquals(currentPrincipalToken, { it.extendedBy }, extender.username)
     }
 }
