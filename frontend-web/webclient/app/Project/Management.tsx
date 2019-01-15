@@ -14,7 +14,7 @@ import { ReduxObject } from "DefaultObjects";
 import { TextSpan } from "ui-components/Text";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
 
-enum ProjectRole {
+export enum ProjectRole {
     PI = "PI",
     ADMIN = "ADMIN",
     DATA_STEWARD = "DATA_STEWARD",
