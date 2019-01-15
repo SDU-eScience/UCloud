@@ -13,6 +13,7 @@ dependencies {
     compile "dk.sdu.cloud:service-common:0.22.0-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.8.0-SNAPSHOT"
     compile "dk.sdu.cloud:file-api:0.13.0-SNAPSHOT"
+    compile "dk.sdu.cloud:project-api:0.1.0"
 
     compile 'mbuhot:eskotlin:0.4.0'
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'

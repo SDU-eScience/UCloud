@@ -1,23 +1,29 @@
 package dk.sdu.cloud.metadata.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.metadata.api.Creator
 import dk.sdu.cloud.metadata.api.ProjectMetadata
+import dk.sdu.cloud.metadata.api.ProjectMetadataEditRequest
 import dk.sdu.cloud.metadata.services.ElasticMetadataService
 import dk.sdu.cloud.metadata.services.MetadataAdvancedQueryService
 import dk.sdu.cloud.metadata.services.MetadataQueryService
-import dk.sdu.cloud.metadata.services.Project
-import dk.sdu.cloud.metadata.services.ProjectException
-import dk.sdu.cloud.metadata.services.ProjectService
+import dk.sdu.cloud.project.api.ProjectDescriptions
+import dk.sdu.cloud.project.api.ProjectMember
+import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.api.ViewProjectResponse
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.assertStatus
+import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.initializeMicro
+import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.setBody
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkObject
 import io.mockk.verify
 import org.apache.http.HttpHost
 import org.elasticsearch.action.get.GetResponse
@@ -28,33 +34,28 @@ import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
 import org.junit.Ignore
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
 
 private fun configureMetadataServer(
-    elasticMetadataService: ElasticMetadataService,
-    projectService: ProjectService<*>
+    elasticMetadataService: ElasticMetadataService
 ): List<Controller> {
     return configureMetadataServer(
         elasticMetadataService,
         elasticMetadataService,
-        elasticMetadataService,
-        projectService
+        elasticMetadataService
     )
 }
 
 private fun configureMetadataServer(
     metadataCommandService: ElasticMetadataService,
     metadataQueryService: MetadataQueryService,
-    metadataAdvancedQueryService: MetadataAdvancedQueryService,
-    projectService: ProjectService<*>
+    metadataAdvancedQueryService: MetadataAdvancedQueryService
 ): List<Controller> {
     return listOf(
         MetadataController(
             metadataCommandService,
             metadataQueryService,
-            metadataAdvancedQueryService,
-            projectService
+            metadataAdvancedQueryService
         )
     )
 }
@@ -63,38 +64,24 @@ class MetadataTest {
 
     private val source = """
         {
-            "sduCloudRoot" : "",
-            "sduCloudRootId" : "",
             "title" : "I got a title",
-            "creators" : [
-                {
-                "name" : "I. A. M. User"
-                }
-            ],
             "description" : "Here is my new description",
-            "id" : "1"
+            "projectId" : "ThisIsTheID"
         }
         """.trimIndent()
 
     @Test
     fun `make update of metadata test`() {
-        val user = "user1"
+        val micro = initializeMicro()
+        val cloud = micro.authenticatedCloud
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService<*> = mockk(relaxed = true)
         val elasticService = ElasticMetadataService(
             elasticClient = elasticClient,
-            projectService = projectService
+            cloud = cloud
         )
 
         withKtorTest(
             setup = {
-                every { projectService.findById(any()) } returns Project(
-                    1,
-                    "",
-                    "",
-                    user,
-                    "description is here"
-                )
 
                 every { elasticClient.get(any()) } answers {
                     val getResponse = mockk<GetResponse>()
@@ -103,26 +90,34 @@ class MetadataTest {
                     getResponse
                 }
 
-                configureMetadataServer(elasticService, projectService)
+                configureMetadataServer(elasticService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Post, "/api/metadata") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                            setBody(
-                                """
-                                {
-                                    "id" : "1",
-                                    "title" : "A project title",
-                                    "description" : "This description is nice"
-                                }
-                                """.trimIndent()
-                            )
-                        }.response
 
-                    assertEquals(HttpStatusCode.OK, response.status())
+                CloudMock.mockCallSuccess(
+                    ProjectDescriptions,
+                    { ProjectDescriptions.view },
+                    ViewProjectResponse(
+                        "ThisIsTheID",
+                        "ThisIsTheID",
+                        listOf(ProjectMember(TestUsers.user.username, ProjectRole.PI))
+                    )
+                )
+
+                run {
+                    val request =
+                        sendJson(
+                            method = HttpMethod.Post,
+                            path = "/api/metadata",
+                            user = TestUsers.user,
+                            request = ProjectMetadataEditRequest(
+                                id = "ThisIsTheID",
+                                title = "A project title",
+                                description = "This description is nice"
+                            )
+                        )
+
+                    request.assertSuccess()
 
                     verify {
                         elasticClient.index(
@@ -138,11 +133,12 @@ class MetadataTest {
 
     @Test
     fun `find by ID test`() {
+        val micro = initializeMicro()
+        val cloud = micro.authenticatedCloud
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService<*> = mockk(relaxed = true)
         val elasticService = ElasticMetadataService(
             elasticClient = elasticClient,
-            projectService = projectService
+            cloud = cloud
         )
 
         withKtorTest(
@@ -154,23 +150,35 @@ class MetadataTest {
                     getResponse
                 }
 
-                configureMetadataServer(elasticService, projectService)
+                configureMetadataServer(elasticService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/api/metadata/1") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
+               run {
 
-                    assertEquals(HttpStatusCode.OK, response.status())
+                   CloudMock.mockCallSuccess(
+                       ProjectDescriptions,
+                       { ProjectDescriptions.view },
+                       ViewProjectResponse(
+                           "hello",
+                           "hello",
+                           listOf(ProjectMember("user1", ProjectRole.PI))
+                       )
+                   )
+
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/metadata/hello",
+                            user = TestUsers.user
+                        )
+                    println(request.response.content)
+                    request.assertSuccess()
 
                     verify {
                         elasticClient.get(
                             match {
                                 println(it)
-                                it.index() == "project_metadata" && it.id() == "1"
+                                it.index() == "project_metadata" && it.id() == "hello"
                             }
                         )
                     }
@@ -182,176 +190,41 @@ class MetadataTest {
 
     @Test
     fun `find by ID - Nothing found - test`() {
+        val micro = initializeMicro()
+        val cloud = micro.authenticatedCloud
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService<*> = mockk(relaxed = true)
         val elasticService = ElasticMetadataService(
             elasticClient = elasticClient,
-            projectService = projectService
+            cloud = cloud
         )
 
         withKtorTest(
             setup = {
-                configureMetadataServer(elasticService, projectService)
+                configureMetadataServer(elasticService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/api/metadata/1") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
-
-                    assertEquals(HttpStatusCode.NotFound, response.status())
-                }
-            }
-        )
-    }
-
-    @Test
-    fun `find by path test`() {
-        val user = "user1"
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService<*> = mockk(relaxed = true)
-        val elasticService = ElasticMetadataService(
-            elasticClient = elasticClient,
-            projectService = projectService
-        )
-
-        withKtorTest(
-            setup = {
-                every { projectService.findByFSRoot(any()) } returns Project(
-                    2,
-                    "/home/",
-                    "/home/",
-                    user,
-                    "This is my project"
-                )
-
-                every { elasticClient.get(any()) } answers {
-                    val getResponse = mockk<GetResponse>()
-                    every { getResponse.isExists } returns true
-                    every { getResponse.sourceAsBytes } returns source.toByteArray()
-                    getResponse
-                }
-
-                configureMetadataServer(elasticService, projectService)
-            },
-            test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/api/metadata/by-path?path=/home/") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
-
-                    assertEquals(HttpStatusCode.OK, response.status())
-
-                    verify {
-                        elasticClient.get(
-                            match {
-                                it.index() == "project_metadata" && it.id() == "2"
-                            }
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/metadata/ThisIsAnID",
+                            user = TestUsers.user
                         )
-                    }
-
+                    request.assertStatus(HttpStatusCode.NotFound)
                 }
             }
         )
     }
 
-    @Test
-    fun `find by path - Not in Elastic - test`() {
-        val user = "user1"
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService<*> = mockk(relaxed = true)
-        val elasticService = ElasticMetadataService(
-            elasticClient = elasticClient,
-            projectService = projectService
-        )
-
-        withKtorTest(
-            setup = {
-                every { projectService.findByFSRoot(any()) } returns Project(
-                    2,
-                    "/home/",
-                    "/home/",
-                    user,
-                    "This is my project"
-                )
-
-                every { elasticClient.get(any()) } answers {
-                    val getResponse = mockk<GetResponse>()
-                    every { getResponse.isExists } returns false
-                    getResponse
-                }
-
-                configureMetadataServer(elasticService, projectService)
-            },
-            test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/api/metadata/by-path?path=/home/") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
-
-                    assertEquals(HttpStatusCode.NotFound, response.status())
-
-                    verify {
-                        elasticClient.get(
-                            match {
-                                it.index() == "project_metadata" && it.id() == "2"
-                            }
-                        )
-                    }
-
-                }
-            }
-        )
-    }
-
-    @Test
-    fun `find By Path - Not existing project - test`() {
-        val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService<*> = mockk(relaxed = true)
-        val elasticService = ElasticMetadataService(
-            elasticClient = elasticClient,
-            projectService = projectService
-        )
-
-        every { projectService.findByFSRoot(any()) } throws ProjectException.NotFound()
-
-        withKtorTest(
-            setup = {
-                every { elasticClient.get(any()) } answers {
-                    val getResponse = mockk<GetResponse>()
-                    every { getResponse.isExists } returns true
-                    every { getResponse.sourceAsBytes } returns source.toByteArray()
-                    getResponse
-                }
-                configureMetadataServer(elasticService, projectService)
-            },
-            test = {
-                with(engine) {
-                    val response =
-                        handleRequest(HttpMethod.Get, "/api/metadata/by-path?path=/home/") {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
-
-                    assertEquals(HttpStatusCode.NotFound, response.status())
-                }
-            }
-        )
-    }
 
     @Test
     fun `simple query test`() {
+        val micro = initializeMicro()
+        val cloud = micro.authenticatedCloud
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService<*> = mockk(relaxed = true)
         val elasticService = ElasticMetadataService(
             elasticClient = elasticClient,
-            projectService = projectService
+            cloud = cloud
         )
 
         withKtorTest(
@@ -364,23 +237,22 @@ class MetadataTest {
 
                 }
 
-                configureMetadataServer(elasticService, projectService)
+                configureMetadataServer(elasticService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(
-                            HttpMethod.Get,
-                            "/api/metadata/search?query=wunderbar&itemsPerPage=10&page=0"
-                        ) {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
+               run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/metadata/search",
+                            user = TestUsers.user,
+                            params = mapOf("query" to "wunderbar", "itemsPerPage" to 10, "page" to 0)
+                        )
                     //Throws 22 exceptions due to the hits not containing any info.
-                    assertEquals(HttpStatusCode.OK, response.status())
+                    request.assertSuccess()
 
                     val mapper = jacksonObjectMapper()
-                    val obj = mapper.readTree(response.content)
+                    val obj = mapper.readTree(request.response.content)
 
                     assertEquals("22", obj["itemsInTotal"].toString())
                     assertEquals("10", obj["itemsPerPage"].toString())
@@ -394,41 +266,32 @@ class MetadataTest {
 
     //Used for live test - works only on machines that have elastic installed and running on localhost:9200
     private val metaProject = ProjectMetadata(
-        "CloudRoot",
-        "CloudRootId",
         "title",
-        listOf(Creator("nameOfCreator")),
         "This is a descrption",
         null,
-        "1",
-        1234567,
-        "open",
+        "Project1",
         listOf("Mutiple", "keywords"),
-        "These are simple notes for the proejct"
+        "These are simple notes for the project"
     )
 
     private val metaProject2 = ProjectMetadata(
-        "CloudRoot2",
-        "CloudRootId2",
-        "anthtermetaProject",
-        listOf(Creator("nameOfCreator")),
+        "anothermetaProject",
         "This is a alternative description",
         null,
-        "2",
-        1234567,
-        "open",
+        "Project2",
         listOf("Mutiple", "keywords", "Unique"),
-        "These are simple notes for the proejct that the other project does not have"
+        "These are simple notes for the project that the other project does not have"
     )
 
     @Ignore
     @Test
     fun `query test live`() {
+        val micro = initializeMicro()
+        val cloud = micro.authenticatedCloud
         val elasticClient = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
-        val projectService: ProjectService<*> = mockk(relaxed = true)
         val elasticService = ElasticMetadataService(
             elasticClient = elasticClient,
-            projectService = projectService
+            cloud = cloud
         )
 
         withKtorTest(
@@ -439,31 +302,22 @@ class MetadataTest {
                 elasticService.create(metaProject2)
 
                 Thread.sleep(2000)
-                configureMetadataServer(elasticService, projectService)
+                configureMetadataServer(elasticService)
             },
             test = {
-                with(engine) {
-                    val response =
-                        handleRequest(
-                            HttpMethod.Get,
-                            "/api/metadata/search?query=Uniq&itemsPerPage=10&page=0"
-                        ) {
-                            addHeader("Job-Id", UUID.randomUUID().toString())
-                            setUser()
-                        }.response
+                run {
+                    val request =
+                        sendRequest(
+                            method = HttpMethod.Get,
+                            path = "/api/metadata/search",
+                            user = TestUsers.user,
+                            params = mapOf("query" to "Uniq", "itemsPerPage" to 10, "page" to 0)
+                        )
 
-                    assertEquals(HttpStatusCode.OK, response.status())
+                    request.assertSuccess()
 
-                    val mapper = jacksonObjectMapper()
-                    val obj = mapper.readTree(response.content)
+                    println(request.response.content)
 
-                    println(response.content)
-                    /* assertEquals("22", obj["itemsInTotal"].toString())
-
-                 assertEquals("10", obj["itemsPerPage"].toString())
-                 assertEquals("2", obj["pagesInTotal"].toString())
-                 assertEquals("0", obj["pageNumber"].toString())
-*/
                 }
             }
         )
