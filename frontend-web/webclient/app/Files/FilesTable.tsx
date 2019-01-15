@@ -1,5 +1,5 @@
 import * as React from "react";
-import { File, FileOperation } from "Files";
+import { File, FileOperation, PredicatedOperation } from "Files";
 import { Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader } from "ui-components/Table";
 import { FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps } from "Files";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -12,6 +12,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
 import { KeyCode } from "DefaultObjects";
 import styled from "styled-components";
+import { SpaceProps } from "styled-system";
 
 export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
@@ -207,7 +208,9 @@ const PredicatedFavorite = ({ predicate, item, onClick }) =>
         />
     ) : null;
 
-const GroupIcon = ({ isProject }: { isProject: boolean }) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
+
+interface Groupicon { isProject: boolean }
+const GroupIcon = ({ isProject }: Groupicon) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
 
 const FileLink = ({ file, children }: { file: File, children: any }) => {
     if (isDirectory(file)) {
@@ -291,11 +294,12 @@ const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.lengt
     </Box>
 ) : null;
 
-export const FileOperations = ({ files, fileOperations, As, ...props }) => files.length && fileOperations.length ?
+interface FileOperations extends SpaceProps { files: File[], fileOperations: FileOperation[], As: any }
+export const FileOperations = ({ files, fileOperations, As, ...props }/* :FileOperations */) => files.length && fileOperations.length ?
     fileOperations.map((fileOp, i) => {
         let operation = fileOp;
-        if (fileOp.predicate) {
-            operation = fileOp.predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
+        if ("predicate" in operation) {
+            operation = (fileOp as PredicatedOperation).predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
         }
         operation = operation as Operation;
         return !operation.disabled(files, Cloud) ? (

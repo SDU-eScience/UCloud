@@ -207,7 +207,7 @@ const ClippedBox = styled(Flex)`
 `;
 
 interface UserAvatar { avatar: AvatarType }
-const UserAvatar = ({ avatar }: UserAvatar) => (
+export const UserAvatar = ({ avatar }: UserAvatar) => (
     <ClippedBox mx="8px" width="60px">
         <Avatar
             /* pieceType
