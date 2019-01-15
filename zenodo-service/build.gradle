@@ -10,6 +10,7 @@ dependencies {
     compile 'dk.sdu.cloud:service-common:0.23.1'
     compile "dk.sdu.cloud:auth-api:1.14.0"
     compile "dk.sdu.cloud:file-api:0.17.0"
+    compile 'org.asynchttpclient:async-http-client:2.6.0'
     testCompile 'dk.sdu.cloud:service-common-test:0.23.1'
 }
 

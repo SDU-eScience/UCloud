@@ -9,7 +9,8 @@ import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.file.api.homeDirectory
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.indexing.api.AllOf
 import dk.sdu.cloud.indexing.api.FileQuery
 import dk.sdu.cloud.indexing.api.NumericStatisticsRequest
@@ -78,7 +79,9 @@ class StorageAccountingService<DBSession>(
                 coroutineScope {
                     userlist.map {
                         async {
-                            val usage = calculateUsage(homeDirectory(it.id), it.id).first().units
+                            val home = FileDescriptions.findHomeFolder.call(FindHomeFolderRequest(it.id), serviceCloud)
+                                .orThrow()
+                            val usage = calculateUsage(home.path, it.id).first().units
                             dao.insert(session, it, usage)
                         }
                     }.awaitAll()
@@ -93,7 +96,7 @@ class StorageAccountingService<DBSession>(
         paging: NormalizedPaginationRequest,
         context: ContextQuery,
         user: String
-    ) : Page<StorageUsedEvent> {
+    ): Page<StorageUsedEvent> {
         return db.withTransaction {
             dao.findAllPage(it, paging, context, user)
         }
@@ -102,8 +105,8 @@ class StorageAccountingService<DBSession>(
     fun listEvents(
         context: ContextQuery,
         user: String
-    ) : List<StorageUsedEvent> {
-        val returnList =  db.withTransaction {
+    ): List<StorageUsedEvent> {
+        val returnList = db.withTransaction {
             dao.findAllList(it, context, user)
         }
         if (returnList.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
