@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.ChangePasswordRequest
+import dk.sdu.cloud.auth.api.CreateSingleUserRequest
 import dk.sdu.cloud.auth.api.CreateUserRequest
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.LookupUsersResponse
@@ -107,7 +108,7 @@ class UserTest {
                             method = HttpMethod.Post,
                             path = "/auth/users/register",
                             user = adminUser,
-                            request = CreateUserRequest(adminUser.username, password, adminUser.role)
+                            request = listOf(CreateSingleUserRequest(adminUser.username, password, adminUser.role))
                         )
 
                     request.assertSuccess()
@@ -151,7 +152,7 @@ class UserTest {
                             method = HttpMethod.Post,
                             path = "/auth/users/register",
                             user = adminUser,
-                            request = CreateUserRequest(adminUser.username, password, adminUser.role)
+                            request = listOf(CreateSingleUserRequest(adminUser.username, password, adminUser.role))
                         )
 
                     request.assertSuccess()
@@ -163,7 +164,7 @@ class UserTest {
                             method = HttpMethod.Post,
                             path = "/auth/users/register",
                             user = adminUser,
-                            request = CreateUserRequest(adminUser.username, password, adminUser.role)
+                            request = listOf(CreateSingleUserRequest(adminUser.username, password, adminUser.role))
                         )
 
                     request.assertStatus(HttpStatusCode.Conflict)
@@ -190,7 +191,7 @@ class UserTest {
                         method = HttpMethod.Post,
                         path = "/auth/users/register",
                         user = user,
-                        request = CreateUserRequest(user.username, password, user.role)
+                        request = listOf(CreateSingleUserRequest(user.username, password, user.role))
                     )
 
                 request.assertStatus(HttpStatusCode.Unauthorized)
@@ -239,7 +240,7 @@ class UserTest {
                             method = HttpMethod.Post,
                             path = "/auth/users/register",
                             user = adminUser,
-                            request = CreateUserRequest(adminUser.username, password, adminUser.role)
+                            request = listOf(CreateSingleUserRequest(adminUser.username, password, adminUser.role))
                         )
 
                     request.assertSuccess()
@@ -278,7 +279,7 @@ class UserTest {
                             method = HttpMethod.Post,
                             path = "/auth/users/register",
                             user = adminUser,
-                            request = CreateUserRequest(adminUser.username, password, adminUser.role)
+                            request = listOf(CreateSingleUserRequest(adminUser.username, password, adminUser.role))
                         )
 
                     request.assertSuccess()
@@ -317,7 +318,7 @@ class UserTest {
                             method = HttpMethod.Post,
                             path = "/auth/users/password",
                             user = adminUser,
-                            request = CreateUserRequest("wrong", "request", adminUser.role)
+                            request = listOf(CreateSingleUserRequest("wrong", "request", adminUser.role))
                         )
 
                     request.assertStatus(HttpStatusCode.BadRequest)
@@ -366,7 +367,7 @@ class UserTest {
                             method = HttpMethod.Post,
                             path = "/auth/users/lookup",
                             user = adminUser,
-                            request = CreateUserRequest("wrong", "request", adminUser.role)
+                            request = listOf(CreateSingleUserRequest("wrong", "request", adminUser.role))
                         )
 
                     request.assertStatus(HttpStatusCode.BadRequest)

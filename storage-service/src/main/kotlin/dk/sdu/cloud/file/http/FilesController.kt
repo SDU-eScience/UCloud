@@ -24,7 +24,6 @@ import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
-import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.CallResult
@@ -442,43 +441,6 @@ class FilesController<Ctx : FSUserContext>(
 
         if (switchUserTo != null) {
             commandRunnerFactory.withContext(switchUserTo) { ctx -> handler(ctx) }
-        }
-
-        implement(FileDescriptions.extract) { req ->
-            audit(SingleFileAudit(null, req))
-            val user = call.securityPrincipal.username
-            tryWithFS(commandRunnerFactory, user) { ctx ->
-                val fileID = fileLookupService.stat(ctx, req.path).fileId
-                audit(SingleFileAudit(fileID, req))
-            }
-
-            val uploader = when {
-                req.path.endsWith(".tar.gz") -> BulkUploader.fromFormat("tgz", commandRunnerFactory.type)
-                req.path.endsWith(".zip") -> BulkUploader.fromFormat("zip", commandRunnerFactory.type)
-                else -> null
-            } ?: return@implement error(
-                CommonErrorMessage("Unsupported format"),
-                HttpStatusCode.BadRequest
-            )
-
-            BackgroundScope.launch {
-                commandRunnerFactory.withContext(user) { readContext ->
-                    coreFs.read(readContext, req.path) {
-                        val fileInputStream = this
-
-                        uploader.upload(
-                            coreFs,
-                            { commandRunnerFactory(user) },
-                            req.path.parent(),
-                            WriteConflictPolicy.RENAME,
-                            fileInputStream
-                        )
-                    }
-
-                }
-            }
-
-            ok(Unit)
         }
     }
 
