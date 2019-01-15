@@ -114,10 +114,11 @@ private fun <R : Any> RESTHandler<R, *, *, *>.doLogEntry(
     val uri = call.request.uri
     val jobId = call.request.safeJobId
     val causedBy = call.request.causedBy
+    val token = call.nullableSecurityToken
 
     val name = "$method $uri ($requestName)"
 
-    log.info("$name jobId=$jobId causedBy=$causedBy payload=${requestToString(payload)}")
+    log.info("$name jobId=$jobId causedBy=$causedBy payload=${requestToString(payload)} token=$token")
 }
 
 fun <P : Any, S : Any, E : Any, A : Any> Route.implement(

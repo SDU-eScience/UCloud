@@ -208,6 +208,9 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
         .takeIf { !it.isNull }
         ?.asList(String::class.java) ?: emptyList()
 
+    val backwardsCompatibleChain =
+        if (extendedByChain.isEmpty() && extendedBy != null) listOf(extendedBy) else extendedByChain
+
     return SecurityPrincipalToken(
         principal,
         scopes,
@@ -215,7 +218,7 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
         expiresAt,
         publicSessionReference,
         extendedBy,
-        extendedByChain
+        backwardsCompatibleChain
     )
 }
 
