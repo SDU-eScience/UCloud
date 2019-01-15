@@ -47,6 +47,10 @@ class ProjectController(
         implement(ProjectDescriptions.viewMemberInProject) { req ->
             ok(ViewMemberInProjectResponse(service.viewMemberInProject(req.username, req.projectId)))
         }
+
+        implement(ProjectDescriptions.listProjects) { req ->
+            ok(service.listProjects(call.securityPrincipal.username, req.normalize()))
+        }
     }
 
     companion object : Loggable {
