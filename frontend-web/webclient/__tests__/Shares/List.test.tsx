@@ -26,7 +26,7 @@ describe("Shares List", () => {
         let sharesListWrapper = shallow(
             <Provider store={configureStore({ files: initFiles("/home/user@test.abc/") }, { files })}>
                 <MemoryRouter>
-                    <List keepTitle={true} />
+                    <List byPath={""} />
                 </MemoryRouter>
             </Provider >);
         console.warn(shares.items);

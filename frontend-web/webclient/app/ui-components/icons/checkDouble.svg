@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="100%" height="100%" viewBox="0 0 24 14" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
-    <g transform="matrix(1,0,0,1,-716.001,-521.6)">
-        <g id="All-checked" serif:id="All checked" transform="matrix(1,0,0,1,28.0006,-7.42078e-05)">
-            <g transform="matrix(1,0,0,1,691.4,516.6)">
-                <path d="M7.2,17L8.6,18.4L20.6,6.4L19.2,5L7.2,17Z" style="fill:rgb(131,147,167);fill-rule:nonzero;"/>
+<svg width="100%" height="100%" viewBox="0 0 25 19" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+    <g transform="matrix(1,0,0,1,-1076,-491.039)">
+        <g id="check" transform="matrix(1,0,0,1,27.9987,0.0393649)">
+            <g transform="matrix(1.36364,0,0,1.36364,1043.91,484.182)">
+                <path d="M8.866,16L4.466,11.586L2.999,13.067L8.866,18.933L20.6,6.467L19.132,5L8.866,16Z" style="fill:rgb(83,101,125);fill-rule:nonzero;"/>
             </g>
-            <g transform="matrix(1,0,0,1,685,516.6)">
-                <path d="M8.6,15.6L4.4,11.4L3,12.8L8.6,18.4L20.6,6.4L19.2,5L8.6,15.6Z" style="fill:rgb(83,101,125);fill-rule:nonzero;"/>
+            <g transform="matrix(1.36364,0,0,1.36364,1050.91,484.182)">
+                <path d="M7.4,17.438L8.866,18.933L15.467,12.304L14,10.838L7.4,17.438Z" style="fill:rgb(131,147,167);fill-rule:nonzero;"/>
             </g>
         </g>
     </g>

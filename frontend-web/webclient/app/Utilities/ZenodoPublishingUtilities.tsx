@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Button } from "ui-components";
+import { failureNotification } from "UtilityFunctions";
 
 
 
@@ -10,8 +11,8 @@ const ZenodoRedirect = () =>
     Cloud.post(zenodoRedirectPath(window.location.href)).then(({ response }) => {
         const redirectTo = response.redirectTo;
         if (redirectTo) window.location.href = redirectTo;
-    }); // FIXME Error handling
-
+    }).catch(() => failureNotification(`An error occurred redirecting to ${window.location.href}`))
+        
 export const NotConnectedToZenodo = () => (
     <>
         <h1>You are not connected to Zenodo</h1>

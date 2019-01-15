@@ -1,32 +1,67 @@
 import * as React from "react";
-import { Flex, Box, Hide } from "ui-components";
+import { Box, Absolute } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { LoadableContent } from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
 import styled from "styled-components";
+import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects"
+import { connect } from 'react-redux'
 
-export interface MainContainerProps { sidebar?: React.ReactNode, main?: React.ReactNode, additional?: React.ReactNode, header?: React.ReactNode }
-export const MainContainer = ({ sidebar, main, additional, header }: MainContainerProps) => (
-    <React.StrictMode>
-        <Box mb={16}>
-            {header}
-        </Box>
-        <Flex flexDirection="row">
-            <Box width={1}>
-                <Hide xl>
-                    {sidebar}
-                </Hide>
-                {main}
+export interface MainContainerStateProps {
+    responsiveState?: ResponsiveReduxObject
+}
+
+export interface MainContainerProps extends MainContainerStateProps {
+    sidebar?: React.ReactNode, sidebarSize?: number,
+    main: React.ReactNode, additional?: React.ReactNode,
+    header?: React.ReactNode, headerSize?: number,
+}
+
+export const _MainContainer = ({ sidebar, main, additional, header, sidebarSize = 240, headerSize = 96, responsiveState }: MainContainerProps) => {
+    const leftSidebarsize = responsiveState!.greaterThan.xl ? 190 : 68; //main webside sidebar H size
+    const topMenuSize = 48; //main website top manu V size
+    const pad = 14; //padding unit
+
+    const mainYpad = header ? headerSize : pad;
+    const mainXpad = sidebar ? sidebarSize : pad;
+
+
+    return (
+        <React.StrictMode>
+            <Box ml={leftSidebarsize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
+                {header &&
+                    <HeaderContainer
+                        top={topMenuSize} left="0"
+                        py={pad} pl={leftSidebarsize + pad} pr={pad}
+                        width={1} height={headerSize}
+                        bg="white">
+                        {header}
+                    </HeaderContainer>
+                }
+                {sidebar &&
+                    <SidebarContainer
+                        height="100%" pt={topMenuSize + mainYpad}
+                        top="0" right="0"
+                        px={pad}
+                        width={sidebarSize}
+                    >
+                        {sidebar}
+                    </SidebarContainer>
+                }
+                <Box pt={mainYpad} pr={mainXpad}>
+                    {main}
+                </Box>
+                {additional}
             </Box>
-            <Hide xs sm md lg width={[0, sidebar != null ? 3 / 16 : 0]}>
-                <SidebarBox>
-                    {sidebar}
-                </SidebarBox>
-            </Hide>
-            {additional}
-        </Flex>
-    </React.StrictMode>
-);
+        </React.StrictMode>
+    );
+}
+
+const mapStateToProps = ({ responsive }: ReduxObject): MainContainerStateProps => ({
+    responsiveState: responsive
+});
+
+export const MainContainer = connect<MainContainerStateProps>(mapStateToProps)(_MainContainer);
 
 export interface LoadingMainContainerProps<T = any> extends MainContainerProps {
     loadable: LoadableContent<T>
@@ -48,8 +83,14 @@ export function LoadingMainContainer(props: LoadingMainContainerProps): JSX.Elem
     }
 }
 
-const SidebarBox = styled(Box)`
-    position: sticky;
-    top: 60px;
-    padding-left: 1em;
-`
+
+const HeaderContainer = styled(Absolute)`
+    position: fixed;
+    z-index: 50;
+`;
+
+const SidebarContainer = styled(Absolute)`
+    overflow-y: auto;
+    position: fixed;
+    z-index: 45;
+`;

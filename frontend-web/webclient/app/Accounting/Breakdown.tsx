@@ -5,9 +5,10 @@ import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { Text, Flex } from "ui-components";
 import * as moment from "moment";
 import { data as MockEvents } from "./mock/events.json";
+import styled from "styled-components";
 
 const BreakdownItem: React.FunctionComponent<{ item: API.AccountingEvent }> = props => {
-    return <TableRow style={{ verticalAlign: "top" }}>
+    return <VARow>
         <TableCell>
             <Dropdown>
                 <Text fontSize={1} color="text">{moment(new Date(props.item.timestamp)).fromNow()}</Text>
@@ -24,9 +25,12 @@ const BreakdownItem: React.FunctionComponent<{ item: API.AccountingEvent }> = pr
         <TableCell>
             {props.item.description}
         </TableCell>
-    </TableRow>;
-
+    </VARow>;
 }
+
+const VARow = styled(TableRow)`
+    vertical-align: top;
+`;
 
 interface BreakdownProps {
     events?: API.AccountingEvent[]
@@ -36,18 +40,22 @@ class Breakdown extends React.Component<BreakdownProps> {
     render() {
         const events: API.AccountingEvent[] = this.props.events || MockEvents.items;
         return <Table>
-            <TableHeader style={{ textAlign: "left" }}>
+            <LeftAlignedTableHeader>
                 <TableRow>
                     <TableHeaderCell>Time</TableHeaderCell>
                     <TableHeaderCell>Type</TableHeaderCell>
                     <TableHeaderCell>Description</TableHeaderCell>
                 </TableRow>
-            </TableHeader>
+            </LeftAlignedTableHeader>
             <TableBody>
                 {events.map((e, idx) => <BreakdownItem item={e} key={idx} />)}
             </TableBody>
         </Table>;
     }
 }
+
+const LeftAlignedTableHeader = styled(TableHeader)`
+    text-align: left;
+`;
 
 export default Breakdown;

@@ -23,7 +23,9 @@ interface FilePreviewOperations {
     updatePage: (p: Page<File>) => void
 }
 
-type FilePreviewProps = FilePreviewOperations & FilePreviewStateProps;
+interface FilePreviewProps extends FilePreviewOperations, FilePreviewStateProps {
+    location: { pathname: string, search: string }
+}
 
 class FilePreview extends React.Component<FilePreviewProps> {
     componentDidMount() {
@@ -37,6 +39,10 @@ class FilePreview extends React.Component<FilePreviewProps> {
         } else {
             this.props.fetchPage(this.filepath);
         }
+    }
+
+    get queryParams(): URLSearchParams {
+        return new URLSearchParams(this.props.location.search);
     }
 
     renderContent() {
@@ -73,7 +79,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
     }
 
 
-    shouldComponentUpdate(nextProps: any) {
+    shouldComponentUpdate(nextProps: FilePreviewProps) {
         if (this.props.page.items.length) {
             if (getParentPath(this.props.page.items[0].path) !== getParentPath(nextProps.match.params[0])) {
                 this.props.fetchPage(this.filepath);
@@ -87,7 +93,8 @@ class FilePreview extends React.Component<FilePreviewProps> {
     }
 
     get filepath() {
-        return removeTrailingSlash(this.props.match.params[0]);
+        const param = this.queryParams.get("path");
+        return param ? removeTrailingSlash(param) : "";
     }
 
     get file() {

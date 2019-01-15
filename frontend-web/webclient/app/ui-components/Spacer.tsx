@@ -1,8 +1,8 @@
 import * as React from "react";
 import { Flex, Box } from "ui-components";
-import { SpaceProps, WidthProps, AlignItemsProps, JustifyContentProps, FlexWrapProps, FlexDirectionProps } from "styled-system";
+import { SpaceProps, WidthProps, AlignItemsProps, JustifyContentProps, FlexWrapProps, FlexDirectionProps, HeightProps } from "styled-system";
 
-interface SpacerProps extends SpaceProps, WidthProps, AlignItemsProps, JustifyContentProps, FlexWrapProps, FlexDirectionProps {
+interface SpacerProps extends SpaceProps, WidthProps, AlignItemsProps, JustifyContentProps, FlexWrapProps, FlexDirectionProps, HeightProps {
     left: React.ReactChild
     right: React.ReactChild
 }

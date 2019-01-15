@@ -27,9 +27,14 @@ class UserCreationService<DBSession>(
 
     suspend fun createUsers(users: List<Principal>) {
         db.withTransaction {
-            users.forEach { user ->
-                log.info("Creating user: $user")
-                userDao.insert(it, user)
+        	users.forEach { user ->
+	            val exists = userDao.findByIdOrNull(it, user.id) != null
+	            if (exists) {
+	                throw UserException.AlreadyExists()
+	            } else {
+	                log.info("Creating user: $user")
+	                userDao.insert(it, user)
+	            }
             }
         }
 

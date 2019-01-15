@@ -7,31 +7,25 @@ import {
 import { DatePicker } from "ui-components/DatePicker";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Flex, Input, Label, InputGroup, Stamp, Checkbox, Error, OutlineButton, LoadingButton, Icon } from "ui-components";
+import { Flex, Input, Label, Stamp, InputGroup, Checkbox, Error, OutlineButton, LoadingButton } from "ui-components";
 import * as Heading from "ui-components/Heading";
+import { History } from "history";
 import { ReduxObject, KeyCode } from "DefaultObjects";
 import { Dispatch } from "redux";
-import { History } from "history";
 import { searchPage } from "Utilities/SearchUtilities";
-import * as PropTypes from "prop-types";
 
-class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
+// FIXME: Props can be defined properly
+class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { history: History, defaultFilename?: string, cantHide?: boolean, omitFileName?: boolean }> {
 
     constructor(props) {
         super(props);
-    }
-
-    context: { router: { history: History } }
-
-    static contextTypes = {
-        router: PropTypes.object
+        if (!!this.props.defaultFilename) this.props.setFilename(this.props.defaultFilename);
     }
 
     private extensionsInput = React.createRef<HTMLInputElement>();
 
     componentWillUnmount() {
-        if (!this.props.hidden)
-            this.props.toggleHidden();
+        if (!this.props.hidden) this.props.toggleHidden();
     }
 
     onAddExtension() {
@@ -47,7 +41,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
         this.props.addExtensions(ext);
     }
 
-    // FIXME, should show errors in fields instead, the upper corner error is not very noticeable;
     validateAndSetDate(m: Date | null, property: PossibleTime) {
         const { setTimes, setError, createdBefore, modifiedBefore, createdAfter, modifiedAfter } = this.props;
         if (m == null) { setTimes({ [property]: undefined }); return }
@@ -105,8 +98,9 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
             after: !!this.props.modifiedAfter ? this.props.modifiedAfter.valueOf() : undefined,
             before: !!this.props.modifiedBefore ? this.props.modifiedBefore.valueOf() : undefined,
         };
+        const fileName = this.props.fileName;
         const request: AdvancedSearchRequest = {
-            fileName: this.props.fileName,
+            fileName,
             extensions: [...this.props.extensions],
             fileTypes,
             createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
@@ -114,12 +108,13 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
             itemsPerPage: 25,
             page: 0
         }
-        this.props.fetchPage(request, () => this.context.router.history.push(searchPage("files", this.props.fileName)));
+        this.props.fetchPage(request, () => this.props.history.push(searchPage("files", this.props.fileName)));
         this.props.setLoading(true);
     }
 
     render() {
-        if (this.props.hidden) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
+        const { hidden, cantHide } = this.props;
+        if (hidden && !cantHide) { return (<OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Advanced Search</OutlineButton>) }
         const { sensitivities, extensions, allowFiles, allowFolders } = this.props;
         const remainingSensitivities = sensitivityOptions.filter(s => !sensitivities.has(s.text as SensitivityLevel));
         const sensitivityDropdown = remainingSensitivities.length ? (
@@ -135,10 +130,10 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
 
         return (
             <>
-                <OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Hide Advanced Search</OutlineButton>
+                {!cantHide ? <OutlineButton fullWidth color="darkGreen" onClick={this.props.toggleHidden}>Hide Advanced Search</OutlineButton> : null}
                 <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                     <Box mt="0.5em">
-                        <form onSubmit={e => { e.preventDefault(); this.onSearch() }}>
+                        <form onSubmit={e => (e.preventDefault(), this.onSearch())}>
                             <Error error={this.props.error} clearError={() => this.props.setError()} />
                             <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
                             <Input
@@ -148,7 +143,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 width="100%"
                                 placeholder="Filename must include..."
                                 defaultValue={this.props.fileName}
-                                onChange={({ target: { value } }) => this.props.setFilename(value)}
+                                onChange={({ target }) => this.props.setFilename(target.value)}
                             />
                             <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
                             <InputGroup>
@@ -157,7 +152,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
-                                    placeholderText="Created after..."
+                                    placeholderText="After"
                                     selected={this.props.createdAfter}
                                     startDate={this.props.createdAfter}
                                     endDate={this.props.createdBefore}
@@ -169,6 +164,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
+                                    withPortal
                                 />
                                 <DatePicker
                                     popperPlacement="left"
@@ -176,7 +172,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     pt="8px"
                                     mt="-2px"
                                     selectsEnd
-                                    placeholderText="Created before..."
+                                    placeholderText="Before"
                                     selected={this.props.createdBefore}
                                     startDate={this.props.createdAfter}
                                     endDate={this.props.createdBefore}
@@ -187,6 +183,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
+                                    withPortal
                                 />
                             </InputGroup>
                             <Heading.h5 pb="0.3em" pt="0.5em">Modified at</Heading.h5>
@@ -196,7 +193,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
-                                    placeholderText="Modified after..."
+                                    placeholderText="After"
                                     selected={this.props.modifiedAfter}
                                     selectsStart
                                     startDate={this.props.modifiedAfter}
@@ -208,13 +205,14 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
+                                    withPortal
                                 />
                                 <DatePicker
                                     popperPlacement="left"
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
-                                    placeholderText="Modified before..."
+                                    placeholderText="Before"
                                     selected={this.props.modifiedBefore}
                                     selectsEnd
                                     startDate={this.props.modifiedAfter}
@@ -226,6 +224,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
                                     timeCaption="time"
+                                    withPortal
                                 />
                             </InputGroup>
                             <Heading.h5 pb="0.3em" pt="0.5em">File Types</Heading.h5>
@@ -261,8 +260,9 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps> {
                                 placeholder={"Add extensions..."}
                             />
                             <ClickableDropdown
+                                width={"100%"}
                                 chevron
-                                trigger={"Add extension preset"}
+                                trigger={"Extension presets"}
                                 onChange={value => this.onAddPresets(value)}
                                 options={extensionPresets}
                             />
@@ -285,8 +285,8 @@ interface SearchStampsProps {
 }
 const SearchStamps = ({ stamps, onStampRemove, clearAll }: SearchStampsProps) => (
     <Box pb="5px">
-        {[...stamps].map((l) => (<Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l}>{l}<Icon size="12" name="close" /></Stamp>))}
-        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="white" onClick={() => clearAll()}>Clear all<Icon name="close" size={12} /></Stamp>) : null}
+        {[...stamps].map((l) => (<Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l} text={l} />))}
+        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="white" onClick={() => clearAll()} text={"Clear all"} />) : null}
     </Box >
 );
 
@@ -312,6 +312,7 @@ const mapStateToProps = ({ detailedFileSearch }: ReduxObject): DetailedFileSearc
 import * as DFSActions from "Files/Redux/DetailedFileSearchActions";
 import { DETAILED_FILES_ADD_EXTENSIONS, DETAILED_FILES_REMOVE_EXTENSIONS, DETAILED_FILES_ADD_SENSITIVITIES, DETAILED_FILES_REMOVE_SENSITIVITIES, DETAILED_FILES_ADD_TAGS, DETAILED_FILES_REMOVE_TAGS } from "./Redux/DetailedFileSearchReducer";
 import { searchFiles } from "Search/Redux/SearchActions";
+import { withRouter } from "react-router";
 const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations => ({
     toggleHidden: () => dispatch(DFSActions.toggleFilesSearchHidden()),
     addExtensions: ext => dispatch(DFSActions.extensionAction(DETAILED_FILES_ADD_EXTENSIONS, ext)),
@@ -333,4 +334,4 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations =>
     setError: error => dispatch(DFSActions.setErrorMessage(error))
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(DetailedFileSearch);
+export default connect(mapStateToProps, mapDispatchToProps)(withRouter(DetailedFileSearch));

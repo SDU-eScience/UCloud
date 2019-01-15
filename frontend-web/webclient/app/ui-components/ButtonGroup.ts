@@ -12,11 +12,13 @@ const ButtonGroup = styled(Flex)`
     }
 
     & > ${Button}:last-child {
-        border-radius: 0 3px 3px 0;
+        border-top-right-radius: 3px;
+        border-bottom-right-radius: 3px;
     }
 
     & > ${Button}:first-child {
-        border-radius: 3px 0 0 3px;
+        border-top-left-radius: 3px;
+        border-bottom-left-radius: 3px;
     }
 `;
 

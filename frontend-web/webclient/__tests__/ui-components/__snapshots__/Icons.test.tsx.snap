@@ -1,0 +1,1988 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Every Icon 1`] = `
+Array [
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      activity
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M8.377 8.571L1 1 0 9.487l8.377-.916z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M3.227 3.813A11.993 11.993 0 0 1 12.003 0C18.623 0 24 5.377 24 12s-5.376 12-11.997 12C6.15 24 1.143 19.776.17 14.005l2.958-.502A8.998 8.998 0 0 0 12.003 21c4.961 0 8.993-4.033 8.993-9 0-4.968-4.032-9-8.993-9A9.009 9.009 0 0 0 5.42 5.86L3.227 3.812z"
+      />
+      <path
+        d="M14.873 15.442l-2.358 1.026-1.994-4.585 2.358-1.026z"
+        fill={null}
+        fillRule="nonzero"
+      />
+      <path
+        d="M14.359 6.05l2.146 1.416-3.854 5.843-2.147-1.416z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      admin
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 16 24"
+      width={24}
+    >
+      <path
+        d="M5.332 13.492l4.808-3.006h5.52L3.006 23.992l3.615-10.5h-1.29z"
+        fill={null}
+      />
+      <path
+        d="M9.03 10.497h1.103l-4.8 3.001H0L12.644 0 9.03 10.497z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      appFav
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 355 709"
+      width={24}
+    >
+      <path
+        d="M.034.003h354.38V708.66L177.247 580.493.034 708.66V.003z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      appStore
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <g>
+        <path
+          d="M22.24 6.491H1.754C.79 6.491 0 7.407 0 8.525v13.44C0 23.086.79 24 1.754 24h20.491C23.21 24 24 23.084 24 21.966V8.526c-.005-1.12-.795-2.035-1.76-2.035zm-1.345-1.623H3.1c-.385 0-.7-.365-.7-.811 0-.446.315-.812.7-.812h17.796c.385 0 .7.366.7.812 0 .446-.315.811-.7.811zm-1.54-3.245H4.64c-.35 0-.64-.336-.64-.742V.74c0-.405.29-.741.64-.741h14.717c.35 0 .64.336.64.742V.88c0 .406-.29.742-.64.742z"
+          fillRule="nonzero"
+        />
+        <path
+          d="M8 10.567c0-.208.118-.387.326-.491a.704.704 0 0 1 .65.004l8.703 4.432c.205.104.321.28.321.487 0 .205-.116.384-.321.488l-8.702 4.432a.717.717 0 0 1-.65.004C8.117 19.819 8 19.64 8 19.43v-8.864z"
+          fill={null}
+        />
+      </g>
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      apps
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 25"
+      width={24}
+    >
+      <path
+        d="M13.206 5.723l10.023 5.108c.492.25.77.67.77 1.17 0 .49-.278.92-.77 1.17L5.228 22.337l7.978-16.615z"
+        fill={null}
+      />
+      <path
+        d="M5.229 22.338l-2.884 1.469a1.72 1.72 0 0 1-1.562.006C.284 23.564 0 23.138 0 22.638V1.358C0 .858.284.43.783.183a1.714 1.714 0 0 1 1.562.006l10.861 5.533-7.977 16.616z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      arrowDown
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 18 24"
+      width={24}
+    >
+      <path
+        d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      boxChecked
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M6 3h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3zm4 14l9-8.6L17.6 7 10 14.3l-3.6-3.5L5 12.2l5 4.8z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      boxEmpty
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M6 5c-.6 0-1 .4-1 1v12c0 .6.4 1 1 1h12c.6 0 1-.4 1-1V6c0-.6-.4-1-1-1H6zm0-2h12c1.7 0 3 1.3 3 3v12c0 1.7-1.3 3-3 3H6c-1.7 0-3-1.3-3-3V6c0-1.7 1.3-3 3-3z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      calendar
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M17 0v2H7V0H4v2H2.5A2.507 2.507 0 0 0 0 4.5v17C0 22.873 1.124 24 2.5 24h19c1.375 0 2.5-1.126 2.5-2.5v-17C24 3.125 22.875 2 21.5 2H20V0h-3zm4.5 21.5h-19V8.25h19V21.5z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M13 13h6v6h-6z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      chat
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M21.6 0H2.4A2.397 2.397 0 0 0 .012 2.4L0 24l4.8-4.8h16.8c1.32 0 2.4-1.08 2.4-2.4V2.4C24 1.08 22.92 0 21.6 0z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M4.8 8.4h14.4v2.4H4.8V8.4zm9.6 6H4.8V12h9.6v2.4zm4.8-7.2H4.8V4.8h14.4v2.4z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      check
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 25 19"
+      width={24}
+    >
+      <path
+        d="M8 15L2 8.981l-2 2.02L8 19 24.001 2l-2.002-2L8 15z"
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      checkDouble
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 25 19"
+      width={24}
+    >
+      <path
+        d="M7.999 15l-6-6.019-2 2.02 8 8 16-17-2.001-2-14 15z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M13 16.962L14.999 19 24 9.96l-2-1.999-9 9z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      chevronDown
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 12"
+      width={24}
+    >
+      <path
+        d="M0 0l11.959 12 12-12H0z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      chrono
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 21 24"
+      width={24}
+    >
+      <path
+        d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
+        fill={null}
+        fillRule="nonzero"
+      />
+      <path
+        d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
+        fill={null}
+        fillRule="nonzero"
+      />
+      <path
+        d="M18.411 7.408l1.65-1.65-1.819-1.818-1.65 1.65a10.24 10.24 0 0 0-6.306-2.161C4.606 3.429 0 8.034 0 13.715 0 19.395 4.605 24 10.286 24c5.68 0 10.286-4.605 10.286-10.285a10.24 10.24 0 0 0-2.16-6.307zm-2.443 11.989a7.983 7.983 0 0 1-5.682 2.353 7.983 7.983 0 0 1-5.682-2.353 7.983 7.983 0 0 1-2.354-5.682c0-2.147.836-4.165 2.354-5.683a7.983 7.983 0 0 1 5.682-2.353c2.146 0 4.164.836 5.682 2.353a7.983 7.983 0 0 1 2.354 5.683 7.983 7.983 0 0 1-2.354 5.682z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M6.857 0h6.858v2.572H6.857z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      close
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 25 24"
+      width={24}
+    >
+      <path
+        d="M24.002 2.001L22 .001 12 9.6l-10-9.6-2 2 9.6 10L.001 22l2 2 10-9.6 10 9.6 2-2-9.6-10 9.6-9.999z"
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      copy
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M0 16h3v5h1.5v3H2.244A2.271 2.271 0 0 1 0 21.743V16zM4.5 3H3v5H0V2.258A2.245 2.245 0 0 1 2.244 0H4.5v3z"
+        fill={null}
+      />
+      <path
+        d="M24 2.258v19.485a2.244 2.244 0 0 1-2.244 2.258H8.244A2.27 2.27 0 0 1 6 21.743V2.258A2.244 2.244 0 0 1 8.244.001h13.512A2.26 2.26 0 0 1 24 2.258zM9 3.001v18h12V3H9zM6 4.5v15h3v-15H6z"
+      />
+      <path
+        d="M6 10.5H1.5v3H6V18h3v-4.5h4.5v-3H9V6H6v4.5z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      dashboard
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 25 24"
+      width={24}
+    >
+      <path
+        d="M9 22.495v-3c0-.825.672-1.5 1.5-1.5h3c.828 0 1.5.675 1.5 1.5v3c0 .825-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.675-1.5-1.5zm-9-9v-3c0-.825.672-1.5 1.5-1.5h3c.828 0 1.5.675 1.5 1.5v3c0 .825-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.675-1.5-1.5zm0-9v-3c0-.826.672-1.5 1.5-1.5h3c.828 0 1.5.674 1.5 1.5v3c0 .825-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.675-1.5-1.5zm18 0v-3c0-.826.672-1.5 1.5-1.5h3c.828 0 1.5.674 1.5 1.5v3c0 .825-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.675-1.5-1.5z"
+        fill={null}
+      />
+      <path
+        d="M0 22.495v-3c0-.825.672-1.5 1.5-1.5h3c.828 0 1.5.675 1.5 1.5v3c0 .825-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.675-1.5-1.5zm18 0v-3c0-.825.672-1.5 1.5-1.5h3c.828 0 1.5.675 1.5 1.5v3c0 .825-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.675-1.5-1.5zm-9-9v-3c0-.825.672-1.5 1.5-1.5h3c.828 0 1.5.675 1.5 1.5v3c0 .825-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.675-1.5-1.5zm9 0v-3c0-.825.672-1.5 1.5-1.5h3c.828 0 1.5.675 1.5 1.5v3c0 .825-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.675-1.5-1.5zm-9-9v-3c0-.826.672-1.5 1.5-1.5h3c.828 0 1.5.674 1.5 1.5v3c0 .825-.672 1.5-1.5 1.5h-3c-.828 0-1.5-.675-1.5-1.5z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      download
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M5.098 13.761l.013 2.753c-1.915-.006-3.74-1.262-4.582-3.047-.674-1.425-.703-3.147-.095-4.608.481-1.153 1.339-2.134 2.418-2.724 0 0 .085-.327.176-.582.541-1.52 1.892-2.724 3.451-2.956.399-.059.805-.057 1.204.003C9.098.978 11.15.02 13.27 0h.106c3.28.03 6.384 2.381 7.276 5.772.03.114.067.278.067.278 2.114.868 3.52 3.302 3.246 5.663-.296 2.559-2.47 4.773-5.052 4.801l-.019-2.753c1.355-.014 2.53-1.412 2.435-2.864-.074-1.133-.906-2.197-2.004-2.41l-.996-.186-.113-1.054c-.269-2.378-2.303-4.375-4.648-4.49a4.736 4.736 0 0 0-.178-.004l-.08-.001c-1.563.01-3.094.827-4.007 2.16l-.631.935c-.724-.303-1.454-.728-2.162-.425-.628.268-1.067.95-1.088 1.664l-.018 1.01c-.675.223-1.37.389-1.896.915-.686.685-1.008 1.746-.771 2.714.27 1.102 1.241 2.024 2.361 2.036z"
+        fill={null}
+      />
+      <path
+        d="M12 17.5l6-7.5H6l6 7.5zM1.002 21h22v3h-22z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      edit
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M23.6 5.4a1.289 1.289 0 0 0 0-1.867L20.467.4A1.289 1.289 0 0 0 18.6.4l-2.467 2.467 5 5L23.6 5.4z"
+        fill={null}
+        fillRule="nonzero"
+      />
+      <path
+        d="M0 19v5h5L19.733 9.267l-5-5L0 19z"
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      ellipsis
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 6"
+      width={24}
+    >
+      <path
+        d="M3 0C1.35 0 0 1.35 0 3s1.35 3 3 3 3-1.35 3-3-1.35-3-3-3zm18 0c-1.65 0-3 1.35-3 3s1.35 3 3 3 3-1.35 3-3-1.35-3-3-3zm-9 0c-1.65 0-3 1.35-3 3s1.35 3 3 3 3-1.35 3-3-1.35-3-3-3z"
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      files
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 22"
+      width={24}
+    >
+      <path
+        d="M16.711 4.128H23.4c.33 0 .6.309.6.687v16.5c0 .378-.27.688-.6.688H6.309L16.711 4.128z"
+        fill={null}
+      />
+      <path
+        d="M10.8 4.125h5.911L6.309 22H.6c-.33 0-.6-.309-.6-.687V.688C0 .339.229.049.6 0h6.6l3.6 4.125z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      ftFavFolder
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 22"
+      width={24}
+    >
+      <path
+        d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.31.6-.687V4.812c0-.378-.27-.687-.6-.687H10.8L7.2 0H.6C.27 0 0 .309 0 .687v20.626z"
+      />
+      <path
+        d="M11.993 6.322l2.163 4.383 4.837.703-3.5 3.412.826 4.817-4.326-2.274-4.326 2.274.826-4.817-3.5-3.412 4.837-.703 2.163-4.383z"
+        fill={null}
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      ftFolder
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 22"
+      width={24}
+    >
+      <path
+        d="M0 21.313c0 .378.27.687.6.687h22.8c.33 0 .6-.309.6-.687v-16.5c0-.378-.27-.688-.6-.688H10.8L7.2 0H.6C.27 0 0 .31 0 .688v20.625z"
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      ftResultsFolder
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 22"
+      width={24}
+    >
+      <path
+        d="M0 21.312c0 .379.27.688.6.688h22.8c.33 0 .6-.31.6-.688v-16.5c0-.378-.27-.687-.6-.687H10.8L7.2 0H.6C.27 0 0 .31 0 .687v20.625z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M9.455 15.01l-2.354-2.6L5 14.546l4.454 4.455 9.546-9.546-2.1-2.145-7.446 7.7z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      grant
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 18"
+      width={24}
+    >
+      <path
+        d="M0 0v13.714h24V0H0zm8.598 12H4.291a2.574 2.574 0 0 0-2.576-2.577v-4.28a3.432 3.432 0 0 0 3.428-3.429h3.455c-1.066 1.26-1.74 3.097-1.74 5.143s.674 3.884 1.74 5.143zm13.688-2.577A2.59 2.59 0 0 0 19.715 12h-4.313c1.066-1.26 1.741-3.097 1.741-5.143s-.675-3.884-1.74-5.143h3.454a3.432 3.432 0 0 0 3.429 3.429v4.28z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M0 15.428h24v1.715H0z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      hashtag
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M4 24h3l4-24H8L4 24zM13 24h3l4-24h-3l-4 24z"
+      />
+      <path
+        d="M21.993 18H0l.5-3h21.993l-.5 3zM23.493 9H1.5L2 6h21.993l-.5 3z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      hourglass
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 16 24"
+      width={24}
+    >
+      <path
+        d="M1.501 0a1.5 1.5 0 0 0-1.5 1.5v4.718A2 2 0 0 0 .647 7.69L5.332 12 .645 16.32a2 2 0 0 0-.644 1.47V22.5a1.5 1.5 0 0 0 1.5 1.5h13a1.5 1.5 0 0 0 1.5-1.5V17.79a2 2 0 0 0-.644-1.47L10.67 12l4.685-4.31a2 2 0 0 0 .646-1.472V1.5a1.5 1.5 0 0 0-1.5-1.5h-13zm11.831 17.532v4.125H2.67v-4.125L8 12.617l5.331 4.915zm-5.331-6.144L2.67 6.473V2.284h10.668v4.183l-5.337 4.921z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M2.67 6.472l10.669-.006L8 11.388 2.67 6.472zM2.67 18.533h10.662v3.125H2.67z"
+        fill={null}
+      />
+      <path
+        d="M8 12.618l1 6.915H7l1-6.915z"
+        fill={null}
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      id
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M21 24.001H3a3 3 0 0 1-3-3v-18a3 3 0 0 1 3-3h18a3 3 0 0 1 3 3v18a3.004 3.004 0 0 1-3 3zm0-3v-18H3v18h18z"
+        fill={null}
+      />
+      <g
+        fill="#3d4d65"
+        fillRule="nonzero"
+      >
+        <path
+          d="M4.98 18.003v-1.88h1.869v-8.19h-1.87v-1.93h5.613v1.93h-1.87v8.19h1.87v1.88H4.979zM12.674 18.003v-12h2.337c1.075 0 1.874.228 2.396.684.524.457.917 1.146 1.179 2.068.261.922.393 2.017.393 3.28 0 1.195-.138 2.245-.416 3.15-.276.904-.67 1.6-1.177 2.087-.509.487-1.3.73-2.375.73h-2.337zm1.656-2.265h.686c.868 0 1.117-.077 1.488-.453.37-.376.477-.586.635-1.253.16-.667.192-1.04.192-2.215 0-1.148-.04-1.504-.224-2.124-.187-.617-.295-.81-.64-1.142-.349-.332-.578-.398-1.37-.398h-.767v7.585z"
+        />
+      </g>
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      info
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 25 25"
+      width={24}
+    >
+      <circle
+        cx={424.005}
+        cy={664.005}
+        fill={null}
+        r={12.005}
+        transform="matrix(1 0 0 1 -412 -652)"
+      />
+      <text
+        fontFamily="'IBMPlexSerif-SemiBold','IBM Plex Serif SemiBold',serif"
+        fontSize={24}
+        fontWeight={600}
+        transform="matrix(1 0 0 1 -579.022 -609.246)"
+        x={586.816}
+        y={629.892}
+      >
+        i
+      </text>
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      license
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M21 24.001H3a3 3 0 0 1-3-3v-18a3 3 0 0 1 3-3h18a3 3 0 0 1 3 3v18a3.004 3.004 0 0 1-3 3zm-3-3l3-3v-12l-3-3H6l-3 3v12l3 3h12z"
+      />
+      <path
+        d="M16.91 17.894H7.09c-.602 0-1.09-.648-1.09-1.447S6.488 15 7.09 15h9.82c.602 0 1.09.648 1.09 1.447s-.488 1.447-1.09 1.447z"
+        fill={null}
+        fillRule="nonzero"
+      />
+      <path
+        d="M11.952 5.728l1.902 1.382-.951 1.31 1.538.5-.726 2.235-1.54-.5v1.618h-2.35v-1.618l-1.54.5L7.56 8.92l1.538-.5-.951-1.309 1.902-1.382.95 1.31.953-1.31z"
+        fill={null}
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      link
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 34 28"
+      width={24}
+    >
+      <path
+        d="M30.564 13.817L16.778 25.679v-7.325h-.09l-.08.013-.08.012-.08.013h-.081l-.077.012-.167.025-.166.025-.166.038-.168.025-.168.037-.17.038-.169.037-.17.05-.172.038-.172.05-.173.05-.172.05-.174.05-.173.062-.173.063-.173.062-.173.063-.173.062-.172.063-.172.075-.17.075-.171.062-.171.088-.168.075-.168.075-.169.075-.165.087-.165.088-.163.087-.163.075-.16.088-.159.1-.157.087-.156.088-.154.1-.152.087-.15.1-.148.088-.144.1-.143.1-.141.1-.138.1-.136.1-.134.1-.13.1-.126.1-.125.1-.122.1-.117.1-.116.1-.11.1-.109.1-.105.1-.1.1-.099.1-3.874 4.05.336-5.575.012-.15.013-.15.016-.15.02-.15.02-.15.024-.138.026-.15.028-.15.03-.137.032-.15.035-.15.036-.138.038-.15.042-.137.042-.138.045-.15.046-.137.048-.138.05-.137.054-.138.053-.137.056-.138.058-.137.06-.138.06-.137.064-.138.065-.137.066-.125.067-.138.07-.125.07-.137.074-.125.074-.125.076-.138.077-.125.08-.125.08-.125.082-.125.083-.125.085-.125.086-.125.087-.125.089-.112.09-.125.091-.113.094-.125.093-.112.096-.125.096-.113.099-.112.1-.113.099-.112.1-.113.104-.112.103-.113.106-.1.106-.112.107-.113.109-.1.11-.1.11-.112.111-.1.113-.1.114-.1.114-.1.116-.1.117-.1.117-.088.12-.1.12-.1.12-.087.121-.088.124-.1.123-.087.123-.088.126-.087.126-.088.127-.075.128-.087.129-.088.13-.075.13-.075.13-.087.133-.075.132-.075.133-.075.135-.075.135-.063.135-.075.137-.062.137-.075.138-.063.138-.062.14-.063.14-.062.139-.063.142-.05.142-.062.142-.05.143-.05.144-.05.144-.05.145-.05.145-.05.146-.05.147-.038.147-.037.147-.05.148-.025.148-.038.15-.037.15-.038.149-.025.15-.025.151-.025.151-.025.152-.025.152-.025.152-.012.153-.025.153-.013.154-.012h.016V1.954l13.786 11.863zm-11.787-2.5h-1.496l-.126.012h-.124l-.126.013-.126.012-.124.013-.126.012-.126.013-.125.012-.125.025-.125.013-.126.025-.124.025-.125.025-.126.025-.124.025-.124.037-.124.025-.125.038-.123.037-.123.038-.124.037-.123.038-.123.037-.123.05-.122.038-.122.05-.12.037-.121.05-.121.05-.121.05-.12.05-.12.063-.119.05-.118.062-.118.05-.118.063-.117.062-.117.063-.116.062-.114.063-.116.062-.113.063-.115.075-.112.062-.113.075-.111.075-.111.063-.111.075-.11.075-.11.075-.106.075-.109.087-.106.075-.106.075-.105.088-.104.075-.104.087-.103.088-.102.075-.1.087-.1.088-.099.087-.098.088-.097.087-.096.1-.096.088-.093.087-.094.1-.092.088-.092.1-.09.087-.088.1-.089.1-.087.1-.085.1-.084.1-.084.088-.082.1-.081.112-.08.1-.08.1-.077.1-.076.1-.075.113-.073.1-.072.112-.071.1-.07.113-.069.1-.066.112-.066.1-.064.113-.063.112-.06.113-.06.1-.059.112-.057.113-.055.112-.054.113-.052.112-.051.113-.05.112-.047.113-.046.112-.045.113-.043.112-.04.113-.04.112-.04.125-.035.113-.034.112-.033.113-.032.112-.028.125-.028.113-.026.112-.024.113-.022.125-.02.112-.019.113-.016.112-.015.125-.012.113-.011.112-.01.125-.007.113.116-.125.12-.113.122-.125.126-.125.13-.112.131-.125.135-.113.138-.125.142-.112.143-.113.147-.125.15-.112.152-.113.154-.112.157-.113.158-.112.162-.113.165-.1.166-.112.168-.1.17-.113.171-.1.174-.1.176-.1.177-.1.18-.1.18-.1.182-.1.183-.087.186-.088.185-.087.187-.1.19-.075.189-.088.19-.087.19-.075.193-.075.193-.075.193-.075.194-.075.196-.075.194-.063.196-.062.195-.063.197-.062.196-.05.196-.05.196-.063.197-.037.195-.05.196-.05.195-.038.196-.037.194-.025.195-.038.194-.025.096-.012.096-.013.097-.012.096-.013.096-.012.095-.013h.095l.095-.012h.096l.095-.013h.188l.093-.012h1.526v5l8.72-7.5-8.72-7.5v5z"
+        fill={null}
+      />
+      <path
+        d="M27.497 13.817l-8.72 7.5v-5h-1.246c-3.96 0-8.777 2.412-11.21 5 .257-4.963 5.873-10 11.21-10h1.246v-5l8.72 7.5z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      logout
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M19.712 2.808A12.023 12.023 0 0 0 11.99 0C5.37 0-.005 5.378-.005 12c0 6.624 5.375 12 11.996 12 2.823 0 5.556-.993 7.72-2.807l-1.93-2.299A9.013 9.013 0 0 1 11.991 21c-4.961 0-8.993-4.033-8.993-9s4.032-9 8.993-9c2.12 0 4.167.746 5.79 2.106l1.93-2.298z"
+        fill={null}
+      />
+      <path
+        d="M23.997 12l-6.25-5.625v3.75h-8.75v3.749h8.75v3.75L23.998 12z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      mail
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M.004 12.86l6.86 2.573L7.718 24l4.286-6 6 6 6-24-24 12.86z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M17.018 20.129l-4.783-4.817L18.864 6l-10.46 7.95-3.963-1.43 16.788-9.012-4.211 16.62z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      move
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M0 18h3v3h1.5v3H2.244A2.271 2.271 0 0 1 0 21.745V18zM4.5 3H3v5H0V2.26A2.245 2.245 0 0 1 2.244 0H4.5v3z"
+        fill={null}
+      />
+      <path
+        d="M24 2.258v19.485a2.244 2.244 0 0 1-2.244 2.258H8.244A2.27 2.27 0 0 1 6 21.743V2.258A2.244 2.244 0 0 1 8.244.001h13.512A2.26 2.26 0 0 1 24 2.258zM9 3.001v18h12V3H9zM6 8v10h3V8H6z"
+      />
+      <path
+        d="M18 13l-7-6v4H2v4h9v4l7-6z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      notchedCircle
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M3.227 3.813A11.993 11.993 0 0 1 12.003 0C18.623 0 24 5.377 24 12s-5.376 12-11.997 12C6.15 24 1.143 19.776.17 14.005l2.958-.502A8.998 8.998 0 0 0 12.003 21c4.961 0 8.993-4.033 8.993-9 0-4.968-4.032-9-8.993-9A9.009 9.009 0 0 0 5.42 5.86L3.227 3.812z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      notification
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M20.47 15.333V8c0-4.4-3.811-8-8.47-8C7.34 0 3.53 3.6 3.53 8v7.333L0 20h24l-3.53-4.667z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M12 24c1.56 0 2.823-1.194 2.823-2.667H9.176C9.176 22.806 10.44 24 12 24"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      open
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M17.283 3.569L14.935 1.22C14.26.546 14.485 0 15.41 0H24v8.365-.223 13.29A2.572 2.572 0 0 1 21.432 24H2.568A2.572 2.572 0 0 1 0 21.432V2.568A2.572 2.572 0 0 1 2.568 0h13.29-5.573v3.428H3.428v17.143h17.143v-6.857H24V8.365v.223c0 .936-.554 1.144-1.22.477l-2.73-2.73-8.277 8.279-2.768-2.769 8.278-8.276z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      outerEllipsis
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      id="outer_ellipsis_svg__Layer_1"
+      viewBox="0 0 24 24"
+      width={24}
+      x={0}
+      xmlSpace="preserve"
+      y={0}
+    >
+      <style />
+      <ellipse
+        cx={5}
+        cy={12}
+        rx={3}
+        ry={3}
+      />
+      <ellipse
+        cx={19}
+        cy={12}
+        rx={3}
+        ry={3}
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      play
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 26"
+      width={24}
+    >
+      <path
+        d="M13.206 6.203l10.023 5.534c.492.27.77.725.77 1.267 0 .53-.278.996-.77 1.267L5.228 24.202l7.978-18z"
+        fill={null}
+      />
+      <path
+        d="M5.229 24.202l-2.884 1.592a1.602 1.602 0 0 1-1.562.006C.284 25.531 0 25.069 0 24.527V1.474C0 .932.284.47.783.201a1.597 1.597 0 0 1 1.562.007l10.861 5.994-7.977 18z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      projects
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 25 24"
+      width={24}
+    >
+      <path
+        d="M11.985 17.95a7.032 7.032 0 0 1-3.485.919 7.033 7.033 0 0 1-3.485-.918C2.287 18.783.615 21.54 0 23.97h17c-.615-2.43-2.287-5.188-5.015-6.02z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M12.945 17.287a7.616 7.616 0 0 0 2.643-3.418 7.03 7.03 0 0 0 3.398-.918c2.728.832 4.399 3.59 5.015 6.019h-8.25c-.801-.741-1.737-1.332-2.806-1.683z"
+        fill={null}
+        fillRule="nonzero"
+      />
+      <path
+        d="M8.5 5.025a6.1 6.1 0 1 0 0 12.197 6.1 6.1 0 1 0 0-12.197z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M9.895 3.653a6.126 6.126 0 0 1 11.73 2.47 6.123 6.123 0 0 1-5.604 6.101 7.6 7.6 0 0 0-6.126-8.571z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      properties
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M1.5 18.5c-.397 0-.78.159-1.06.44A1.498 1.498 0 0 0 1.5 21.5H8v-3H1.5zm0-16a1.5 1.5 0 0 0 0 3h11.833v-3H1.5zm11.5 16v3h9.5c.397 0 .78-.159 1.06-.44a1.498 1.498 0 0 0-1.06-2.56H13zm-7-5v-3H1.499A1.499 1.499 0 0 0 0 12V12a1.499 1.499 0 0 0 1.499 1.5H6zm16.501 0A1.499 1.499 0 0 0 24 12.001V12A1.499 1.499 0 0 0 22.5 10.5H10.667v3H22.5zM18 2.5v3h4.5a1.5 1.5 0 0 0 0-3H18z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M16 0h3v8h-3zM5 8h3v8H5zM10.667 16h3v8h-3z"
+        fill={null}
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      publish
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M3 20.25c0-.554-.243-1.032-.6-1.292V9.947l10.2 8.052L24 9 12.6 0 1.2 9v9.959c-.358.26-.6.738-.6 1.291 0 .524.215.984.541 1.253L0 23.999h3.6l-1.142-2.497c.326-.269.542-.73.542-1.253"
+      />
+      <path
+        d="M12.6 19.774l-.641-.506-7.16-5.652v4.226L12.6 24l7.8-6.158v-4.226l-7.159 5.652-.64.506z"
+        fill={null}
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      radioChecked
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M12 7c-2.8 0-5 2.2-5 5s2.2 5 5 5 5-2.2 5-5-2.2-5-5-5zm0-5C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      radioEmpty
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      refresh
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M.168 10C1.127 4.343 6.081 0 12 0c3.3 0 6.3 1.35 8.475 3.525L23 .98l1 8.488-8.377-.916L18.3 5.7A8.717 8.717 0 0 0 12 3c-4.263 0-7.859 3.004-8.775 7H.168z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M23.832 14C22.873 19.657 17.919 24 12 24c-3.3 0-6.3-1.35-8.475-3.525L1 23.02l-1-8.488 8.377.916L5.7 18.3A8.717 8.717 0 0 0 12 21c4.263 0 7.859-3.004 8.775-7h3.057z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      rename
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <g>
+        <path
+          d="M4.5 24H2.244A2.27 2.27 0 0 1 0 21.744V2.258A2.244 2.244 0 0 1 2.244.001H4.5v3H3v18h1.5v3z"
+          fill={null}
+        />
+        <path
+          d="M21.755 24H8.244A2.272 2.272 0 0 1 6 21.744V2.258A2.244 2.244 0 0 1 8.244.001h13.511A2.26 2.26 0 0 1 24 2.258v19.485c0 1.223-.951 2.202-2.245 2.258zM21 21V3H9v18h12z"
+        />
+        <path
+          d="M19.846 17.594h-2.502l-.725-2.33h-2.995l-.718 2.33h-2.372l3.575-11.61h2.139l3.598 11.61zm-3.166-3.89L15.1 8.61l-1.517 5.093h3.097z"
+        />
+      </g>
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      results
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M21.602.001l-4.051 6h-5.29c-.486.054-.783.369-.783.75 0 .415.351.75.783.75h4.278l-1.013 1.5h-3.265c-.486.054-.783.369-.783.75 0 .414.351.75.783.75h2.252l-1.013 1.5h-1.239c-.486.054-.783.369-.783.75 0 .415.351.75.783.75h.226l-7.089 10.5H3.652c-.864 0-1.565-.671-1.565-1.5v-2.5H3.13c1.153 0 2.087-.894 2.087-2 0-1.104-.934-2-2.087-2H2.087v-2H3.13c1.153 0 2.087-.895 2.087-2 0-1.103-.934-2-2.087-2H2.087v-2H3.13c1.153 0 2.087-.895 2.087-2 0-1.104-.934-2-2.087-2H2.087v-2.5c0-.828.701-1.5 1.565-1.5h17.95z"
+      />
+      <path
+        d="M21.602.001h.833c.864 0 1.565.672 1.565 1.5v21c0 .774-.612 1.412-1.565 1.5H5.398l7.089-10.5h7.6c.432 0 .783-.335.783-.75 0-.381-.298-.696-.783-.75H13.5l1.013-1.5h5.574c.432 0 .783-.336.783-.75 0-.381-.298-.696-.783-.75h-4.561l1.013-1.5h3.548c.432 0 .783-.335.783-.75 0-.381-.298-.696-.783-.75h-2.536l4.051-6zM3.13 19.001c.631-.053 1.044-.48 1.044-1 0-.551-.467-1-1.044-1H1.043c-.576 0-1.043.449-1.043 1 0 .553.467 1 1.043 1H3.13zM3.13 13.001c.631-.054 1.044-.48 1.044-1 0-.551-.467-.999-1.044-.999H1.043c-.576 0-1.043.448-1.043 1s.467 1 1.043 1H3.13zM3.13 7.002c.631-.054 1.044-.481 1.044-1 0-.552-.467-1-1.044-1H1.043c-.576 0-1.043.448-1.043 1s.467 1 1.043 1H3.13z"
+        fill={null}
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      search
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M15.5 14h-.8l-.3-.3c1-1.1 1.6-2.6 1.6-4.2C16 5.9 13.1 3 9.5 3S3 5.9 3 9.5 5.9 16 9.5 16c1.6 0 3.1-.6 4.2-1.6l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0C7 14 5 12 5 9.5S7 5 9.5 5 14 7 14 9.5 12 14 9.5 14z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      share
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <g>
+        <path
+          d="M0 19h3v2h1.5v3H2.244A2.271 2.271 0 0 1 0 21.743V19zM4.5 3H3v8H0V2.258A2.245 2.245 0 0 1 2.244 0H4.5v3z"
+          fill={null}
+        />
+        <path
+          d="M6 7V2.257A2.245 2.245 0 0 1 8.242 0h13.512A2.26 2.26 0 0 1 24 2.257v19.485c0 1.223-.95 2.203-2.244 2.258H8.243A2.271 2.271 0 0 1 6 21.742V16h3v5h12V3H9v4H6z"
+        />
+        <path
+          d="M19 10.996l-7 6v-4h-1c-3.18 0-7.046 1.93-9 4 .207-3.97 4.715-8 9-8h1v-4l7 6z"
+        />
+      </g>
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      starEmpty
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 23"
+      width={24}
+    >
+      <path
+        d="M15.708 7.514L24 8.719l-6 5.848 1.416 8.259-7.416-3.9-7.417 3.9L6 14.567 0 8.72l8.292-1.205L12 0l3.708 7.514zm-5.424 2.742l-3.837.557 2.776 2.707-.655 3.821L12 15.537l3.432 1.804-.656-3.82 2.777-2.708-3.837-.557L12 6.779l-1.716 3.477z"
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      starFilled
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 23"
+      width={24}
+    >
+      <path
+        d="M12 0l3.708 7.514L24 8.719l-6 5.848 1.416 8.259-7.416-3.9-7.417 3.9L6 14.567 0 8.72l8.292-1.205L12 0z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      starRibbon
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 39"
+      width={24}
+    >
+      <path
+        d="M0 0h24.004v38.902l-12-7.073L0 38.902V0zm12.004 6.178l2.913 5.913 6.53.949-4.726 4.603 1.117 6.5-5.834-3.069-5.84 3.069 1.114-6.5-4.723-4.603 6.528-.949 2.92-5.913z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      tags
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M21.964 3.404v8.135l-11.4 11.752c.429.461 1.114.71 1.543.71.429 0 1.221-.214 1.682-.71l10.21-10.368V5.54l-2.035-2.135z"
+        fill={null}
+        fillRule="nonzero"
+      />
+      <path
+        d="M18.857 0h-8.571L.659 10.823A2.452 2.452 0 0 0 0 12.462c-.016.652.198 1.344.66 1.84l6.631 7.13c.429.462 1.114.722 1.543.722.428 0 1.216-.225 1.677-.721l10.06-10.356v-9.23L18.857 0zm-1.645 5.925C16.05 6.277 15 5.348 15 4.155c0-1.022.766-1.847 1.714-1.847 1.109 0 1.971 1.13 1.645 2.383-.156.594-.595 1.067-1.147 1.234z"
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      trash
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 22 24"
+      width={24}
+    >
+      <path
+        d="M3.997 8h-3l1.001 13.998c.036.778 1.219 2 2 2h13.644c.78-.008 2.308-1.22 2.356-2l1-13.999h-3l-1 12c0 .777-.221 1-1 1h-10c-.772 0-1-.23-1-1l-1-12zm-4-5.001h22v2c0 .387-.611.998-1 1h-20c-.382 0-1-.617-1-1V3zm7.5-1.412c0-.78.216-1.588 1.001-1.588h5c.778 0 1 .803 1 1.588v1.412h-7V1.587z"
+      />
+      <path
+        d="M6.498 8h2v10.998h-2V8zm3.5 0h2v10.998h-2V8zm3.5 0h2v10.998h-2V8z"
+        fill={null}
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      upload
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M5.098 13.761l.012 2.753c-1.914-.006-3.739-1.262-4.582-3.047-.673-1.425-.702-3.147-.094-4.608.481-1.153 1.339-2.134 2.417-2.724 0 0 .086-.327.176-.582C3.57 4.033 4.92 2.83 6.48 2.597c.399-.059.805-.057 1.203.003C9.097.978 11.151.02 13.27 0h.106c3.281.03 6.384 2.381 7.276 5.772.03.114.068.278.068.278 2.114.868 3.52 3.302 3.246 5.663-.296 2.559-2.47 4.773-5.052 4.801l-.02-2.753c1.355-.014 2.53-1.412 2.436-2.864-.075-1.133-.906-2.197-2.005-2.41L18.33 8.3l-.113-1.054c-.27-2.378-2.303-4.375-4.649-4.49a4.736 4.736 0 0 0-.177-.004l-.08-.001c-1.563.01-3.095.827-4.007 2.16l-.632.935c-.724-.303-1.454-.728-2.162-.425-.628.268-1.066.95-1.087 1.664l-.018 1.01c-.675.223-1.37.389-1.896.915-.686.685-1.008 1.746-.771 2.714.27 1.102 1.241 2.024 2.36 2.036z"
+        fill={null}
+      />
+      <path
+        d="M11.999 9.999l-6 7.5h12l-6-7.5zM1.002 21h22v3h-22z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      uploadFolder
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 21"
+      width={24}
+    >
+      <path
+        d="M8.843 18.948v-2.526h12.632V5.053H3.79V1.887C3.79.838 4.637 0 5.684 0h5.685l2.527 2.526H22.1c1.057 0 1.901.844 1.901 1.883v12.656a1.889 1.889 0 0 1-1.901 1.883H8.843z"
+      />
+      <path
+        d="M6.317 13.895v6.316h-3.79v-6.316H.001l4.421-6.352 4.421 6.352H6.317z"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      user
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 25 25"
+      width={24}
+    >
+      <circle
+        cx={424.005}
+        cy={664.005}
+        fill={null}
+        r={12.005}
+        transform="matrix(1 0 0 1 -412 -652)"
+      />
+      <path
+        d="M5.131 17.813c.697-1.688 1.976-3.32 3.84-3.887a5.942 5.942 0 0 0 2.942.775c1.07 0 2.075-.282 2.943-.775 1.915.584 3.214 2.292 3.896 4.03a8.98 8.98 0 0 1-6.748 3.048 8.985 8.985 0 0 1-6.873-3.191z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M11.914 3.01a5.151 5.151 0 1 0 5.151 5.15 5.151 5.151 0 0 0-5.151-5.15z"
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      verified
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 20 24"
+      width={24}
+    >
+      <path
+        d="M10 0L0 4.04v6.546C0 16.641 4.37 22.626 10 24c5.629-1.375 10-7.36 10-13.414V4.041L10 0z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M7.955 13.896l-2.355-2.6-2.1 2.136 4.455 4.454L17.5 8.341l-2.1-2.145-7.445 7.7z"
+        fill={null}
+        fillRule="nonzero"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      warning
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 24 24"
+      width={24}
+    >
+      <path
+        d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm1 11h-2V7h2v6zm0 4h-2v-2h2v2z"
+      />
+    </svg>
+    , 
+  </span>,
+]
+`;

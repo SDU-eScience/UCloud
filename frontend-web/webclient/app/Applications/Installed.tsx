@@ -9,10 +9,11 @@ import { Page } from "Types";
 import * as Pagination from "Pagination";
 import { NewApplicationCard } from "./Card";
 import { LoadingMainContainer } from "MainContainer/MainContainer";
-import { CardGroup } from "ui-components/Card";
+import { GridCardGroup } from "ui-components/Grid";
 import * as Actions from "./Redux/FavoriteActions";
 import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { loadingEvent } from "LoadableContent";
+import * as Heading from "ui-components/Heading";
 
 interface InstalledOperations {
     onInit: () => void
@@ -46,6 +47,7 @@ class Installed extends React.Component<InstalledProps> {
 
         return (
             <LoadingMainContainer
+                header={<Heading.h1>My Apps</Heading.h1>}
                 loadable={this.props.applications}
                 main={main}
                 sidebar={null}
@@ -55,11 +57,11 @@ class Installed extends React.Component<InstalledProps> {
 }
 
 const InstalledPage: React.StatelessComponent<{ page: Page<Application> }> = props => (
-    <CardGroup>
+    <GridCardGroup>
         {props.page.items.map((it, idx) => (
             <NewApplicationCard app={it} key={idx} linkToRun />)
         )}
-    </CardGroup>
+    </GridCardGroup>
 );
 
 const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>): InstalledOperations => ({

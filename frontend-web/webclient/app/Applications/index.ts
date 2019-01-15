@@ -131,11 +131,11 @@ export type MaxTime = {
     seconds: number
 }
 
-export interface JobSchedulingOptions {
-    maxTime: MaxTime
-    numberOfNodes: number | null
-    tasksPerNode: number | null
-}
+// export interface JobSchedulingOptions {
+//     maxTime: MaxTime
+//     numberOfNodes: number | null
+//     tasksPerNode: number | null
+// }
 
 export interface MaxTimeForInput {
     hours: number | null,
@@ -289,6 +289,7 @@ export interface DetailedApplicationSearchReduxState extends ComponentWithPage<A
 export interface DetailedApplicationOperations {
     setAppName: (n: string) => void
     setVersionName: (v: string) => void
+    setError: (err?: string) => void
     fetchApplicationsFromName: (q: string, i: number, p: number, c?: Function) => void
     fetchApplicationsFromTag: (t: string, i: number, p: number, c?: Function) => void
 }

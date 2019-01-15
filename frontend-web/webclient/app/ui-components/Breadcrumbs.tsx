@@ -4,7 +4,9 @@ import { addTrailingSlash } from "UtilityFunctions";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
 const BreadCrumbsBase = styled.ul<{ divider?: string }>`
-    padding: 10px 16px;
+    padding: 0;
+    padding-right: 10px;
+    margin: 0;
     list-style: none;
 
     & li {
@@ -30,6 +32,8 @@ const BreadCrumbsBase = styled.ul<{ divider?: string }>`
     }
 `;
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 BreadCrumbsBase.defaultProps = {
     divider: "/"
 }

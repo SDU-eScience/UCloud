@@ -319,6 +319,20 @@ fun TestApplicationEngine.annotate(
     )
 }
 
+fun TestApplicationEngine.extract(
+    path: String,
+    user: String = "user1",
+    role: Role = Role.USER
+): TestApplicationResponse {
+    return call(
+        HttpMethod.Post,
+        "/api/files/extract",
+        params = mapOf("path" to path),
+        user = user,
+        role = role
+    )
+}
+
 fun TestApplicationEngine.findHome(
     username: String,
     user: String = "user1",
@@ -334,6 +348,7 @@ fun TestApplicationEngine.findHome(
         role = role
     )
 }
+
 
 fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
     val token = TokenValidationMock.createTokenForUser(username, role)

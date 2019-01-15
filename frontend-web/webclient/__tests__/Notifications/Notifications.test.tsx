@@ -7,6 +7,7 @@ import { initNotifications, initUploads } from "DefaultObjects";
 import notifications from "Notifications/Redux/NotificationsReducer";
 import uploader from "Uploader/Redux/UploaderReducer";
 import { MemoryRouter } from "react-router";
+import "jest-styled-components";
 
 describe.skip("Notifications", () => {
     // FIXME Will try to contact backend and get wrong result, overwriting the page

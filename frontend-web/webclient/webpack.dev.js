@@ -6,9 +6,10 @@ var commonConfig = require("./webpack.config.js");
 var path = require("path");
 
 module.exports = webpackMerge(commonConfig, {
-    devtool: "inline-source-map",
+    devtool: "eval-source-map",
 
     mode: "development",
+
 
     entry: {
         vendor: "./app/Vendor.tsx",
@@ -25,10 +26,10 @@ module.exports = webpackMerge(commonConfig, {
         // Enables Hot Module Replacement, otherwise known as HMR.
         // Note: HMR should never be used in production. 
         new webpack.HotModuleReplacementPlugin(),
-        new MiniCSSExtractPlugin({
-            filename: "[name].css",
-            chunkFilename: "[id].css"
-        }),
+        // new MiniCSSExtractPlugin({
+        //     filename: "[name].css",
+        //     chunkFilename: "[id].css"
+        // }),
         // Copies individual files or entire directories to the build directory
         new CopyWebpackPlugin([{
             from: "mock-api",

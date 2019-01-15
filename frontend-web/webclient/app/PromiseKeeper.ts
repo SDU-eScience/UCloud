@@ -4,7 +4,7 @@ export default class PromiseKeeper {
         this.promises = [];
     }
 
-    _cleanup(): void {
+    private cleanup(): void {
         this.promises = this.promises.filter(it => !it.isComplete);
     }
 
@@ -15,12 +15,12 @@ export default class PromiseKeeper {
             promise.then(
                 val => {
                     cancelablePromise.isComplete = true;
-                    this._cleanup();
+                    this.cleanup();
                     cancelablePromise.hasCanceled_ ? reject({ isCanceled: true }) : resolve(val);
                 },
                 error => {
                     cancelablePromise.isComplete = true;
-                    this._cleanup();
+                    this.cleanup();
                     cancelablePromise.hasCanceled_ ? reject({ isCanceled: true }) : reject(error)
                 }
             );

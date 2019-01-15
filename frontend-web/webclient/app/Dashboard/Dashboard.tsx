@@ -1,5 +1,4 @@
 import * as React from "react";
-import { toLowerCaseAndCapitalize } from "UtilityFunctions";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
@@ -18,7 +17,7 @@ import { Error, Box, Flex, Card, Text, Link, Icon } from "ui-components";
 import { EllipsedText } from "ui-components/Text"
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
-import { CardGroup } from "ui-components/Card";
+import { GridCardGroup } from "ui-components/Grid";
 import { TextSpan } from "ui-components/Text";
 import { fileTablePage } from "Utilities/FileUtilities";
 import { notificationRead, readAllNotifications } from "Notifications/Redux/NotificationsActions";
@@ -26,9 +25,10 @@ import { History } from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
 import * as UF from "UtilityFunctions";
 import * as Accounting from "Accounting";
+import { MainContainer } from "MainContainer/MainContainer";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
-    <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+    <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3} alignItems="center">
             <Heading.h4>{title}</Heading.h4>
         </Flex>
@@ -74,10 +74,10 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
             this.props.receiveFavorites(favoriteFiles.filter(f => f.favorited));
         };
 
-        return (
+        const main = (
             <React.StrictMode>
                 <Error error={errors.join(",\n")} clearError={props.errorDismiss} />
-                <CardGroup>
+                <GridCardGroup minmax={290}>
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
                         isLoading={favoriteLoading}
@@ -107,8 +107,14 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
                     <DashboardCard title={"Compute Time Used"} isLoading={false}>
                         <Accounting.Usage resource={"compute"} subResource={"timeUsed"} />
                     </DashboardCard>
-                </CardGroup>
+                </GridCardGroup>
             </React.StrictMode>
+        );
+
+        return (
+            <MainContainer
+                main={main}
+            />
         );
     }
 }
@@ -144,7 +150,7 @@ const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean
 }
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
-    <DashboardCard title="Recently used files" isLoading={isLoading}>
+    <DashboardCard title="Recently Used Files" isLoading={isLoading}>
         <List>
             {files.map((file, i) => (
                 <Flex alignItems="center" key={i} pt="0.5em" pb="0.3em">
@@ -184,9 +190,9 @@ interface DashboardNotificationProps {
 }
 
 const DashboardNotifications = ({ notifications, readAll, onNotificationAction }: DashboardNotificationProps) => (
-    <Card height="auto" width={290} boxShadowSize='sm' borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
+    <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
         <Flex bg="lightGray" color="darkGray" p={3}>
-            <Heading.h4>Recent notifications</Heading.h4>
+            <Heading.h4>Recent Notifications</Heading.h4>
             <Box ml="auto" />
             <Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />
         </Flex>
@@ -209,6 +215,12 @@ const statusToIconName = (status: AppState) => {
             return "check";
         case AppState.FAILURE:
             return "close";
+        case AppState.SCHEDULED:
+            return "calendar";
+        case AppState.RUNNING:
+            return "chrono";
+        case AppState.VALIDATED:
+            return "checkDouble";
         default:
             return "ellipsis";
     }
@@ -218,14 +230,14 @@ const statusToColor = (status: AppState) => status === AppState.FAILURE ? "red" 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     errorDismiss: () => dispatch(setErrorMessage(DASHBOARD_FAVORITE_ERROR, undefined)),
     updatePageTitle: () => dispatch(updatePageTitle("Dashboard")),
-    setAllLoading: (loading) => dispatch(setAllLoading(loading)),
+    setAllLoading: loading => dispatch(setAllLoading(loading)),
     fetchFavorites: async () => dispatch(await fetchFavorites()),
     fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
     // FIXME: Make action instead
-    receiveFavorites: (files) => dispatch(receiveFavorites(files))
+    receiveFavorites: files => dispatch(receiveFavorites(files))
 });
 
 const mapStateToProps = (state: ReduxObject): DashboardStateProps => {

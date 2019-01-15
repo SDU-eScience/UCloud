@@ -14,6 +14,7 @@ import { Heading } from "ui-components";
 import { fileTablePage } from "Utilities/FileUtilities";
 import { MainContainer } from "MainContainer/MainContainer";
 import { History } from "history";
+import { ReduxObject } from "DefaultObjects";
 
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props) {
@@ -36,7 +37,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
         clearInterval(this.state.reloadIntervalId);
     }
 
-    getAnalyses(silent) {
+    getAnalyses(silent: boolean) {
         const { page } = this.props;
         if (!silent) this.props.setLoading(true);
         this.props.fetchAnalyses(page.itemsPerPage, page.pageNumber);
@@ -55,7 +56,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
                     <Header />
                     <TableBody>
                         {page.items.map((a, i) => <Analysis
-                            to={() => history.push(`/applications/results/${a.jobId}`)} analysis={a} key={i} 
+                            to={() => history.push(`/applications/results/${a.jobId}`)} analysis={a} key={i}
                         />)}
                     </TableBody>
                 </Table>
@@ -65,11 +66,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
             onPageChanged={pageNumber => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
         />;
 
-        return (
-            <React.StrictMode>
-                <MainContainer main={content} />
-            </React.StrictMode>
-        )
+        return (<MainContainer main={content} />);
     }
 }
 
@@ -79,13 +76,14 @@ const Header = () => (
             <TableHeaderCell textAlign="left">App Name</TableHeaderCell>
             <TableHeaderCell textAlign="left">Job Id</TableHeaderCell>
             <TableHeaderCell textAlign="left">State</TableHeaderCell>
-            <TableHeaderCell textAlign="left" xs sm>Status</TableHeaderCell>
-            <TableHeaderCell textAlign="left" xs sm>Started at</TableHeaderCell>
-            <TableHeaderCell textAlign="left" xs sm>Last updated at</TableHeaderCell>
+            <TableHeaderCell textAlign="left">Status</TableHeaderCell>
+            <TableHeaderCell textAlign="left">Started at</TableHeaderCell>
+            <TableHeaderCell textAlign="left">Last updated at</TableHeaderCell>
         </TableRow>
     </TableHeader>
 );
 
+// FIXME: Typesafety. But how has this worked setting Link as title?
 const Analysis = ({ analysis, to }) => {
     const jobIdField = analysis.status === "COMPLETE" ?
         (<Link to={fileTablePage(`${Cloud.jobFolder}/${analysis.jobId}`)}>{analysis.jobId}</Link>) : analysis.jobId;
@@ -94,20 +92,20 @@ const Analysis = ({ analysis, to }) => {
             <TableCell>{analysis.appName}@{analysis.appVersion}</TableCell>
             <TableCell><span title={jobIdField}>{shortUUID(jobIdField)}</span></TableCell>
             <TableCell>{toLowerCaseAndCapitalize(analysis.state)}</TableCell>
-            <TableCell xs sm>{analysis.status}</TableCell>
-            <TableCell xs sm>{formatDate(analysis.createdAt)}</TableCell>
-            <TableCell xs sm>{formatDate(analysis.modifiedAt)}</TableCell>
+            <TableCell>{analysis.status}</TableCell>
+            <TableCell>{formatDate(analysis.createdAt)}</TableCell>
+            <TableCell>{formatDate(analysis.modifiedAt)}</TableCell>
         </TableRow>)
 };
 
-const formatDate = (millis) => {
+const formatDate = (millis: number) => {
     let d = new Date(millis);
     return `${pad(d.getDate(), 2)}/${pad(d.getMonth() + 1, 2)}/` +
         `${pad(d.getFullYear(), 2)} ${pad(d.getHours(), 2)}:` +
         `${pad(d.getMinutes(), 2)}:${pad(d.getSeconds(), 2)}`;
 };
 
-const pad = (value, length) =>
+const pad = (value: string | number, length: number) =>
     (value.toString().length < length) ? pad("0" + value, length) : value;
 
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
@@ -117,5 +115,5 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     fetchAnalyses: async (itemsPerPage: number, pageNumber: number) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber))
 });
 
-const mapStateToProps = ({ analyses }): AnalysesStateProps => analyses;
+const mapStateToProps = ({ analyses }: ReduxObject): AnalysesStateProps => analyses;
 export default connect(mapStateToProps, mapDispatchToProps)(JobResults);

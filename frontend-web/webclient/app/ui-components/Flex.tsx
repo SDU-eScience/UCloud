@@ -1,43 +1,54 @@
 import styled from 'styled-components'
 import {
   space,
-  width,
+  width, minWidth,
+  height,
   color,
   alignItems,
   justifyContent,
-  flexWrap,
-  flexDirection,
-  SpaceProps, WidthProps, ColorProps, AlignItemsProps,
-  JustifyContentProps, FlexWrapProps, FlexDirectionProps
+  flexWrap, flexDirection, flex,
+  SpaceProps, WidthProps, MinWidthProps, HeightProps, 
+  ColorProps, AlignItemsProps, JustifyContentProps, 
+  FlexWrapProps, FlexDirectionProps, FlexProps, ZIndexProps, zIndex
 } from 'styled-system'
 import theme from "./theme"
 
 
-export type FlexProps =
+export type FlexCProps =
   SpaceProps &
   WidthProps &
+  MinWidthProps &
+  HeightProps &
   ColorProps &
   AlignItemsProps &
   JustifyContentProps &
   FlexWrapProps &
-  FlexDirectionProps
+  FlexDirectionProps &
+  FlexProps &
+  ZIndexProps &
+  { cursor?: string }
 
 
-const Flex = styled.div<FlexProps>`
+const Flex = styled.div<FlexCProps>`
+  cursor: ${props => props.cursor};
   display: flex;
-  ${space} ${width} ${color} ${alignItems} ${justifyContent}
-  ${flexDirection}
-  ${flexWrap}
-`
+  ${space} ${width} ${minWidth} ${height} ${zIndex}
+  ${color} ${alignItems} ${justifyContent}
+  ${flexDirection} ${flexWrap} ${flex}
+`;
 
+
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 Flex.defaultProps = {
-  theme
+  theme,
+  cursor: "inherit"
 }
 
 
-Flex.displayName = 'Flex'
+Flex.displayName = "Flex";
 
-export default Flex
+export default Flex;
 
 
 /*

@@ -1,8 +1,8 @@
 import * as React from "react";
-import { Link } from "ui-components";
+import { Link, Icon } from "ui-components";
 import { ProjectMetadata } from "./api";
 import * as Heading from "ui-components/Heading";
-import { Box, Flex, Text, Stamp, Divider, Card } from "ui-components";
+import { Box, Flex, Text, OldStamp, Divider, Card } from "ui-components";
 import { projectViewPage } from "Utilities/ProjectUtilities";
 
 interface SearchItemProps { item: ProjectMetadata }
@@ -20,15 +20,11 @@ export const SearchItem = ({ item }: SearchItemProps) => (
             </Text>
         </Box>
         <Divider mb="1em" />
-        <Stamp color="blue" ml="0.2em">
+        <OldStamp color="blue" ml="0.2em">
             <Flex>
-                <Box pl="0.5em" pr="0.5em">
-                    <i className="fas fa-book"></i>
-                </Box>
-                {item.license}
-                <Text pl="0.2em" color="lightGrey">License</Text>
+                <Text color="lightGrey"><Icon name="license" mr="0.5em" size="1.5em"/>{item.license} License</Text>
             </Flex>
-        </Stamp>
+        </OldStamp>
     </Card>
 );
 

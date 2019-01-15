@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+    <g transform="matrix(1,0,0,1,-363.985,-518)">
+        <g id="Mail" transform="matrix(1,0,0,1,-716.01,30.0198)">
+            <g transform="matrix(0.0576923,0,0,0.0576923,1077.23,485.211)">
+                <path d="M48,270.9L166.9,315.5L181.7,464L256,360L360,464L464,48L48,270.9Z" style="fill:rgb(83,101,125);fill-rule:nonzero;"/>
+            </g>
+            <g transform="matrix(0.0576923,0,0,0.0576923,1077.23,485.211)">
+                <path d="M342.9,396.9L260,313.4L374.9,152L193.6,289.8L124.9,265L415.9,108.8L342.9,396.9Z" style="fill:rgb(131,147,167);fill-rule:nonzero;"/>
+            </g>
+        </g>
+    </g>
+</svg>

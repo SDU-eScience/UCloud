@@ -29,6 +29,8 @@ import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TokenValidationMock
+import dk.sdu.cloud.service.test.assertStatus
+import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.service.toSecurityToken
 import dk.sdu.cloud.service.tokenValidation
@@ -188,9 +190,8 @@ class CoreAuthTest {
         withBasicSetup(enablePassword = true, enableWayf = false) { _ ->
             val serviceName = "_service"
             ServiceDAO.insert(Service(serviceName, "endpointOfService"))
-            val response =
-                sendRequest(HttpMethod.Get, "/auth/login?service=$serviceName&invalid=true", addUser = false).response
-            assertEquals(HttpStatusCode.OK, response.status())
+            sendRequest(HttpMethod.Get, "/auth/login?service=$serviceName&invalid=true", addUser = false)
+                .assertSuccess()
         }
     }
 
@@ -199,17 +200,15 @@ class CoreAuthTest {
         withBasicSetup(enablePassword = false, enableWayf = true) {
             val serviceName = "_service"
             ServiceDAO.insert(Service(serviceName, "endpointOfService"))
-            val response =
-                sendRequest(HttpMethod.Get, "/auth/login?service=$serviceName&isInvalid=true", addUser = false).response
-            assertEquals(HttpStatusCode.OK, response.status())
+            sendRequest(HttpMethod.Get, "/auth/login?service=$serviceName&isInvalid=true", addUser = false)
+                .assertSuccess()
         }
     }
 
     @Test
     fun `Login test - no service given`() {
         withBasicSetup {
-            val response = sendRequest(HttpMethod.Get, "/auth/login", addUser = false).response
-            assertEquals(HttpStatusCode.OK, response.status())
+            sendRequest(HttpMethod.Get, "/auth/login", addUser = false).assertSuccess()
         }
     }
 
@@ -223,10 +222,9 @@ class CoreAuthTest {
                 refreshToken = ctx.createRefreshToken(it, username, role)
             }
 
-            val response = sendRequest(HttpMethod.Post, "/auth/refresh", addUser = false) {
+            sendRequest(HttpMethod.Post, "/auth/refresh", addUser = false) {
                 addHeader(HttpHeaders.Authorization, "Bearer ${refreshToken.token}")
-            }.response
-            assertEquals(HttpStatusCode.OK, response.status())
+            }.assertSuccess()
         }
     }
 
@@ -239,10 +237,9 @@ class CoreAuthTest {
                 ctx.createRefreshToken(it, username, role)
             }
 
-            val response = sendRequest(HttpMethod.Post, "/auth/refresh", addUser = false) {
+            sendRequest(HttpMethod.Post, "/auth/refresh", addUser = false) {
                 addHeader("Authorization", "Bearer bad-token")
-            }.response
-            assertEquals(HttpStatusCode.Unauthorized, response.status())
+            }.assertStatus(HttpStatusCode.Unauthorized)
         }
     }
 
@@ -255,8 +252,8 @@ class CoreAuthTest {
                 ctx.createRefreshToken(it, username, role)
             }
 
-            val response = sendRequest(HttpMethod.Post, "/auth/refresh", addUser = false).response
-            assertEquals(HttpStatusCode.Unauthorized, response.status())
+            sendRequest(HttpMethod.Post, "/auth/refresh", addUser = false)
+                .assertStatus(HttpStatusCode.Unauthorized)
         }
     }
 
@@ -269,13 +266,12 @@ class CoreAuthTest {
                 ctx.createRefreshToken(it, username, role)
             }
 
-            val response = sendRequest(
+            sendRequest(
                 HttpMethod.Post,
                 "/auth/request?audience=${SecurityScope.ALL_WRITE}",
                 user = username,
                 role = role
-            ).response
-            assertEquals(HttpStatusCode.OK, response.status())
+            ).assertSuccess()
         }
     }
 
@@ -288,8 +284,8 @@ class CoreAuthTest {
                 ctx.createRefreshToken(it, username, role)
             }
 
-            val response = sendRequest(HttpMethod.Post, "/auth/request?user", user = username, role = role).response
-            assertEquals(HttpStatusCode.BadRequest, response.status())
+            sendRequest(HttpMethod.Post, "/auth/request?user", user = username, role = role)
+                .assertStatus(HttpStatusCode.BadRequest)
         }
     }
 
@@ -303,8 +299,8 @@ class CoreAuthTest {
                 ctx.createRefreshToken(it, username, role)
             }
 
-            val response = sendRequest(HttpMethod.Post, "/auth/claim/$jti", user = username, role = role).response
-            assertEquals(HttpStatusCode.NoContent, response.status())
+            sendRequest(HttpMethod.Post, "/auth/claim/$jti", user = username, role = role)
+                .assertStatus(HttpStatusCode.NoContent)
         }
     }
 
@@ -318,9 +314,8 @@ class CoreAuthTest {
                 ctx.createRefreshToken(session, username, role)
             }
 
-            val response =
-                sendRequest(HttpMethod.Post, "/auth/claim/$jti", user = username, role = role).response
-            assertEquals(HttpStatusCode.Unauthorized, response.status())
+            sendRequest(HttpMethod.Post, "/auth/claim/$jti", user = username, role = role)
+                .assertStatus(HttpStatusCode.Unauthorized)
         }
     }
 
@@ -333,9 +328,8 @@ class CoreAuthTest {
                 ctx.createRefreshToken(session, username, role)
             }
 
-            val response =
-                sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", addUser = false).response
-            assertEquals(HttpStatusCode.Unauthorized, response.status())
+            sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", addUser = false)
+                .assertStatus(HttpStatusCode.Unauthorized)
         }
     }
 
@@ -348,11 +342,11 @@ class CoreAuthTest {
                 ctx.createRefreshToken(session, username, role)
             }
 
-            val response1 = sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", user = username, role = role).response
-            assertEquals(HttpStatusCode.NoContent, response1.status())
+            sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", user = username, role = role)
+                .assertStatus(HttpStatusCode.NoContent)
 
-            val response2 = sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", user = username, role = role).response
-            assertEquals(HttpStatusCode.Conflict, response2.status())
+            sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", user = username, role = role)
+                .assertStatus(HttpStatusCode.Conflict)
         }
     }
 

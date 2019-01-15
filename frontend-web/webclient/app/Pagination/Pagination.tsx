@@ -1,6 +1,6 @@
 import * as React from "react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Icon, Box, Text, Flex, Button, theme } from "ui-components";
+import { Text, Flex, Button, theme } from "ui-components";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 
@@ -25,11 +25,11 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
                 <PaginationButton onClick={() => undefined} unclickable>{"..."}</PaginationButton>
             </React.Fragment>
         ) : (
-                <PaginationButton key={it} unclickable={currentPage === it} color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
-            )
+            <PaginationButton key={it} unclickable={currentPage === it} color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
+        )
     );
     return (
-        <PaginationGroup>
+        <PaginationGroup justifyContent="center" my="1em">
             <PaginationButton onClick={() => toPage(currentPage - 1)} unclickable={currentPage === 0}>{"⟨"}</PaginationButton>
             {buttons}
             <PaginationButton onClick={() => toPage(currentPage + 1)} unclickable={currentPage === totalPages - 1}>{"⟩"}</PaginationButton>
@@ -51,6 +51,7 @@ const PaginationButtonBase = styled(Button) <{ unclickable?: boolean }>`
         filter: brightness(100%);
         background-color: ${props => props.unclickable ? null : props.theme.colors.paginationHoverColor};
         cursor: ${props => props.unclickable ? "default" : null};
+        transform: none;
     }
 `;
 
@@ -59,6 +60,8 @@ const PaginationButton = ({ onClick, ...props }) => (
     props.unclickable ? <PaginationButtonBase {...props} /> : <PaginationButtonBase onClick={onClick} {...props} />
 );
 
+// FIXME: Workaround, not a fix.
+// @ts-ignore
 PaginationButtonBase.defaultProps = {
     theme
 }
