@@ -6,7 +6,6 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.api.joinPath
 import io.ktor.http.HttpMethod
 

@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.stats.http
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.stats.api.FileStatsDescriptions
 import dk.sdu.cloud.file.stats.api.RecentFilesResponse
 import dk.sdu.cloud.file.stats.api.UsageResponse
@@ -12,7 +11,6 @@ import dk.sdu.cloud.file.stats.services.UsageService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.ok
 import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.safeJobId
 import dk.sdu.cloud.service.securityPrincipal

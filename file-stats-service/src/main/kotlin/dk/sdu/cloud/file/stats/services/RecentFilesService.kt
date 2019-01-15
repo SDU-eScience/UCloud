@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.stats.services
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.stats.api.SearchResult
 import dk.sdu.cloud.indexing.api.AllOf
 import dk.sdu.cloud.indexing.api.FileQuery
