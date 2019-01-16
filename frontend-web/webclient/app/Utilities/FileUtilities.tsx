@@ -469,7 +469,7 @@ export const shareFiles = (files: File[], cloud: SDUCloud) =>
         if (input.dismiss) return;
         const rights: string[] = [];
         if (UF.elementValue("read")) rights.push("READ")
-        if (UF.elementValue("read_edit")) rights.push("WRITE")
+        if (UF.elementValue("read_edit")) { rights.push("READ"); rights.push("WRITE"); }
         let iteration = 0;
         files.map(f => f.path).forEach((path, i, paths) => {
             const body = {
