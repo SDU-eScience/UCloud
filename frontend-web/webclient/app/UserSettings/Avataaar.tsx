@@ -122,7 +122,7 @@ class AvataaarModification extends React.Component<AvataaarModificationProps, Av
                             update={value => this.setState(() => ({ hairColor: value }))}
                             options={Options.HairColor}
                             title="Hair color"
-                            disabled={!state.top.includes("Long") || state.top === "LongHairFrida"}
+                            disabled={!state.top.includes("Hair") || state.top === "LongHairFrida"}
                         />
                         <AvatarSelect
                             defaultValue={state.facialHair}

@@ -10,6 +10,7 @@ import dk.sdu.cloud.avatar.api.Eyebrows
 import dk.sdu.cloud.avatar.api.Eyes
 import dk.sdu.cloud.avatar.api.FacialHair
 import dk.sdu.cloud.avatar.api.FacialHairColor
+import dk.sdu.cloud.avatar.api.FindBulkResponse
 import dk.sdu.cloud.avatar.api.FindResponse
 import dk.sdu.cloud.avatar.api.HairColor
 import dk.sdu.cloud.avatar.api.MouthTypes
@@ -73,6 +74,10 @@ class AvatarController<DBSession>(
                     avatar.clothesGraphic.string
                 )
             )
+        }
+
+        implement(AvatarDescriptions.findBulk) { request ->
+            ok(FindBulkResponse(avatarService.bulkFind(request.usernames)))
         }
     }
 

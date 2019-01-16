@@ -11,6 +11,7 @@ import dk.sdu.cloud.avatar.api.FacialHairColor
 import dk.sdu.cloud.avatar.api.FindResponse
 import dk.sdu.cloud.avatar.api.HairColor
 import dk.sdu.cloud.avatar.api.MouthTypes
+import dk.sdu.cloud.avatar.api.SerializedAvatar
 import dk.sdu.cloud.avatar.api.SkinColors
 import dk.sdu.cloud.avatar.api.Top
 import dk.sdu.cloud.avatar.api.TopAccessory
@@ -29,6 +30,21 @@ val avatar = Avatar(
     MouthTypes.CONCERNED,
     SkinColors.LIGHT,
     ClothesGraphic.BEAR
+)
+
+val serializedAvatar = SerializedAvatar(
+    Top.HAT.string,
+    TopAccessory.KURT.string,
+    HairColor.BLACK.string,
+    FacialHair.BEARD_MEDIUM.string,
+    FacialHairColor.BLACK.string,
+    Clothes.BLAZER_SHIRT.string,
+    ColorFabric.GRAY01.string,
+    Eyes.DIZZY.string,
+    Eyebrows.RAISED_EXCITED.string,
+    MouthTypes.CONCERNED.string,
+    SkinColors.LIGHT.string,
+    ClothesGraphic.BEAR.string
 )
 
 val updateRequest = UpdateRequest(

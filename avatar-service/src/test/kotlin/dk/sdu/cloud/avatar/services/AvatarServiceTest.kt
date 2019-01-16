@@ -115,4 +115,26 @@ class AvatarServiceTest {
 
         }
     }
+
+    @Test
+    fun `bulk test`() {
+        withDatabase { db ->
+            val dao = AvatarHibernateDAO()
+            val service = AvatarService(db, dao)
+
+            service.upsert(TestUsers.user.username, avatar)
+            service.upsert(TestUsers.user2.username, avatar.copy(top = Top.LONG_HAIR_BIG_HAIR))
+
+            val results = service.bulkFind(listOf(TestUsers.user.username, TestUsers.user2.username, "notFoundUser"))
+            val resultForUser = results[TestUsers.user.username]
+
+            assertEquals(Top.HAT.string, resultForUser?.top)
+
+            val resultForUser2 = results[TestUsers.user2.username]
+            assertEquals(Top.LONG_HAIR_BIG_HAIR.string, resultForUser2?.top)
+
+            val resultForNotFoundUser = results["notFoundUser"]
+            assertEquals(Top.HAT.string, resultForNotFoundUser?.top)
+        }
+    }
 }

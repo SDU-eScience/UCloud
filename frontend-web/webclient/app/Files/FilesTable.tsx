@@ -92,8 +92,10 @@ const ResponsiveTableColumn = ({
     notSticky
 }: ResponsiveTableColumnProps) => (
         <FileTableHeaderCell notSticky={notSticky} width="10rem" >
-            <Flex alignItems="center" justifyContent="left">
-                <Arrow name={iconName} />
+            <Flex alignItems="center" cursor="pointer" justifyContent="left">
+                <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
+                    <Arrow name={iconName} />
+                </Box>
                 <SortByDropdown
                     isSortedBy={isSortedBy}
                     onSelect={onSelect}
@@ -128,7 +130,7 @@ const FilesTableHeader = ({
                         onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
                         <Box mx="9px" onClick={e => e.stopPropagation()}>{masterCheckbox}</Box>
                         <Arrow name={toSortingIcon(SortBy.PATH)} />
-                        <Box>Filename</Box>
+                        <Box cursor="pointer">Filename</Box>
                     </Flex>
                 </FileTableHeaderCell>
                 {sortingColumns.filter(it => it != null).map((sC, i) => (
@@ -183,12 +185,12 @@ export const ContextBar = ({ files, ...props }: ContextBarProps) => (
 
 export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
     <VerticalButtonGroup>
-        <Button color="blue" onClick={showUploader}>Upload Files</Button>
-        <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton>
-        {inTrashFolder ?
+        {!inTrashFolder ?
+            <><Button color="blue" onClick={showUploader}>Upload Files</Button>
+                <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton></> :
             <Button color="red" onClick={() => clearTrash(Cloud, () => toHome())}>
                 Empty trash
-            </Button> : null}
+            </Button>}
     </VerticalButtonGroup>
 );
 
@@ -197,16 +199,15 @@ const PredicatedCheckbox = ({ predicate, checked, onClick }: PredicatedCheckbox)
     <Box><Label><Checkbox checked={checked} onClick={onClick} onChange={e => e.stopPropagation()} /></Label></Box>
 ) : null;
 
-const PredicatedFavorite = ({ predicate, item, onClick }) =>
-    predicate ? (
-        <Icon
-            size="1em" ml=".7em"
-            color={item.favorited ? "blue" : "gray"}
-            name={item.favorited ? "starFilled" : "starEmpty"}
-            onClick={() => onClick([item])}
-            hoverColor="blue"
-        />
-    ) : null;
+const PredicatedFavorite = ({ predicate, item, onClick }) => predicate ? (
+    <Icon
+        size="1em" ml=".7em"
+        color={item.favorited ? "blue" : "gray"}
+        name={item.favorited ? "starFilled" : "starEmpty"}
+        onClick={() => onClick([item])}
+        hoverColor="blue"
+    />
+) : null;
 
 
 interface Groupicon { isProject: boolean }

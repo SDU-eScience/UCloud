@@ -4,7 +4,7 @@ import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
 import { IconName } from "ui-components/Icon";
-import { ComponentWithPage, ResponsiveReduxObject } from "DefaultObjects";
+import { ComponentWithPage, ResponsiveReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 import { RouterLocationProps } from "Utilities/URIUtilities";
 import { ThemeColor } from "ui-components/theme";
@@ -24,7 +24,7 @@ export interface File {
     size: number
     acl?: Acl[]
     favorited?: boolean
-    sensitivityLevel: string
+    sensitivityLevel: SensitivityLevelMap
     isChecked?: boolean
     beingRenamed?: boolean
     link: boolean

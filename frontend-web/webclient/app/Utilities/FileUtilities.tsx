@@ -245,7 +245,7 @@ export function AllFileOperations(
         ...fileSelectorOperations,
         ...deleteOperation,
         ...extractionOperations,
-        ...clearTrash,
+        // ...clearTrash,
         ...historyOperations,
         ...createLink
     ];
@@ -293,7 +293,7 @@ export const newMockFolder = (path: string = "", beingRenamed: boolean = true): 
     size: 0,
     acl: [],
     favorited: false,
-    sensitivityLevel: "OPEN_ACCESS",
+    sensitivityLevel: SensitivityLevelMap.PRIVATE,
     isChecked: false,
     beingRenamed,
     link: false,
@@ -469,7 +469,7 @@ export const shareFiles = (files: File[], cloud: SDUCloud) =>
         if (input.dismiss) return;
         const rights: string[] = [];
         if (UF.elementValue("read")) rights.push("READ")
-        if (UF.elementValue("read_edit")) rights.push("WRITE")
+        if (UF.elementValue("read_edit")) { rights.push("READ"); rights.push("WRITE"); }
         let iteration = 0;
         files.map(f => f.path).forEach((path, i, paths) => {
             const body = {

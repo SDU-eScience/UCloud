@@ -216,7 +216,7 @@ test("To same UUDI", () =>
 
 import { mockFiles_SensitivityConfidential, newMockFile } from "./mock/Files"
 import { dateToString } from "Utilities/DateUtilities";
-import { SensitivityLevel } from "DefaultObjects";
+import { SensitivityLevel, SensitivityLevelMap } from "DefaultObjects";
 
 test("Download allowed", () =>
     expect(UF.downloadAllowed(mockFiles_SensitivityConfidential.items)).toBe(false)
@@ -230,7 +230,7 @@ const highSensitivityFile = newMockFile({
     acl: [],
     annotations: [],
     ownerName: "user@user3.dk",
-    sensitivityLevel: "SENSITIVE",
+    sensitivityLevel: SensitivityLevelMap.SENSITIVE,
     favorited: false,
     link: false,
     size: 128
