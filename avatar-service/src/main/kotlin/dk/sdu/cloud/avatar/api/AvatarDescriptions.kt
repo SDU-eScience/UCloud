@@ -32,6 +32,14 @@ typealias FindRequest = Unit
 
 typealias FindResponse = SerializedAvatar
 
+data class FindBulkRequest(
+    val usernames: List<String>
+)
+
+data class FindBulkResponse(
+    val avatars: Map<String, SerializedAvatar>
+)
+
 object AvatarDescriptions : RESTDescriptions("avatar") {
     val baseContext = "/api/avatar"
 
@@ -63,5 +71,21 @@ object AvatarDescriptions : RESTDescriptions("avatar") {
             using(baseContext)
             +"find"
         }
+    }
+
+    val findBulk = callDescription<FindBulkRequest, FindBulkResponse, CommonErrorMessage> {
+        name = "findBulk"
+        method = HttpMethod.Post
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"bulk"
+        }
+
+        body { bindEntireRequestFromBody() }
     }
 }

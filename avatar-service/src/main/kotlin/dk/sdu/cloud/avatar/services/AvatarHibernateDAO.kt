@@ -10,6 +10,7 @@ import dk.sdu.cloud.avatar.api.FacialHair
 import dk.sdu.cloud.avatar.api.FacialHairColor
 import dk.sdu.cloud.avatar.api.HairColor
 import dk.sdu.cloud.avatar.api.MouthTypes
+import dk.sdu.cloud.avatar.api.SerializedAvatar
 import dk.sdu.cloud.avatar.api.SkinColors
 import dk.sdu.cloud.avatar.api.Top
 import dk.sdu.cloud.avatar.api.TopAccessory
@@ -163,5 +164,28 @@ class AvatarHibernateDAO : AvatarDAO<HibernateSession> {
         return session.criteria<AvatarEntity> {
             (entity[AvatarEntity::username] equal user)
         }.uniqueResult()?.toModel() ?: defaultAvatar()
+    }
+
+    override fun bulkFind(
+        session: HibernateSession,
+        users: List<String>
+    ): Map<String, SerializedAvatar> {
+        return users.map { username ->
+            val avatar = findByUser(session, username)
+            username to SerializedAvatar(
+                avatar.top.string,
+                avatar.topAccessory.string,
+                avatar.hairColor.string,
+                avatar.facialHair.string,
+                avatar.facialHairColor.string,
+                avatar.clothes.string,
+                avatar.colorFabric.string,
+                avatar.eyes.string,
+                avatar.eyebrows.string,
+                avatar.mouthTypes.string,
+                avatar.skinColors.string,
+                avatar.clothesGraphic.string
+            )
+        }.toMap()
     }
 }
