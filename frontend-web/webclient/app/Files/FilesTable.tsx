@@ -183,12 +183,12 @@ export const ContextBar = ({ files, ...props }: ContextBarProps) => (
 
 export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
     <VerticalButtonGroup>
-        <Button color="blue" onClick={showUploader}>Upload Files</Button>
-        <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton>
-        {inTrashFolder ?
+        {!inTrashFolder ?
+            <><Button color="blue" onClick={showUploader}>Upload Files</Button>
+                <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton></> :
             <Button color="red" onClick={() => clearTrash(Cloud, () => toHome())}>
                 Empty trash
-            </Button> : null}
+            </Button>}
     </VerticalButtonGroup>
 );
 
@@ -197,16 +197,15 @@ const PredicatedCheckbox = ({ predicate, checked, onClick }: PredicatedCheckbox)
     <Box><Label><Checkbox checked={checked} onClick={onClick} onChange={e => e.stopPropagation()} /></Label></Box>
 ) : null;
 
-const PredicatedFavorite = ({ predicate, item, onClick }) =>
-    predicate ? (
-        <Icon
-            size="1em" ml=".7em"
-            color={item.favorited ? "blue" : "gray"}
-            name={item.favorited ? "starFilled" : "starEmpty"}
-            onClick={() => onClick([item])}
-            hoverColor="blue"
-        />
-    ) : null;
+const PredicatedFavorite = ({ predicate, item, onClick }) => predicate ? (
+    <Icon
+        size="1em" ml=".7em"
+        color={item.favorited ? "blue" : "gray"}
+        name={item.favorited ? "starFilled" : "starEmpty"}
+        onClick={() => onClick([item])}
+        hoverColor="blue"
+    />
+) : null;
 
 
 interface Groupicon { isProject: boolean }
