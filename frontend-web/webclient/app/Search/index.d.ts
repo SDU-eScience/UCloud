@@ -28,6 +28,7 @@ export interface SimpleSearchStateProps {
 }
 
 export interface SimpleSearchOperations {
+    clear: () => void
     setFilesLoading: (loading: boolean) => void
     setApplicationsLoading: (loading: boolean) => void
     setProjectsLoading: (loading: boolean) => void

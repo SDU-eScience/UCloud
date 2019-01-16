@@ -26,6 +26,7 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
 
     componentWillUnmount() {
         if (!this.props.hidden) this.props.toggleHidden();
+        this.props.page
     }
 
     onAddExtension() {

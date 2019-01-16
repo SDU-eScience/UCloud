@@ -245,7 +245,7 @@ export function AllFileOperations(
         ...fileSelectorOperations,
         ...deleteOperation,
         ...extractionOperations,
-        ...clearTrash,
+        // ...clearTrash,
         ...historyOperations,
         ...createLink
     ];

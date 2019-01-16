@@ -2,19 +2,16 @@ import * as React from "react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { NewApplicationCard } from "Applications/Card";
-import { ProjectMetadata } from "Project/api";
 import { SearchItem } from "Project/Search";
 import { AllFileOperations } from "Utilities/FileUtilities";
 import { SearchProps, SimpleSearchOperations, SimpleSearchStateProps } from ".";
-import { HeaderSearchType, ReduxObject } from "DefaultObjects";
+import { HeaderSearchType, ReduxObject, emptyPage } from "DefaultObjects";
 import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
-import { Application } from "Applications";
-import { Page } from "Types";
 import { Dispatch } from "redux";
-import { File, SortOrder, SortBy, AdvancedSearchRequest, FileType } from "Files";
+import { SortOrder, SortBy, AdvancedSearchRequest, FileType } from "Files";
 import * as SSActions from "./Redux/SearchActions";
-import { Error, Hide, Input, OutlineButton, Text, Flex, ToggleBadge, theme } from "ui-components";
-import Card, { CardGroup } from "ui-components/Card";
+import { Error, Hide, Input, Text, Flex, theme } from "ui-components";
+import { CardGroup } from "ui-components/Card";
 import { MainContainer } from "MainContainer/MainContainer";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSearchActions";
@@ -79,7 +76,10 @@ class Search extends React.Component<SearchProps> {
         }
     }
 
-    componentWillUnmount = () => this.props.toggleAdvancedSearch();
+    componentWillUnmount = () => {
+        this.props.toggleAdvancedSearch();
+        this.props.clear();
+    }
 
     shouldComponentUpdate(nextProps: SearchProps): boolean {
         // TODO It seems like a bad idea to perform side-effects in this method!
@@ -120,6 +120,7 @@ class Search extends React.Component<SearchProps> {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
         const fileOperations = AllFileOperations(true, false, false, false, false, false, this.props.history);
         // FIXME: Search Pane approach is obsolete
+        console.log(filesLoading, projectsLoading, applicationsLoading);
         const panes: SearchPane[] = [
             {
                 headerType: "files",
@@ -254,6 +255,11 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setApplicationsLoading: loading => dispatch(SSActions.setApplicationsLoading(loading)),
     setProjectsLoading: loading => dispatch(SSActions.setProjectsLoading(loading)),
     setError: error => dispatch(SSActions.setErrorMessage(error)),
+    clear: () => {
+        dispatch(SSActions.receiveFiles(emptyPage))
+        dispatch(SSActions.receiveFiles(emptyPage))
+        dispatch(SSActions.receiveProjects(emptyPage))
+    },
     searchFiles: async (body) => {
         dispatch(SSActions.setFilesLoading(true));
         dispatch(await SSActions.searchFiles(body));

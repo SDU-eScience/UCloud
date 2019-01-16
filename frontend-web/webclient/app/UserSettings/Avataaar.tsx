@@ -7,7 +7,7 @@ import Spinner from "LoadingIcon/LoadingIcon";
 import { connect } from "react-redux";
 import { ReduxObject } from "DefaultObjects";
 import { Dispatch } from "redux";
-import { updateAvatar, findAvatar } from "./Redux/AvataaarActions";
+import { findAvatar, saveAvatar } from "./Redux/AvataaarActions";
 import PromiseKeeper from "PromiseKeeper";
 import { findAvatarQuery } from "Utilities/AvatarUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
@@ -51,11 +51,10 @@ class AvataaarModification extends React.Component<AvataaarModificationProps, Av
         this.fetchCurrentAvatar()
     }
 
-    private fetchCurrentAvatar() {
+    private fetchCurrentAvatar = () =>
         this.state.promises.makeCancelable(Cloud.get(findAvatarQuery)).promise
             .then(it => this.setState(() => ({ ...it.response, loading: false })))
             .catch(it => (failureNotification("An error occurred fetching current Avatar"), this.setState(() => ({ loading: false }))))
-    }
 
     private save() {
         this.props.save(this.state as AvatarType)
@@ -215,22 +214,9 @@ function AvatarSelect<T>({ update, options, title, disabled, defaultValue }: Ava
 
 const mapStateToProps = ({ avatar }: ReduxObject) => avatar;
 const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations => ({
-    save: async avatar => dispatch(await updateAvatar(avatar)),
+    save: async avatar => dispatch(await saveAvatar(avatar)),
     findAvatar: async () => dispatch(await findAvatar())
 });
-
-
-/*  
-    val user: String,
-    
-    val clothes: Clothes,
-    val colorFabric: ColorFabric,
-    val eyes: Eyes,
-    val eyebrows: Eyebrows,
-    val mouthTypes: MouthTypes,
-    val skinColors: SkinColors,
-    val clothesGraphic: ClothesGraphic
-*/
 
 const defaultAvatar = ({
     top: Options.Top.NoHair,

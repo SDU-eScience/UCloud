@@ -62,6 +62,7 @@ const Core = () => (
 
             <Route exact path="/projects/edit" component={Project.CreateUpdate} />
             <Route exact path="/projects/view" component={Project.ManagedView} />
+            <Route exact path="/projects/manage" component={Project.Manage} />
 
             <Route exact path="/admin/usercreation" component={UserCreation} />
 

@@ -88,42 +88,6 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
     );
 };
 
-export const ApplicationCard = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => (
-    <Link to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)}>
-        <Card width="250px">
-            <Relative height="135px">
-                <Box>
-                    <Image src={app.imageUrl} />
-                    <Absolute top="6px" left="10px">
-                        <Text
-                            fontSize={2}
-                            align="left"
-                            color="white"
-                        >
-                            {app.description.title}
-                        </Text>
-                    </Absolute>
-                    <Absolute top={"26px"} left={"14px"}>
-                        <Text fontSize={"xxs-small"} align="left" color="white">
-                            v{app.description.info.version}
-                        </Text>
-                    </Absolute>
-                    <Absolute bottom="10px" left="10px">
-                        <EllipsedText width={220} title={`by ${app.description.authors.join(", ")}`} color="white">
-                            by {app.description.authors.join(", ")}
-                        </EllipsedText>
-                    </Absolute>
-                </Box>
-            </Relative>
-            <Box m="10px">
-                <Text>
-                    {app.description.description.slice(0, 100)}
-                </Text>
-            </Box>
-        </Card >
-    </Link >
-);
-
 export const NewAppCard = styled(Link)`
 
     padding: 10px;
@@ -529,7 +493,7 @@ export const AppLogo = ({ size, hash }: { size: string, hash: number }) => {
 
 
 const AppRibbonContainer = styled(Absolute) <{ favorite?: boolean }>`
-    ${({ favorite }) => favorite ? css`transform: translate(0,-30px)` : null};
+    ${({ favorite }) => favorite ? null : css`transform: translate(0,-30px)`};
     transition: transform ease 0.1s;
     will-change: transform;
 
