@@ -293,7 +293,7 @@ export const newMockFolder = (path: string = "", beingRenamed: boolean = true): 
     size: 0,
     acl: [],
     favorited: false,
-    sensitivityLevel: "OPEN_ACCESS",
+    sensitivityLevel: SensitivityLevelMap.PRIVATE,
     isChecked: false,
     beingRenamed,
     link: false,
