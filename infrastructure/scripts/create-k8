@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -e
+
+# Utility functions
+function confirm() {
+    read -p "Are you sure? " -n 1 -r
+    echo    # (optional) move to a new line
+    if [[ ! $REPLY =~ ^[Yy]$ ]]
+    then
+        [[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1 # handle exits from shell or function but don't exit interactive shell
+    fi
+}
+
+function findpodjson() {
+    kubectl get pods --all-namespaces --selector=app=$1 -o json | json items[0].metadata
+}
+
+# Verify requirements
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export PATH=$PATH:$SCRIPT_DIR
+
+if !(hash sducloud 2>/dev/null); then
+    # This should not happen
+    echo "Could not find sducloud in path"
+    echo "Please add sdu-cloud/infrastructure/scripts to your path"
+    exit 1
+fi
+
+if !(hash http 2>/dev/null); then
+    echo "Could not find http in path"
+    echo "brew install httpie"
+    exit 1
+fi
+
+if !(hash json 2>/dev/null); then
+    echo "Could not find json in path"
+    echo "npm install -g json"
+    exit 1
+fi
+
+# Verify number of arguments given from CLI
+if test "$#" -lt 1; then
+    echo "Usage: create-k8s <name> [<db_user>] [<schema>]"
+    exit 1
+fi
+
+# Find postgres
+pod=`findpodjson postgresql`
+name=`echo $pod | json name`
+namespace=`echo $pod | json namespace`
+
+# Read user input
+service_name=$1
+db_user_input=$2
+schema_input=$3
+
+# Set based on defaults
+db_user="${db_user_input:-${service_name:-default}}"
+schema="${schema_input:-${service_name:-default}}"
+
+# Generate password
+password=$(openssl rand -base64 32)
+
+# Write what we are about to do and confirm.
+echo "service_name: $service_name, db_user: $db_user, schema: $schema"
+echo "PSQL found at: $name $namespace"
+echo "Password is: $password"
+
+confirm;
+
+tokens=`sducloud POST https://cloud.sdu.dk/auth/users/register username=_$service_name password=dummy role=SERVICE | json`
+refreshToken=`echo $tokens | json refreshToken`
+kubectl exec -t -n $namespace $name -- psql -c "create user $db_user password '$password';"
+kubectl exec -t -n $namespace $name -- psql -c "create schema $schema authorization $service_name;"
+
+refreshFile=/tmp/refresh-`uuidgen`.yml
+cat > $refreshFile << EOF
+---
+refreshToken: $refreshToken
+EOF
+
+kubectl create secret generic ${service_name}-refresh-token --from-file=$refreshFile
+rm $refreshFile
+
+dbFile=/tmp/db-`uuidgen`.yml
+cat > $dbFile << EOF
+---
+hibernate:
+database:
+    profile: PERSISTENT_POSTGRES
+    credentials:
+        username: $db_user
+        password: $password
+EOF
+
+kubectl create secret generic ${service_name}-psql --from-file=$dbFile
+rm $dbFile
