@@ -3,7 +3,7 @@ import { PayloadAction } from "Types";
 import { AVATAR_SAVE } from "./AvataaarReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { saveAvatarQuery, findAvatarQuery } from "Utilities/AvatarUtilities";
-import { failureNotification } from "UtilityFunctions";
+import { failureNotification, successNotification } from "UtilityFunctions";
 
 export type AvatarActions = SaveAvataaar
 
@@ -15,7 +15,7 @@ const saveAvataaar = (avatar: AvatarType): SaveAvataaar => ({
 
 export const saveAvatar = (avatar: AvatarType): Promise<SaveAvataaar> =>
     Cloud.post(saveAvatarQuery, { ...avatar }).then(it =>
-        saveAvataaar(avatar)
+        (successNotification("Updated avatar"), saveAvataaar(avatar))
     ).catch(it => (failureNotification("Updating of avatar failed"), saveAvataaar(avatar)));
 
 export const updateAvatar = (avatar: AvatarType): SaveAvataaar => saveAvataaar(avatar);
