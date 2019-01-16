@@ -13,6 +13,7 @@ import { fetchProjectMembers, setError } from "./Redux/ManagementActions";
 import { ReduxObject } from "DefaultObjects";
 import { TextSpan } from "ui-components/Text";
 import { getQueryParamOrElse, RouterLocationProps } from "Utilities/URIUtilities";
+import { updateAvatar } from "UserSettings/Redux/AvataaarActions";
 
 export enum ProjectRole {
     PI = "PI",
@@ -44,18 +45,37 @@ class Management extends React.Component<ManagementOperations, {
         const { ...state } = this.state;
         const header = (<>
             <Heading.h3>Project Management: <b>{state.projectName}</b></Heading.h3>
-
-        </>)
-        const main = (<>
             <Spacer
                 left={<Box>{state.memberCount} Members</Box>}
                 right={<Button onClick={() => successNotification("Wouldn't it be great if this button worked?")}>Invite member</Button>}
             />
-            <MemberList members={state.admins} title="Admins" except="ADMIN" setRole={(b) => console.log(b)} />
-            <MemberList members={state.datastewards} title="Data Stewards" except="DATA_STEWARD" setRole={(b) => console.log(b)} />
-            <MemberList members={state.users} title="Users" except="USER" setRole={(b) => console.log(b)} />
-        </>);
+        </>)
+        const main = (<>
+            <MemberList
+                members={state.admins}
+                defaultValue={ProjectRole.ADMIN}
+                title="Admins"
+                update={() => undefined}
+                remove={() => undefined}
+            />
 
+            <MemberList
+                members={state.datastewards}
+                defaultValue={ProjectRole.DATA_STEWARD}
+                title="Data Stewards"
+                update={() => undefined}
+                remove={() => undefined}
+            />
+
+            <MemberList
+                members={state.users}
+                defaultValue={ProjectRole.USER}
+                title="Users"
+                update={() => undefined}
+                remove={() => undefined}
+            />
+
+        </>);
 
         return (
             <MainContainer
@@ -66,31 +86,71 @@ class Management extends React.Component<ManagementOperations, {
     }
 }
 
-interface Admins { members: string[], title: string, except: string, setRole: (role: string) => void }
-const MemberList = ({ members, setRole, title, except }: Admins) => (
-    <Box mb="1.5em">
-        <Heading.h3>{title}</Heading.h3>
-        {members.map(it => (
-            <>
+interface Admins {
+    members: string[]
+    defaultValue: ProjectRole
+    title: string
+    update: (role: ProjectRole, user: string) => void
+    remove: (user: string) => void
+}
+
+const MemberList = (props: Admins) => (
+    <Box mb="1.5em" >
+        <Heading.h3>{props.title}</Heading.h3>
+        {props.members.map(member => (
+            <React.Fragment key={member}>
                 <Box mb="5px" />
                 <Spacer
                     left={<>
                         <UserAvatar avatar={defaultAvatar} />
-                        <TextSpan>{it}</TextSpan>
+                        <TextSpan>{member}</TextSpan>
                     </>}
-                    right={<Flex>
-                        <MemberSelect>
-                            {Object.keys(ProjectRole).filter(it => it !== "PI").map(r =>
-                                except !== r ? <option onClick={() => setRole(r)}>{prettierString(r)}</option> : null
-                            )}
-                        </MemberSelect>
-                        <Button onClick={() => successNotification("Wouldn't it be great if this button worked?")} color="green" ml="30px" mr="10px">Update</Button>
-                        <Button onClick={() => successNotification("Wouldn't it be great if this button worked?")} color="red">Remove</Button>
-                    </Flex>}
+                    right={<RoleSelect
+                        member={member}
+                        defaultValue={props.defaultValue}
+                        remove={props.remove}
+                        updateRole={role => props.update(role, member)}
+                    />}
                 />
-            </>))}
-    </Box>);
+            </React.Fragment>))}
+    </Box>
+);
 
+interface RoleSelectProps {
+    defaultValue: ProjectRole
+    updateRole: (role: ProjectRole) => void
+    remove: (username: string) => void
+    member: string
+}
+
+type RoleSelectState = { role: ProjectRole }
+
+class RoleSelect extends React.Component<RoleSelectProps, RoleSelectState> {
+    constructor(props: RoleSelectProps) {
+        super(props);
+        this.state = {
+            role: props.defaultValue
+        }
+    }
+
+    private readonly setRole = (role: string) => this.setState(() => ({ role: role.toUpperCase() as ProjectRole }));
+
+    render() {
+        const { role } = this.state;
+        const { ...props } = this.props;
+        return (
+            <Flex>
+                {role === props.defaultValue ? null : <Button onClick={() => props.updateRole(role)} color="green" mr="10px">Update</Button>}
+                <MemberSelect onChange={({ target: { value } }) => this.setRole(value)}>
+                    {Object.keys(ProjectRole).filter(role => role !== "PI").map((r: ProjectRole) =>
+                        <option selected={r === props.defaultValue} key={`${props.defaultValue}${r}`}>{prettierString(r)}</option>
+                    )}
+                </MemberSelect>
+                <Button ml="30px" onClick={() => props.remove(props.member)} color="red">Remove</Button>
+            </Flex>
+        )
+    }
+}
 
 const MemberSelect = styled(Select)`
     min-width: 200px;
