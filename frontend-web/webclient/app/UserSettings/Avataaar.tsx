@@ -51,11 +51,10 @@ class AvataaarModification extends React.Component<AvataaarModificationProps, Av
         this.fetchCurrentAvatar()
     }
 
-    private fetchCurrentAvatar() {
+    private fetchCurrentAvatar = () =>
         this.state.promises.makeCancelable(Cloud.get(findAvatarQuery)).promise
             .then(it => this.setState(() => ({ ...it.response, loading: false })))
             .catch(it => (failureNotification("An error occurred fetching current Avatar"), this.setState(() => ({ loading: false }))))
-    }
 
     private save() {
         this.props.save(this.state as AvatarType)
