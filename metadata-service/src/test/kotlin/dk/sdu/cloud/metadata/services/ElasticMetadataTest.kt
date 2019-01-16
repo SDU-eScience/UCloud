@@ -1,51 +1,51 @@
 package dk.sdu.cloud.metadata.services
 
-import dk.sdu.cloud.metadata.api.Creator
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.metadata.api.ProjectMetadata
+import dk.sdu.cloud.project.api.ProjectDescriptions
+import dk.sdu.cloud.project.api.ProjectMember
+import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.api.ViewProjectResponse
+import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.initializeMicro
+import io.ktor.http.HttpStatusCode
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifyOrder
+import kotlinx.coroutines.runBlocking
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexResponse
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.client.RestHighLevelClient
 import org.junit.Test
 
 class ElasticMetadataTest {
-    private val dummycreators = List(10) { i -> Creator(i.toString()) }
 
     private val projectMeta = ProjectMetadata(
-        "",
-        "",
         "I got a title",
-        dummycreators,
         "Here is my description",
         "Abstyles",
-        "1"
+        "ProjectId"
     )
 
     private val source = """
         {
-            "sduCloudRoot" : "",
-            "sduCloudRootId" : "",
             "title" : "I got a title",
-            "creators" : [
-                {
-                "name" : "I. A. M. User"
-                }
-            ],
             "description" : "Here is my new description",
-            "id" : "1"
+            "projectId" : "ProjectID"
         }
         """.trimIndent()
 
     private fun initService(
-        elasticClient: RestHighLevelClient,
-        projectService: ProjectService<*> = mockk(relaxed = true)
+        elasticClient: RestHighLevelClient
     ): ElasticMetadataService {
+        val micro = initializeMicro()
         return ElasticMetadataService(
             elasticClient = elasticClient,
-            projectService = projectService
+            cloud = micro.authenticatedCloud
         )
     }
 
@@ -65,7 +65,7 @@ class ElasticMetadataTest {
         verify {
             elasticClient.index(
                 match {
-                    it.index() == "project_metadata" && it.id() == "1"
+                    it.index() == "project_metadata" && it.id() == "ProjectId"
                 }
             )
         }
@@ -90,50 +90,67 @@ class ElasticMetadataTest {
     @Test
     fun `delete test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService<*> = mockk(relaxed = true)
-        val elasticService = initService(elasticClient, projectService)
-
-        every { projectService.findById(any()) } answers {
-            Project(1, "", "", "user", "Description")
-        }
-
-        elasticService.delete("user", 1)
-
-        verify {
-            elasticClient.delete(
-                match {
-                    it.index() == "project_metadata" && it.id() == "1"
-                }
+        val elasticService = initService(elasticClient)
+        runBlocking {
+            CloudMock.mockCallSuccess(
+                ProjectDescriptions,
+                { ProjectDescriptions.view },
+                ViewProjectResponse(
+                    "ProjectID",
+                    "Title of project",
+                    listOf(ProjectMember(TestUsers.user.username, ProjectRole.PI))
+                )
             )
+
+
+            elasticService.delete(TestUsers.user.username, "ProjectId")
+
+            verify {
+                elasticClient.delete(
+                    match {
+                        it.index() == "project_metadata" && it.id() == "ProjectId"
+                    }
+                )
+            }
         }
     }
 
-    @Test(expected = MetadataException.NotFound::class)
-    fun `delete - id not found -test`() {
+    @Test(expected = RPCException::class)
+    fun `delete - project not found -test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService<*> = mockk(relaxed = true)
-        val elasticService = initService(elasticClient, projectService)
+        val elasticService = initService(elasticClient)
 
-        every { projectService.findById(any()) } answers {
-            null
+        CloudMock.mockCallError(
+            ProjectDescriptions,
+            { ProjectDescriptions.view },
+            CommonErrorMessage("Not found"),
+            HttpStatusCode.NotFound
+        )
+
+        runBlocking {
+            elasticService.delete(TestUsers.user.username, "ProjectId")
         }
-
-        elasticService.delete("user", 1)
     }
 
     @Test(expected = MetadataException.NotAllowed::class)
     fun `delete - not allowed -test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
-        val projectService: ProjectService<*> = mockk(relaxed = true)
-        val elasticService = initService(elasticClient, projectService)
+        val elasticService = initService(elasticClient)
 
-        every { projectService.findById(any()) } answers {
-            Project(1, "", "", "user", "Description")
+        CloudMock.mockCallSuccess(
+            ProjectDescriptions,
+            { ProjectDescriptions.view },
+            ViewProjectResponse(
+                "ProjectID",
+                "Title of project",
+                listOf(ProjectMember(TestUsers.user.username, ProjectRole.USER))
+            )
+        )
+
+        runBlocking {
+            elasticService.delete("notUser", "ProjectId")
         }
-
-        elasticService.delete("notUser", 1)
     }
-
     @Test
     fun `initialize test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)

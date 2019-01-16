@@ -138,6 +138,7 @@ class ProjectService<DBSession>(
     }
 
     private fun generateIdFromTitle(session: DBSession, title: String): String {
+        //Henrik: I do not think this may contain spaces since we use the id for elastic
         return UUID.randomUUID().toString()
     }
 

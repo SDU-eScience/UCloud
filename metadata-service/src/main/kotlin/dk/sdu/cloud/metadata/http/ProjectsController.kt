@@ -1,97 +1,54 @@
 package dk.sdu.cloud.metadata.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.client.jwtAuth
-import dk.sdu.cloud.file.api.AnnotateFileRequest
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.metadata.api.CreateProjectResponse
+import dk.sdu.cloud.metadata.api.CreateProjectFromFormResponse
 import dk.sdu.cloud.metadata.api.ProjectDescriptions
-import dk.sdu.cloud.metadata.api.ProjectEvent
-import dk.sdu.cloud.metadata.api.ProjectEventProducer
-import dk.sdu.cloud.metadata.services.Project
+import dk.sdu.cloud.metadata.api.ProjectMetadata
+import dk.sdu.cloud.metadata.api.UserEditableProjectMetadata
+import dk.sdu.cloud.metadata.services.ElasticMetadataService
 import dk.sdu.cloud.metadata.services.ProjectService
-import dk.sdu.cloud.metadata.services.tryWithProject
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.bearer
-import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.jobId
-import dk.sdu.cloud.service.logEntry
 import dk.sdu.cloud.service.securityPrincipal
-import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.service.withCausedBy
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 
-private const val NOT_FOUND_STATUSCODE = 404
 class ProjectsController(
-    private val projectEventProducer: ProjectEventProducer,
-    private val projectService: ProjectService<*>
+    private val projectService: ProjectService,
+    private val elastic: ElasticMetadataService
 ) : Controller {
     override val baseContext = ProjectDescriptions.baseContext
 
     override fun configure(routing: Route) = with(routing) {
         implement(ProjectDescriptions.create) { request ->
-            tryWithProject {
-                val cloudCtx = call.cloudClient.parent
-                val cloud = cloudCtx.jwtAuth(call.request.bearer!!).withCausedBy(call.request.jobId)
-
-                val rootStat = FileDescriptions.stat.call(FindByPath(request.fsRoot), cloud)
-                if (rootStat !is RESTResponse.Ok) {
-                    if (rootStat.status == NOT_FOUND_STATUSCODE) {
-                        error(CommonErrorMessage("Could not find project root"), HttpStatusCode.NotFound)
-                        return@implement
-                    } else {
-                        log.info("Could not find project root (${request.fsRoot}). Caused by response:")
-                        log.info(rootStat.toString())
-                        error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
-                        return@implement
-                    }
-                }
-
-                val currentUser = call.securityPrincipal.username
-                if (rootStat.result.ownerName != currentUser) {
-                    log.debug("User is not owner of folder")
-                    error(CommonErrorMessage("Not allowed"), HttpStatusCode.Forbidden)
-                    return@implement
-                }
-
-                val annotateResult = FileDescriptions.annotate.call(
-                    AnnotateFileRequest(request.fsRoot, PROJECT_ANNOTATION, currentUser),
-                    call.cloudClient // Must be performed as the service
-                )
-
-                if (annotateResult is RESTResponse.Err) {
-                    log.warn("Unable to annotate file! Status = ${annotateResult.status}")
-                    log.warn(annotateResult.rawResponseBody)
-                    error(CommonErrorMessage("Internal Server Error"), HttpStatusCode.InternalServerError)
-                    return@implement
-                }
-
-                try {
-                    log.debug("Creating a project! $currentUser")
-                    val project = Project(null, request.fsRoot, rootStat.result.fileId, currentUser, "")
-                    val id = projectService.createProject(project)
-                    val projectWithId = project.copy(id = id)
-                    projectEventProducer.emit(ProjectEvent.Created(projectWithId))
-                    ok(CreateProjectResponse(id))
-                } catch (ex: Exception) {
-                    // TODO Remove annotation (missing endpoint currently)
-                    log.info("Caught exception while creating project!")
-                    log.info(ex.stackTraceToString())
-                    throw ex
-                }
+            val id = if(checkMetadata(request)) {
+                projectService.createProject(request.title!!, call.securityPrincipal.username)
+            } else {
+                return@implement error(CommonErrorMessage("Not correct metadata"), HttpStatusCode.BadRequest)
             }
-        }
 
-        implement(ProjectDescriptions.findProjectByPath) {
-            tryWithProject {
-                ok(projectService.findByFSRoot(it.path))
-            }
+            val projectMetadata = ProjectMetadata(
+                title = request.title,
+                description = request.description!!,
+                license = request.license,
+                projectId = id,
+                keywords = request.keywords,
+                notes = request.notes,
+                contributors = request.contributors,
+                references = request.references,
+                grants = request.grants,
+                subjects = request.subjects
+            )
+
+            elastic.create(projectMetadata)
+            ok(CreateProjectFromFormResponse(id))
         }
+    }
+
+    private fun checkMetadata(metadata: UserEditableProjectMetadata): Boolean {
+        if (metadata.title.isNullOrBlank() || metadata.description.isNullOrBlank()) return false
+        return true
     }
 
     companion object {
