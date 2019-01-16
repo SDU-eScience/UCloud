@@ -60,7 +60,7 @@ class Uploader extends React.Component<UploaderProps> {
 
     onFilesAdded = (files: File[]) => {
         if (files.some(it => it.size === 0)) infoNotification("It is not possible to upload empty files.");
-        if (files.some(it => it.name.length < 1025)) infoNotification("Filenames can't exceed a length of 1024 characters.");
+        if (files.some(it => it.name.length > 1025)) infoNotification("Filenames can't exceed a length of 1024 characters.");
         const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it));
         if (filteredFiles.length == 0) return;
         if (this.props.allowMultiple !== false) { // true if no value
