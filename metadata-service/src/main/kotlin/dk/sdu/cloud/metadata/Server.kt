@@ -1,6 +1,5 @@
 package dk.sdu.cloud.metadata
 
-import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.metadata.http.MetadataController
 import dk.sdu.cloud.metadata.http.ProjectsController
 import dk.sdu.cloud.metadata.services.ElasticMetadataService
@@ -10,13 +9,9 @@ import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.authenticatedCloud
-import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
-import dk.sdu.cloud.service.stream
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.http.HttpHost
@@ -26,14 +21,13 @@ import org.elasticsearch.client.RestHighLevelClient
 import kotlin.system.exitProcess
 
 class Server(
-    private val db: HibernateSessionFactory,
     private val configuration: ElasticHostAndPort,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
     private val micro: Micro
 ) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
-    override lateinit var kStreams: KafkaStreams
+    override val kStreams: KafkaStreams? = null
 
     override val log = logger()
 

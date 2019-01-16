@@ -54,7 +54,6 @@ fun main(args: Array<String>) {
     val configuration = micro.configuration.requestChunkAtOrNull("elastic") ?: ElasticHostAndPort.guessDefaults()
 
     Server(
-        micro.hibernateDatabase,
         configuration,
         micro.kafka,
         micro.serverProvider,
