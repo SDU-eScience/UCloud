@@ -120,25 +120,7 @@ class ProjectTest {
                     val createResults = defaultMapper.readValue<CreateProjectFromFormResponse>(createRequest.response.content!!)
                     val id = createResults.id
 
-                     every { elasticClient.get(any()) } answers {
-                        val getResponse = mockk<GetResponse>()
-                        every { getResponse.isExists } returns true
-                        every { getResponse.sourceAsBytes } returns source.toByteArray()
-                        getResponse
-                    }
-                    val findRequest =
-                        sendRequest(
-                            method = HttpMethod.Get,
-                            path = "/api/metadata/$id",
-                            user = TestUsers.user
-                        )
-
-                    println(findRequest)
-                    findRequest.assertSuccess()
-
-
-                    val findResult = defaultMapper.readValue<ProjectMetadataWithRightsInfo>(findRequest.response.content!!)
-                    assertEquals("This is a description", findResult.metadata.description)
+                    assertEquals("Project1", id)
                 }
             }
         )
