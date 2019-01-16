@@ -2,7 +2,7 @@
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: project.auth
+  name: project-auth
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: ""
 spec:
@@ -10,7 +10,7 @@ spec:
   - host: cloud.sdu.dk
     http:
       paths:
-      - path: /api/project.auth
+      - path: /api/projects/auth
         backend:
-          serviceName: project.auth
+          serviceName: project-auth
           servicePort: 8080

@@ -2,33 +2,37 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: project.auth
+  name: project-auth
   labels:
-    app: project.auth
+    app: project-auth
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: project.auth
+      app: project-auth
   template:
     metadata:
       labels:
-        app: project.auth
+        app: project-auth
     spec:
       containers:
-      - name: project.auth
-        image: registry.cloud.sdu.dk/sdu-cloud/project.auth-service:0.1.0
+      - name: project-auth
+        image: registry.cloud.sdu.dk/sdu-cloud/project-auth-service:0.1.0
         command:
         - /opt/service/bin/service
         - --config-dir
         - /etc/refresh-token
         - --config-dir
         - /etc/token-validation
+        - --config-dir
+        - /etc/psql
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
         - mountPath: /etc/token-validation
           name: token-validation
+        - mountPath: /etc/psql
+          name: project-auth-psql
         env:
         - name: POD_IP
           valueFrom:
@@ -39,10 +43,14 @@ spec:
       - name: refresh-token
         secret:
           optional: false
-          secretName: project.auth-refresh-token
+          secretName: project-auth-refresh-token
       - name: token-validation
         configMap:
           name: token-validation
+      - name: project-auth-psql
+        secret:
+          optional: false
+          secretName: project-auth-psql
 
       imagePullSecrets:
         - name: esci-docker
@@ -51,7 +59,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: project.auth
+  name: project-auth
 spec:
   clusterIP: None
   type: ClusterIP
@@ -61,4 +69,4 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
-    app: project.auth-service
+    app: project-auth
