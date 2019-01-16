@@ -27,8 +27,8 @@ const RelativeFlex = styled(Flex)`
 
 interface Arrow { name: "arrowUp" | "arrowDown" | undefined}
 export function Arrow({ name }: Arrow) {
-    if (name === "arrowUp") return (<Icon name="arrowDown" rotation="180" size=".7em" mr=".4em" />);
-    else if (name === "arrowDown") return (<Icon name="arrowDown" size=".7em" mr=".4em" />);
+    if (name === "arrowUp") return (<Icon cursor="pointer" name="arrowDown" rotation="180" size=".7em" mr=".4em" />);
+    else if (name === "arrowDown") return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em" />);
     return null;
 }
 

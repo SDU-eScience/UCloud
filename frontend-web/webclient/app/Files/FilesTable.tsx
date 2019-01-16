@@ -92,8 +92,10 @@ const ResponsiveTableColumn = ({
     notSticky
 }: ResponsiveTableColumnProps) => (
         <FileTableHeaderCell notSticky={notSticky} width="10rem" >
-            <Flex alignItems="center" justifyContent="left">
-                <Arrow name={iconName} />
+            <Flex alignItems="center" cursor="pointer" justifyContent="left">
+                <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
+                    <Arrow name={iconName} />
+                </Box>
                 <SortByDropdown
                     isSortedBy={isSortedBy}
                     onSelect={onSelect}
@@ -128,7 +130,7 @@ const FilesTableHeader = ({
                         onClick={() => sortFiles(toSortOrder(SortBy.PATH, sortBy, sortOrder), SortBy.PATH)}>
                         <Box mx="9px" onClick={e => e.stopPropagation()}>{masterCheckbox}</Box>
                         <Arrow name={toSortingIcon(SortBy.PATH)} />
-                        <Box>Filename</Box>
+                        <Box cursor="pointer">Filename</Box>
                     </Flex>
                 </FileTableHeaderCell>
                 {sortingColumns.filter(it => it != null).map((sC, i) => (
