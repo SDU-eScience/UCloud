@@ -5,7 +5,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
 import * as moment from "moment";
-import { FileIcon } from "UtilityComponents";
+import { FileIcon, RefreshButton } from "UtilityComponents";
 import { DASHBOARD_FAVORITE_ERROR } from "./Redux/DashboardReducer";
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 import { Notification, NotificationEntry } from "Notifications";
@@ -27,6 +27,7 @@ import * as UF from "UtilityFunctions";
 import * as Accounting from "Accounting";
 import { MainContainer } from "MainContainer/MainContainer";
 import { fetchUsage } from "Accounting/Redux/AccountingActions";
+import { Spacer } from "ui-components/Spacer";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
@@ -36,7 +37,7 @@ const DashboardCard = ({ title, isLoading, children }: { title: string, isLoadin
         <Box px={3} py={1}>
             {isLoading && <Spinner size={24} />}
             <Box pb="0.5em" />
-            {children}
+            {!isLoading ? children : null}
         </Box>
     </Card>
 );
@@ -46,13 +47,21 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         super(props);
         const { favoriteFiles, recentFiles, recentAnalyses } = props;
         props.updatePageTitle();
+        let loading = false;
         if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length) {
-            props.setAllLoading(true);
+            loading = true;
         }
+        this.reload(loading);
+    }
+
+    private reload(loading: boolean) {
+        const { ...props } = this.props;
+        props.setAllLoading(loading)
         props.fetchFavorites();
         props.fetchRecentFiles();
         props.fetchRecentAnalyses();
         props.fetchUsage();
+
     }
 
     private onNotificationAction = (notification: Notification) => {
@@ -67,23 +76,30 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         }
     }
 
+    private favoriteOrUnfavorite = (file: File) => {
+        favoriteFile(file, Cloud);
+        this.props.receiveFavorites(this.props.favoriteFiles.filter(f => f.favorited));
+    };
+
     render() {
         const { favoriteFiles, recentFiles, recentAnalyses, notifications, favoriteLoading, recentLoading,
             analysesLoading, errors, ...props } = this.props;
         favoriteFiles.forEach(f => f.favorited = true);
-        const favoriteOrUnfavorite = (file: File) => {
-            favoriteFile(file, Cloud);
-            this.props.receiveFavorites(favoriteFiles.filter(f => f.favorited));
-        };
-
         const main = (
             <React.StrictMode>
                 <Error error={errors.join(",\n")} clearError={props.errorDismiss} />
+                <Spacer
+                    left={<></>}
+                    right={<Box pb="5px"><RefreshButton
+                        loading={favoriteLoading || recentLoading || analysesLoading}
+                        onClick={() => this.reload(true)}
+                    /></Box>}
+                />
                 <GridCardGroup minmax={290}>
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
                         isLoading={favoriteLoading}
-                        favorite={file => favoriteOrUnfavorite(file)}
+                        favorite={file => this.favoriteOrUnfavorite(file)}
                     />
 
                     <DashboardRecentFiles
