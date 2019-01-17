@@ -96,14 +96,15 @@ class FileLookupService<Ctx : FSUserContext>(
             path = row.rawPath,
             createdAt = row.timestamps.created,
             modifiedAt = row.timestamps.modified,
-            ownerName = row.owner,
+            ownerName = row.xowner.takeIf { it.isNotBlank() } ?: row.owner,
             size = row.size,
             acl = row.shares,
             favorited = (row.inode in favorites) || File(row.rawPath).parentFile == File(favoritesDirectory(username)),
             sensitivityLevel = row.sensitivityLevel,
             link = row.isLink,
             annotations = row.annotations,
-            fileId = row.inode
+            fileId = row.inode,
+            creator = row.owner
         )
 
     suspend fun lookupFileInDirectory(
@@ -145,7 +146,8 @@ class FileLookupService<Ctx : FSUserContext>(
             FileAttribute.SENSITIVITY,
             FileAttribute.ANNOTATIONS,
             FileAttribute.INODE,
-            FileAttribute.IS_LINK
+            FileAttribute.IS_LINK,
+            FileAttribute.XOWNER
         )
     }
 }

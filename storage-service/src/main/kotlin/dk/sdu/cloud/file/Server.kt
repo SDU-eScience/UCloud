@@ -3,10 +3,12 @@ package dk.sdu.cloud.file
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.http.ExtractController
 import dk.sdu.cloud.file.http.FilesController
 import dk.sdu.cloud.file.http.IndexingController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
+import dk.sdu.cloud.file.processors.StorageEventProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLService
 import dk.sdu.cloud.file.services.BackgroundScope
@@ -16,7 +18,9 @@ import dk.sdu.cloud.file.services.ExternalFileService
 import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFSUserDao
@@ -33,6 +37,7 @@ import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.service.stream
 import dk.sdu.cloud.service.tokenValidation
@@ -64,10 +69,14 @@ class Server(
     override fun start() {
         log.info("Creating core services")
         BackgroundScope.init()
-        val cloudToCephFsDao = UnixFSUserDao(micro.developmentModeEnabled)
+        val useFakeUsers = micro.developmentModeEnabled && !micro.commandLineArguments.contains("--real-users")
+        val cloudToCephFsDao = UnixFSUserDao(useFakeUsers)
         val processRunner =
-            UnixFSCommandRunnerFactory(cloudToCephFsDao, micro.developmentModeEnabled)
-        val fsRoot = File(if (micro.developmentModeEnabled) "./fs/" else "/mnt/cephfs/").normalize().absolutePath
+            UnixFSCommandRunnerFactory(cloudToCephFsDao, useFakeUsers)
+        val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() } ?:
+            if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
+
+        val fsRoot = fsRootFile.normalize().absolutePath
 
         val fs = UnixFileSystem(cloudToCephFsDao, fsRoot)
         val storageEventProducer = kafka.producer.forStream(StorageEvents.events)
@@ -88,15 +97,38 @@ class Server(
 
         val externalFileService =
             ExternalFileService(processRunner, coreFileSystem, storageEventProducer)
+
+        val fileOwnerService = FileOwnerService(processRunner, fs, coreFileSystem)
+
+        val homeFolderService = HomeFolderService(cloud)
+
+        coreFileSystem.setOnStorageEventExceptionHandler {
+            log.warn("Caught exception while emitting a storage event!")
+            log.warn(it.stackTraceToString())
+            stop()
+        }
+
         log.info("Core services constructed!")
 
         // Kafka
+        addProcessors(
+            StorageEventProcessor(
+                listeners = listOf(
+                    fileOwnerService
+                ),
+                commandRunnerFactory = processRunner,
+                eventConsumerFactory = kafka
+            ).init()
+        )
+
         kStreams = buildStreams { kBuilder ->
             UserProcessor(
                 kBuilder.stream(AuthStreams.UserUpdateStream),
                 micro.developmentModeEnabled,
                 cloudToCephFsDao,
-                externalFileService
+                externalFileService,
+                processRunner,
+                coreFileSystem
             ).init()
         }
 
@@ -118,6 +150,8 @@ class Server(
                         fileLookupService,
                         sensitivityService,
                         aclService,
+                        fileOwnerService,
+                        homeFolderService,
                         config.filePermissionAcl
                     ),
 
@@ -135,16 +169,25 @@ class Server(
                     ),
 
                     MultiPartUploadController(
+                        cloud,
                         processRunner,
                         coreFileSystem,
                         sensitivityService
                     ),
 
                     MultiPartUploadController(
+                        cloud,
                         processRunner,
                         coreFileSystem,
                         sensitivityService,
                         baseContextOverride = "/api/upload" // backwards-comparability
+                    ),
+
+                    ExtractController(
+                        cloud,
+                        coreFileSystem,
+                        fileLookupService,
+                        processRunner
                     )
                 )
             }

@@ -22,6 +22,7 @@ class FileAnnotationService<Ctx : FSUserContext>(
                 FileAttribute.INODE,
                 FileAttribute.PATH,
                 FileAttribute.OWNER,
+                FileAttribute.XOWNER,
                 FileAttribute.ANNOTATIONS
             )
         ).unwrap()
@@ -29,12 +30,13 @@ class FileAnnotationService<Ctx : FSUserContext>(
         BackgroundScope.launch {
             storageEventProducer.emit(
                 StorageEvent.AnnotationsUpdated(
-                    stat.inode,
-                    stat.path,
-                    stat.owner,
-                    System.currentTimeMillis(),
-                    stat.annotations,
-                    ctx.user
+                    id = stat.inode,
+                    path = stat.path,
+                    owner = stat.xowner,
+                    creator = stat.owner,
+                    timestamp = System.currentTimeMillis(),
+                    annotations = stat.annotations,
+                    eventCausedBy = ctx.user
                 )
             )
         }

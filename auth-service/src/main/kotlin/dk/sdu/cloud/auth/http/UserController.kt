@@ -4,8 +4,10 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.ChangePasswordAudit
-import dk.sdu.cloud.auth.api.CreateUserAudit
+import dk.sdu.cloud.auth.api.CreateSingleUserAudit
 import dk.sdu.cloud.auth.api.LookupUsersResponse
+import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.auth.api.ProjectProxy
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
@@ -36,26 +38,31 @@ class UserController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(UserDescriptions.createNewUser) { req ->
-            audit(CreateUserAudit(req.username, req.role))
+            audit(req.map { CreateSingleUserAudit(it.username, it.role) })
 
-            if (req.role != Role.SERVICE) {
-                val person = personService.createUserByPassword(
-                    firstNames = req.username,
-                    lastName = "N/A",
-                    email = req.username,
-                    role = req.role ?: Role.USER,
-                    password = req.password
-                )
+            val principals: List<Principal> = req.map { user ->
+                when (user.role) {
+                    Role.SERVICE -> ServicePrincipal(user.username, Role.SERVICE)
+                    Role.PROJECT_PROXY -> ProjectProxy(user.username, Role.PROJECT_PROXY)
 
-                userCreationService.createUser(person)
-                val tokens = tokenService.createAndRegisterTokenFor(person)
-                ok(tokens)
-            } else {
-                val user = ServicePrincipal(req.username, Role.SERVICE)
-                userCreationService.createUser(user)
+                    null, Role.ADMIN, Role.USER -> {
+                        personService.createUserByPassword(
+                            firstNames = user.username,
+                            lastName = "N/A",
+                            email = user.username,
+                            role = user.role ?: Role.USER,
+                            password = user.password ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        )
+                    }
 
-                ok(tokenService.createAndRegisterTokenFor(user))
+                    else -> {
+                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                    }
+                }
             }
+
+            userCreationService.createUsers(principals)
+            ok(principals.map { user -> tokenService.createAndRegisterTokenFor(user) })
         }
 
         implement(UserDescriptions.changePassword) {

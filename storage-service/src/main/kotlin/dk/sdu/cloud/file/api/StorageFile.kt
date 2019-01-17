@@ -26,7 +26,8 @@ data class StorageFile(
     val sensitivityLevel: SensitivityLevel = SensitivityLevel.PRIVATE,
     val link: Boolean = false,
     val annotations: Set<String> = emptySet(),
-    val fileId: String = ""
+    val fileId: String = "",
+    val creator: String
 )
 
 /**

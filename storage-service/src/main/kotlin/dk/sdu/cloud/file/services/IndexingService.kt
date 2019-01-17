@@ -121,10 +121,11 @@ class IndexingService<Ctx : FSUserContext>(
             fs.listDirectory(ctx, directoryPath, STORAGE_EVENT_MODE)
         } catch (ex: FSException.NotFound) {
             val invalidatedEvent = StorageEvent.Invalidated(
-                "invalid-id-" + UUID.randomUUID().toString(),
-                directoryPath,
-                SERVICE_USER,
-                System.currentTimeMillis()
+                id = "invalid-id-" + UUID.randomUUID().toString(),
+                path = directoryPath,
+                owner = SERVICE_USER,
+                creator = SERVICE_USER,
+                timestamp = System.currentTimeMillis()
             )
 
             return DirectoryDiff(
@@ -145,7 +146,13 @@ class IndexingService<Ctx : FSUserContext>(
 
         val deletedFiles = referenceById.filter { it.key !in realById }
         eventCollector.addAll(deletedFiles.map {
-            StorageEvent.Invalidated(it.value.id, it.value.path, it.value.owner, System.currentTimeMillis())
+            StorageEvent.Invalidated(
+                id = it.value.id,
+                path = it.value.path,
+                creator = it.value.owner,
+                owner = it.value.owner,
+                timestamp = System.currentTimeMillis()
+            )
         })
 
         // Note: We don't emit any deleted events. That would cause problems for clients that assume that
@@ -179,11 +186,12 @@ class IndexingService<Ctx : FSUserContext>(
                 if (referenceFile.path != realFile.path) {
                     events.add(
                         StorageEvent.Moved(
-                            realFile.inode,
-                            realFile.path,
-                            realFile.owner,
-                            realFile.timestamps.modified,
-                            referenceFile.path
+                            id = realFile.inode,
+                            path = realFile.path,
+                            owner = realFile.xowner,
+                            creator = realFile.owner,
+                            timestamp = realFile.timestamps.modified,
+                            oldPath = referenceFile.path
                         )
                     )
 
@@ -194,10 +202,11 @@ class IndexingService<Ctx : FSUserContext>(
                         // out of sync.
                         events.add(
                             StorageEvent.Invalidated(
-                                realFile.inode,
-                                referenceFile.path,
-                                realFile.owner,
-                                realFile.timestamps.modified
+                                id = realFile.inode,
+                                path = referenceFile.path,
+                                owner = realFile.xowner,
+                                creator = realFile.owner,
+                                timestamp = realFile.timestamps.modified
                             )
                         )
 

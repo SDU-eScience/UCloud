@@ -2,7 +2,7 @@ package dk.sdu.cloud.app.api
 
 import dk.sdu.cloud.service.KafkaDescriptions
 
-class JobCompletedEvent(
+data class JobCompletedEvent(
     val jobId: String,
     val jobOwner: String,
     val duration: SimpleDuration,

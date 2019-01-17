@@ -1,0 +1,16 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: project
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.sdu.dk
+    http:
+      paths:
+      - path: /api/projects
+        backend:
+          serviceName: project
+          servicePort: 8080

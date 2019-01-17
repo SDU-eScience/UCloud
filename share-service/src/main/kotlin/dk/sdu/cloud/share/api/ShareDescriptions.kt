@@ -45,6 +45,8 @@ data class UpdateShareRequest(
     val rights: Set<AccessRight>
 )
 
+data class AcceptShareRequest(val id: Long, val createLink: Boolean = true)
+
 object ShareDescriptions : RESTDescriptions("shares") {
     const val baseContext = "/api/shares"
 
@@ -134,7 +136,7 @@ object ShareDescriptions : RESTDescriptions("shares") {
         }
     }
 
-    val accept = callDescription<FindByShareId, Unit, CommonErrorMessage> {
+    val accept = callDescription<AcceptShareRequest, Unit, CommonErrorMessage> {
         name = "accept"
         method = HttpMethod.Post
 
@@ -145,7 +147,9 @@ object ShareDescriptions : RESTDescriptions("shares") {
         path {
             using(baseContext)
             +"accept"
-            +boundTo(FindByShareId::id)
+            +boundTo(AcceptShareRequest::id)
         }
+
+        params { +boundTo(AcceptShareRequest::createLink) }
     }
 }

@@ -13,6 +13,7 @@ import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.install
@@ -68,7 +69,7 @@ class MultipartUploadTest {
         val coreFs = CoreFileSystemService(fs, storageEventProducer)
 
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
-        val controller = MultiPartUploadController(runner, coreFs, sensitivityService)
+        val controller = MultiPartUploadController(micro.authenticatedCloud, runner, coreFs, sensitivityService)
 
         installDefaultFeatures(micro)
 

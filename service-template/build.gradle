@@ -4,7 +4,7 @@ version '0.1.0-SNAPSHOT'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.{{ serviceName }}.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.4/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.5/sdu-cloud.gradle"
 
 repositories {
     jcenter()

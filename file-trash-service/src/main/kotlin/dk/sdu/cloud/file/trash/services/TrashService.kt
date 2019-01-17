@@ -7,22 +7,42 @@ import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.MoveRequest
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.trash.api.trashDirectory
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.orThrow
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
-class TrashService {
+class TrashService(private val serviceCloud: AuthenticatedCloud) {
+    private suspend fun trashDirectory(username: String): String {
+        val homeFolder = FileDescriptions.findHomeFolder.call(
+            FindHomeFolderRequest(username),
+            serviceCloud
+        ).orThrow().path
+        return joinPath(homeFolder, "Trash")
+    }
+
     suspend fun emptyTrash(username: String, userCloud: AuthenticatedCloud) {
         validateTrashDirectory(username, userCloud)
-        FileDescriptions.deleteFile.call(DeleteFileRequest(trashDirectory(username)), userCloud)
+        GlobalScope.launch {
+            runCatching {
+                FileDescriptions.deleteFile
+                    .call(
+                        DeleteFileRequest(
+                            trashDirectory(username)
+                        ),
+                        userCloud
+                    )
+            }
+        }
     }
 
     suspend fun moveFilesToTrash(files: List<String>, username: String, userCloud: AuthenticatedCloud): List<String> {
@@ -38,7 +58,8 @@ class TrashService {
         val result = FileDescriptions.move.call(
             MoveRequest(
                 path = file,
-                newPath = joinPath(trashDirectory(username), file.fileName())
+                newPath = joinPath(trashDirectory(username), file.fileName()),
+                policy = WriteConflictPolicy.RENAME
             ),
             userCloud
         )

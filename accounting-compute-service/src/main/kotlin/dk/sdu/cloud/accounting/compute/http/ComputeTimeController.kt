@@ -20,11 +20,19 @@ class ComputeTimeController<DBSession>(
 
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputeAccountingTimeDescriptions.listEvents) { req ->
-            ok(completedJobsService.listEvents(req.normalize(), req, call.securityPrincipal.username))
+            ok(
+                completedJobsService.listEvents(
+                    req.normalize(),
+                    req,
+                    call.securityPrincipal.username,
+                    call.securityPrincipal.role
+                )
+            )
         }
 
         implement(ComputeAccountingTimeDescriptions.chart) { req ->
-            val events = completedJobsService.listAllEvents(req, call.securityPrincipal.username)
+            val events =
+                completedJobsService.listAllEvents(req, call.securityPrincipal.username, call.securityPrincipal.role)
 
             ok(
                 ChartResponse(
@@ -42,7 +50,11 @@ class ComputeTimeController<DBSession>(
         implement(ComputeAccountingTimeDescriptions.usage) { req ->
             ok(
                 UsageResponse(
-                    usage = completedJobsService.computeUsage(req, call.securityPrincipal.username),
+                    usage = completedJobsService.computeUsage(
+                        req,
+                        call.securityPrincipal.username,
+                        call.securityPrincipal.role
+                    ),
                     quota = null,
                     dataType = ChartDataTypes.DURATION,
                     title = "Compute Time Used"

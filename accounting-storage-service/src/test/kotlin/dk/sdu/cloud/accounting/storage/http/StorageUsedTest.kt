@@ -8,6 +8,8 @@ import dk.sdu.cloud.accounting.storage.services.StorageAccountingHibernateDao
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingService
 import dk.sdu.cloud.accounting.storage.services.StorageForUserEntity
 import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.StatisticsResponse
@@ -47,7 +49,7 @@ private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
 
     withDatabase { db ->
         db.withTransaction { session ->
-            for (i in 0..10) {
+            for (i in 0..50) {
                 session.save(StorageForUserEntity(
                     TestUsers.user.username,
                     Date(),
@@ -64,8 +66,8 @@ private fun KtorApplicationTestSetupContext.configureComputeTimeServer(
     storageAccountingService: StorageAccountingService<HibernateSession>
 ): List<Controller> {
     return listOf(
-        StorageUsedController(storageAccountingService),
-        StorageAccountingController(storageAccountingService)
+        StorageUsedController(storageAccountingService, micro.authenticatedCloud),
+        StorageAccountingController(storageAccountingService, micro.authenticatedCloud)
     )
 }
 
@@ -87,8 +89,8 @@ class StorageUsedTest{
                 request.assertSuccess()
                 val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
 
-                assertEquals(11, response.itemsInTotal)
-                assertEquals(2, response.pagesInTotal)
+                assertEquals(51, response.itemsInTotal)
+                assertEquals(6, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
                 assertEquals(12345, response.items.first().bytesUsed)
             }
@@ -110,8 +112,8 @@ class StorageUsedTest{
                 request.assertSuccess()
                 val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
 
-                assertEquals(11, response.itemsInTotal)
-                assertEquals(2, response.pagesInTotal)
+                assertEquals(51, response.itemsInTotal)
+                assertEquals(6, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
                 assertEquals(12345, response.items.first().bytesUsed)            }
         )
@@ -147,6 +149,12 @@ class StorageUsedTest{
             setup,
             test= {
                 CloudMock.mockCallSuccess(
+                    FileDescriptions,
+                    { FileDescriptions.findHomeFolder},
+                    FindHomeFolderResponse("/home/user")
+                )
+
+                CloudMock.mockCallSuccess(
                     QueryDescriptions,
                     { QueryDescriptions.statistics },
                     StatisticsResponse(
@@ -164,6 +172,7 @@ class StorageUsedTest{
                 )
                 request.assertSuccess()
 
+                println(request.response.content)
                 //TODO Works but not pretty
                 assertTrue(request.response.content?.contains("\"dataTypes\":[\"datetime\",\"bytes\"],\"dataTitle\":\"Storage Used\"")!!)
 
@@ -185,6 +194,12 @@ class StorageUsedTest{
                             NumericStatistics(null, null, null, 150.4, emptyList()),
                             NumericStatistics(null, null, null, null, emptyList())
                         )
+                    )
+
+                    CloudMock.mockCallSuccess(
+                        FileDescriptions,
+                        {FileDescriptions.findHomeFolder},
+                        FindHomeFolderResponse("/home/user")
                     )
 
                     run {
@@ -227,6 +242,12 @@ class StorageUsedTest{
                             )
                         }
                     }
+
+                    CloudMock.mockCallSuccess(
+                        FileDescriptions,
+                        {FileDescriptions.findHomeFolder},
+                        FindHomeFolderResponse("/home/user")
+                    )
                     run {
 
                         val request = sendRequest(
@@ -296,8 +317,14 @@ class StorageUsedTest{
                             )
                         }
                     }
-                    run {
 
+                    CloudMock.mockCallSuccess(
+                        FileDescriptions,
+                        {FileDescriptions.findHomeFolder},
+                        FindHomeFolderResponse("/home/user")
+                    )
+
+                    run {
                         val request = sendRequest(
                             method = HttpMethod.Get,
                             path = "/api/accounting/storage/bytesUsed/usage",

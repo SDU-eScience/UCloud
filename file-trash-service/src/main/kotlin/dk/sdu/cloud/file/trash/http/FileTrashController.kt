@@ -42,7 +42,8 @@ class FileTrashController(
                 trashService.emptyTrash(
                     call.securityPrincipal.username,
                     call.userCloud()
-                )
+                ),
+                HttpStatusCode.Accepted
             )
         }
     }

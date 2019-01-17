@@ -11,6 +11,7 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.install
@@ -27,7 +28,7 @@ import kotlin.test.assertTrue
 private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
     micro.install(HibernateFeature)
     val completeJobsDao = CompletedJobsHibernateDao()
-    val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao)
+    val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao, micro.authenticatedCloud)
 
     val events = (0 until 10).map { dummyEvent }
     completeJobsService.insertBatch(events)
@@ -98,8 +99,11 @@ class ComputeTimeTest {
                         request.assertSuccess()
                         //TODO Works but not pretty
                         println(request.response.content)
-                        assertTrue(request.response.content?.contains(
-                            "\"dataTypes\":[\"datetime\",\"duration\"],\"dataTitle\":\"Compute Time Used\"")!!)
+                        assertTrue(
+                            request.response.content?.contains(
+                                "\"dataTypes\":[\"datetime\",\"duration\"],\"dataTitle\":\"Compute Time Used\""
+                            )!!
+                        )
                     }
                 }
             }

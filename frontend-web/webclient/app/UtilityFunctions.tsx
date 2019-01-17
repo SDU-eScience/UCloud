@@ -36,42 +36,47 @@ export const getOwnerFromAcls = (acls?: Acl[]): string => {
  * @param {string} title The failure to be rendered
  * @param {number} seconds the amount of seconds the failure is rendered
  */
-export const failureNotification = (title: string, seconds: number = 3) => swal({
-    toast: true,
-    position: "top-end",
-    showConfirmButton: false,
-    timer: seconds * 1_000,
-    type: "error",
-    title
-});
+export function failureNotification(title: string, seconds: number = 3) {
+    return swal({
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: seconds * 1_000,
+        type: "error",
+        title
+    });
+}
 
 /**
  * Renders a success notification in the upper right corner, with provided text
  * @param {string} title The success message to be rendered
  * @param {number} seconds the amount of seconds the content is rendered
  */
-export const successNotification = (title: string, seconds: number = 3) => swal({
-    toast: true,
-    position: "top-end",
-    showConfirmButton: false,
-    timer: seconds * 1_000,
-    type: "success",
-    title
-});
-
+export function successNotification(title: string, seconds: number = 3) {
+    return swal({
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: seconds * 1_000,
+        type: "success",
+        title
+    });
+}
 /**
  * Renders an information notification in the upper right corner, with provided text
  * @param {string} title The information to be rendered
  * @param {number} seconds the amount of seconds the content is rendered
  */
-export const infoNotification = (title: string, seconds: number = 3) => swal({
-    toast: true,
-    position: "top-end",
-    showConfirmButton: false,
-    timer: seconds * 1_000,
-    type: "info",
-    title
-});
+export function infoNotification(title: string, seconds: number = 3) {
+    return swal({
+        toast: true,
+        position: "top-end",
+        showConfirmButton: false,
+        timer: seconds * 1_000,
+        type: "info",
+        title
+    });
+}
 
 export const uploadsNotifications = (finished: number, total: number) => swal({
     title: finished !== total ? `${finished} out of ${total} files uploaded` : "Uploads finished",

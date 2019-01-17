@@ -7,7 +7,7 @@ import kotlin.coroutines.suspendCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-private const val MAX_INDEX = 100
+private const val DEBUG_VALUE_MAX_SIZE = 100
 
 class EventProducer<in K, in V>(
     private val producer: Producer<String, String>,
@@ -19,10 +19,15 @@ class EventProducer<in K, in V>(
         val stringKey = String(description.keySerde.serializer().serialize(description.name, key))
         val stringValue = String(description.valueSerde.serializer().serialize(description.name, value))
 
-        log.debug("Emitting event: [$topicName] $stringKey : ${stringValue.take(MAX_INDEX)}")
+        log.debug("Emitting event: [$topicName] $stringKey : ${stringValue.take(DEBUG_VALUE_MAX_SIZE)}")
         producer.send(ProducerRecord(description.name, stringKey, stringValue)) { result, ex ->
             if (ex == null) cont.resume(result)
-            else cont.resumeWithException(ex)
+            else {
+                log.warn("Caught exception while sending Kafka event to $topicName")
+                log.warn(ex.stackTraceToString())
+
+                cont.resumeWithException(ex)
+            }
         }
     }
 

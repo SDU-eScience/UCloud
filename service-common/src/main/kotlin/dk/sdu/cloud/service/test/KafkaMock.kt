@@ -1,7 +1,12 @@
 package dk.sdu.cloud.service.test
 
+import dk.sdu.cloud.service.ConsumedEvent
+import dk.sdu.cloud.service.EventConsumer
+import dk.sdu.cloud.service.EventConsumerFactory
+import dk.sdu.cloud.service.EventStreamProcessor
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.MappedStreamDescription
 import dk.sdu.cloud.service.StreamDescription
 import io.mockk.mockk
 import org.apache.kafka.clients.admin.AdminClient
@@ -285,5 +290,77 @@ fun <Key, Value> KafkaMock.messagesForTopic(topic: StreamDescription<Key, Value>
             topic.keySerde.deserializer().deserialize(topic.name, it.key().toByteArray(Charsets.UTF_8)),
             topic.valueSerde.deserializer().deserialize(topic.name, it.value().toByteArray(Charsets.UTF_8))
         )
+    }
+}
+
+object MockedEventConsumerFactory : EventConsumerFactory {
+    private val cache = Collections.synchronizedMap(HashMap<StreamDescription<*, *>, MockedEventConsumer<*, *>>())
+
+    override fun <K, V> createConsumer(
+        description: StreamDescription<K, V>,
+        internalQueueSize: Int
+    ): MockedEventConsumer<K, V> {
+        val entry = cache[description]
+        @Suppress("UNCHECKED_CAST")
+        if (entry != null && entry.isRunning) return entry as MockedEventConsumer<K, V>
+        return MockedEventConsumer<K, V>().also { cache[description] = it }
+    }
+
+    operator fun <K, V> get(description: StreamDescription<K, V>): MockedEventConsumer<K, V> {
+        return createConsumer(description, 0)
+    }
+
+    fun <K, V> send(description: MappedStreamDescription<K, V>, value: V) {
+        this[description].send(description.mapper(value), value)
+    }
+
+    fun <K, V> send(description: StreamDescription<K, V>, key: K, value: V) {
+        this[description].send(key, value)
+    }
+}
+
+private class MockedConsumedEvent<V>(override val value: V) : ConsumedEvent<V> {
+    override fun <V2> map(newValue: V2): ConsumedEvent<V2> {
+        return MockedConsumedEvent(newValue)
+    }
+
+    override fun commit() {}
+}
+
+class MockedEventConsumer<K, V> : EventConsumer<Pair<K, V>> {
+    override var isRunning: Boolean = true
+    private val rootProcessor = object : EventStreamProcessor<Pair<K, V>, Pair<K, V>> {
+        private val children = ArrayList<EventStreamProcessor<Pair<K, V>, *>>()
+
+        override fun addChildProcessor(processor: EventStreamProcessor<Pair<K, V>, *>) {
+            children.add(processor)
+        }
+
+        override fun accept(events: List<ConsumedEvent<Pair<K, V>>>) {
+            children.forEach { it.accept(events) }
+        }
+
+        override fun commitConsumed(events: List<ConsumedEvent<*>>) {}
+    }
+
+    override fun configure(
+        configure: (processor: EventStreamProcessor<*, Pair<K, V>>) -> Unit
+    ): EventConsumer<Pair<K, V>> {
+        configure(rootProcessor)
+        return this
+    }
+
+    override fun commitConsumed(events: List<ConsumedEvent<*>>) {}
+    override fun onExceptionCaught(handler: (Throwable) -> Unit) {}
+    override fun close() {
+        isRunning = false
+    }
+
+    fun send(key: K, value: V) {
+        send(listOf(key to value))
+    }
+
+    fun send(events: List<Pair<K, V>>) {
+        if (isRunning) rootProcessor.accept(events.map { MockedConsumedEvent(it) })
     }
 }

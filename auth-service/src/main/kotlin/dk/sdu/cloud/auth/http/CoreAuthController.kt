@@ -2,10 +2,13 @@ package dk.sdu.cloud.auth.http
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LoginPageRequest
+import dk.sdu.cloud.auth.api.RefreshTokenAndCsrf
 import dk.sdu.cloud.auth.api.TokenExtensionAudit
 import dk.sdu.cloud.auth.api.TwoFactorPageRequest
 import dk.sdu.cloud.auth.services.OneTimeTokenDAO
@@ -67,6 +70,10 @@ import java.net.MalformedURLException
 import java.net.URL
 import kotlin.collections.set
 
+// TODO FIXME Move the DAOs out of here and into services
+// TODO FIXME Move the trustedOrigins out of here
+// TODO FIXME Move WAYF into its own controller
+// TODO FIXME Split this into multiple controllers
 class CoreAuthController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val ottDao: OneTimeTokenDAO<DBSession>,
@@ -324,13 +331,21 @@ class CoreAuthController<DBSession>(
 
             audit(auditMessage)
 
+            log.debug("Validating input token")
             val token = tokenValidation.validateOrNull(req.validJWT)?.toSecurityToken() ?: return@implement error(
                 CommonErrorMessage("Unauthorized"),
                 HttpStatusCode.Unauthorized
             )
 
+            log.debug("Validating extender role versus input token")
+            if (token.principal.role != Role.PROJECT_PROXY && call.securityPrincipal.role !in Roles.PRIVILEDGED) {
+                error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
+                return@implement
+            }
+
             audit(auditMessage.copy(username = token.principal.username, role = token.principal.role))
 
+            log.debug("Extension is OK to proceed")
             ok(
                 tokenService.extendToken(
                     token,
@@ -399,6 +414,16 @@ class CoreAuthController<DBSession>(
             tokenService.logout(refreshToken, csrfToken)
             call.response.cookies.appendExpired(REFRESH_WEB_REFRESH_TOKEN_COOKIE, path = "/")
             call.respond(HttpStatusCode.NoContent)
+        }
+
+        implement(AuthDescriptions.bulkInvalidate) { req ->
+            // We suppress all exceptions when invalidating in bulk. This is mostly done by services to ensure that all
+            // of their tokens are invalidated. This will also ensure that a single invalid token won't cause remaining
+            // tokens to not be invalidated.
+
+            val tokens = req.tokens.map { RefreshTokenAndCsrf(it, null) }
+            tokenService.bulkLogout(tokens, suppressExceptions = true)
+            ok(Unit)
         }
     }
 

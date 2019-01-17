@@ -1,11 +1,13 @@
 package dk.sdu.cloud.accounting.compute.services
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.ContextQueryImpl
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.util.withDatabase
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.authenticatedCloud
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -26,14 +28,15 @@ class CompletedJobsHibernateDaoTest {
     fun `insert single, list and compute usage`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao)
+            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
 
             service.insert(dummyEvent)
 
             val listedEvents = service.listEvents(
                 NormalizedPaginationRequest(null, null),
                 ContextQueryImpl(),
-                dummyEvent.startedBy
+                dummyEvent.startedBy,
+                Role.USER
             )
 
             assertEquals(1, listedEvents.itemsInTotal)
@@ -42,7 +45,7 @@ class CompletedJobsHibernateDaoTest {
             val event = listedEvents.items.single()
             assertEquals(dummyEvent, event)
 
-            val usage = service.computeUsage(ContextQueryImpl(), dummyEvent.startedBy)
+            val usage = service.computeUsage(ContextQueryImpl(), dummyEvent.startedBy, Role.USER)
             assertEquals(dummyEvent.totalDuration.toMillis(), usage)
         }
     }
@@ -51,7 +54,7 @@ class CompletedJobsHibernateDaoTest {
     fun `multiple insert of same`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao)
+            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
 
             val events = (0 until 10).map { dummyEvent }
             service.insertBatch(events)
@@ -59,7 +62,8 @@ class CompletedJobsHibernateDaoTest {
             val listedEvents = service.listEvents(
                 NormalizedPaginationRequest(null, null),
                 ContextQueryImpl(),
-                dummyEvent.startedBy
+                dummyEvent.startedBy,
+                Role.USER
             )
 
             assertEquals(1, listedEvents.itemsInTotal)
@@ -74,7 +78,7 @@ class CompletedJobsHibernateDaoTest {
     fun `insert multiple for same user and list all`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao)
+            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
 
             val count = 10
             val events = (0 until count).map { idx ->
@@ -86,7 +90,8 @@ class CompletedJobsHibernateDaoTest {
             val listedEvents = service.listEvents(
                 NormalizedPaginationRequest(null, null),
                 ContextQueryImpl(),
-                dummyEvent.startedBy
+                dummyEvent.startedBy,
+                Role.USER
             )
 
             assertEquals(count, listedEvents.itemsInTotal)
@@ -100,12 +105,12 @@ class CompletedJobsHibernateDaoTest {
 
             run {
                 val expectedUsage = dummyEvent.totalDuration.toMillis() * 10
-                val actualUsage = service.computeUsage(ContextQueryImpl(), dummyEvent.startedBy)
+                val actualUsage = service.computeUsage(ContextQueryImpl(), dummyEvent.startedBy, Role.USER)
                 assertEquals(expectedUsage, actualUsage)
             }
 
             run {
-                val allevents = service.listAllEvents(ContextQueryImpl(since = 1), dummyEvent.startedBy)
+                val allevents = service.listAllEvents(ContextQueryImpl(since = 1), dummyEvent.startedBy, Role.USER)
                 assertEquals(count, allevents.size)
             }
         }
@@ -115,7 +120,7 @@ class CompletedJobsHibernateDaoTest {
     fun `insert multiple for different users`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao)
+            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
 
             val userCount = 3
             val entryCount = 5
@@ -137,7 +142,8 @@ class CompletedJobsHibernateDaoTest {
                 val events = service.listEvents(
                     NormalizedPaginationRequest(null, null),
                     ContextQueryImpl(),
-                    username(userId)
+                    username(userId),
+                    Role.USER
                 )
 
                 assertEquals(entryCount, events.itemsInTotal)
@@ -152,7 +158,7 @@ class CompletedJobsHibernateDaoTest {
     fun `test since query`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao)
+            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
 
             val eventCount = 5
 
@@ -168,7 +174,8 @@ class CompletedJobsHibernateDaoTest {
                 val events = service.listEvents(
                     NormalizedPaginationRequest(null, null),
                     ContextQueryImpl(since = id.toLong()),
-                    dummyEvent.startedBy
+                    dummyEvent.startedBy,
+                    Role.USER
                 )
 
                 assertEquals(eventCount - id, events.itemsInTotal)
@@ -182,7 +189,7 @@ class CompletedJobsHibernateDaoTest {
     fun `test until query`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao)
+            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
 
             val eventCount = 5
 
@@ -198,7 +205,8 @@ class CompletedJobsHibernateDaoTest {
                 val events = service.listEvents(
                     NormalizedPaginationRequest(null, null),
                     ContextQueryImpl(until = id.toLong()),
-                    dummyEvent.startedBy
+                    dummyEvent.startedBy,
+                    Role.USER
                 )
 
                 assertEquals(id + 1, events.itemsInTotal)
@@ -212,7 +220,7 @@ class CompletedJobsHibernateDaoTest {
     fun `test between query`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao)
+            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
 
             val eventCount = 5
 
@@ -227,7 +235,8 @@ class CompletedJobsHibernateDaoTest {
             val events = service.listEvents(
                 NormalizedPaginationRequest(null, null),
                 ContextQueryImpl(since = 1, until = 3),
-                dummyEvent.startedBy
+                dummyEvent.startedBy,
+                Role.USER
             )
 
             assertEquals(3, events.itemsInTotal)

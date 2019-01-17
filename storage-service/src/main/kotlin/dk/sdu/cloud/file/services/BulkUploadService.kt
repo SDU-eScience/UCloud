@@ -1,13 +1,20 @@
 package dk.sdu.cloud.file.services
 
+import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.notification.api.CreateNotification
+import dk.sdu.cloud.notification.api.Notification
+import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
 import org.slf4j.Logger
@@ -20,6 +27,7 @@ import kotlin.reflect.KClass
 
 sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: KClass<Ctx>) {
     abstract suspend fun upload(
+        serviceCloud: AuthenticatedCloud,
         fs: CoreFileSystemService<Ctx>,
         contextFactory: () -> Ctx,
         path: String,
@@ -45,13 +53,14 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
     override val log = logger()
 
     override suspend fun upload(
+        serviceCloud: AuthenticatedCloud,
         fs: CoreFileSystemService<UnixFSCommandRunner>,
         contextFactory: () -> UnixFSCommandRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream
     ): List<String> {
-        return BasicUploader.uploadFromSequence(fs, contextFactory, conflictPolicy, sequence {
+        return BasicUploader.uploadFromSequence(serviceCloud, path, fs, contextFactory, conflictPolicy, sequence {
             yield(ArchiveEntry.Directory(path))
 
             ZipInputStream(stream).use { zipStream ->
@@ -84,13 +93,14 @@ object TarGzUploader : BulkUploader<UnixFSCommandRunner>("tgz", UnixFSCommandRun
     override val log: Logger = logger()
 
     override suspend fun upload(
+        serviceCloud: AuthenticatedCloud,
         fs: CoreFileSystemService<UnixFSCommandRunner>,
         contextFactory: () -> UnixFSCommandRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream
     ): List<String> {
-        return BasicUploader.uploadFromSequence(fs, contextFactory, conflictPolicy, sequence {
+        return BasicUploader.uploadFromSequence(serviceCloud, path, fs, contextFactory, conflictPolicy, sequence {
             TarInputStream(GZIPInputStream(stream)).use {
                 var entry: TarEntry? = it.nextEntry
                 while (entry != null) {
@@ -133,10 +143,15 @@ sealed class ArchiveEntry {
     data class Directory(override val path: String) : ArchiveEntry()
 }
 
+private const val NOTIFICATION_EXTRACTION_TYPE = "file_extraction"
+private const val NOTIFICATION_COOLDOWN_PERIOD = 1000 * 60 * 5L
+
 private object BasicUploader : Loggable {
     override val log = logger()
 
     suspend fun <Ctx : FSUserContext> uploadFromSequence(
+        serviceCloud: AuthenticatedCloud,
+        path: String,
         fs: CoreFileSystemService<Ctx>,
         contextFactory: () -> Ctx,
         conflictPolicy: WriteConflictPolicy,
@@ -148,9 +163,47 @@ private object BasicUploader : Loggable {
 
         var ctx = contextFactory()
 
+        var nextNotification = System.currentTimeMillis() + NOTIFICATION_COOLDOWN_PERIOD
+        val notificationMeta = mapOf("destination" to path)
+        val job: Job
+        val destinationPathForNotification = joinPath(*path.components().drop(2).toTypedArray())
+
         try {
+            job = BackgroundScope.launch {
+                NotificationDescriptions.create.call(
+                    CreateNotification(
+                        ctx.user,
+                        Notification(
+                            NOTIFICATION_EXTRACTION_TYPE,
+                            "Extraction started: '$destinationPathForNotification'",
+                            meta = notificationMeta
+                        )
+                    ),
+                    serviceCloud
+                )
+            }
+
             sequence.forEach { entry ->
                 try {
+                    if (System.currentTimeMillis() > nextNotification) {
+                        nextNotification = System.currentTimeMillis() + NOTIFICATION_COOLDOWN_PERIOD
+                        BackgroundScope.launch {
+                            job.join()
+
+                            NotificationDescriptions.create.call(
+                                CreateNotification(
+                                    ctx.user,
+                                    Notification(
+                                        NOTIFICATION_EXTRACTION_TYPE,
+                                        "Archive is being extracted to '$path'...", // TODO get estimated progress
+                                        meta = notificationMeta
+                                    )
+                                ),
+                                serviceCloud
+                            )
+                        }
+                    }
+
                     log.debug("New entry $entry")
                     if (rejectedDirectories.any { entry.path.startsWith(it) }) {
                         log.debug("Skipping entry: $entry")
@@ -228,6 +281,22 @@ private object BasicUploader : Loggable {
             }
         } finally {
             runCatching { ctx.close() }
+        }
+
+        BackgroundScope.launch {
+            job.join()
+
+            NotificationDescriptions.create.call(
+                CreateNotification(
+                    ctx.user,
+                    Notification(
+                        NOTIFICATION_EXTRACTION_TYPE,
+                        "Extraction finished: '$destinationPathForNotification'",
+                        meta = notificationMeta
+                    )
+                ),
+                serviceCloud
+            )
         }
 
         return rejectedFiles

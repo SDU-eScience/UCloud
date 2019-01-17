@@ -49,12 +49,17 @@ private const val FILE_TOO_LARGE = 27
 private const val NO_SPACE_LEFT_ON_DEVICE = 28
 private const val READ_ONLY_FILE_SYSTEM = 30
 private const val TOO_MANY_LINKS = 31
+private const val DIRECTORY_NOT_EMPTY = 39
 private const val PROTOCOL_NOT_SUPPORTED = 93
+
+// Observed on OSX. Code doesn't really makes sense [DIRECTORY_NOT_EMPTY] would make more sense.
+private const val OBJECT_IS_REMOTE = 66
 
 
 fun throwExceptionBasedOnStatus(status: Int): Nothing {
     when (status.absoluteValue) {
-        OPERATION_NOT_PERMITED, NOT_A_DIRECTORY, IS_A_DIRECTORY, INVALID_ARGUMENT -> throw FSException.BadRequest()
+        OBJECT_IS_REMOTE, DIRECTORY_NOT_EMPTY, OPERATION_NOT_PERMITED, NOT_A_DIRECTORY, IS_A_DIRECTORY,
+        INVALID_ARGUMENT -> throw FSException.BadRequest()
 
         NO_SUCH_FILE_OR_DIR, PROTOCOL_NOT_SUPPORTED -> throw FSException.NotFound()
 

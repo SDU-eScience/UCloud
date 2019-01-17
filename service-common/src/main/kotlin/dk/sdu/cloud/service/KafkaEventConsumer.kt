@@ -92,7 +92,7 @@ class KafkaEventConsumer<K, V>(
                         // a buffer (for batch processing).
                         rootProcessor.accept(emptyList())
                     }
-                } catch (ex: Exception) {
+                } catch (ex: Throwable) {
                     log.info("Caught fatal exception in processing thread!")
                     log.info(ex.stackTraceToString())
                     exceptionHandler?.invoke(ex)
@@ -225,7 +225,7 @@ class KafkaEventConsumer<K, V>(
                     }
                 }
             }
-        } catch (ex: Exception) {
+        } catch (ex: Throwable) {
             log.warn("Caught internal exception in KafkaConsumer")
             log.warn(ex.stackTraceToString())
             exceptionHandler?.invoke(ex)

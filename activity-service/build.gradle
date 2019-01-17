@@ -1,16 +1,16 @@
 group 'dk.sdu.cloud'
-version '0.5.1'
+version '0.6.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.activity.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.4/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.5/sdu-cloud.gradle"
 
 dependencies {
-    compile "dk.sdu.cloud:service-common:0.22.0-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.8.0-SNAPSHOT"
-    compile "dk.sdu.cloud:file-api:0.14.10-SNAPSHOT"
+    compile "dk.sdu.cloud:service-common:0.23.1"
+    compile "dk.sdu.cloud:auth-api:1.14.0"
+    compile "dk.sdu.cloud:file-api:0.17.0"
     compile "dk.sdu.cloud:indexing-api:1.6.0-SNAPSHOT"
 
-    testCompile "dk.sdu.cloud:service-common-test:0.22.0-SNAPSHOT"
+    testCompile "dk.sdu.cloud:service-common-test:0.23.1"
 }

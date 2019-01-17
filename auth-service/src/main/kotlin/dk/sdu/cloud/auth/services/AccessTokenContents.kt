@@ -11,5 +11,6 @@ class AccessTokenContents(
 
     val claimableId: String? = null,
     val sessionReference: String? = null,
-    val extendedBy: String? = null
+    val extendedBy: String? = null,
+    val extendedByChain: List<String> = emptyList()
 )

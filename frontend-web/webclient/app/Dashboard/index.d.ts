@@ -23,6 +23,7 @@ export interface DashboardOperations {
     receiveFavorites: (files: File[]) => void
     updatePageTitle: () => void
     setAllLoading: (loading: boolean) => void
+    fetchUsage: () => void
     fetchFavorites: () => void
     fetchRecentFiles: () => void
     fetchRecentAnalyses: () => void

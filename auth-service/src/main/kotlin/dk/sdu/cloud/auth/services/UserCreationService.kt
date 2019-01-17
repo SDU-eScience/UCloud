@@ -22,17 +22,25 @@ class UserCreationService<DBSession>(
     private val userEventProducer: UserEventProducer
 ) {
     suspend fun createUser(user: Principal) {
+        createUsers(listOf(user))
+    }
+
+    suspend fun createUsers(users: List<Principal>) {
         db.withTransaction {
-            val exists = userDao.findByIdOrNull(it, user.id) != null
-            if (exists) {
-                throw UserException.AlreadyExists()
-            } else {
-                log.info("Creating user: $user")
-                userDao.insert(it, user)
+        	users.forEach { user ->
+	            val exists = userDao.findByIdOrNull(it, user.id) != null
+	            if (exists) {
+	                throw UserException.AlreadyExists()
+	            } else {
+	                log.info("Creating user: $user")
+	                userDao.insert(it, user)
+	            }
             }
         }
 
-        userEventProducer.emit(UserEvent.Created(user.id, user))
+        users.forEach { user ->
+            userEventProducer.emit(UserEvent.Created(user.id, user))
+        }
     }
 
     fun blockingCreateUser(user: Principal) {

@@ -10,10 +10,11 @@ import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.service.stackTraceToString
+import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
@@ -34,11 +35,11 @@ class Server(
     override fun start() {
         // Services
         val completedJobsDao = CompletedJobsHibernateDao()
-        val completedJobsService = CompletedJobsService(db, completedJobsDao)
+        val completedJobsService = CompletedJobsService(db, completedJobsDao, micro.authenticatedCloud)
 
         // Processors
-        JobCompletedProcessor(kafka, completedJobsService).init().let { batch ->
-            batch.forEach { it.installExceptionHandler() }
+        JobCompletedProcessor(kafka, completedJobsService, micro.authenticatedCloud).init().let { batch ->
+            batch.forEach { it.installShutdownHandler(this) }
             processors.addAll(batch)
         }
 
@@ -59,15 +60,8 @@ class Server(
         startServices()
     }
 
-    private fun EventConsumer<*>.installExceptionHandler() {
-        onExceptionCaught { ex ->
-            log.warn("Caught fatal exception in consumer!")
-            log.warn(ex.stackTraceToString())
-            stop()
-        }
-    }
-
     override fun stop() {
         super.stop()
+        processors.forEach { it.close() }
     }
 }

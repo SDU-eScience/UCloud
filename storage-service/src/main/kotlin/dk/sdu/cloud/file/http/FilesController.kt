@@ -2,10 +2,12 @@ package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.WriteConflictPolicy
@@ -21,9 +23,12 @@ import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.CallResult
+import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.tryWithFS
 import dk.sdu.cloud.file.util.tryWithFSAndTimeout
 import dk.sdu.cloud.service.Controller
@@ -49,6 +54,8 @@ class FilesController<Ctx : FSUserContext>(
     private val fileLookupService: FileLookupService<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val aclService: ACLService<Ctx>,
+    private val fileOwnerService: FileOwnerService<Ctx>,
+    private val homeFolderService: HomeFolderService,
     private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {
     override val baseContext = FileDescriptions.baseContext
@@ -236,6 +243,7 @@ class FilesController<Ctx : FSUserContext>(
                 FileAttribute.FILE_TYPE,
                 FileAttribute.UNIX_MODE,
                 FileAttribute.OWNER,
+                FileAttribute.XOWNER,
                 FileAttribute.GROUP,
                 FileAttribute.SIZE,
                 FileAttribute.TIMESTAMPS,
@@ -309,9 +317,10 @@ class FilesController<Ctx : FSUserContext>(
             audit(BulkFileAudit(fileIdsUpdated, req))
             requirePermissionToChangeFilePermissions()
 
-            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                coreFs.chmod(ctx, req.path, req.owner, req.group, req.other, req.recurse, fileIdsUpdated)
-                ok(Unit)
+            tryWithFS {
+                runCodeAsUnixOwner(req.path) { ctx ->
+                    coreFs.chmod(ctx, req.path, req.owner, req.group, req.other, req.recurse, fileIdsUpdated)
+                }
             }
         }
 
@@ -320,34 +329,36 @@ class FilesController<Ctx : FSUserContext>(
             audit(BulkFileAudit(fileIdsUpdated, req))
             requirePermissionToChangeFilePermissions()
 
-            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                req.changes.forEach { change ->
-                    val entity =
-                        if (change.isUser) FSACLEntity.User(change.entity) else FSACLEntity.Group(change.entity)
+            tryWithFS {
+                runCodeAsUnixOwner(req.path) { ctx ->
+                    req.changes.forEach { change ->
+                        val entity =
+                            if (change.isUser) FSACLEntity.User(change.entity) else FSACLEntity.Group(change.entity)
 
-                    if (change.revoke) {
-                        log.debug("revoking")
-                        aclService.revokeRights(ctx, req.path, entity, req.recurse)
-                    } else {
-                        log.debug("granting")
-                        aclService.grantRights(ctx, req.path, entity, change.rights, req.recurse)
-                    }
-                }
-
-                try {
-                    if (req.recurse) {
-                        coreFs.tree(ctx, req.path, setOf(FileAttribute.INODE)).forEach {
-                            fileIdsUpdated.add(it.inode)
+                        if (change.revoke) {
+                            log.debug("revoking")
+                            aclService.revokeRights(ctx, req.path, entity, req.recurse)
+                        } else {
+                            log.debug("granting")
+                            aclService.grantRights(ctx, req.path, entity, change.rights, req.recurse)
                         }
-                    } else {
-                        val fileId = coreFs.stat(ctx, req.path, setOf(FileAttribute.INODE)).inode
-                        fileIdsUpdated.add(fileId)
                     }
-                } catch (ex: Exception) {
-                    log.info(ex.stackTraceToString())
-                }
 
-                ok(Unit)
+                    try {
+                        if (req.recurse) {
+                            coreFs.tree(ctx, req.path, setOf(FileAttribute.INODE)).forEach {
+                                fileIdsUpdated.add(it.inode)
+                            }
+                        } else {
+                            val fileId = coreFs.stat(ctx, req.path, setOf(FileAttribute.INODE)).inode
+                            fileIdsUpdated.add(fileId)
+                        }
+                    } catch (ex: Exception) {
+                        log.info(ex.stackTraceToString())
+                    }
+
+                    ok(Unit)
+                }
             }
         }
 
@@ -364,41 +375,36 @@ class FilesController<Ctx : FSUserContext>(
             ok(Unit)
         }
 
-        implement(FileDescriptions.extract) { req ->
-            audit(SingleFileAudit(null, req))
-            val user = call.securityPrincipal.username
-            tryWithFS(commandRunnerFactory, user) { ctx ->
-                val fileID = fileLookupService.stat(ctx, req.path).fileId
-                audit(SingleFileAudit(fileID, req))
+        implement(FileDescriptions.findHomeFolder) { req ->
+            ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(req.username)))
+        }
+    }
+
+    private suspend fun RESTHandler<*, *, *, *>.runCodeAsUnixOwner(path: String, handler: suspend (Ctx) -> Unit) {
+        log.debug("We need to run request at '$path' as real owner")
+        val realOwner = fileOwnerService.lookupOwner(path) // We lookup owner since the xattr is async
+        val user = call.securityPrincipal.username
+        log.debug("Real owner is $realOwner and user is $user")
+
+        if (realOwner != user) throw FSException.PermissionException()
+
+        val switchUserTo = commandRunnerFactory.withContext(user) { ctx ->
+            val stat = coreFs.stat(ctx, path, setOf(FileAttribute.OWNER, FileAttribute.XOWNER))
+            log.debug("Got back the following stat: owner = ${stat.owner}, xowner = ${stat.xowner}")
+            if (stat.owner != user) {
+                // Authenticated user is the true owner of the file, but not the file create (unix file owner)
+                // We must switch context to perform the chmod
+                log.debug("We must switch user to perform this action")
+                stat.owner
+            } else {
+                log.debug("We can run this action as the current user")
+                handler(ctx)
+                null
             }
+        }
 
-            val uploader = when {
-                req.path.endsWith(".tar.gz") -> BulkUploader.fromFormat("tgz", commandRunnerFactory.type)
-                req.path.endsWith(".zip") -> BulkUploader.fromFormat("zip", commandRunnerFactory.type)
-                else -> null
-            } ?: return@implement error(
-                CommonErrorMessage("Unsupported format"),
-                HttpStatusCode.BadRequest
-            )
-
-            BackgroundScope.launch {
-                commandRunnerFactory.withContext(user) { readContext ->
-                    coreFs.read(readContext, req.path) {
-                        val fileInputStream = this
-
-                        uploader.upload(
-                            coreFs,
-                            { commandRunnerFactory(user) },
-                            req.path.parent(),
-                            WriteConflictPolicy.RENAME,
-                            fileInputStream
-                        )
-                    }
-
-                }
-            }
-
-            ok(Unit)
+        if (switchUserTo != null) {
+            commandRunnerFactory.withContext(switchUserTo) { ctx -> handler(ctx) }
         }
     }
 

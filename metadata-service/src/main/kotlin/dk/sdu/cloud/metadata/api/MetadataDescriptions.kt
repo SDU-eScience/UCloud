@@ -43,22 +43,4 @@ object MetadataDescriptions : RESTDescriptions("metadata") {
             +boundTo(FindByProjectId::id)
         }
     }
-
-    val findByPath = callDescription<FindByPath, ProjectMetadataWithRightsInfo, CommonErrorMessage> {
-        name = "metadataFindByPath"
-        method = HttpMethod.Get
-
-        auth {
-            access = AccessRight.READ
-        }
-
-        path {
-            using(baseContext)
-            +"by-path"
-        }
-
-        params {
-            +boundTo(FindByPath::path)
-        }
-    }
 }

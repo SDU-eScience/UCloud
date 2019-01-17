@@ -20,9 +20,7 @@ import org.slf4j.LoggerFactory
 class MetadataController(
     private val metadataCommandService: MetadataCommandService,
     private val metadataQueryService: MetadataQueryService,
-    private val metadataAdvancedQueryService: MetadataAdvancedQueryService,
-
-    private val projectService: ProjectService<*>
+    private val metadataAdvancedQueryService: MetadataAdvancedQueryService
 ) : Controller {
     override val baseContext: String = MetadataDescriptions.baseContext
 
@@ -39,24 +37,6 @@ class MetadataController(
             } else {
                 val canEdit = metadataCommandService.canEdit(call.securityPrincipal.username, it.id)
                 ok(ProjectMetadataWithRightsInfo(result, canEdit = canEdit))
-            }
-        }
-
-        implement(MetadataDescriptions.findByPath) {
-            try {
-                val project = projectService.findByFSRoot(it.path)
-                val projectId = project.id!!
-
-                // TODO Bad copy & paste
-                val result = metadataQueryService.getById(call.securityPrincipal.username, projectId)
-                if (result == null) {
-                    error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
-                } else {
-                    val canEdit = metadataCommandService.canEdit(call.securityPrincipal.username, projectId)
-                    ok(ProjectMetadataWithRightsInfo(result, canEdit = canEdit))
-                }
-            } catch (e: ProjectException.NotFound) {
-                error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
             }
         }
 

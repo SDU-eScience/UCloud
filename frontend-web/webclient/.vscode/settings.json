@@ -9,5 +9,6 @@
         "markdown",
         "latex",
         "plaintext"
-    ]
+    ],
+    "python.pythonPath": "/usr/local/bin/python3"
 }

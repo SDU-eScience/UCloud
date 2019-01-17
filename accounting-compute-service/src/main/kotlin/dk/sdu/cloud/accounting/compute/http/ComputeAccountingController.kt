@@ -22,16 +22,16 @@ class ComputeAccountingController<DBSession>(
     override fun configure(routing: Route): Unit = with(routing) {
         implement(ComputeAccountingDescriptions.buildReport) { req ->
             if (call.securityPrincipal.username != "_accounting") {
-                return@implement(error(CommonErrorMessage("User Not Allowed"), HttpStatusCode.Unauthorized))
-            }
-            else {
+                return@implement (error(CommonErrorMessage("User Not Allowed"), HttpStatusCode.Unauthorized))
+            } else {
                 val computeTime = completedJobsService.computeBillableItems(
                     req.periodStartMs,
                     req.periodEndMs,
-                    req.user
+                    req.user,
+                    null
                 )
 
-                return@implement(ok(BuildReportResponse(items = computeTime)))
+                return@implement (ok(BuildReportResponse(items = computeTime)))
             }
         }
 
