@@ -15,9 +15,11 @@ import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.orThrow
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 suspend fun trashDirectory(username: String, cloud: AuthenticatedCloud): String {
     val homeFolder = FileDescriptions.findHomeFolder.call(
@@ -30,7 +32,17 @@ suspend fun trashDirectory(username: String, cloud: AuthenticatedCloud): String 
 class TrashService {
     suspend fun emptyTrash(username: String, userCloud: AuthenticatedCloud) {
         validateTrashDirectory(username, userCloud)
-        FileDescriptions.deleteFile.call(DeleteFileRequest(trashDirectory(username, userCloud)), userCloud)
+        GlobalScope.launch {
+            runCatching {
+                FileDescriptions.deleteFile
+                    .call(
+                        DeleteFileRequest(
+                            trashDirectory(username, userCloud)
+                        ),
+                        userCloud
+                    )
+            }
+        }
     }
 
     suspend fun moveFilesToTrash(files: List<String>, username: String, userCloud: AuthenticatedCloud): List<String> {
