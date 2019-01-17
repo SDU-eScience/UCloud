@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.17.1'
+version '0.17.2'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"
@@ -9,7 +9,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 dependencies {
     compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
 
-    compile "dk.sdu.cloud:service-common:0.23.1"
+    compile "dk.sdu.cloud:service-common:0.23.2"
     compile "dk.sdu.cloud:auth-api:1.14.0"
     compile "dk.sdu.cloud:notification-api:0.7.0-SNAPSHOT"
 

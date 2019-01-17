@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.client.ServiceDescription
+import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -75,6 +76,7 @@ class KafkaFeature(
             this[ProducerConfig.BOOTSTRAP_SERVERS_CONFIG] = servers.joinToString(",") { it.toString() }
             this[ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
             this[ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG] = StringSerializer::class.qualifiedName!!
+            this[ProducerConfig.ACKS_CONFIG] = "all"
         }
 
     private fun retrieveConsumerConfig(
@@ -87,6 +89,8 @@ class KafkaFeature(
         this[ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG] = StringDeserializer::class.qualifiedName!!
         this[ConsumerConfig.GROUP_ID_CONFIG] = serviceDescription.name + "-consumer"
         this[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG] = "earliest"
+        this[ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG] = "60000"
+        this[CommonClientConfigs.RETRIES_CONFIG] = "100"
     }
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {

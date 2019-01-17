@@ -36,6 +36,7 @@ import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.service.stream
 import dk.sdu.cloud.service.tokenValidation
@@ -99,6 +100,12 @@ class Server(
         val fileOwnerService = FileOwnerService(processRunner, fs, coreFileSystem)
 
         val homeFolderService = HomeFolderService(cloud)
+
+        coreFileSystem.setOnStorageEventExceptionHandler {
+            log.warn("Caught exception while emitting a storage event!")
+            log.warn(it.stackTraceToString())
+            stop()
+        }
 
         log.info("Core services constructed!")
 

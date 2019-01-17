@@ -13,6 +13,10 @@ import dk.sdu.cloud.file.api.relativize
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import java.io.InputStream
 import java.io.OutputStream
@@ -21,6 +25,12 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val eventProducer: StorageEventProducer
 ) {
+    private var storageEventExceptionHandler: ((Throwable) -> Unit)? = null
+
+    fun setOnStorageEventExceptionHandler(handler: (Throwable) -> Unit) {
+        storageEventExceptionHandler = handler
+    }
+
     suspend fun write(
         ctx: Ctx,
         path: String,
@@ -262,8 +272,21 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
     private fun <T : StorageEvent> FSResult<List<T>>.emitAll(): List<T> {
         val result = unwrap()
-        result.forEach { event ->
-            BackgroundScope.launch { eventProducer.emit(event) }
+        BackgroundScope.launch {
+            log.debug("Emitting storage ${result.size} events: ${result.take(5)}")
+            val failure = result
+                .map { event ->
+                    BackgroundScope.async { runCatching { eventProducer.emit(event) } }
+                }
+                .awaitAll()
+                .find { it.isFailure }
+
+            if (failure != null) {
+                val throwable = failure.exceptionOrNull()!!
+                log.warn("Unable to send storage event. Stack trace follows:")
+                log.warn(throwable.stackTraceToString())
+                storageEventExceptionHandler?.invoke(throwable)
+            }
         }
         return result
     }
@@ -274,5 +297,9 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         } else {
             return value
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

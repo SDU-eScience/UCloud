@@ -27,7 +27,7 @@ detekt {
     filters = ".*/resources/.*,.*/build/.*"
 
     // https://stackoverflow.com/a/921400
-    def currentVersion = "v0.2.3"
+    def currentVersion = "v0.2.5"
     URL website = new URL("https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/$currentVersion/detekt.yml")
     ReadableByteChannel rbc = Channels.newChannel(website.openStream())
     def outputFile = Files.createTempFile("detekt", ".yml").toFile()
@@ -37,7 +37,7 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version "0.23.1"
+version "0.23.2"
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"
