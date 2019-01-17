@@ -32,3 +32,16 @@ export interface CreateUpdateState {
 export interface CreateUpdateProps extends RouterLocationProps {
     history: History
 }
+
+export interface DetailedProjectSearchReduxState {
+    error?: string
+    loading: boolean
+    hidden: boolean
+    projectName: string
+}
+
+export interface DetailedProjectSearchOperations {
+    setProjectName: (name: string) => void
+    fetchProjectsFromName: (name: string, itemsPerPage: number, page: number, callback: () => void) => void
+    setError: (error?: string) => void
+}

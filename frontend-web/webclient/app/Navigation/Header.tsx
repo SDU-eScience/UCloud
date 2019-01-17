@@ -21,21 +21,21 @@ import DetailedFileSearch from "Files/DetailedFileSearch";
 import { Dropdown } from "ui-components/Dropdown";
 import { SelectableText, SearchOptions } from "Search/Search";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
+import DetailedProjectSearch from "Project/DetailedProjectSearch"
 import { prettierString } from "UtilityFunctions";
-import { defaultAvatar, AvatarType } from "UserSettings/Avataaar";
+import { AvatarType } from "UserSettings/Avataaar";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
+import { setPrioritizedSearch } from "./Redux/HeaderActions";
 
 interface HeaderState {
     searchText: string
-    searchType: HeaderSearchType
 }
 
 class Header extends React.Component<HeaderStateToProps & HeaderOperations & { history: History }, HeaderState> {
     constructor(props: any) {
         super(props);
         this.state = {
-            searchText: "",
-            searchType: "files"
+            searchText: ""
         };
         props.fetchLoginStatus();
         props.fetchAvatar();
@@ -49,12 +49,12 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
                 <Logo />
                 <Box ml="auto" />
                 <Search
-                    searchType={this.state.searchType}
+                    searchType={this.props.prioritizedSearch}
                     onChange={searchText => this.setState(() => ({ searchText }))}
                     navigate={() => history.push(searchPage(prioritizedSearch, searchText))}
                     searchText={searchText}
                     searchFiles={searchFiles}
-                    setSearchType={st => this.setState(() => ({ searchType: st }))}
+                    setSearchType={st => this.props.setSearchType(st)}
                 />
                 <Box mr="auto" />
                 <BackgroundTask />
@@ -192,7 +192,8 @@ const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSe
                     <Box mr="auto" />
                 </SearchOptions>
                 {searchType === "files" ? <DetailedFileSearch defaultFilename={searchText} cantHide /> :
-                    searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchText} /> : null}
+                    searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchText} /> :
+                        searchType === "projects" ? <DetailedProjectSearch defaultProjectName={searchText} />: null}
             </ClickableDropdown>
         </SearchInput>
     </Relative >
@@ -234,13 +235,15 @@ interface HeaderOperations {
     fetchLoginStatus: () => void
     fetchAvatar: () => void
     searchFiles: (fileName: string) => void
+    setSearchType: (st: HeaderSearchType) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     setSidebarOpen: open => dispatch(setSidebarState(open)),
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
     fetchAvatar: async () => dispatch(await findAvatar()),
-    searchFiles: async fileName => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] }))
+    searchFiles: async fileName => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] })),
+    setSearchType: st => dispatch(setPrioritizedSearch(st))
 });
 
 const mapStateToProps = ({ sidebar, header, avatar }: ReduxObject): HeaderStateToProps => ({
