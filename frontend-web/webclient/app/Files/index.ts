@@ -3,11 +3,9 @@ import Cloud from "Authentication/lib";
 import * as React from "react";
 import PromiseKeeper from "PromiseKeeper";
 import { Activity } from "Activity";
-import { IconName } from "ui-components/Icon";
-import { ComponentWithPage, ResponsiveReduxObject, SensitivityLevelMap } from "DefaultObjects";
+import { ResponsiveReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { Times } from "./Redux/DetailedFileSearchActions";
 import { RouterLocationProps } from "Utilities/URIUtilities";
-import { ThemeColor } from "ui-components/theme";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -264,7 +262,7 @@ export type DetailedFileSearchProps = DetailedFileSearchReduxState & DetailedFil
 
 export type SensitivityLevel = "Open Access" | "Confidential" | "Sensitive";
 
-export interface DetailedFileSearchReduxState extends ComponentWithPage<File> {
+export interface DetailedFileSearchReduxState {
     hidden: boolean
     allowFolders: boolean
     allowFiles: boolean
@@ -276,6 +274,15 @@ export interface DetailedFileSearchReduxState extends ComponentWithPage<File> {
     createdAfter?: Date
     modifiedBefore?: Date
     modifiedAfter?: Date
+    error?: string
+    loading: boolean
+}
+
+export interface DetailedProjectSearch {
+    hidden: boolean
+    projectName: string
+    error?: string
+    loading: boolean
 }
 
 export type ContextBarProps = ContextButtonsProps & FileOptionsProps & { invalidPath: boolean }

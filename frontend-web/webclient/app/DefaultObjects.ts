@@ -13,6 +13,7 @@ import { SimpleSearchStateProps } from "Search";
 import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
 import { defaultAvatar } from "UserSettings/Avataaar";
+import { DetailedProjectSearchReduxState } from "Project";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -206,8 +207,10 @@ interface LegacyReduxObject {
     simpleSearch: SimpleSearchStateProps
     detailedFileSearch: DetailedFileSearchReduxState
     detailedApplicationSearch: DetailedApplicationSearchReduxState
+    detailedProjectSearch: DetailedProjectSearchReduxState
     fileInfo: FileInfoReduxObject
     avatar: AvatarReduxObject
+
     responsive?: ResponsiveReduxObject
 }
 
@@ -261,6 +264,7 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     simpleSearch: initSimpleSearch(),
     detailedApplicationSearch: initApplicationsAdvancedSearch(),
     detailedFileSearch: initFilesDetailedSearch(),
+    detailedProjectSearch: initProjectsAdvancedSearch(),
     fileInfo: initFileInfo(),
     ...ApplicationRedux.init(),
     ...AccountingRedux.init(),
@@ -353,12 +357,10 @@ export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
     modifiedBefore: undefined,
     modifiedAfter: undefined,
     error: undefined,
-    page: emptyPage,
     loading: false
 });
 
 export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchReduxState => ({
-    page: emptyPage,
     error: undefined,
     loading: false,
     hidden: true,
@@ -366,3 +368,10 @@ export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchRedux
     appVersion: "",
     tags: ""
 });
+
+export const initProjectsAdvancedSearch = (): DetailedProjectSearchReduxState => ({
+    error: undefined,
+    loading: false,
+    hidden: true,
+    projectName: ""
+}) 

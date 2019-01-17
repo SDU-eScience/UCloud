@@ -120,7 +120,6 @@ class Search extends React.Component<SearchProps> {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
         const fileOperations = AllFileOperations(true, false, false, false, false, false, this.props.history);
         // FIXME: Search Pane approach is obsolete
-        console.log(filesLoading, projectsLoading, applicationsLoading);
         const panes: SearchPane[] = [
             {
                 headerType: "files",

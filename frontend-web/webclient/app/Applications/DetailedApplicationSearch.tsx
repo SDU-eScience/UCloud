@@ -48,9 +48,7 @@ class DetailedApplicationSearch extends React.Component<DetailedApplicationSearc
                             placeholder="Search by name..."
                             ref={this.inputField}
                         />
-                        <Flex mt="1em">
-                            <LoadingButton type="submit" loading={this.props.loading} content="By Name" color="blue" />
-                        </Flex>
+                        <LoadingButton mt="0.5em" type="submit" fullWidth loading={this.props.loading} content="Search" color="blue" />
                     </form>
                 </Box>
             </Flex>)

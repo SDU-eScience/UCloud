@@ -279,11 +279,13 @@ export interface SearchFieldProps {
     onValueChange: (value: string) => void
 }
 
-export interface DetailedApplicationSearchReduxState extends ComponentWithPage<Application> {
+export interface DetailedApplicationSearchReduxState {
     hidden: boolean
     appName: string
     appVersion: string
     tags: string
+    error?: string
+    loading: boolean
 }
 
 export interface DetailedApplicationOperations {
