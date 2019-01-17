@@ -49,7 +49,7 @@ private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
 
     withDatabase { db ->
         db.withTransaction { session ->
-            for (i in 0..10) {
+            for (i in 0..50) {
                 session.save(StorageForUserEntity(
                     TestUsers.user.username,
                     Date(),
@@ -89,8 +89,8 @@ class StorageUsedTest{
                 request.assertSuccess()
                 val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
 
-                assertEquals(11, response.itemsInTotal)
-                assertEquals(2, response.pagesInTotal)
+                assertEquals(51, response.itemsInTotal)
+                assertEquals(6, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
                 assertEquals(12345, response.items.first().bytesUsed)
             }
@@ -112,8 +112,8 @@ class StorageUsedTest{
                 request.assertSuccess()
                 val response = defaultMapper.readValue<Page<StorageUsedEvent>>(request.response.content!!)
 
-                assertEquals(11, response.itemsInTotal)
-                assertEquals(2, response.pagesInTotal)
+                assertEquals(51, response.itemsInTotal)
+                assertEquals(6, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
                 assertEquals(12345, response.items.first().bytesUsed)            }
         )
@@ -149,6 +149,12 @@ class StorageUsedTest{
             setup,
             test= {
                 CloudMock.mockCallSuccess(
+                    FileDescriptions,
+                    { FileDescriptions.findHomeFolder},
+                    FindHomeFolderResponse("/home/user")
+                )
+
+                CloudMock.mockCallSuccess(
                     QueryDescriptions,
                     { QueryDescriptions.statistics },
                     StatisticsResponse(
@@ -166,6 +172,7 @@ class StorageUsedTest{
                 )
                 request.assertSuccess()
 
+                println(request.response.content)
                 //TODO Works but not pretty
                 assertTrue(request.response.content?.contains("\"dataTypes\":[\"datetime\",\"bytes\"],\"dataTitle\":\"Storage Used\"")!!)
 
