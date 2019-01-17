@@ -21,15 +21,15 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-suspend fun trashDirectory(username: String, cloud: AuthenticatedCloud): String {
-    val homeFolder = FileDescriptions.findHomeFolder.call(
-        FindHomeFolderRequest(username),
-        cloud
-    ).orThrow().path
-    return joinPath(homeFolder, "Trash")
-}
+class TrashService(private val serviceCloud: AuthenticatedCloud) {
+    private suspend fun trashDirectory(username: String): String {
+        val homeFolder = FileDescriptions.findHomeFolder.call(
+            FindHomeFolderRequest(username),
+            serviceCloud
+        ).orThrow().path
+        return joinPath(homeFolder, "Trash")
+    }
 
-class TrashService {
     suspend fun emptyTrash(username: String, userCloud: AuthenticatedCloud) {
         validateTrashDirectory(username, userCloud)
         GlobalScope.launch {
@@ -37,7 +37,7 @@ class TrashService {
                 FileDescriptions.deleteFile
                     .call(
                         DeleteFileRequest(
-                            trashDirectory(username, userCloud)
+                            trashDirectory(username)
                         ),
                         userCloud
                     )
@@ -58,7 +58,7 @@ class TrashService {
         val result = FileDescriptions.move.call(
             MoveRequest(
                 path = file,
-                newPath = joinPath(trashDirectory(username, userCloud), file.fileName()),
+                newPath = joinPath(trashDirectory(username), file.fileName()),
                 policy = WriteConflictPolicy.RENAME
             ),
             userCloud
@@ -68,7 +68,7 @@ class TrashService {
     }
 
     private suspend fun validateTrashDirectory(username: String, userCloud: AuthenticatedCloud) {
-        val trashDirectoryPath = trashDirectory(username, userCloud)
+        val trashDirectoryPath = trashDirectory(username)
 
         suspend fun createTrashDirectory() {
             FileDescriptions.createDirectory.call(

@@ -77,7 +77,7 @@ class TrashTest {
     @BeforeTest
     fun initTest() {
         micro = initializeMicro()
-        service = TrashService()
+        service = TrashService(micro.authenticatedCloud)
         cloud = micro.authenticatedCloud
     }
 
