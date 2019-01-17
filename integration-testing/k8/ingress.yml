@@ -1,0 +1,16 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: integration-testing
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.sdu.dk
+    http:
+      paths:
+      - path: /api/integration-testing
+        backend:
+          serviceName: integration-testing
+          servicePort: 8080

@@ -17,9 +17,9 @@ sealed class MetadataException : RuntimeException() {
 interface MetadataCommandService {
     fun create(metadata: ProjectMetadata)
 
-    fun update(user: String, projectId: Long, metadata: UserEditableProjectMetadata)
+    fun update(user: String, projectId: String, metadata: UserEditableProjectMetadata)
 
-    fun canEdit(user: String, projectId: Long): Boolean
+    suspend fun canEdit(user: String, projectId: String): Boolean
 
-    fun delete(user: String, projectId: Long)
+    suspend fun delete(user: String, projectId: String)
 }

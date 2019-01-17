@@ -8,6 +8,8 @@ import dk.sdu.cloud.accounting.storage.services.StorageAccountingHibernateDao
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingService
 import dk.sdu.cloud.accounting.storage.services.StorageForUserEntity
 import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.StatisticsResponse
@@ -64,8 +66,8 @@ private fun KtorApplicationTestSetupContext.configureComputeTimeServer(
     storageAccountingService: StorageAccountingService<HibernateSession>
 ): List<Controller> {
     return listOf(
-        StorageUsedController(storageAccountingService),
-        StorageAccountingController(storageAccountingService)
+        StorageUsedController(storageAccountingService, micro.authenticatedCloud),
+        StorageAccountingController(storageAccountingService, micro.authenticatedCloud)
     )
 }
 
@@ -187,6 +189,12 @@ class StorageUsedTest{
                         )
                     )
 
+                    CloudMock.mockCallSuccess(
+                        FileDescriptions,
+                        {FileDescriptions.findHomeFolder},
+                        FindHomeFolderResponse("/home/user")
+                    )
+
                     run {
                         val request = sendRequest(
                             method = HttpMethod.Get,
@@ -227,6 +235,12 @@ class StorageUsedTest{
                             )
                         }
                     }
+
+                    CloudMock.mockCallSuccess(
+                        FileDescriptions,
+                        {FileDescriptions.findHomeFolder},
+                        FindHomeFolderResponse("/home/user")
+                    )
                     run {
 
                         val request = sendRequest(
@@ -296,8 +310,14 @@ class StorageUsedTest{
                             )
                         }
                     }
-                    run {
 
+                    CloudMock.mockCallSuccess(
+                        FileDescriptions,
+                        {FileDescriptions.findHomeFolder},
+                        FindHomeFolderResponse("/home/user")
+                    )
+
+                    run {
                         val request = sendRequest(
                             method = HttpMethod.Get,
                             path = "/api/accounting/storage/bytesUsed/usage",

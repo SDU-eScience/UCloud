@@ -3,11 +3,18 @@ package dk.sdu.cloud.metadata.services
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.metadata.api.ProjectMetadata
 import dk.sdu.cloud.metadata.api.UserEditableProjectMetadata
+import dk.sdu.cloud.project.api.Project
+import dk.sdu.cloud.project.api.ProjectDescriptions
+import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.api.ViewProjectRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.stackTraceToString
+import kotlinx.coroutines.runBlocking
 import mbuhot.eskotlin.query.fulltext.match
 import mbuhot.eskotlin.query.term.match_all
 import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
@@ -30,7 +37,7 @@ private const val MAX_ALIVE_TIME_IN_MINUTES = 5L
 
 class ElasticMetadataService(
     private val elasticClient: RestHighLevelClient,
-    private val projectService: ProjectService<*>
+    private val cloud: AuthenticatedCloud
 ) : MetadataCommandService, MetadataQueryService, MetadataAdvancedQueryService {
     private val mapper = jacksonObjectMapper().apply {
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
@@ -41,46 +48,49 @@ class ElasticMetadataService(
     private val singleInstanceOfMicroServiceLockBadIdeaButWorksForNow = Any()
 
     override fun create(metadata: ProjectMetadata) {
-        val id = metadata.id.toLongOrNull() ?: throw MetadataException.NotFound()
+        val id = metadata.projectId
         if (internalGetById(id) != null) throw MetadataException.Duplicate()
 
         elasticClient.index(
-            IndexRequest(index, doc, metadata.id).apply {
+            IndexRequest(index, doc, metadata.projectId).apply {
                 source(mapper.writeValueAsString(metadata), XContentType.JSON)
             }
         )
     }
 
-    override fun canEdit(user: String, projectId: Long): Boolean {
-        val project = projectService.findById(projectId) ?: throw MetadataException.NotFound()
+    override suspend fun canEdit(user: String, projectId: String): Boolean {
+        val project = ProjectDescriptions.view.call(ViewProjectRequest(projectId), cloud).orThrow()
         return canEdit(user, project)
     }
 
     private fun canEdit(user: String, project: Project): Boolean {
-        return project.owner == user
+        project.members.forEach {
+            if (user == it.username)
+                if (it.role == ProjectRole.PI)
+                    return true
+        }
+        return false
     }
 
-    override fun update(user: String, projectId: Long, metadata: UserEditableProjectMetadata) {
+    override fun update(user: String, projectId: String, metadata: UserEditableProjectMetadata) {
         synchronized(singleInstanceOfMicroServiceLockBadIdeaButWorksForNow) {
-            val project = projectService.findById(projectId) ?: throw MetadataException.NotFound()
-            if (!canEdit(user, project)) {
-                log.debug("Not allowed. Project owner is '${project.owner}' current user is '$user'")
-                throw MetadataException.NotAllowed()
+            val existingMetadata = internalGetById(projectId) ?: throw MetadataException.NotFound()
+            runBlocking {
+                if (!canEdit(user, projectId)) {
+                    log.debug("Not allowed. User not PI")
+                    throw MetadataException.NotAllowed()
+                }
             }
-
             // TODO This is NOT correct. We have no global locking on the object and stuff may happen in-between!
-            val existing = internalGetById(projectId) ?: throw MetadataException.NotFound()
-            val newMetadata = existing.copy(
-                title = if (metadata.title != null) metadata.title!! else existing.title,
-                description = if (metadata.description != null) metadata.description!! else existing.description,
-                license = if (metadata.license != null) metadata.license!! else existing.license,
-                keywords = if (metadata.keywords != null) metadata.keywords!! else existing.keywords,
-                contributors = if (metadata.contributors != null) metadata.contributors!! else existing.contributors,
-                references = if (metadata.references != null) metadata.references!! else existing.references,
-                grants = if (metadata.grants != null) metadata.grants!! else existing.grants,
-                subjects = if (metadata.subjects != null) metadata.subjects!! else existing.subjects,
-                relatedIdentifiers = if (metadata.relatedIdentifiers != null) metadata.relatedIdentifiers!!
-                else existing.relatedIdentifiers
+            val newMetadata = existingMetadata.copy(
+                title = if (metadata.title != null) metadata.title!! else existingMetadata.title,
+                description = if (metadata.description != null) metadata.description!! else existingMetadata.description,
+                license = if (metadata.license != null) metadata.license!! else existingMetadata.license,
+                keywords = if (metadata.keywords != null) metadata.keywords!! else existingMetadata.keywords,
+                contributors = if (metadata.contributors != null) metadata.contributors!! else existingMetadata.contributors,
+                references = if (metadata.references != null) metadata.references!! else existingMetadata.references,
+                grants = if (metadata.grants != null) metadata.grants!! else existingMetadata.grants,
+                subjects = if (metadata.subjects != null) metadata.subjects!! else existingMetadata.subjects
             )
 
             internalUpdate(newMetadata)
@@ -89,18 +99,18 @@ class ElasticMetadataService(
 
     private fun internalUpdate(metadata: ProjectMetadata) {
         elasticClient.index(
-            IndexRequest(index, doc, metadata.id).apply {
+            IndexRequest(index, doc, metadata.projectId).apply {
                 source(mapper.writeValueAsString(metadata), XContentType.JSON)
             }
         )
     }
 
-    private fun internalGetById(id: Long): ProjectMetadata? {
-        val getResponse = elasticClient[GetRequest(index, doc, id.toString())]
+    private fun internalGetById(id: String): ProjectMetadata? {
+        val getResponse = elasticClient[GetRequest(index, doc, id)]
         return getResponse?.takeIf { it.isExists }?.sourceAsBytes?.let { mapper.readValue(it) }
     }
 
-    override fun getById(user: String, id: Long): ProjectMetadata? {
+    override fun getById(user: String, id: String): ProjectMetadata? {
         return internalGetById(id)
     }
 
@@ -128,11 +138,11 @@ class ElasticMetadataService(
         return Page(response.hits.totalHits.toInt(), paging.itemsPerPage, paging.page, records)
     }
 
-    private fun internalDelete(projectId: Long) {
-        elasticClient.delete(DeleteRequest(index, doc, projectId.toString()))
+    private fun internalDelete(projectId: String) {
+        elasticClient.delete(DeleteRequest(index, doc, projectId))
     }
 
-    override fun delete(user: String, projectId: Long) {
+    override suspend fun delete(user: String, projectId: String) {
         if (canEdit(user, projectId)) {
             internalDelete(projectId)
         } else {

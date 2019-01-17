@@ -8,10 +8,15 @@ import dk.sdu.cloud.accounting.api.Currencies
 import dk.sdu.cloud.accounting.api.SerializedMoney
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingService
 import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
+import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
@@ -26,12 +31,14 @@ import kotlin.test.assertEquals
 
 class StorageAccountingTest {
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
+        val micro = initializeMicro()
+        val cloud = micro.authenticatedCloud
         val storageAccountingService = mockk<StorageAccountingService<Session>>(relaxed = true)
         coEvery { storageAccountingService.calculateUsage(any(), any(), any()) } answers {
             val invoice = listOf(BillableItem("Used Storage", 150, SerializedMoney(BigDecimal("0.1"), Currencies.DKK)))
             invoice
         }
-        listOf(StorageAccountingController(storageAccountingService))
+        listOf(StorageAccountingController(storageAccountingService, cloud))
     }
 
     @Test
@@ -39,6 +46,12 @@ class StorageAccountingTest {
         withKtorTest(
             setup,
             test= {
+
+                CloudMock.mockCallSuccess(
+                    FileDescriptions,
+                    {FileDescriptions.findHomeFolder},
+                    FindHomeFolderResponse("/home/user1")
+                )
                 val request = sendJson(
                     method = HttpMethod.Post,
                     path = "/api/accounting/storage/buildReport",

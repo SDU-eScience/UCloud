@@ -1,24 +1,17 @@
 package dk.sdu.cloud.metadata
 
-import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.metadata.api.ProjectEvents
 import dk.sdu.cloud.metadata.http.MetadataController
 import dk.sdu.cloud.metadata.http.ProjectsController
-import dk.sdu.cloud.metadata.processor.StorageEventProcessor
 import dk.sdu.cloud.metadata.services.ElasticMetadataService
-import dk.sdu.cloud.metadata.services.ProjectHibernateDAO
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.buildStreams
+import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
-import dk.sdu.cloud.service.stream
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.http.HttpHost
@@ -28,25 +21,24 @@ import org.elasticsearch.client.RestHighLevelClient
 import kotlin.system.exitProcess
 
 class Server(
-    private val db: HibernateSessionFactory,
     private val configuration: ElasticHostAndPort,
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
     private val micro: Micro
 ) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
-    override lateinit var kStreams: KafkaStreams
+    override val kStreams: KafkaStreams? = null
 
     override val log = logger()
 
     override fun start() {
         log.info("Creating core services")
-        val projectService = ProjectService(db, ProjectHibernateDAO())
+        val projectService = ProjectService(micro.authenticatedCloud)
         val elasticMetadataService =
             with(configuration) {
                 ElasticMetadataService(
                     RestHighLevelClient(RestClient.builder(HttpHost(host, port, "http"))),
-                    projectService
+                    micro.authenticatedCloud
                 )
             }
 
@@ -56,15 +48,6 @@ class Server(
             exitProcess(0)
         }
 
-        kStreams = buildStreams { kBuilder ->
-            StorageEventProcessor(
-                kBuilder.stream(StorageEvents.events),
-                kBuilder.stream(ProjectEvents.events),
-                elasticMetadataService,
-                projectService
-            ).init()
-        }
-
         httpServer = ktor {
             log.info("Configuring HTTP server")
             installDefaultFeatures(micro)
@@ -72,14 +55,13 @@ class Server(
             routing {
                 configureControllers(
                     ProjectsController(
-                        kafka.producer.forStream(ProjectEvents.events),
-                        projectService
+                        projectService,
+                        elasticMetadataService
                     ),
                     MetadataController(
                         elasticMetadataService,
                         elasticMetadataService,
-                        elasticMetadataService,
-                        projectService
+                        elasticMetadataService
                     )
                 )
             }

@@ -4,6 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.file.trash.storageFile
 import dk.sdu.cloud.service.Micro
@@ -65,6 +66,14 @@ class TrashTest {
         )
     }
 
+    private fun mockHomeFolder() {
+        CloudMock.mockCallSuccess(
+            FileDescriptions,
+            {FileDescriptions.findHomeFolder},
+            FindHomeFolderResponse("/home/user/")
+        )
+    }
+
     @BeforeTest
     fun initTest() {
         micro = initializeMicro()
@@ -78,6 +87,7 @@ class TrashTest {
         mockMove()
         mockCreateDir()
         mockDelete()
+        mockHomeFolder()
 
         runBlocking {
             service.emptyTrash(user.username, cloud)
@@ -88,6 +98,7 @@ class TrashTest {
     fun `Empty Trash - directory - Test`() {
         mockStat(returnDirectory = true)
         mockDelete()
+        mockHomeFolder()
 
         runBlocking {
             service.emptyTrash(user.username, cloud)
@@ -99,6 +110,7 @@ class TrashTest {
         mockFailingStat()
         mockCreateDir()
         mockDelete()
+        mockHomeFolder()
 
         runBlocking {
             service.emptyTrash(user.username, cloud)
@@ -108,6 +120,7 @@ class TrashTest {
     @Test (expected = RPCException::class)
     fun `Empty Trash - creation fails - Test`() {
         mockFailingStat()
+        mockHomeFolder()
         CloudMock.mockCallError(
             FileDescriptions,
             { FileDescriptions.createDirectory },
@@ -124,6 +137,7 @@ class TrashTest {
     fun `move to trash test`() {
         mockStat(returnDirectory = true)
         mockMove()
+        mockHomeFolder()
         runBlocking {
             val returnList = service.moveFilesToTrash(listOf("file1", "file2"), user.username, cloud)
             println(returnList)

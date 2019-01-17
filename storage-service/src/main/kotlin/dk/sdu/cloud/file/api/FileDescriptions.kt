@@ -134,6 +134,9 @@ data class AnnotateFileRequest(val path: String, val annotatedWith: String, val 
     }
 }
 
+data class FindHomeFolderRequest(val username: String)
+data class FindHomeFolderResponse(val path: String)
+
 fun validateAnnotation(annotation: String) {
     if (annotation.contains(Regex("[0-9]"))) {
         throw IllegalArgumentException("Annotation reserved for future use")
@@ -583,5 +586,28 @@ object FileDescriptions : RESTDescriptions("files") {
         params {
             +boundTo(ExtractRequest::path)
         }
+    }
+
+    val findHomeFolder = callDescription<
+            FindHomeFolderRequest,
+            FindHomeFolderResponse,
+            CommonErrorMessage> {
+        name = "findHomeFolder"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEDGED
+        }
+
+        path {
+            using(baseContext)
+            +"homeFolder"
+        }
+
+        params {
+            +boundTo(FindHomeFolderRequest::username)
+        }
+
     }
 }

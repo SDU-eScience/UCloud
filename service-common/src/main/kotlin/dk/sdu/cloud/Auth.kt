@@ -26,6 +26,11 @@ enum class Role {
     USER,
 
     /**
+     * A user acting on behalf of a project. This is typically a end-user.
+     */
+    PROJECT_PROXY,
+
+    /**
      * The security principal is an administrator of the system.
      *
      * Very few users should have this role.
@@ -42,12 +47,22 @@ enum class Role {
      *
      * These can be created for OAuth or similar purposes.
      */
-    THIRD_PARTY_APP
+    THIRD_PARTY_APP,
+
+    /**
+     * The user role is unknown.
+     *
+     * If the action is somewhat low-sensitivity it should be fairly safe to assume [USER]/[THIRD_PARTY_APP]
+     * privileges. This means no special privileges should be granted to the user.
+     *
+     * This will only happen if we are sent a token of a newer version that what we can parse.
+     */
+    UNKNOWN
 }
 
 object Roles {
-    val AUTHENTICATED = setOf(Role.USER, Role.ADMIN, Role.SERVICE, Role.THIRD_PARTY_APP)
-    val END_USER = setOf(Role.USER, Role.ADMIN)
+    val AUTHENTICATED = setOf(Role.USER, Role.ADMIN, Role.SERVICE, Role.THIRD_PARTY_APP, Role.PROJECT_PROXY)
+    val END_USER = setOf(Role.USER, Role.ADMIN, Role.PROJECT_PROXY)
     val PRIVILEDGED = setOf(Role.ADMIN, Role.SERVICE)
     val ADMIN = setOf(Role.ADMIN)
     val THIRD_PARTY_APP = setOf(Role.THIRD_PARTY_APP)
@@ -63,7 +78,7 @@ data class SecurityPrincipal(
     /**
      * The unique username of this security principal.
      *
-     * This is usually not suitable for display in UIs.
+     * This is usually suitable for display in UIs.
      */
     val username: String,
 
@@ -118,7 +133,17 @@ data class SecurityPrincipalToken(
     /**
      * The username of the principal extending this token
      */
-    val extendedBy: String? = null
+    val extendedBy: String? = null,
+
+    /**
+     * The chain of all token extensions.
+     *
+     * They are ordered from the first extension to the last extension. The extension chain will always include
+     * [extendedBy] as the last element.
+     *
+     * An empty list implies that [extendedBy] is null.
+     */
+    val extendedByChain: List<String> = emptyList()
 
     // NOTE: DO NOT ADD SENSITIVE DATA TO THIS CLASS (INCLUDING JWT)
     // IT IS USED IN THE AUDIT SYSTEM

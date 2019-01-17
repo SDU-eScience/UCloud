@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.http.files.TestContext
 import dk.sdu.cloud.file.http.files.setUser
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
+import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner

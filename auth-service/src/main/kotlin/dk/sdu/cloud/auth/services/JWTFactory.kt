@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.auth.api.ProjectProxy
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import java.util.*
 
@@ -20,6 +21,7 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) : TokenGenerationService {
             if (contents.extendedBy != null) withClaim(CLAIM_EXTENDED_BY, contents.extendedBy)
             if (contents.claimableId != null) withJWTId(contents.claimableId)
             if (contents.sessionReference != null) withClaim(CLAIM_SESSION_REFERENCE, contents.sessionReference)
+            withArrayClaim(CLAIM_EXTENDED_BY_CHAIN, contents.extendedByChain.toTypedArray())
             sign(jwtAlg)
         }
     }
@@ -48,6 +50,7 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) : TokenGenerationService {
             is Person.ByWAYF -> "wayf"
             is Person.ByPassword -> "password"
             is ServicePrincipal -> "service"
+            is ProjectProxy -> "project"
         }
         withClaim("principalType", type)
     }
@@ -55,5 +58,6 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) : TokenGenerationService {
     companion object {
         const val CLAIM_EXTENDED_BY = "extendedBy"
         const val CLAIM_SESSION_REFERENCE = "publicSessionReference"
+        const val CLAIM_EXTENDED_BY_CHAIN = "extendedByChain"
     }
 }

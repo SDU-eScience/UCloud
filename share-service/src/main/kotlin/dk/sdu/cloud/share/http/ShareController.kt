@@ -33,7 +33,8 @@ class ShareController(
             shareService.acceptShare(
                 call.securityPrincipal.username,
                 req.id,
-                cloudContext.bearerAuth(call.request.bearer!!)
+                cloudContext.bearerAuth(call.request.bearer!!),
+                req.createLink
             )
 
             ok(Unit)

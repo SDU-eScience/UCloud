@@ -44,7 +44,7 @@ class UnixFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
     override fun findCloudUser(unixUser: String, verify: Boolean): String? {
         if (verify) TODO("Username verification not yet implemented")
 
-        if (unixUser == SERVICE_UNIX_USER) {
+        if (unixUser == SERVICE_UNIX_USER || unixUser == "root") {
             return SERVICE_USER
         }
 
@@ -63,8 +63,10 @@ class UnixFSUserDao(private val isDevelopment: Boolean) : StorageUserDao {
     override fun findStorageUser(cloudUser: String, verify: Boolean): String? {
         if (verify) TODO("Username verification not yet implemented")
 
+        if (cloudUser == SERVICE_USER) return SERVICE_UNIX_USER
+
         return if (isDevelopment) {
-            cloudToUser[cloudUser]
+            cloudToUser[cloudUser] ?: SERVICE_UNIX_USER
         } else {
             B64_PREFIX + encoder.encodeToString(
                 cloudUser.toByteArray(

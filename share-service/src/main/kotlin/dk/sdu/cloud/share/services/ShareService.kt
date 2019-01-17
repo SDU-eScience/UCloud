@@ -17,10 +17,10 @@ import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupRequest
@@ -49,42 +49,51 @@ class ShareService<DBSession>(
     private val serviceCloud: AuthenticatedCloud,
     private val db: DBSessionFactory<DBSession>,
     private val shareDao: ShareDAO<DBSession>,
-    private val userCloudFactory: (refreshToken: String) -> AuthenticatedCloud
+    private val userCloudFactory: (refreshToken: String) -> AuthenticatedCloud,
+    private val devMode: Boolean = false
 ) {
     suspend fun create(
         user: String,
         share: CreateShareRequest,
         userCloud: BearerTokenAuthenticatedCloud
     ): ShareId {
+        log.debug("Creating share for $user $share")
         lateinit var fileId: String
         lateinit var ownerToken: String
 
         // Verify request
         coroutineScope {
+            log.debug("Verifying file exists")
             val statJob = async {
                 FileDescriptions.stat
                     .call(FindByPath(share.path), userCloud)
                     .orNull()
-                    ?.takeIf { it.ownerName == user } ?: throw ShareException.NotFound()
+                    ?.takeIf { devMode || it.ownerName == user } ?: throw ShareException.NotFound()
             }
 
+            log.debug("Verifying that user exists")
             val lookupJob = launch {
                 val lookup = UserDescriptions.lookupUsers.call(
                     LookupUsersRequest(listOf(share.sharedWith)),
                     serviceCloud
                 ) as? RESTResponse.Ok ?: throw ShareException.InternalError("Could not look up user")
 
+                log.debug("Lookup success!")
+
                 lookup.result.results[share.sharedWith]
                     ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
             }
 
             fileId = statJob.await().fileId
+            log.debug("File exists")
             lookupJob.join()
+            log.debug("User exists")
         }
 
         // Acquire token for owner
         // TODO If DB is failing we should delete this token
         coroutineScope {
+            log.debug("Creating token for user")
             val extendJob = async {
                 AuthDescriptions.tokenExtension.call(
                     TokenExtensionRequest(
@@ -104,6 +113,7 @@ class ShareService<DBSession>(
         }
 
         // Save internal state
+        log.debug("Saving internal state...")
         val result = db.withTransaction {
             shareDao.create(
                 it,
@@ -117,6 +127,7 @@ class ShareService<DBSession>(
         }
 
         // Notify recipient
+        log.debug("Sending notification...")
         coroutineScope {
             launch {
                 NotificationDescriptions.create.call(
@@ -138,6 +149,7 @@ class ShareService<DBSession>(
             }
         }
 
+        log.debug("File share request sent!")
         return result
     }
 
@@ -201,7 +213,8 @@ class ShareService<DBSession>(
     suspend fun acceptShare(
         user: String,
         shareId: ShareId,
-        userCloud: JWTAuthenticatedCloud
+        userCloud: JWTAuthenticatedCloud,
+        createLink: Boolean = true
     ) {
         val auth = AuthRequirements(user, ShareRole.RECIPIENT)
         val existingShare = db.withTransaction { session -> shareDao.findById(session, auth, shareId) }
@@ -228,18 +241,23 @@ class ShareService<DBSession>(
                 ).orThrow()
             }
 
-            val linkCall = async {
-                FileDescriptions.createLink.call(
-                    CreateLinkRequest(
-                        linkPath = defaultLinkToShare(existingShare),
-                        linkTargetPath = existingShare.path
-                    ),
-                    userCloud
-                ).orThrow()
-            }
+            val createdLink = if (createLink) {
+                val linkCall = async {
+                    FileDescriptions.createLink.call(
+                        CreateLinkRequest(
+                            linkPath = defaultLinkToShare(existingShare),
+                            linkTargetPath = existingShare.path
+                        ),
+                        userCloud
+                    ).orThrow()
+                }
 
-            val createdLink = linkCall.await()
-            updateCall.await()
+                val createdLink = linkCall.await()
+                updateCall.await()
+
+                createdLink
+            } else null
+
             val tokenExtension = extendCall.await().refreshToken
                 ?: throw ShareException.InternalError("bad response from token extension. refreshToken == null")
 
@@ -250,14 +268,19 @@ class ShareService<DBSession>(
                     shareId,
                     recipientToken = tokenExtension,
                     state = ShareState.ACCEPTED,
-                    linkId = createdLink.fileId
+                    linkId = createdLink?.fileId
                 )
             }
         }
     }
 
-    private fun defaultLinkToShare(share: InternalShare) =
-        joinPath(homeDirectory(share.sharedWith), share.path.fileName())
+    private suspend fun defaultLinkToShare(share: InternalShare): String {
+        val homeFolder = FileDescriptions.findHomeFolder.call(
+            FindHomeFolderRequest(share.sharedWith),
+            serviceCloud
+        ).orThrow().path
+        return joinPath(homeFolder, share.path.fileName())
+    }
 
     suspend fun deleteShare(
         user: String,

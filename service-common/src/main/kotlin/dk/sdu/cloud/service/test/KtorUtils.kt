@@ -5,6 +5,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
@@ -116,7 +117,7 @@ fun TestApplicationCall.assertSuccess() {
     val status = this.response.status()
     assertNotNull(status)
     if (!status.isSuccess()) {
-        throw AssertionError("Expected response to be successful, but instead was: ${response.status()}")
+        throw RPCException.fromStatusCode(status)
     }
 }
 

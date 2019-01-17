@@ -8,6 +8,7 @@ import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.relativize
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
@@ -225,7 +226,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val desiredWithoutExtension = findFileNameNoExtension(fileName)
         val extension = findExtension(fileName)
 
-        val parentPath = desiredPath.substringBeforeLast('/')
+        val parentPath = desiredPath.parent()
         val names = listDirectory(ctx, parentPath, setOf(FileAttribute.PATH)).map { it.path.fileName() }
 
         return if (names.isEmpty()) {

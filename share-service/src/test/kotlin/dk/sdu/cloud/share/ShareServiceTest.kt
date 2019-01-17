@@ -11,6 +11,7 @@ import dk.sdu.cloud.client.bearerAuth
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.homeDirectory
@@ -334,6 +335,11 @@ class ShareServiceTest {
 
     @Test
     fun `create, accept, and delete`() {
+        CloudMock.mockCallSuccess(
+            FileDescriptions,
+            {FileDescriptions.findHomeFolder},
+            FindHomeFolderResponse("/home/user/")
+        )
         runBlocking {
             CreateMock().mock {
                 val shareId = sendCreateRequest()

@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.http.FilesController
 import dk.sdu.cloud.file.services.ACLService
 import dk.sdu.cloud.file.services.BackgroundScope
@@ -14,7 +15,9 @@ import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
+import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
@@ -42,6 +45,7 @@ import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.TestApplicationResponse
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
+import io.mockk.coEvery
 import io.mockk.mockk
 import java.io.File
 import java.util.*
@@ -86,6 +90,9 @@ fun Application.configureServerWithFileController(
     val favoriteService = FavoriteService(coreFs)
     val sensitivityService = FileSensitivityService(fs, eventProducer)
     val aclService = ACLService(fs)
+    val fileOwnerService = FileOwnerService(runner, fs, coreFs)
+    val homeFolderService = mockk<HomeFolderService>()
+    coEvery { homeFolderService.findHomeFolder(any()) } coAnswers { homeDirectory(it.invocation.args.first() as String) }
 
     val ctx = FileControllerContext(
         cloud = cloud,
@@ -109,7 +116,9 @@ fun Application.configureServerWithFileController(
                     favoriteService,
                     lookupService,
                     sensitivityService,
-                    aclService
+                    aclService,
+                    fileOwnerService,
+                    homeFolderService
                 )
             }
         )
@@ -323,6 +332,23 @@ fun TestApplicationEngine.extract(
         role = role
     )
 }
+
+fun TestApplicationEngine.findHome(
+    username: String,
+    user: String = "user1",
+    role: Role = Role.ADMIN
+): TestApplicationResponse {
+    return call(
+        HttpMethod.Get,
+        "/api/files/homeFolder",
+        params = mapOf(
+            "username" to username
+        ),
+        user = user,
+        role = role
+    )
+}
+
 
 fun TestApplicationRequest.setUser(username: String = "user", role: Role = Role.USER) {
     val token = TokenValidationMock.createTokenForUser(username, role)

@@ -1,10 +1,10 @@
 group 'dk.sdu.cloud'
-version '0.11.8-SNAPSHOT'
+version '0.12.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.4/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.5/sdu-cloud.gradle"
 
 dokka {
     outputFormat = "gfm"
@@ -17,17 +17,17 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     compile group: 'com.jcraft', name: 'jsch', version: '0.1.54'
 
-    compile 'dk.sdu.cloud:service-common:0.22.0-SNAPSHOT'
-    compile "dk.sdu.cloud:file-api:0.14.10-SNAPSHOT"
-    compile "dk.sdu.cloud:auth-api:1.12.0-SNAPSHOT"
+    compile 'dk.sdu.cloud:service-common:0.23.1'
+    compile "dk.sdu.cloud:file-api:0.17.0"
+    compile "dk.sdu.cloud:auth-api:1.14.0"
 
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
-    testCompile 'dk.sdu.cloud:service-common-test:0.22.0-SNAPSHOT'
+    testCompile 'dk.sdu.cloud:service-common-test:0.23.1'
 }
 
 sduCloud.createTasksForApiJar(
         "app",
         [
-                "dk.sdu.cloud:file-api:0.14.10-SNAPSHOT"
+                "dk.sdu.cloud:file-api:0.17.0"
         ]
 )

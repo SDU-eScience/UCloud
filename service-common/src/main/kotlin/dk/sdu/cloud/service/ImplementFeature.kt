@@ -51,11 +51,6 @@ import kotlin.reflect.jvm.javaType
 private val log = LoggerFactory.getLogger("dk.sdu.cloud.service.ServerSupport")
 
 object RESTServerSupport {
-    var defaultMapper: ObjectMapper = jacksonObjectMapper().apply {
-        configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-        configure(JsonParser.Feature.ALLOW_COMMENTS, true)
-        configure(JsonParser.Feature.ALLOW_TRAILING_COMMA, true)
-    }
     var allowMissingKafkaHttpLogger = false
 }
 
@@ -119,10 +114,11 @@ private fun <R : Any> RESTHandler<R, *, *, *>.doLogEntry(
     val uri = call.request.uri
     val jobId = call.request.safeJobId
     val causedBy = call.request.causedBy
+    val token = call.nullableSecurityToken
 
     val name = "$method $uri ($requestName)"
 
-    log.info("$name jobId=$jobId causedBy=$causedBy payload=${requestToString(payload)}")
+    log.info("$name jobId=$jobId causedBy=$causedBy payload=${requestToString(payload)} token=$token")
 }
 
 fun <P : Any, S : Any, E : Any, A : Any> Route.implement(
@@ -362,7 +358,7 @@ private fun parseRequestBody(requestBody: String?, restBody: RESTBody<*, *>?): I
     }
 
     return try {
-        InputParsingResponse.Parsed(RESTServerSupport.defaultMapper.readValue<Any>(requestBody, restBody.ref))
+        InputParsingResponse.Parsed(defaultMapper.readValue<Any>(requestBody, restBody.ref))
     } catch (ex: Exception) {
         when (ex) {
             is IllegalArgumentException, is JsonMappingException, is JsonParseException -> {

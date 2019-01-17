@@ -18,7 +18,8 @@ import dk.sdu.cloud.service.TYPE_PROPERTY
 @JsonSubTypes(
     JsonSubTypes.Type(value = Person.ByWAYF::class, name = "wayf"),
     JsonSubTypes.Type(value = Person.ByPassword::class, name = "password"),
-    JsonSubTypes.Type(value = ServicePrincipal::class, name = "service")
+    JsonSubTypes.Type(value = ServicePrincipal::class, name = "service"),
+    JsonSubTypes.Type(value = ProjectProxy::class, name = "project_proxy")
 )
 sealed class Principal {
     /**
@@ -136,6 +137,16 @@ sealed class Person : Principal() {
     }
 }
 
+data class ProjectProxy(
+    override val id: String,
+    override val role: Role
+) : Principal() {
+    init {
+        validate()
+        if (role != Role.PROJECT_PROXY) throw IllegalArgumentException("Invalid role")
+    }
+}
+
 /**
  * Represents a service
  */
@@ -170,6 +181,13 @@ data class AccessTokenAndCsrf(
     override val csrfToken: String
 ) : WithAccessToken, WithOptionalCsrfToken {
     override fun toString(): String = "AccessTokenAndCsrf()"
+}
+
+data class RefreshTokenAndCsrf(
+    override val refreshToken: String,
+    override val csrfToken: String?
+) : WithOptionalRefreshToken, WithOptionalCsrfToken {
+    override fun toString(): String = "RefreshTokenAndCsrf()"
 }
 
 data class AuthenticationTokens(

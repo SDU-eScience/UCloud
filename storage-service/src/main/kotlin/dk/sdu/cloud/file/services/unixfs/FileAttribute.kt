@@ -49,6 +49,7 @@ internal fun FileAttribute.Companion.rawParse(
         var checksum: FileChecksum? = null
         var sensitivityLevel: SensitivityLevel? = null
         var linkInode: String? = null
+        var xowner: String? = null
 
         var attributesCovered = 0
         for (attribute in sortedAttributes) {
@@ -147,6 +148,8 @@ internal fun FileAttribute.Companion.rawParse(
                 FileAttribute.LINK_INODE -> {
                     linkInode = currentLine
                 }
+
+                FileAttribute.XOWNER -> xowner = currentLine
             }
         }
 
@@ -168,7 +171,8 @@ internal fun FileAttribute.Companion.rawParse(
                     annotations,
                     checksum,
                     sensitivityLevel,
-                    linkInode
+                    linkInode,
+                    xowner
                 )
             )
         } else {
