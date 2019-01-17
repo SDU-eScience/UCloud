@@ -583,9 +583,7 @@ object FileDescriptions : RESTDescriptions("files") {
             +"extract"
         }
 
-        params {
-            +boundTo(ExtractRequest::path)
-        }
+        body { bindEntireRequestFromBody() }
     }
 
     val findHomeFolder = callDescription<

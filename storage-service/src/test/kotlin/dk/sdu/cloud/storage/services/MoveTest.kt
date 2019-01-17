@@ -163,20 +163,18 @@ class MoveTest {
         }
     }
 
-    @Test
+    @Test(expected = FSException.BadRequest::class)
     fun `moving file to non-empty directory`() {
         runTest {
             val userRootPath = "/home/user1"
             val conflictFileName = "conflict"
             val wrapper = "wrapper"
-            val source: File
-            val destination: File
 
             fsRoot.resolve(".$userRootPath").apply {
-                source = touch(conflictFileName)
+                touch(conflictFileName)
 
                 mkdir(wrapper) {
-                    destination = mkdir(conflictFileName) {
+                    mkdir(conflictFileName) {
                         touch("a")
                     }
                 }

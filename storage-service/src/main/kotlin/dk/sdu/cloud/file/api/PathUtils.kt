@@ -7,7 +7,9 @@ internal fun homeDirectory(user: String): String = "/home/$user/"
 internal fun favoritesDirectory(user: String): String = joinPath(homeDirectory(user), "Favorites", isDirectory = true)
 
 fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
-    return File(components.joinToString("/") + (if (isDirectory) "/" else "")).normalize().path
+    val basePath = File(components.joinToString("/") + (if (isDirectory) "/" else "")).normalize().path
+    return if (basePath.startsWith("/")) basePath
+    else "/$basePath"
 }
 
 fun String.parents(): List<String> {

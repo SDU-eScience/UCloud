@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.BulkUploadAudit
 import dk.sdu.cloud.file.api.BulkUploadErrorMessage
 import dk.sdu.cloud.file.api.MultiPartUploadAudit
@@ -27,6 +28,7 @@ import org.slf4j.Logger
 import java.nio.file.Files
 
 class MultiPartUploadController<Ctx : FSUserContext>(
+    private val serviceCloud: AuthenticatedCloud,
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
@@ -84,6 +86,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                 req.upload.channel.copyTo(outputFile.outputStream())
                 BackgroundScope.launch {
                     uploader.upload(
+                        serviceCloud,
                         fs,
                         { commandRunnerFactory(user) },
                         req.location,

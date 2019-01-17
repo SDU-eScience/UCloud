@@ -3,6 +3,7 @@ package dk.sdu.cloud.file
 import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.http.ExtractController
 import dk.sdu.cloud.file.http.FilesController
 import dk.sdu.cloud.file.http.IndexingController
 import dk.sdu.cloud.file.http.MultiPartUploadController
@@ -168,16 +169,25 @@ class Server(
                     ),
 
                     MultiPartUploadController(
+                        cloud,
                         processRunner,
                         coreFileSystem,
                         sensitivityService
                     ),
 
                     MultiPartUploadController(
+                        cloud,
                         processRunner,
                         coreFileSystem,
                         sensitivityService,
                         baseContextOverride = "/api/upload" // backwards-comparability
+                    ),
+
+                    ExtractController(
+                        cloud,
+                        coreFileSystem,
+                        fileLookupService,
+                        processRunner
                     )
                 )
             }
