@@ -4,8 +4,9 @@ import {
     DETAILED_PROJECT_SET_NAME
 } from "./ProjectSearchReducer";
 
+export type ProjectSearchActions = DetailedProjectError | DetailedProjectSetName;
 
-type DetailedProjectError = Error <typeof DETAILED_PROJECT_SEARCH_SET_ERROR >
+type DetailedProjectError = Error<typeof DETAILED_PROJECT_SEARCH_SET_ERROR>
 export const setError = (error?: string): DetailedProjectError => ({
     type: DETAILED_PROJECT_SEARCH_SET_ERROR,
     payload: { error }
