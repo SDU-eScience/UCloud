@@ -72,7 +72,7 @@ class Server(
         val processRunner =
             UnixFSCommandRunnerFactory(cloudToCephFsDao, useFakeUsers)
         val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() } ?:
-            if (micro.developmentModeEnabled) File("./") else throw IllegalStateException("No mount found!")
+            if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
         val fsRoot = fsRootFile.normalize().absolutePath
 

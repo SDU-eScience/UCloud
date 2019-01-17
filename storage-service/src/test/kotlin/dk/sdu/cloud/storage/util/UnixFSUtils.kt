@@ -9,6 +9,9 @@ import io.mockk.mockk
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.attribute.BasicFileAttributes
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
 
 fun simpleStorageUserDao(): StorageUserDao {
     val dao = mockk<StorageUserDao>()
@@ -43,7 +46,12 @@ fun unixFSWithRelaxedMocks(
     )
 }
 
-fun File.mkdir(name: String, closure: File.() -> Unit): File {
+@UseExperimental(ExperimentalContracts::class)
+inline fun File.mkdir(name: String, closure: File.() -> Unit): File {
+    contract {
+        callsInPlace(closure, InvocationKind.EXACTLY_ONCE)
+    }
+
     val f = File(this, name)
     f.mkdir()
     f.closure()
