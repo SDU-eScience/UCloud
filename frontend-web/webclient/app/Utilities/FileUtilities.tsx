@@ -516,8 +516,6 @@ function resultToNotification(failures: string[], paths: string[], homeFolder: s
 const successResponse = (paths: string[], homeFolder: string) =>
     paths.length > 1 ? `${paths.length} files moved to trash.` : `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
 
-resultToNotification(["asdkoaspodkasd", "aspodkaspodk"], ["asdkoaspodkasd", "aspodkaspodk"], "aspodjkapsodkpasokdpoaskdpoksa");
-
 export const moveToTrash = (files: File[], cloud: SDUCloud, callback: () => void) => {
     const paths = files.map(f => f.path);
     moveToTrashSwal(paths).then((result: any) => {
