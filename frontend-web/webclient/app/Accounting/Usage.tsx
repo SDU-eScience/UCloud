@@ -40,11 +40,11 @@ const Quota: React.FunctionComponent<{ usage: API.Usage }> = props => {
     return <>({percentage}%)</>;
 };
 
-const Usage: React.FunctionComponent<{ 
-    usage: API.Usage, 
+const Usage: React.FunctionComponent<{
+    usage: API.Usage,
     resource: string,
     subResource: string,
-    renderTitle?: boolean 
+    renderTitle?: boolean
 }> = props => {
     const { usage } = props;
     const type = (usage.dataType || DataTypes.NUMBER);
@@ -73,11 +73,11 @@ class UsageContainer extends React.Component<UsageProps> {
         const usage = this.props.usage;
         const content = usage.content;
         if (!!content) {
-            return <Usage 
-                resource={this.props.resource} 
-                subResource={this.props.subResource} 
-                usage={content} 
-                renderTitle={this.props.renderTitle} 
+            return <Usage
+                resource={this.props.resource}
+                subResource={this.props.subResource}
+                usage={content}
+                renderTitle={this.props.renderTitle}
             />;
         } else {
             if (!!usage.error) return usage.error.errorMessage;
@@ -90,13 +90,9 @@ class UsageContainer extends React.Component<UsageProps> {
     }
 }
 
-const mapDispatchToProps = (dispatch: Dispatch<Actions.Type>, ownProps: UsageOwnProps): UsageOperations => {
-    return {
-        refresh: async () => {
-            dispatch(await Actions.fetchUsage(ownProps.resource, ownProps.subResource));
-        }
-    };
-};
+const mapDispatchToProps = (dispatch: Dispatch<Actions.Type>, ownProps: UsageOwnProps): UsageOperations => ({
+    refresh: async () => dispatch(await Actions.fetchUsage(ownProps.resource, ownProps.subResource))
+});
 
 const mapStateToProps = (state: ReduxObject, ownProps: UsageOwnProps): UsageStateProps => {
     const name = resourceName(ownProps.resource, ownProps.subResource);

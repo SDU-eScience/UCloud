@@ -26,6 +26,7 @@ import Spinner from "LoadingIcon/LoadingIcon";
 import * as UF from "UtilityFunctions";
 import * as Accounting from "Accounting";
 import { MainContainer } from "MainContainer/MainContainer";
+import { fetchUsage } from "Accounting/Redux/AccountingActions";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
@@ -51,6 +52,7 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         props.fetchFavorites();
         props.fetchRecentFiles();
         props.fetchRecentAnalyses();
+        props.fetchUsage();
     }
 
     private onNotificationAction = (notification: Notification) => {
@@ -234,6 +236,10 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     fetchFavorites: async () => dispatch(await fetchFavorites()),
     fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
+    fetchUsage: async () => {
+        dispatch(await fetchUsage("storage", "bytesUsed"))
+        dispatch(await fetchUsage("compute", "timeUsed"))
+    },
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
     // FIXME: Make action instead
