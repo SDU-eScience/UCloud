@@ -28,7 +28,6 @@ suspend fun trashDirectory(username: String, cloud: AuthenticatedCloud): String 
 }
 
 class TrashService {
-
     suspend fun emptyTrash(username: String, userCloud: AuthenticatedCloud) {
         validateTrashDirectory(username, userCloud)
         FileDescriptions.deleteFile.call(DeleteFileRequest(trashDirectory(username, userCloud)), userCloud)
@@ -47,7 +46,8 @@ class TrashService {
         val result = FileDescriptions.move.call(
             MoveRequest(
                 path = file,
-                newPath = joinPath(trashDirectory(username, userCloud), file.fileName())
+                newPath = joinPath(trashDirectory(username, userCloud), file.fileName()),
+                policy = WriteConflictPolicy.RENAME
             ),
             userCloud
         )
