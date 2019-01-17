@@ -469,7 +469,7 @@ export const shareFiles = (files: File[], cloud: SDUCloud) =>
         if (input.dismiss) return;
         const rights: string[] = [];
         if (UF.elementValue("read")) rights.push("READ")
-        if (UF.elementValue("read_edit")) rights.push("WRITE")
+        if (UF.elementValue("read_edit")) { rights.push("READ"); rights.push("WRITE"); }
         let iteration = 0;
         files.map(f => f.path).forEach((path, i, paths) => {
             const body = {
@@ -505,18 +505,28 @@ export const clearTrashSwal = () => {
     });
 };
 
+
+function resultToNotification(failures: string[], paths: string[], homeFolder: string) {
+    const successMessage = successResponse(paths, homeFolder);
+    if (failures.length === 0) UF.successNotification(successMessage);
+    else if (failures.length === paths.length) UF.failureNotification(`Failed moving all files, please try again later`, 5);
+    else UF.infoNotification(`${successMessage}\n Failed to move files: ${failures.join(", ")}`, 15);
+}
+
+const successResponse = (paths: string[], homeFolder: string) =>
+    paths.length > 1 ? `${paths.length} files moved to trash.` : `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
+
 export const moveToTrash = (files: File[], cloud: SDUCloud, callback: () => void) => {
     const paths = files.map(f => f.path);
-    const successResponse = `${paths.length > 1 ? `${paths.length} files` : replaceHomeFolder(paths[0], cloud.homeFolder)} moved to trash`
     moveToTrashSwal(paths).then((result: any) => {
         if (result.dismiss) {
             return;
         } else {
-            cloud.post("/files/trash/", { files: paths })
-                .then(() => { UF.successNotification(successResponse); callback() })
-                .catch(({ request }) => { UF.failureNotification("An error occurred moving to trash"); callback() });
+            cloud.post<{ failures: string[] }>("/files/trash/", { files: paths })
+                .then(({ response }) => (resultToNotification(response.failures, paths, cloud.homeFolder), callback()))
+                .catch(({ response }) => (UF.failureNotification(response.why), callback()));
         }
-    })
+    });
 };
 
 export const batchDeleteFiles = (files: File[], cloud: SDUCloud, callback: () => void) => {
@@ -531,7 +541,7 @@ export const batchDeleteFiles = (files: File[], cloud: SDUCloud, callback: () =>
                     .catch(() => i++);
             });
         }
-    })
+    });
 };
 
 
