@@ -12,6 +12,7 @@ import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.app.api.VerifiedJob
+import dk.sdu.cloud.app.http.JOB_MAX_TIME
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.MultipartRequest
@@ -337,14 +338,17 @@ class JobOrchestrator<DBSession>(
     }
 
     suspend fun removeExpiredJobs() {
-        val expired = System.currentTimeMillis()// - JOB_MAX_TIME
+        log.info("Code!")
+        val expired = System.currentTimeMillis() - JOB_MAX_TIME
         log.debug("Expired $expired")
         db.withTransaction { session ->
+            log.info("Session code!")
             jobDao.findJobsCreatedBefore(session, expired).forEach { job ->
                 log.debug("Removing job: " + job.job)
                 failJob(job)
             }
         }
+        log.info("Also code!")
     }
 
     private fun findJobForId(id: String): VerifiedJobWithAccessToken =
