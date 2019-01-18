@@ -4,7 +4,7 @@ import theme from './theme'
 import { Icon, Box } from './'
 import { BoxProps } from './Box';
 
-const Checkbox = props => {
+function Checkbox(props) {
   const { disabled, size } = props;
   return (
     <CheckBoxWrapper disabled={disabled}>
