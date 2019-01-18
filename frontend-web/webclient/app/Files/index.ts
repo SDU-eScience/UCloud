@@ -46,7 +46,13 @@ export enum SortBy {
     ACL = "ACL",
     FAVORITED = "FAVORITED",
     SENSITIVITY = "SENSITIVITY"
-}
+};
+
+export enum WriteConflictPolicy {
+    OVERWRITE = "OVERWRITE",
+    RENAME = "RENAME",
+    REJECT = "REJECT"
+};
 
 export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps { }
 
@@ -82,7 +88,7 @@ export interface FilesOperations { // Redux operations
     prioritizeFileSearch: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
-    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
+    fetchFiles: (path: string, itemsPerPage: number, pag1ber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
     fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
