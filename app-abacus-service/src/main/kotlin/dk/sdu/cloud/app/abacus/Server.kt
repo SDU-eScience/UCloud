@@ -14,7 +14,6 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
@@ -31,8 +30,7 @@ class Server(
     private val cloud: RefreshingJWTAuthenticatedCloud,
     private val config: HPCConfig,
     private val ktor: HttpServerProvider,
-    private val db: HibernateSessionFactory,
-    private val micro: Micro
+    private val db: HibernateSessionFactory, private val micro: Micro
 ) : CommonServer {
     override val log = logger()
 
@@ -86,8 +84,8 @@ class Server(
             }
         }
 
-        startServices()
         slurmPollAgent.start()
+        startServices()
     }
 
     override fun stop() {

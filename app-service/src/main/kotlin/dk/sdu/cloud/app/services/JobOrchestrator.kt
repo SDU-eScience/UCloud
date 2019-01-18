@@ -338,17 +338,12 @@ class JobOrchestrator<DBSession>(
     }
 
     suspend fun removeExpiredJobs() {
-        log.info("Code!")
         val expired = System.currentTimeMillis() - JOB_MAX_TIME
-        log.debug("Expired $expired")
         db.withTransaction { session ->
-            log.info("Session code!")
             jobDao.findJobsCreatedBefore(session, expired).forEach { job ->
-                log.debug("Removing job: " + job.job)
                 failJob(job)
             }
         }
-        log.info("Also code!")
     }
 
     private fun findJobForId(id: String): VerifiedJobWithAccessToken =

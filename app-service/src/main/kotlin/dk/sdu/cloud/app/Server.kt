@@ -80,12 +80,9 @@ class Server(
         )
 
         if (micro.commandLineArguments.contains("--scan")) {
-            log.info("Scanning for expired jobs")
             runBlocking {
-                log.info("Hello we are running code!")
                 jobOrchestrator.removeExpiredJobs()
             }
-            log.info("Done!")
             return
         }
 
