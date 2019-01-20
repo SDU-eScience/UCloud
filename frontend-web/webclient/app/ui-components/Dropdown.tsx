@@ -22,7 +22,14 @@ Dropdown.defaultProps = {
     hover: true
 }
 
+
+
 export const DropdownContent = styled.div<DropdownContentProps>`
+    ${props => props.overflow ? 
+        `overflow: ${props.overflow};` : 
+        `overflow-y: auto;
+        overflow-x: hidden;`
+    }
     border-bottom-left-radius: 5px;
     border-bottom-right-radius: 5px;
     border-top-left-radius: ${props => props.squareTop ? "0" : "5px"};
@@ -37,8 +44,6 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     max-height: ${props => props.maxHeight ? props.maxHeight : ""};
     padding: 12px 16px;
     z-index: 47;
-    overflow-y: auto;
-    overflow-x: hidden;
     text-align: left;
     cursor: ${props => props.cursor};
     // visibility: ${props => props.visible ? "visible" : "hidden"}
@@ -81,6 +86,7 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     hover?: boolean
     width?: string | number
     disabled?: boolean
+    overflow?: string
     height?: string | number
     minWidth?: string
     maxHeight?: number | string

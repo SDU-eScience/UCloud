@@ -20,13 +20,14 @@ type ClickableDropdownProps = {
     right?: string | number
     options?: { text: string, value: string }[]
     chevron?: boolean
+    overflow?: string
     colorOnHover?: boolean
     squareTop?: boolean
     onChange?: (key: string) => void
 }
 
 class ClickableDropdown extends React.Component<ClickableDropdownProps, ClickableDropdownState> {
-    private ref = React.createRef<HTMLDivElement>();;
+    private ref = React.createRef<HTMLDivElement>();
 
     constructor(props: Readonly<ClickableDropdownProps>) {
         super(props);
@@ -63,7 +64,7 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
                 <Box cursor="pointer" width="auto" key={i} ml="-17px" pl="15px" mr="-17px" onClick={() => onChange!(opt.value)}>{opt.text}</Box>
             )
         } else if (props.children) {
-            children = props.children
+            children = props.children;
         }
         const emptyChildren = React.Children.map(children, it => it).length === 0;
         let width = this.props.fullWidth ? "100%" : this.props.width;
@@ -74,9 +75,10 @@ class ClickableDropdown extends React.Component<ClickableDropdownProps, Clickabl
                 </Text.TextSpan>
                 {!emptyChildren ?
                     <DropdownContent
+                        overflow={"visible"}
                         squareTop={this.props.squareTop}
-                        cursor="pointer" 
-                        {...props} 
+                        cursor="pointer"
+                        {...props}
                         width={width}
                         hover={false}
                         visible={this.state.open}

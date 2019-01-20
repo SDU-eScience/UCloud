@@ -171,6 +171,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSe
                 </Label>
             </Absolute>
             <ClickableDropdown
+                overflow={"visible"}
                 left={-350}
                 top={15}
                 width="350px"
@@ -193,7 +194,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSe
                 </SearchOptions>
                 {searchType === "files" ? <DetailedFileSearch defaultFilename={searchText} cantHide /> :
                     searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchText} /> :
-                        searchType === "projects" ? <DetailedProjectSearch defaultProjectName={searchText} />: null}
+                        searchType === "projects" ? <DetailedProjectSearch defaultProjectName={searchText} /> : null}
             </ClickableDropdown>
         </SearchInput>
     </Relative >
