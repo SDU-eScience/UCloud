@@ -2,12 +2,15 @@ package dk.sdu.cloud.file.favorite
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.file.favorite.http.FileFavoriteController
+import dk.sdu.cloud.file.favorite.services.FileFavoriteHibernateDAO
+import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
@@ -19,6 +22,7 @@ class Server(
     override val kafka: KafkaServices,
     private val ktor: HttpServerProvider,
     private val cloud: RefreshingJWTAuthenticatedCloud,
+    private val db: HibernateSessionFactory,
     private val micro: Micro
 ) : CommonServer {
     override lateinit var httpServer: ApplicationEngine
@@ -34,6 +38,8 @@ class Server(
 
     override fun start() {
         // Initialize services here
+        val fileFavoriteDao = FileFavoriteHibernateDAO()
+        val fileFavoriteService = FileFavoriteService(db, fileFavoriteDao, cloud)
 
         // Initialize consumers here:
         // addConsumers(...)
@@ -44,7 +50,7 @@ class Server(
 
             routing {
                 configureControllers(
-                    FileFavoriteController()
+                    FileFavoriteController(fileFavoriteService)
                 )
             }
         }

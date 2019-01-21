@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.refreshingJwtCloud
 import dk.sdu.cloud.file.favorite.api.FileFavoriteServiceDescription
 import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.hibernateDatabase
 import dk.sdu.cloud.service.initWithDefaultFeatures
 import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.kafka
@@ -24,6 +25,7 @@ fun main(args: Array<String>) {
         micro.kafka,
         micro.serverProvider,
         micro.refreshingJwtCloud,
+        micro.hibernateDatabase,
         micro
     ).start()
 }
