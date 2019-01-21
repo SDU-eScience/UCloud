@@ -106,7 +106,7 @@ class Search extends React.Component<SearchProps> {
     fetchAll(search: string) {
         const { ...props } = this.props;
         props.setError();
-        props.searchFiles(this.fileSearchBody);
+        props.searchFiles({ ...this.fileSearchBody, fileName: search });
         props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage);
         props.searchProjects(search, this.props.projects.pageNumber, this.props.projects.itemsPerPage);
     }
