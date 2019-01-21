@@ -1,0 +1,45 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: app-scan
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+
+      containers:
+      - name: app-service
+        image: registry.cloud.sdu.dk/sdu-cloud/app-service:0.12.3
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/psql
+        - --scan
+        volumeMounts:
+        - mountPath: /etc/psql
+          name: psql-secrets
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: app-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+      - name: psql-secrets
+        secret:
+          optional: false
+          secretName: app-psql
+
+      imagePullSecrets:
+        - name: esci-docker

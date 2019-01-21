@@ -14,8 +14,10 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import java.io.File
@@ -89,6 +91,8 @@ class JobVerificationService<DBSession>(
                 try {
                     appParameter.name to appParameter.map(userParameters[appParameter.name])
                 } catch (ex: IllegalArgumentException) {
+                    log.debug(ex.stackTraceToString())
+                    log.debug("Description: ${app.description}")
                     throw JobException.VerificationError("Bad parameter: ${appParameter.name}. ${ex.message}")
                 }
             }.toMap()
@@ -162,5 +166,9 @@ class JobVerificationService<DBSession>(
             sourcePath,
             if (desiredFileType == FileType.DIRECTORY) FileForUploadArchiveType.ZIP else null
         )
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

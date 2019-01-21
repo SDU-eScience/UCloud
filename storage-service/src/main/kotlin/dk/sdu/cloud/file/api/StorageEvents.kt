@@ -229,6 +229,4 @@ object StorageEvents : KafkaDescriptions() {
      * A list of storage events. Keyed by the file ID
      */
     val events = stream<String, StorageEvent>("storage-events") { it.id }
-
-    val dummy = stream<String, Pair<String, Int>>("dummy-stream") { it.first }
 }

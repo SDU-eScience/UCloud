@@ -157,10 +157,10 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = FileTransferDescription::class, name = "file"),
-    JsonSubTypes.Type(value = BooleanApplicationParameter::class, name = "bool"),
-    JsonSubTypes.Type(value = IntApplicationParameter::class, name = "int"),
-    JsonSubTypes.Type(value = DoubleApplicationParameter::class, name = "double"),
-    JsonSubTypes.Type(value = StringApplicationParameter::class, name = "string")
+    JsonSubTypes.Type(value = BooleanApplicationParameter::class, name = TYPE_BOOLEAN),
+    JsonSubTypes.Type(value = IntApplicationParameter::class, name = TYPE_INTEGER),
+    JsonSubTypes.Type(value = DoubleApplicationParameter::class, name = TYPE_FLOATING_POINT),
+    JsonSubTypes.Type(value = StringApplicationParameter::class, name = TYPE_TEXT)
 )
 sealed class ParsedApplicationParameter {
     abstract val type: String // This is not ideal, but it fixes the serialization issue
@@ -171,17 +171,17 @@ data class FileTransferDescription(val source: String, val destination: String) 
 }
 
 data class BooleanApplicationParameter(val value: Boolean) : ParsedApplicationParameter() {
-    override val type = "bool"
+    override val type = TYPE_BOOLEAN
 }
 
 data class IntApplicationParameter(val value: Int) : ParsedApplicationParameter() {
-    override val type = "int"
+    override val type = TYPE_INTEGER
 }
 
 data class DoubleApplicationParameter(val value: Double) : ParsedApplicationParameter() {
-    override val type = "double"
+    override val type = TYPE_FLOATING_POINT
 }
 
 data class StringApplicationParameter(val value: String) : ParsedApplicationParameter() {
-    override val type = "string"
+    override val type = TYPE_TEXT
 }

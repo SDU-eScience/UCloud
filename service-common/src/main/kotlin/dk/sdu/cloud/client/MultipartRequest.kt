@@ -229,7 +229,7 @@ class MultipartRequest<Request : Any> private constructor() {
             ?: throw IllegalStateException("Cannot find type of ${prop.name}")
 
         val contentType = part.partHeaders.contentType ?: ContentType.Application.OctetStream
-        val isJson = contentType.match(ContentType.Application.Json)
+        val isJson = contentType.match(ContentType.Application.Json) && propType != StreamingFile::class
 
         suspend fun StreamingPart.value(): String {
             val packet = channel.readRemaining(1024 * 64)

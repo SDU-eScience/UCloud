@@ -122,6 +122,7 @@ class AppController<DBSession>(
             val yamlDocument = try {
                 yamlMapper.readValue<ApplicationDescription>(content)
             } catch (ex: JsonMappingException) {
+                log.debug(ex.stackTraceToString())
                 error(
                     CommonErrorMessage(
                         "Bad value for parameter ${ex.pathReference.replace(

@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.12.0'
+version '0.12.6'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
@@ -18,7 +18,7 @@ dependencies {
     compile group: 'com.jcraft', name: 'jsch', version: '0.1.54'
 
     compile 'dk.sdu.cloud:service-common:0.23.1'
-    compile "dk.sdu.cloud:file-api:0.17.0"
+    compile "dk.sdu.cloud:file-api:0.17.7"
     compile "dk.sdu.cloud:auth-api:1.14.0"
 
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
