@@ -1,35 +1,48 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType, WriteConflictPolicy } from "Files";
 import { Page } from "Types";
 import { History } from "history";
-import swal from "sweetalert2";
+import swal, { SweetAlertResult } from "sweetalert2";
 import * as UF from "UtilityFunctions";
 import { projectViewPage } from "Utilities/ProjectUtilities";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 
 export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCloud): void {
-    let i = 0;
+    let iteration = 0;
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);
-    operations.setFileSelectorCallback((file: File) => {
-        const newPath = file.path;
+    operations.setFileSelectorCallback(async (file: File) => {
+        const newPath = resolvePath(file.path);
         operations.showFileSelector(false);
         operations.setFileSelectorCallback(undefined);
         operations.setDisallowedPaths([]);
-        files.forEach(f => {
-            const currentPath = f.path;
+        let yesToAll = false;
+        for (let i = 0; i < files.length; i++) {
+            let f = files[i];
+            const currentPath = resolvePath(f.path);
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
-            cloud.post(`/files/copy?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`).then(() => i++)
-                .catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`))
-                .finally(() => {
-                    if (i === files.length) {
-                        operations.fetchPageFromPath(newPathForFile);
-                        UF.successNotification("File copied.");
-                    }
-                });
-        }); // End forEach
+            const exists = await checkIfFileExists(newPathForFile, cloud);
+            let rewrite = false;
+            if (exists && !yesToAll) {
+                const result = await allowRewritePolicy(newPathForFile, cloud.homeFolder, files.length);
+                rewrite = !!result.value;
+                yesToAll = UF.elementValue("yesToAll");
+            }
+            if (yesToAll) rewrite = true;
+            if ((exists && rewrite) || !exists) {
+                cloud.post(`/files/copy?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`, { policy: rewrite ? WriteConflictPolicy.OVERWRITE : null })
+                    .then(() => iteration++)
+                    .catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`))
+                    .finally(() => {
+                        if (iteration === files.length) {
+                            operations.fetchPageFromPath(newPathForFile);
+                            UF.successNotification("File copied.");
+                        }
+                    });
+            }
+        }; // End for
     }); // End Callback
 };
 
@@ -37,23 +50,62 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
     operations.showFileSelector(true);
     const parentPath = getParentPath(files[0].path);
     operations.setDisallowedPaths([parentPath].concat(files.map(f => f.path)));
-    operations.setFileSelectorCallback((file: File) => {
-        const newPath = file.path;
-        files.forEach(f => {
-            const currentPath = f.path;
+    operations.setFileSelectorCallback(async (targetPathFolder: File) => {
+        const newPath = resolvePath(targetPathFolder.path);
+        let yesToAll = false;
+        for (let i = 0; i < files.length; i++) {
+            let f = files[i];
+            const currentPath = resolvePath(f.path);
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
-            cloud.post(`/files/move?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`).then(() => {
-                const fromPath = getFilenameFromPath(currentPath);
-                const toPath = replaceHomeFolder(newPathForFile, cloud.homeFolder);
-                UF.successNotification(`${fromPath} moved to ${toPath}`);
-                operations.fetchPageFromPath(newPathForFile);
-            }).catch(() => UF.failureNotification("An error occurred, please try again later"));
-            operations.showFileSelector(false);
-            operations.setFileSelectorCallback(undefined);
-            operations.setDisallowedPaths([]);
-        });
+            const exists = await checkIfFileExists(newPathForFile, cloud);
+            let rewrite = false;
+            if (exists && !yesToAll) {
+                const result = await allowRewritePolicy(newPathForFile, cloud.homeFolder, files.length);
+                rewrite = !!result.value;
+                yesToAll = UF.elementValue("yesToAll");
+            }
+            if (yesToAll) rewrite = yesToAll;
+            if ((exists && rewrite) || !exists) {
+                // FIXME: Does so for each file moved.
+                cloud.post(`/files/move?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`, { policy: rewrite ? WriteConflictPolicy.OVERWRITE : null }).then(() => {
+                    const fromPath = getFilenameFromPath(currentPath);
+                    const toPath = replaceHomeFolder(newPathForFile, cloud.homeFolder);
+                    UF.successNotification(`${fromPath} moved to ${toPath}`);
+                    operations.fetchPageFromPath(newPathForFile);
+                }).catch(() => UF.failureNotification("An error occurred, please try again later"));
+            }
+        };
+        operations.showFileSelector(false);
+        operations.setFileSelectorCallback(undefined);
+        operations.setDisallowedPaths([]);
     });
 };
+
+
+const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<boolean> => {
+    try {
+        await cloud.get(statFileQuery(path))
+        return true;
+    } catch (e) {
+        return !(e.request.status === 404);
+    }
+}
+
+function allowRewritePolicy(path: string, homeFolder: string, fileCount: number): Promise<SweetAlertResult> {
+    return swal({
+        title: "File exists",
+        text: ``,
+        html: `<div>${replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it?</div><br/>
+                <label><input id="yesToAll" type="checkbox"/> Yes to all</label>`,
+        allowEscapeKey: true,
+        allowOutsideClick: true,
+        allowEnterKey: false,
+        showConfirmButton: true,
+        showCancelButton: true,
+        cancelButtonText: "No",
+        confirmButtonText: "Yes",
+    });
+}
 
 export const startRenamingFiles = (files: File[], page: Page<File>) => {
     const paths = files.map(it => it.path);
@@ -389,7 +441,7 @@ export const showFileDeletionPrompt = (filePath: string, cloud: SDUCloud, callba
         }
     });
 
-export const extractArchive = async (files: File[], cloud: SDUCloud, onFinished: () => void) => {
+export const extractArchive = (files: File[], cloud: SDUCloud, onFinished: () => void): void => {
     cloud.post("/files/extract", { path: files[0].path }).then(it => (UF.successNotification("File extracted"), onFinished()))
         .catch(it => UF.failureNotification(`An error occurred extracting file.`))
 }
@@ -397,7 +449,7 @@ export const extractArchive = async (files: File[], cloud: SDUCloud, onFinished:
 
 
 export const clearTrash = (cloud: SDUCloud, callback: () => void) =>
-    clearTrashSwal().then((result: any) => {
+    clearTrashSwal().then(result => {
         if (result.dismiss) {
             return;
         } else {
@@ -568,9 +620,7 @@ export const moveFile = (oldPath: string, newPath: string, cloud: SDUCloud, onSu
 
 export const createFolder = (path: string, cloud: SDUCloud, onSuccess: () => void) =>
     cloud.post("/files/directory", { path }).then(({ request }) => {
-        if (UF.inSuccessRange(request.status)) {
-            onSuccess()
-        }
+        if (UF.inSuccessRange(request.status)) onSuccess()
     }).catch(() => UF.failureNotification("An error ocurred trying to creating the file."));
 
 
