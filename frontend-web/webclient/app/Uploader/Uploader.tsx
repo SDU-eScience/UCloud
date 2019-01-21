@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as Modal from "react-modal";
-import { Progress, Icon, Button, ButtonGroup, Heading, Divider } from "ui-components";
+import { Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton } from "ui-components";
 import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs } from "UtilityFunctions";
@@ -160,6 +160,11 @@ class Uploader extends React.Component<UploaderProps> {
         }
     }
 
+    private clearUpload = (index: number) => this.props.setUploads(removeEntry(this.props.uploads, index))
+
+    private clearFinishedUploads = () =>
+        this.props.setUploads(this.props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)))
+
     render() {
         return (
             <Modal isOpen={this.props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={() => this.props.setUploaderVisible(false)}
@@ -171,6 +176,9 @@ class Uploader extends React.Component<UploaderProps> {
                     <Box pt="0.5em" pr="0.5em" pl="0.5em">
                         <Error error={this.props.error} clearError={() => this.props.setUploaderError()} />
                     </Box> : null}
+                {finishedUploads(this.props.uploads) > 0 ? (<OutlineButton mt="4px" mb="4px" color="green" fullWidth onClick={() => this.clearFinishedUploads()}>
+                    Clear finished uploads
+                </OutlineButton>) : null}
                 <Box>
                     {this.props.uploads.map((upload, index) => (
                         <UploaderRow
@@ -179,8 +187,9 @@ class Uploader extends React.Component<UploaderProps> {
                             setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
                             onExtractChange={value => this.onExtractChange(index, value)}
                             onUpload={() => this.startUpload(index)}
-                            onDelete={it => { it.preventDefault(); this.removeUpload(index) }}
-                            onAbort={it => { it.preventDefault(); this.abort(index) }}
+                            onDelete={it => (it.preventDefault(), this.removeUpload(index))}
+                            onAbort={it => (it.preventDefault(), this.abort(index))}
+                            onClear={it => (it.preventDefault(), this.clearUpload(index))}
                         />
                     ))}
 
@@ -239,6 +248,7 @@ const UploaderRow = (p: {
     onUpload?: (e: React.MouseEvent<any>) => void,
     onDelete?: (e: React.MouseEvent<any>) => void,
     onAbort?: (e: React.MouseEvent<any>) => void
+    onClear?: (e: React.MouseEvent<any>) => void
     onCheck?: (checked: boolean) => void
 }) => {
     const fileTitle = <span><b>{p.upload.file.name}</b> ({sizeToString(p.upload.file.size)})</span>;
@@ -303,12 +313,17 @@ const UploaderRow = (p: {
             </Box>
 
             <Box width={0.22}>
-                <Button
+                {!isFinishedUploading(p.upload.uploadXHR) ? <Button
                     fullWidth
-                    disabled={isFinishedUploading(p.upload.uploadXHR)}
                     color="red"
                     onClick={e => ifPresent(p.onAbort, c => c(e))}
-                >Cancel</Button>
+                >Cancel</Button> : <Button
+                    fullWidth
+                    color="red"
+                    onClick={e => ifPresent(p.onClear, c => c(e))}
+                >
+                        <Icon name="close" />
+                    </Button>}
             </Box>
         </>;
     }
