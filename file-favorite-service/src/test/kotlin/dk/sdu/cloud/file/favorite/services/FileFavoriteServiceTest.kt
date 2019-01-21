@@ -5,6 +5,7 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.favorite.storageFile
 import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.TestCallResult
@@ -19,22 +20,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class FileFavoriteServiceTest {
-
-    val storageFile = StorageFile(
-        FileType.FILE,
-        "home/user/1",
-        12345,
-        1234567,
-        TestUsers.user.username,
-        1234,
-        emptyList(),
-        false,
-        SensitivityLevel.PRIVATE,
-        false,
-        emptySet(),
-        "fileId",
-        TestUsers.user.username
-    )
 
     fun fileStatMock() {
         CloudMock.mockCall(
