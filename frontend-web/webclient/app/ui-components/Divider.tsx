@@ -13,8 +13,6 @@ const Divider = styled("hr")<DividerProps>`
 
 Divider.displayName = "Divider";
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Divider.defaultProps = {
   borderColor: "borderGray",
   theme: theme,

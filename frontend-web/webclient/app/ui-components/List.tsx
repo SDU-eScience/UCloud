@@ -16,8 +16,6 @@ const List = styled(Box) <{ fontSize?: string, childPadding?: string | number, b
     }
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 List.defaultProps = {
     fontSize: "large",
     bordered: true

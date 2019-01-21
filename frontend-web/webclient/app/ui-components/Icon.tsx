@@ -56,8 +56,6 @@ const Icon = styled(IconBase) <IconProps>`
 
 Icon.displayName = "Icon"
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Icon.defaultProps = {
   theme,
   cursor: "inherit",

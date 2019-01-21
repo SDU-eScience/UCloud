@@ -89,8 +89,6 @@ interface StampProps extends SpaceProps {
   fullWidth?: boolean
 }
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 StampBase.defaultProps = {
   px: 1,
   py: 0,

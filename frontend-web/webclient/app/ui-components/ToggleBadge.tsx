@@ -26,8 +26,6 @@ interface ToggleBadge extends SpaceProps, FontSizeProps, ColorProps {
   unSelectedBg?: string
 }
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 ToggleBadge.defaultProps = {
   selected: false,
   fontSize: 0,

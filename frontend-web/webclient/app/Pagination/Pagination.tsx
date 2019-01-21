@@ -60,8 +60,6 @@ const PaginationButton = ({ onClick, ...props }) => (
     props.unclickable ? <PaginationButtonBase {...props} /> : <PaginationButtonBase onClick={onClick} {...props} />
 );
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 PaginationButtonBase.defaultProps = {
     theme
 }

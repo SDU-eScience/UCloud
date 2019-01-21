@@ -37,8 +37,6 @@ const Label = styled("label") <LabelProps>`
   ${accessiblyHide}
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Label.defaultProps = {
   fontSize: 1,
   fontWeight: "bold",
