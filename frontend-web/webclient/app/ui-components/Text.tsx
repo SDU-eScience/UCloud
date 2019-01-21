@@ -66,8 +66,6 @@ export const EllipsedText = styled(Text) <EllipsedTextProps>`
   display: inline-block;
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Text.defaultProps = {
   cursor: "inherit"
 };

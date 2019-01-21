@@ -13,8 +13,6 @@ const Container = styled("div") <{ maxWidth?: number }> `
   ${maxWidth};
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Container.defaultProps = {
   theme
 };

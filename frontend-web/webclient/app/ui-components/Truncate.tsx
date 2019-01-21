@@ -8,8 +8,6 @@ const Truncate = styled(Text)`
   text-overflow: ellipsis;
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Truncate.defaultProps = {
   theme
 }

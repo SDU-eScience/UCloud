@@ -44,8 +44,6 @@ const Hide = styled(Box) <HideProps>`
   ${hidden("xxl")}
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Hide.defaultProps = {
   theme: theme
 };

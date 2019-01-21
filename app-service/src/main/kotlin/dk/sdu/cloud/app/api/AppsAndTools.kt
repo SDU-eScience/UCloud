@@ -3,8 +3,10 @@ package dk.sdu.cloud.app.api
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.annotation.JsonUnwrapped
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
+import org.slf4j.Logger
 import kotlin.reflect.KProperty0
 
 // Note: It is currently assumed that validation is done in layers above
@@ -359,7 +361,6 @@ sealed class ToolDescription(val tool: String) {
 
             if (authors.isEmpty()) throw ToolVerificationException.BadValue(::authors.name, "Authors is empty")
             val badAuthorIndex = authors.indexOfFirst { it.contains("\n") }
-            println(badAuthorIndex)
             if (badAuthorIndex != -1) {
                 throw ToolVerificationException.BadValue("author[$badAuthorIndex]", "Cannot contain new lines")
             }
@@ -379,6 +380,10 @@ sealed class ToolDescription(val tool: String) {
                 backend
             )
         }
+    }
+
+    companion object : Loggable {
+        override val log: Logger = logger()
     }
 }
 

@@ -64,8 +64,6 @@ const Input = styled.input<InputProps>`
 
 Input.displayName = "Input";
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Input.defaultProps = {
   id: "default",
   theme: defaultTheme,

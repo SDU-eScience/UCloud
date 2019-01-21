@@ -106,7 +106,7 @@ class Search extends React.Component<SearchProps> {
     fetchAll(search: string) {
         const { ...props } = this.props;
         props.setError();
-        props.searchFiles(this.fileSearchBody);
+        props.searchFiles({ ...this.fileSearchBody, fileName: search });
         props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage);
         props.searchProjects(search, this.props.projects.pageNumber, this.props.projects.itemsPerPage);
     }
@@ -229,7 +229,7 @@ export const SelectableText = styled(Text) <{ selected: boolean }>`
 `
 
 type MenuItemName = "Files" | "Projects" | "Applications";
-type SearchBarProps = { active: MenuItemName }
+interface SearchBarProps { active: MenuItemName }
 const SearchBar = (props: SearchBarProps) => {
     return null;
     // @ts-ignore
@@ -245,7 +245,7 @@ const SearchBar = (props: SearchBarProps) => {
 
 const SearchPriorityToNumber = (search: string): number => {
     if (search.toLocaleLowerCase() === "projects") return 1;
-    if (search.toLocaleLowerCase() === "applications") return 2;
+    else if (search.toLocaleLowerCase() === "applications") return 2;
     return 0;
 }
 

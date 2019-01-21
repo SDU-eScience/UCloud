@@ -18,8 +18,6 @@ const RatingBadge = styled(Box)<RatingBadgeProps>`
   ${fontWeight} ${borderRadius};
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 RatingBadge.defaultProps = {
   fontWeight: 'bold',
   px: 2,

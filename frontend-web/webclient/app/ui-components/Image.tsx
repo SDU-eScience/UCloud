@@ -9,8 +9,6 @@ const Image = styled.img`
 
 Image.displayName = 'Image';
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Image.defaultProps = {
   theme: theme
 };

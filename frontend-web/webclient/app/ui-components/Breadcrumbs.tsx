@@ -32,8 +32,6 @@ const BreadCrumbsBase = styled.ul<{ divider?: string }>`
     }
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 BreadCrumbsBase.defaultProps = {
     divider: "/"
 }

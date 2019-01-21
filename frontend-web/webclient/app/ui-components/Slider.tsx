@@ -64,10 +64,8 @@ const Slider = styled(Range)<SliderProps>`
       cursor: default;
     }
   }
-`
+`;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Slider.defaultProps = {
   allowCross: false,
   color: 'blue',

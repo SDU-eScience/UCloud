@@ -53,7 +53,7 @@ export const FilesTable = ({
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                         ))}
                         <TableCell textAlign="center">
-                            {checkedCount === 0 && !file.isMockFolder ? (<FileOperationsWrapper
+                            {checkedCount === 0 ? (<FileOperationsWrapper
                                 files={[file]}
                                 fileOperations={fileOperations}
                             />) : null}

@@ -28,8 +28,6 @@ const SelectBase = styled("select") <any>`
   }
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 SelectBase.defaultProps = {
   theme,
   fontSize: 1,

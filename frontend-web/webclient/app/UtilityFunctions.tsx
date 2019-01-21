@@ -78,36 +78,40 @@ export function infoNotification(title: string, seconds: number = 3) {
     });
 }
 
-export const uploadsNotifications = (finished: number, total: number) => swal({
-    title: finished !== total ? `${finished} out of ${total} files uploaded` : "Uploads finished",
-    toast: true,
-    position: "top",
-    timer: 2000,
-    showConfirmButton: false,
-    type: finished !== total ? "warning" : "success",
-});
+export function uploadsNotifications(finished: number, total: number) {
+    return swal({
+        title: finished !== total ? `${finished} out of ${total} files uploaded` : "Uploads finished",
+        toast: true,
+        position: "top",
+        timer: 2000,
+        showConfirmButton: false,
+        type: finished !== total ? "warning" : "success",
+    });
+}
 
-export const shareSwal = () => swal({
-    title: "Share",
-    input: "text",
-    html: `<div>
+export function shareSwal() {
+    return swal({
+        title: "Share",
+        input: "text",
+        html: `<div>
                 <input name="access" type="radio" value="read" id="read"/>
                 <label for="read">Can View</label>
                 <span style="margin-left:20px" />
                 <input name="access" type="radio" value="read_edit" id="read_edit"/>
                 <label for="read_edit">Can View and Edit</label>
             </div>`,
-    showCloseButton: true,
-    showCancelButton: true,
-    inputPlaceholder: "Enter username...",
-    focusConfirm: false,
-    inputValidator: (value: string) => {
-        if (!value) return "Username missing";
-        if (!(elementValue("read") || elementValue("read_edit"))) return "Select at least one access right";
-        return null;
-    }
+        showCloseButton: true,
+        showCancelButton: true,
+        inputPlaceholder: "Enter username...",
+        focusConfirm: false,
+        inputValidator: (value: string) => {
+            if (!value) return "Username missing";
+            if (!(elementValue("read") || elementValue("read_edit"))) return "Select at least one access right";
+            return null;
+        }
 
-});
+    });
+}
 
 export const elementValue = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
 
@@ -119,8 +123,7 @@ export const inputSwal = (inputName: string) => ({
     showCancelButton: true,
     inputPlaceholder: `Enter ${inputName}...`,
     focusConfirm: false,
-    inputValidator: (value: string) =>
-        (!value && `${toLowerCaseAndCapitalize(inputName)} missing`)
+    inputValidator: (value: string) => (!value && `${toLowerCaseAndCapitalize(inputName)} missing`)
 });
 
 export function sortingColumnToValue(sortBy: SortBy, file: File): string {
@@ -154,7 +157,7 @@ export const getSortingIcon = (sortBy: SortBy, sortOrder: SortOrder, name: SortB
     return undefined;
 };
 
-export const extensionTypeFromPath = (path) => extensionType(extensionFromPath(path));
+export const extensionTypeFromPath = (path: string) => extensionType(extensionFromPath(path));
 export const extensionFromPath = (path: string): string => {
     const splitString = path.split(".");
     return splitString[splitString.length - 1];

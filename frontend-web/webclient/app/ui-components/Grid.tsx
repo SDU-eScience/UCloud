@@ -12,8 +12,7 @@ import {
     gridGap, GridGapProps,
     gridTemplateColumns, GridTemplatesColumnsProps,
     gridTemplateRows, GridTemplatesRowsProps,
-} from "styled-system"
-import theme from "./theme"
+} from "styled-system";
 
 //This appears missing from @types/styled-system...
 //export function justifyItems(...args: any[]): any;

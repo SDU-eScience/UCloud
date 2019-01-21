@@ -16,13 +16,9 @@ export const Dropdown = styled.div<{ hover?: boolean, fullWidth?: boolean }>`
     }
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 Dropdown.defaultProps = {
     hover: true
 }
-
-
 
 export const DropdownContent = styled.div<DropdownContentProps>`
     ${props => props.overflow ? 
@@ -66,8 +62,6 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     ${top} ${left} ${right} ${bottom} ${height};
 `;
 
-// FIXME: Workaround, not a fix.
-// @ts-ignore
 DropdownContent.defaultProps = {
     squareTop: false,
     hover: true,

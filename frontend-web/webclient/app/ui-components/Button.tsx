@@ -69,7 +69,6 @@ const Button = styled.button<ButtonProps>`
   ${fullWidth} ${size} ${space} ${height};
 `;
 
-// @ts-ignore
 Button.defaultProps = {
   theme,
   textColor: "white",
