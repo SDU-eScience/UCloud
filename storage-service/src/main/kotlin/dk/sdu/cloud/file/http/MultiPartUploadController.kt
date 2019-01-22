@@ -57,10 +57,19 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                 val upload = req.upload
                 if (upload != null) {
                     commandRunnerFactory.withContext(owner) { ctx ->
-                        fs.write(ctx, req.location, WriteConflictPolicy.OVERWRITE) {
-                            val out = this
-                            req.upload.channel.copyTo(out)
+                        if (req.policy == null) {
+                            fs.write(ctx, req.location, WriteConflictPolicy.OVERWRITE) {
+                                val out = this
+                                req.upload.channel.copyTo(out)
+                            }
                         }
+                        else {
+                            fs.write(ctx, req.location, req.policy) {
+                                val out = this
+                                req.upload.channel.copyTo(out)
+                            }
+                        }
+
 
                         sensitivityService.setSensitivityLevel(ctx, req.location, req.sensitivity, owner)
                         Unit
