@@ -4,13 +4,14 @@ import { shallow, configure } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import { Uploader } from "Uploader";
 import { configureStore } from "Utilities/ReduxUtilities";
-import { initUploads, initFiles } from "DefaultObjects";
+import { initUploads, initFiles, SensitivityLevelMap } from "DefaultObjects";
 import uploader from "Uploader/Redux/UploaderReducer";
 import files from "Files/Redux/FilesReducer";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router";
 import * as UploaderActions from "Uploader/Redux/UploaderActions";
 import "jest-styled-components";
+import { UploadPolicy } from "Uploader/api";
 
 
 // configure({ adapter: new Adapter() });
@@ -55,7 +56,8 @@ describe("Uploader", () => {
         store.dispatch(UploaderActions.setUploads([{
             file: new File([], "file"),
             isUploading: false,
-            sensitivity: "PRIVATE",
+            sensitivity: SensitivityLevelMap.PRIVATE,
+            resolution: UploadPolicy.REJECT,
             uploadEvents: [],
             progressPercentage: 0,
             extractArchive: false,

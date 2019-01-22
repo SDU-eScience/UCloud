@@ -48,12 +48,6 @@ export enum SortBy {
     SENSITIVITY = "SENSITIVITY"
 };
 
-export enum WriteConflictPolicy {
-    OVERWRITE = "OVERWRITE",
-    RENAME = "RENAME",
-    REJECT = "REJECT"
-};
-
 export interface FilesProps extends FilesStateProps, FilesOperations, RouterLocationProps { }
 
 export interface MockedTableProps {

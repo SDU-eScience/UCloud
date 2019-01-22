@@ -3,13 +3,14 @@ import { failureNotification, inSuccessRange } from "UtilityFunctions";
 import { STATUS_CODES } from "http";
 import { Sensitivity } from "DefaultObjects";
 
-export const multipartUpload = async (location: string, file: File, sensitivity: Sensitivity, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
+export const multipartUpload = async (location: string, file: File, sensitivity: Sensitivity, policy: UploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
     const newFile = new File([file], "ignored");
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     let formData = new FormData();
     formData.append("location", location);
     formData.append("sensitivity", sensitivity);
     formData.append("upload", newFile);
+    formData.append("policy", policy);
     let request = new XMLHttpRequest();
     request.open("POST", "/api/files/upload");
     request.onreadystatechange = () => {
@@ -25,16 +26,9 @@ export const multipartUpload = async (location: string, file: File, sensitivity:
     request.responseType = "text";
     request.send(formData);
     return request;
-
-    /* return fetch("/api/upload/bulk", {
-        headers: { "Authorization", `Bearer ${token}`},
-        method: "POST",
-        credentials: "same-origin",
-        body: formData
-    }); */
 }
 
-export const bulkUpload = async (location: string, file: File, sensitivity: Sensitivity, policy: BulkUploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
+export const bulkUpload = async (location: string, file: File, sensitivity: Sensitivity, policy: UploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
     const newFile = new File([file], "ignored");
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
     const format = formatFromType(file.type);
@@ -101,7 +95,7 @@ function formatFromType(type: string): string {
     }
 }
 
-export enum BulkUploadPolicy {
+export enum UploadPolicy {
     OVERWRITE = "OVERWRITE",
     RENAME = "RENAME",
     REJECT = "REJECT"

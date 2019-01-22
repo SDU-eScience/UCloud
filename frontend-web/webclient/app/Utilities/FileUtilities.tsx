@@ -1,6 +1,6 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType, WriteConflictPolicy } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal, { SweetAlertResult } from "sweetalert2";
@@ -8,6 +8,7 @@ import * as UF from "UtilityFunctions";
 import { projectViewPage } from "Utilities/ProjectUtilities";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
+import { UploadPolicy } from "Uploader/api";
 
 export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCloud): void {
     let iteration = 0;
@@ -26,13 +27,13 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCl
             const exists = await checkIfFileExists(newPathForFile, cloud);
             let rewrite = false;
             if (exists && !yesToAll) {
-                const result = await allowRewritePolicy(newPathForFile, cloud.homeFolder, files.length);
+                const result = await allowRewritePolicy(newPathForFile, cloud.homeFolder);
                 rewrite = !!result.value;
                 yesToAll = UF.elementValue("yesToAll");
             }
             if (yesToAll) rewrite = true;
             if ((exists && rewrite) || !exists) {
-                cloud.post(`/files/copy?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`, { policy: rewrite ? WriteConflictPolicy.OVERWRITE : null })
+                cloud.post(`/files/copy?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`, { policy: rewrite ? UploadPolicy.OVERWRITE : null })
                     .then(() => iteration++)
                     .catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`))
                     .finally(() => {
@@ -60,14 +61,14 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
             const exists = await checkIfFileExists(newPathForFile, cloud);
             let rewrite = false;
             if (exists && !yesToAll) {
-                const result = await allowRewritePolicy(newPathForFile, cloud.homeFolder, files.length);
+                const result = await allowRewritePolicy(newPathForFile, cloud.homeFolder);
                 rewrite = !!result.value;
                 yesToAll = UF.elementValue("yesToAll");
             }
             if (yesToAll) rewrite = yesToAll;
             if ((exists && rewrite) || !exists) {
                 // FIXME: Does so for each file moved.
-                cloud.post(`/files/move?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`, { policy: rewrite ? WriteConflictPolicy.OVERWRITE : null }).then(() => {
+                cloud.post(`/files/move?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`, { policy: rewrite ? UploadPolicy.OVERWRITE : null }).then(() => {
                     const fromPath = getFilenameFromPath(currentPath);
                     const toPath = replaceHomeFolder(newPathForFile, cloud.homeFolder);
                     UF.successNotification(`${fromPath} moved to ${toPath}`);
@@ -82,16 +83,17 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
 };
 
 
-const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<boolean> => {
+export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<boolean> => {
     try {
         await cloud.get(statFileQuery(path))
         return true;
     } catch (e) {
+        // FIXME: in the event of other than 404
         return !(e.request.status === 404);
     }
 }
 
-function allowRewritePolicy(path: string, homeFolder: string, fileCount: number): Promise<SweetAlertResult> {
+function allowRewritePolicy(path: string, homeFolder: string): Promise<SweetAlertResult> {
     return swal({
         title: "File exists",
         text: ``,
