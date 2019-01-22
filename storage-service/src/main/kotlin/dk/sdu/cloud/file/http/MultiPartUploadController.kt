@@ -13,7 +13,6 @@ import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.service.Controller
@@ -57,7 +56,10 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                 val upload = req.upload
                 if (upload != null) {
                     commandRunnerFactory.withContext(owner) { ctx ->
-                        fs.write(ctx, req.location, WriteConflictPolicy.OVERWRITE) {
+                        println(req.policy)
+                        val policy = req.policy ?: WriteConflictPolicy.OVERWRITE
+
+                        fs.write(ctx, req.location, policy) {
                             val out = this
                             req.upload.channel.copyTo(out)
                         }
