@@ -114,7 +114,7 @@ export function shareSwal() {
 }
 
 export const elementValue = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
-
+export const selectValue = (id: string): string => (document.getElementById(id) as HTMLSelectElement).value;
 
 export const inputSwal = (inputName: string) => ({
     title: "Share",
