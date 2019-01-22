@@ -10,15 +10,14 @@ import dk.sdu.cloud.service.orThrow
 
 class FileFavoriteService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
-    private val dao: FileFavoriteDAO<DBSession>,
-    private val cloud: AuthenticatedCloud
+    private val dao: FileFavoriteDAO<DBSession>
 ) {
-    suspend fun toggleFavorite(files: List<String>, user: String): List<String> {
+    suspend fun toggleFavorite(files: List<String>, user: String, userCloud: AuthenticatedCloud): List<String> {
         val failures = ArrayList<String>()
         db.withTransaction { session ->
             files.forEach { path ->
                 try {
-                    val fileId = FileDescriptions.stat.call(FindByPath(path), cloud).orThrow().fileId
+                    val fileId = FileDescriptions.stat.call(FindByPath(path), userCloud).orThrow().fileId
 
                     if(dao.isFavorite(session, user, fileId)) {
                         dao.delete(session, user, fileId)

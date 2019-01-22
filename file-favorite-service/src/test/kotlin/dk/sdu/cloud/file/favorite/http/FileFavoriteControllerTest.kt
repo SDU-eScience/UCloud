@@ -22,7 +22,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 
 class FileFavoriteControllerTest{
-    val service = mockk<FileFavoriteService<HibernateSession>>()
+    private val service = mockk<FileFavoriteService<HibernateSession>>()
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         listOf(FileFavoriteController(service))
     }

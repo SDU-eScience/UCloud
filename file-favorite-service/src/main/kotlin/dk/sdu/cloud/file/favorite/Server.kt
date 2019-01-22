@@ -39,7 +39,7 @@ class Server(
     override fun start() {
         // Initialize services here
         val fileFavoriteDao = FileFavoriteHibernateDAO()
-        val fileFavoriteService = FileFavoriteService(db, fileFavoriteDao, cloud)
+        val fileFavoriteService = FileFavoriteService(db, fileFavoriteDao)
 
         // Initialize consumers here:
         // addConsumers(...)
@@ -50,7 +50,7 @@ class Server(
 
             routing {
                 configureControllers(
-                    FileFavoriteController(fileFavoriteService)
+                    FileFavoriteController(fileFavoriteService, cloud.parent)
                 )
             }
         }
