@@ -38,7 +38,6 @@ function files(state: FilesReduxObject = initFiles(""), action: FileActions): Fi
             };
         };
         case SET_FILES_LOADING:
-        case FILES_INVALID_PATH:
         case UPDATE_FILES: {
             return { ...state, ...action.payload };
         }

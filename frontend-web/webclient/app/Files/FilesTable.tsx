@@ -37,7 +37,6 @@ export const FilesTable = ({
                 {/* FIXME: Figure out how to handle responsiveness for FileOperations */}
                 {checkedCount === -1 ? <FileOperationsWrapper fileOperations={fileOperations} files={checkedFiles} /> : null}
             </FilesTableHeader>
-
             <TableBody>
                 {files.map((file, i) => (
                     <TableRow highlighted={file.isChecked} key={i}>
