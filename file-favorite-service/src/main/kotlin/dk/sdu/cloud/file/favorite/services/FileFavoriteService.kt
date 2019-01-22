@@ -33,14 +33,8 @@ class FileFavoriteService<DBSession>(
         return failures
     }
 
-    fun getFavoriteStatus(files: List<StorageFile>, user: String): Map<String, Boolean> {
-        return files.map { file ->
-            db.withTransaction {
-                val favorite = dao.isFavorite(it, user, file.fileId)
-                file.fileId to favorite
-            }
-        }.toMap()
-    }
+    fun getFavoriteStatus(files: List<StorageFile>, user: String): Map<String, Boolean> =
+        db.withTransaction { dao.bulkIsFavorite(it, files, user) }
 }
 
 interface FileFavoriteDAO<Session> {
@@ -63,4 +57,9 @@ interface FileFavoriteDAO<Session> {
         fileId: String
     ): Boolean
 
+    fun bulkIsFavorite(
+        session: Session,
+        files: List<StorageFile>,
+        user: String
+    ): Map<String, Boolean>
 }

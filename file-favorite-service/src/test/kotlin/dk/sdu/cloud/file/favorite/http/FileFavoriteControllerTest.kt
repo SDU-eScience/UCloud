@@ -1,6 +1,8 @@
 package dk.sdu.cloud.file.favorite.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusRequest
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
@@ -10,9 +12,11 @@ import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 import dk.sdu.cloud.file.favorite.storageFile
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.test.CloudContextMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.parseSuccessful
 import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
@@ -20,11 +24,13 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class FileFavoriteControllerTest{
     private val service = mockk<FileFavoriteService<HibernateSession>>()
+    private val cloud = CloudContextMock
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
-        listOf(FileFavoriteController(service))
+        listOf(FileFavoriteController(service, cloud))
     }
 
     @Test
@@ -32,7 +38,7 @@ class FileFavoriteControllerTest{
         withKtorTest(
             setup,
             test = {
-                coEvery { service.toggleFavorite(any(), any()) } answers {
+                coEvery { service.toggleFavorite(any(), any(), any()) } answers {
                     emptyList()
                 }
 
@@ -48,7 +54,8 @@ class FileFavoriteControllerTest{
                     )
                 )
 
-                request.assertSuccess()
+                val response = request.parseSuccessful<ToggleFavoriteResponse>()
+                assertTrue(response.failures.isEmpty())
             }
         )
     }
@@ -58,7 +65,7 @@ class FileFavoriteControllerTest{
         withKtorTest(
             setup,
             test = {
-                coEvery { service.toggleFavorite(any(), any()) } answers {
+                coEvery { service.toggleFavorite(any(), any(), any()) } answers {
                     listOf("/home/user/1")
                 }
 

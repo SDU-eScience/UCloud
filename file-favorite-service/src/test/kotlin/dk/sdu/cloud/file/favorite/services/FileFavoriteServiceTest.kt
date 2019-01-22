@@ -26,9 +26,9 @@ class FileFavoriteServiceTest {
             FileDescriptions,
             { FileDescriptions.stat}) { req ->
             val file = when (req.path) {
-                "home/user/1" -> storageFile
-                "home/user/2" -> storageFile.copy(path = "home/user/2", fileId = "fileId2")
-                "home/user/3" -> storageFile.copy(path = "home/user/3", fileId = "fileId3")
+                "/home/user/1" -> storageFile
+                "/home/user/2" -> storageFile.copy(path = "/home/user/2", fileId = "fileId2")
+                "/home/user/3" -> storageFile.copy(path = "/home/user/3", fileId = "fileId3")
                 else -> null
             }
             if (file != null) {
@@ -45,22 +45,22 @@ class FileFavoriteServiceTest {
             val micro = initializeMicro()
             val cloud = micro.authenticatedCloud
             val dao = FileFavoriteHibernateDAO()
-            val service = FileFavoriteService(db, dao, cloud)
+            val service = FileFavoriteService(db, dao)
 
             fileStatMock()
 
             runBlocking {
                 val failures = service.toggleFavorite(
-                    listOf("home/user/1", "home/user/2", "home/user/3"),
-                    user.username)
+                    listOf("/home/user/1", "/home/user/2", "/home/user/3"),
+                    user.username,
+                    cloud)
                 assertTrue(failures.isEmpty())
             }
-
             val favorites = service.getFavoriteStatus(
                 listOf(
                     storageFile,
-                    storageFile.copy(path = "home/user/2", fileId = "fileId2"),
-                    storageFile.copy(path = "home/user/4", fileId = "fileId4")
+                    storageFile.copy(path = "/home/user/2", fileId = "fileId2"),
+                    storageFile.copy(path = "/home/user/4", fileId = "fileId4")
                 ),
                 user.username
             )
@@ -71,16 +71,17 @@ class FileFavoriteServiceTest {
 
             runBlocking {
                 val failures = service.toggleFavorite(
-                    listOf("home/user/1", "home/user/2", "home/user/3"),
-                    user.username)
+                    listOf("/home/user/1", "/home/user/2", "/home/user/3"),
+                    user.username,
+                    cloud)
                 assertTrue(failures.isEmpty())
             }
 
             val favorites2 = service.getFavoriteStatus(
                 listOf(
                     storageFile,
-                    storageFile.copy(path = "home/user/2", fileId = "fileId2"),
-                    storageFile.copy(path = "home/user/4", fileId = "fileId4")
+                    storageFile.copy(path = "/home/user/2", fileId = "fileId2"),
+                    storageFile.copy(path = "/home/user/4", fileId = "fileId4")
                 ),
                 user.username
             )
@@ -99,23 +100,24 @@ class FileFavoriteServiceTest {
             val micro = initializeMicro()
             val cloud = micro.authenticatedCloud
             val dao = FileFavoriteHibernateDAO()
-            val service = FileFavoriteService(db, dao, cloud)
+            val service = FileFavoriteService(db, dao)
 
             fileStatMock()
 
             runBlocking {
                 val failures = service.toggleFavorite(
-                    listOf("home/user/1", "home/user/4", "home/user/5"),
-                    user.username
+                    listOf("/home/user/1", "/home/user/4", "/home/user/5"),
+                    user.username,
+                    cloud
                 )
-                assertEquals("home/user/4", failures.first())
-                assertEquals("home/user/5", failures.last())
+                assertEquals("/home/user/4", failures.first())
+                assertEquals("/home/user/5", failures.last())
             }
 
             val favorites = service.getFavoriteStatus(
                 listOf(
                     storageFile,
-                    storageFile.copy(path = "home/user/2", fileId = "fileId2")
+                    storageFile.copy(path = "/home/user/2", fileId = "fileId2")
                     ),
                 user.username
             )

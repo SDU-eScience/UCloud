@@ -5,10 +5,10 @@ create sequence file_favorite.hibernate_sequence
   increment 1;
 
     create table file_favorite.favorites (
-       id int8 not null,
-        file_id varchar(255),
-        username varchar(255),
-        primary key (id)
+      id int8 not null,
+      file_id varchar(255),
+      username varchar(255),
+      primary key (id)
     );
 
 create index on file_favorite.favorites (file_id);

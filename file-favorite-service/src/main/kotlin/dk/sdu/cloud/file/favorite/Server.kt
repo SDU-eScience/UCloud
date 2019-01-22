@@ -41,9 +41,6 @@ class Server(
         val fileFavoriteDao = FileFavoriteHibernateDAO()
         val fileFavoriteService = FileFavoriteService(db, fileFavoriteDao)
 
-        // Initialize consumers here:
-        // addConsumers(...)
-
         // Initialize server
         httpServer = ktor {
             installDefaultFeatures(micro)

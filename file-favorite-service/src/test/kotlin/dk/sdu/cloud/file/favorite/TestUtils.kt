@@ -7,7 +7,7 @@ import dk.sdu.cloud.service.test.TestUsers
 
 internal val storageFile = StorageFile(
     FileType.FILE,
-    "home/user/1",
+    "/home/user/1",
     12345,
     1234567,
     TestUsers.user.username,
