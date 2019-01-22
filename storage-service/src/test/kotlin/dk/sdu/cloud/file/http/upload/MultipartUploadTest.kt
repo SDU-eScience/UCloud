@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.http.upload
 
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.files.TestContext
 import dk.sdu.cloud.file.http.files.setUser

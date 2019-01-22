@@ -11,8 +11,8 @@ import io.ktor.http.HttpMethod
 data class UploadRequest(
     val location: String,
     val sensitivity: SensitivityLevel = SensitivityLevel.PRIVATE,
-    val upload: StreamingFile?,
-    val policy: WriteConflictPolicy?
+    val policy: WriteConflictPolicy? = null,
+    val upload: StreamingFile?
 )
 
 data class UploadRequestAudit(val path: String, val sensitivityLevel: SensitivityLevel, val owner: String)

@@ -13,7 +13,6 @@ import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.service.Controller
@@ -57,19 +56,13 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                 val upload = req.upload
                 if (upload != null) {
                     commandRunnerFactory.withContext(owner) { ctx ->
-                        if (req.policy == null) {
-                            fs.write(ctx, req.location, WriteConflictPolicy.OVERWRITE) {
-                                val out = this
-                                req.upload.channel.copyTo(out)
-                            }
-                        }
-                        else {
-                            fs.write(ctx, req.location, req.policy) {
-                                val out = this
-                                req.upload.channel.copyTo(out)
-                            }
-                        }
+                        println(req.policy)
+                        val policy = req.policy ?: WriteConflictPolicy.OVERWRITE
 
+                        fs.write(ctx, req.location, policy) {
+                            val out = this
+                            req.upload.channel.copyTo(out)
+                        }
 
                         sensitivityService.setSensitivityLevel(ctx, req.location, req.sensitivity, owner)
                         Unit
