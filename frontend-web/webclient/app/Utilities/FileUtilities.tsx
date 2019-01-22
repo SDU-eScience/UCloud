@@ -16,7 +16,6 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCl
     operations.showFileSelector(true);
     operations.setFileSelectorCallback(async (targetPathFolder: File) => {
         const newPath = resolvePath(targetPathFolder.path);
-        console.log(targetPathFolder);
         operations.showFileSelector(false);
         operations.setFileSelectorCallback(undefined);
         operations.setDisallowedPaths([]);
