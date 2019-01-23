@@ -140,7 +140,7 @@ class Files extends React.Component<FilesProps> {
                 loading={loading}
                 errorMessage={props.error}
                 onErrorDismiss={props.dismissError}
-                customEmptyPage={(<Heading.h3>No files in current folder</Heading.h3>)}
+                customEmptyPage={!this.props.error ? <Heading.h3>No files in current folder</Heading.h3> : <Box />}
                 pageRenderer={page => (
                     <FilesTable
                         onFavoriteFile={favoriteFile}

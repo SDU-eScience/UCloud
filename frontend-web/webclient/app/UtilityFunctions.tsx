@@ -9,6 +9,7 @@ import {
     replaceHomeFolder,
     isDirectory
 } from "Utilities/FileUtilities";
+import { HTTP_STATUS_CODES } from "Utilities/XHRUtils";
 
 /**
  * Lowercases the string and capitalizes the first letter of the string
@@ -370,4 +371,9 @@ export function humanReadableNumber(
     return fixedNumber
         .replace('.', decimalDelim)
         .replace(regex, '$&' + sectionDelim);
+}
+
+export function errorMessageOrDefault(err: { request: XMLHttpRequest, response: any }, defaultMessage: string): string {
+    if (err.response.why) return err.response.why;
+    return HTTP_STATUS_CODES[err.request.status] || defaultMessage;
 }

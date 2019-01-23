@@ -32,7 +32,7 @@ interface MainContentProps {
 }
 
 interface OperationProps {
-    onInit: (name: string, version: string) => void
+    fetchApp: (name: string, version: string) => void
     onFavorite: (name: string, version: string) => void
 }
 
@@ -45,18 +45,32 @@ interface OwnProps {
 type ViewProps = OperationProps & StateProps & OwnProps;
 
 class View extends React.Component<ViewProps> {
-    constructor(props) {
+    constructor(props: Readonly<ViewProps>) {
         super(props);
     }
 
     componentDidMount() {
+        this.fetchApp();
+    }
+
+    componentDidUpdate() {
+        if (this.props.application.loading) return;
+        if (this.props.application.content) {
+            const { info } = this.props.application.content.description;
+            const { appName, appVersion } = this.props.match.params;
+            if (appName !== info.name || appVersion !== info.version)
+                this.fetchApp();
+        }
+    }
+
+    private fetchApp() {
         const { appName, appVersion } = this.props.match.params;
-        this.props.onInit(appName, appVersion);
+        this.props.fetchApp(appName, appVersion);
     }
 
     render() {
         const { appName, appVersion } = this.props.match.params;
-        const { previous} = this.props;
+        const { previous } = this.props;
         const application = this.props.application.content;
         if (previous.content) {
             previous.content.items = previous.content.items.filter(
@@ -125,27 +139,25 @@ export const AppHeader: React.StatelessComponent<MainContentProps> = props => (
 );
 
 const Sidebar: React.StatelessComponent<MainContentProps> = props => (
-    <>
-        <VerticalButtonGroup>
-            <ActionButton
-                fullWidth
-                onClick={() => { if (!!props.onFavorite) props.onFavorite() }}
-                loadable={props.favorite as LoadableContent}
-                color={"blue"}>
-                {props.application.favorite ? "Remove from My Apps" : "Add to My Apps"}
-            </ActionButton>
+    <VerticalButtonGroup>
+        <ActionButton
+            fullWidth
+            onClick={() => { if (!!props.onFavorite) props.onFavorite() }}
+            loadable={props.favorite as LoadableContent}
+            color={"blue"}>
+            {props.application.favorite ? "Remove from My Apps" : "Add to My Apps"}
+        </ActionButton>
 
-            <Link to={Pages.runApplication(props.application)}>
-                <OutlineButton fullWidth color={"blue"}>Run Application</OutlineButton>
-            </Link>
+        <Link to={Pages.runApplication(props.application)}>
+            <OutlineButton fullWidth color={"blue"}>Run Application</OutlineButton>
+        </Link>
 
-            {!props.application.description.website ? null :
-                <ExternalLink href={props.application.description.website}>
-                    <OutlineButton fullWidth color={"blue"}>Website</OutlineButton>
-                </ExternalLink>
-            }
-        </VerticalButtonGroup>
-    </>
+        {!props.application.description.website ? null :
+            <ExternalLink href={props.application.description.website}>
+                <OutlineButton fullWidth color={"blue"}>Website</OutlineButton>
+            </ExternalLink>
+        }
+    </VerticalButtonGroup>
 );
 
 const AppSection = styled(Box)`
@@ -184,23 +196,13 @@ const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<Appli
             {!props.previousVersions ? null :
                 <ApplicationCardContainer>
                     {props.previousVersions.items.map((it, idx) => (
-                        <SlimApplicationCard linkToRun app={it} key={idx} />
+                        <SlimApplicationCard app={it} key={idx} />
                     ))}
                 </ApplicationCardContainer>
             }
         </>
     )
 };
-
-const ButtonGroup = styled.div`
-    display: flex;
-    flex-direction: column;
-
-    & > * {
-        width: 100%;
-        margin-bottom: 8px;
-    }
-`;
 
 const TagStyle = styled(Link)`
     text-decoration: none;
@@ -277,7 +279,7 @@ function Information({ application }: { application: Application }) {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | UpdatePageTitleAction>): OperationProps => ({
-    onInit: async (name: string, version: string) => {
+    fetchApp: async (name: string, version: string) => {
         dispatch(updatePageTitle(`${name} v${version}`));
 
         const loadApplications = async () => {
@@ -299,8 +301,8 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | UpdatePageTitleAct
     }
 })
 
-const mapStateToProps = (state: ReduxObject): StateProps => {
-    return { ...state.applicationView };
-}
+const mapStateToProps = (state: ReduxObject): StateProps => ({
+    ...state.applicationView
+})
 
 export default connect(mapStateToProps, mapDispatchToProps)(View);

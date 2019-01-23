@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Link, Image, Markdown } from "ui-components";
-import { Relative, Box, Absolute, Text, Icon, Flex, RatingBadge, Card } from "ui-components";
+import { Link, Markdown } from "ui-components";
+import { Box, Absolute, Icon, Flex, RatingBadge } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import * as Pages from "./Pages";
 import { Application } from ".";
@@ -76,7 +76,6 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
             <Box mr={16} >
                 <AppLogo size={"32px"} hash={hashF(props.app.description.title)} />
             </Box>
-            {/* <img src={props.app.imageUrl} /> */}
             <strong>{props.app.description.title} v{props.app.description.info.version}</strong>
             <EllipsedText>
                 <Markdown
