@@ -6,40 +6,29 @@ import Box, { BoxProps } from "./Box"
 import theme from "./theme"
 
 import styled from "styled-components"
-import { Relative } from "ui-components";
+import { Relative, Flex } from "ui-components";
 
-const arrowShadow = (props: { top?: boolean }) => {
-  return props.top
-    ? {
-      'box-shadow':
-        '-9.66px 9.66px 8px 0 rgba(0,0,0,0.04), -4px 4px 4px 0 rgba(0,0,0,0.08)'
-    } : {
-      'box-shadow':
-        '-1.41px 1.41px 1px 0 rgba(0,0,0,0.01), -3.66px 3.66px 8px 0 rgba(0,0,0,0.04)'
-    }
-}
+const arrowShadow = (props: { top?: boolean }) => props.top ?
+  { 'box-shadow': '-9.66px 9.66px 8px 0 rgba(0,0,0,0.04), -4px 4px 4px 0 rgba(0,0,0,0.08)' } :
+  { 'box-shadow': '-1.41px 1.41px 1px 0 rgba(0,0,0,0.01), -3.66px 3.66px 8px 0 rgba(0,0,0,0.04)' }
 
-const arrowAlign = (props: { top?: boolean, left?: boolean, center?: boolean }) => {
-  return props.left
-    ? { left: '16px', 'margin-left': props.top ? 0 : '15px' }
-    : props.center
-      ? { left: '50%', 'margin-left': props.top ? '-7px' : '7px' }
-      : { right: '16px', 'margin-right': props.top ? '5px' : '-10px' }
-}
+const arrowAlign = (props: { top?: boolean, left?: boolean, center?: boolean }) => props.left ?
+  { left: '16px', 'margin-left': props.top ? 0 : '15px' }
+  : props.center
+    ? { left: '50%', 'margin-left': props.top ? '-7px' : '7px' }
+    : { right: '16px', 'margin-right': props.top ? '5px' : '-10px' }
 
-const arrowPosition = (props: { top?: boolean }) => {
-  return props.top
-    ? {
-      'transform-origin': '0 0',
-      transform: 'rotate(-45deg)',
-      bottom: '-10px'
-    }
-    : {
-      'transform-origin': '0 0',
-      transform: 'rotate(-225deg)',
-      top: '0'
-    }
-}
+const arrowPosition = (props: { top?: boolean }) => props.top ?
+  {
+    'transform-origin': '0 0',
+    transform: 'rotate(-45deg)',
+    bottom: '-10px'
+  }
+  : {
+    'transform-origin': '0 0',
+    transform: 'rotate(-225deg)',
+    top: '0'
+  }
 
 const arrow = (props: { top?: boolean }) => {
   return props.top
@@ -57,20 +46,19 @@ const tooltipPosition = (props: { top?: boolean }) =>
   props.top ? { bottom: '-8px' } : { top: 0 }
 
 
-const tooltipAlign = (props: { right: boolean, center: boolean }) => {
-  return props.right
+const tooltipAlign = (props: { right: boolean, center: boolean }) =>
+  props.right
     ? { right: 0 }
     : props.center
       ? { left: '50%', width: 'auto', transform: 'translateX(-50%)' }
       : null
-}
 
 interface TooltipContentProps extends BoxProps {
   bg?: any
 };
 
 const TooltipContent = styled(Box) <TooltipContentProps>`
-  display: inline;
+  display: none;
   box-shadow: ${({ theme }) => theme.shadows["sm"]};
   font-size: ${({ theme }) => theme.fontSizes[0]}px;
   position: absolute;
@@ -113,15 +101,24 @@ const defaultProps = {
   zIndex: 9999
 }
 
-const Tooltip = ({ children, ...props }: any) => {
+const Tooltip = ({ children, ...props }) => {
   return (
-    <Relative zIndex={props.zIndex}>
-      <TooltipContent p={2} mb={3} mt={2} {...props}>
-        {children}
-      </TooltipContent>
-    </Relative>
+    <VisibleOnHover>
+      <Flex>{props.trigger}</Flex>
+      <Relative zIndex={props.zIndex}>
+        <TooltipContent p={2} mb={3} mt={2} {...props}>
+          {children}
+        </TooltipContent>
+      </Relative>
+    </VisibleOnHover>
   )
 }
+
+const VisibleOnHover = styled(Box)`
+  & > ${Flex}:hover + ${Relative} > ${TooltipContent} {
+    display: block;
+  }
+`
 
 Tooltip.defaultProps = defaultProps;
 

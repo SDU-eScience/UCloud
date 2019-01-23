@@ -8,11 +8,12 @@ import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { fileTablePage } from "Utilities/FileUtilities";
-import { ExternalLink, RatingBadge, Hide } from "ui-components";
+import { ExternalLink, RatingBadge, Tooltip } from "ui-components";
 import { RBox } from "ui-components";
 import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
 import { FlexCProps } from "./Flex";
+import { successNotification } from "UtilityFunctions";
 
 
 const SidebarElementContainer = styled(Flex)`
@@ -146,10 +147,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate())
     return (
-        <SidebarContainer color="text" flexDirection="column"
-            width={190}
-        // css={ responsiveState!.greaterThan.xl ? null : HideText }
-        >
+        <SidebarContainer color="text" flexDirection="column" width={190}>
             {sidebar.map((category, categoryIdx) =>
                 <React.Fragment key={categoryIdx}>
                     {category.items.map(({ icon, label, to }: MenuElement) => (
@@ -165,7 +163,9 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
             {process.env.NODE_ENV === "development" ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
 
             <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username || ""}>
-                <EllipsedText width={"140px"}>{Cloud.username}</EllipsedText>
+                <Tooltip top mb="35px" trigger={<EllipsedText cursor="pointer" onClick={() => copyToClipboard(Cloud.username, "Username copied to clipboard")} width={"140px"}>{Cloud.username}</EllipsedText>}>
+                    Copy to clipboard
+                </Tooltip>
             </TextLabel>
 
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
@@ -174,10 +174,19 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
                 </TextLabel>
             </ExternalLink>
             <Box mb="10px" />
-
         </SidebarContainer>
     );
 };
+
+function copyToClipboard(value: string | undefined, message: string) {
+    const input = document.createElement("input");
+    input.value = value || "";
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand("copy");
+    document.body.removeChild(input);
+    successNotification(message);
+}
 
 const mapStateToProps = ({ responsive }: ReduxObject): SidebarStateProps => ({
     responsiveState: responsive
