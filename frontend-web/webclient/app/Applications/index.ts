@@ -160,6 +160,8 @@ export interface RunAppState {
     application?: Application
     parameterValues: {}
     schedulingOptions: JobSchedulingOptionsForInput
+    favorite: boolean
+    favoriteLoading: boolean
 }
 
 export interface RunAppProps {

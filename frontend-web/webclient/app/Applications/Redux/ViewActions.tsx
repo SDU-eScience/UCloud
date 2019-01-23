@@ -2,6 +2,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { PayloadAction, Page } from "Types";
 import { Application } from "Applications";
 import { LoadableEvent, unwrapCall } from "LoadableContent";
+import { hpcFavoriteApp } from "Utilities/ApplicationUtilities";
 
 export enum Tag {
     RECEIVE_APP = "VIEW_APP_RECEIVE_APP",
@@ -33,6 +34,6 @@ export const fetchPreviousVersions = async (name: string): Promise<ReceivePrevio
 export const favoriteApplication = async (name: string, version: string): Promise<ReceiveFavorite> => ({
     type: Tag.RECEIVE_FAVORITE,
     payload: await unwrapCall(
-        Cloud.post(`/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`)
+        Cloud.post(hpcFavoriteApp(name, version))
     )
 });
