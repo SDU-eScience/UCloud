@@ -58,8 +58,10 @@ private const val OBJECT_IS_REMOTE = 66
 
 fun throwExceptionBasedOnStatus(status: Int): Nothing {
     when (status.absoluteValue) {
-        OBJECT_IS_REMOTE, DIRECTORY_NOT_EMPTY, OPERATION_NOT_PERMITED, NOT_A_DIRECTORY, IS_A_DIRECTORY,
+        OBJECT_IS_REMOTE, DIRECTORY_NOT_EMPTY, OPERATION_NOT_PERMITED, NOT_A_DIRECTORY,
         INVALID_ARGUMENT -> throw FSException.BadRequest()
+
+        IS_A_DIRECTORY -> throw FSException.IsDirectoryConflict()
 
         NO_SUCH_FILE_OR_DIR, PROTOCOL_NOT_SUPPORTED -> throw FSException.NotFound()
 
@@ -83,6 +85,7 @@ sealed class FSException(why: String, httpStatusCode: HttpStatusCode) : RPCExcep
     class PermissionException : FSException("Permission denied", HttpStatusCode.Forbidden)
     class CriticalException(why: String) : FSException("Critical exception: $why", HttpStatusCode.InternalServerError)
     class IOException : FSException("Internal server error (IO)", HttpStatusCode.InternalServerError)
+    class IsDirectoryConflict : FSException("File cannot overwrite directory.", HttpStatusCode.Conflict)
 }
 
 suspend inline fun RESTHandler<*, *, CommonErrorMessage, *>.tryWithFS(

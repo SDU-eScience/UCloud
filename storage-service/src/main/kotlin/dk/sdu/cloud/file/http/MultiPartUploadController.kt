@@ -56,7 +56,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                 val upload = req.upload
                 if (upload != null) {
                     commandRunnerFactory.withContext(owner) { ctx ->
-                        println(req.policy)
                         val policy = req.policy ?: WriteConflictPolicy.OVERWRITE
 
                         fs.write(ctx, req.location, policy) {
