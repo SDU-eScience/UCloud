@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link, Markdown } from "ui-components";
-import { Box, Absolute, Icon, Flex, RatingBadge } from "ui-components";
+import { Box, Absolute, Icon, Flex, RatingBadge, Text } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import * as Pages from "./Pages";
 import { Application } from ".";
@@ -549,7 +549,10 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
                 <AppLogo size={"48px"} hash={hash} />
                 <Flex flexDirection={"column"} ml="10px">
-                    <Heading.h4>{appDesc.title}</Heading.h4>
+                    <Flex>
+                        <Heading.h4>{appDesc.title}</Heading.h4>
+                        <Text ml="0.4em" mt="3px" color="gray">v{appDesc.info.version}</Text>
+                    </Flex>
                     <EllipsedText width={200} title={`by ${appDesc.authors.join(", ")} `} color="gray">
                         by {appDesc.authors.join(", ")}
                     </EllipsedText>
