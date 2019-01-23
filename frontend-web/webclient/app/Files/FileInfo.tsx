@@ -80,7 +80,7 @@ class FileInfo extends React.Component<FileInfo> {
                                     <ActivityFeed activity={activity.items} />
                                 </Card>
                             </Flex>) : null}
-                        <ShareList byPath={file.path} />
+                        <Box width={0.88}><ShareList byPath={file.path} /></Box>
                         {loading ? <LoadingIcon size={18} /> : null}
                     </>}
             />

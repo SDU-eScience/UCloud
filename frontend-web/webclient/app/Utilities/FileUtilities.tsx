@@ -1,6 +1,6 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import SDUCloud from "Authentication/lib";
-import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType, WriteConflictPolicy } from "Files";
+import { File, MoveCopyOperations, Operation, SortOrder, SortBy, PredicatedOperation, FileType } from "Files";
 import { Page } from "Types";
 import { History } from "history";
 import swal, { SweetAlertResult } from "sweetalert2";
@@ -8,31 +8,34 @@ import * as UF from "UtilityFunctions";
 import { projectViewPage } from "Utilities/ProjectUtilities";
 import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
+import { UploadPolicy } from "Uploader/api";
 
 export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCloud): void {
     let iteration = 0;
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);
-    operations.setFileSelectorCallback(async (file: File) => {
-        const newPath = resolvePath(file.path);
+    operations.setFileSelectorCallback(async (targetPathFolder: File) => {
+        const newPath = resolvePath(targetPathFolder.path);
         operations.showFileSelector(false);
         operations.setFileSelectorCallback(undefined);
         operations.setDisallowedPaths([]);
-        let yesToAll = false;
+        let applyToAll = false;
+        let policy = UploadPolicy.REJECT;
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
             const currentPath = resolvePath(f.path);
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
             const exists = await checkIfFileExists(newPathForFile, cloud);
-            let rewrite = false;
-            if (exists && !yesToAll) {
-                const result = await allowRewritePolicy(newPathForFile, cloud.homeFolder, files.length);
-                rewrite = !!result.value;
-                yesToAll = UF.elementValue("yesToAll");
+            let allowRewrite = false;
+            if (exists && !applyToAll) {
+                const result = await rewritePolicy(newPathForFile, cloud.homeFolder, files.length);
+                allowRewrite = !!result.value;
+                policy = UF.selectValue("policy") as UploadPolicy;
+                if (files.length > 1) applyToAll = UF.elementValue("applyToAll");
             }
-            if (yesToAll) rewrite = true;
-            if ((exists && rewrite) || !exists) {
-                cloud.post(`/files/copy?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`, { policy: rewrite ? WriteConflictPolicy.OVERWRITE : null })
+            if (applyToAll) allowRewrite = true;
+            if ((exists && allowRewrite) || !exists) {
+                cloud.post(copyFileQuery(currentPath, newPathForFile, policy))
                     .then(() => iteration++)
                     .catch(() => UF.failureNotification(`An error occured copying file ${currentPath}.`))
                     .finally(() => {
@@ -52,24 +55,26 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
     operations.setDisallowedPaths([parentPath].concat(files.map(f => f.path)));
     operations.setFileSelectorCallback(async (targetPathFolder: File) => {
         const newPath = resolvePath(targetPathFolder.path);
-        let yesToAll = false;
+        let applyToAll = false;
+        let policy = UploadPolicy.REJECT;
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
             const currentPath = resolvePath(f.path);
             const newPathForFile = `${UF.removeTrailingSlash(newPath)}/${getFilenameFromPath(currentPath)}`;
             const exists = await checkIfFileExists(newPathForFile, cloud);
-            let rewrite = false;
-            if (exists && !yesToAll) {
-                const result = await allowRewritePolicy(newPathForFile, cloud.homeFolder, files.length);
-                rewrite = !!result.value;
-                yesToAll = UF.elementValue("yesToAll");
+            let allowRewrite = false;
+            if (exists && !applyToAll) {
+                const result = await rewritePolicy(newPathForFile, cloud.homeFolder, files.length);
+                allowRewrite = !!result.value;
+                policy = UF.selectValue("policy") as UploadPolicy;
+                if (files.length > 1) applyToAll = UF.elementValue("applyToAll");
             }
-            if (yesToAll) rewrite = yesToAll;
-            if ((exists && rewrite) || !exists) {
-                // FIXME: Does so for each file moved.
-                cloud.post(`/files/move?path=${encodeURIComponent(currentPath)}&newPath=${encodeURIComponent(newPathForFile)}`, { policy: rewrite ? WriteConflictPolicy.OVERWRITE : null }).then(() => {
+            if (applyToAll) allowRewrite = applyToAll;
+            if ((exists && allowRewrite) || !exists) {
+                cloud.post(moveFileQuery(currentPath, newPathForFile, policy)).then(() => {
                     const fromPath = getFilenameFromPath(currentPath);
                     const toPath = replaceHomeFolder(newPathForFile, cloud.homeFolder);
+                    // FIXME: Does so for each file moved.
                     UF.successNotification(`${fromPath} moved to ${toPath}`);
                     operations.fetchPageFromPath(newPathForFile);
                 }).catch(() => UF.failureNotification("An error occurred, please try again later"));
@@ -82,21 +87,27 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
 };
 
 
-const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<boolean> => {
+export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<boolean> => {
     try {
         await cloud.get(statFileQuery(path))
         return true;
     } catch (e) {
+        // FIXME: in the event of other than 404
         return !(e.request.status === 404);
     }
 }
 
-function allowRewritePolicy(path: string, homeFolder: string, fileCount: number): Promise<SweetAlertResult> {
+function rewritePolicy(path: string, homeFolder: string, fileCount: number): Promise<SweetAlertResult> {
     return swal({
         title: "File exists",
         text: ``,
-        html: `<div>${replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it?</div><br/>
-                <label><input id="yesToAll" type="checkbox"/> Yes to all</label>`,
+        html: `<div>${replaceHomeFolder(path, homeFolder)} already exists. Do you want to overwrite it ?</div> <br/>
+                    <select id="policy" defaultValue="RENAME">
+                        <option value="RENAME">Rename</option>
+                        <option value="OVERWRITE">Overwrite</option>
+                    </select>
+                ${ fileCount > 1 ? `<br/>
+                <label><input id="applyToAll" type="checkbox"/> Apply to all</label>` : ""} `,
         allowEscapeKey: true,
         allowOutsideClick: true,
         allowEnterKey: false,
@@ -133,7 +144,7 @@ export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) 
 
 export const createFileLink = (file: File, cloud: SDUCloud, pageFromPath: (p: string) => void) => {
     const fileName = getFilenameFromPath(file.path);
-    const linkPath = file.path.replace(fileName, `Link to ${fileName}`)
+    const linkPath = file.path.replace(fileName, `Link to ${fileName} `)
     cloud.post("/files/create-link", {
         linkTargetPath: file.path,
         linkPath: linkPath
@@ -333,6 +344,18 @@ export const fileLookupQuery = (path: string, itemsPerPage: number = 25, order: 
 export const advancedFileSearch = "/file-search/advanced"
 
 export const recentFilesQuery = "/files/stats/recent";
+
+export function moveFileQuery(path: string, newPath: string, policy?: UploadPolicy): string {
+    let query = `/files/copy?path=${encodeURIComponent(path)}&newPath=${encodeURIComponent(newPath)}`;
+    if (policy) query += `&policy=${policy}`;
+    return query;
+}
+
+export function copyFileQuery(path: string, newPath: string, policy: UploadPolicy): string {
+    let query = `/files/copy?path=${encodeURIComponent(path)}&newPath=${encodeURIComponent(newPath)}`;
+    if (policy) query += `&policy=${policy}`;
+    return query;
+}
 
 export const statFileQuery = (path: string) => `/files/stat?path=${encodeURIComponent(path)}`;
 

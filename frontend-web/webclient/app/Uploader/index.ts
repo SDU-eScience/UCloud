@@ -1,6 +1,8 @@
 import Uploader from "./Uploader";
 export { Uploader };
 import { Sensitivity } from "DefaultObjects";
+import { File as SDUCloudFile } from "Files";
+import { UploadPolicy } from "./api";
 
 
 export interface Upload {
@@ -10,6 +12,8 @@ export interface Upload {
     extractArchive: boolean
     sensitivity: Sensitivity
     uploadXHR?: XMLHttpRequest
+    conflictFile?: SDUCloudFile
+    resolution: UploadPolicy,
     uploadEvents: { progressInBytes: number, timestamp: number }[]
 }
 

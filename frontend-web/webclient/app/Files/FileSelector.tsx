@@ -152,8 +152,8 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
     const relativeFolders: File[] = [];
 
     const p = props.path.startsWith("/") ? addTrailingSlash(props.path) : `/${addTrailingSlash(props.path)}`
-    if (p !== Cloud.homeFolder) relativeFolders.push(newMockFolder(`${props.path}/..`, false));
-    if (canSelectFolders) relativeFolders.push(newMockFolder(`${props.path}/.`, false));
+    if (p !== Cloud.homeFolder) relativeFolders.push(newMockFolder(`${addTrailingSlash(props.path)}..`, false));
+    if (canSelectFolders) relativeFolders.push(newMockFolder(`${addTrailingSlash(props.path)}/.`, false));
     const ops: FileOperation[] = [];
     if (canSelectFolders) {
         ops.push({

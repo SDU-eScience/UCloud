@@ -116,24 +116,28 @@ export default class SDUCloud {
                 req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
                 req.responseType = "text"; // Explicitly set, otherwise issues with empty response
                 req.onload = () => {
-                    let responseContentType = req.getResponseHeader("content-type");
-                    let parsedResponse = req.response.length === 0 ? "{}" : req.response;
+                    try {
+                        let responseContentType = req.getResponseHeader("content-type");
+                        let parsedResponse = req.response.length === 0 ? "{}" : req.response;
 
-                    // JSON Parsing
-                    if (responseContentType !== null) {
-                        if (responseContentType.indexOf("application/json") !== -1 ||
-                            responseContentType.indexOf("application/javascript") !== -1) {
-                            parsedResponse = JSON.parse(parsedResponse);
+                        // JSON Parsing
+                        if (responseContentType !== null) {
+                            if (responseContentType.indexOf("application/json") !== -1 ||
+                                responseContentType.indexOf("application/javascript") !== -1) {
+                                parsedResponse = JSON.parse(parsedResponse);
+                            }
                         }
-                    }
 
-                    if (inSuccessRange(req.status)) {
-                        resolve({
-                            response: parsedResponse,
-                            request: req,
-                        });
-                    } else {
-                        reject({ request: req, response: parsedResponse });
+                        if (inSuccessRange(req.status)) {
+                            resolve({
+                                response: parsedResponse,
+                                request: req,
+                            });
+                        } else {
+                            reject({ request: req, response: parsedResponse });
+                        }
+                    } catch (e) {
+                        reject({ request: e.req, response: e.response })   
                     }
                 };
                 if (body) {
@@ -296,7 +300,7 @@ export default class SDUCloud {
 
     createOneTimeTokenWithPermission(permission): Promise<any> {
         return this.receiveAccessTokenOrRefreshIt()
-            .then((token) => {
+            .then(token => {
                 let oneTimeToken = `${this.context}${this.authContext}/request/?audience=${permission}`;
                 return new Promise((resolve, reject) => {
                     let req = new XMLHttpRequest();
