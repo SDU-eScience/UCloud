@@ -367,9 +367,7 @@ interface AccessRightsDisplayProps {
     read?: boolean
     write?: boolean
     floated?: boolean
-
-    className?: string
-
+    
     onRightsToggle?: (aR: AccessRight) => void
     onAcceptChange?: () => void
 }
