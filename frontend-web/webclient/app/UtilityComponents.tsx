@@ -32,7 +32,7 @@ export function Arrow({ name }: Arrow) {
     return null;
 }
 
-interface RefreshButton { loading: boolean, onClick: () => void, className?: string }
+interface RefreshButton { loading: boolean, onClick: () => void }
 export const RefreshButton = ({ loading, onClick }: RefreshButton) => (
     <Icon name="refresh" ml="10px" spin={loading} onClick={() => onClick()}/>
 );
