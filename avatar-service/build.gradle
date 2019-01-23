@@ -12,9 +12,9 @@ repositories {
 
 dependencies {
     // Internal services
-    compile 'dk.sdu.cloud:service-common:0.23.1'
+    compile 'dk.sdu.cloud:service-common:0.23.3'
     compile 'dk.sdu.cloud:auth-api:1.14.0'
-    testCompile 'dk.sdu.cloud:service-common-test:0.23.1'
+    testCompile 'dk.sdu.cloud:service-common-test:0.23.3'
 }
 
 sduCloud.createTasksForApiJar("avatar", [])

@@ -2,6 +2,7 @@ package dk.sdu.cloud.project.auth.services
 
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.project.api.ProjectDescriptions
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
@@ -144,6 +145,13 @@ class TokensTest {
             ProjectDescriptions,
             { ProjectDescriptions.viewMemberInProject },
             { TestCallResult.Ok(ViewMemberInProjectResponse(ProjectMember(it.username, ProjectRole.USER))) }
+        )
+
+
+        CloudMock.mockCallSuccess(
+            AuthDescriptions,
+            { AuthDescriptions.tokenExtension },
+            TokenExtensionResponse(accessToken, null, null)
         )
 
         val result = tokenRefresher.refreshTokenForUser("myuser", micro.authenticatedCloud, projectA)

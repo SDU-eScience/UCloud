@@ -7,11 +7,11 @@ mainClassName = "dk.sdu.cloud.accounting.compute.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.5/sdu-cloud.gradle"
 
 dependencies {
-    compile 'dk.sdu.cloud:service-common:0.23.1'
+    compile 'dk.sdu.cloud:service-common:0.23.3'
     compile "dk.sdu.cloud:app-api:0.11.9-SNAPSHOT"
     compile "dk.sdu.cloud:auth-api:1.14.0"
     compile "dk.sdu.cloud:accounting-api:0.3.5"
-    testCompile 'dk.sdu.cloud:service-common-test:0.23.1'
+    testCompile 'dk.sdu.cloud:service-common-test:0.23.3'
 }
 
 sduCloud.createTasksForApiJar(

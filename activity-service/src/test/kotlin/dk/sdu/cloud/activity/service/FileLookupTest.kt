@@ -27,7 +27,7 @@ class FileLookupTest{
         CloudMock.mockCallSuccess(
             AuthDescriptions,
             {AuthDescriptions.tokenExtension},
-            TokenExtensionResponse("token")
+            TokenExtensionResponse("token", null, null)
         )
 
         CloudMock.mockCallSuccess(
