@@ -35,7 +35,6 @@ class Files extends React.Component<FilesProps> {
         props.setUploaderCallback(
             (path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)
         );
-
         props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
@@ -78,8 +77,8 @@ class Files extends React.Component<FilesProps> {
         const nextPath = this.urlPathFromProps(nextProps);
         if (nextProps.path !== nextPath && !loading) {
             fetchFiles(nextPath, page.itemsPerPage, 0, sortOrder, sortBy);
+            return false;
         }
-        // FIXME: Should this ALWAYS return true?
         return true;
     }
 
