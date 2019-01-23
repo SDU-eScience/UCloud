@@ -5,7 +5,7 @@ import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, MaxTime, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput } from "."
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput } from "."
 import { Application } from ".";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
@@ -13,7 +13,7 @@ import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, Vertica
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter } from "./ParameterWidgets";
-import { extractParameters, hpcFavoriteApp } from "Utilities/ApplicationUtilities";
+import { extractParameters, hpcFavoriteApp, hpcJobQueryPost } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 
@@ -87,7 +87,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         this.setState(() => ({ jobSubmitted: true }));
 
-        Cloud.post("/hpc/jobs", job).then(req => {
+        Cloud.post(hpcJobQueryPost, job).then(req => {
             inSuccessRange(req.request.status) ?
                 this.props.history.push(`/applications/results/${req.response.jobId}`) :
                 this.setState(() => ({ error: "An error occured", jobSubmitted: false }))
@@ -117,7 +117,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const { name, version } = this.state.application.description.info;
         this.setState(() => ({ favoriteLoading: true }));
         this.state.promises.makeCancelable(Cloud.post(hpcFavoriteApp(name, version))).promise
-            .then(it => this.setState(() => ({ favorite: !this.state.favorite })))
+            .then(() => this.setState(() => ({ favorite: !this.state.favorite })))
             .catch(it => this.setState(() => ({ error: errorMessageOrDefault(it, "An error occurred") })))
             .then(() => this.setState(() => ({ favoriteLoading: false })), () => this.setState(() => ({ favoriteLoading: false })))
 

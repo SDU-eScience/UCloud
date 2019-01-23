@@ -1,8 +1,9 @@
-import { infoNotification, failureNotification } from "UtilityFunctions";
+import { failureNotification } from "UtilityFunctions";
 import { Application, ParameterTypes } from "Applications";
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
 
+export const hpcJobQueryPost = "/hpc/jobs";
 
 export const hpcJobQuery = (id: string, stdoutLine: number, stderrLine: number, stdoutMaxLines: number = 1000, stderrMaxLines: number = 1000) =>
     `/hpc/jobs/follow/${encodeURIComponent(id)}?stdoutLineStart=${stdoutLine}&stdoutMaxLines=${stdoutMaxLines}&stderrLineStart=${stderrLine}&stderrMaxLines=${stderrMaxLines}`;
@@ -23,7 +24,6 @@ export const hpcApplicationsSearchQuery = (query: string, page: number, itemsPer
 
 export const hpcApplicationsTagSearchQuery = (tag: string, page: number, itemsPerPage: number) =>
     `/hpc/apps/searchTags?query=${encodeURIComponent(tag)}&page=${page}&itemsPerPage=${itemsPerPage}`;
-
 
 /**
 * Favorites an application. 
