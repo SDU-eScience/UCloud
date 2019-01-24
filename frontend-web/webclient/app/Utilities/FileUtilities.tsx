@@ -553,7 +553,6 @@ export const shareFiles = (files: File[], setLoading: () => void, cloud: SDUClou
         if (UF.elementValue("read")) rights.push("READ")
         if (UF.elementValue("read_edit")) { rights.push("READ"); rights.push("WRITE"); }
         let iteration = 0;
-        setLoading();
         files.map(f => f.path).forEach((path, i, paths) => {
             const body = {
                 sharedWith: input.value,
