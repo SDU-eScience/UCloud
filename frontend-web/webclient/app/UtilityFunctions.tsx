@@ -189,6 +189,8 @@ export const extensionType = (ext: string): ExtensionType => {
         case "hh":
         case "hpp":
         case "html":
+        case "lhs":
+        case "hs":
         case "sql":
         case "sh":
         case "iol":
@@ -344,7 +346,7 @@ export function sleep(ms: number): Promise<void> {
 
 export function sortByToPrettierString(sortBy: SortBy): string {
     switch (sortBy) {
-        case "ACL":
+        case SortBy.ACL:
             return "Members";
         default:
             return prettierString(sortBy);
