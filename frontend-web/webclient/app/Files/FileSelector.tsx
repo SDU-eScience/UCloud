@@ -15,6 +15,7 @@ import { Spacer } from "ui-components/Spacer";
 import { FilesTable } from "./FilesTable";
 import SDUCloud from "Authentication/lib";
 import { addTrailingSlash } from "UtilityFunctions";
+import styled from "styled-components";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props: Readonly<FileSelectorProps>) {
@@ -68,7 +69,8 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         const removeButton = this.props.remove ? (<RemoveButton onClick={() => this.props.remove!()} />) : null;
         return (
             <Flex>
-                <Input
+                <FileSelectorInput
+                    readOnly
                     required={this.props.isRequired}
                     placeholder="No file selected"
                     value={replaceHomeFolder(path, Cloud.homeFolder)}
@@ -94,6 +96,10 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             </Flex>)
     }
 }
+
+const FileSelectorInput = styled(Input)`
+    cursor: pointer;
+`;
 
 const FileSelectorModalStyle = {
     content: {
