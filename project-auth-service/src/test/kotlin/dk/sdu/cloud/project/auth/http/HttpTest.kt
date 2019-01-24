@@ -2,6 +2,7 @@ package dk.sdu.cloud.project.auth.http
 
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.project.api.ProjectDescriptions
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
@@ -86,6 +87,12 @@ class HttpTest {
             AuthDescriptions,
             { AuthDescriptions.refresh },
             AccessToken(token)
+        )
+
+        CloudMock.mockCallSuccess(
+            AuthDescriptions,
+            { AuthDescriptions.tokenExtension },
+            TokenExtensionResponse(token, null, null)
         )
 
         val response = sendJson(

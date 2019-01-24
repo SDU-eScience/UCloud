@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Icon, FtIcon, Heading, Absolute, Flex, Text, Label, Checkbox, Input } from "ui-components";
+import { Icon, FtIcon, Absolute, Flex, Text, Label, Checkbox, Input } from "ui-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
 import { FtIconProps } from "UtilityFunctions";
 import { EntriesPerPageSelector } from "Pagination";
@@ -23,7 +23,7 @@ export const FileIcon = ({ shared = false, link = false, fileIcon }: FileIconPro
 
 const RelativeFlex = styled(Flex)`
     position: relative;
-`
+`;
 
 interface Arrow { name: "arrowUp" | "arrowDown" | undefined}
 export function Arrow({ name }: Arrow) {
@@ -36,12 +36,6 @@ interface RefreshButton { loading: boolean, onClick: () => void }
 export const RefreshButton = ({ loading, onClick }: RefreshButton) => (
     <Icon name="refresh" ml="10px" spin={loading} onClick={() => onClick()}/>
 );
-
-export const WebSocketSupport = () =>
-    !("WebSocket" in window) ?
-        (<Heading>
-            <small>WebSockets are not supported in this browser. Notifications won't be updated automatically.</small>
-        </Heading>) : null;
 
 export class PP extends React.Component<{ visible: boolean}, {duration: number}> {
 

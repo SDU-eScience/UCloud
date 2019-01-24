@@ -105,6 +105,11 @@ export const initResponsive = (): ResponsiveReduxObject => ({
     is: {},
 });
 
+export interface FilePreviewReduxState {
+    file?: File
+    error?: string
+}
+
 export interface FilesReduxObject extends ComponentWithPage<File> {
     sortOrder: SortOrder
     sortBy: SortBy
@@ -214,7 +219,7 @@ interface LegacyReduxObject {
     detailedProjectSearch: DetailedProjectSearchReduxState
     fileInfo: FileInfoReduxObject
     avatar: AvatarReduxObject
-
+    filePreview: FilePreviewReduxState
     responsive?: ResponsiveReduxObject
 }
 
@@ -273,9 +278,14 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     ...ApplicationRedux.init(),
     ...AccountingRedux.init(),
     avatar: initAvatar(),
+    filePreview: initFilePreview(),
     responsive: undefined,
 });
 
+export const initFilePreview = () => ({
+    file: undefined,
+    error: undefined
+});
 
 type AvatarReduxObject = typeof defaultAvatar;
 export const initAvatar = () => defaultAvatar;

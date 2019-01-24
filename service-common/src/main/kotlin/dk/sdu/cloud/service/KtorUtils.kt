@@ -9,13 +9,17 @@ import io.ktor.application.ApplicationCall
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
+import io.ktor.features.CallId
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.DefaultHeaders
 import io.ktor.features.XForwardedHeaderSupport
+import io.ktor.features.callIdMdc
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.request.ApplicationRequest
+import io.ktor.request.header
 import io.ktor.request.httpMethod
 import io.ktor.request.path
 import io.ktor.request.uri
@@ -29,13 +33,15 @@ import io.ktor.util.pipeline.PipelineContext
 import io.ktor.util.toMap
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.util.*
 
 private val utilsLog = LoggerFactory.getLogger("dk.sdu.cloud.service.KtorUtilsKt")
 internal val healthLog = LoggerFactory.getLogger("dk.sdu.cloud.service.HealthCheck")
 
 fun Application.installDefaultFeatures(micro: Micro) {
     // Default ktor features
-    install(CallLogging)
+
+
     install(DefaultHeaders)
     install(XForwardedHeaderSupport)
     install(ContentNegotiation) {
@@ -67,6 +73,12 @@ fun Application.installDefaultFeatures(micro: Micro) {
     // Basic interceptors
     interceptJobId(requireJobId = !micro.developmentModeEnabled)
     interceptHealthCheck()
+
+    install(CallLogging) {
+        mdc("request-id") { call ->
+            call.request.header("Job-Id")
+        }
+    }
 }
 
 private fun Application.interceptHealthCheck() {

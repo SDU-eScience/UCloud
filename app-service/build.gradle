@@ -17,12 +17,12 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
     compile group: 'com.jcraft', name: 'jsch', version: '0.1.54'
 
-    compile 'dk.sdu.cloud:service-common:0.23.1'
+    compile 'dk.sdu.cloud:service-common:0.23.3'
     compile "dk.sdu.cloud:file-api:0.17.7"
     compile "dk.sdu.cloud:auth-api:1.14.0"
 
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
-    testCompile 'dk.sdu.cloud:service-common-test:0.23.1'
+    testCompile 'dk.sdu.cloud:service-common-test:0.23.3'
 }
 
 sduCloud.createTasksForApiJar(

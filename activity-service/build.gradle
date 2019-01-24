@@ -7,10 +7,10 @@ mainClassName = "dk.sdu.cloud.activity.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.5/sdu-cloud.gradle"
 
 dependencies {
-    compile "dk.sdu.cloud:service-common:0.23.1"
+    compile "dk.sdu.cloud:service-common:0.23.3"
     compile "dk.sdu.cloud:auth-api:1.14.0"
-    compile "dk.sdu.cloud:file-api:0.17.0"
+    compile "dk.sdu.cloud:file-api:0.17.7"
     compile "dk.sdu.cloud:indexing-api:1.6.0-SNAPSHOT"
 
-    testCompile "dk.sdu.cloud:service-common-test:0.23.1"
+    testCompile "dk.sdu.cloud:service-common-test:0.23.3"
 }

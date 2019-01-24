@@ -37,7 +37,7 @@ interface ZenodoPublishOperations {
 }
 
 class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOperations, ZenodoPublishState> {
-    constructor(props) {
+    constructor(props: Readonly<ZenodoPublishProps & ZenodoPublishOperations>) {
         super(props);
         this.state = {
             files: [""],
@@ -147,14 +147,16 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
 const FileSelections = ({ files, handleFileSelection, removeFile }: { files: string[], handleFileSelection: Function, removeFile: Function }) => (
     <>
         {files.map((file, index) =>
-            (<FileSelector
-                key={index}
-                isRequired={files.length === 1}
-                path={file}
-                onFileSelect={(chosenFile: File) => handleFileSelection(chosenFile, index)}
-                allowUpload={false}
-                remove={files.length > 1 ? () => removeFile(index) : undefined}
-            />))}
+            (<Box mb="0.3em">
+                <FileSelector
+                    key={index}
+                    isRequired={files.length === 1}
+                    path={file}
+                    onFileSelect={(chosenFile: File) => handleFileSelection(chosenFile, index)}
+                    allowUpload={false}
+                    remove={files.length > 1 ? () => removeFile(index) : undefined}
+                />
+            </Box>))}
     </>
 );
 

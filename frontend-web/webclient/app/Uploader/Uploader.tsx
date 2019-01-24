@@ -165,10 +165,20 @@ class Uploader extends React.Component<UploaderProps> {
     }
 
     private readonly modalStyle = {
+        // https://github.com/reactjs/react-modal/issues/62
         content: {
-            top: "80px",
-            margin: "0 auto",
-            maxWidth: "80%"
+            borderRadius: "4px",
+            bottom: "auto",
+            minHeight: "10rem",
+            left: "50%",
+            padding: "2rem",
+            position: "fixed",
+            right: "auto",
+            top: "50%",
+            transform: "translate(-50%,-50%)",
+            minWidth: "20rem",
+            width: "80%",
+            maxWidth: "60rem"
         }
     }
 

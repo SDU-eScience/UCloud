@@ -14,7 +14,6 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupResponse
@@ -67,7 +66,7 @@ class ShareServiceTest {
     private data class CreateMock(
         val owner: SecurityPrincipal = TestUsers.user,
         val recipient: SecurityPrincipal = TestUsers.user2,
-        val sharePath: String = joinPath(homeDirectory(owner.username), "to_share"),
+        val sharePath: String = joinPath("/home/${owner.username}", "to_share"),
         val rights: Set<AccessRight> = setOf(AccessRight.READ),
 
         val statResult: TestCallResult<StorageFile, CommonErrorMessage> = TestCallResult.Ok(
@@ -134,7 +133,7 @@ class ShareServiceTest {
     private data class AcceptMock(
         val owner: SecurityPrincipal = TestUsers.user,
         val recipient: SecurityPrincipal = TestUsers.user2,
-        val sharePath: String = joinPath(homeDirectory(owner.username), "to_share"),
+        val sharePath: String = joinPath("/home/${owner.username}", "to_share"),
 
         val extensionResult: TestCallResult<OptionalAuthenticationTokens, CommonErrorMessage> = TestCallResult.Ok(
             OptionalAuthenticationTokens(TokenValidationMock.createTokenForPrincipal(owner), "csrf", "refresh")
@@ -143,7 +142,7 @@ class ShareServiceTest {
         val createLinkResult: TestCallResult<StorageFile, CommonErrorMessage> = TestCallResult.Ok(
             StorageFile(
                 FileType.DIRECTORY,
-                path = joinPath(homeDirectory(recipient.username), "to_share"),
+                path = joinPath("/home/${owner.username}", "to_share"),
                 link = true,
                 ownerName = recipient.username
             )
@@ -185,7 +184,7 @@ class ShareServiceTest {
     private data class DeleteMock(
         val owner: SecurityPrincipal = TestUsers.user,
         val recipient: SecurityPrincipal = TestUsers.user2,
-        val sharePath: String = joinPath(homeDirectory(owner.username), "to_share"),
+        val sharePath: String = joinPath("/home/${owner.username}", "to_share"),
 
         val updateAclResult: TestCallResult<Unit, CommonErrorMessage> = TestCallResult.Ok(Unit),
 
@@ -194,7 +193,7 @@ class ShareServiceTest {
         ),
 
         val linkLookup: TestCallResult<ReverseLookupResponse, CommonErrorMessage> = TestCallResult.Ok(
-            ReverseLookupResponse(listOf(joinPath(homeDirectory(recipient.username), "to_share")))
+            ReverseLookupResponse(listOf(joinPath("/home/${owner.username}", "to_share")))
         ),
 
         val deleteFileResult: TestCallResult<LongRunningResponse<Unit>, CommonErrorMessage> = TestCallResult.Ok(
