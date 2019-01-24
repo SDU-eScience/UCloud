@@ -509,7 +509,6 @@ export function getFilenameFromPath(path: string): string {
 }
 
 export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUCloud) {
-    setLoading();
     files.map(f => f.path).forEach(p =>
         cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
             const element = document.createElement("a");
