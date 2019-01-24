@@ -88,29 +88,9 @@ export default class SDUCloud {
     async call(method: string, path: string, body?: object, context: string = this.apiContext): Promise<any> {
         if (path.indexOf("/") !== 0) path = "/" + path;
         let baseContext = this.context;
-        return this.receiveAccessTokenOrRefreshIt().then((token) => {
-            // As long as same-origin is not handled server-side, use XHR.
-            /* return fetch(baseContext + context + path, {
-                body: !!body ? JSON.stringify(body) : null,
-                method: method,
-                headers: {
-                    "Authorization": `Bearer ${token}`,
-                    "content-type": "application/json"
-                },
-            }).then(response => {
-                const contentType = response.headers.get("content-type");
-                if (response.ok) {
-                    if (contentType && contentType.includes("application/json")) {
-                        return response.json().then((data) => ({ response: data, request: response }))
-                    }
-                    return { response: {}, request: response };
-                }
-                throw response.blob().then(data => ({ response: data, request: response }));
-            }); */
-
+        return this.receiveAccessTokenOrRefreshIt().then(token => {
             return new Promise((resolve, reject) => {
                 let req = new XMLHttpRequest();
-                //req.open(method, baseContext + context + path);
                 req.open(method, this.computeURL(context, path));
                 req.setRequestHeader("Authorization", `Bearer ${token}`);
                 req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
@@ -137,7 +117,7 @@ export default class SDUCloud {
                             reject({ request: req, response: parsedResponse });
                         }
                     } catch (e) {
-                        reject({ request: e.req, response: e.response })   
+                        reject({ request: e.req, response: e.response })
                     }
                 };
                 if (body) {
@@ -308,11 +288,15 @@ export default class SDUCloud {
                     req.setRequestHeader("Authorization", `Bearer ${token}`);
                     req.setRequestHeader("Content-Type", "application/json");
                     req.onload = () => {
-                        if (inRange({ status: req.status, min: 200, max: 299 })) {
-                            const response = req.response.length === 0 ? "{}" : req.response;
-                            resolve({ response: JSON.parse(response), request: req });
-                        } else {
-                            reject(req.response);
+                        try {
+                            if (inRange({ status: req.status, min: 200, max: 299 })) {
+                                const response = req.response.length === 0 ? "{}" : req.response;
+                                resolve({ response: JSON.parse(response), request: req });
+                            } else {
+                                reject(req.response);
+                            }
+                        } catch (e) {
+                            reject(e.response)
                         }
                     };
                     req.send();
@@ -334,11 +318,15 @@ export default class SDUCloud {
             req.open("POST", refreshPath);
             req.setRequestHeader("X-CSRFToken", csrfToken);
             req.onload = () => {
-                if (inSuccessRange(req.status)) {
-                    resolve(JSON.parse(req.response));
-                } else {
-                    if (req.status === 401 || req.status === 400) this.clearTokens();
-                    reject({ status: req.status, response: req.response });
+                try {
+                    if (inSuccessRange(req.status)) {
+                        resolve(JSON.parse(req.response));
+                    } else {
+                        if (req.status === 401 || req.status === 400) this.clearTokens();
+                        reject({ status: req.status, response: req.response });
+                    }
+                } catch (e) {
+                    reject({ status: e.status, response: e.response });
                 }
             };
             req.send();
