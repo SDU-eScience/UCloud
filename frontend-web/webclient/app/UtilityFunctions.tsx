@@ -272,10 +272,11 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
 };
 
 // FIXME Remove navigation when backend support comes.
-export const createProject = (filePath: string, cloud: Cloud, navigate: (path: string) => void) =>
+export const createProject = (filePath: string, cloud: Cloud, navigate: (path: string) => void) => {
     cloud.put("/projects", { fsRoot: filePath }).then(() => {
         redirectToProject(filePath, cloud, navigate, 5);
     }).catch(() => failureNotification(`An error occurred creating project ${filePath}`));
+}
 
 const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) => void, remainingTries: number) => {
     cloud.get(`/metadata/by-path?path=${encodeURIComponent(path)}`).then(() => navigate(path)).catch(_ => {

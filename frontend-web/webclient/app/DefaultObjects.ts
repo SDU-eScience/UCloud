@@ -65,7 +65,7 @@ export enum SensitivityLevelMap {
     SENSITIVE = "SENSITIVE"
 };
 
-const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
+function getFilesSortingColumnOrDefault(columnIndex: number): SortBy {
     const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`) as SortBy;
     if (!sortingColumn || !(sortingColumn in SortBy)) {
         if (columnIndex === 0) {
@@ -79,6 +79,10 @@ const getFilesSortingColumnOrDefault = (columnIndex: number): SortBy => {
     return sortingColumn;
 };
 
+function getItemOrDefault<T>(itemName: string, defaultValue: T): T {
+    return window.localStorage.getItem(itemName) as unknown as T || defaultValue;
+}
+
 export interface ComponentWithPage<T> {
     page: Page<T>
     loading: boolean
@@ -91,7 +95,7 @@ export interface ResponsiveReduxObject {
     lessThan: Record<string, boolean>
     greaterThan: Record<string, boolean>
     is: Record<string, boolean>
-} 
+}
 
 export const initResponsive = (): ResponsiveReduxObject => ({
     mediaType: "",
@@ -327,8 +331,8 @@ export const initFileInfo = (): FileInfoReduxObject => ({
 
 export const initFiles = (homeFolder: string): FilesReduxObject => ({
     page: emptyPage,
-    sortOrder: SortOrder.ASCENDING,
-    sortBy: SortBy.PATH,
+    sortOrder: getItemOrDefault("sortOrder", SortOrder.ASCENDING),
+    sortBy: getItemOrDefault("sortBy", SortBy.PATH),
     loading: false,
     error: undefined,
     path: "",

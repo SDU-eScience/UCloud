@@ -23,6 +23,8 @@ export const FILES_INVALID_PATH = "FILES_INVALID_PATH";
 function files(state: FilesReduxObject = initFiles(""), action: FileActions): FilesReduxObject {
     switch (action.type) {
         case RECEIVE_FILES: {
+            localStorage.setItem("sortOrder", action.payload.sortOrder);
+            localStorage.setItem("sortBy", action.payload.sortBy);
             return {
                 ...state,
                 page: action.payload.page,

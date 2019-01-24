@@ -3,17 +3,17 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
-import { inSuccessRange, failureNotification, infoNotification } from "UtilityFunctions";
+import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, MaxTime, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput } from "."
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput } from "."
 import { Application } from ".";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
+import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton, Button } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter } from "./ParameterWidgets";
-import { extractParameters } from "Utilities/ApplicationUtilities";
+import { extractParameters, hpcFavoriteApp, hpcJobQueryPost } from "Utilities/ApplicationUtilities";
 import { AppHeader } from "./View";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 
@@ -41,6 +41,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 numberOfNodes: null,
                 tasksPerNode: null,
             },
+            favorite: false,
+            favoriteLoading: false
         };
         this.props.updatePageTitle();
     };
@@ -54,7 +56,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
     componentWillUnmount = () => this.state.promises.cancelPromises();
 
-    onJobSchedulingParamsChange = (field, value, timeField) => {
+    private onJobSchedulingParamsChange = (field, value, timeField) => {
         let { schedulingOptions } = this.state;
         if (timeField) {
             schedulingOptions[field][timeField] = !isNaN(value) ? value : null;
@@ -66,7 +68,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }));
     }
 
-    onSubmit = event => {
+    private onSubmit = event => {
         event.preventDefault();
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
@@ -85,7 +87,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         this.setState(() => ({ jobSubmitted: true }));
 
-        Cloud.post("/hpc/jobs", job).then(req => {
+        Cloud.post(hpcJobQueryPost, job).then(req => {
             inSuccessRange(req.request.status) ?
                 this.props.history.push(`/applications/results/${req.response.jobId}`) :
                 this.setState(() => ({ error: "An error occured", jobSubmitted: false }))
@@ -94,10 +96,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         });
     }
 
-    onInputChange = (parameterName: string, value: string | number | object) =>
+    private onInputChange = (parameterName: string, value: string | number | object) =>
         this.setState(() => ({ parameterValues: { ...this.state.parameterValues, [parameterName]: value } }));
 
-    extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
+    private extractJobInfo(jobInfo): JobSchedulingOptionsForInput {
         let extractedJobInfo = { maxTime: { hours: null, minutes: null, seconds: null }, numberOfNodes: null, tasksPerNode: null };
         const { maxTime, numberOfNodes, tasksPerNode } = jobInfo;
         if (maxTime != null && (maxTime.hours != null || maxTime.minutes != null || maxTime.seconds != null)) {
@@ -110,7 +112,18 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         return extractedJobInfo;
     }
 
-    retrieveApplication(name: string, version: string) {
+    private toggleFavorite() {
+        if (!this.state.application) return;
+        const { name, version } = this.state.application.description.info;
+        this.setState(() => ({ favoriteLoading: true }));
+        this.state.promises.makeCancelable(Cloud.post(hpcFavoriteApp(name, version))).promise
+            .then(() => this.setState(() => ({ favorite: !this.state.favorite })))
+            .catch(it => this.setState(() => ({ error: errorMessageOrDefault(it, "An error occurred") })))
+            .then(() => this.setState(() => ({ favoriteLoading: false })), () => this.setState(() => ({ favoriteLoading: false })))
+
+    }
+
+    private retrieveApplication(name: string, version: string) {
         this.setState(() => ({ loading: true }));
 
         this.state.promises.makeCancelable(
@@ -120,7 +133,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
             this.setState(() => ({
                 application: app,
-                loading: false
+                loading: false,
+                favorite: app.favorite
             }));
         }).catch(() => this.setState(() => ({
             loading: false,
@@ -128,7 +142,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         })));
     }
 
-    importParameters(file: File) {
+    private importParameters(file: File) {
         const thisApp = this.state.application;
         if (!thisApp) return;
 
@@ -163,7 +177,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.readAsText(file);
     }
 
-    exportParameters() {
+    private exportParameters() {
         const { application, schedulingOptions } = this.state;
         if (!application) return;
         const appInfo = application.description.info;
@@ -235,13 +249,15 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     onClick={() => this.exportParameters()}>
                     Export parameters
                 </OutlineButton>
-
                 <OutlineButton fullWidth color="darkGreen" as={"label"}>
                     Import parameters
                     <HiddenInputField
                         type="file"
                         onChange={e => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
                 </OutlineButton>
+                <LoadingButton fullWidth loading={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
+                    {this.state.favorite ? "Remove from My Apps" : "Add to My Apps"}
+                </LoadingButton>
                 <Dropdown>
                     <LoadingButton disabled={disabled} onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>
                     {disabled ? <DropdownContent width={"auto"} colorOnHover={false} color="white" backgroundColor="black">
@@ -364,7 +380,11 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
         </>)
 };
 
-const mapDispatchToProps = (dispatch: Dispatch) => ({
+interface RunOperations {
+    updatePageTitle: () => void
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application"))
 });
 

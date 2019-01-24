@@ -26,6 +26,7 @@ import { prettierString } from "UtilityFunctions";
 import { AvatarType } from "UserSettings/Avataaar";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
+import { EllipsedText } from "ui-components/Text";
 
 interface HeaderState {
     searchText: string
@@ -60,8 +61,8 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
                 <BackgroundTask />
                 <Support />
                 <Notification />
-                <ClickableDropdown width="180px" left={"-180%"} trigger={<Flex><UserAvatar avatar={this.props.avatar} /></Flex>}>
-                    <UserNameBox>Welcome, {Cloud.userInfo.firstNames}</UserNameBox>
+                <ClickableDropdown width="200px" left={"-180%"} trigger={<Flex><UserAvatar avatar={this.props.avatar} /></Flex>}>
+                    <WhiteBackgroundEllipsedText width={"170px"}>Welcome, {Cloud.userInfo.firstNames}</WhiteBackgroundEllipsedText>
                     <Divider />
                     <Box ml="-17px" mr="-17px" pl="15px">
                         <Link color="black" to={"/users/settings"}>
@@ -87,6 +88,13 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
     }
 }
 
+const WhiteBackgroundEllipsedText = styled(EllipsedText)`
+    &&&&& {
+        background-color: white
+        cursor: default;
+    }
+`;
+
 const HeaderContainer = styled(Flex)`
     height: 48px;
     align-items: center;
@@ -94,10 +102,6 @@ const HeaderContainer = styled(Flex)`
     top: 0;
     width: 100%;
     z-index: 100;
-`;
-
-const UserNameBox = styled(Box)`
-    background-color: unset;
 `;
 
 const Logo = () => (

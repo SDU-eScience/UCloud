@@ -35,7 +35,6 @@ class Files extends React.Component<FilesProps> {
         props.setUploaderCallback(
             (path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)
         );
-
         props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
     }
 
@@ -60,7 +59,7 @@ class Files extends React.Component<FilesProps> {
                 createFolder(fullPath, Cloud,
                     () => fetchPageFromPath(fullPath, page.itemsPerPage, this.props.sortOrder, this.props.sortBy));
             } else {
-                moveFile(file.path, fullPath, Cloud,
+                moveFile(file.path, fullPath, Cloud, () => this.props.setLoading(true),
                     () => fetchPageFromPath(fullPath, page.itemsPerPage, this.props.sortOrder, this.props.sortBy));
             }
         }
@@ -78,8 +77,8 @@ class Files extends React.Component<FilesProps> {
         const nextPath = this.urlPathFromProps(nextProps);
         if (nextProps.path !== nextPath && !loading) {
             fetchFiles(nextPath, page.itemsPerPage, 0, sortOrder, sortBy);
+            return false;
         }
-        // FIXME: Should this ALWAYS return true?
         return true;
     }
 
@@ -110,7 +109,8 @@ class Files extends React.Component<FilesProps> {
             this.refetch,
             () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
             (p) => this.props.fetchPageFromPath(p, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy),
-            this.props.history)
+            this.props.history,
+            () => this.props.setLoading(true))
     ];
 
     render() {
@@ -173,6 +173,7 @@ class Files extends React.Component<FilesProps> {
             !props.invalidPath ?
                 <Box pl="5px" pr="5px">
                     <ContextBar
+                        setLoading={() => props.setLoading(true)}
                         invalidPath={props.invalidPath}
                         showUploader={props.showUploader}
                         fileOperations={this.fileOperations}
