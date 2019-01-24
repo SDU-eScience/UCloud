@@ -63,7 +63,7 @@ const store = configureStore(initObject(Cloud.homeFolder), {
 
 
 const GlobalStyle = createGlobalStyle`
-  ${props => UIGlobalStyle}
+  ${() => UIGlobalStyle}
 `;
 
 ReactDOM.render(

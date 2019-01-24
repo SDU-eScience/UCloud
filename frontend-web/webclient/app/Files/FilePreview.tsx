@@ -2,13 +2,13 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { File } from "Files";
 import { match } from "react-router";
-import { ReduxObject, initFilePreview, FilePreviewReduxState } from "DefaultObjects";
+import { ReduxObject, FilePreviewReduxState } from "DefaultObjects";
 import { removeTrailingSlash } from "UtilityFunctions";
 import { Dispatch } from "redux";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { statFileQuery } from "Utilities/FileUtilities";
 import { setFilePreviewError, fetchPreviewFile } from "./Redux/FilePreviewAction";
+import { fetchFileContent } from "Utilities/FileUtilities";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 interface FilePreviewStateProps {
     file: File
@@ -25,14 +25,17 @@ interface FilePreviewProps extends FilePreviewOperations, FilePreviewStateProps 
 }
 
 class FilePreview extends React.Component<FilePreviewProps> {
-    componentDidMount() { }
+    componentDidMount() {
+        this.props.fetchFile(this.filepath);
+        this.fetchContent();
+    }
+
 
     get queryParams(): URLSearchParams {
         return new URLSearchParams(this.props.location.search);
     }
 
-    async renderContent() {
-        return null
+    async fetchContent() {
         /* if (this.file && this.file.content === null) return;
         const type = extensionTypeFromPath(this.filepath);
         if (!this.file || !this.file.content) return (<LoadingIcon size={18} />)
@@ -51,14 +54,6 @@ class FilePreview extends React.Component<FilePreviewProps> {
         } */
     }
 
-    fetchFileContent() {
-    }
-
-
-    shouldComponentUpdate(nextProps: FilePreviewProps) {
-        return false;
-    }
-
     get filepath() {
         const param = this.queryParams.get("path");
         return param ? removeTrailingSlash(param) : "";
@@ -66,10 +61,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
 
     render() {
         return (
-            <MainContainer
-                main={this.renderContent()}
-
-            />
+            <MainContainer main={<div/>} />
         );
     }
 }

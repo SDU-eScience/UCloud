@@ -521,10 +521,10 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
 }
 
 
-export const fetchFileContent = (path: string, cloud: SDUCloud) =>
-    cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) =>
-        fetch(`/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`)
-    );
+export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<Response> => {
+    const token = await cloud.createOneTimeTokenWithPermission("files.download:read");
+    return fetch(`/api/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`)
+}
 
 export const sizeToString = (bytes: number): string => {
     if (bytes < 0) return "Invalid size";
