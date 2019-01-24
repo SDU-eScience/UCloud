@@ -1,8 +1,9 @@
 import * as React from "react";
-import { FileIcon, RefreshButton, WebSocketSupport, PP, RTLInput } from "UtilityComponents";
+import { RefreshButton, PP } from "UtilityComponents";
 import { configure, shallow } from "enzyme";
 import { create } from "react-test-renderer";
 import * as Adapter from "enzyme-adapter-react-16";
+import "jest-styled-components";
 
 configure({ adapter: new Adapter() });
 
@@ -25,12 +26,6 @@ describe("RefreshButton", () => {
             />)
         button.simulate("click");
         expect(fun).toHaveBeenCalled();
-    });
-});
-
-describe("WebSocket support", () => {
-    test("Websocket component", () => {
-        expect(create(<WebSocketSupport />).toJSON()).toMatchSnapshot();
     });
 });
 

@@ -1,26 +1,23 @@
 import * as React from "react";
 import { connect } from "react-redux";
-import { getParentPath, fetchFileContent } from "Utilities/FileUtilities";
-import { fetchPageFromPath, updateFiles } from "Files/Redux/FilesActions";
-import LoadingIcon from "LoadingIcon/LoadingIcon";
-import { Page } from "Types";
 import { File } from "Files";
 import { match } from "react-router";
-import { FilesReduxObject } from "DefaultObjects";
-import { Cloud } from "Authentication/SDUCloudObject";
-import { removeTrailingSlash, extensionTypeFromPath } from "UtilityFunctions";
+import { ReduxObject, FilePreviewReduxState } from "DefaultObjects";
+import { removeTrailingSlash } from "UtilityFunctions";
 import { Dispatch } from "redux";
-import { Box } from "ui-components";
+import { MainContainer } from "MainContainer/MainContainer";
+import { setFilePreviewError, fetchPreviewFile } from "./Redux/FilePreviewAction";
+import { fetchFileContent } from "Utilities/FileUtilities";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 interface FilePreviewStateProps {
-    page: Page<File>
-    contentCount: number
+    file: File
     match: match
 }
 
 interface FilePreviewOperations {
-    fetchPage: (p: string) => void
-    updatePage: (p: Page<File>) => void
+    fetchFile: (p: string) => void
+    setError: (error?: string) => void
 }
 
 interface FilePreviewProps extends FilePreviewOperations, FilePreviewStateProps {
@@ -29,23 +26,17 @@ interface FilePreviewProps extends FilePreviewOperations, FilePreviewStateProps 
 
 class FilePreview extends React.Component<FilePreviewProps> {
     componentDidMount() {
-        if (this.file) {
-            console.log("No file")
-            if (this.file.size < 32_000 && this.file.content == null)
-                this.fetchFileContent()
-            else {
-                console.log(this.file.size);
-            }
-        } else {
-            this.props.fetchPage(this.filepath);
-        }
+        this.props.fetchFile(this.filepath);
+        this.fetchContent();
     }
+
 
     get queryParams(): URLSearchParams {
         return new URLSearchParams(this.props.location.search);
     }
 
-    renderContent() {
+    async fetchContent() {
+        /* if (this.file && this.file.content === null) return;
         const type = extensionTypeFromPath(this.filepath);
         if (!this.file || !this.file.content) return (<LoadingIcon size={18} />)
         switch (type) {
@@ -60,36 +51,7 @@ class FilePreview extends React.Component<FilePreviewProps> {
             case "pdf":
             default:
                 return (<div>Can't render content</div>)
-        }
-    }
-
-    fetchFileContent() {
-        if (this.file && this.file.size < 16_000_000) {
-            fetchFileContent(this.filepath, Cloud)
-                .then(it => it.blob().then(it => {
-                    const { page } = this.props;
-                    const item = page.items.find(it => removeTrailingSlash(it.path) === this.filepath);
-                    if (item) item.content = it;
-                    this.props.updatePage(page);
-                })); // FIXME Error handling
-        }
-        else {
-            // SET ERROR AS FILE IS LARGER THAN 32 MB
-        }
-    }
-
-
-    shouldComponentUpdate(nextProps: FilePreviewProps) {
-        if (this.props.page.items.length) {
-            if (getParentPath(this.props.page.items[0].path) !== getParentPath(nextProps.match.params[0])) {
-                this.props.fetchPage(this.filepath);
-            } else if (!this.file || this.file.content == null) {
-                this.fetchFileContent();
-            }
-        } else {
-            this.props.fetchPage(this.filepath);
-        }
-        return true;
+        } */
     }
 
     get filepath() {
@@ -97,30 +59,20 @@ class FilePreview extends React.Component<FilePreviewProps> {
         return param ? removeTrailingSlash(param) : "";
     }
 
-    get file() {
-        if (this.props.page.items.length) {
-            return this.props.page.items.find(it => it.path === this.filepath);
-        }
-        return null;
-    }
-
     render() {
         return (
-            <Box>
-                {this.renderContent()}
-            </Box>
+            <MainContainer main={<div/>} />
         );
     }
 }
 
-const mapStateToProps = ({ files }: { files: FilesReduxObject }) => ({
-    page: files.page,
-    contentCount: files.page.items.filter(it => it.content !== undefined).length
-});
-const mapDispatchToProps = (dispatch: Dispatch): FilePreviewOperations => ({
-    fetchPage: async (path: string) => dispatch(await fetchPageFromPath(path, 10)),
-    updatePage: (page: Page<File>) => dispatch(updateFiles(page))
+const mapStateToProps = ({ filePreview }: ReduxObject): FilePreviewReduxState => ({
+    file: filePreview.file
 });
 
+const mapDispatchToProps = (dispatch: Dispatch): FilePreviewOperations => ({
+    fetchFile: async path => dispatch(await fetchPreviewFile(path)),
+    setError: error => dispatch(setFilePreviewError(error))
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(FilePreview);

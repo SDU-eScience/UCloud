@@ -21,6 +21,7 @@ import { FilesTable } from "Files/FilesTable";
 import { searchPage } from "Utilities/SearchUtilities";
 import { getQueryParamOrElse } from "Utilities/URIUtilities";
 import styled from "styled-components";
+import { GridCardGroup } from "ui-components/Grid";
 
 interface SearchPane {
     headerType: HeaderSearchType
@@ -166,7 +167,7 @@ class Search extends React.Component<SearchProps> {
                     <Pagination.List
                         loading={applicationsLoading}
                         pageRenderer={({ items }) =>
-                            <CardGroup>
+                            <GridCardGroup>
                                 {items.map(app =>
                                     <NewApplicationCard
                                         key={`${app.description.info.name}${app.description.info.version}`}
@@ -174,7 +175,7 @@ class Search extends React.Component<SearchProps> {
                                         app={app}
                                         isFavorite={app.favorite}
                                     />)}
-                            </CardGroup>
+                            </GridCardGroup>
                         }
                         page={applications}
                         onRefresh={() => this.props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage)}
