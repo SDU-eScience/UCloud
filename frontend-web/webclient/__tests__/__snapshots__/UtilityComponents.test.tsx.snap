@@ -3,6 +3,60 @@
 exports[`PP Non-visible PP-Component 1`] = `null`;
 
 exports[`PP Visible PP-Component 1`] = `
+.c0 {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  font-size: 14px;
+  background-color: transparent;
+  border-width: 0px;
+  border-style: solid;
+  border-color: #c9d3df;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin: 0;
+  border-color: #c9d3df;
+  box-shadow: 0 0 0 1px #c9d3df;
+  border-radius: 5px;
+  direction: rtl;
+}
+
+.c0::-webkit-input-placeholder {
+  color: #8393A7;
+}
+
+.c0::-moz-placeholder {
+  color: #8393A7;
+}
+
+.c0:-ms-input-placeholder {
+  color: #8393A7;
+}
+
+.c0::placeholder {
+  color: #8393A7;
+}
+
+.c0::-ms-clear {
+  display: none;
+}
+
+.c0:focus {
+  outline: none;
+}
+
+.c0:focus {
+  outline: 0;
+  border-color: #0055d5;
+  box-shadow: 0 0 0 2px #0055d5;
+}
+
 <div
   className="center"
 >
@@ -123,7 +177,7 @@ exports[`PP Visible PP-Component 1`] = `
     </ellipse>
   </svg>
   <input
-    className="sc-kgoBCf sc-TOsTZ kzowhd"
+    className="c0"
     id="animationDuration"
     max="2000"
     min="200"
@@ -136,8 +190,17 @@ exports[`PP Visible PP-Component 1`] = `
 `;
 
 exports[`RefreshButton RefreshButton 1`] = `
+.c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: 10px;
+}
+
 <svg
-  className="sc-gzVnrw fIAaJT"
+  className="c0"
   clipRule="evenodd"
   cursor="inherit"
   fill="currentcolor"
@@ -159,5 +222,3 @@ exports[`RefreshButton RefreshButton 1`] = `
   />
 </svg>
 `;
-
-exports[`WebSocket support Websocket component 1`] = `null`;

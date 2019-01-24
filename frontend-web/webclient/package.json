@@ -1,6 +1,6 @@
 {
   "name": "sducloud",
-  "version": "0.13.4",
+  "version": "0.13.5",
   "description": "SDU Cloud",
   "author": "IMADA - eScience Center, SDU",
   "jest": {
@@ -58,7 +58,7 @@
     "jsonwebtoken": "8.4.0",
     "moment": "~2.24.0",
     "moment-timezone": "^0.5.23",
-    "npm": "^6.6.0",
+    "npm": "^6.7.0",
     "prop-types": "15.6.2",
     "rc-slider": "^8.6.4",
     "react": "16.7.0",

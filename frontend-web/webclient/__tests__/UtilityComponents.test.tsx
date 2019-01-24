@@ -3,6 +3,7 @@ import { RefreshButton, PP } from "UtilityComponents";
 import { configure, shallow } from "enzyme";
 import { create } from "react-test-renderer";
 import * as Adapter from "enzyme-adapter-react-16";
+import "jest-styled-components";
 
 configure({ adapter: new Adapter() });
 
