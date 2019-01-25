@@ -26,7 +26,10 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCl
             }
             if (applyToAll) allowRewrite = true;
             if ((exists && allowRewrite) || !exists) {
-                cloud.post(copyFileQuery(f.path, newPathForFile, policy)).then(() => successes++).catch(() => {
+                cloud.post(copyFileQuery(f.path, newPathForFile, policy)).then(() => {
+                    successes++;
+                    // FIXME Handle 202
+                }).catch(() => {
                     failures++;
                     failurePaths.push(getFilenameFromPath(f.path))
                     UF.failureNotification(`An error occured copying file ${resolvePath(f.path)}.`)
@@ -35,7 +38,7 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCl
                     if (successes + failures === files.length) {
                         if (successes) { setLoading(); operations.fetchPageFromPath(newPathForFile); }
                         if (!failures) onOnlySuccess("Copied", f, newPathForFile, cloud.homeFolder, files.length);
-                        else UF.successNotification(`File${files.length > 1 ? "s" : ""} copied.`);
+                        else UF.failureNotification(`Failed to copy files: ${failurePaths.join(", ")}`, 10)
                     }
                 });
             }
@@ -74,7 +77,10 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
             }
             if (applyToAll) allowRewrite = true;
             if ((exists && allowRewrite) || !exists) {
-                cloud.post(moveFileQuery(f.path, newPathForFile, policy)).then(() => successes++).catch(() => {
+                cloud.post(moveFileQuery(f.path, newPathForFile, policy)).then(() => {
+                    successes++;
+                    // FIXME handle 202;
+                }).catch(() => {
                     failures++;
                     failurePaths.push(getFilenameFromPath(f.path))
                     UF.failureNotification(`An error occurred moving ${f.path}`)
@@ -83,7 +89,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
                     if (successes + failures === files.length) {
                         if (successes) { setLoading(); operations.fetchPageFromPath(newPathForFile); }
                         if (!failures) onOnlySuccess("Moved", f, newPathForFile, cloud.homeFolder, files.length);
-                        else UF.failureNotification(`Failed to move files: ${failurePaths.join(", ")}`, 10)
+                        else UF.failureNotification(`Failed to move files: ${failurePaths.join(", ")}`, 10);
                     }
                 });
             }
