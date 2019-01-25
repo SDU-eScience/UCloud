@@ -10,47 +10,9 @@ import { SensitivityLevelMap } from "DefaultObjects";
 import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
 
-export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCloud, setLoading: () => void): void {
-    let successes = 0, failures = 0;
-    operations.setDisallowedPaths(files.map(f => f.path));
-    operations.showFileSelector(true);
-    operations.setFileSelectorCallback(async (targetPathFolder: File) => {
-        let { failurePaths, applyToAll, policy } = initialSetup(operations);
-        for (let i = 0; i < files.length; i++) {
-            let f = files[i];
-            let { exists, allowRewrite, newPathForFile } = await moveCopySetup(targetPathFolder.path, f.path, cloud);
-            if (exists && !applyToAll) {
-                allowRewrite = await canRewrite(newPathForFile, cloud.homeFolder, files.length - i);
-                policy = UF.selectValue("policy") as UploadPolicy;
-                if (files.length - i > 1) applyToAll = UF.elementValue("applyToAll");
-            }
-            if (applyToAll) allowRewrite = true;
-            if ((exists && allowRewrite) || !exists) {
-                cloud.post(copyFileQuery(f.path, newPathForFile, policy)).then(() => {
-                    successes++;
-                    // FIXME Handle 202
-                }).catch(() => {
-                    failures++;
-                    failurePaths.push(getFilenameFromPath(f.path))
-                    UF.failureNotification(`An error occured copying file ${resolvePath(f.path)}.`)
-                }).finally(() => {
-                    // FIXME: Move outside loop?
-                    if (successes + failures === files.length) {
-                        if (successes) { setLoading(); operations.fetchPageFromPath(newPathForFile); }
-                        if (!failures) onOnlySuccess("Copied", f, newPathForFile, cloud.homeFolder, files.length);
-                        else UF.failureNotification(`Failed to copy files: ${failurePaths.join(", ")}`, 10)
-                    }
-                });
-            }
-        };
-    });
-};
-
-// FIXME, find better name
-interface InitialSetup { failurePaths: string[]; applyToAll: boolean; policy: UploadPolicy; }
-function initialSetup(operations: MoveCopyOperations): InitialSetup {
+function initialSetup(operations: MoveCopyOperations) {
     resetFileSelector(operations);
-    return { failurePaths: [], applyToAll: false, policy: UploadPolicy.REJECT };
+    return { failurePaths: [] as string[], applyToAll: false, policy: UploadPolicy.REJECT as UploadPolicy };
 }
 
 async function canRewrite(newPath: string, homeFolder: string, filesRemaining: number): Promise<boolean> {
@@ -61,8 +23,14 @@ function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`
 }
 
-export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCloud, setLoading: () => void): void {
-    let successes = 0, failures = 0;
+enum CopyOrMove {
+    Move,
+    Copy
+}
+
+export function copyOrMove(operation: CopyOrMove, files: File[], operations: MoveCopyOperations, cloud: SDUCloud, setLoading: () => void): void {
+    const copyOrMoveQuery = operation === CopyOrMove.Copy ? copyFileQuery : moveFileQuery;
+    let successes = 0, failures = 0, pathToFetch = "";
     operations.showFileSelector(true);
     operations.setDisallowedPaths([getParentPath(files[0].path)].concat(files.map(f => f.path)));
     operations.setFileSelectorCallback(async (targetPathFolder: File) => {
@@ -77,31 +45,23 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
             }
             if (applyToAll) allowRewrite = true;
             if ((exists && allowRewrite) || !exists) {
-                cloud.post(moveFileQuery(f.path, newPathForFile, policy)).then(() => {
+                const request = await cloud.post(copyOrMoveQuery(f.path, newPathForFile, policy))
+                if (UF.inSuccessRange(request.request.status)) {
                     successes++;
-                    // FIXME handle 202;
-                }).catch(() => {
+                    pathToFetch = newPathForFile;
+                    if (request.request.status === 202) UF.successNotification(`Operation for ${f.path} is in progress.`)
+                } else {
                     failures++;
                     failurePaths.push(getFilenameFromPath(f.path))
-                    UF.failureNotification(`An error occurred moving ${f.path}`)
-                }).finally(() => {
-                    // FIXME: Move outside loop?
-                    if (successes + failures === files.length) {
-                        if (successes) { setLoading(); operations.fetchPageFromPath(newPathForFile); }
-                        if (!failures) onOnlySuccess("Moved", f, newPathForFile, cloud.homeFolder, files.length);
-                        else UF.failureNotification(`Failed to move files: ${failurePaths.join(", ")}`, 10);
-                    }
-                });
+                    UF.failureNotification(`An error occurred ${operation === CopyOrMove.Copy ? "copying" : "moving"} ${f.path}`)
+                }
             }
         };
+        if (successes) { setLoading(); operations.fetchPageFromPath(pathToFetch); }
+        if (!failures && successes) onOnlySuccess("Moved", files.length);
+        else if (failures) UF.failureNotification(`Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`, 10);
     });
 };
-
-interface ResetFileSelector {
-    showFileSelector: (v: boolean) => void
-    setFileSelectorCallback: (v: any) => void
-    setDisallowedPaths: (array: string[]) => void;
-}
 
 async function moveCopySetup(targetPath: string, path: string, cloud: SDUCloud) {
     const newPathForFile = getNewPath(targetPath, path);
@@ -109,15 +69,15 @@ async function moveCopySetup(targetPath: string, path: string, cloud: SDUCloud) 
     return { exists, allowRewrite: false, newPathForFile };
 }
 
-function onOnlySuccess(operation: string, f: File, newPathForFile: string, homeFolder: string, fileCount: number) {
-    const fromPath = getFilenameFromPath(f.path);
-    const toPath = replaceHomeFolder(newPathForFile, homeFolder);
-    if (fileCount === 1)
-        UF.successNotification(`${fromPath} ${operation} to ${toPath}`);
-    else
-        UF.successNotification(`${operation} ${fileCount} files`);
+function onOnlySuccess(operation: string, fileCount: number) {
+    UF.successNotification(`${operation} ${fileCount} files`);
 }
 
+interface ResetFileSelector {
+    showFileSelector: (v: boolean) => void
+    setFileSelectorCallback: (v: any) => void
+    setDisallowedPaths: (array: string[]) => void;
+}
 function resetFileSelector(operations: ResetFileSelector) {
     operations.showFileSelector(false);
     operations.setFileSelectorCallback(undefined);
@@ -223,14 +183,14 @@ export const CreateLinkOperation = (fetchPageFromPath: (p: string) => void, setL
 export const FileSelectorOperations = (fileSelectorOperations: MoveCopyOperations, setLoading: () => void): Operation[] => [
     {
         text: "Copy",
-        onClick: (files: File[], cloud: SDUCloud) => copy(files, fileSelectorOperations, cloud, setLoading),
+        onClick: (files: File[], cloud: SDUCloud) => copyOrMove(CopyOrMove.Copy, files, fileSelectorOperations, cloud, setLoading),
         disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files),
         icon: "copy",
         color: undefined
     },
     {
         text: "Move",
-        onClick: (files: File[], cloud: SDUCloud) => move(files, fileSelectorOperations, cloud, setLoading),
+        onClick: (files: File[], cloud: SDUCloud) => copyOrMove(CopyOrMove.Move, files, fileSelectorOperations, cloud, setLoading),
         disabled: (files: File[], cloud: SDUCloud) => !allFilesHasAccessRight("WRITE", files) || files.some(f => isFixedFolder(f.path, cloud.homeFolder)),
         icon: "move",
         color: undefined
