@@ -11,7 +11,7 @@ import { unwrap, isError, ErrorMessage } from "./XHRUtils";
 import { UploadPolicy } from "Uploader/api";
 
 export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCloud, setLoading: () => void): void {
-    let iteration = 0;
+    let successes = 0, failures = 0;
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);
     operations.setFileSelectorCallback(async (targetPathFolder: File) => {
@@ -26,28 +26,28 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCl
             }
             if (applyToAll) allowRewrite = true;
             if ((exists && allowRewrite) || !exists) {
-                cloud.post(copyFileQuery(f.path, newPathForFile, policy))
-                    .catch(() => UF.failureNotification(`An error occured copying file ${resolvePath(f.path)}.`))
-                    .finally(() => {
-                        if (++iteration === files.length) {
-                            setLoading();
-                            operations.fetchPageFromPath(newPathForFile);
-                            UF.successNotification(`File${files.length > 1 ? "s" : ""} copied.`);
-                        }
-                    });
+                cloud.post(copyFileQuery(f.path, newPathForFile, policy)).then(() => successes++).catch(() => {
+                    failures++;
+                    failurePaths.push(getFilenameFromPath(f.path))
+                    UF.failureNotification(`An error occured copying file ${resolvePath(f.path)}.`)
+                }).finally(() => {
+                    // FIXME: Move outside loop?
+                    if (successes + failures === files.length) {
+                        if (successes) { setLoading(); operations.fetchPageFromPath(newPathForFile); }
+                        if (!failures) onOnlySuccess("Copied", f, newPathForFile, cloud.homeFolder, files.length);
+                        else UF.successNotification(`File${files.length > 1 ? "s" : ""} copied.`);
+                    }
+                });
             }
-        }; // End for
-    }); // End Callback
+        };
+    });
 };
 
 // FIXME, find better name
 interface InitialSetup { failurePaths: string[]; applyToAll: boolean; policy: UploadPolicy; }
 function initialSetup(operations: MoveCopyOperations): InitialSetup {
     resetFileSelector(operations);
-    const failurePaths: string[] = [];
-    let applyToAll = false;
-    let policy = UploadPolicy.REJECT;
-    return { failurePaths, applyToAll, policy };
+    return { failurePaths: [], applyToAll: false, policy: UploadPolicy.REJECT };
 }
 
 async function canRewrite(newPath: string, homeFolder: string, filesRemaining: number): Promise<boolean> {
@@ -66,7 +66,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
         let { failurePaths, applyToAll, policy } = initialSetup(operations);
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
-            var { exists, allowRewrite, newPathForFile } = await moveCopySetup(targetPathFolder.path, f.path, cloud);
+            let { exists, allowRewrite, newPathForFile } = await moveCopySetup(targetPathFolder.path, f.path, cloud);
             if (exists && !applyToAll) {
                 allowRewrite = await canRewrite(newPathForFile, cloud.homeFolder, files.length - i);
                 policy = UF.selectValue("policy") as UploadPolicy;
@@ -79,13 +79,11 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
                     failurePaths.push(getFilenameFromPath(f.path))
                     UF.failureNotification(`An error occurred moving ${f.path}`)
                 }).finally(() => {
+                    // FIXME: Move outside loop?
                     if (successes + failures === files.length) {
-                        setLoading();
-                        if (successes) operations.fetchPageFromPath(newPathForFile);
-                        if (!failures)
-                            onSuccess(f, newPathForFile, cloud, files);
-                        else
-                            UF.failureNotification(`Failed to move files: ${failurePaths.join(", ")}`, 10)
+                        if (successes) { setLoading(); operations.fetchPageFromPath(newPathForFile); }
+                        if (!failures) onOnlySuccess("Moved", f, newPathForFile, cloud.homeFolder, files.length);
+                        else UF.failureNotification(`Failed to move files: ${failurePaths.join(", ")}`, 10)
                     }
                 });
             }
@@ -105,13 +103,13 @@ async function moveCopySetup(targetPath: string, path: string, cloud: SDUCloud) 
     return { exists, allowRewrite: false, newPathForFile };
 }
 
-function onSuccess(f: File, newPathForFile: string, cloud: SDUCloud, files: File[]) {
+function onOnlySuccess(operation: string, f: File, newPathForFile: string, homeFolder: string, fileCount: number) {
     const fromPath = getFilenameFromPath(f.path);
-    const toPath = replaceHomeFolder(newPathForFile, cloud.homeFolder);
-    if (files.length === 1)
-        UF.successNotification(`${fromPath} moved to ${toPath}`);
+    const toPath = replaceHomeFolder(newPathForFile, homeFolder);
+    if (fileCount === 1)
+        UF.successNotification(`${fromPath} ${operation} to ${toPath}`);
     else
-        UF.successNotification(`Moved ${files.length} files`);
+        UF.successNotification(`${operation} ${fileCount} files`);
 }
 
 function resetFileSelector(operations: ResetFileSelector) {
