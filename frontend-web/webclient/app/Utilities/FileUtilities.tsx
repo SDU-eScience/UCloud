@@ -15,7 +15,7 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCl
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);
     operations.setFileSelectorCallback(async (targetPathFolder: File) => {
-        let { failurePaths, applyToAll, policy } = preLoopSetup(operations);
+        let { failurePaths, applyToAll, policy } = initialSetup(operations);
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
             let { exists, allowRewrite, newPathForFile } = await moveCopySetup(targetPathFolder.path, f.path, cloud);
@@ -41,8 +41,8 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCl
 };
 
 // FIXME, find better name
-interface PreLoopSetup { failurePaths: string[]; applyToAll: boolean; policy: UploadPolicy; }
-function preLoopSetup(operations: MoveCopyOperations): PreLoopSetup {
+interface InitialSetup { failurePaths: string[]; applyToAll: boolean; policy: UploadPolicy; }
+function initialSetup(operations: MoveCopyOperations): InitialSetup {
     resetFileSelector(operations);
     const failurePaths: string[] = [];
     let applyToAll = false;
@@ -63,7 +63,7 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
     operations.showFileSelector(true);
     operations.setDisallowedPaths([getParentPath(files[0].path)].concat(files.map(f => f.path)));
     operations.setFileSelectorCallback(async (targetPathFolder: File) => {
-        let { failurePaths, applyToAll, policy } = preLoopSetup(operations);
+        let { failurePaths, applyToAll, policy } = initialSetup(operations);
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
             var { exists, allowRewrite, newPathForFile } = await moveCopySetup(targetPathFolder.path, f.path, cloud);
