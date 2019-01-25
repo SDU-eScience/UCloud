@@ -15,14 +15,10 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCl
     operations.setDisallowedPaths(files.map(f => f.path));
     operations.showFileSelector(true);
     operations.setFileSelectorCallback(async (targetPathFolder: File) => {
-        resetFileSelector(operations);
-        let applyToAll = false;
-        let policy = UploadPolicy.REJECT;
+        let { failurePaths, applyToAll, policy } = preLoopSetup(operations);
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
-            let allowRewrite = false;
-            const newPathForFile = getNewPath(targetPathFolder.path, f.path);
-            const exists = await checkIfFileExists(newPathForFile, cloud);
+            let { exists, allowRewrite, newPathForFile } = await moveCopySetup(targetPathFolder.path, f.path, cloud);
             if (exists && !applyToAll) {
                 allowRewrite = await canRewrite(newPathForFile, cloud.homeFolder, files.length - i);
                 policy = UF.selectValue("policy") as UploadPolicy;
@@ -30,11 +26,11 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCl
             }
             if (applyToAll) allowRewrite = true;
             if ((exists && allowRewrite) || !exists) {
-                setLoading();
                 cloud.post(copyFileQuery(f.path, newPathForFile, policy))
                     .catch(() => UF.failureNotification(`An error occured copying file ${resolvePath(f.path)}.`))
                     .finally(() => {
-                        if (iteration === files.length) {
+                        if (++iteration === files.length) {
+                            setLoading();
                             operations.fetchPageFromPath(newPathForFile);
                             UF.successNotification(`File${files.length > 1 ? "s" : ""} copied.`);
                         }
@@ -43,6 +39,16 @@ export function copy(files: File[], operations: MoveCopyOperations, cloud: SDUCl
         }; // End for
     }); // End Callback
 };
+
+// FIXME, find better name
+interface PreLoopSetup { failurePaths: string[]; applyToAll: boolean; policy: UploadPolicy; }
+function preLoopSetup(operations: MoveCopyOperations): PreLoopSetup {
+    resetFileSelector(operations);
+    const failurePaths: string[] = [];
+    let applyToAll = false;
+    let policy = UploadPolicy.REJECT;
+    return { failurePaths, applyToAll, policy };
+}
 
 async function canRewrite(newPath: string, homeFolder: string, filesRemaining: number): Promise<boolean> {
     return !!(await rewritePolicy(newPath, homeFolder, filesRemaining)).value;
@@ -53,35 +59,33 @@ function getNewPath(newParentPath: string, currentPath: string): string {
 }
 
 export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCloud, setLoading: () => void): void {
-    let iteration = 0;
+    let successes = 0, failures = 0;
     operations.showFileSelector(true);
-    const parentPath = getParentPath(files[0].path);
-    operations.setDisallowedPaths([parentPath].concat(files.map(f => f.path)));
+    operations.setDisallowedPaths([getParentPath(files[0].path)].concat(files.map(f => f.path)));
     operations.setFileSelectorCallback(async (targetPathFolder: File) => {
-        resetFileSelector(operations);
-        let applyToAll = false;
-        let policy = UploadPolicy.REJECT;
+        let { failurePaths, applyToAll, policy } = preLoopSetup(operations);
         for (let i = 0; i < files.length; i++) {
             let f = files[i];
-            let allowRewrite = false;
-            const newPathForFile = getNewPath(targetPathFolder.path, f.path);
-            const exists = await checkIfFileExists(newPathForFile, cloud);
+            var { exists, allowRewrite, newPathForFile } = await moveCopySetup(targetPathFolder.path, f.path, cloud);
             if (exists && !applyToAll) {
                 allowRewrite = await canRewrite(newPathForFile, cloud.homeFolder, files.length - i);
                 policy = UF.selectValue("policy") as UploadPolicy;
                 if (files.length - i > 1) applyToAll = UF.elementValue("applyToAll");
             }
-            if (applyToAll) allowRewrite = applyToAll;
+            if (applyToAll) allowRewrite = true;
             if ((exists && allowRewrite) || !exists) {
-                setLoading();
-                cloud.post(moveFileQuery(f.path, newPathForFile, policy)).catch(() =>
+                cloud.post(moveFileQuery(f.path, newPathForFile, policy)).then(() => successes++).catch(() => {
+                    failures++;
+                    failurePaths.push(getFilenameFromPath(f.path))
                     UF.failureNotification(`An error occurred moving ${f.path}`)
-                ).finally(() => {
-                    if (++iteration === files.length) {
-                        operations.fetchPageFromPath(newPathForFile);
-                        const fromPath = getFilenameFromPath(f.path);
-                        const toPath = replaceHomeFolder(newPathForFile, cloud.homeFolder);
-                        UF.successNotification(`${fromPath} moved to ${toPath}`)
+                }).finally(() => {
+                    if (successes + failures === files.length) {
+                        setLoading();
+                        if (successes) operations.fetchPageFromPath(newPathForFile);
+                        if (!failures)
+                            onSuccess(f, newPathForFile, cloud, files);
+                        else
+                            UF.failureNotification(`Failed to move files: ${failurePaths.join(", ")}`, 10)
                     }
                 });
             }
@@ -89,13 +93,32 @@ export function move(files: File[], operations: MoveCopyOperations, cloud: SDUCl
     });
 };
 
-interface ResetFileSelector { showFileSelector: (v: boolean) => void; setFileSelectorCallback: (v: any) => void; setDisallowedPaths: (array: string[]) => void; }
+interface ResetFileSelector {
+    showFileSelector: (v: boolean) => void
+    setFileSelectorCallback: (v: any) => void
+    setDisallowedPaths: (array: string[]) => void;
+}
+
+async function moveCopySetup(targetPath: string, path: string, cloud: SDUCloud) {
+    const newPathForFile = getNewPath(targetPath, path);
+    const exists = await checkIfFileExists(newPathForFile, cloud);
+    return { exists, allowRewrite: false, newPathForFile };
+}
+
+function onSuccess(f: File, newPathForFile: string, cloud: SDUCloud, files: File[]) {
+    const fromPath = getFilenameFromPath(f.path);
+    const toPath = replaceHomeFolder(newPathForFile, cloud.homeFolder);
+    if (files.length === 1)
+        UF.successNotification(`${fromPath} moved to ${toPath}`);
+    else
+        UF.successNotification(`Moved ${files.length} files`);
+}
+
 function resetFileSelector(operations: ResetFileSelector) {
     operations.showFileSelector(false);
     operations.setFileSelectorCallback(undefined);
     operations.setDisallowedPaths([]);
 }
-
 
 export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<boolean> => {
     try {
