@@ -112,6 +112,7 @@ const Logo = () => (
     </Link>
 );
 
+
 const SearchInput = styled(Flex)`
     width: 350px;
     height: 36px;
@@ -128,11 +129,11 @@ const SearchInput = styled(Flex)`
         color: black;
     }
 
-    input:focus ~ div > label > svg {
+    input:focus ~ div svg {
         color: black;
     }
 
-    input ~ div > label > svg {
+    input ~ div svg {
         color: white;
     }
 
@@ -148,6 +149,7 @@ const SearchInput = styled(Flex)`
         padding-left: 30px;
     }
 `;
+
 
 interface Search {
     searchText: string
