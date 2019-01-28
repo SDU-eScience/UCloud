@@ -30,6 +30,7 @@ export interface ActivityDispatchProps {
     fetchActivity: (pageNumber: number, pageSize: number) => void
     setError: (error?: string) => void
     setPageTitle: () => void
+    setActivePage: () => void
 }
 
 export interface GroupedActivity {

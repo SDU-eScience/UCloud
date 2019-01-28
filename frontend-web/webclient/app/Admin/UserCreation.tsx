@@ -5,10 +5,15 @@ import { successNotification, defaultErrorHandler } from "UtilityFunctions";
 import { UserCreationState, UserCreationField } from ".";
 import { Flex, Box, Input, Label, LoadingButton } from "ui-components";
 import * as Heading from "ui-components/Heading";
+import { connect } from "react-redux";
+import { Dispatch } from "redux";
+import { setActivePage } from "Navigation/Redux/StatusActions";
+import { SidebarPages } from "ui-components/Sidebar";
 
-class UserCreation extends React.Component<{}, UserCreationState> {
-    constructor(props) {
+class UserCreation extends React.Component<UserCreationOperations, UserCreationState> {
+    constructor(props: Readonly<UserCreationOperations>) {
         super(props);
+        props.setActivePage();
         this.state = this.initialState();
     }
 
@@ -121,4 +126,12 @@ class UserCreation extends React.Component<{}, UserCreationState> {
     }
 }
 
-export default UserCreation;
+interface UserCreationOperations {
+    setActivePage: () => void
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): UserCreationOperations => ({
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Admin))
+});
+
+export default connect(() => ({}), mapDispatchToProps)(UserCreation);

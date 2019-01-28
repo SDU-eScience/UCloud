@@ -97,6 +97,7 @@ export interface FilesOperations { // Redux operations
     showUploader: () => void
     setUploaderCallback: (callback: (s: string) => void) => void
     createFolder: () => void
+    setActivePage: () => void
 }
 
 export interface FileSelectorProps {

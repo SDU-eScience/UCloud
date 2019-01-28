@@ -9,10 +9,14 @@ import { UserSettingsFields, UserSettingsState } from ".";
 import { TwoFactorSetup } from "./TwoFactorSetup";
 import * as Heading from "ui-components/Heading";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Flex, Box, Tooltip, Icon, FormField, Input, Button, Label } from "ui-components";
+import { Flex, Box, Icon, Input, Button, Label } from "ui-components";
+import { connect } from "react-redux";
+import { Dispatch } from "redux";
+import { setActivePage } from "Navigation/Redux/StatusActions";
+import { SidebarPages } from "ui-components/Sidebar";
 
-class UserSettings extends React.Component<{}, UserSettingsState> {
-    constructor(props) {
+class UserSettings extends React.Component<UserSettingsOperations, UserSettingsState> {
+    constructor(props: Readonly<UserSettingsOperations>) {
         super(props);
         this.state = this.initialState();
     }
@@ -145,4 +149,12 @@ class UserSettings extends React.Component<{}, UserSettingsState> {
     }
 }
 
-export default UserSettings;
+interface UserSettingsOperations {
+    setActivePage: () => void
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): UserSettingsOperations => ({
+    setActivePage: () => dispatch(setActivePage(SidebarPages.None))
+});
+
+export default connect(() => ({}), mapDispatchToProps)(UserSettings);

@@ -12,6 +12,8 @@ import PromiseKeeper from "PromiseKeeper";
 import { findAvatarQuery } from "Utilities/AvatarUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { failureNotification } from "UtilityFunctions";
+import { setActivePage } from "Navigation/Redux/StatusActions";
+import { SidebarPages } from "ui-components/Sidebar";
 
 
 
@@ -36,6 +38,7 @@ type AvataaarModificationStateProps = AvatarType;
 interface AvataaarModificationOperations {
     save: (avatar: AvatarType) => void
     findAvatar: () => void
+    setActivePage: () => void
 }
 
 type AvataaarModificationProps = AvataaarModificationStateProps & AvataaarModificationOperations;
@@ -215,7 +218,8 @@ function AvatarSelect<T>({ update, options, title, disabled, defaultValue }: Ava
 const mapStateToProps = ({ avatar }: ReduxObject) => avatar;
 const mapDispatchToProps = (dispatch: Dispatch): AvataaarModificationOperations => ({
     save: async avatar => dispatch(await saveAvatar(avatar)),
-    findAvatar: async () => dispatch(await findAvatar())
+    findAvatar: async () => dispatch(await findAvatar()),
+    setActivePage: () => dispatch(setActivePage(SidebarPages.None))
 });
 
 const defaultAvatar = ({

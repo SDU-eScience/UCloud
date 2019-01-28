@@ -19,6 +19,7 @@ export interface DashboardStateProps {
 
 export interface DashboardOperations {
     // Redux operations
+    setActivePage: () => void
     errorDismiss: () => void
     receiveFavorites: (files: File[]) => void
     updatePageTitle: () => void

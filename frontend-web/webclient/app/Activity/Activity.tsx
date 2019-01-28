@@ -7,7 +7,7 @@ import * as moment from "moment";
 import { getFilenameFromPath, replaceHomeFolder } from "Utilities/FileUtilities";
 import { ActivityReduxObject, ReduxObject } from "DefaultObjects";
 import { fetchActivity, setErrorMessage, setLoading } from "./Redux/ActivityActions";
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { Dispatch } from "redux";
 import { fileInfoPage } from "Utilities/FileUtilities";
 import * as Heading from "ui-components/Heading"
@@ -18,11 +18,13 @@ import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { MainContainer } from "MainContainer/MainContainer";
 import styled from "styled-components";
+import { SidebarPages } from "ui-components/Sidebar";
 
 class Activity extends React.Component<ActivityProps> {
-    componentDidMount = () => {
+    componentDidMount() {
         this.props.setPageTitle();
         this.props.fetchActivity(0, 100);
+        this.props.setActivePage();
     }
 
     render() {
@@ -229,7 +231,8 @@ const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
         dispatch(await fetchActivity(pageNumber, pageSize))
     },
     setError: error => dispatch(setErrorMessage(error)),
-    setPageTitle: () => dispatch(updatePageTitle("Activity"))
+    setPageTitle: () => dispatch(updatePageTitle("Activity")),
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Activity))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Activity);

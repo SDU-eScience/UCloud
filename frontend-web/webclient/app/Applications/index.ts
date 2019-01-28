@@ -3,7 +3,7 @@ import { Page } from "Types";
 import { match } from "react-router";
 import PromiseKeeper from "PromiseKeeper";
 import { History } from "history";
-import { DetailedResultReduxObject, ComponentWithPage } from "DefaultObjects";
+import { DetailedResultReduxObject } from "DefaultObjects";
 
 export interface Analysis {
     status: string
@@ -29,6 +29,7 @@ export interface AnalysesOperations {
     updatePageTitle: (title: string) => void
     setLoading: (loading: boolean) => void
     fetchAnalyses: (itemsPerPage: number, pageNumber: number) => void
+    setActivePage: () => void
 }
 
 export interface AnalysesState {

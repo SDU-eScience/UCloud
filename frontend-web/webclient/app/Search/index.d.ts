@@ -42,4 +42,5 @@ export interface SimpleSearchOperations {
     setSearch: (search: string) => void
     setPrioritizedSearch: (st: HeaderSearchType) => void
     toggleAdvancedSearch: () => void
+    setActivePage: () => void
 }

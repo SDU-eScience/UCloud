@@ -2,7 +2,7 @@ import * as React from "react";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { updatePageTitle, StatusActions } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, StatusActions, setActivePage } from "Navigation/Redux/StatusActions";
 import { setPrioritizedSearch, HeaderActions } from "Navigation/Redux/HeaderActions";
 import { Application } from "Applications";
 import { Page } from "Types";
@@ -14,10 +14,12 @@ import * as Actions from "./Redux/FavoriteActions";
 import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { loadingEvent } from "LoadableContent";
 import * as Heading from "ui-components/Heading";
+import { SidebarPages } from "ui-components/Sidebar";
 
 interface InstalledOperations {
     onInit: () => void
     fetchItems: (pageNumber: number, itemsPerPage: number) => void
+    setActivePage: () => void
 }
 
 type InstalledStateProps = ReduxType;
@@ -30,6 +32,7 @@ class Installed extends React.Component<InstalledProps> {
 
         props.onInit();
         props.fetchItems(0, 25);
+        props.setActivePage();
     }
 
     render() {
@@ -73,7 +76,9 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
     fetchItems: async (pageNumber: number, itemsPerPage: number) => {
         dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
         dispatch(await Actions.fetch(itemsPerPage, pageNumber))
-    }
+    },
+
+    setActivePage: () => dispatch(setActivePage(SidebarPages.MyApps))
 });
 
 const mapStateToProps = (state: ReduxObject): InstalledStateProps => state.applicationsFavorite;

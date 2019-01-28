@@ -3,16 +3,16 @@ import { StatusActions } from "./StatusActions";
 
 export const UPDATE_PAGE_TITLE = "UPDATE_PAGE_TITLE";
 export const UPDATE_STATUS = "UPDATE_STATUS";
+export const SET_ACTIVE_PAGE = "SET_ACTIVE_PAGE";
 
 const status = (state: StatusReduxObject = initStatus(), action: StatusActions): StatusReduxObject => {
     switch (action.type) {
-        case UPDATE_PAGE_TITLE: {
+        case UPDATE_PAGE_TITLE:
             document.title = `SDUCloud | ${action.payload.title}`;
             return { ...state, ...action.payload };
-        }
-        case UPDATE_STATUS: {
+        case UPDATE_STATUS:
+        case SET_ACTIVE_PAGE:
             return { ...state, ...action.payload };
-        }
         default: {
             return state;
         }

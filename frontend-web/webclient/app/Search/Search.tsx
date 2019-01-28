@@ -11,7 +11,6 @@ import { Dispatch } from "redux";
 import { SortOrder, SortBy, AdvancedSearchRequest, FileType } from "Files";
 import * as SSActions from "./Redux/SearchActions";
 import { Error, Hide, Input, Text, Flex, theme } from "ui-components";
-import { CardGroup } from "ui-components/Card";
 import { MainContainer } from "MainContainer/MainContainer";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSearchActions";
@@ -22,6 +21,8 @@ import { searchPage } from "Utilities/SearchUtilities";
 import { getQueryParamOrElse } from "Utilities/URIUtilities";
 import styled from "styled-components";
 import { GridCardGroup } from "ui-components/Grid";
+import { SidebarPages } from "ui-components/Sidebar";
+import { setActivePage } from "Navigation/Redux/StatusActions";
 
 interface SearchPane {
     headerType: HeaderSearchType
@@ -30,13 +31,10 @@ interface SearchPane {
 }
 
 class Search extends React.Component<SearchProps> {
-    constructor(props) {
-        super(props);
-    }
 
     componentDidMount() {
         this.props.toggleAdvancedSearch();
-
+        this.props.setActivePage();
         const query = this.query;
         this.props.setSearch(query);
         this.props.setPrioritizedSearch(this.props.match.params.priority as HeaderSearchType);
@@ -279,7 +277,8 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setProjectsPage: page => dispatch(SSActions.receiveProjects(page)),
     setSearch: search => dispatch(SSActions.setSearch(search)),
     setPrioritizedSearch: sT => dispatch(setPrioritizedSearch(sT)),
-    toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden())
+    toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden()),
+    setActivePage: () => dispatch(setActivePage(SidebarPages.None))
 });
 
 const mapStateToProps = ({ simpleSearch, detailedFileSearch, detailedApplicationSearch }: ReduxObject): SimpleSearchStateProps => ({

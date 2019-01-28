@@ -30,14 +30,7 @@ describe("Zenodo Publish", () => {
             <Provider store={configureStore({ zenodo: initZenodo() }, { zenodo, responsive })}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <ZenodoPublish
-                            updatePageTitle={() => undefined}
-                            setErrorMessage={() => undefined}
-                            setLoading={() => undefined}
-                            history={createMemoryHistory()}
-                            connected={true}
-                            loading={false}
-                        />
+                        <ZenodoPublish history={createMemoryHistory()} />
                     </MemoryRouter>
                 </ThemeProvider>
             </Provider>
@@ -52,14 +45,7 @@ describe("Zenodo Publish", () => {
             <Provider store={store}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <ZenodoPublish
-                            updatePageTitle={() => undefined}
-                            setErrorMessage={() => undefined}
-                            setLoading={() => undefined}
-                            history={createMemoryHistory()}
-                            connected={true}
-                            loading={false}
-                        />
+                        <ZenodoPublish history={createMemoryHistory()} />
                     </MemoryRouter>
                 </ThemeProvider>
             </Provider>
@@ -82,14 +68,7 @@ describe("Zenodo Publish", () => {
             <Provider store={store}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <ZenodoPublish
-                            updatePageTitle={() => undefined}
-                            setErrorMessage={() => undefined}
-                            setLoading={() => undefined}
-                            history={createMemoryHistory()}
-                            connected={true}
-                            loading={false}
-                        />
+                        <ZenodoPublish history={createMemoryHistory()} />
                     </MemoryRouter>
                 </ThemeProvider>
             </Provider>

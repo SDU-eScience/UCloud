@@ -1,6 +1,6 @@
 import * as React from "react";
 import { toLowerCaseAndCapitalize, shortUUID } from "UtilityFunctions"
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Link } from "ui-components";
 import { List } from "Pagination/List";
@@ -15,14 +15,16 @@ import { fileTablePage } from "Utilities/FileUtilities";
 import { MainContainer } from "MainContainer/MainContainer";
 import { History } from "history";
 import { ReduxObject } from "DefaultObjects";
+import { SidebarPages } from "ui-components/Sidebar";
 
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
-    constructor(props) {
+    constructor(props: Readonly<AnalysesProps & { history: History }>) {
         super(props);
         this.state = {
             reloadIntervalId: -1
         };
-        this.props.updatePageTitle("Results");
+        props.setActivePage();
+        props.updatePageTitle("Results");
     }
 
     componentDidMount() {
@@ -112,7 +114,8 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage(undefined)),
     updatePageTitle: () => dispatch(updatePageTitle("Results")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    fetchAnalyses: async (itemsPerPage: number, pageNumber: number) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber))
+    fetchAnalyses: async (itemsPerPage: number, pageNumber: number) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),
+    setActivePage: () => dispatch(setActivePage(SidebarPages.MyResults))
 });
 
 const mapStateToProps = ({ analyses }: ReduxObject): AnalysesStateProps => analyses;

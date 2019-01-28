@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
-import { updatePageTitle, StatusActions } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, StatusActions, setActivePage } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
 import { Application } from ".";
 import { setPrioritizedSearch, HeaderActions } from "Navigation/Redux/HeaderActions";
@@ -20,6 +20,7 @@ import * as Actions from "./Redux/BrowseActions";
 import { loadingEvent } from "LoadableContent";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
+import { SidebarPages } from "ui-components/Sidebar";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -60,6 +61,7 @@ export interface ApplicationsOperations {
     onInit: () => void
     fetchDefault: (itemsPerPage: number, page: number) => void
     fetchByTag: (tag: string, itemsPerPage: number, page: number) => void
+    setActivePage: () => void
 }
 
 export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocationProps;
@@ -71,6 +73,7 @@ class Applications extends React.Component<ApplicationsProps> {
         props.onInit();
 
         this.fetch(props);
+        props.setActivePage();
     }
 
     componentDidUpdate(prevProps: ApplicationsProps) {
@@ -173,7 +176,9 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
     fetchDefault: async (itemsPerPage: number, page: number) => {
         dispatch({ type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true) });
         dispatch(await Actions.fetch(itemsPerPage, page));
-    }
+    },
+
+    setActivePage: () => dispatch(setActivePage(SidebarPages.AppStore))
 });
 
 const mapStateToProps = (state: ReduxObject): ReduxType => {

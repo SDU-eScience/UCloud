@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject"
 import { favoriteFile, getParentPath, getFilenameFromPath, replaceHomeFolder, isDirectory } from "Utilities/FileUtilities";
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
 import * as moment from "moment";
@@ -28,6 +28,7 @@ import * as Accounting from "Accounting";
 import { MainContainer } from "MainContainer/MainContainer";
 import { fetchUsage } from "Accounting/Redux/AccountingActions";
 import { Spacer } from "ui-components/Spacer";
+import { SidebarPages } from "ui-components/Sidebar";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
@@ -43,10 +44,11 @@ const DashboardCard = ({ title, isLoading, children }: { title: string, isLoadin
 );
 
 class Dashboard extends React.Component<DashboardProps & { history: History }> {
-    constructor(props: any) {
+    constructor(props: Readonly<DashboardProps & { history: History }>) {
         super(props);
         const { favoriteFiles, recentFiles, recentAnalyses } = props;
         props.updatePageTitle();
+        props.setActivePage();
         let loading = false;
         if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length) {
             loading = true;
@@ -61,7 +63,6 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         props.fetchRecentFiles();
         props.fetchRecentAnalyses();
         props.fetchUsage();
-
     }
 
     private onNotificationAction = (notification: Notification) => {
@@ -257,6 +258,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Dashboard)),
     // FIXME: Make action instead
     receiveFavorites: files => dispatch(receiveFavorites(files))
 });

@@ -4,7 +4,7 @@ import { AccessRight, Page, AccessRightValues } from "Types";
 import { shareSwal, prettierString, iconFromFilePath } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { SharesByPath, Share, ShareId, ListProps, ListState, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
 import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Button, Icon } from "ui-components";
@@ -17,9 +17,10 @@ import { TextSpan } from "ui-components/Text";
 import { MainContainer } from "MainContainer/MainContainer";
 import { FileIcon } from "UtilityComponents";
 import { setsDiffer } from "Utilities/CollectionUtilities";
+import { SidebarPages } from "ui-components/Sidebar";
 
 class List extends React.Component<ListProps & SharesOperations, ListState> {
-    constructor(props: any) {
+    constructor(props: Readonly<ListProps & SharesOperations>) {
         super(props);
         this.state = {
             promises: new PromiseKeeper(),
@@ -30,6 +31,7 @@ class List extends React.Component<ListProps & SharesOperations, ListState> {
             loading: true,
             byState: ShareState.REQUEST_SENT
         };
+        props.setActivePage();
         // FIXME potentially move following to a parent component
         if (!props.notInnerComponent)
             this.props.updatePageTitle();
@@ -454,10 +456,12 @@ const sharesByPath = async (path: string): Promise<any> => ({
 
 interface SharesOperations {
     updatePageTitle: () => void
+    setActivePage: () => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): SharesOperations => ({
-    updatePageTitle: () => dispatch(updatePageTitle("Shares"))
+    updatePageTitle: () => dispatch(updatePageTitle("Shares")),
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Shares))
 });
 
 export default connect(() => ({}), mapDispatchToProps)(List);

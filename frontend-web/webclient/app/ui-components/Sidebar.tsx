@@ -8,15 +8,15 @@ import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { fileTablePage } from "Utilities/FileUtilities";
-import { ExternalLink, RatingBadge, Tooltip } from "ui-components";
+import { ExternalLink, RatingBadge, Tooltip, theme } from "ui-components";
 import { RBox } from "ui-components";
 import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
 import { FlexCProps } from "./Flex";
 import { successNotification } from "UtilityFunctions";
+import { Theme } from "./theme";
 
-
-const SidebarElementContainer = styled(Flex)`
+const SidebarElementContainer = styled(Flex) <{ hover?: boolean, active?: boolean }>`
     justify-content: left;
     flex-flow: row;
     align-items: center;
@@ -63,7 +63,7 @@ ${({ theme }) => theme.mediaQueryLT["xl"]} {
                 opacity: 1;
             }
         
-        }
+    }
     
 }
 `;
@@ -91,20 +91,51 @@ interface TextLabelProps {
 
 const TextLabel = ({ icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
     iconSize = "24", space = "22px", textSize = 3, hover = true }: TextLabelProps) => (
-        <SidebarElementContainer title={title} height={height} ml="22px">
-            <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space}
-                css={hover ? `${SidebarElementContainer}:hover & { filter: saturate(500%); }` : null}
-            />
+        <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
+            <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
             <Text fontSize={textSize}> {children} </Text>
         </SidebarElementContainer>
     );
 
-interface SidebarElement { icon: IconName, label: string, to: string, external?: boolean }
-const SidebarElement = ({ icon, label, to }: SidebarElement) => (
-    <Link to={to}>
+const SidebarLink = styled(Link)`
+    ${props => props.active ?
+        `&:not(:hover) > * > ${Text} { 
+            filter: saturate(6000%);
+        }
+        &:not(:hover) > * > ${Icon} { 
+            filter: saturate(500%);
+        }        
+    ` : null}
+
+    
+    text-decoration: none;
+
+    &:hover > ${Text}, &:hover > * > ${Icon} {
+        filter: saturate(500%);
+    }
+`;
+
+interface SidebarElement { icon: IconName, label: string, to: string, external?: boolean, activePage: SidebarPages }
+const SidebarElement = ({ icon, label, to, activePage }: SidebarElement) => (
+    <SidebarLink to={to} active={enumToLabel(activePage) === label}>
         <TextLabel icon={icon}>{label}</TextLabel>
-    </Link>
+    </SidebarLink>
 );
+
+function enumToLabel(value: SidebarPages): string {
+    switch (value) {
+        case SidebarPages.Dashboard: return "Dashboard";
+        case SidebarPages.Files: return "Files";
+        case SidebarPages.Shares: return "Shares";
+        case SidebarPages.MyApps: return "My Apps";
+        case SidebarPages.AppStore: return "App Store";
+        case SidebarPages.MyResults: return "My Results";
+        case SidebarPages.Publish: return "Publish";
+        case SidebarPages.Activity: return "Activity";
+        case SidebarPages.Admin: return "Admin";
+        default: return "";
+    }
+}
 
 const SidebarSpacer = () => (<Box mt="20px" />);
 
@@ -136,16 +167,17 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
 
 interface SidebarStateProps {
     responsiveState?: ResponsiveReduxObject
+    page: SidebarPages
 }
 interface SidebarProps extends SidebarStateProps {
     sideBarEntries?: any
     responsiveState?: ResponsiveReduxObject
 }
 
-const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: SidebarProps) => {
-    let sidebar = Object.keys(sideBarEntries)
+const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState, page }: SidebarProps) => {
+    const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
-        .filter(it => it.predicate())
+        .filter(it => it.predicate());
     return (
         <SidebarContainer color="text" flexDirection="column" width={190}>
             {sidebar.map((category, categoryIdx) =>
@@ -153,7 +185,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState }: Side
                     {category.items.map(({ icon, label, to }: MenuElement) => (
                         <React.Fragment key={label}>
                             {categoryIdx === 0 ? <SidebarSpacer /> : null}
-                            <SidebarElement icon={icon} label={label} to={to} />
+                            <SidebarElement icon={icon} activePage={page} label={label} to={to} />
                         </React.Fragment>))}
                     {categoryIdx !== sidebar.length - 1 ? (<Divider mt="10px" mb="10px" />) : null}
                 </React.Fragment>
@@ -188,8 +220,22 @@ function copyToClipboard(value: string | undefined, message: string) {
     successNotification(message);
 }
 
-const mapStateToProps = ({ responsive }: ReduxObject): SidebarStateProps => ({
-    responsiveState: responsive
+const mapStateToProps = ({ responsive, status }: ReduxObject): SidebarStateProps => ({
+    responsiveState: responsive,
+    page: status.page
 });
+
+export const enum SidebarPages {
+    Dashboard,
+    Files,
+    Shares,
+    MyApps,
+    AppStore,
+    MyResults,
+    Publish,
+    Activity,
+    Admin,
+    None
+}
 
 export default connect<SidebarStateProps>(mapStateToProps)(Sidebar);

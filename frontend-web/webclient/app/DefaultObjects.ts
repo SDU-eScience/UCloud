@@ -14,6 +14,7 @@ import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
 import { defaultAvatar } from "UserSettings/Avataaar";
 import { DetailedProjectSearchReduxState } from "Project";
+import { SidebarPages } from "ui-components/Sidebar";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -146,6 +147,7 @@ export interface ZenodoReduxObject extends ComponentWithPage<Publication> {
 export interface StatusReduxObject {
     status: Status
     title: string
+    page: SidebarPages
 }
 
 export interface SidebarReduxObject {
@@ -244,7 +246,8 @@ export const initHeader = (): HeaderSearchReduxObject => ({
 
 export const initStatus = (): StatusReduxObject => ({
     status: DefaultStatus,
-    title: ""
+    title: "",
+    page: SidebarPages.None
 });
 
 export const initDashboard = (): DashboardStateProps => ({

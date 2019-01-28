@@ -1,7 +1,9 @@
-import { UPDATE_PAGE_TITLE, UPDATE_STATUS } from "./StatusReducer";
+import { UPDATE_PAGE_TITLE, UPDATE_STATUS, SET_ACTIVE_PAGE } from "./StatusReducer";
 import { Status } from "..";
 import { Action } from "redux";
-export type StatusActions = UpdatePageTitleAction | UpdateStatusAction;
+import { PayloadAction } from "Types";
+import { SidebarPages } from "ui-components/Sidebar";
+export type StatusActions = UpdatePageTitleAction | UpdateStatusAction | SetActivePage; 
 
 
 export interface UpdatePageTitleAction extends Action<typeof UPDATE_PAGE_TITLE> { payload: { title: string } }
@@ -22,4 +24,10 @@ interface UpdateStatusAction extends Action<typeof UPDATE_STATUS> { payload: { s
 export const updateStatus = (status: Status): UpdateStatusAction => ({
     type: UPDATE_STATUS,
     payload: { status }
+});
+
+type SetActivePage = PayloadAction<typeof SET_ACTIVE_PAGE, { page: SidebarPages }>
+export const setActivePage = (page: SidebarPages): SetActivePage => ({
+    type: SET_ACTIVE_PAGE,
+    payload: { page }
 });

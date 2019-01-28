@@ -3,7 +3,7 @@ import FileSelector from "Files/FileSelector";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { NotConnectedToZenodo } from "Utilities/ZenodoPublishingUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { setZenodoLoading, setErrorMessage } from "./Redux/ZenodoActions";
 import { connect } from "react-redux";
 import { History } from "history";
@@ -16,6 +16,8 @@ import { Dispatch } from "redux";
 import { Button, Error, Input, Label, Flex, LoadingButton, Box, Link } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import { MainContainer } from "MainContainer/MainContainer";
+import { SidebarPages } from "ui-components/Sidebar";
+import { ReduxObject } from "DefaultObjects";
 
 interface ZenodoPublishState {
     files: string[]
@@ -34,6 +36,7 @@ interface ZenodoPublishOperations {
     updatePageTitle: () => void
     setLoading: (loading: boolean) => void
     setErrorMessage: (error?: string) => void
+    setActivePage: () => void
 }
 
 class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOperations, ZenodoPublishState> {
@@ -44,6 +47,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
             name: "",
             requestSent: false,
         };
+        props.setActivePage();
         props.updatePageTitle();
     }
 
@@ -83,10 +87,11 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
 
     render() {
         const { name } = this.state;
+
         if (this.props.loading) {
-            return (<LoadingIcon size={18} />);
+            return (<MainContainer main={<LoadingIcon size={18} />} />);
         } else if (!this.props.connected) {
-            return (<NotConnectedToZenodo />);
+            return (<MainContainer main={<NotConnectedToZenodo />} />);
         }
 
 
@@ -160,10 +165,12 @@ const FileSelections = ({ files, handleFileSelection, removeFile }: { files: str
     </>
 );
 
-const mapStateToProps = ({ zenodo }) => zenodo;
+const mapStateToProps = ({ zenodo }: ReduxObject) => zenodo;
 const mapDispatchToProps = (dispatch: Dispatch): ZenodoPublishOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Zenodo Publish")),
     setErrorMessage: (error?: string) => dispatch(setErrorMessage(SET_ZENODO_ERROR, error)),
-    setLoading: (loading: boolean) => dispatch(setZenodoLoading(loading))
-})
+    setLoading: (loading: boolean) => dispatch(setZenodoLoading(loading)),
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Publish))
+});
+
 export default connect(mapStateToProps, mapDispatchToProps)(ZenodoPublish);

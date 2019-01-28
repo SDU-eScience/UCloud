@@ -6,18 +6,19 @@ import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { SensitivityLevel, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import { dateToString } from "Utilities/DateUtilities"
 import { connect } from "react-redux";
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import ShareList from "Shares/List";
 import { File } from "Files";
 import { ActivityFeed } from "Activity/Activity";
 import { Dispatch } from "redux";
 import { fetchFileStat, setLoading, fetchFileActivity, receiveFileStat, fileInfoError } from "./Redux/FileInfoActions";
-import { Flex, Box, Icon, Card, Error } from "ui-components";
+import { Flex, Box, Icon, Card, Error, Sidebar } from "ui-components";
 import List from "ui-components/List";
 import * as Heading from "ui-components/Heading"
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { FileInfoReduxObject } from "DefaultObjects";
 import { MainContainer } from "MainContainer/MainContainer";
+import { SidebarPages } from "ui-components/Sidebar";
 
 interface FileInfoOperations {
     updatePageTitle: () => void
@@ -26,6 +27,7 @@ interface FileInfoOperations {
     fetchFileActivity: (path: string) => void
     receiveFileStat: (file: File) => void
     setError: (err?: string) => void
+    setActivePage: () => void
 }
 
 interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
@@ -33,8 +35,9 @@ interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
 }
 
 class FileInfo extends React.Component<FileInfo> {
-    constructor(props) {
+    constructor(props: Readonly<FileInfo>) {
         super(props);
+        props.setActivePage();
     }
 
     get queryParams(): URLSearchParams {
@@ -154,7 +157,8 @@ const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
     setError: err => dispatch(fileInfoError(err)),
     fetchFileStat: async path => dispatch(await fetchFileStat(path)),
     fetchFileActivity: async path => dispatch(await fetchFileActivity(path)),
-    receiveFileStat: file => dispatch(receiveFileStat(file))
+    receiveFileStat: file => dispatch(receiveFileStat(file)),
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Files))
 });
 
 export default connect<FileInfoReduxObject, FileInfoOperations>(mapStateToProps, mapDispatchToProps)(FileInfo);

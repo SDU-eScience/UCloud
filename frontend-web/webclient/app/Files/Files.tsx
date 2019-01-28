@@ -7,7 +7,7 @@ import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import * as UF from "UtilityFunctions";
 import { KeyCode, ReduxObject } from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";
-import { updatePageTitle } from "Navigation/Redux/StatusActions";
+import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
 import { MasterCheckbox, CustomEntriesPerPage } from "UtilityComponents";
 import { FilesProps, FilesStateProps, FilesOperations, File, FileOperation } from ".";
@@ -26,12 +26,14 @@ import { FilesTable, ContextBar } from "./FilesTable";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Spacer } from "ui-components/Spacer";
 import { setFileSelectorLoading } from "./Redux/FilesActions";
+import { SidebarPages } from "ui-components/Sidebar";
 
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
-        const { page, sortOrder, sortBy, history, prioritizeFileSearch, ...props } = this.props;
+        const { page, sortOrder, sortBy, history, ...props } = this.props;
         props.setPageTitle();
-        prioritizeFileSearch();
+        props.setActivePage();
+        props.prioritizeFileSearch();
         props.setUploaderCallback(
             (path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)
         );
@@ -256,6 +258,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     setDisallowedPaths: disallowedPaths => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
     showUploader: () => dispatch(setUploaderVisible(true)),
     setUploaderCallback: callback => dispatch(setUploaderCallback(callback)),
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Files))
 });
 
 export default connect<FilesStateProps, FilesOperations>(mapStateToProps, mapDispatchToProps)(Files);
