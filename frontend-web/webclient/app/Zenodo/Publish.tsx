@@ -94,14 +94,13 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
             return (<MainContainer main={<NotConnectedToZenodo />} />);
         }
 
-
         const header = (
             <>
                 <Heading.h3>
                     File Selection
                 </Heading.h3>
                 <Error error={this.props.error} clearError={() => this.props.setErrorMessage(undefined)} />
-            </>)
+            </>);
 
         const main = (
             <Box mt="5px">

@@ -18,6 +18,7 @@ import { MainContainer } from "MainContainer/MainContainer";
 import { FileIcon } from "UtilityComponents";
 import { setsDiffer } from "Utilities/CollectionUtilities";
 import { SidebarPages } from "ui-components/Sidebar";
+import { Spacer } from "ui-components/Spacer";
 
 class List extends React.Component<ListProps & SharesOperations, ListState> {
     constructor(props: Readonly<ListProps & SharesOperations>) {
@@ -226,8 +227,8 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         const { isLoading } = this.state;
         const shareComponents: JSX.Element[] = groupedShare.shares.map((e, i, { length }) => (
             <Box key={e.id}>
-                <Flex m="5px 5px 5px 5px">
-                    <Box width="90%">
+                <Spacer m="5px 5px 5px 5px"
+                    left={<Box>
                         {e.sharedWith}
                         <AccessRightsDisplay
                             pendingChanges={e.pendingRightChanges}
@@ -235,10 +236,11 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                             onRightsToggle={it => this.onRightsToggle(e, it)}
                             onAcceptChange={() => this.onAcceptChange(e)}
                         />
-                    </Box>
-                    <Box width="10%">
+                    </Box>}
+                    right={
                         <LoadingButton
-                            fullWidth
+                            height="40px"
+                            width="auto"
                             color="red"
                             disabled={isLoading}
                             loading={isLoading}
@@ -249,9 +251,8 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                                 <Icon size={18} name="close" />
                                 <Text ml="3px">Revoke</Text>
                             </Flex>
-                        </LoadingButton>
-                    </Box>
-                </Flex>
+                        </LoadingButton>}
+                />
                 {i !== length - 1 ? <Divider /> : null}
             </Box>
         ));
@@ -369,7 +370,7 @@ interface AccessRightsDisplayProps {
     read?: boolean
     write?: boolean
     floated?: boolean
-    
+
     onRightsToggle?: (aR: AccessRight) => void
     onAcceptChange?: () => void
 }
