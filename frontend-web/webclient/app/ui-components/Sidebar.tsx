@@ -196,7 +196,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState, page }
 
             <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username || ""}>
                 <Tooltip top mb="35px" trigger={<EllipsedText cursor="pointer" onClick={() => copyToClipboard(Cloud.username, "Username copied to clipboard")} width={"140px"}>{Cloud.username}</EllipsedText>}>
-                    Copy to clipboard
+                    Click to copy to clipboard
                 </Tooltip>
             </TextLabel>
 

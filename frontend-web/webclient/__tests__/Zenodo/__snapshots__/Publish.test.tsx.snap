@@ -1,11 +1,22 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Zenodo Publish Mount Zenodo component 1`] = `
-Array [
-  <h1>
-    You are not connected to Zenodo
-  </h1>,
-  .c0 {
+.c0 {
+  cursor: auto;
+  margin-left: 190px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+  padding-top: 48px;
+}
+
+.c1 {
+  cursor: auto;
+  padding-right: 14px;
+  padding-top: 14px;
+}
+
+.c2 {
   -webkit-font-smoothing: antialiased;
   display: inline-block;
   vertical-align: middle;
@@ -27,26 +38,38 @@ Array [
   padding: 9.5px 18px;
 }
 
-.c0:disabled {
+.c2:disabled {
   opacity: 0.25;
 }
 
-.c0:focus {
+.c2:focus {
   outline: none;
 }
 
-.c0:hover {
+.c2:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-<button
-    className="c0"
-    color="blue"
-    onClick={[Function]}
+<div
+  className="c0"
+  cursor="auto"
+>
+  <div
+    className="c1"
+    cursor="auto"
   >
-    Connect to Zenodo
-  </button>,
-]
+    <h1>
+      You are not connected to Zenodo
+    </h1>
+    <button
+      className="c2"
+      color="blue"
+      onClick={[Function]}
+    >
+      Connect to Zenodo
+    </button>
+  </div>
+</div>
 `;

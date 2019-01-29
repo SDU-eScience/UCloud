@@ -1,5 +1,6 @@
 import * as Defaults from "DefaultObjects";
 import { SortOrder, SortBy } from "Files";
+import { SidebarPages } from "ui-components/Sidebar";
 
 describe("Initialize Redux Objects", () => {
     test("Dashboard", () => {
@@ -40,7 +41,8 @@ describe("Initialize Redux Objects", () => {
     test("Status", () =>
         expect(Defaults.initStatus()).toEqual({
             status: Defaults.DefaultStatus,
-            title: ""
+            title: "",
+            page: SidebarPages.None
         })
     );
 

@@ -5,18 +5,31 @@ import { configure, mount } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import PromiseKeeper from "PromiseKeeper";
 import "jest-styled-components";
+import { createStore } from "redux";
+import status from "Navigation/Redux/StatusReducer";
+import { initStatus } from "DefaultObjects";
+import { Provider } from "react-redux";
 
 configure({ adapter: new Adapter() });
 
+
+const store = createStore(status, initStatus());
+
+function userCreation() {
+    return <Provider store={store}>
+        <UserCreation />
+    </Provider>
+}
+
 describe("UserCreation", () => {
     test("Mount", () =>
-        expect(create(<UserCreation />).toJSON()).toMatchSnapshot()
+        expect(create(userCreation()).toJSON()).toMatchSnapshot()
     );
 
     test.skip("Update username field", () => {
-        const userCreation = mount(<UserCreation />);
-        userCreation.find("FormField").findWhere(it => it.props().label === "Username").find("input").simulate("change", { target: { value: "username" } });
-        expect(userCreation.state()).toEqual({
+        const uC = mount(userCreation());
+        uC.find("FormField").findWhere(it => it.props().label === "Username").find("input").simulate("change", { target: { value: "username" } });
+        expect(uC.state()).toEqual({
             promiseKeeper: new PromiseKeeper(),
             submitted: false,
             username: "username",
@@ -28,9 +41,9 @@ describe("UserCreation", () => {
     });
 
     test.skip("Update password field", () => {
-        const userCreation = mount(<UserCreation />);
-        userCreation.find("FormField").findWhere(it => it.props().label === "Password").find("input").simulate("change", { target: { value: "password" } });
-        expect(userCreation.state()).toEqual({
+        const uC = mount(userCreation());
+        uC.find("FormField").findWhere(it => it.props().label === "Password").find("input").simulate("change", { target: { value: "password" } });
+        expect(uC.state()).toEqual({
             promiseKeeper: new PromiseKeeper(),
             submitted: false,
             username: "",
@@ -42,9 +55,9 @@ describe("UserCreation", () => {
     });
 
     test.skip("Update repeated password field", () => {
-        const userCreation = mount(<UserCreation />);
-        userCreation.find("FormField").findWhere(it => it.props().label === "Repeat password").find("input").simulate("change", { target: { value: "repeatWord" } });
-        expect(userCreation.state()).toEqual({
+        const uC = mount(userCreation());
+        uC.find("FormField").findWhere(it => it.props().label === "Repeat password").find("input").simulate("change", { target: { value: "repeatWord" } });
+        expect(uC.state()).toEqual({
             promiseKeeper: new PromiseKeeper(),
             submitted: false,
             username: "",
@@ -56,28 +69,28 @@ describe("UserCreation", () => {
     });
 
     test.skip("Submit with missing username, causing errors to be rendered", () => {
-        const userCreation = mount(<UserCreation />);
-        userCreation.find("FormField").findWhere(it => it.props().label === "Password").find("input").simulate("change", { target: { value: "password" } });
-        userCreation.find("FormField").findWhere(it => it.props().label === "Repeat password").find("input").simulate("change", { target: { value: "password" } });
-        userCreation.find("Button").findWhere(it => it.props().content === "Create user").simulate("submit");
-        expect(userCreation.state("usernameError")).toBe(true);
-        expect(userCreation.state("passwordError")).toBe(false);
+        const uC = mount(userCreation());
+        uC.find("FormField").findWhere(it => it.props().label === "Password").find("input").simulate("change", { target: { value: "password" } });
+        uC.find("FormField").findWhere(it => it.props().label === "Repeat password").find("input").simulate("change", { target: { value: "password" } });
+        uC.find("Button").findWhere(it => it.props().content === "Create user").simulate("submit");
+        expect(uC.state("usernameError")).toBe(true);
+        expect(uC.state("passwordError")).toBe(false);
     });
 
     test.skip("Submit with missing password fields, causing errors to be rendered", () => {
-        const userCreation = mount(<UserCreation />);
-        userCreation.find("FormField").findWhere(it => it.props().label === "Username").find("input").simulate("change", { target: { value: "username" } });
-        userCreation.find("Button").findWhere(it => it.props().content === "Create user").simulate("submit");
-        expect(userCreation.state("passwordError")).toBe(true);
-        expect(userCreation.state("usernameError")).toBe(false);
+        const uC = mount(userCreation());
+        uC.find("FormField").findWhere(it => it.props().label === "Username").find("input").simulate("change", { target: { value: "username" } });
+        uC.find("Button").findWhere(it => it.props().content === "Create user").simulate("submit");
+        expect(uC.state("passwordError")).toBe(true);
+        expect(uC.state("usernameError")).toBe(false);
     });
 
     test.skip("Submit with non matching password fields, causing errors to be rendered", () => {
-        const userCreation = mount(<UserCreation />);
-        userCreation.find("FormField").findWhere(it => it.props().label === "Password").find("input").simulate("change", { target: { value: "passwordAlso" } });
-        userCreation.find("FormField").findWhere(it => it.props().label === "Repeat password").find("input").simulate("change", { target: { value: "password" } });
-        userCreation.find("Button").findWhere(it => it.props().content === "Create user").simulate("submit");
-        expect(userCreation.state("usernameError")).toBe(true);
-        expect(userCreation.state("passwordError")).toBe(true);
+        const uC = mount(userCreation());
+        uC.find("FormField").findWhere(it => it.props().label === "Password").find("input").simulate("change", { target: { value: "passwordAlso" } });
+        uC.find("FormField").findWhere(it => it.props().label === "Repeat password").find("input").simulate("change", { target: { value: "password" } });
+        uC.find("Button").findWhere(it => it.props().content === "Create user").simulate("submit");
+        expect(uC.state("usernameError")).toBe(true);
+        expect(uC.state("passwordError")).toBe(true);
     });
 });
