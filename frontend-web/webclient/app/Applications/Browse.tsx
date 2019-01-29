@@ -21,6 +21,8 @@ import { loadingEvent } from "LoadableContent";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { SidebarPages } from "ui-components/Sidebar";
+import { Spacer } from "ui-components/Spacer";
+import { CustomEntriesPerPage } from "UtilityComponents";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -125,10 +127,12 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 
     render() {
+        const page = this.props.applications.content as Page<Application>
+
         const main = (
             <Pagination.List
                 loading={this.props.applications.loading}
-                onRefresh={() => this.fetch(this.props)}
+                customEntriesPerPage
                 pageRenderer={(page: Page<Application>) =>
                     <GridCardGroup>
                         {page.items.map((app, index) =>
@@ -152,7 +156,17 @@ class Applications extends React.Component<ApplicationsProps> {
 
         return (
             <LoadingMainContainer
-                header={<Heading.h1>Browse</Heading.h1>}
+                header={
+                    <Spacer
+                        left={<Heading.h1>Browse</Heading.h1>}
+                        right={<CustomEntriesPerPage
+                            entriesPerPage={!!page ? page.itemsPerPage : 25}
+                            loading={this.props.applications.loading}
+                            text={"Apps per page"}
+                            onChange={size => this.props.history.push(this.updateItemsPerPage(size))}
+                            onRefreshClick={() => this.fetch(this.props)}
+                        />}
+                    />}
                 loadable={this.props.applications}
                 main={main}
                 fallbackSidebar={<Sidebar />}

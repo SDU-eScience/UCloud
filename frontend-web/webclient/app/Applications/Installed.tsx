@@ -15,6 +15,8 @@ import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { loadingEvent } from "LoadableContent";
 import * as Heading from "ui-components/Heading";
 import { SidebarPages } from "ui-components/Sidebar";
+import { Spacer } from "ui-components/Spacer";
+import { CustomEntriesPerPage } from "UtilityComponents";
 
 interface InstalledOperations {
     onInit: () => void
@@ -36,21 +38,40 @@ class Installed extends React.Component<InstalledProps> {
     }
 
     render() {
-        const page = this.props.applications.content as Page<Application>;
+        const { props } = this;
+        const page = props.applications.content as Page<Application>;
+
         const main = (
             <Pagination.List
-                loading={this.props.applications.loading}
-                onRefresh={() => this.props.fetchItems(page.pageNumber, page.itemsPerPage)}
+                loading={props.applications.loading}
                 page={page}
-                onItemsPerPageChanged={size => this.props.fetchItems(0, size)}
-                onPageChanged={pageNumber => this.props.fetchItems(pageNumber, page.itemsPerPage)}
+                customEntriesPerPage
+                onItemsPerPageChanged={size => props.fetchItems(0, size)}
+                onPageChanged={pageNumber => props.fetchItems(pageNumber, page.itemsPerPage)}
                 pageRenderer={page => <InstalledPage page={page} />}
+            />
+        );
+
+
+        const pageNumber = !!page ? page.pageNumber : 0;
+        const itemsPerPage = !!page ? page.itemsPerPage : 25;
+
+        const header = (
+            <Spacer
+                left={<Heading.h1>My Apps</Heading.h1>}
+                right={<CustomEntriesPerPage
+                    entriesPerPage={itemsPerPage}
+                    loading={props.applications.loading}
+                    text={"Apps per page"}
+                    onChange={size => props.fetchItems(0, size)}
+                    onRefreshClick={() => props.fetchItems(pageNumber, itemsPerPage)}
+                />}
             />
         );
 
         return (
             <LoadingMainContainer
-                header={<Heading.h1>My Apps</Heading.h1>}
+                header={header}
                 loadable={this.props.applications}
                 main={main}
                 sidebar={null}

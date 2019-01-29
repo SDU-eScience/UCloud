@@ -10,12 +10,14 @@ import { AnalysesProps, AnalysesState, AnalysesOperations, AnalysesStateProps } 
 import { setErrorMessage } from "./Redux/AnalysesActions";
 import { Dispatch } from "redux";
 import { Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow } from "ui-components/Table";
-import { Heading } from "ui-components";
 import { fileTablePage } from "Utilities/FileUtilities";
 import { MainContainer } from "MainContainer/MainContainer";
 import { History } from "history";
 import { ReduxObject } from "DefaultObjects";
 import { SidebarPages } from "ui-components/Sidebar";
+import * as Heading from "ui-components/Heading";
+import { Spacer } from "ui-components/Spacer";
+import { CustomEntriesPerPage } from "UtilityComponents";
 
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props: Readonly<AnalysesProps & { history: History }>) {
@@ -48,11 +50,11 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
     render() {
         const { page, loading, fetchAnalyses, error, onErrorDismiss, history } = this.props;
         const content = <List
-            customEmptyPage={<Heading>No jobs have been run on this account.</Heading>}
+            customEmptyPage={<Heading.h1>No jobs have been run on this account.</Heading.h1>}
             loading={loading}
             onErrorDismiss={onErrorDismiss}
             errorMessage={error}
-            onRefresh={() => fetchAnalyses(page.itemsPerPage, page.pageNumber)}
+            customEntriesPerPage
             pageRenderer={(page) =>
                 <Table>
                     <Header />
@@ -68,7 +70,21 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
             onPageChanged={pageNumber => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
         />;
 
-        return (<MainContainer main={content} />);
+        return (<MainContainer
+            header={
+                <Spacer
+                    left={<Heading.h1>Job Results</Heading.h1>}
+                    right={<CustomEntriesPerPage
+                        entriesPerPage={!!page ? page.itemsPerPage : 25}
+                        loading={this.props.loading}
+                        text={"Results per page"}
+                        onChange={size => fetchAnalyses(size, 0)}
+                        onRefreshClick={() => fetchAnalyses(page.itemsPerPage, page.pageNumber)}
+                    />}
+                />
+            }
+            main={content}
+        />);
     }
 }
 

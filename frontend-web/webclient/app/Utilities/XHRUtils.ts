@@ -66,7 +66,7 @@ function unwrapError(e: any): ErrorMessage {
         return { statusCode: 500, errorMessage: "Internal Server Error" };
     }
 
-    const defaultStatusText = HTTP_STATUS_CODES[request.status] ? 
+    const defaultStatusText = HTTP_STATUS_CODES[request.status] ?
         HTTP_STATUS_CODES[request.status] : "Internal Server Error";
 
     if (!!e.response) return { statusCode: request.status, errorMessage: defaultStatusText };
@@ -75,10 +75,12 @@ function unwrapError(e: any): ErrorMessage {
     return { statusCode: request.status, errorMessage: defaultStatusText };
 }
 
-export function unwrap<T = any>(httpResponse: Promise<{ request: XMLHttpRequest, response: T }>): Promise<T | ErrorMessage> {
-    return httpResponse
-        .then(e => e.response)
-        .catch(e => unwrapError(e));
+export async function unwrap<T = any>(httpResponse: Promise<{ request: XMLHttpRequest, response: T }>): Promise<T | ErrorMessage> {
+    try {
+        return (await httpResponse).response;
+    } catch (e) {
+        return unwrapError(e);
+    }
 }
 
 export function isError(obj: any): boolean {

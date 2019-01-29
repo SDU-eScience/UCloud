@@ -19,6 +19,8 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { MainContainer } from "MainContainer/MainContainer";
 import styled from "styled-components";
 import { SidebarPages } from "ui-components/Sidebar";
+import { Spacer } from "ui-components/Spacer";
+import { CustomEntriesPerPage } from "UtilityComponents";
 
 class Activity extends React.Component<ActivityProps> {
     componentDidMount() {
@@ -36,9 +38,9 @@ class Activity extends React.Component<ActivityProps> {
                     loading={loading}
                     errorMessage={error}
                     onErrorDismiss={setError}
+                    customEntriesPerPage
                     pageRenderer={page => <ActivityFeedGrouped activity={groupedEntries ? groupedEntries : []} />}
                     page={page}
-                    onRefresh={() => fetchActivity(page.pageNumber, page.itemsPerPage)}
                     onItemsPerPageChanged={itemsPerPage => fetchActivity(page.pageNumber, itemsPerPage)}
                     onPageChanged={pageNumber => fetchActivity(pageNumber, page.itemsPerPage)}
                 />
@@ -46,9 +48,16 @@ class Activity extends React.Component<ActivityProps> {
         );
 
         const header = (
-            <React.StrictMode>
-                <Heading.h2>File Activity</Heading.h2>
-            </React.StrictMode>
+            <Spacer
+                left={<Heading.h2>File Activity</Heading.h2>}
+                right={<CustomEntriesPerPage
+                    entriesPerPage={page.itemsPerPage}
+                    loading={loading}
+                    text={"Apps per page"}
+                    onChange={size => fetchActivity(0, size)}
+                    onRefreshClick={() => fetchActivity(page.pageNumber, page.itemsPerPage)}
+                />}
+            />
         );
 
         return (

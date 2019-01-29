@@ -88,14 +88,6 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         favoriteFiles.forEach(f => f.favorited = true);
         const main = (
             <React.StrictMode>
-                <Error error={errors.join(",\n")} clearError={props.errorDismiss} />
-                <Spacer
-                    left={<></>}
-                    right={<Box pb="5px"><RefreshButton
-                        loading={favoriteLoading || recentLoading || analysesLoading}
-                        onClick={() => this.reload(true)}
-                    /></Box>}
-                />
                 <GridCardGroup minmax={290}>
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
@@ -130,8 +122,22 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
             </React.StrictMode>
         );
 
+        const header = (
+            <>
+                <Error error={errors.join(",\n")} clearError={props.errorDismiss} />
+                <Spacer
+                    left={<></>}
+                    right={<Box pb="5px"><RefreshButton
+                        loading={favoriteLoading || recentLoading || analysesLoading}
+                        onClick={() => this.reload(true)}
+                    /></Box>}
+                />
+            </>
+        )
+
         return (
             <MainContainer
+                header={header}
                 main={main}
             />
         );
