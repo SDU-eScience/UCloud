@@ -88,7 +88,9 @@ class Files extends React.Component<FilesProps> {
         setDisallowedPaths: this.props.setDisallowedPaths,
         setFileSelectorCallback: this.props.setFileSelectorCallback,
         showFileSelector: this.props.showFileSelector,
-        fetchPageFromPath: this.fetchPageFromPath
+        fetchPageFromPath: this.fetchPageFromPath,
+        fetchFilesPage: (path: string) =>
+            this.props.fetchFiles(path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy)
     };
 
     private readonly refetch = () => {

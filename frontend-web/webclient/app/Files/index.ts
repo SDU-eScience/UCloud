@@ -82,7 +82,7 @@ export interface FilesOperations { // Redux operations
     prioritizeFileSearch: () => void
     onFileSelectorErrorDismiss: () => void
     dismissError: () => void
-    fetchFiles: (path: string, itemsPerPage: number, pag1ber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
+    fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
     fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
@@ -210,6 +210,7 @@ export interface MoveCopyOperations {
     setDisallowedPaths: (paths: string[]) => void
     setFileSelectorCallback: (callback?: Function) => void
     fetchPageFromPath: (path: string) => void
+    fetchFilesPage: (path: string) => void
 }
 
 export interface FileOptionsProps {

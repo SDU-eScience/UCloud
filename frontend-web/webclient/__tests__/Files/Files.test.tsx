@@ -43,6 +43,7 @@ const fileOperations = AllFileOperations(true, {
     showFileSelector: nullOp,
     setDisallowedPaths: nullOp,
     fetchPageFromPath: nullOp,
+    fetchFilesPage: nullOp
 }, nullOp, nullOp, nullOp, nullOp, mockHistory, nullOp);
 
 describe("FilesTable", () => {

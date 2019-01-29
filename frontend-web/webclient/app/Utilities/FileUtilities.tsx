@@ -57,7 +57,11 @@ export function copyOrMove(operation: CopyOrMove, files: File[], operations: Mov
                 }
             }
         };
-        if (successes) { setLoading(); operations.fetchPageFromPath(pathToFetch); }
+        if (successes) {
+            setLoading();
+            if (policy === UploadPolicy.RENAME) operations.fetchFilesPage(getParentPath(pathToFetch));
+            else operations.fetchPageFromPath(pathToFetch);
+        }
         if (!failures && successes) onOnlySuccess("Moved", files.length);
         else if (failures) UF.failureNotification(`Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`, 10);
     });
