@@ -188,7 +188,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
         const icon = iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder);
         return (
-            <Card width="100%" height="auto" p="10px 10px 10px 10px">
+            <Card width="100%" mt="10px" mb="10px" height="auto" p="10px 10px 10px 10px">
                 <Heading.h4>
                     <Flex>
                         <Box ml="3px" mr="3px"><FileIcon fileIcon={icon} /></Box>{getFilenameFromPath(groupedShare.path)}
@@ -259,7 +259,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         const icon = iconFromFilePath(groupedShare.path, fileTypeGuess(groupedShare), Cloud.homeFolder);
 
         return (
-            <Card width="100%" p="10px 10px 10px 10px" height="auto">
+            <Card width="100%" p="10px 10px 10px 10px" mt="10px" mb="10px" height="auto">
                 <Heading.h4>
                     <Flex>
                         <Box ml="3px" mr="3px"><FileIcon fileIcon={icon} /></Box>
