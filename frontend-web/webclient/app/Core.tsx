@@ -27,11 +27,13 @@ import * as ApplicationsInstalled from "Applications/Installed";
 import * as Accounting from "Accounting";
 import Status from "Navigation/StatusPage";
 import AvataaarModification from "UserSettings/Avataaar";
+import Snackbars from "Snackbar/Snackbars";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
 const Core = () => (
     <>
+        <Snackbars />
         <Header />
         <Uploader />
         <Sidebar />

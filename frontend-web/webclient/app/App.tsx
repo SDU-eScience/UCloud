@@ -61,7 +61,6 @@ const store = configureStore(initObject(Cloud.homeFolder), {
         { infinity: "xxl" }),
 }, responsiveStoreEnhancer);
 
-
 const GlobalStyle = createGlobalStyle`
   ${() => UIGlobalStyle}
 `;
