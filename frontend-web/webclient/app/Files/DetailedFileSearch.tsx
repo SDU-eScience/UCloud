@@ -286,7 +286,7 @@ interface SearchStampsProps {
 const SearchStamps = ({ stamps, onStampRemove, clearAll }: SearchStampsProps) => (
     <Box pb="5px">
         {[...stamps].map((l) => (<Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l} text={l} />))}
-        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="white" onClick={() => clearAll()} text={"Clear all"} />) : null}
+        {stamps.size > 1 ? (<Stamp ml="2px" mt="2px" color="white" onClick={() => clearAll()} text="Clear all" />) : null}
     </Box >
 );
 

@@ -129,11 +129,11 @@ const SearchInput = styled(Flex)`
         color: black;
     }
 
-    input:focus ~ div svg {
+    input:focus ~ div > span > div > svg, input:focus + div > label > svg {
         color: black;
     }
 
-    input ~ div svg {
+    input ~ div > span > div > svg, input + div > label > svg {
         color: white;
     }
 
@@ -218,8 +218,6 @@ interface UserAvatar { avatar: AvatarType }
 export const UserAvatar = ({ avatar }: UserAvatar) => (
     <ClippedBox mx="8px" width="60px">
         <Avatar
-            /* pieceType
-            pieceSize */
             avatarStyle="Circle"
             topType={avatar.top}
             accessoriesType={avatar.topAccessory}

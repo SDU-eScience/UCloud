@@ -1,14 +1,19 @@
 import styled from "styled-components"
 import { themeGet, space, fontSize, color, SpaceProps } from 'styled-system'
-import theme, { ThemeColor } from "./theme"
+import theme, { ThemeColor, Theme } from "./theme"
 import * as React from "react";
 import { Icon, Text } from ".";
 import { IconName } from "./Icon";
 
 const fullWidth = ({ fullWidth }: { fullWidth?: boolean }) => fullWidth ? { width: "100%" } : null;
 
-export const colorScheme = (props) => {
+export const colorScheme = (props: { theme: Theme, color: ThemeColor}) => {
   const badgeColors = {
+    white: {
+      backgroundColor: props.theme.colors.black,
+      borderColor: props.theme.colors.black,
+      color: props.theme.colors.black
+    },
     blue: {
       backgroundColor: props.theme.colors.blue,
       borderColor: props.theme.colors.blue,
@@ -43,11 +48,6 @@ export const colorScheme = (props) => {
       backgroundColor: props.theme.colors.orange,
       borderColor: props.theme.colors.orange,
       color: props.theme.colors.text
-    },
-    lightOrange: {
-      backgroundColor: props.theme.colors.lightOrange,
-      borderColor: props.theme.colors.lightOrange,
-      color: props.theme.colors.darkOrange
     },
     gray: {
       backgroundColor: props.theme.colors.gray,
