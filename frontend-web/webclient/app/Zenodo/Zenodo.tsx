@@ -16,6 +16,8 @@ import { MainContainer } from "MainContainer/MainContainer";
 import Table, { TableHeaderCell, TableRow, TableCell, TableBody, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { ReduxObject } from "DefaultObjects";
+import { CustomEntriesPerPage } from "UtilityComponents";
+import { Spacer } from "ui-components/Spacer";
 
 class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
     constructor(props) {
@@ -39,14 +41,21 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
             return (
                 <MainContainer
                     header={
-                        <>
-                            <Heading.h2>Upload progress</Heading.h2>
-                            <Heading.h5>Connected to Zenodo</Heading.h5>
-                        </>
+                        <Spacer
+                            left={<Box><Heading.h2>Upload progress</Heading.h2>
+                                <Heading.h5>Connected to Zenodo</Heading.h5></Box>}
+
+                            right={<CustomEntriesPerPage
+                                onRefreshClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
+                                entriesPerPage={page.itemsPerPage}
+                                loading={loading}
+                                text="Publications per page"
+                                onChange={itemsPerPage => fetchPublications(page.pageNumber, itemsPerPage)}
+                            />}
+                        />
                     }
                     main={
                         <List
-                            onRefresh={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
                             loading={loading}
                             errorMessage={error}
                             onErrorDismiss={onErrorDismiss}
@@ -68,6 +77,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                                 </Table>
                             )}
                             page={page}
+                            customEntriesPerPage
                             onItemsPerPageChanged={size => fetchPublications(0, size)}
                             onPageChanged={pageNumber => fetchPublications(pageNumber, page.itemsPerPage)}
                         />}

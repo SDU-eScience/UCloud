@@ -2,6 +2,7 @@ import * as React from "react";
 import styled from "styled-components";
 import Box from "./Box";
 import { theme, Flex, Text } from "ui-components";
+import { ThemeColor } from "./theme";
 
 interface ProgressBaseProps {
     width?: number | string
@@ -52,7 +53,13 @@ ProgressBase.defaultProps = {
     theme
 };
 
-const Progress = ({ color, percent, active, label }) => (
+interface Progress {
+    color: ThemeColor,
+    percent: number,
+    active: boolean,
+    label: string
+}
+const Progress = ({ color, percent, active, label }: Progress) => (
     <>
         <ProgressBase height="30px" width="100%" color="lightGray">
             <ProgressBase height="30px" color={color} width={`${percent}% `}>

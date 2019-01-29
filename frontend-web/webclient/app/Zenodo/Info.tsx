@@ -4,16 +4,17 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import PromiseKeeper from "PromiseKeeper";
 import { dateToString } from "Utilities/DateUtilities";
 import { ZenodoInfoProps, ZenodoInfoState, ZenodoPublicationStatus } from ".";
-import { Error, Progress, List, Box, Flex } from "ui-components";
+import { Error, Progress, Box, Flex } from "ui-components";
 import * as Table from "ui-components/Table";
 import * as Heading from "ui-components/Heading";
 import { replaceHomeFolder } from "Utilities/FileUtilities";
+import { MainContainer } from "MainContainer/MainContainer";
 
 const isTerminal = (status: ZenodoPublicationStatus): boolean =>
     status === ZenodoPublicationStatus.COMPLETE || status === ZenodoPublicationStatus.FAILURE;
 
 class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
-    constructor(props) {
+    constructor(props: Readonly<ZenodoInfoProps>) {
         super(props);
         this.state = {
             error: undefined,
@@ -61,19 +62,22 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
 
     render() {
         if (this.state.loading) {
-            return (<Box><LoadingIcon size={18} /> </Box>)
+            return (<MainContainer main={<LoadingIcon size={18} />} />)
         } else {
             return (
-                <Flex alignItems="center" flexDirection="column">
-                    <Box width={0.7}>
+                <MainContainer
+                    main={<>
                         <Error error={this.state.error} clearError={this.onErrorDismiss} />
                         <ZenodoPublishingBody publication={this.state.publication} />
-                    </Box>
-                </Flex>
-
+                    </>}
+                />
             );
         }
     }
+}
+
+const enum PublicationStatus {
+    UPLOADING = "UPLOADING"
 }
 
 const ZenodoPublishingBody = ({ publication }) => {
@@ -98,7 +102,7 @@ const ZenodoPublishingBody = ({ publication }) => {
             </Flex>
             <Box pt="1em" pb="1em" />
             <Progress
-                active={publication.status === "UPLOADING"}
+                active={publication.status === PublicationStatus.UPLOADING}
                 color="green"
                 label={`${progressBarValue}%`}
                 percent={progressBarValue}

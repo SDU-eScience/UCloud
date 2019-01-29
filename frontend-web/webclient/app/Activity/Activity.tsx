@@ -73,9 +73,9 @@ class Activity extends React.Component<ActivityProps> {
 const ActivityFeedGrouped = ({ activity }: { activity: GroupedActivity[] }) => activity.length ? (
     <Table>
         <TableHeader>
-            <TableHeaderCell width={"7em"} />
-            <TableHeaderCell width={"10em"} />
-            <TableHeaderCell width={"99%"} />
+            <TableHeaderCell width="7em" />
+            <TableHeaderCell width="10.5em" />
+            <TableHeaderCell width="99%" />
         </TableHeader>
         <TableBody>
             {activity.map((a, i) => <TrackedFeedActivity key={i} activity={a} />)}
