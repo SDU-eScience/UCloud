@@ -1,0 +1,20 @@
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: file-trash
+  annotations:
+    getambassador.io/config: |
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: file_trash
+      prefix: /api/files/trash/
+      service: file-trash-service:8080
+
+spec:
+  clusterIP: None
+  type: ClusterIP
+  selector:
+    app: file-trash-service

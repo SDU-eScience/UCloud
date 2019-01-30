@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth
+  annotations:
+    getambassador.io/config: |
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: auth
+      prefix: /auth/
+      service: auth-service:8080
+
+spec:
+  clusterIP: None
+  type: ClusterIP
+  selector:
+    app: auth-service

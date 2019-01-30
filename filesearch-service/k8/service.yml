@@ -1,0 +1,19 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: filesearch
+  annotations:
+    getambassador.io/config: |
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: filesearch
+      prefix: /api/file-search/
+      service: filesearch-service:8080
+
+spec:
+  clusterIP: None
+  type: ClusterIP
+  selector:
+    app: filesearch-service
