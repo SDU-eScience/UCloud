@@ -29,6 +29,21 @@ data class FavoriteStatusResponse(
 object FileFavoriteDescriptions : RESTDescriptions("file.favorite") {
     val baseContext = "/api/files/favorite"
 
+    internal val toggleFavoriteDelete = callDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage> {
+        name = "toggleFavorite"
+        method = HttpMethod.Delete
+
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        path {
+            using(baseContext)
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
     val toggleFavorite = callDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage> {
         name = "toggleFavorite"
         method = HttpMethod.Post
@@ -39,7 +54,6 @@ object FileFavoriteDescriptions : RESTDescriptions("file.favorite") {
 
         path {
             using(baseContext)
-            +"toggle"
         }
 
         body { bindEntireRequestFromBody() }

@@ -44,7 +44,7 @@ class FileFavoriteControllerTest{
 
                 val request = sendJson(
                     method = HttpMethod.Post,
-                    path = "/api/files/favorite/toggle",
+                    path = "/api/files/favorite",
                     user = TestUsers.user,
                     request = ToggleFavoriteRequest(
                         listOf(
@@ -71,7 +71,7 @@ class FileFavoriteControllerTest{
 
                 val request = sendJson(
                     method = HttpMethod.Post,
-                    path = "/api/files/favorite/toggle",
+                    path = "/api/files/favorite",
                     user = TestUsers.user,
                     request = ToggleFavoriteRequest(
                         listOf(

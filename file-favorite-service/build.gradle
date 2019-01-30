@@ -12,7 +12,7 @@ repositories {
 
 dependencies {
     // Internal services
-    compile 'dk.sdu.cloud:service-common:0.23.3'
+    compile 'dk.sdu.cloud:service-common:0.23.4'
     compile 'dk.sdu.cloud:auth-api:1.14.0'
     compile 'dk.sdu.cloud:file-api:0.17.7'
     testCompile 'dk.sdu.cloud:service-common-test:0.23.3'

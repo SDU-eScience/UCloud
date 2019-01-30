@@ -1,5 +1,5 @@
 ---
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: file-favorite
@@ -24,9 +24,13 @@ spec:
         - /etc/refresh-token
         - --config-dir
         - /etc/token-validation
+        - --config-dir
+        - /etc/psql
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
+        - mountPath: /etc/psql
+          name: psql
         - mountPath: /etc/token-validation
           name: token-validation
         env:
@@ -40,6 +44,10 @@ spec:
         secret:
           optional: false
           secretName: file-favorite-refresh-token
+      - name: psql
+        secret:
+          optional: false
+          secretName: file-favorite-psql
       - name: token-validation
         configMap:
           name: token-validation
@@ -47,18 +55,3 @@ spec:
       imagePullSecrets:
         - name: esci-docker
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: file-favorite
-spec:
-  clusterIP: None
-  type: ClusterIP
-  ports:
-  - name: web
-    port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app: file-favorite

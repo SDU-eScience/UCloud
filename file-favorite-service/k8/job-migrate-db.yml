@@ -1,0 +1,51 @@
+---
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: file-favorite-migration
+
+spec:
+  template:
+    metadata:
+      name: file-favorite-migration
+
+    spec:
+      containers:
+        - name: file-favorite-service
+          image: registry.cloud.sdu.dk/sdu-cloud/file-favorite-service:0.1.0
+          args:
+          - /opt/service/bin/service
+          - --config-dir
+          - /etc/refresh-token
+          - --config-dir
+          - /etc/token-validation
+          - --config-dir
+          - /etc/psql
+          - --run-script
+          - migrate-db
+          volumeMounts:
+          - mountPath: /etc/refresh-token
+            name: refresh-token
+          - mountPath: /etc/token-validation
+            name: token-validation
+          - mountPath: /etc/psql
+            name: file-favorite-psql
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: file-favorite-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+          defaultMode: 420
+      - name: file-favorite-psql
+        secret:
+          optional: false
+          secretName: file-favorite-psql
+
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: esci-docker
