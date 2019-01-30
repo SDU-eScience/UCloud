@@ -47,7 +47,7 @@ abstract class PreparedRESTCall<out T, out E>(private val namespace: String) {
             if (attempts == NUMBER_OF_ATTEMPTS) throw ConnectException("Too many retries!")
 
             val endpoint = context.parent.resolveEndpoint(namespace).removeSuffix("/")
-            val resolvedEndpoint = resolveEndpoint()
+            val resolvedEndpoint = resolveEndpoint().removePrefix("/")
 
             val url = "$endpoint/$resolvedEndpoint"
             val resp = try {
