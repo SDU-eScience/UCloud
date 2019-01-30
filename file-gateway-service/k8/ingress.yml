@@ -1,0 +1,20 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: file-gateway
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+    zalando.org/skipper-routes: |
+      testing: Method("POST") && Path("/api/files/testing") -> status(423) -> <shunt>;
+      list_directory: Method("GET") && Path("/api/files") -> <shunt>;
+      stat: Method("GET") && Path("/api/files/stat") -> <shunt>;
+      lookup_in_directory: Method("GET") && Path("/api/files/lookup") -> <shunt>;
+spec:
+  rules:
+    - host: cloud.sdu.dk
+      http:
+        paths:
+          - backend:
+              serviceName: file-gateway
+              servicePort: 8080

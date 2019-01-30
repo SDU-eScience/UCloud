@@ -44,19 +44,3 @@ spec:
 
       imagePullSecrets:
         - name: esci-docker
-
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: metadata
-spec:
-  clusterIP: None
-  type: ClusterIP
-  ports:
-  - name: web
-    port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app: metadata-service

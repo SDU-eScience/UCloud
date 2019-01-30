@@ -75,7 +75,6 @@ class FileLookupService<Ctx : FSUserContext>(
                     it.path.fileName().toLowerCase()
                 }
                 FileSortBy.SIZE -> Comparator.comparingLong { it.size }
-                FileSortBy.FAVORITED -> Comparator.comparing<StorageFile, Boolean> { it.favorited }
                 FileSortBy.SENSITIVITY -> Comparator.comparing<StorageFile, String> {
                     it.sensitivityLevel.name.toLowerCase()
                 }
@@ -99,7 +98,6 @@ class FileLookupService<Ctx : FSUserContext>(
             ownerName = row.xowner.takeIf { it.isNotBlank() } ?: row.owner,
             size = row.size,
             acl = row.shares,
-            favorited = (row.inode in favorites) || File(row.rawPath).parentFile == File(favoritesDirectory(username)),
             sensitivityLevel = row.sensitivityLevel,
             link = row.isLink,
             annotations = row.annotations,

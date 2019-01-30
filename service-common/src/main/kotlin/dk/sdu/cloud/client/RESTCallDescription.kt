@@ -42,7 +42,8 @@ data class RESTCallDescription<Request : Any, Success : Any, Error : Any, AuditE
 
     init {
         try {
-            requiredAuthScope = SecurityScope.parseFromString(fullName + ':' + auth.access.scopeName)
+            requiredAuthScope =
+                auth.desiredScope ?: SecurityScope.parseFromString(fullName + ':' + auth.access.scopeName)
         } catch (ex: Exception) {
             throw IllegalArgumentException("Invalid namespace or request name")
         }
@@ -90,7 +91,8 @@ sealed class RESTQueryParameter<Request : Any> {
 
 data class RESTAuth(
     val roles: Set<Role>,
-    val access: AccessRight
+    val access: AccessRight,
+    val desiredScope: SecurityScope? = null
 )
 
 internal class DescriptionPreparedRESTCall<Request : Any, Success : Any, Error : Any>(

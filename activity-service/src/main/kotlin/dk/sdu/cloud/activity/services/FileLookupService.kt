@@ -1,5 +1,7 @@
 package dk.sdu.cloud.activity.services
 
+import dk.sdu.cloud.AccessRight
+import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.client.AuthenticatedCloud
@@ -25,7 +27,9 @@ class FileLookupService(
         val userCloud = AuthDescriptions.tokenExtension.call(
             TokenExtensionRequest(
                 userAccessToken,
-                listOf(FileDescriptions.stat.requiredAuthScope.toString()),
+                listOf(
+                    SecurityScope.construct(listOf(FileDescriptions.namespace), AccessRight.READ).toString()
+                ),
                 expiresIn = ONE_MINUTE
             ),
             serviceCloud

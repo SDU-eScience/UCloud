@@ -10,6 +10,7 @@ import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
+import io.ktor.client.request.header
 import io.ktor.http.HttpMethod
 import dk.sdu.cloud.file.api.AccessRight as FileAccessRight
 
@@ -63,7 +64,6 @@ enum class FileSortBy {
     MODIFIED_AT,
     SIZE,
     ACL,
-    FAVORITED,
     SENSITIVITY,
     ANNOTATION
 }
@@ -192,8 +192,13 @@ data class DeliverMaterializedFileSystemResponse(
 object FileDescriptions : RESTDescriptions("files") {
     val baseContext = "/api/files"
 
-    val listAtPath = callDescriptionWithAudit<ListDirectoryRequest, Page<StorageFile>, CommonErrorMessage,
-            SingleFileAudit<ListDirectoryRequest>> {
+    val listAtPath = callDescriptionWithAudit<
+            ListDirectoryRequest,
+            Page<StorageFile>,
+            CommonErrorMessage,
+            SingleFileAudit<ListDirectoryRequest>>(
+        additionalRequestConfiguration = { header("X-No-Load", "true") }
+    ) {
         name = "listAtPath"
 
         auth {
@@ -211,8 +216,13 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val lookupFileInDirectory = callDescriptionWithAudit<LookupFileInDirectoryRequest, Page<StorageFile>,
-            CommonErrorMessage, SingleFileAudit<LookupFileInDirectoryRequest>> {
+    val lookupFileInDirectory = callDescriptionWithAudit<
+            LookupFileInDirectoryRequest,
+            Page<StorageFile>,
+            CommonErrorMessage,
+            SingleFileAudit<LookupFileInDirectoryRequest>>(
+        additionalRequestConfiguration = { header("X-No-Load", "true") }
+    ) {
         name = "lookupFileInDirectory"
 
         auth {
@@ -232,7 +242,14 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    val stat = callDescriptionWithAudit<FindByPath, StorageFile, CommonErrorMessage, SingleFileAudit<FindByPath>> {
+    val stat = callDescriptionWithAudit<
+            FindByPath,
+            StorageFile,
+            CommonErrorMessage,
+            SingleFileAudit<FindByPath>
+            >(
+        additionalRequestConfiguration = { header("X-No-Load", "true") }
+    ) {
         name = "stat"
 
         auth {
@@ -249,6 +266,7 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
+    /*
     val markAsFavorite = callDescriptionWithAudit<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage,
             SingleFileAudit<FavoriteCommand>> {
         name = "markAsFavorite"
@@ -286,6 +304,7 @@ object FileDescriptions : RESTDescriptions("files") {
             +boundTo(FavoriteCommand::path)
         }
     }
+    */
 
     val createDirectory = callDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
         name = "createDirectory"

@@ -1,5 +1,7 @@
 package dk.sdu.cloud.file.api
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+
 enum class AccessRight {
     READ,
     WRITE,
@@ -14,21 +16,67 @@ enum class FileType {
     LINK
 }
 
-data class StorageFile(
-    val fileType: FileType,
-    val path: String,
-    val createdAt: Long = System.currentTimeMillis(),
-    val modifiedAt: Long = System.currentTimeMillis(),
-    val ownerName: String,
-    val size: Long = 0,
-    val acl: List<AccessEntry> = emptyList(),
-    val favorited: Boolean = false,
-    val sensitivityLevel: SensitivityLevel = SensitivityLevel.PRIVATE,
-    val link: Boolean = false,
-    val annotations: Set<String> = emptySet(),
-    val fileId: String = "",
-    val creator: String = ownerName
-)
+@JsonTypeInfo(defaultImpl = StorageFileImpl::class, use = JsonTypeInfo.Id.MINIMAL_CLASS)
+interface StorageFile {
+    val fileType: FileType
+    val path: String
+    val createdAt: Long
+    val modifiedAt: Long
+    val ownerName: String
+    val size: Long
+    val acl: List<AccessEntry>
+    val sensitivityLevel: SensitivityLevel
+    val link: Boolean
+    val annotations: Set<String>
+    val fileId: String
+    val creator: String
+}
+
+data class StorageFileImpl(
+    override val fileType: FileType,
+    override val path: String,
+    override val createdAt: Long,
+    override val modifiedAt: Long,
+    override val ownerName: String,
+    override val size: Long,
+    override val acl: List<AccessEntry>,
+    override val sensitivityLevel: SensitivityLevel,
+    override val link: Boolean,
+    override val annotations: Set<String>,
+    override val fileId: String,
+    override val creator: String
+) : StorageFile
+
+fun StorageFile(
+    fileType: FileType,
+    path: String,
+    createdAt: Long = System.currentTimeMillis(),
+    modifiedAt: Long = System.currentTimeMillis(),
+    ownerName: String,
+    size: Long = 0,
+    acl: List<AccessEntry> = emptyList(),
+    sensitivityLevel: SensitivityLevel = SensitivityLevel.PRIVATE,
+    link: Boolean = false,
+    annotations: Set<String> = emptySet(),
+    fileId: String = "",
+    creator: String = ownerName
+): StorageFile {
+    return StorageFileImpl(
+        fileType,
+        path,
+        createdAt,
+        modifiedAt,
+        ownerName,
+        size,
+        acl,
+        sensitivityLevel,
+        link,
+        annotations,
+        fileId,
+        creator
+    )
+}
+
 
 /**
  * Describes the sensitivity classification of a file

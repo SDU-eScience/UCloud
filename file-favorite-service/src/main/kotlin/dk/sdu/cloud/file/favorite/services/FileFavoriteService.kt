@@ -19,10 +19,9 @@ class FileFavoriteService<DBSession>(
                 try {
                     val fileId = FileDescriptions.stat.call(FindByPath(path), userCloud).orThrow().fileId
 
-                    if(dao.isFavorite(session, user, fileId)) {
+                    if (dao.isFavorite(session, user, fileId)) {
                         dao.delete(session, user, fileId)
-                    }
-                    else {
+                    } else {
                         dao.insert(session, user, fileId)
                     }
                 } catch (e: Exception) {

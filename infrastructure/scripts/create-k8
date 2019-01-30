@@ -71,7 +71,7 @@ confirm;
 tokens=`sducloud POST https://cloud.sdu.dk/auth/users/register username=_$service_name password=dummy role=SERVICE | json`
 refreshToken=`echo $tokens | json refreshToken`
 kubectl exec -t -n $namespace $name -- psql -c "create user $db_user password '$password';"
-kubectl exec -t -n $namespace $name -- psql -c "create schema $schema authorization $service_name;"
+kubectl exec -t -n $namespace $name -- psql -c "create schema $schema authorization $db_user;"
 
 refreshFile=/tmp/refresh-`uuidgen`.yml
 cat > $refreshFile << EOF
@@ -86,7 +86,7 @@ dbFile=/tmp/db-`uuidgen`.yml
 cat > $dbFile << EOF
 ---
 hibernate:
-database:
+  database:
     profile: PERSISTENT_POSTGRES
     credentials:
         username: $db_user
