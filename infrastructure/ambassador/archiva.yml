@@ -9,7 +9,7 @@ metadata:
       ---
       apiVersion: ambassador/v0
       kind: Mapping
-      name: storage_list
+      name: archiva
       prefix: ^/*/archiva(/.*)?$
       rewrite: ""
       prefix_regex: true

@@ -95,7 +95,7 @@ enum class FacialHair(val string: String) {
     BLANK("Blank"),
     BEARD_MEDIUM("BeardMedium"),
     BEARD_LIGHT("BeardLight"),
-    BEARD_MAGESTIC("BeardMagestic"),
+    BEARD_MAJESTIC("BeardMajestic"),
     MOUSTACHE_FANCY("MoustacheFancy"),
     MOUSTACHE_MAGNUM("MoustacheMagnum");
 
