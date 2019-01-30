@@ -18,18 +18,18 @@ import { SidebarPages } from "ui-components/Sidebar";
 
 
 interface AvataaarModificationState {
-    top: Options.TopOptions
-    topAccessory: Options.TopAccessoryOptions
-    hairColor: Options.HairColorOptions
-    facialHair: Options.FacialHairOptions
-    facialHairColor: Options.FacialHairColorOptions
-    clothes: Options.ClothesOptions
-    colorFabric: Options.ColorFabricOptions
-    clothesGraphic: Options.ClothesGraphicOptions
-    eyes: Options.EyeOptions
-    eyebrows: Options.EyeBrowOptions
-    mouthTypes: Options.MouthTypeOptions
-    skinColors: Options.SkinColorOptions
+    top: Options.Top
+    topAccessory: Options.TopAccessory
+    hairColor: Options.HairColor
+    facialHair: Options.FacialHair
+    facialHairColor: Options.FacialHairColor
+    clothes: Options.Clothes
+    colorFabric: Options.ColorFabric
+    clothesGraphic: Options.ClothesGraphic
+    eyes: Options.Eyes
+    eyebrows: Options.Eyebrows
+    mouthTypes: Options.MouthTypes
+    skinColors: Options.SkinColors
     promises: PromiseKeeper
     loading: boolean
 }
@@ -44,10 +44,10 @@ interface AvataaarModificationOperations {
 type AvataaarModificationProps = AvataaarModificationStateProps & AvataaarModificationOperations;
 
 class AvataaarModification extends React.Component<AvataaarModificationProps, AvataaarModificationState> {
-    constructor(props) {
+    constructor(props: Readonly<AvataaarModificationProps>) {
         super(props);
         this.state = {
-            ...props,
+            ...defaultAvatar,
             loading: true,
             promises: new PromiseKeeper()
         };
@@ -60,7 +60,8 @@ class AvataaarModification extends React.Component<AvataaarModificationProps, Av
             .catch(it => (failureNotification("An error occurred fetching current Avatar"), this.setState(() => ({ loading: false }))))
 
     private save() {
-        this.props.save(this.state as AvatarType)
+        const { loading, promises, ...state } = this.state;
+        this.props.save(state);
     }
 
     componentWillUnmount() {
@@ -196,19 +197,19 @@ class AvataaarModification extends React.Component<AvataaarModificationProps, Av
     }
 }
 
-interface AvatarSelect<T> {
-    update: (value: keyof T) => void
-    defaultValue: keyof T
-    options: T
+interface AvatarSelect<T1, T2> {
+    update: (value: T1) => void
+    defaultValue: T1
+    options: T2
     title: string
     disabled: boolean
 }
 
-function AvatarSelect<T>({ update, options, title, disabled, defaultValue }: AvatarSelect<T>) {
+function AvatarSelect<T1, T2>({ update, options, title, disabled, defaultValue }: AvatarSelect<T1, T2>) {
     if (disabled) return null;
     return (
         <Label mt="0.8em">{title}
-            <Select defaultValue={defaultValue} onChange={({ target: { value } }) => update(value as keyof T)}>
+            <Select defaultValue={defaultValue} onChange={({ target: { value } }: { target: { value: T1 } }) => update(value)}>
                 {Object.keys(options).map(it => <option key={it}>{it}</option>)}
             </Select>
         </Label>

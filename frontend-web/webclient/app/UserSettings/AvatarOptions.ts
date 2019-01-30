@@ -38,7 +38,6 @@ export enum Top {
     ShortHairTheCaesarSidePart = "ShortHairTheCaesarSidePart"
 }
 
-export type TopAccessoryOptions = keyof typeof TopAccessory
 export enum TopAccessory {
     Blank = "Blank",
     Kurt = "Kurt",
@@ -49,7 +48,6 @@ export enum TopAccessory {
     Wayfarers = "Wayfarers"
 }
 
-export type HairColorOptions = keyof typeof HairColor
 export enum HairColor {
     Auburn = "Auburn",
     Black = "Black",
@@ -63,7 +61,6 @@ export enum HairColor {
     SilverGray = "SilverGray"
 }
 
-export type FacialHairOptions = keyof typeof FacialHair
 export enum FacialHair {
     Blank = "Blank",
     BeardMedium = "BeardMedium",
@@ -73,7 +70,6 @@ export enum FacialHair {
     MoustacheMagnum = "MoustacheMagnum"
 }
 
-export type FacialHairColorOptions = keyof typeof FacialHairColor
 export enum FacialHairColor {
     Auburn = "Auburn",
     Black = "Black",
@@ -85,7 +81,6 @@ export enum FacialHairColor {
     Red = "Red"
 }
 
-export type ClothesOptions = keyof typeof Clothes
 export enum Clothes {
     BlazerShirt = "BlazerShirt",
     BlazerSweater = "BlazerSweater",
@@ -98,7 +93,6 @@ export enum Clothes {
     ShirtVNeck = "ShirtVNeck"
 }
 
-export type ColorFabricOptions = keyof typeof ColorFabric
 export enum ColorFabric {
     Black = "Black",
     Blue01 = "Blue01",
@@ -117,7 +111,6 @@ export enum ColorFabric {
     White = "White"
 }
 
-export type ClothesGraphicOptions = keyof typeof ClothesGraphic
 export enum ClothesGraphic {
     Bat = "Bat",
     Cumbia = "Cumbia",
@@ -132,7 +125,6 @@ export enum ClothesGraphic {
     Skull = "Skull"
 }
 
-export type EyeOptions = keyof typeof Eyes
 export enum Eyes {
     Close = "Close",
     Cry = "Cry",
@@ -148,7 +140,6 @@ export enum Eyes {
     WinkWacky = "WinkWacky"
 }
 
-export type EyeBrowOptions = keyof typeof Eyebrows
 export enum Eyebrows {
     Angry = "Angry",
     AngryNatural = "AngryNatural",
@@ -164,7 +155,6 @@ export enum Eyebrows {
     UpDownNatural = "UpDownNatural"
 }
 
-export type MouthTypeOptions = keyof typeof MouthTypes;
 export enum MouthTypes {
     Concerned = "Concerned",
     Default = "Default",
@@ -180,7 +170,6 @@ export enum MouthTypes {
     Vomit = "Vomit"
 }
 
-export type SkinColorOptions = keyof typeof SkinColors
 export enum SkinColors {
     Tanned = "Tanned",
     Yellow = "Yellow",
