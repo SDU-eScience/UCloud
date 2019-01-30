@@ -1,0 +1,52 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webclient
+  annotations:
+    getambassador.io/config: |
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: webclient_auth_callback
+      prefix: /api/auth-callback/
+      service: webclient:8080
+      rewrite: ""
+
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: webclient_auth_callback_csrf
+      prefix: /api/auth-callback-csrf/
+      service: webclient:8080
+      rewrite: ""
+
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: webclient_sync_callback
+      prefix: /api/sync-callback/
+      service: webclient:8080
+      rewrite: ""
+
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: webclient_app
+      prefix: /app/
+      service: webclient:8080
+      rewrite: ""
+
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: webclient_assets
+      prefix: /assets/
+      service: webclient:8080
+      rewrite: ""
+
+spec:
+  clusterIP: None
+  type: ClusterIP
+  selector:
+    app: webclient
