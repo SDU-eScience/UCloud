@@ -82,17 +82,18 @@ class Search extends React.Component<SearchProps> {
 
     shouldComponentUpdate(nextProps: SearchProps): boolean {
         // TODO It seems like a bad idea to perform side-effects in this method!
-        // It also _always_ returns true?
 
         const currentQuery = this.query;
         const nextQuery = this.queryFromProps(nextProps);
         if (nextQuery !== currentQuery) {
             this.props.setSearch(nextQuery);
             this.fetchAll(nextQuery);
+            return false;
         }
         if (nextProps.match.params.priority !== this.props.match.params.priority) {
             this.props.setPrioritizedSearch(nextProps.match.params.priority as HeaderSearchType);
             this.fetchAll(nextQuery);
+            return false;
         }
         return true;
     }
@@ -169,7 +170,6 @@ class Search extends React.Component<SearchProps> {
                                 {items.map(app =>
                                     <NewApplicationCard
                                         key={`${app.description.info.name}${app.description.info.version}`}
-                                        /* favoriteApp={favoriteApp} */
                                         app={app}
                                         isFavorite={app.favorite}
                                     />)}

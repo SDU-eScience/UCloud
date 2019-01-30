@@ -169,6 +169,7 @@ export interface FilenameAndIconsProps {
 }
 
 export interface FileSelectorModalProps {
+    toFavorites?: () => void
     show: boolean
     loading: boolean
     path: string

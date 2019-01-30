@@ -8,7 +8,7 @@ import { CustomEntriesPerPage } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
 import { filepathQuery } from "Utilities/FileUtilities";
-import { Input, Icon, Button, Divider, Flex } from "ui-components";
+import { Input, Icon, Button, Divider, Flex, OutlineButton } from "ui-components";
 import * as ReactModal from "react-modal";
 import * as Heading from "ui-components/Heading";
 import { Spacer } from "ui-components/Spacer";
@@ -16,6 +16,7 @@ import { FilesTable } from "./FilesTable";
 import SDUCloud from "Authentication/lib";
 import { addTrailingSlash } from "UtilityFunctions";
 import styled from "styled-components";
+import { SpaceProps } from "styled-system";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props: Readonly<FileSelectorProps>) {
@@ -115,7 +116,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
     >
         <Spacer alignItems="center"
             left={<Heading.h3>File selector</Heading.h3>}
-            right={<Icon name="close" onClick={props.onHide} />}
+            right={<><FavoritesButton mr="15px" toFavorites={props.toFavorites} /><Icon name="close" onClick={props.onHide} /></>}
         />
         <Divider />
         <Spacer height={"3em"} alignItems="center"
@@ -151,6 +152,11 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
         />
     </ReactModal>
 );
+
+type FavoritesButton = { toFavorites?: () => void } & SpaceProps;
+const FavoritesButton = ({ toFavorites, ...props }: FavoritesButton) => toFavorites != null ? (
+    <OutlineButton {...props} onClick={() => toFavorites()}>View Favorites</OutlineButton>
+) : null;
 
 const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canSelectFolders = false, ...props }: FileSelectorBodyProps) => {
     let f = onlyAllowFolders ? props.page.items.filter(f => isDirectory(f)) : props.page.items;
