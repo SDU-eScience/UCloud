@@ -123,13 +123,13 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         );
 
         const header = (
-                <Spacer
-                    left={<Error error={errors.join(" ")} clearError={props.errorDismiss} width="99%" />}
-                    right={<Box pb="5px"><RefreshButton
-                        loading={favoriteLoading || recentLoading || analysesLoading}
-                        onClick={() => this.reload(true)}
-                    /></Box>}
-                />
+            <Spacer
+                left={<Error error={errors.join(" ")} clearError={props.errorDismiss} width="99%" />}
+                right={<Box pb="5px"><RefreshButton
+                    loading={favoriteLoading || recentLoading || analysesLoading}
+                    onClick={() => this.reload(true)}
+                /></Box>}
+            />
         );
 
         return (
@@ -265,27 +265,10 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     receiveFavorites: files => dispatch(receiveFavorites(files))
 });
 
-const mapStateToProps = (state: ReduxObject): DashboardStateProps => {
-    const {
-        errors,
-        favoriteFiles,
-        recentFiles,
-        recentAnalyses,
-        favoriteLoading,
-        recentLoading,
-        analysesLoading,
-    } = state.dashboard;
-    return {
-        errors,
-        favoriteFiles,
-        recentFiles,
-        recentAnalyses,
-        favoriteLoading,
-        recentLoading,
-        analysesLoading,
-        notifications: state.notifications.page.items,
-        favoriteFilesLength: favoriteFiles.length // Hack to ensure re-rendering
-    };
-};
+const mapStateToProps = (state: ReduxObject): DashboardStateProps => ({
+    ...state.dashboard,
+    notifications: state.notifications.page.items,
+    favoriteFilesLength: state.dashboard.favoriteFiles.length // Hack to ensure re-rendering
+});
 
 export default connect(mapStateToProps, mapDispatchToProps)(Dashboard);
