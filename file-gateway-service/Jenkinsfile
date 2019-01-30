@@ -1,0 +1,27 @@
+def initialize() {
+
+  try {
+    stage('build file.gateway-service') {
+      sh '''cd file.gateway-service
+      ./gradlew clean
+      ./gradlew build -x test'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'file.gateway-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'file.gateway-service-detekt-Report', reportTitles: ''])
+  }
+  try {
+    stage('test file.gateway-service') {
+      sh '''cd file.gateway-service
+      ./gradlew test'''
+    } 
+  } catch (e) {
+    echo "Test FAILED"
+    return currentBuild.result ?: 'UNSTABLE'
+  }
+  return currentBuild.result ?: 'SUCCESS'
+}
+
+return this

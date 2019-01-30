@@ -1,0 +1,50 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: file-gateway
+  labels:
+    app: file-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: file-gateway
+  template:
+    metadata:
+      labels:
+        app: file-gateway
+    spec:
+      containers:
+      - name: file-gateway
+        image: registry.cloud.sdu.dk/sdu-cloud/file-gateway-service:0.1.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: file-gateway-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+
+      imagePullSecrets:
+        - name: esci-docker
+
+
