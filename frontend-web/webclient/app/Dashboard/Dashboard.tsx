@@ -123,17 +123,14 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
         );
 
         const header = (
-            <>
-                <Error error={errors.join(",\n")} clearError={props.errorDismiss} />
                 <Spacer
-                    left={<></>}
+                    left={<Error error={errors.join(" ")} clearError={props.errorDismiss} width="99%" />}
                     right={<Box pb="5px"><RefreshButton
                         loading={favoriteLoading || recentLoading || analysesLoading}
                         onClick={() => this.reload(true)}
                     /></Box>}
                 />
-            </>
-        )
+        );
 
         return (
             <MainContainer
@@ -175,6 +172,7 @@ const ListFileContent = ({ file, link, pixelsWide }: { file: File, link: boolean
 
 const DashboardRecentFiles = ({ files, isLoading }: { files: File[], isLoading: boolean }) => (
     <DashboardCard title="Recently Used Files" isLoading={isLoading}>
+        {files.length || isLoading ? null : (<Heading.h6>No recent files found</Heading.h6>)}
         <List>
             {files.map((file, i) => (
                 <Flex alignItems="center" key={i} pt="0.5em" pb="0.3em">
@@ -220,16 +218,14 @@ const DashboardNotifications = ({ notifications, readAll, onNotificationAction }
             <Box ml="auto" />
             <Icon name="checkDouble" cursor="pointer" color="iconColor" color2="iconColor2" title="Mark all as read" onClick={readAll} />
         </Flex>
-        <Box px={3} py={1}>
-            {notifications.length === 0 ? <Heading.h6>No notifications</Heading.h6> : null}
-            <List>
-                {notifications.slice(0, 7).map((n, i) =>
-                    <Flex key={i}>
-                        <NotificationEntry notification={n} onAction={onNotificationAction} />
-                    </Flex>
-                )}
-            </List>
-        </Box>
+        {notifications.length === 0 ? <Heading.h6 pl={"16px"} pt="10px">No notifications</Heading.h6> : null}
+        <List>
+            {notifications.slice(0, 7).map((n, i) =>
+                <Flex key={i}>
+                    <NotificationEntry notification={n} onAction={onNotificationAction} />
+                </Flex>
+            )}
+        </List>
     </Card>
 );
 
