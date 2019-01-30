@@ -1,8 +1,6 @@
 package dk.sdu.cloud.file.http
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
@@ -11,10 +9,7 @@ import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.services.ACLService
-import dk.sdu.cloud.file.services.BackgroundScope
-import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSACLEntity
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
@@ -42,7 +37,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import kotlinx.coroutines.io.writeStringUtf8
-import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
 // TODO Split this into multiple controllers
@@ -104,60 +98,6 @@ class FilesController<Ctx : FSUserContext>(
                 val result = fileLookupService.stat(it, request.path)
                 audit(SingleFileAudit(result.fileId, request))
                 ok(result)
-            }
-        }
-
-        implement(FileDescriptions.markAsFavorite) { req ->
-            audit(SingleFileAudit(null, req))
-
-            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
-                val stat = fileLookupService.stat(it, req.path)
-
-                if (!stat.favorited) {
-                    favoriteService.markAsFavorite(it, req.path)
-
-                    audit(SingleFileAudit(stat.fileId, req))
-                    CallResult.Success(Unit, HttpStatusCode.OK)
-                } else {
-                    CallResult.Error(
-                        CommonErrorMessage("Bad request. File is already a favorite"),
-                        HttpStatusCode.BadRequest
-                    )
-                }
-            }
-        }
-
-        implement(FileDescriptions.removeFavorite) { req ->
-            audit(SingleFileAudit(null, req))
-
-            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                val favorites = favoriteService.retrieveFavoriteInodeSet(ctx)
-                val stat = coreFs.stat(
-                    ctx,
-                    req.path,
-                    setOf(
-                        FileAttribute.LINK_TARGET,
-                        FileAttribute.LINK_INODE,
-                        FileAttribute.IS_LINK,
-                        FileAttribute.INODE
-                    )
-                )
-
-                val isLinkToFavorite = (stat.isLink && stat.linkInode in favorites)
-                val isFavorite = isLinkToFavorite || (stat.inode in favorites)
-
-                if (isFavorite) {
-                    val inode = if (isLinkToFavorite) stat.linkInode else stat.inode
-                    favoriteService.removeFavoriteViaId(ctx, inode)
-
-                    audit(SingleFileAudit(inode, req))
-                    CallResult.Success(Unit, HttpStatusCode.OK)
-                } else {
-                    CallResult.Error(
-                        CommonErrorMessage("Bad request. File is not a favorite"),
-                        HttpStatusCode.BadRequest
-                    )
-                }
             }
         }
 
