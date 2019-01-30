@@ -144,8 +144,6 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
                 return getOwnerFromAcls(file.acl)
             else
                 return "";
-        case SortBy.FAVORITED:
-            return file.favorited ? "Favorited" : "";
         case SortBy.SENSITIVITY:
             return SensitivityLevel[file.sensitivityLevel];
     }

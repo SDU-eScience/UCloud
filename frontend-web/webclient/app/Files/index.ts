@@ -44,7 +44,6 @@ export enum SortBy {
     MODIFIED_AT = "MODIFIED_AT",
     SIZE = "SIZE",
     ACL = "ACL",
-    FAVORITED = "FAVORITED",
     SENSITIVITY = "SENSITIVITY"
 };
 

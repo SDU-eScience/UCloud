@@ -357,12 +357,6 @@ describe("sortingColumnToValue", () => {
     test("ACL", () => {
         expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getOwnerFromAcls(file.acl))
     })
-    test("Not FAVORITED", () => {
-        expect(UF.sortingColumnToValue(SortBy.FAVORITED, file)).toBe("")
-    })
-    test("FAVORITED", () => {
-        expect(UF.sortingColumnToValue(SortBy.FAVORITED, favoritedFile)).toBe("Favorited")
-    })
     test("SENSITIVITY", () => {
         expect(UF.sortingColumnToValue(SortBy.SENSITIVITY, file)).toBe(SensitivityLevel[file.sensitivityLevel])
     })
