@@ -14,12 +14,13 @@ export const multipartUpload = async (location: string, file: File, sensitivity:
     let request = new XMLHttpRequest();
     request.open("POST", "/api/files/upload");
     request.onreadystatechange = () => {
-        if (!inSuccessRange(request.status))
+        if (!inSuccessRange(request.status) && request.status !== 0) {
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
                 failureNotification(statusToError(request.status))
+        }
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
-    request.upload.onprogress = (e) => {
+    request.upload.onprogress = e => {
         if (!!onProgress)
             onProgress(e);
     };
@@ -39,9 +40,6 @@ export const bulkUpload = async (location: string, file: File, sensitivity: Sens
     formData.append("sensitivity", sensitivity);
     formData.append("upload", newFile);
     let request = new XMLHttpRequest();
-
-
-
     request.open("POST", "/api/files/upload/bulk");
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
