@@ -11,6 +11,7 @@ metadata:
       name: auth
       prefix: /auth/
       service: auth-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

@@ -11,6 +11,7 @@ metadata:
       name: metadata
       prefix: /api/metadata/
       service: metadata-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

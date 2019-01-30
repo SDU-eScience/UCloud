@@ -11,6 +11,7 @@ metadata:
       name: project_auth
       prefix: /api/projects/auth/
       service: project-auth:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

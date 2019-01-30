@@ -11,6 +11,7 @@ metadata:
       name: filesearch
       prefix: /api/file-search/
       service: filesearch-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

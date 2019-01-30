@@ -11,6 +11,7 @@ metadata:
       name: indexing
       prefix: /api/indexing/
       service: indexing-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

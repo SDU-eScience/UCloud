@@ -11,6 +11,7 @@ metadata:
       name: file_stats
       prefix: /api/files/stats/
       service: file-stats-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

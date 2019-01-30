@@ -12,6 +12,7 @@ metadata:
       name: file_trash
       prefix: /api/files/trash/
       service: file-trash-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

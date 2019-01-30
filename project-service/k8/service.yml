@@ -11,6 +11,7 @@ metadata:
       name: project
       prefix: /api/projects/
       service: project:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

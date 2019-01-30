@@ -11,6 +11,7 @@ metadata:
       name: activity
       prefix: /api/activity/
       service: activity-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

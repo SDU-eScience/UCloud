@@ -11,6 +11,7 @@ metadata:
       name: accounting_compute
       prefix: /api/accounting/compute/
       service: accounting-compute:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

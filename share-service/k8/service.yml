@@ -11,6 +11,7 @@ metadata:
       name: shares
       prefix: /api/shares/
       service: share-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

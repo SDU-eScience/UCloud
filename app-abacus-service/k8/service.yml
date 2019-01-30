@@ -11,6 +11,7 @@ metadata:
       name: app_abacus
       prefix: /api/app/compute/abacus/
       service: app-abacus-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

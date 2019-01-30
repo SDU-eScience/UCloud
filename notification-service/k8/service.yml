@@ -11,6 +11,7 @@ metadata:
       name: notification
       prefix: /api/notifications/
       service: notification-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

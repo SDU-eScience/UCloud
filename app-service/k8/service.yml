@@ -11,6 +11,7 @@ metadata:
       name: app_hpc
       prefix: /api/hpc/
       service: app-service:8080
+      rewrite: ""
 
       ---
       apiVersion: ambassador/v0
@@ -18,6 +19,7 @@ metadata:
       name: app_compute
       prefix: /api/app/compute/
       service: app-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None

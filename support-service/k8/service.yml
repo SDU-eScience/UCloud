@@ -11,6 +11,7 @@ metadata:
       name: support
       prefix: /api/support/
       service: support-service:8080
+      rewrite: ""
 
 spec:
   clusterIP: None
