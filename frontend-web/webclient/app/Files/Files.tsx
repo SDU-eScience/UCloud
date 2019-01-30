@@ -177,7 +177,6 @@ class Files extends React.Component<FilesProps> {
             !props.invalidPath ?
                 <Box pl="5px" pr="5px">
                     <ContextBar
-                        setLoading={() => props.setLoading(true)}
                         invalidPath={props.invalidPath}
                         showUploader={props.showUploader}
                         fileOperations={this.fileOperations}

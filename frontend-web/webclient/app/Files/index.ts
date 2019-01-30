@@ -236,7 +236,6 @@ export type Operation = { text: string, onClick: (files: File[], cloud: Cloud) =
 export type FileOperation = Operation | PredicatedOperation
 
 export interface ContextButtonsProps {
-    setLoading: () => void
     createFolder: () => void
     showUploader: () => void
     inTrashFolder: boolean

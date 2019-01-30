@@ -177,17 +177,17 @@ const SortByDropdown = ({ currentSelection, sortOrder, onSelect, asDropdown, isS
 
 export const ContextBar = ({ files, ...props }: ContextBarProps) => (
     <Box>
-        <ContextButtons setLoading={props.setLoading} toHome={props.toHome} inTrashFolder={props.inTrashFolder} showUploader={props.showUploader} createFolder={props.createFolder} />
+        <ContextButtons toHome={props.toHome} inTrashFolder={props.inTrashFolder} showUploader={props.showUploader} createFolder={props.createFolder} />
         <FileOptions files={files} {...props} />
     </Box>
 );
 
-export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome, setLoading }: ContextButtonsProps) => (
+export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
     <VerticalButtonGroup>
         {!inTrashFolder ?
             <><Button color="blue" onClick={showUploader}>Upload Files</Button>
                 <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton></> :
-            <Button color="red" onClick={() => clearTrash(Cloud, setLoading, () => toHome())}>
+            <Button color="red" onClick={() => clearTrash(Cloud, () => toHome())}>
                 Empty trash
             </Button>}
     </VerticalButtonGroup>

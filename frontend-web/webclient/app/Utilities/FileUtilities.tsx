@@ -240,10 +240,10 @@ export const MoveFileToTrashOperation = (onMoved: () => void, setLoading: () => 
     }
 ];
 
-export const ClearTrashOperations = (toHome: () => void, setLoading: () => void): Operation[] => [
+export const ClearTrashOperations = (toHome: () => void): Operation[] => [
     {
         text: "Clear Trash",
-        onClick: (files, cloud) => clearTrash(cloud, setLoading, toHome),
+        onClick: (files, cloud) => clearTrash(cloud, toHome),
         disabled: (files, cloud) => !files.every(f => UF.addTrailingSlash(f.path) === cloud.trashFolder) && !files.every(f => getParentPath(f.path) === cloud.trashFolder),
         icon: "trash",
         color: "red"
@@ -302,7 +302,7 @@ export function AllFileOperations(
     const stateLessOperations = stateless ? StateLessOperations(setLoading) : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps, setLoading) : [];
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
-    const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash, setLoading) : [];
+    const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
     const historyOperations = !!history ? HistoryFilesOperations(history) : [];
     const createLink = !!onLinkCreate ? CreateLinkOperation(onLinkCreate, setLoading) : [];
     const extractionOperations = !!onExtracted ? ExtractionOperation(onExtracted) : [];
@@ -474,12 +474,11 @@ export const extractArchive = (files: File[], cloud: SDUCloud, onFinished: () =>
 
 
 
-export const clearTrash = (cloud: SDUCloud, setLoading: () => void, callback: () => void) =>
+export const clearTrash = (cloud: SDUCloud, callback: () => void) =>
     clearTrashSwal().then(result => {
         if (result.dismiss) {
             return;
         } else {
-            setLoading();
             cloud.post("/files/trash/clear", {}).then(() => callback());
         }
     });
