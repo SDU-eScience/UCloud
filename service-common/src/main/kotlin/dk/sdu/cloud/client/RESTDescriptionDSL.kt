@@ -6,6 +6,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityScope
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.http.HttpMethod
 import kotlin.reflect.KProperty1
@@ -83,6 +84,7 @@ class RESTCallDescriptionBuilder<Request : Any, Success : Any, Error : Any, Audi
 class RESTAuthBuilder {
     var roles: Set<Role> = Roles.END_USER
     var access: AccessRight? = null
+    var desiredScope: SecurityScope? = null
 
     fun build(): RESTAuth {
         val access = access ?: throw RESTDSLException(
@@ -121,7 +123,7 @@ class RESTAuthBuilder {
             """.trimIndent()
         )
 
-        return RESTAuth(roles, access)
+        return RESTAuth(roles, access, desiredScope)
     }
 }
 

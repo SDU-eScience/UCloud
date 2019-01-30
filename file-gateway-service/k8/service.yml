@@ -9,11 +9,12 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: file_gw_list
-      prefix: ^/api/files(/(lookup|stat))?$
+      prefix: ^/*/api/files(/(lookup|stat))?$
       prefix_regex: true
       rewrite: ""
       service: file-gateway:8080
       method: GET
+      precedence: 9
 
 spec:
   clusterIP: None

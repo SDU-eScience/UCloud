@@ -9,12 +9,18 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: app_abacus
-      prefix: /api/app/compute/abacus/
-      service: app-abacus-service:8080
+      prefix: ^/api/app/compute/abacus(/.*)?$
+      prefix_regex: true
+      service: app-abacus:8080
       rewrite: ""
 
 spec:
   clusterIP: None
   type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
   selector:
     app: app-abacus-service

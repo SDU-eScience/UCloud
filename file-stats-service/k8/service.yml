@@ -9,12 +9,18 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: file_stats
-      prefix: /api/files/stats/
-      service: file-stats-service:8080
+      prefix: ^/api/files/stats(/.*)?$
+      prefix_regex: true
+      service: file-stats:8080
       rewrite: ""
 
 spec:
   clusterIP: None
   type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
   selector:
     app: file-stats-service

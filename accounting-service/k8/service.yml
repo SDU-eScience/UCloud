@@ -9,12 +9,18 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: accounting
-      prefix: /api/accounting/
-      service: accounting-service:8080
+      prefix: ^/api/accounting(/.*)?$
+      prefix_regex: true
+      service: accounting:8080
       rewrite: ""
 
 spec:
   clusterIP: None
   type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
   selector:
     app: accounting-service

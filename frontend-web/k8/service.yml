@@ -9,7 +9,8 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: webclient_auth_callback
-      prefix: /api/auth-callback/
+      prefix: ^/api/auth-callback(/.*)?$
+      prefix_regex: true
       service: webclient:8080
       rewrite: ""
 
@@ -17,7 +18,8 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: webclient_auth_callback_csrf
-      prefix: /api/auth-callback-csrf/
+      prefix: ^/api/auth-callback-csrf(/.*)?$
+      prefix_regex: true
       service: webclient:8080
       rewrite: ""
 
@@ -25,7 +27,8 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: webclient_sync_callback
-      prefix: /api/sync-callback/
+      prefix: ^/api/sync-callback(/.*)?$
+      prefix_regex: true
       service: webclient:8080
       rewrite: ""
 
@@ -33,7 +36,8 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: webclient_app
-      prefix: /app/
+      prefix: ^/app(/.*)?$
+      prefix_regex: true
       service: webclient:8080
       rewrite: ""
 
@@ -41,12 +45,18 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: webclient_assets
-      prefix: /assets/
+      prefix: ^/assets(/.*)?$
+      prefix_regex: true
       service: webclient:8080
       rewrite: ""
 
 spec:
   clusterIP: None
   type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
   selector:
     app: webclient

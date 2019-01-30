@@ -45,7 +45,7 @@ class FileFavoriteController<DBSession>(
             ok(
                 ToggleFavoriteResponse(
                     fileFavoriteService.toggleFavorite(
-                        req.files,
+                        listOf(req.path),
                         call.securityPrincipal.username,
                         cloudContext.bearerAuth(call.request.bearer!!).optionallyCausedBy(call.request.safeJobId)
                     )

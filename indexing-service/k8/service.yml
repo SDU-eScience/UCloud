@@ -9,12 +9,18 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: indexing
-      prefix: /api/indexing/
-      service: indexing-service:8080
+      prefix: ^/api/indexing(/.*)?$
+      prefix_regex: true
+      service: indexing:8080
       rewrite: ""
 
 spec:
   clusterIP: None
   type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
   selector:
     app: indexing-service

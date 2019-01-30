@@ -9,13 +9,14 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: storage_list
-      prefix: ^/api/files(/(lookup|stat))?$
+      prefix: ^/*/api/files(/(lookup|stat))?$
       prefix_regex: true
       rewrite: ""
       service: storage:8080
       method: GET
       headers:
         x-no-load: true
+      precedence: 10
 
       ---
       apiVersion: ambassador/v0

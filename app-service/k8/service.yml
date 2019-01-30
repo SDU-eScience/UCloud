@@ -9,20 +9,27 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: app_hpc
-      prefix: /api/hpc/
-      service: app-service:8080
+      prefix: ^/api/hpc(/.*)?$
+      prefix_regex: true
+      service: app:8080
       rewrite: ""
 
       ---
       apiVersion: ambassador/v0
       kind: Mapping
       name: app_compute
-      prefix: /api/app/compute/
-      service: app-service:8080
+      prefix: ^/api/app/compute(/.*)?$
+      prefix_regex: true
+      service: app:8080
       rewrite: ""
 
 spec:
   clusterIP: None
   type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
   selector:
     app: app-service

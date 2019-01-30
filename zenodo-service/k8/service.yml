@@ -9,12 +9,18 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: zenodo
-      prefix: /api/zenodo/
-      service: zenodo-service:8080
+      prefix: ^/api/zenodo(/.*)?$
+      prefix_regex: true
+      service: zenodo:8080
       rewrite: ""
 
 spec:
   clusterIP: None
   type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
   selector:
     app: zenodo-service

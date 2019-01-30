@@ -4,11 +4,12 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StorageFile
 import io.ktor.http.HttpMethod
 
 data class ToggleFavoriteRequest(
-    val files: List<String>
+    val path: String
 )
 
 data class ToggleFavoriteResponse(
@@ -26,7 +27,7 @@ data class FavoriteStatusResponse(
     val favorited: Map<String, Boolean>
 )
 
-object FileFavoriteDescriptions : RESTDescriptions("file.favorite") {
+object FileFavoriteDescriptions : RESTDescriptions("${FileDescriptions.namespace}.favorite") {
     val baseContext = "/api/files/favorite"
 
     internal val toggleFavoriteDelete = callDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage> {
@@ -41,7 +42,9 @@ object FileFavoriteDescriptions : RESTDescriptions("file.favorite") {
             using(baseContext)
         }
 
-        body { bindEntireRequestFromBody() }
+        params {
+            +boundTo(ToggleFavoriteRequest::path)
+        }
     }
 
     val toggleFavorite = callDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage> {
@@ -56,7 +59,9 @@ object FileFavoriteDescriptions : RESTDescriptions("file.favorite") {
             using(baseContext)
         }
 
-        body { bindEntireRequestFromBody() }
+        params {
+            +boundTo(ToggleFavoriteRequest::path)
+        }
     }
 
     val favoriteStatus = callDescription<FavoriteStatusRequest, FavoriteStatusResponse, CommonErrorMessage> {

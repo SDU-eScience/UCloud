@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.gateway.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
@@ -93,7 +94,7 @@ typealias StatResponse = StorageFileWithMetadata
  * associated data. A client can request additional data by setting the load query parameter to a set of resources to
  * load (see [FileResource.text]). This list should be comma separated.
  */
-object FileGatewayDescriptions : RESTDescriptions("file.gateway") {
+object FileGatewayDescriptions : RESTDescriptions("${FileDescriptions.namespace}.gateway") {
     val baseContext = "/api/files"
 
     val listAtDirectory = callDescription<ListAtDirectoryRequest, ListAtDirectoryResponse, CommonErrorMessage> {
@@ -102,6 +103,7 @@ object FileGatewayDescriptions : RESTDescriptions("file.gateway") {
 
         auth {
             access = AccessRight.READ
+            desiredScope = FileDescriptions.listAtPath.requiredAuthScope
         }
 
         path {
@@ -126,6 +128,7 @@ object FileGatewayDescriptions : RESTDescriptions("file.gateway") {
 
             auth {
                 access = AccessRight.READ
+                desiredScope = FileDescriptions.lookupFileInDirectory.requiredAuthScope
             }
 
             path {
@@ -148,6 +151,7 @@ object FileGatewayDescriptions : RESTDescriptions("file.gateway") {
 
         auth {
             access = AccessRight.READ
+            desiredScope = FileDescriptions.stat.requiredAuthScope
         }
 
         path {
