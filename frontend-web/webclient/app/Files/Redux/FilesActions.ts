@@ -38,11 +38,15 @@ export type FileActions = Error<typeof FILES_ERROR> | ReceiveFiles | ReceivePage
 * @param {Page<File>} page number of the page to be fetched
 */
 
-export const fetchFiles = (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError> =>
-    Cloud.get(filepathQuery(path, page, itemsPerPage, order, sortBy)).then(({ response }) =>
-        receiveFiles(response, path, order, sortBy)
-    ).catch(err => setErrorMessage(errorMessageOrDefault(err, "An error occurred fetching contents of folder.")));
-
+type FetchFiles = Promise<ReceivePage<typeof RECEIVE_FILES, File> | FilesError>
+export const fetchFiles = async (path: string, itemsPerPage: number, page: number, order: SortOrder, sortBy: SortBy): FetchFiles => {
+    try {
+        const response = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, order, sortBy));
+        return receiveFiles(response.response, path, order, sortBy)
+    } catch (e) {
+        return setErrorMessage(errorMessageOrDefault(e, "An error occurred fetching contents of folder."))
+    }
+}
 type FilesError = Error<typeof FILES_ERROR>
 /**
  * Sets the error message for the Files component.
@@ -125,7 +129,7 @@ export const fileSelectorShown = (state: boolean): FileSelectorShownAction => ({
     payload: { state }
 });
 
-interface ReceiveFileSelectorFilesAction extends PayloadAction<typeof RECEIVE_FILE_SELECTOR_FILES, { path: string, page: Page<File> }> { }
+type ReceiveFileSelectorFilesAction = PayloadAction<typeof RECEIVE_FILE_SELECTOR_FILES, { path: string, page: Page<File> }>
 /**
  * Returns action for receiving files for the fileselector.
  * @param {Page<File>} page the page of files
@@ -146,16 +150,17 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
  * @param {SortOrder} order the order to sort by, either ascending or descending
  * @param {SortBy} sortBy the field to be sorted by
  */
-export const fetchPageFromPath = (path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR>> =>
-    Cloud.get<Page<File>>(fileLookupQuery(path, itemsPerPage, order, sortBy))
-        .then(({ response }) => {
-            const resolvedPath = resolvePath(path);
-            const i = response.items.findIndex(it => it.path === resolvedPath);
-            response.items[i].isChecked = true;
-            return receiveFiles(response, getParentPath(resolvedPath), order, sortBy)
-        }).catch(() =>
-            setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
-        ); // FIXME Add error handling
+export async function fetchPageFromPath(path: string, itemsPerPage: number, order: SortOrder = SortOrder.ASCENDING, sortBy: SortBy = SortBy.PATH): Promise<ReceivePage<typeof RECEIVE_FILES, File> | Error<typeof FILES_ERROR>> {
+    try {
+        const { response } = await Cloud.get<Page<File>>(fileLookupQuery(path, itemsPerPage, order, sortBy))
+        const resolvedPath = resolvePath(path);
+        const i = response.items.findIndex(it => it.path === resolvedPath);
+        response.items[i].isChecked = true;
+        return receiveFiles(response, getParentPath(resolvedPath), order, sortBy)
+    } catch (e) {
+        return setErrorMessage(`An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}`)
+    }
+}
 
 /**
  * 
@@ -163,12 +168,15 @@ export const fetchPageFromPath = (path: string, itemsPerPage: number, order: Sor
  * @param page 
  * @param itemsPerPage 
  */
-export const fetchFileselectorFiles = (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> =>
-    Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage)).then(({ response }) => {
+export const fetchFileselectorFiles = async (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> => {
+    try {
+        const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage));
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, resolvePath(path));
-    }).catch(() => setFileSelectorError({ error: `An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}` }));
-
+    } catch (e) {
+        return setFileSelectorError({ error: `An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}` });
+    }
+}
 /**
  * Sets the fileselector as loading. Intended for use when retrieving files.
  */
@@ -177,7 +185,7 @@ export const setFileSelectorLoading = (): Action<typeof SET_FILE_SELECTOR_LOADIN
 });
 
 
-interface SetDisallowedPathsAction extends PayloadAction<typeof SET_DISALLOWED_PATHS, { paths: string[] }> { }
+type SetDisallowedPathsAction = PayloadAction<typeof SET_DISALLOWED_PATHS, { paths: string[] }>
 /**
  * Sets paths for the file selector to omit.
  * @param {string[]} paths - the list of paths which shouldn't be displayed on

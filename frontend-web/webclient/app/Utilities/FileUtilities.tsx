@@ -428,10 +428,7 @@ export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], 
  */
 export const favoriteFile = (file: File, cloud: SDUCloud): File => {
     file.favorited = !file.favorited;
-    if (file.favorited)
-        cloud.post(`/files/favorite?path=${encodeURIComponent(file.path)}`, {}); // FIXME: Error handling
-    else
-        cloud.delete(`/files/favorite?path=${encodeURIComponent(file.path)}`, {}); // FIXME: Error handling
+    cloud.post(`/files/favorite?path=${encodeURIComponent(file.path)}`, {}); // FIXME: Error handling
     return file;
 }
 
