@@ -3,8 +3,6 @@ import { Box } from "ui-components";
 
 // https://www.w3schools.com/howto/howto_js_snackbar.asp
 
-
-
 const visibility = ({ visible }: { visible: boolean }) => visible ? css`
     visibility: visible;
     animation: fadein 0.5s, fadeout 0.5s 2.5s;
