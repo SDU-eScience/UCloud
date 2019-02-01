@@ -259,7 +259,7 @@ abstract class CriteriaBuilderGeneralContext {
     }
 
     infix fun <E> Expression<E>.isInCollection(expression: Collection<E>): Predicate {
-        return if (expression.isEmpty()) builder.isFalse(literal(false))
+        return if (expression.isEmpty()) literal(false).toPredicate()
         else this.`in`(expression)
     }
 
