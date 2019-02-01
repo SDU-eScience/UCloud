@@ -6,35 +6,9 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
-import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
-
-const val DEFAULT_RESOURCES_TO_LOAD = "fav"
-
-enum class FileResource(val text: String) {
-    FAVORITES("fav")
-}
-
-private fun fileResourcesToString(load: Set<FileResource>) =
-    load.joinToString(",") { it.text }
-
-interface LoadFileResource {
-    val load: String?
-}
-
-val LoadFileResource.resourcesToLoad: Set<FileResource>
-    get() = (load ?: DEFAULT_RESOURCES_TO_LOAD).split(",").mapNotNull { param ->
-        FileResource.values().find { it.text == param }
-    }.toSet()
-
-class StorageFileWithMetadata(
-    delegate: StorageFile,
-
-    // custom resources
-    val favorited: Boolean?
-) : StorageFile by delegate
 
 data class ListAtDirectoryRequest internal constructor(
     val path: String,

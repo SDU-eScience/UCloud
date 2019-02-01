@@ -1,7 +1,7 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.indexing.api.AllOf
 import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.Comparison
@@ -95,7 +95,7 @@ class RealElasticTest {
         fun listDirectory(
             dir: String,
             page: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-        ): Page<EventMaterializedStorageFile> {
+        ): Page<StorageFile> {
             return service.query(
                 FileQuery(
                     roots = listOf(dir),
@@ -115,7 +115,7 @@ class RealElasticTest {
         fun tree(
             dir: String,
             page: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-        ): Page<EventMaterializedStorageFile> {
+        ): Page<StorageFile> {
             return service.query(
                 FileQuery(
                     roots = listOf(dir),

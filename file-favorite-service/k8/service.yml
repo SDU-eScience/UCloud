@@ -8,6 +8,19 @@ metadata:
       ---
       apiVersion: ambassador/v0
       kind: Mapping
+      name: file_fav_list
+      prefix: ^/api/files/favorite$
+      prefix_regex: true
+      rewrite: ""
+      service: file-favorite:8080
+      method: GET
+      precedence: 10
+      headers:
+        x-no-load: true
+
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
       name: file_fav
       prefix: /api/files/favorite
       rewrite: ""

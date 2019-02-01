@@ -1,8 +1,6 @@
 package dk.sdu.cloud.file.favorite.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusRequest
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
@@ -26,7 +24,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class FileFavoriteControllerTest{
+class FileFavoriteControllerTest {
     private val service = mockk<FileFavoriteService<HibernateSession>>()
     private val cloud = CloudContextMock
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
@@ -47,10 +45,7 @@ class FileFavoriteControllerTest{
                     path = "/api/files/favorite",
                     user = TestUsers.user,
                     request = ToggleFavoriteRequest(
-                        listOf(
-                            "/home/user/1",
-                            "/home/user/2"
-                        )
+                        "/home/user/1,/home/user/2"
                     )
                 )
 
@@ -74,10 +69,7 @@ class FileFavoriteControllerTest{
                     path = "/api/files/favorite",
                     user = TestUsers.user,
                     request = ToggleFavoriteRequest(
-                        listOf(
-                            "/home/user/1",
-                            "/home/user/2"
-                        )
+                        "/home/user/1,/home/user/2"
                     )
                 )
 

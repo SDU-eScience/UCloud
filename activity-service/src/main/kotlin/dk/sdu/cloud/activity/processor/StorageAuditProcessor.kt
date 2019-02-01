@@ -28,8 +28,6 @@ class StorageAuditProcessor<DBSession>(
     private val transformers: List<Transformer> = listOf(
         this::transformBulkDownload,
         this::transformStat,
-        this::transformAddFavorite,
-        this::transformRemoveFavorite,
         this::transformMove,
         this::transformDownload
     )
@@ -117,42 +115,6 @@ class StorageAuditProcessor<DBSession>(
             return listOf(
                 ActivityEvent.Inspected(
                     username,
-                    System.currentTimeMillis(),
-                    fileId,
-                    it.request.request.path
-                )
-            )
-        }
-
-        return null
-    }
-
-    private fun transformAddFavorite(parsedEvent: JsonNode): List<ActivityEvent>? {
-        FileDescriptions.markAsFavorite.parseAuditMessageOrNull(parsedEvent)?.let {
-            val username = it.username ?: return null
-            val fileId = it.request.fileId ?: return null
-            return listOf(
-                ActivityEvent.Favorite(
-                    username,
-                    true,
-                    System.currentTimeMillis(),
-                    fileId,
-                    it.request.request.path
-                )
-            )
-        }
-
-        return null
-    }
-
-    private fun transformRemoveFavorite(parsedEvent: JsonNode): List<ActivityEvent>? {
-        FileDescriptions.removeFavorite.parseAuditMessageOrNull(parsedEvent)?.let {
-            val username = it.username ?: return null
-            val fileId = it.request.fileId ?: return null
-            return listOf(
-                ActivityEvent.Favorite(
-                    username,
-                    false,
                     System.currentTimeMillis(),
                     fileId,
                     it.request.request.path

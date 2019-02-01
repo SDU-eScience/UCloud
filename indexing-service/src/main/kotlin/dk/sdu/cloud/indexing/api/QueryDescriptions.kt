@@ -5,7 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.service.Page
@@ -104,12 +104,12 @@ data class FileQuery(
     val roots: List<String>,
 
     /**
-     * Predicates for [EventMaterializedStorageFile.id]
+     * Predicates for [StorageFile.fileId]
      */
     val id: PredicateCollection<String>? = null,
 
     /**
-     * Predicates for [EventMaterializedStorageFile.owner]
+     * Predicates for [StorageFile.ownerName]
      */
     val owner: PredicateCollection<String>? = null,
 
@@ -161,22 +161,24 @@ data class FileQuery(
     val annotations: PredicateCollection<String>? = null,
 
     /**
-     * Predicate for [EventMaterializedStorageFile.isLink]. Only exact matches are considered.
+     * Predicate for [StorageFile.link]. Only exact matches are considered.
      */
     val fileIsLink: Boolean? = null,
 
     /**
-     * Predicate for [EventMaterializedStorageFile.linkTarget]. Only exact matches are considered.
+     * Deprecated.
      */
+    @Deprecated("Not in use")
     val linkTarget: PredicateCollection<String>? = null,
 
     /**
-     * Predicate for [EventMaterializedStorageFile.linkTargetId]. Only exact matches are considered.
+     * Deprecated.
      */
+    @Deprecated("Not in use")
     val linkTargetId: PredicateCollection<String>? = null,
 
     /**
-     * Predicate for [EventMaterializedStorageFile.size]. Only exact matches are considered.
+     * Predicate for [StorageFile.size]. Only exact matches are considered.
      */
     val size: PredicateCollection<Comparison<Long>>? = null
 ) {
@@ -233,7 +235,7 @@ data class QueryRequest(
 /**
  * @see [QueryDescriptions.query]
  */
-typealias QueryResponse = Page<EventMaterializedStorageFile>
+typealias QueryResponse = Page<StorageFile>
 
 /**
  * @see [QueryDescriptions.statistics]

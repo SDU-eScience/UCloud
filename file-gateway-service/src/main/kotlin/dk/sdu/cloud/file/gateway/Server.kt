@@ -1,7 +1,8 @@
 package dk.sdu.cloud.file.gateway
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.file.gateway.http.FileGatewayController
+import dk.sdu.cloud.file.gateway.http.FavoriteController
+import dk.sdu.cloud.file.gateway.http.FileController
 import dk.sdu.cloud.file.gateway.services.FileAnnotationService
 import dk.sdu.cloud.file.gateway.services.UserCloudService
 import dk.sdu.cloud.service.CommonServer
@@ -44,7 +45,8 @@ class Server(
 
             routing {
                 configureControllers(
-                    FileGatewayController(userCloudService, fileAnnotationService)
+                    FileController(userCloudService, fileAnnotationService),
+                    FavoriteController(userCloudService, fileAnnotationService)
                 )
             }
         }

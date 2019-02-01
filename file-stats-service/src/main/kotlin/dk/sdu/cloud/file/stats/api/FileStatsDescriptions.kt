@@ -5,6 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageFile
 import io.ktor.http.HttpMethod
 
 data class UsageRequest(val path: String? = null)
@@ -15,17 +16,7 @@ data class RecentFilesResponse(
     val recentFiles: List<SearchResult>
 )
 
-data class SearchResult(
-    val path: String,
-    val fileType: FileType,
-    val annotations: Set<kotlin.String>,
-    val createdAt: Long,
-    val fileId: String,
-    val link: Boolean,
-    val modifiedAt: Long,
-    val ownerName: String,
-    val sensitivityLevel: SensitivityLevel
-)
+typealias SearchResult = StorageFile
 
 object FileStatsDescriptions : RESTDescriptions("files.stats") {
     val baseContext = "/api/files/stats"

@@ -24,7 +24,7 @@ interface StorageFile {
     val modifiedAt: Long
     val ownerName: String
     val size: Long
-    val acl: List<AccessEntry>
+    val acl: List<AccessEntry>?
     val sensitivityLevel: SensitivityLevel
     val link: Boolean
     val annotations: Set<String>
@@ -39,7 +39,7 @@ data class StorageFileImpl(
     override val modifiedAt: Long,
     override val ownerName: String,
     override val size: Long,
-    override val acl: List<AccessEntry>,
+    override val acl: List<AccessEntry>?,
     override val sensitivityLevel: SensitivityLevel,
     override val link: Boolean,
     override val annotations: Set<String>,
@@ -54,7 +54,7 @@ fun StorageFile(
     modifiedAt: Long = System.currentTimeMillis(),
     ownerName: String,
     size: Long = 0,
-    acl: List<AccessEntry> = emptyList(),
+    acl: List<AccessEntry>? = emptyList(),
     sensitivityLevel: SensitivityLevel = SensitivityLevel.PRIVATE,
     link: Boolean = false,
     annotations: Set<String> = emptySet(),

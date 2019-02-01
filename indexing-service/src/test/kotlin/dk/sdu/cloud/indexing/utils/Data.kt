@@ -17,20 +17,24 @@ import dk.sdu.cloud.indexing.services.ElasticIndexedFile
 val fileQuery = FileQuery(
     listOf("/home/jonas@hinchely.dk"),
     null,
-    AllOf(listOf(AnyOf(listOf("jonas@hinchely.dk"), negate=false))),
+    AllOf(listOf(AnyOf(listOf("jonas@hinchely.dk"), negate = false))),
     listOf("d"),
     null,
     null,
-    AllOf(listOf(AnyOf(listOf(FileType.FILE, FileType.DIRECTORY), negate=false))),
+    AllOf(listOf(AnyOf(listOf(FileType.FILE, FileType.DIRECTORY), negate = false))),
     null,
-    AllOf(listOf(
-        AnyOf(listOf(Comparison(1542754800000, ComparisonOperator.LESS_THAN_EQUALS)), false), AnyOf(listOf(
-            Comparison(1539727200000, ComparisonOperator.GREATER_THAN_EQUALS)
-        ), false)
-    ))
+    AllOf(
+        listOf(
+            AnyOf(listOf(Comparison(1542754800000, ComparisonOperator.LESS_THAN_EQUALS)), false), AnyOf(
+                listOf(
+                    Comparison(1539727200000, ComparisonOperator.GREATER_THAN_EQUALS)
+                ), false
+            )
+        )
+    )
 )
 
-val queryRequest= QueryRequest(fileQuery, itemsPerPage = 25, page = 0)
+val queryRequest = QueryRequest(fileQuery, itemsPerPage = 25, page = 0)
 val minimumStatisticRequest = StatisticsRequest(fileQuery)
 
 val elasticFile = ElasticIndexedFile(
@@ -55,7 +59,7 @@ val eventMatStorFile = EventMaterializedStorageFile(
     "/path/to/d",
     "owner of file",
     FileType.FILE,
-    Timestamps(12345678,1234567,12345678),
+    Timestamps(12345678, 1234567, 12345678),
     22,
     FileChecksum("SHA", "checksumForFile"),
     false,

@@ -6,6 +6,7 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -35,22 +36,7 @@ data class AdvancedSearchRequest(
     override val page: Int?
 ) : WithPaginationRequest
 
-/**
- * A search result, returned to you when searching for files.
- *
- * This is a simplified view of a file.
- */
-data class SearchResult(
-    val path: String,
-    val fileType: FileType,
-    val annotations: Set<kotlin.String>,
-    val createdAt: Long,
-    val fileId: String,
-    val link: Boolean,
-    val modifiedAt: Long,
-    val ownerName: String,
-    val sensitivityLevel: SensitivityLevel
-)
+typealias SearchResult = StorageFile
 
 /**
  * Contains REST calls for searching in files

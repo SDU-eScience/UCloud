@@ -1,11 +1,15 @@
 package dk.sdu.cloud.file.favorite.services
 
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.mapItems
 import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.GeneratedValue
@@ -85,5 +89,15 @@ class FileFavoriteHibernateDAO : FileFavoriteDAO<HibernateSession> {
         }.uniqueResult()
 
         session.delete(entity)
+    }
+
+    override fun listAll(
+        session: HibernateSession,
+        pagination: NormalizedPaginationRequest,
+        user: String
+    ): Page<String> {
+        return session.paginatedCriteria<FavoriteEntity>(pagination) {
+            entity[FavoriteEntity::username] equal user
+        }.mapItems { it.fileId }
     }
 }

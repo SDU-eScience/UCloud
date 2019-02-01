@@ -28,7 +28,7 @@ import io.ktor.request.userAgent
 import io.ktor.response.ApplicationSendPipeline
 import io.ktor.util.AttributeKey
 import io.ktor.util.pipeline.PipelineContext
-import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
 import org.slf4j.LoggerFactory
@@ -100,8 +100,8 @@ class KafkaHttpRouteLogger {
 
             @Suppress("UNCHECKED_CAST")
             auditProducer =
-                    kafka.producer.forStream(description.auditStreamProducersOnly)
-                            as MappedEventProducer<String, AuditEvent<*>>
+                kafka.producer.forStream(description.auditStreamProducersOnly)
+                        as MappedEventProducer<String, AuditEvent<*>>
 
             val micro = application.featureOrNull(KtorMicroServiceFeature)?.micro
                 ?: throw IllegalStateException("Could not find KtorMicroServiceFeature")
@@ -162,7 +162,7 @@ class KafkaHttpRouteLogger {
 
         val responsePayload = call.attributes.getOrNull(responsePayloadToLogKey)
 
-        async {
+        launch {
             val principal = run {
                 val principalFromBearerToken = bearerToken
                     ?.let { tokenValidation.validateOrNull(it) }

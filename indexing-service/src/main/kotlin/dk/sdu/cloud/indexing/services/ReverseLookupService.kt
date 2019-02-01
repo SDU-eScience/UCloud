@@ -1,5 +1,7 @@
 package dk.sdu.cloud.indexing.services
 
+import dk.sdu.cloud.file.api.StorageFile
+
 /**
  * Provides reverse lookups of files (fileId -> canonical file path)
  */
@@ -18,4 +20,6 @@ interface ReverseLookupService {
     fun reverseLookupBatch(fileIds: List<String>): List<String?> {
         return fileIds.map { reverseLookup(it) }
     }
+
+    fun reverseLookupFileBatch(fileIds: List<String>): List<StorageFile?>
 }

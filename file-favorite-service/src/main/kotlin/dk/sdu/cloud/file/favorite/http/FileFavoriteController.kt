@@ -17,7 +17,6 @@ import dk.sdu.cloud.service.optionallyCausedBy
 import dk.sdu.cloud.service.safeJobId
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
-import io.ktor.routing.Routing
 
 class FileFavoriteController<DBSession>(
     private val fileFavoriteService: FileFavoriteService<DBSession>,
@@ -35,6 +34,10 @@ class FileFavoriteController<DBSession>(
                     fileFavoriteService.getFavoriteStatus(req.files, call.securityPrincipal.username)
                 )
             )
+        }
+
+        implement(FileFavoriteDescriptions.list) { req ->
+            ok(fileFavoriteService.listAll(req.normalize(), call.securityPrincipal.username))
         }
     }
 

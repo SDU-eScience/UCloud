@@ -15,7 +15,6 @@ import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.ExternalFileService
-import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileOwnerService
@@ -86,9 +85,8 @@ class Server(
 
         val annotationService = FileAnnotationService(fs, storageEventProducer)
 
-        val favoriteService = FavoriteService(coreFileSystem)
         val bulkDownloadService = BulkDownloadService(coreFileSystem)
-        val fileLookupService = FileLookupService(coreFileSystem, favoriteService)
+        val fileLookupService = FileLookupService(coreFileSystem)
 
         val indexingService =
             IndexingService(processRunner, coreFileSystem, storageEventProducer)
@@ -146,7 +144,6 @@ class Server(
                         processRunner,
                         coreFileSystem,
                         annotationService,
-                        favoriteService,
                         fileLookupService,
                         sensitivityService,
                         aclService,

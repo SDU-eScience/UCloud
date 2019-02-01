@@ -10,14 +10,18 @@ repositories {
     jcenter()
 }
 
+buildscript {
+    ext.serviceCommonVersion = "0.23.3"
+}
+
 dependencies {
     // Internal services
-    compile 'dk.sdu.cloud:service-common:0.23.3'
-    compile 'dk.sdu.cloud:file-api:0.17.7'
+    compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
+    compile 'dk.sdu.cloud:file-api:0.19.0'
     compile 'dk.sdu.cloud:auth-api:1.14.0'
     compile 'dk.sdu.cloud:notification-api:0.7.0-SNAPSHOT'
-    compile 'dk.sdu.cloud:indexing-api:1.6.1-SNAPSHOT'
-    testCompile 'dk.sdu.cloud:service-common-test:0.23.3'
+    compile 'dk.sdu.cloud:indexing-api:1.9.0'
+    testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 
 sduCloud.createTasksForApiJar("share", [])

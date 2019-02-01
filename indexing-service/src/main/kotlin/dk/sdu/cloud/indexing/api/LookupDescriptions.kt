@@ -5,6 +5,9 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.service.Page
+import io.ktor.http.HttpMethod
 
 /**
  * @see [LookupDescriptions.reverseLookup]
@@ -21,6 +24,9 @@ data class ReverseLookupRequest(val fileId: String) {
  * @see [LookupDescriptions.reverseLookup]
  */
 data class ReverseLookupResponse(val canonicalPath: List<String?>)
+
+typealias ReverseLookupFilesRequest = ReverseLookupRequest
+data class ReverseLookupFilesResponse(val files: List<StorageFile?>)
 
 /**
  * Provides REST calls for looking up files in the efficient file index.
@@ -45,4 +51,25 @@ object LookupDescriptions : RESTDescriptions("indexing") {
             +boundTo(ReverseLookupRequest::fileId)
         }
     }
+
+    val reverseLookupFiles =
+        callDescription<ReverseLookupFilesRequest, ReverseLookupFilesResponse, CommonErrorMessage> {
+            name = "reverseLookupFiles"
+            method = HttpMethod.Get
+
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ
+            }
+
+            path {
+                using(baseContext)
+                +"reverse"
+                +"file"
+            }
+
+            params {
+                +boundTo(ReverseLookupFilesRequest::fileId)
+            }
+        }
 }

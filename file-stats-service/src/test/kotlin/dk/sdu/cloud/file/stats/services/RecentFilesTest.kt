@@ -25,7 +25,7 @@ class RecentFilesTest {
                 0,
                 listOf(
                     storageFile,
-                    storageFile.copy(id = "id2")
+                    storageFile.copy(fileId = "id2")
                 )
             )
         )

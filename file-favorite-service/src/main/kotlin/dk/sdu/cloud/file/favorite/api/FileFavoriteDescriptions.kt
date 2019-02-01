@@ -6,6 +6,9 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
+import io.ktor.client.request.header
 import io.ktor.http.HttpMethod
 
 data class ToggleFavoriteRequest(
@@ -27,25 +30,29 @@ data class FavoriteStatusResponse(
     val favorited: Map<String, Boolean>
 )
 
+typealias ListRequest = PaginationRequest
+typealias ListResponse = Page<StorageFile>
+
 object FileFavoriteDescriptions : RESTDescriptions("${FileDescriptions.namespace}.favorite") {
     val baseContext = "/api/files/favorite"
 
-    internal val toggleFavoriteDelete = callDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage> {
-        name = "toggleFavorite"
-        method = HttpMethod.Delete
+    internal val toggleFavoriteDelete =
+        callDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage> {
+            name = "toggleFavorite"
+            method = HttpMethod.Delete
 
-        auth {
-            access = AccessRight.READ_WRITE
-        }
+            auth {
+                access = AccessRight.READ_WRITE
+            }
 
-        path {
-            using(baseContext)
-        }
+            path {
+                using(baseContext)
+            }
 
-        params {
-            +boundTo(ToggleFavoriteRequest::path)
+            params {
+                +boundTo(ToggleFavoriteRequest::path)
+            }
         }
-    }
 
     val toggleFavorite = callDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage> {
         name = "toggleFavorite"
@@ -78,5 +85,25 @@ object FileFavoriteDescriptions : RESTDescriptions("${FileDescriptions.namespace
         }
 
         body { bindEntireRequestFromBody() }
+    }
+
+    val list = callDescription<ListRequest, ListResponse, CommonErrorMessage>(
+        additionalRequestConfiguration = { header("x-no-load", "true") }
+    ) {
+        name = "list"
+        method = HttpMethod.Get
+
+        auth {
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+        }
+
+        params {
+            +boundTo(ListRequest::itemsPerPage)
+            +boundTo(ListRequest::page)
+        }
     }
 }
