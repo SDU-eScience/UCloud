@@ -32,17 +32,18 @@ class List extends React.Component<ListProps & SharesOperations, ListState> {
             loading: true,
             byState: ShareState.REQUEST_SENT
         };
-        props.setActivePage();
         // FIXME potentially move following to a parent component
-        if (!props.notInnerComponent)
+        if (!props.innerComponent) {
             this.props.updatePageTitle();
+            props.setActivePage();
+        }
     }
 
     public componentDidMount = () => this.reload();
 
     public componentWillUnmount = () => this.state.promises.cancelPromises();
 
-    reload(state?: ShareState) {
+    private reload(state?: ShareState) {
         const query = !!this.props.byPath ? sharesByPath(this.props.byPath) : retrieveShares(this.state.page, this.state.itemsPerPage, state || this.state.byState);
         this.state.promises.makeCancelable(query)
             .promise
@@ -89,7 +90,7 @@ class List extends React.Component<ListProps & SharesOperations, ListState> {
         );
         const main = (
             <>
-                {this.props.notInnerComponent ? null : header}
+                {this.props.innerComponent ? header : null}
                 <Error clearError={() => this.setState({ errorMessage: undefined })} error={errorMessage} />
                 {this.state.loading ? <LoadingIcon size={18} /> : null}
                 <Heading.h3>Shared with Me</Heading.h3>
@@ -128,7 +129,7 @@ class List extends React.Component<ListProps & SharesOperations, ListState> {
 
         return (
             <MainContainer
-                header={this.props.notInnerComponent ? header : null}
+                header={this.props.innerComponent ? null : header}
                 main={main}
                 sidebar={null}
             />

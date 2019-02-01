@@ -13,7 +13,7 @@ export interface ListState {
 }
 
 export interface ListProps {
-    notInnerComponent?: boolean
+    innerComponent?: boolean
     byPath?: string
 }
 

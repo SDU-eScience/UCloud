@@ -12,7 +12,7 @@ import { File } from "Files";
 import { ActivityFeed } from "Activity/Activity";
 import { Dispatch } from "redux";
 import { fetchFileStat, setLoading, fetchFileActivity, receiveFileStat, fileInfoError } from "./Redux/FileInfoActions";
-import { Flex, Box, Icon, Card, Error, Sidebar } from "ui-components";
+import { Flex, Box, Icon, Card, Error } from "ui-components";
 import List from "ui-components/List";
 import * as Heading from "ui-components/Heading"
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -83,7 +83,7 @@ class FileInfo extends React.Component<FileInfo> {
                                     <ActivityFeed activity={activity.items} />
                                 </Card>
                             </Flex>) : null}
-                        <Box width={0.88}><ShareList byPath={file.path} /></Box>
+                        <Box width={0.88}><ShareList innerComponent byPath={file.path} /></Box>
                         {loading ? <LoadingIcon size={18} /> : null}
                     </>}
             />

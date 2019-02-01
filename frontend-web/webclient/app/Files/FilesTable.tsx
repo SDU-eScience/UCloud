@@ -231,7 +231,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
         <Box mr="10px" cursor="inherit">
             <FileIcon
                 fileIcon={iconType}
-                size={size} link={file.link} shared={(file.acl !== undefined ? file.acl.length : 0) > 0}
+                size={size} link={file.link} shared={(file.acl != null ? file.acl.length : 0) > 0}
             />
         </Box>
     );
