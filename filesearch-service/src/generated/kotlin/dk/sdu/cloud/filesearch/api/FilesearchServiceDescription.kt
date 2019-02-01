@@ -4,5 +4,5 @@ import dk.sdu.cloud.client.ServiceDescription
 
 object FilesearchServiceDescription : ServiceDescription {
     override val name: String = "filesearch"
-    override val version: String = "0.6.0"
+    override val version: String = "0.6.1"
 }

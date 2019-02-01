@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
+import io.ktor.client.request.header
 import io.ktor.http.HttpMethod
 
 /**
@@ -44,7 +45,9 @@ typealias SearchResult = StorageFile
 object FileSearchDescriptions : RESTDescriptions("fileSearch") {
     const val baseContext: String = "/api/file-search"
 
-    val simpleSearch = callDescription<SimpleSearchRequest, Page<SearchResult>, CommonErrorMessage> {
+    val simpleSearch = callDescription<SimpleSearchRequest, Page<SearchResult>, CommonErrorMessage>(
+        additionalRequestConfiguration = { header("x-no-load", "true") }
+    ) {
         name = "fileSearchSimple"
         method = HttpMethod.Get
 
@@ -63,7 +66,9 @@ object FileSearchDescriptions : RESTDescriptions("fileSearch") {
         }
     }
 
-    val advancedSearch = callDescription<AdvancedSearchRequest, Page<SearchResult>, CommonErrorMessage> {
+    val advancedSearch = callDescription<AdvancedSearchRequest, Page<SearchResult>, CommonErrorMessage>(
+        additionalRequestConfiguration = { header("x-no-load", "true") }
+    ) {
         name = "fileSearchAdvanced"
         method = HttpMethod.Post
 

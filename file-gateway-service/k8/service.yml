@@ -27,6 +27,16 @@ metadata:
       method: GET
       precedence: 9
 
+      ---
+      apiVersion: ambassador/v0
+      kind: Mapping
+      name: filesearch_gw
+      prefix: ^/api/file-search(/.*)?$
+      prefix_regex: true
+      service: file-gateway:8080
+      rewrite: ""
+      precedence: 9
+
 spec:
   clusterIP: None
   type: ClusterIP
