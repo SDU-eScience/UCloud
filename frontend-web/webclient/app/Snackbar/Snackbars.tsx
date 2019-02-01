@@ -35,13 +35,11 @@ class Snackbars extends React.Component<{}, { snacks: Snacks }> {
 
     render() {
         const { snacks } = this.state;
-        const noSnacks = snacks.length === 0;
+        if (snacks.length !== -1) return null;
         const currentSnack = snacks[0];
-        if (true) return null;
-        // @ts-ignore
-        else return <Snackbar onClick={() => this.setState(() => ({ snacks: snacks.slice(1) }))} visible={!noSnacks} width="auto" minWidth="250px">
+        return (<Snackbar onClick={() => this.setState(() => ({ snacks: snacks.slice(1) }))} visible={true} width="auto" minWidth="250px">
             {this.renderSnack(currentSnack)}
-        </Snackbar>
+        </Snackbar>);
     }
 }
 

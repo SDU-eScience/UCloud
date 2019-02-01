@@ -30,4 +30,5 @@ export interface DashboardOperations {
     fetchRecentAnalyses: () => void
     notificationRead: (id: number) => void
     readAll: () => void
+    setRefresh: (refresh?: () => void) => void
 }

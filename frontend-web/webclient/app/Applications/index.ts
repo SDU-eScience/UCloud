@@ -30,6 +30,7 @@ export interface AnalysesOperations {
     setLoading: (loading: boolean) => void
     fetchAnalyses: (itemsPerPage: number, pageNumber: number) => void
     setActivePage: () => void
+    setRefresh: (refresh?: () => void) => void
 }
 
 export interface AnalysesState {
@@ -42,6 +43,7 @@ export interface DetailedResultOperations {
     setLoading: (loading: boolean) => void
     detailedResultError: (error: string) => void
     fetchPage: (jobId: string, pageNumber: number, itemsPerPage: number) => void
+    setRefresh: (refresh?: () => void) => void
 }
 
 export interface DetailedResultProps extends DetailedResultReduxObject, DetailedResultOperations {

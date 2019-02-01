@@ -16,10 +16,10 @@ import { MainContainer } from "MainContainer/MainContainer";
 import Table, { TableHeaderCell, TableRow, TableCell, TableBody, TableHeader } from "ui-components/Table";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { ReduxObject } from "DefaultObjects";
-import { CustomEntriesPerPage } from "UtilityComponents";
-import { Spacer } from "ui-components/Spacer";
+import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 
-class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
+                                    /* FIXME some overlap with interfaces reuse */
+class ZenodoHome extends React.Component<ZenodoHomeProps & ZenodoOperations, ZenodoHomeState> {
     constructor(props) {
         super(props);
         this.state = {
@@ -33,27 +33,27 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
         fetchPublications(0, 25);
     }
 
+    componentWillMount() {
+        this.props.setRefresh(() => fetchPublications(this.props.page.pageNumber, this.props.page.itemsPerPage));
+    }
+
+    componentWillUnmount() {
+        this.props.setRefresh();
+    }
+                                    /* FIXME some overlap with interfaces reuse */
+    componentWillReceiveProps(nextProps: ZenodoHomeProps & ZenodoOperations) {
+        this.props.setRefresh(() => fetchPublications(nextProps.page.pageNumber, nextProps.page.itemsPerPage));
+    }
+
     render() {
-        const { connected, loading, fetchPublications, page, error, onErrorDismiss } = this.props;
+        const { connected, loading, fetchPublications, page, error, onErrorDismiss, setRefresh } = this.props;
         if (!connected && !loading) {
             return (<NotConnectedToZenodo />);
         } else {
             return (
                 <MainContainer
-                    header={
-                        <Spacer
-                            left={<Box><Heading.h2>Upload progress</Heading.h2>
-                                <Heading.h5>Connected to Zenodo</Heading.h5></Box>}
-
-                            right={<CustomEntriesPerPage
-                                onRefreshClick={() => fetchPublications(page.pageNumber, page.itemsPerPage)}
-                                entriesPerPage={page.itemsPerPage}
-                                loading={loading}
-                                text="Publications per page"
-                                onChange={itemsPerPage => fetchPublications(page.pageNumber, itemsPerPage)}
-                            />}
-                        />
-                    }
+                    header={<Box><Heading.h2>Upload progress</Heading.h2>
+                        <Heading.h5>Connected to Zenodo</Heading.h5></Box>}
                     main={
                         <List
                             loading={loading}
@@ -78,7 +78,6 @@ class ZenodoHome extends React.Component<ZenodoHomeProps, ZenodoHomeState> {
                             )}
                             page={page}
                             customEntriesPerPage
-                            onItemsPerPageChanged={size => fetchPublications(0, size)}
                             onPageChanged={pageNumber => fetchPublications(pageNumber, page.itemsPerPage)}
                         />}
                     sidebar={
@@ -121,7 +120,8 @@ const mapDispatchToProps = (dispatch: Dispatch): ZenodoOperations => ({
         dispatch(setZenodoLoading(true));
         dispatch(await fetchPublications(pageNo, pageSize))
     },
-    updatePageTitle: () => dispatch(updatePageTitle("Zenodo Overview"))
+    updatePageTitle: () => dispatch(updatePageTitle("Zenodo Overview")),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
 const mapStateToProps = (state: ReduxObject): ZenodoHomeStateProps => state.zenodo;

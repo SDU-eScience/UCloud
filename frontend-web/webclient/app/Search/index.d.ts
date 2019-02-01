@@ -43,4 +43,5 @@ export interface SimpleSearchOperations {
     setPrioritizedSearch: (st: HeaderSearchType) => void
     toggleAdvancedSearch: () => void
     setActivePage: () => void
+    setRefresh: (refresh?: () => void) => void
 }

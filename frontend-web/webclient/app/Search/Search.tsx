@@ -6,7 +6,7 @@ import { SearchItem } from "Project/Search";
 import { AllFileOperations } from "Utilities/FileUtilities";
 import { SearchProps, SimpleSearchOperations, SimpleSearchStateProps } from ".";
 import { HeaderSearchType, ReduxObject, emptyPage } from "DefaultObjects";
-import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
+import { setPrioritizedSearch, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { SortOrder, SortBy, AdvancedSearchRequest, FileType } from "Files";
 import * as SSActions from "./Redux/SearchActions";
@@ -39,6 +39,11 @@ class Search extends React.Component<SearchProps> {
         this.props.setSearch(query);
         this.props.setPrioritizedSearch(this.props.match.params.priority as HeaderSearchType);
         this.fetchAll(query);
+        this.props.setRefresh(() => this.fetchAll(query));
+    }
+
+    componentWillReceiveProps(_nextProps) {
+        this.props.setRefresh(() => this.fetchAll(this.query));
     }
 
     queryFromProps = (props: SearchProps): string => {
@@ -78,6 +83,7 @@ class Search extends React.Component<SearchProps> {
     componentWillUnmount = () => {
         this.props.toggleAdvancedSearch();
         this.props.clear();
+        this.props.setRefresh();
     }
 
     shouldComponentUpdate(nextProps: SearchProps): boolean {
@@ -140,8 +146,6 @@ class Search extends React.Component<SearchProps> {
                             />
                         )}
                         page={files}
-                        onRefresh={() => this.props.searchFiles(this.fileSearchBody)}
-                        onItemsPerPageChanged={itemsPerPage => this.props.searchFiles({ ...this.fileSearchBody, page: 0, itemsPerPage })}
                         onPageChanged={pageNumber => this.props.searchFiles({ ...this.fileSearchBody, page: pageNumber })}
                     />
                 )
@@ -154,7 +158,6 @@ class Search extends React.Component<SearchProps> {
                         loading={projectsLoading}
                         pageRenderer={page => page.items.map((it, i) => (<SearchItem key={i} item={it} />))}
                         page={projects}
-                        onItemsPerPageChanged={itemsPerPage => this.props.searchProjects(search, 0, itemsPerPage)}
                         onPageChanged={pageNumber => this.props.searchProjects(search, pageNumber, projects.itemsPerPage)}
                     />
                 )
@@ -176,8 +179,6 @@ class Search extends React.Component<SearchProps> {
                             </GridCardGroup>
                         }
                         page={applications}
-                        onRefresh={() => this.props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage)}
-                        onItemsPerPageChanged={(itemsPerPage) => this.props.searchApplications(search, 0, itemsPerPage)}
                         onPageChanged={(pageNumber) => this.props.searchApplications(search, pageNumber, applications.itemsPerPage)}
                     />
                 )
@@ -225,7 +226,7 @@ export const SearchOptions = styled(Flex)`
 
 export const SelectableText = styled(Text) <{ selected: boolean }>`
     border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : undefined};
-`
+`;
 
 type MenuItemName = "Files" | "Projects" | "Applications";
 interface SearchBarProps { active: MenuItemName }
@@ -278,7 +279,8 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setSearch: search => dispatch(SSActions.setSearch(search)),
     setPrioritizedSearch: sT => dispatch(setPrioritizedSearch(sT)),
     toggleAdvancedSearch: () => dispatch(toggleFilesSearchHidden()),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.None))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
 const mapStateToProps = ({ simpleSearch, detailedFileSearch, detailedApplicationSearch }: ReduxObject): SimpleSearchStateProps => ({

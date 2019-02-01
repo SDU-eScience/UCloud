@@ -4,7 +4,6 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
 import { replaceHomeFolder, isDirectory, newMockFolder, resolvePath } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
-import { CustomEntriesPerPage } from "UtilityComponents";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
 import { filepathQuery } from "Utilities/FileUtilities";
@@ -17,6 +16,7 @@ import SDUCloud from "Authentication/lib";
 import { addTrailingSlash } from "UtilityFunctions";
 import styled from "styled-components";
 import { SpaceProps } from "styled-system";
+import { Refresh } from "Navigation/Header";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props: Readonly<FileSelectorProps>) {
@@ -124,14 +124,7 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
                 homeFolder={Cloud.homeFolder}
                 currentPath={props.path}
                 navigate={path => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />}
-            right={
-                <CustomEntriesPerPage
-                    entriesPerPage={props.page.itemsPerPage}
-                    text="Files per page"
-                    onChange={itemsPerPage => props.fetchFiles(props.path, Math.trunc(props.page.itemsPerPage * props.page.pageNumber / itemsPerPage), itemsPerPage)}
-                    loading={props.loading}
-                    onRefreshClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)}
-                />}
+            right={<Refresh spin={props.loading} onClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)} />}
         />
         <PaginationList
             customEntriesPerPage
@@ -147,7 +140,6 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             }
             page={props.page}
             onPageChanged={pageNumber => props.fetchFiles(props.path, pageNumber, props.page.itemsPerPage)}
-            onItemsPerPageChanged={itemsPerPage => props.fetchFiles(props.path, 0, itemsPerPage)}
             loading={props.loading}
         />
     </ReactModal>

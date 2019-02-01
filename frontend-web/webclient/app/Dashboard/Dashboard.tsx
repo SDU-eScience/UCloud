@@ -5,7 +5,7 @@ import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { setAllLoading, fetchFavorites, fetchRecentAnalyses, fetchRecentFiles, receiveFavorites, setErrorMessage } from "./Redux/DashboardActions";
 import { connect } from "react-redux";
 import * as moment from "moment";
-import { FileIcon, RefreshButton } from "UtilityComponents";
+import { FileIcon } from "UtilityComponents";
 import { DASHBOARD_FAVORITE_ERROR } from "./Redux/DashboardReducer";
 import { DashboardProps, DashboardOperations, DashboardStateProps } from ".";
 import { Notification, NotificationEntry } from "Notifications";
@@ -27,8 +27,8 @@ import * as UF from "UtilityFunctions";
 import * as Accounting from "Accounting";
 import { MainContainer } from "MainContainer/MainContainer";
 import { fetchUsage } from "Accounting/Redux/AccountingActions";
-import { Spacer } from "ui-components/Spacer";
 import { SidebarPages } from "ui-components/Sidebar";
+import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 
 const DashboardCard = ({ title, isLoading, children }: { title: string, isLoading: boolean, children?: React.ReactNode }) => (
     <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} style={{ overflow: "hidden" }}>
@@ -54,6 +54,11 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
             loading = true;
         }
         this.reload(loading);
+        props.setRefresh(() => this.reload(true));
+    }
+
+    componentWillReceiveProps(_nextProps) {
+        this.props.setRefresh(() => this.reload(true));
     }
 
     private reload(loading: boolean) {
@@ -75,6 +80,10 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
                 this.props.history.push("/shares");
                 break;
         }
+    }
+
+    public componentWillUnmount() {
+        this.props.setRefresh();
     }
 
     private favoriteOrUnfavorite = (file: File) => {
@@ -122,15 +131,7 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
             </React.StrictMode>
         );
 
-        const header = (
-            <Spacer
-                left={<Error error={errors.join(" ")} clearError={props.errorDismiss} width="99%" />}
-                right={<Box pb="5px"><RefreshButton
-                    loading={favoriteLoading || recentLoading || analysesLoading}
-                    onClick={() => this.reload(true)}
-                /></Box>}
-            />
-        );
+        const header = (<Error error={errors.join(" ")} clearError={props.errorDismiss} />);
 
         return (
             <MainContainer
@@ -262,7 +263,8 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     readAll: async () => dispatch(await readAllNotifications()),
     setActivePage: () => dispatch(setActivePage(SidebarPages.Dashboard)),
     // FIXME: Make action instead
-    receiveFavorites: files => dispatch(receiveFavorites(files))
+    receiveFavorites: files => dispatch(receiveFavorites(files)),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
 const mapStateToProps = (state: ReduxObject): DashboardStateProps => ({

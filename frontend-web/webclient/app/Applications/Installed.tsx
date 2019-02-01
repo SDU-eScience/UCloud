@@ -3,7 +3,7 @@ import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
 import { updatePageTitle, StatusActions, setActivePage } from "Navigation/Redux/StatusActions";
-import { setPrioritizedSearch, HeaderActions } from "Navigation/Redux/HeaderActions";
+import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Application } from "Applications";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
@@ -15,13 +15,12 @@ import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { loadingEvent } from "LoadableContent";
 import * as Heading from "ui-components/Heading";
 import { SidebarPages } from "ui-components/Sidebar";
-import { Spacer } from "ui-components/Spacer";
-import { CustomEntriesPerPage } from "UtilityComponents";
 
 interface InstalledOperations {
     onInit: () => void
     fetchItems: (pageNumber: number, itemsPerPage: number) => void
     setActivePage: () => void
+    setRefresh: (refresh?: () => void) => void
 }
 
 type InstalledStateProps = ReduxType;
@@ -35,6 +34,23 @@ class Installed extends React.Component<InstalledProps> {
         props.onInit();
         props.fetchItems(0, 25);
         props.setActivePage();
+        const { content } = props.applications;
+        const pageNumber = !!content ? content.pageNumber : 0;
+        const itemsPerPage = !!content ? content.itemsPerPage : 25;
+
+        props.setRefresh(() => props.fetchItems(pageNumber, itemsPerPage))
+
+    }
+
+    componentWillReceiveProps(nextProps: InstalledProps) {
+        const { content } = nextProps.applications;
+        const pageNumber = !!content ? content.pageNumber : 0;
+        const itemsPerPage = !!content ? content.itemsPerPage : 25;
+        nextProps.setRefresh(() => this.props.fetchItems(pageNumber, itemsPerPage));
+    }
+
+    componentWillUnmount() {
+        this.props.setRefresh();
     }
 
     render() {
@@ -46,29 +62,11 @@ class Installed extends React.Component<InstalledProps> {
                 loading={props.applications.loading}
                 page={page}
                 customEntriesPerPage
-                onItemsPerPageChanged={size => props.fetchItems(0, size)}
                 onPageChanged={pageNumber => props.fetchItems(pageNumber, page.itemsPerPage)}
                 pageRenderer={page => <InstalledPage page={page} />}
             />
         );
-
-
-        const pageNumber = !!page ? page.pageNumber : 0;
-        const itemsPerPage = !!page ? page.itemsPerPage : 25;
-
-        const header = (
-            <Spacer
-                left={<Heading.h1>My Apps</Heading.h1>}
-                right={<CustomEntriesPerPage
-                    entriesPerPage={itemsPerPage}
-                    loading={props.applications.loading}
-                    text={"Apps per page"}
-                    onChange={size => props.fetchItems(0, size)}
-                    onRefreshClick={() => props.fetchItems(pageNumber, itemsPerPage)}
-                />}
-            />
-        );
-
+        const header = (<Heading.h1>My Apps</Heading.h1>);
         return (
             <LoadingMainContainer
                 header={header}
@@ -99,7 +97,8 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
         dispatch(await Actions.fetch(itemsPerPage, pageNumber))
     },
 
-    setActivePage: () => dispatch(setActivePage(SidebarPages.MyApps))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.MyApps)),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
 const mapStateToProps = (state: ReduxObject): InstalledStateProps => state.applicationsFavorite;

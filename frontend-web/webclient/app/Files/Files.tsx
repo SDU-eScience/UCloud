@@ -9,9 +9,9 @@ import { KeyCode, ReduxObject } from "DefaultObjects";
 import * as Actions from "./Redux/FilesActions";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { FileSelectorModal } from "./FileSelector";
-import { MasterCheckbox, CustomEntriesPerPage } from "UtilityComponents";
+import { MasterCheckbox } from "UtilityComponents";
 import { FilesProps, FilesStateProps, FilesOperations, File, FileOperation } from ".";
-import { setPrioritizedSearch } from "Navigation/Redux/HeaderActions";
+import { setPrioritizedSearch, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import {
     startRenamingFiles, AllFileOperations, isInvalidPathName, favoriteFileFromPage, getFilenameFromPath,
     getParentPath, moveFile, createFolder, fileTablePage
@@ -24,7 +24,6 @@ import { allFilesHasAccessRight } from "Utilities/FileUtilities";
 import { AccessRight } from "Types";
 import { FilesTable, ContextBar } from "./FilesTable";
 import { MainContainer } from "MainContainer/MainContainer";
-import { Spacer } from "ui-components/Spacer";
 import { setFileSelectorLoading } from "./Redux/FilesActions";
 import { SidebarPages } from "ui-components/Sidebar";
 
@@ -38,6 +37,16 @@ class Files extends React.Component<FilesProps> {
             (path: string) => props.fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)
         );
         props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy);
+        this.props.setRefresh(() => props.fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy));
+    }
+
+    componentWillUnmount() {
+        this.props.setRefresh();
+    }
+
+    componentWillReceiveProps(nextProps: FilesProps) {
+        const { page, fetchFiles, sortBy, sortOrder } = nextProps;
+        this.props.setRefresh(() => fetchFiles(this.urlPath, page.itemsPerPage, page.pageNumber, sortOrder, sortBy));
     }
 
     private urlPathFromProps = (props: RouterLocationProps): string => getQueryParamOrElse(props, "path", Cloud.homeFolder);
@@ -123,18 +132,7 @@ class Files extends React.Component<FilesProps> {
         const selectedFiles = page.items.filter(file => file.isChecked);
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
         const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
-        const header = (
-            <Spacer height={"100%"} alignItems="center"
-                left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />}
-                right={<CustomEntriesPerPage
-                    entriesPerPage={page.itemsPerPage}
-                    text="Files per page"
-                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, Math.trunc(page.itemsPerPage * page.pageNumber / itemsPerPage), sortOrder, sortBy)}
-                    loading={loading}
-                    onRefreshClick={this.refetch}
-                />}>
-            </Spacer>
-        );
+        const header = (<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />);
         const columns = responsiveState!.greaterThan.md ?
             (responsiveState!.greaterThan.lg ? [leftSortingColumn, rightSortingColumn] : [rightSortingColumn])
             : []; //on md or smaller display 0 columns
@@ -167,7 +165,6 @@ class Files extends React.Component<FilesProps> {
                     />
                 )}
                 customEntriesPerPage
-                onItemsPerPageChanged={pageSize => fetchFiles(path, pageSize, 0, sortOrder, sortBy)}
                 page={page}
                 onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
             />
@@ -259,7 +256,8 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     setDisallowedPaths: disallowedPaths => dispatch(Actions.setDisallowedPaths(disallowedPaths)),
     showUploader: () => dispatch(setUploaderVisible(true)),
     setUploaderCallback: callback => dispatch(setUploaderCallback(callback)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Files))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Files)),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
 export default connect<FilesStateProps, FilesOperations>(mapStateToProps, mapDispatchToProps)(Files);

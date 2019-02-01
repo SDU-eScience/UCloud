@@ -16,8 +16,7 @@ import { History } from "history";
 import { ReduxObject } from "DefaultObjects";
 import { SidebarPages } from "ui-components/Sidebar";
 import * as Heading from "ui-components/Heading";
-import { Spacer } from "ui-components/Spacer";
-import { CustomEntriesPerPage } from "UtilityComponents";
+import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props: Readonly<AnalysesProps & { history: History }>) {
@@ -35,10 +34,18 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
             this.getAnalyses(true)
         }, 10_000);
         this.setState({ reloadIntervalId });
+        const { page, setRefresh } = this.props;
+        setRefresh(() => fetchAnalyses(page.itemsPerPage, page.pageNumber))
+    }
+
+    componentWillReceiveProps(nextProps: AnalysesProps) {
+        const { page, setRefresh } = nextProps;
+        setRefresh(() => fetchAnalyses(page.itemsPerPage, page.pageNumber))
     }
 
     componentWillUnmount() {
         clearInterval(this.state.reloadIntervalId);
+        this.props.setRefresh();
     }
 
     getAnalyses(silent: boolean) {
@@ -48,7 +55,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
     }
 
     render() {
-        const { page, loading, fetchAnalyses, error, onErrorDismiss, history } = this.props;
+        const { page, loading, fetchAnalyses, error, onErrorDismiss, history, setRefresh } = this.props;
         const content = <List
             customEmptyPage={<Heading.h1>No jobs have been run on this account.</Heading.h1>}
             loading={loading}
@@ -66,23 +73,11 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
                 </Table>
             }
             page={page}
-            onItemsPerPageChanged={size => this.props.fetchAnalyses(size, 0)}
-            onPageChanged={pageNumber => this.props.fetchAnalyses(page.itemsPerPage, pageNumber)}
+            onPageChanged={pageNumber => fetchAnalyses(page.itemsPerPage, pageNumber)}
         />;
 
         return (<MainContainer
-            header={
-                <Spacer
-                    left={<Heading.h1>Job Results</Heading.h1>}
-                    right={<CustomEntriesPerPage
-                        entriesPerPage={!!page ? page.itemsPerPage : 25}
-                        loading={this.props.loading}
-                        text={"Results per page"}
-                        onChange={size => fetchAnalyses(size, 0)}
-                        onRefreshClick={() => fetchAnalyses(page.itemsPerPage, page.pageNumber)}
-                    />}
-                />
-            }
+            header={<Heading.h1>Job Results</Heading.h1>}
             main={content}
         />);
     }
@@ -131,7 +126,8 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Results")),
     setLoading: (loading: boolean) => dispatch(setLoading(loading)),
     fetchAnalyses: async (itemsPerPage: number, pageNumber: number) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.MyResults))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.MyResults)),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
 const mapStateToProps = ({ analyses }: ReduxObject): AnalysesStateProps => analyses;

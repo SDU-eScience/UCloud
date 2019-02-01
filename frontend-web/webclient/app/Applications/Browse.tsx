@@ -4,7 +4,7 @@ import { connect } from "react-redux";
 import { updatePageTitle, StatusActions, setActivePage } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
 import { Application } from ".";
-import { setPrioritizedSearch, HeaderActions } from "Navigation/Redux/HeaderActions";
+import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
 import { LoadingMainContainer } from "MainContainer/MainContainer";
@@ -21,8 +21,6 @@ import { loadingEvent } from "LoadableContent";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { SidebarPages } from "ui-components/Sidebar";
-import { Spacer } from "ui-components/Spacer";
-import { CustomEntriesPerPage } from "UtilityComponents";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -64,10 +62,10 @@ export interface ApplicationsOperations {
     fetchDefault: (itemsPerPage: number, page: number) => void
     fetchByTag: (tag: string, itemsPerPage: number, page: number) => void
     setActivePage: () => void
+    setRefresh: (refresh?: () => void) => void
 }
 
 export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocationProps;
-
 
 class Applications extends React.Component<ApplicationsProps> {
     componentDidMount() {
@@ -76,12 +74,21 @@ class Applications extends React.Component<ApplicationsProps> {
 
         this.fetch(props);
         props.setActivePage();
+        props.setRefresh(() => this.fetch(props));
     }
 
     componentDidUpdate(prevProps: ApplicationsProps) {
         if (prevProps.location !== this.props.location) {
             this.fetch(this.props);
         }
+    }
+
+    componentWillReceiveProps(nextProps: ApplicationsProps) {
+        this.props.setRefresh(() => this.fetch(nextProps));
+    }
+
+    componentWillUnmount() {
+        this.props.setRefresh();
     }
 
     pageNumber(props: ApplicationsProps = this.props): number {
@@ -128,7 +135,7 @@ class Applications extends React.Component<ApplicationsProps> {
 
     render() {
         const page = this.props.applications.content as Page<Application>
-
+        this.props.setRefresh(() => this.fetch(this.props));
         const main = (
             <Pagination.List
                 loading={this.props.applications.loading}
@@ -149,24 +156,13 @@ class Applications extends React.Component<ApplicationsProps> {
                     </GridCardGroup>
                 }
                 page={this.props.applications.content as Page<Application>}
-                onItemsPerPageChanged={size => this.props.history.push(this.updateItemsPerPage(size))}
                 onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
             />
         );
 
         return (
             <LoadingMainContainer
-                header={
-                    <Spacer
-                        left={<Heading.h1>Browse</Heading.h1>}
-                        right={<CustomEntriesPerPage
-                            entriesPerPage={!!page ? page.itemsPerPage : 25}
-                            loading={this.props.applications.loading}
-                            text={"Apps per page"}
-                            onChange={size => this.props.history.push(this.updateItemsPerPage(size))}
-                            onRefreshClick={() => this.fetch(this.props)}
-                        />}
-                    />}
+                header={<Heading.h1>Browse</Heading.h1>}
                 loadable={this.props.applications}
                 main={main}
                 fallbackSidebar={<Sidebar />}
@@ -192,7 +188,8 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
         dispatch(await Actions.fetch(itemsPerPage, page));
     },
 
-    setActivePage: () => dispatch(setActivePage(SidebarPages.AppStore))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.AppStore)),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
 const mapStateToProps = (state: ReduxObject): ReduxType => {

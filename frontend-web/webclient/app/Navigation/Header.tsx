@@ -3,7 +3,6 @@ import { Cloud } from "Authentication/SDUCloudObject"
 import { connect } from "react-redux";
 import Link from "ui-components/Link";
 import { Dispatch } from "redux";
-import { setSidebarState } from "./Redux/SidebarActions";
 import Avatar from "avataaars";
 import { History } from "history";
 import { HeaderStateToProps } from "Navigation";
@@ -44,7 +43,7 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
 
     public render() {
         const { searchText } = this.state;
-        const { prioritizedSearch, searchFiles, history } = this.props;
+        const { prioritizedSearch, searchFiles, history, refresh, spin } = this.props;
         return (
             <HeaderContainer color="headerText" bg={"headerBg"}>
                 <Logo />
@@ -59,6 +58,7 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
                 />
                 <Box mr="auto" />
                 <BackgroundTask />
+                <Refresh spin={spin} onClick={refresh} />
                 <Support />
                 <Notification />
                 <ClickableDropdown width="200px" left={"-180%"} trigger={<Flex><UserAvatar avatar={this.props.avatar} /></Flex>}>
@@ -87,6 +87,10 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
         )
     }
 }
+
+export const Refresh = ({ onClick, spin }: { onClick?: () => void, spin: boolean }) => !!onClick ?
+    <Icon name="refresh" spin={spin} onClick={() => onClick()} /> : null
+
 
 const WhiteBackgroundEllipsedText = styled(EllipsedText)`
     &&&&& {
@@ -236,7 +240,6 @@ export const UserAvatar = ({ avatar }: UserAvatar) => (
 );
 
 interface HeaderOperations {
-    setSidebarOpen: (open: boolean) => void
     fetchLoginStatus: () => void
     fetchAvatar: () => void
     searchFiles: (fileName: string) => void
@@ -244,17 +247,22 @@ interface HeaderOperations {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
-    setSidebarOpen: open => dispatch(setSidebarState(open)),
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
     fetchAvatar: async () => dispatch(await findAvatar()),
     searchFiles: async fileName => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] })),
     setSearchType: st => dispatch(setPrioritizedSearch(st))
 });
 
-const mapStateToProps = ({ sidebar, header, avatar }: ReduxObject): HeaderStateToProps => ({
-    sidebarOpen: sidebar.open,
-    prioritizedSearch: header.prioritizedSearch,
-    avatar
+const mapStateToProps = ({ header, avatar, ...rest }: ReduxObject): HeaderStateToProps => ({
+    ...header,
+    avatar,
+    spin: loading(rest)
 });
+
+const loading = (rO): boolean =>
+    rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.sidebar.loading || rO.simpleSearch.filesLoading
+    || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
+    || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
+    || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));

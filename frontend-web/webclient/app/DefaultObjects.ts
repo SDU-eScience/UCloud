@@ -152,7 +152,6 @@ export interface StatusReduxObject {
 
 export interface SidebarReduxObject {
     loading: boolean
-    open: boolean
     pp: boolean
     options: SidebarOption[]
     kcCount: number
@@ -160,6 +159,7 @@ export interface SidebarReduxObject {
 
 export interface HeaderSearchReduxObject {
     prioritizedSearch: HeaderSearchType
+    refresh?: () => void
 }
 
 export interface RunApplicationReduxObject {
@@ -290,7 +290,7 @@ export const initFilePreview = () => ({
     error: undefined
 });
 
-type AvatarReduxObject = typeof defaultAvatar;
+export type AvatarReduxObject = typeof defaultAvatar;
 export const initAvatar = () => defaultAvatar;
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
@@ -321,7 +321,6 @@ export const initZenodo = (): ZenodoReduxObject => ({
 })
 
 export const initSidebar = (): SidebarReduxObject => ({
-    open: false,
     loading: false,
     pp: false,
     kcCount: 0,

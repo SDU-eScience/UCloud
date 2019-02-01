@@ -19,14 +19,18 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { MainContainer } from "MainContainer/MainContainer";
 import styled from "styled-components";
 import { SidebarPages } from "ui-components/Sidebar";
-import { Spacer } from "ui-components/Spacer";
-import { CustomEntriesPerPage } from "UtilityComponents";
+import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 
 class Activity extends React.Component<ActivityProps> {
-    componentDidMount() {
+    public componentDidMount() {
         this.props.setPageTitle();
         this.props.fetchActivity(0, 100);
         this.props.setActivePage();
+        this.props.setRefresh(() => fetchActivity(0, 100));
+    }
+
+    public componentWillUnmount() {
+        this.props.setRefresh();
     }
 
     render() {
@@ -41,24 +45,13 @@ class Activity extends React.Component<ActivityProps> {
                     customEntriesPerPage
                     pageRenderer={page => <ActivityFeedGrouped activity={groupedEntries ? groupedEntries : []} />}
                     page={page}
-                    onItemsPerPageChanged={itemsPerPage => fetchActivity(page.pageNumber, itemsPerPage)}
-                    onPageChanged={pageNumber => fetchActivity(pageNumber, page.itemsPerPage)}
+                    // FIXME: setting refresh in "componentWillReceiveProps" causes infinite rerenders. Likely some other error not evident in other components
+                    onPageChanged={pageNumber => (fetchActivity(pageNumber, page.itemsPerPage), this.props.setRefresh(() => fetchActivity(page.pageNumber, page.itemsPerPage)))}
                 />
             </React.StrictMode>
         );
 
-        const header = (
-            <Spacer
-                left={<Heading.h2>File Activity</Heading.h2>}
-                right={<CustomEntriesPerPage
-                    entriesPerPage={page.itemsPerPage}
-                    loading={loading}
-                    text={"Apps per page"}
-                    onChange={size => fetchActivity(0, size)}
-                    onRefreshClick={() => fetchActivity(page.pageNumber, page.itemsPerPage)}
-                />}
-            />
-        );
+        const header = (<Heading.h2>File Activity</Heading.h2>);
 
         return (
             <MainContainer
@@ -237,11 +230,12 @@ const mapStateToProps = ({ activity }: ReduxObject): ActivityReduxObject & Modul
 const mapDispatchToProps = (dispatch: Dispatch): ActivityDispatchProps => ({
     fetchActivity: async (pageNumber, pageSize) => {
         dispatch(setLoading(true));
-        dispatch(await fetchActivity(pageNumber, pageSize))
+        dispatch(await fetchActivity(pageNumber, pageSize));
     },
     setError: error => dispatch(setErrorMessage(error)),
     setPageTitle: () => dispatch(updatePageTitle("Activity")),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Activity))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Activity)),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Activity);

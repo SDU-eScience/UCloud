@@ -12,7 +12,8 @@ export interface Status {
 }
 
 interface HeaderStateToProps {
-    sidebarOpen: boolean
     prioritizedSearch: HeaderSearchType
+    refresh?: () => void
     avatar: typeof defaultAvatar
+    spin: boolean
 }

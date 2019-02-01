@@ -2,12 +2,10 @@ import * as React from "react";
 import { Page } from "Types";
 import * as Self from ".";
 import { ifPresent } from "UtilityFunctions";
-import { RefreshButton } from "UtilityComponents";
 import * as Heading from "ui-components/Heading";
-import { Box, Flex, Relative, Error } from "ui-components";
+import { Error } from "ui-components";
 import Spinner from "LoadingIcon/LoadingIcon";
 import { emptyPage } from "DefaultObjects";
-import { LoadingBox } from "ui-components/LoadingBox";
 
 interface ListProps<T> {
     pageRenderer: (page: Page<T>) => React.ReactNode
@@ -24,9 +22,7 @@ interface ListProps<T> {
     customEmptyPage?: React.ReactNode
 
     // Callbacks
-    onItemsPerPageChanged: (itemsPerPage: number, page: Page<T>) => void
     onPageChanged: (newPage: number, page: Page<T>) => void
-    onRefresh?: (page: Page<T>) => void
     onErrorDismiss?: () => void
 }
 
@@ -45,27 +41,10 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
         } else if (typeof props.errorMessage == "function") {
             errorComponent = props.errorMessage();
         }
-
-        const refreshButton = !!this.props.onRefresh ? (
-            <RefreshButton
-                loading={this.props.loading}
-                onClick={() => this.props.onRefresh ? this.props.onRefresh(this.props.page) : null}
-            />
-        ) : null;
+        
         return (
             <>
                 {errorComponent}
-                <Flex alignItems="right">
-                    <Box ml="auto" />
-                    <Relative>
-                        {!props.customEntriesPerPage ? <Self.EntriesPerPageSelector
-                            content="Items per page"
-                            entriesPerPage={props.page.itemsPerPage}
-                            onChange={perPage => ifPresent(props.onItemsPerPageChanged, c => c(perPage, props.page))}
-                        /> : null}
-                        {refreshButton}
-                    </Relative>
-                </Flex>
                 {body}
                 <Self.PaginationButtons
                     currentPage={props.page.pageNumber}
@@ -87,19 +66,13 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
                     return <div>
                         <Heading.h2>
                             No results.
-                            <a
-                                href="#"
-                                onClick={(e) => { e.preventDefault(); ifPresent(props.onRefresh, c => c()) }}
-                            >
-                                {" Try again?"}
-                            </a>
                         </Heading.h2>
                     </div>;
                 } else {
                     return props.customEmptyPage
                 }
             } else {
-                return <LoadingBox loading={props.loading}>{props.pageRenderer(props.page)}</LoadingBox>;
+                return props.pageRenderer(props.page)
             }
         }
     }

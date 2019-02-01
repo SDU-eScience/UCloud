@@ -17,13 +17,13 @@ import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 import { History } from "history";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
-import { CustomEntriesPerPage } from "UtilityComponents";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
-import { Flex, Box, List, Card, Hide } from "ui-components";
+import { Flex, Box, List, Card } from "ui-components";
 import { Step, StepGroup } from "ui-components/Step";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 import Icon, { IconName } from "ui-components/Icon";
+import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -284,19 +284,10 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             onCheckFile={() => null}
                             sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
-                            customEntriesPerPage={
-                                <CustomEntriesPerPage
-                                    loading={this.props.loading}
-                                    entriesPerPage={page.itemsPerPage}
-                                    text="Files per page"
-                                    onChange={itemsPerPage => this.retrieveFilesPage(page.pageNumber, itemsPerPage)}
-                                    onRefreshClick={() => this.retrieveFilesPage(page.pageNumber, page.itemsPerPage)}
-                                />
-                            }
+                            customEntriesPerPage={<Box />}
                         />}
                     customEntriesPerPage
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
-                    onItemsPerPageChanged={itemsPerPage => this.retrieveFilesPage(0, itemsPerPage)}
                 />
             </div>
         );
@@ -310,8 +301,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 <Box>{this.renderFilePanel()}</Box>
                 <Box>{this.renderStreamPanel()}</Box>
             </Box>
-        </Flex>
-    );
+        </Flex>);
 
     static stateToOrder(state: AppState): 0 | 1 | 2 | 3 | 4 | 5 {
         switch (state) {
@@ -368,7 +358,8 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     fetchPage: async (jobId, pageNumber, itemsPerPage) => {
         dispatch(setLoading(true));
         dispatch(await fetchPage(Cloud.username || "", jobId, pageNumber, itemsPerPage));
-    }
+    },
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(DetailedResult);

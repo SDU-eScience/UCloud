@@ -32,11 +32,6 @@ export function Arrow({ name }: Arrow) {
     return null;
 }
 
-interface RefreshButton { loading: boolean, onClick: () => void }
-export const RefreshButton = ({ loading, onClick }: RefreshButton) => (
-    <Icon name="refresh" ml="10px" spin={loading} onClick={() => onClick()}/>
-);
-
 export class PP extends React.Component<{ visible: boolean}, {duration: number}> {
 
     state = {
@@ -125,23 +120,4 @@ export const MasterCheckbox = ({ onClick, checked }: MasterCheckbox) => (
             onChange={(e: React.SyntheticEvent) => e.stopPropagation()}
         />
     </Label>
-);
-
-interface CustomEntriesPerPage { 
-    entriesPerPage: number
-    text: string
-    onChange: (itemsPerPage: number) => void
-    loading: boolean
-    onRefreshClick: () => void
-}
-
-export const CustomEntriesPerPage = ({entriesPerPage, text, onChange, loading, onRefreshClick }: CustomEntriesPerPage) => (
-    <>
-        <EntriesPerPageSelector
-            entriesPerPage={entriesPerPage}
-            content={text}
-            onChange={itemsPerPage => onChange(itemsPerPage)}
-        />
-        <RefreshButton loading={loading} onClick={onRefreshClick} />
-    </>
 );

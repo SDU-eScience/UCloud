@@ -6,6 +6,7 @@ export interface ZenodoOperations {
     onErrorDismiss: () => void
     fetchPublications: (a: number, b: number) => void
     updatePageTitle: () => void
+    setRefresh: (refresh?: () => void) => void
 }
 
 export interface Publication {

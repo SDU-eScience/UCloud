@@ -53,9 +53,7 @@ export class ManagedList extends React.Component<Self.ManagedListProps, Self.Man
             page={results}
             errorMessage={errorMessage}
             pageRenderer={props.pageRenderer}
-            onItemsPerPageChanged={itemsPerPage => this.retrieveData(0, itemsPerPage)}
             onPageChanged={page => this.retrieveData(page, results.itemsPerPage)}
-            onRefresh={() => this.refresh()}
             onErrorDismiss={() => this.setState({ errorMessage: undefined })}
         />
     }
