@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.favorite
 
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.file.favorite.http.FileFavoriteController
+import dk.sdu.cloud.file.favorite.processors.StorageEventProcessor
 import dk.sdu.cloud.file.favorite.services.FileFavoriteHibernateDAO
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 import dk.sdu.cloud.service.CommonServer
@@ -41,6 +42,9 @@ class Server(
         // Initialize services here
         val fileFavoriteDao = FileFavoriteHibernateDAO()
         val fileFavoriteService = FileFavoriteService(db, fileFavoriteDao, micro.authenticatedCloud)
+
+        // Processors
+        addConsumers(StorageEventProcessor(fileFavoriteService, kafka).init())
 
         // Initialize server
         httpServer = ktor {

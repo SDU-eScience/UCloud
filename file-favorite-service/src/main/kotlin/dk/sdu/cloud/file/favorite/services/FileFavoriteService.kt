@@ -6,6 +6,7 @@ import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupFilesRequest
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -49,10 +50,28 @@ class FileFavoriteService<DBSession>(
             dao.listAll(it, pagination, user)
         }
 
+        if (fileIds.items.isEmpty()) return Page(0, 0, 0, emptyList())
+
         val lookupResponse = LookupDescriptions.reverseLookupFiles.call(
             ReverseLookupFilesRequest(fileIds.items),
             serviceCloud
         ).orThrow()
+
+        run {
+            // Delete unknown files (files that did not appear in the reverse lookup)
+            val unknownFiles = HashSet<String>()
+            for ((index, file) in lookupResponse.files.withIndex()) {
+                val fileId = fileIds.items[index]
+                if (file == null) {
+                    unknownFiles.add(fileId)
+                }
+            }
+
+            if (unknownFiles.isNotEmpty()) {
+                log.info("The following files no longer exist: $unknownFiles")
+                db.withTransaction { session -> dao.deleteById(session, unknownFiles) }
+            }
+        }
 
         // TODO It might be necessary for us to verify knowledge of these files.
         // But given we need to do a stat to get it into the database it should be fine.
@@ -62,5 +81,15 @@ class FileFavoriteService<DBSession>(
             fileIds.pageNumber,
             lookupResponse.files.filterNotNull()
         )
+    }
+
+    fun deleteById(fileIds: Set<String>) {
+        db.withTransaction {
+            dao.deleteById(it, fileIds)
+        }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

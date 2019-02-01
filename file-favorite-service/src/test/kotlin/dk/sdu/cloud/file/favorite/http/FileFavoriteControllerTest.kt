@@ -16,6 +16,7 @@ import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.parseSuccessful
 import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.mockk.coEvery
@@ -40,12 +41,12 @@ class FileFavoriteControllerTest {
                     emptyList()
                 }
 
-                val request = sendJson(
+                val request = sendRequest(
                     method = HttpMethod.Post,
                     path = "/api/files/favorite",
                     user = TestUsers.user,
-                    request = ToggleFavoriteRequest(
-                        "/home/user/1,/home/user/2"
+                    params = mapOf(
+                        "path" to "/home/user/1,/home/user/2"
                     )
                 )
 
@@ -64,12 +65,12 @@ class FileFavoriteControllerTest {
                     listOf("/home/user/1")
                 }
 
-                val request = sendJson(
+                val request = sendRequest(
                     method = HttpMethod.Post,
                     path = "/api/files/favorite",
                     user = TestUsers.user,
-                    request = ToggleFavoriteRequest(
-                        "/home/user/1,/home/user/2"
+                    params = mapOf(
+                        "path" to "/home/user/1,/home/user/2"
                     )
                 )
 

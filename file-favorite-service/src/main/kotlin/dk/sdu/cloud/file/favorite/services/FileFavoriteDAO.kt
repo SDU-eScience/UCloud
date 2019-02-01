@@ -34,4 +34,9 @@ interface FileFavoriteDAO<Session> {
         pagination: NormalizedPaginationRequest,
         user: String
     ): Page<String>
+
+    fun deleteById(
+        session: Session,
+        fileIds: Set<String>
+    )
 }
