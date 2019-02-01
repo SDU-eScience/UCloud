@@ -19,6 +19,16 @@ data class ToggleFavoriteResponse(
     val failures: List<String>
 )
 
+data class ToggleFavoriteAudit(
+    val files: List<ToggleFavoriteFileAudit>
+)
+
+data class ToggleFavoriteFileAudit(
+    val path: String,
+    var fileId: String? = null,
+    var newStatus: Boolean? = null
+)
+
 data class FavoriteStatusRequest(
     val files: List<StorageFile>
 )
@@ -29,15 +39,15 @@ data class FavoriteStatusRequest(
 data class FavoriteStatusResponse(
     val favorited: Map<String, Boolean>
 )
-
 typealias ListRequest = PaginationRequest
+
 typealias ListResponse = Page<StorageFile>
 
 object FileFavoriteDescriptions : RESTDescriptions("${FileDescriptions.namespace}.favorite") {
     val baseContext = "/api/files/favorite"
 
     internal val toggleFavoriteDelete =
-        callDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage> {
+        callDescriptionWithAudit<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage, ToggleFavoriteAudit> {
             name = "toggleFavorite"
             method = HttpMethod.Delete
 
@@ -54,22 +64,23 @@ object FileFavoriteDescriptions : RESTDescriptions("${FileDescriptions.namespace
             }
         }
 
-    val toggleFavorite = callDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage> {
-        name = "toggleFavorite"
-        method = HttpMethod.Post
+    val toggleFavorite =
+        callDescriptionWithAudit<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage, ToggleFavoriteAudit> {
+            name = "toggleFavorite"
+            method = HttpMethod.Post
 
-        auth {
-            access = AccessRight.READ_WRITE
-        }
+            auth {
+                access = AccessRight.READ_WRITE
+            }
 
-        path {
-            using(baseContext)
-        }
+            path {
+                using(baseContext)
+            }
 
-        params {
-            +boundTo(ToggleFavoriteRequest::path)
+            params {
+                +boundTo(ToggleFavoriteRequest::path)
+            }
         }
-    }
 
     val favoriteStatus = callDescription<FavoriteStatusRequest, FavoriteStatusResponse, CommonErrorMessage> {
         name = "favoriteStatus"

@@ -4,11 +4,13 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupFilesRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.orThrow
@@ -18,20 +20,32 @@ class FileFavoriteService<DBSession>(
     private val dao: FileFavoriteDAO<DBSession>,
     private val serviceCloud: AuthenticatedCloud
 ) {
-    suspend fun toggleFavorite(files: List<String>, user: String, userCloud: AuthenticatedCloud): List<String> {
+    suspend fun toggleFavorite(
+        files: List<String>,
+        user: String,
+        userCloud: AuthenticatedCloud,
+        audit: ToggleFavoriteAudit? = null
+    ): List<String> {
         // Note: This function must ensure that the user has the correct privileges to the file!
         val failures = ArrayList<String>()
         db.withTransaction { session ->
-            files.forEach { path ->
+            files.forEachIndexed { index, path ->
                 try {
                     val fileId = FileDescriptions.stat.call(FindByPath(path), userCloud).orThrow().fileId
+                    val favorite = dao.isFavorite(session, user, fileId)
 
-                    if (dao.isFavorite(session, user, fileId)) {
+                    val fileAudit = audit?.files?.get(index)
+                    if (fileAudit != null) {
+                        fileAudit.fileId = fileId
+                        fileAudit.newStatus = favorite
+                    }
+
+                    if (favorite) {
                         dao.delete(session, user, fileId)
                     } else {
                         dao.insert(session, user, fileId)
                     }
-                } catch (e: Exception) {
+                } catch (e: RPCException) {
                     failures.add(path)
                 }
             }
