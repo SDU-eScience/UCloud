@@ -4,10 +4,10 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemRequest
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.indexing.util.depth
 import dk.sdu.cloud.indexing.util.lazyAssert
 import dk.sdu.cloud.indexing.util.parent
@@ -62,7 +62,7 @@ class FileIndexScanner(
                 val localJobs = queueInChunks.map { roots ->
                     async<Unit> {
                         val rootToMaterialized =
-                            HashMap<String, List<EventMaterializedStorageFile>>()
+                            HashMap<String, List<StorageFile>>()
                         roots.groupBy { it.depth() }.forEach { (depth, directories) ->
                             val directoryResults = scanDirectoriesOfDepth(depth, directories)
                             rootToMaterialized.putAll(directoryResults)
@@ -95,7 +95,7 @@ class FileIndexScanner(
                         val newRoots = rootsToContinueOn.flatMap { root ->
                             rootToMaterialized[root]!!
                                 .asSequence()
-                                .filter { it.fileType == FileType.DIRECTORY && !it.isLink }
+                                .filter { it.fileType == FileType.DIRECTORY && !it.link }
                                 .map { it.path }
                                 .toList()
                         }
@@ -114,7 +114,7 @@ class FileIndexScanner(
     private fun scanDirectoriesOfDepth(
         depth: Int,
         directories: List<String>
-    ): Map<String, List<EventMaterializedStorageFile>> {
+    ): Map<String, List<StorageFile>> {
         lazyAssert("directories need to be of the same depth") {
             directories.all { it.depth() == depth }
         }
@@ -122,7 +122,7 @@ class FileIndexScanner(
         log.debug("Scanning the following directories together:")
         log.debug('[' + directories.joinToString(", ") { "\"$it\"" } + ']')
 
-        val items = ArrayList<EventMaterializedStorageFile>()
+        val items = ArrayList<StorageFile>()
         elasticClient.scrollThroughSearch<ElasticIndexedFile>(
             mapper,
             listOf(ElasticIndexingService.FILES_INDEX),

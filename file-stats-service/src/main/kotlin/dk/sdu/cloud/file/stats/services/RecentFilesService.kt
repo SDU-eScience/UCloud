@@ -39,18 +39,6 @@ class RecentFilesService(
             serviceCloud.optionallyCausedBy(causedById)
         ).orThrow()
 
-        return result.items.map {
-            SearchResult(
-                it.path,
-                it.fileType,
-                it.annotations,
-                it.fileTimestamps.created,
-                it.id,
-                it.isLink,
-                it.fileTimestamps.modified,
-                it.owner,
-                it.sensitivityLevel
-            )
-        }
+        return result.items
     }
 }

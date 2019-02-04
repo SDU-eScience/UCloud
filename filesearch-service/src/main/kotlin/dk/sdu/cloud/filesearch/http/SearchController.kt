@@ -4,6 +4,7 @@ import dk.sdu.cloud.client.AuthenticatedCloud
 import dk.sdu.cloud.client.RESTResponse
 import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import dk.sdu.cloud.filesearch.api.FileSearchDescriptions
 import dk.sdu.cloud.filesearch.api.SearchResult
@@ -101,7 +102,7 @@ class SearchController : Controller {
 
     // TODO Move to service
     private suspend fun verify(
-        queryResponse: Page<EventMaterializedStorageFile>,
+        queryResponse: Page<StorageFile>,
         user: String,
         cloud: AuthenticatedCloud
     ): Page<SearchResult> {
@@ -121,7 +122,7 @@ class SearchController : Controller {
         }
 
         for ((index, verified) in verifiedFiles.result.responses.withIndex()) {
-            if (verified) queryResultsVerified.add(queryResponse.items[index].toExternalResult())
+            if (verified) queryResultsVerified.add(queryResponse.items[index])
         }
 
         return Page(
@@ -131,18 +132,6 @@ class SearchController : Controller {
             items = queryResultsVerified
         )
     }
-
-    private fun EventMaterializedStorageFile.toExternalResult(): SearchResult = SearchResult(
-        path,
-        fileType,
-        annotations,
-        fileTimestamps.created,
-        id,
-        isLink,
-        fileTimestamps.modified,
-        owner,
-        sensitivityLevel
-    )
 
     // TODO Get these from the storage-service
     private fun rootsForUser(user: String): List<String> = listOf("/home/$user")

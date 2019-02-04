@@ -13,6 +13,7 @@ metadata:
       prefix_regex: true
       service: indexing:8080
       rewrite: ""
+      timeout_ms: 30000
 
 spec:
   clusterIP: None

@@ -13,6 +13,9 @@ metadata:
       prefix_regex: true
       service: filesearch:8080
       rewrite: ""
+      precedence: 10
+      headers:
+        x-no-load: true
 
 spec:
   clusterIP: None

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.indexing.http
 
 import dk.sdu.cloud.indexing.api.LookupDescriptions
+import dk.sdu.cloud.indexing.api.ReverseLookupFilesResponse
 import dk.sdu.cloud.indexing.api.ReverseLookupResponse
 import dk.sdu.cloud.indexing.services.ReverseLookupService
 import dk.sdu.cloud.service.Controller
@@ -19,6 +20,10 @@ class LookupController(
     override fun configure(routing: Route): Unit = with(routing) {
         implement(LookupDescriptions.reverseLookup) { req ->
             ok(ReverseLookupResponse(lookupService.reverseLookupBatch(req.allIds)))
+        }
+
+        implement(LookupDescriptions.reverseLookupFiles) { req ->
+            ok(ReverseLookupFilesResponse(lookupService.reverseLookupFileBatch(req.allIds)))
         }
     }
 

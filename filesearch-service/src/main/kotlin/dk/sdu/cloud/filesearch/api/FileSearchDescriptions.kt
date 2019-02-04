@@ -6,8 +6,10 @@ import dk.sdu.cloud.client.RESTDescriptions
 import dk.sdu.cloud.client.bindEntireRequestFromBody
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
+import io.ktor.client.request.header
 import io.ktor.http.HttpMethod
 
 /**
@@ -35,22 +37,7 @@ data class AdvancedSearchRequest(
     override val page: Int?
 ) : WithPaginationRequest
 
-/**
- * A search result, returned to you when searching for files.
- *
- * This is a simplified view of a file.
- */
-data class SearchResult(
-    val path: String,
-    val fileType: FileType,
-    val annotations: Set<kotlin.String>,
-    val createdAt: Long,
-    val fileId: String,
-    val link: Boolean,
-    val modifiedAt: Long,
-    val ownerName: String,
-    val sensitivityLevel: SensitivityLevel
-)
+typealias SearchResult = StorageFile
 
 /**
  * Contains REST calls for searching in files
@@ -58,7 +45,9 @@ data class SearchResult(
 object FileSearchDescriptions : RESTDescriptions("fileSearch") {
     const val baseContext: String = "/api/file-search"
 
-    val simpleSearch = callDescription<SimpleSearchRequest, Page<SearchResult>, CommonErrorMessage> {
+    val simpleSearch = callDescription<SimpleSearchRequest, Page<SearchResult>, CommonErrorMessage>(
+        additionalRequestConfiguration = { header("x-no-load", "true") }
+    ) {
         name = "fileSearchSimple"
         method = HttpMethod.Get
 
@@ -77,7 +66,9 @@ object FileSearchDescriptions : RESTDescriptions("fileSearch") {
         }
     }
 
-    val advancedSearch = callDescription<AdvancedSearchRequest, Page<SearchResult>, CommonErrorMessage> {
+    val advancedSearch = callDescription<AdvancedSearchRequest, Page<SearchResult>, CommonErrorMessage>(
+        additionalRequestConfiguration = { header("x-no-load", "true") }
+    ) {
         name = "fileSearchAdvanced"
         method = HttpMethod.Post
 

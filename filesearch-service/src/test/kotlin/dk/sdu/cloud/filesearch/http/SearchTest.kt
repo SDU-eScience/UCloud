@@ -1,7 +1,6 @@
 package dk.sdu.cloud.filesearch.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.fasterxml.jackson.module.kotlin.readValues
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.file.api.EventMaterializedStorageFile
@@ -17,15 +16,11 @@ import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.QueryResponse
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.authenticatedCloud
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.assertFailure
 import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.initializeMicro
@@ -34,12 +29,10 @@ import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import org.junit.Before
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class SearchTest{
-
+class SearchTest {
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         val micro = initializeMicro()
         val cloud = micro.authenticatedCloud
@@ -51,7 +44,7 @@ class SearchTest{
         "path",
         "owner",
         FileType.FILE,
-        Timestamps(12342431,12345,12345),
+        Timestamps(12342431, 12345, 12345),
         1234,
         FileChecksum(
             "SHA1",
@@ -68,7 +61,7 @@ class SearchTest{
         2,
         10,
         0,
-        listOf(file, file.copy(id = "2"))
+        listOf(file, file.copy(fileId = "2"))
     )
 
     @Test
@@ -79,7 +72,7 @@ class SearchTest{
             test = {
                 CloudMock.mockCallSuccess(
                     QueryDescriptions,
-                    { QueryDescriptions.query},
+                    { QueryDescriptions.query },
                     queryResponse
                 )
 
@@ -117,7 +110,7 @@ class SearchTest{
             test = {
                 CloudMock.mockCallSuccess(
                     QueryDescriptions,
-                    { QueryDescriptions.query},
+                    { QueryDescriptions.query },
                     queryResponse
                 )
 
@@ -154,7 +147,7 @@ class SearchTest{
             test = {
                 CloudMock.mockCallSuccess(
                     QueryDescriptions,
-                    { QueryDescriptions.query},
+                    { QueryDescriptions.query },
                     queryResponse
                 )
 
@@ -196,7 +189,7 @@ class SearchTest{
             test = {
                 CloudMock.mockCallSuccess(
                     QueryDescriptions,
-                    { QueryDescriptions.query},
+                    { QueryDescriptions.query },
                     queryResponse
                 )
 
@@ -234,7 +227,7 @@ class SearchTest{
             test = {
                 CloudMock.mockCallSuccess(
                     QueryDescriptions,
-                    { QueryDescriptions.query},
+                    { QueryDescriptions.query },
                     queryResponse
                 )
 
@@ -271,7 +264,7 @@ class SearchTest{
             test = {
                 CloudMock.mockCallSuccess(
                     QueryDescriptions,
-                    { QueryDescriptions.query},
+                    { QueryDescriptions.query },
                     queryResponse
                 )
 

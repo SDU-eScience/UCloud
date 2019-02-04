@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.favoritesDirectory
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
@@ -12,7 +11,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.paginate
-import java.io.File
 
 /**
  * A service for looking up files.
@@ -28,8 +26,7 @@ import java.io.File
  * All service methods in this class can throw exceptions of type [FSException].
  */
 class FileLookupService<Ctx : FSUserContext>(
-    private val coreFs: CoreFileSystemService<Ctx>,
-    private val favoriteService: FavoriteService<Ctx>
+    private val coreFs: CoreFileSystemService<Ctx>
 ) {
     suspend fun listDirectory(
         ctx: Ctx,
@@ -47,18 +44,16 @@ class FileLookupService<Ctx : FSUserContext>(
         sortBy: FileSortBy,
         order: SortOrder
     ): List<StorageFile> {
-        val favorites = favoriteService.retrieveFavoriteInodeSet(ctx)
-
         val allResults = coreFs.listDirectory(
             ctx, path,
             STORAGE_FILE_ATTRIBUTES
         ).map {
-            readStorageFile(it, favorites, ctx.user)
+            readStorageFile(it)
         }
 
         return allResults.let { results ->
             val naturalComparator: Comparator<StorageFile> = when (sortBy) {
-                FileSortBy.ACL -> Comparator.comparingInt { it.acl.size }
+                FileSortBy.ACL -> Comparator.comparingInt { it.acl?.size ?: 0 }
                 FileSortBy.ANNOTATION -> Comparator.comparing<StorageFile, String> {
                     it.annotations.sorted().joinToString("").toLowerCase()
                 }
@@ -89,7 +84,7 @@ class FileLookupService<Ctx : FSUserContext>(
         }
     }
 
-    private fun readStorageFile(row: FileRow, favorites: Set<String>, username: String): StorageFile =
+    private fun readStorageFile(row: FileRow): StorageFile =
         StorageFile(
             fileType = row.fileType,
             path = row.rawPath,
@@ -126,8 +121,7 @@ class FileLookupService<Ctx : FSUserContext>(
         ctx: Ctx,
         path: String
     ): StorageFile {
-        val favorites = favoriteService.retrieveFavoriteInodeSet(ctx)
-        return readStorageFile(coreFs.stat(ctx, path, STORAGE_FILE_ATTRIBUTES), favorites, ctx.user)
+        return readStorageFile(coreFs.stat(ctx, path, STORAGE_FILE_ATTRIBUTES))
     }
 
     companion object : Loggable {

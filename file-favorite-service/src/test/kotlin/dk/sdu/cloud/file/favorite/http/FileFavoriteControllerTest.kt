@@ -1,8 +1,6 @@
 package dk.sdu.cloud.file.favorite.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.CloudContext
 import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusRequest
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
@@ -18,6 +16,7 @@ import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.parseSuccessful
 import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.mockk.coEvery
@@ -26,7 +25,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class FileFavoriteControllerTest{
+class FileFavoriteControllerTest {
     private val service = mockk<FileFavoriteService<HibernateSession>>()
     private val cloud = CloudContextMock
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
@@ -42,15 +41,12 @@ class FileFavoriteControllerTest{
                     emptyList()
                 }
 
-                val request = sendJson(
+                val request = sendRequest(
                     method = HttpMethod.Post,
                     path = "/api/files/favorite",
                     user = TestUsers.user,
-                    request = ToggleFavoriteRequest(
-                        listOf(
-                            "/home/user/1",
-                            "/home/user/2"
-                        )
+                    params = mapOf(
+                        "path" to "/home/user/1,/home/user/2"
                     )
                 )
 
@@ -69,15 +65,12 @@ class FileFavoriteControllerTest{
                     listOf("/home/user/1")
                 }
 
-                val request = sendJson(
+                val request = sendRequest(
                     method = HttpMethod.Post,
                     path = "/api/files/favorite",
                     user = TestUsers.user,
-                    request = ToggleFavoriteRequest(
-                        listOf(
-                            "/home/user/1",
-                            "/home/user/2"
-                        )
+                    params = mapOf(
+                        "path" to "/home/user/1,/home/user/2"
                     )
                 )
 

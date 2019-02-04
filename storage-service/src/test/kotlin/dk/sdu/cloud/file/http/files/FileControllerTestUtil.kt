@@ -12,7 +12,6 @@ import dk.sdu.cloud.file.http.FilesController
 import dk.sdu.cloud.file.services.ACLService
 import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileOwnerService
@@ -57,7 +56,6 @@ data class FileControllerContext(
     val fs: UnixFileSystem,
     val coreFs: CoreFileSystemService<UnixFSCommandRunner>,
     val annotationService: FileAnnotationService<UnixFSCommandRunner>,
-    val favoriteService: FavoriteService<UnixFSCommandRunner>,
     val eventProducer: StorageEventProducer,
     val lookupService: FileLookupService<UnixFSCommandRunner>
 )
@@ -87,7 +85,6 @@ fun Application.configureServerWithFileController(
     val (runner, fs) = unixFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
     val eventProducer = mockk<StorageEventProducer>(relaxed = true)
     val coreFs = CoreFileSystemService(fs, eventProducer)
-    val favoriteService = FavoriteService(coreFs)
     val sensitivityService = FileSensitivityService(fs, eventProducer)
     val aclService = ACLService(fs)
     val fileOwnerService = FileOwnerService(runner, fs, coreFs)
@@ -102,8 +99,7 @@ fun Application.configureServerWithFileController(
         eventProducer = eventProducer,
         coreFs = coreFs,
         annotationService = FileAnnotationService(fs, eventProducer),
-        favoriteService = favoriteService,
-        lookupService = FileLookupService(coreFs, favoriteService)
+        lookupService = FileLookupService(coreFs)
     )
 
     routing {
@@ -113,7 +109,6 @@ fun Application.configureServerWithFileController(
                     runner,
                     coreFs,
                     annotationService,
-                    favoriteService,
                     lookupService,
                     sensitivityService,
                     aclService,

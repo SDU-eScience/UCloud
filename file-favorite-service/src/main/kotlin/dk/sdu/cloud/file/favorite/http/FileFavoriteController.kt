@@ -6,6 +6,8 @@ import dk.sdu.cloud.client.RESTCallDescription
 import dk.sdu.cloud.client.bearerAuth
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
+import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
+import dk.sdu.cloud.file.favorite.api.ToggleFavoriteFileAudit
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteRequest
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteResponse
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
@@ -17,7 +19,6 @@ import dk.sdu.cloud.service.optionallyCausedBy
 import dk.sdu.cloud.service.safeJobId
 import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.routing.Route
-import io.ktor.routing.Routing
 
 class FileFavoriteController<DBSession>(
     private val fileFavoriteService: FileFavoriteService<DBSession>,
@@ -36,18 +37,27 @@ class FileFavoriteController<DBSession>(
                 )
             )
         }
+
+        implement(FileFavoriteDescriptions.list) { req ->
+            ok(fileFavoriteService.listAll(req.normalize(), call.securityPrincipal.username))
+        }
     }
 
     private fun Route.handleFavoriteToggle(
-        description: RESTCallDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage, *>
+        description: RESTCallDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage,
+                ToggleFavoriteAudit>
     ) {
         implement(description) { req ->
+            val auditMessage = ToggleFavoriteAudit(listOf(req.path).map { ToggleFavoriteFileAudit(it) })
+            audit(auditMessage)
+
             ok(
                 ToggleFavoriteResponse(
                     fileFavoriteService.toggleFavorite(
                         listOf(req.path),
                         call.securityPrincipal.username,
-                        cloudContext.bearerAuth(call.request.bearer!!).optionallyCausedBy(call.request.safeJobId)
+                        cloudContext.bearerAuth(call.request.bearer!!).optionallyCausedBy(call.request.safeJobId),
+                        auditMessage
                     )
                 )
             )

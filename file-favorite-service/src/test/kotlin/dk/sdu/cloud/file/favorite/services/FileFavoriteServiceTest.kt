@@ -2,9 +2,6 @@ package dk.sdu.cloud.file.favorite.services
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.favorite.storageFile
 import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.test.CloudMock
@@ -24,7 +21,7 @@ class FileFavoriteServiceTest {
     fun fileStatMock() {
         CloudMock.mockCall(
             FileDescriptions,
-            { FileDescriptions.stat}) { req ->
+            { FileDescriptions.stat }) { req ->
             val file = when (req.path) {
                 "/home/user/1" -> storageFile
                 "/home/user/2" -> storageFile.copy(path = "/home/user/2", fileId = "fileId2")
@@ -33,11 +30,11 @@ class FileFavoriteServiceTest {
             }
             if (file != null) {
                 TestCallResult.Ok(file)
-            }
-            else
+            } else
                 TestCallResult.Error(CommonErrorMessage("null file"), HttpStatusCode.NotFound)
         }
     }
+
     @Test
     fun `test toggle, check, untoggle favorite`() {
         withDatabase { db ->
@@ -45,7 +42,7 @@ class FileFavoriteServiceTest {
             val micro = initializeMicro()
             val cloud = micro.authenticatedCloud
             val dao = FileFavoriteHibernateDAO()
-            val service = FileFavoriteService(db, dao)
+            val service = FileFavoriteService(db, dao, micro.authenticatedCloud)
 
             fileStatMock()
 
@@ -53,7 +50,8 @@ class FileFavoriteServiceTest {
                 val failures = service.toggleFavorite(
                     listOf("/home/user/1", "/home/user/2", "/home/user/3"),
                     user.username,
-                    cloud)
+                    cloud
+                )
                 assertTrue(failures.isEmpty())
             }
             val favorites = service.getFavoriteStatus(
@@ -73,7 +71,8 @@ class FileFavoriteServiceTest {
                 val failures = service.toggleFavorite(
                     listOf("/home/user/1", "/home/user/2", "/home/user/3"),
                     user.username,
-                    cloud)
+                    cloud
+                )
                 assertTrue(failures.isEmpty())
             }
 
@@ -100,7 +99,7 @@ class FileFavoriteServiceTest {
             val micro = initializeMicro()
             val cloud = micro.authenticatedCloud
             val dao = FileFavoriteHibernateDAO()
-            val service = FileFavoriteService(db, dao)
+            val service = FileFavoriteService(db, dao, micro.authenticatedCloud)
 
             fileStatMock()
 
@@ -118,7 +117,7 @@ class FileFavoriteServiceTest {
                 listOf(
                     storageFile,
                     storageFile.copy(path = "/home/user/2", fileId = "fileId2")
-                    ),
+                ),
                 user.username
             )
 

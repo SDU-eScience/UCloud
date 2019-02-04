@@ -16,7 +16,7 @@ import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.orThrow
 import io.ktor.routing.Route
 
-class FileGatewayController(
+class FileController(
     private val userCloudService: UserCloudService,
     private val fileAnnotationService: FileAnnotationService
 ) : Controller {

@@ -14,7 +14,6 @@ import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSACLEntity
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FavoriteService
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
@@ -44,7 +43,6 @@ class FilesController<Ctx : FSUserContext>(
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>,
     private val annotationService: FileAnnotationService<Ctx>,
-    private val favoriteService: FavoriteService<Ctx>,
     private val fileLookupService: FileLookupService<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val aclService: ACLService<Ctx>,

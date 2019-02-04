@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.4.1'
+version '0.4.3'
 
 apply plugin: 'application'
 mainClassName = 'dk.sdu.cloud.app.abacus.MainKt'
@@ -9,9 +9,9 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 dependencies {
     compile 'com.jcraft:jsch:0.1.54'
 
-    compile 'dk.sdu.cloud:service-common:0.23.3'
+    compile 'dk.sdu.cloud:service-common:0.23.5'
     compile 'dk.sdu.cloud:auth-api:1.14.0'
-    compile 'dk.sdu.cloud:app-api:0.11.5-SNAPSHOT'
+    compile 'dk.sdu.cloud:app-api:0.12.7'
 
     testCompile 'dk.sdu.cloud:service-common-test:0.23.3'
 }

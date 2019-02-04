@@ -7,7 +7,6 @@ import dk.sdu.cloud.file.api.Timestamps
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ElasticIndexedFileTest {
@@ -33,16 +32,12 @@ class ElasticIndexedFileTest {
 
         val materializedElasticFile = elasticfile.toMaterializedFile()
 
-        assertEquals("ID", materializedElasticFile.id)
+        assertEquals("ID", materializedElasticFile.fileId)
         assertEquals("path", materializedElasticFile.path)
-        assertEquals("Owner", materializedElasticFile.owner)
+        assertEquals("Owner", materializedElasticFile.ownerName)
         assertEquals(FileType.FILE, materializedElasticFile.fileType)
-        assertEquals(123456789, materializedElasticFile.fileTimestamps.accessed)
         assertEquals(123456, materializedElasticFile.size)
-        assertEquals("sha", materializedElasticFile.checksum.algorithm)
-        assertFalse(materializedElasticFile.isLink)
-        assertNull(materializedElasticFile.linkTarget)
-        assertNull(materializedElasticFile.linkTargetId)
+        assertFalse(materializedElasticFile.link)
         assertEquals("P", materializedElasticFile.annotations.first())
         assertEquals(SensitivityLevel.CONFIDENTIAL, materializedElasticFile.sensitivityLevel)
 

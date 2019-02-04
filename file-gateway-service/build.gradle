@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.1.5'
+version '0.1.10'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.gateway.MainKt"
@@ -10,13 +10,19 @@ repositories {
     jcenter()
 }
 
+buildscript {
+    ext.serviceCommonVersion = "0.23.6"
+    ext.fileApiVersion = "0.19.0"
+}
+
 dependencies {
     // Internal services
-    compile 'dk.sdu.cloud:service-common:0.23.5'
-    compile 'dk.sdu.cloud:auth-api:1.14.0'
-    compile 'dk.sdu.cloud:file-api:0.18.0-FAVORITES-SNAPSHOT'
-    compile 'dk.sdu.cloud:file-favorite-api:0.1.0-SNAPSHOT'
-    testCompile 'dk.sdu.cloud:service-common-test:0.23.1'
+    compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
+    compile "dk.sdu.cloud:auth-api:1.14.0"
+    compile "dk.sdu.cloud:file-api:$fileApiVersion"
+    compile "dk.sdu.cloud:file-favorite-api:0.1.5"
+    compile "dk.sdu.cloud:filesearch-api:0.6.1"
+    testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 
 sduCloud.createTasksForApiJar("file.gateway", [])

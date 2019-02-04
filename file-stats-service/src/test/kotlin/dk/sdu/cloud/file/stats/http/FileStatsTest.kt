@@ -35,20 +35,7 @@ class FileStatsTest {
         val recentFilesService = mockk<RecentFilesService>()
         coEvery { usageService.calculateUsage(any(), any(), any())} returns 200
         coEvery { recentFilesService.queryRecentFiles(any(), any())} answers {
-            val results = listOf(storageFile, storageFile.copy(id = "id2"))
-            results.map {
-                SearchResult(
-                    it.path,
-                    it.fileType,
-                    it.annotations,
-                    it.fileTimestamps.created,
-                    it.id,
-                    it.isLink,
-                    it.fileTimestamps.modified,
-                    it.owner,
-                    it.sensitivityLevel
-                )
-            }
+            listOf(storageFile, storageFile.copy(fileId = "id2"))
         }
 
         listOf(FileStatsController(recentFilesService, usageService, micro.authenticatedCloud))

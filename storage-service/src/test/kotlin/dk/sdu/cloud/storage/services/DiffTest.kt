@@ -249,7 +249,7 @@ class DiffTest {
                         "/home",
                         listOf(
                             referenceFile,
-                            referenceFile.copy(id = "invalid id")
+                            referenceFile.copy(fileId = "invalid id")
                         )
                     )
 

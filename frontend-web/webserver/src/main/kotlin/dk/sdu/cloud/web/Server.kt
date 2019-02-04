@@ -12,11 +12,15 @@ import freemarker.cache.ClassTemplateLoader
 import io.ktor.application.Application
 import io.ktor.application.call
 import io.ktor.application.install
+import io.ktor.features.CachingHeaders
 import io.ktor.features.ForwardedHeaderSupport
 import io.ktor.features.origin
 import io.ktor.freemarker.FreeMarker
 import io.ktor.freemarker.FreeMarkerContent
+import io.ktor.http.CacheControl
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.CachingOptions
 import io.ktor.http.content.files
 import io.ktor.http.content.resources
 import io.ktor.http.content.static
@@ -55,6 +59,17 @@ class Server(
                 setAttemptExceptionReporter { _, _ -> }
 
                 templateLoader = ClassTemplateLoader(Application::class.java.classLoader, "templates")
+            }
+            install(CachingHeaders) {
+                options { outgoingContent ->
+                    when (outgoingContent.contentType?.withoutParameters()) {
+                        ContentType.Text.CSS, ContentType.Application.JavaScript -> {
+                            CachingOptions(CacheControl.MaxAge(maxAgeSeconds = 60 * 60 * 24 * 7))
+                        }
+
+                        else -> null
+                    }
+                }
             }
 
             val staticContent = listOf("/var/www", "files")

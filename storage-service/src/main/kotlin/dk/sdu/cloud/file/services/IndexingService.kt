@@ -1,10 +1,10 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
@@ -63,7 +63,7 @@ class IndexingService<Ctx : FSUserContext>(
      * this, progress can be tracked via [Pair.second].
      */
     suspend fun runDiffOnRoots(
-        rootToReference: Map<String, List<EventMaterializedStorageFile>>
+        rootToReference: Map<String, List<StorageFile>>
     ): Pair<Map<String, Boolean>, Job> {
         val ctx = runnerFactory(SERVICE_USER)
         val roots = rootToReference.keys
@@ -71,8 +71,8 @@ class IndexingService<Ctx : FSUserContext>(
         val shouldContinue = try {
             roots.map { root ->
                 val isValid = fs
-                    .statOrNull(ctx, root, setOf(FileAttribute.FILE_TYPE))
-                    ?.takeIf { it.fileType == FileType.DIRECTORY } != null
+                    .statOrNull(ctx, root, setOf(FileAttribute.FILE_TYPE, FileAttribute.IS_LINK))
+                    ?.takeIf { it.fileType == FileType.DIRECTORY && !it.isLink} != null
 
                 root to isValid
             }.toMap()
@@ -115,7 +115,7 @@ class IndexingService<Ctx : FSUserContext>(
     suspend fun calculateDiff(
         ctx: Ctx,
         directoryPath: String,
-        reference: List<EventMaterializedStorageFile>
+        reference: List<StorageFile>
     ): DirectoryDiff {
         val realDirectory = try {
             fs.listDirectory(ctx, directoryPath, STORAGE_EVENT_MODE)
@@ -139,7 +139,7 @@ class IndexingService<Ctx : FSUserContext>(
 
         val realByPath = realDirectory.associateBy { it.path }
         val realById = realDirectory.associateBy { it.inode }
-        val referenceById = reference.associateBy { it.id }
+        val referenceById = reference.associateBy { it.fileId }
         val allFileIds = referenceById.keys + realById.keys
 
         val eventCollector = ArrayList<StorageEvent>()
@@ -147,10 +147,10 @@ class IndexingService<Ctx : FSUserContext>(
         val deletedFiles = referenceById.filter { it.key !in realById }
         eventCollector.addAll(deletedFiles.map {
             StorageEvent.Invalidated(
-                id = it.value.id,
+                id = it.value.fileId,
                 path = it.value.path,
-                creator = it.value.owner,
-                owner = it.value.owner,
+                creator = it.value.ownerName,
+                owner = it.value.ownerName,
                 timestamp = System.currentTimeMillis()
             )
         })
@@ -180,7 +180,7 @@ class IndexingService<Ctx : FSUserContext>(
             filesStillPresent.flatMap { id ->
                 val realFile = realById[id]!!
                 val referenceFile = referenceById[id]!!
-                assert(referenceFile.id == realFile.inode)
+                assert(referenceFile.fileId == realFile.inode)
 
                 val events = ArrayList<StorageEvent>()
                 if (referenceFile.path != realFile.path) {
@@ -217,7 +217,7 @@ class IndexingService<Ctx : FSUserContext>(
                 if (
                     referenceFile.annotations.sorted() != realFile.annotations.sorted() ||
                     referenceFile.fileType != realFile.fileType ||
-                    referenceFile.owner != realFile.owner ||
+                    referenceFile.ownerName != realFile.owner ||
                     referenceFile.sensitivityLevel != realFile.sensitivityLevel
                 ) {
                     // Note: The file type can only be wrong if the client has made an incorrect assumption

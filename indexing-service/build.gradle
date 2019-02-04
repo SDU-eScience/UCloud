@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.8.0-SNAPSHOT'
+version '1.9.1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"
@@ -10,17 +10,22 @@ repositories {
     maven { url  "http://dl.bintray.com/mbuhot/maven" }
 }
 
+buildscript {
+    ext.serviceCommonVersion = "0.23.3"
+    ext.fileApiVersion = "0.19.0"
+}
+
 dependencies {
     compile 'mbuhot:eskotlin:0.4.0'
     compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'
 
-    compile "dk.sdu.cloud:service-common:0.23.3"
-    compile "dk.sdu.cloud:file-api:0.17.7"
+    compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
+    compile "dk.sdu.cloud:file-api:$fileApiVersion"
     compile "dk.sdu.cloud:auth-api:1.14.0"
 
-    testCompile "dk.sdu.cloud:service-common-test:0.23.3"
+    testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 
 sduCloud.createTasksForApiJar("indexing", [
-        "dk.sdu.cloud:file-api:0.17.0"
+        "dk.sdu.cloud:file-api:$fileApiVersion"
 ])

@@ -2,7 +2,7 @@ package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.Comparison
 import dk.sdu.cloud.indexing.api.ComparisonOperator
@@ -30,8 +30,6 @@ import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.search.MultiSearchRequest
 import org.elasticsearch.action.search.SearchRequest
-import org.elasticsearch.action.search.SearchRequestBuilder
-import org.elasticsearch.client.ElasticsearchClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.search.aggregations.AggregationBuilders
@@ -53,7 +51,7 @@ class ElasticQueryService(
 ) : IndexQueryService, ReverseLookupService {
     private val mapper = jacksonObjectMapper()
 
-    override fun findFileByIdOrNull(id: String): EventMaterializedStorageFile? {
+    override fun findFileByIdOrNull(id: String): StorageFile? {
         return elasticClient[GetRequest(FILES_INDEX, DOC_TYPE, id)]
             ?.takeIf { it.isExists }
             ?.let { mapper.readValue<ElasticIndexedFile>(it.sourceAsString) }
@@ -65,6 +63,10 @@ class ElasticQueryService(
     }
 
     override fun reverseLookupBatch(fileIds: List<String>): List<String?> {
+        return reverseLookupFileBatch(fileIds).map { it?.path }
+    }
+
+    override fun reverseLookupFileBatch(fileIds: List<String>): List<StorageFile?> {
         if (fileIds.size > MAX_FILES_IN_REVERSE_BATCH_LOOKUP) throw RPCException(
             "Bad request. Too many file IDs",
             HttpStatusCode.BadRequest
@@ -78,15 +80,14 @@ class ElasticQueryService(
                 }
             }
         }.items.associateBy { it.id }
-
-        return fileIds.map { files[it]?.path }
+        return fileIds.map { files[it]?.toMaterializedFile() }
     }
 
     override fun query(
         query: FileQuery,
         paging: NormalizedPaginationRequest,
         sorting: SortRequest?
-    ): Page<EventMaterializedStorageFile> {
+    ): Page<StorageFile> {
         return elasticClient.search<ElasticIndexedFile>(mapper, paging, FILES_INDEX) {
             if (sorting != null) {
                 val field = when (sorting.field) {
