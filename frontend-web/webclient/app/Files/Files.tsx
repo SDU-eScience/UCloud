@@ -132,8 +132,8 @@ class Files extends React.Component<FilesProps> {
                     onChange={itemsPerPage => fetchFiles(path, itemsPerPage, Math.trunc(page.itemsPerPage * page.pageNumber / itemsPerPage), sortOrder, sortBy)}
                     loading={loading}
                     onRefreshClick={this.refetch}
-                />}>
-            </Spacer>
+                />}
+            />
         );
         const columns = responsiveState!.greaterThan.md ?
             (responsiveState!.greaterThan.lg ? [leftSortingColumn, rightSortingColumn] : [rightSortingColumn])
