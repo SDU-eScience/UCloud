@@ -41,7 +41,7 @@ export const setErrorMessage = (type: DashboardError, error?: string): Error<Das
  * Fetches the contents of the favorites folder and provides the initial 10 items
  */
 export const fetchFavorites = (): Promise<ReceiveFavoritesProps | Error<DashboardError>> =>
-    Cloud.get(`/files?path=${encodeURIComponent(`${Cloud.homeFolder}Favorites`)}`).then(({ response }) =>
+    Cloud.get("/files/favorite").then(({ response }) =>
         receiveFavorites(response.items.slice(0, 10))
     ).catch(() => setErrorMessage(DASHBOARD_FAVORITE_ERROR, "Failed to fetch favorites. Please try again later."));
 

@@ -46,15 +46,13 @@ const DashboardCard = ({ title, isLoading, children }: { title: string, isLoadin
 class Dashboard extends React.Component<DashboardProps & { history: History }> {
     constructor(props: Readonly<DashboardProps & { history: History }>) {
         super(props);
-        const { favoriteFiles, recentFiles, recentAnalyses } = props;
         props.updatePageTitle();
         props.setActivePage();
-        let loading = false;
-        if (!favoriteFiles.length && !recentFiles.length && !recentAnalyses.length) {
-            loading = true;
-        }
-        this.reload(loading);
-        props.setRefresh(() => this.reload(true));
+    }
+
+    componentDidMount() {
+        this.reload(true);
+        this.props.setRefresh(() => this.reload(true));
     }
 
     componentWillReceiveProps(_nextProps) {
@@ -96,7 +94,8 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
             analysesLoading, errors, ...props } = this.props;
         favoriteFiles.forEach(f => f.favorited = true);
         const main = (
-            <React.StrictMode>
+            <>
+                <Error error={errors.join(" ")} clearError={props.errorDismiss} />
                 <GridCardGroup minmax={290}>
                     <DashboardFavoriteFiles
                         files={favoriteFiles}
@@ -128,16 +127,13 @@ class Dashboard extends React.Component<DashboardProps & { history: History }> {
                         <Accounting.Usage resource={"compute"} subResource={"timeUsed"} />
                     </DashboardCard>
                 </GridCardGroup>
-            </React.StrictMode>
+            </>
         );
 
-        const header = (<Error error={errors.join(" ")} clearError={props.errorDismiss} />);
+
 
         return (
-            <MainContainer
-                header={header}
-                main={main}
-            />
+            <MainContainer main={main} />
         );
     }
 }
