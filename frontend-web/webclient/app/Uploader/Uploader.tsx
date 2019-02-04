@@ -171,6 +171,7 @@ class Uploader extends React.Component<UploaderProps> {
             bottom: "auto",
             minHeight: "10rem",
             left: "50%",
+            maxHeight: "80vh",
             padding: "2rem",
             position: "fixed",
             right: "auto",
@@ -211,24 +212,23 @@ class Uploader extends React.Component<UploaderProps> {
                 </OutlineButton>) : null}
                 <Box>
                     {uploads.map((upload, index) => (
-                        <UploaderRow
-                            key={index}
-                            upload={upload}
-                            setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
-                            onExtractChange={value => this.onExtractChange(index, value)}
-                            onUpload={() => this.startUpload(index)}
-                            onDelete={it => (it.preventDefault(), this.removeUpload(index))}
-                            onAbort={it => (it.preventDefault(), this.abort(index))}
-                            onClear={it => (it.preventDefault(), this.clearUpload(index))}
-                            setRewritePolicy={policy => this.setRewritePolicy(index, policy)}
-                        />
+                        <>
+                            <UploaderRow
+                                key={index}
+                                upload={upload}
+                                setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
+                                onExtractChange={value => this.onExtractChange(index, value)}
+                                onUpload={() => this.startUpload(index)}
+                                onDelete={it => (it.preventDefault(), this.removeUpload(index))}
+                                onAbort={it => (it.preventDefault(), this.abort(index))}
+                                onClear={it => (it.preventDefault(), this.clearUpload(index))}
+                                setRewritePolicy={policy => this.setRewritePolicy(index, policy)}
+                            />
+                            <Divider />
+                        </>
                     ))}
-
                     {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile) ?
-                        <Button
-                            fullWidth
-                            color={"green"}
-                            onClick={this.startAllUploads}>
+                        <Button fullWidth color="green" onClick={this.startAllUploads}>
                             <Icon name={"upload"} />{" "}Start all!</Button> : null}
                     <ReactDropzone onDrop={this.onFilesAdded}>
                         {({ getRootProps, getInputProps }) =>
