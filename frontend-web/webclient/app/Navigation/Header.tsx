@@ -89,8 +89,11 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
 }
 
 export const Refresh = ({ onClick, spin }: { onClick?: () => void, spin: boolean }) => !!onClick ?
-    <Icon name="refresh" spin={spin} onClick={() => onClick()} /> : null
+    <RefreshIcon name="refresh" spin={spin} onClick={() => onClick()} /> : null
 
+const RefreshIcon = styled(Icon)`
+    cursor: pointer;
+`;
 
 const WhiteBackgroundEllipsedText = styled(EllipsedText)`
     &&&&& {

@@ -34,13 +34,13 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
             this.getAnalyses(true)
         }, 10_000);
         this.setState({ reloadIntervalId });
-        const { page, setRefresh } = this.props;
-        setRefresh(() => fetchAnalyses(page.itemsPerPage, page.pageNumber))
+        const { setRefresh } = this.props;
+        setRefresh(() => this.getAnalyses(false));
     }
 
     componentWillReceiveProps(nextProps: AnalysesProps) {
-        const { page, setRefresh } = nextProps;
-        setRefresh(() => fetchAnalyses(page.itemsPerPage, page.pageNumber))
+        const { setRefresh } = nextProps;
+        setRefresh(() => this.getAnalyses(false));
     }
 
     componentWillUnmount() {
@@ -55,7 +55,7 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
     }
 
     render() {
-        const { page, loading, fetchAnalyses, error, onErrorDismiss, history, setRefresh } = this.props;
+        const { page, loading, fetchAnalyses, error, onErrorDismiss, history } = this.props;
         const content = <List
             customEmptyPage={<Heading.h1>No jobs have been run on this account.</Heading.h1>}
             loading={loading}
@@ -124,8 +124,8 @@ const pad = (value: string | number, length: number) =>
 const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
     onErrorDismiss: () => dispatch(setErrorMessage(undefined)),
     updatePageTitle: () => dispatch(updatePageTitle("Results")),
-    setLoading: (loading: boolean) => dispatch(setLoading(loading)),
-    fetchAnalyses: async (itemsPerPage: number, pageNumber: number) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),
+    setLoading: loading => dispatch(setLoading(loading)),
+    fetchAnalyses: async (itemsPerPage, pageNumber) => dispatch(await fetchAnalyses(itemsPerPage, pageNumber)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.MyResults)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });

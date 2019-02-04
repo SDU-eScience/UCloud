@@ -15,6 +15,7 @@ import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { loadingEvent } from "LoadableContent";
 import * as Heading from "ui-components/Heading";
 import { SidebarPages } from "ui-components/Sidebar";
+import { Box } from "ui-components";
 
 interface InstalledOperations {
     onInit: () => void
@@ -63,7 +64,7 @@ class Installed extends React.Component<InstalledProps> {
                 page={page}
                 customEntriesPerPage
                 onPageChanged={pageNumber => props.fetchItems(pageNumber, page.itemsPerPage)}
-                pageRenderer={page => <InstalledPage page={page} />}
+                pageRenderer={page => <Box mt="5px"><InstalledPage page={page} /></Box>}
             />
         );
         const header = (<Heading.h1>My Apps</Heading.h1>);
