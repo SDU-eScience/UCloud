@@ -26,7 +26,7 @@ class Activity extends React.Component<ActivityProps> {
         this.props.setPageTitle();
         this.props.fetchActivity(0, 100);
         this.props.setActivePage();
-        this.props.setRefresh(() => fetchActivity(0, 100));
+        this.props.setRefresh(() => this.props.fetchActivity(0, 100));
     }
 
     public componentWillUnmount() {
@@ -220,7 +220,7 @@ function groupActivity(items: Module.Activity[] = []): GroupedActivity[] {
 
 const TFRow = styled(TableRow)`
     vertical-align: top;
-`
+`;
 
 const mapStateToProps = ({ activity }: ReduxObject): ActivityReduxObject & Module.ActivityOwnProps => ({
     ...activity,

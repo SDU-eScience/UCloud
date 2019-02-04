@@ -18,7 +18,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import { ReduxObject } from "DefaultObjects";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 
-                                    /* FIXME some overlap with interfaces reuse */
+/* FIXME some overlap with interfaces reuse */
 class ZenodoHome extends React.Component<ZenodoHomeProps & ZenodoOperations, ZenodoHomeState> {
     constructor(props) {
         super(props);
@@ -34,14 +34,16 @@ class ZenodoHome extends React.Component<ZenodoHomeProps & ZenodoOperations, Zen
     }
 
     componentWillMount() {
+        const { fetchPublications } = this.props;
         this.props.setRefresh(() => fetchPublications(this.props.page.pageNumber, this.props.page.itemsPerPage));
     }
 
     componentWillUnmount() {
         this.props.setRefresh();
     }
-                                    /* FIXME some overlap with interfaces reuse */
+    /* FIXME some overlap with interfaces reuse */
     componentWillReceiveProps(nextProps: ZenodoHomeProps & ZenodoOperations) {
+        const { fetchPublications } = this.props;
         this.props.setRefresh(() => fetchPublications(nextProps.page.pageNumber, nextProps.page.itemsPerPage));
     }
 
