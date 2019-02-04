@@ -65,13 +65,15 @@ class Uploader extends React.Component<UploaderProps> {
         if (files.some(it => it.name.length > 1025)) infoNotification("Filenames can't exceed a length of 1024 characters.");
         const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it));
         if (filteredFiles.length == 0) return;
+
         this.props.setLoading(true);
-        for (let index = 0; index < files.length; index++) {
-            const file = filteredFiles[index];
-            try {
-                file.conflictFile = (await Cloud.get<SDUCloudFile>(statFileQuery(`${this.props.location}/${file.file.name}`))).response;
-            } catch (e) { /* No action */ }
-        };
+        const promises: { request: XMLHttpRequest, response: SDUCloudFile }[] = await Promise.all(filteredFiles.map(file =>
+            Cloud.get<SDUCloudFile>(statFileQuery(`${this.props.location}/${file.file.name}`)).then(it => it).catch(it => it)
+        ));
+        promises.forEach((it, index) => {
+            if (it.request.status === 200) filteredFiles[index].conflictFile = it.response;
+        });
+
         if (this.props.allowMultiple !== false) { // true if no value
             this.props.setUploads(this.props.uploads.concat(filteredFiles))
         } else {
