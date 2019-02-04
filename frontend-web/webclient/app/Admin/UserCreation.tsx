@@ -9,15 +9,16 @@ import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import { setActivePage } from "Navigation/Redux/StatusActions";
 import { SidebarPages } from "ui-components/Sidebar";
+import { MainContainer } from "MainContainer/MainContainer";
 
 class UserCreation extends React.Component<UserCreationOperations, UserCreationState> {
     constructor(props: Readonly<UserCreationOperations>) {
         super(props);
         props.setActivePage();
-        this.state = this.initialState();
+        this.state = this.initialState;
     }
 
-    initialState = (): UserCreationState => ({
+    private readonly initialState: UserCreationState = {
         promiseKeeper: new PromiseKeeper(),
         submitted: false,
         username: "",
@@ -25,7 +26,7 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
         repeatedPassword: "",
         usernameError: false,
         passwordError: false
-    });
+    };
 
     componentWillUnmount() {
         this.state.promiseKeeper.cancelPromises();
@@ -53,7 +54,7 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
                 Cloud.post("/auth/users/register", { username, password }, "")
             ).promise.then(f => {
                 successNotification(`User '${username}' successfully created`);
-                this.setState(() => this.initialState());
+                this.setState(() => this.initialState);
             }).catch(error => {
                 const status = defaultErrorHandler(error);
                 if (status == 400) {
@@ -75,53 +76,53 @@ class UserCreation extends React.Component<UserCreationOperations, UserCreationS
             submitted
         } = this.state;
 
+
+        const header = (<><Heading.h1>User Creation</Heading.h1>
+            <p>Admins can create new users on this page.</p></>)
+
         return (
-            <React.StrictMode>
-                <Flex alignItems="center" flexDirection="column">
-                    <Box width={0.7}>
-                        <Heading.h1>User Creation</Heading.h1>
-                        <p>Admins can create new users on this page.</p>
-                        <form onSubmit={e => this.submit(e)}>
-                            <Label mb="1em">
-                                Username
-                                <Input
-                                    value={username}
-                                    color={usernameError ? "red" : "gray"}
-                                    onChange={({ target: { value } }) => this.updateFields("username", value)}
-                                    placeholder="Username..."
-                                />
-                            </Label>
-                            <Label mb="1em">
-                                Password
-                                <Input
-                                    value={password}
-                                    type="password"
-                                    color={passwordError ? "red" : "gray"}
-                                    onChange={({ target: { value } }) => this.updateFields("password", value)}
-                                    placeholder="Password..."
-                                />
-                            </Label>
-                            <Label mb="1em">
-                                Repeat password
-                                <Input
-                                    value={repeatedPassword}
-                                    type="password"
-                                    color={passwordError ? "red" : "gray"}
-                                    onChange={({ target: { value } }) => this.updateFields("repeatedPassword", value)}
-                                    placeholder="Repeat password..."
-                                />
-                            </Label>
-                            <LoadingButton
-                                type="submit"
-                                content="Create user"
-                                hovercolor="darkGreen"
-                                color="green"
-                                loading={submitted}
-                            />
-                        </form>
-                    </Box>
-                </Flex>
-            </React.StrictMode >
+            <MainContainer
+                header={header}
+                headerSize={120}
+                main={<form onSubmit={e => this.submit(e)}>
+                    <Label mb="1em">
+                        Username
+                        <Input
+                            value={username}
+                            color={usernameError ? "red" : "gray"}
+                            onChange={({ target: { value } }) => this.updateFields("username", value)}
+                            placeholder="Username..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        Password
+                        <Input
+                            value={password}
+                            type="password"
+                            color={passwordError ? "red" : "gray"}
+                            onChange={({ target: { value } }) => this.updateFields("password", value)}
+                            placeholder="Password..."
+                        />
+                    </Label>
+                    <Label mb="1em">
+                        Repeat password
+                        <Input
+                            value={repeatedPassword}
+                            type="password"
+                            color={passwordError ? "red" : "gray"}
+                            onChange={({ target: { value } }) => this.updateFields("repeatedPassword", value)}
+                            placeholder="Repeat password..."
+                        />
+                    </Label>
+                    <LoadingButton
+                        type="submit"
+                        content="Create user"
+                        hovercolor="darkGreen"
+                        color="green"
+                        loading={submitted}
+                    />
+                </form>}
+            />
         );
     }
 }
