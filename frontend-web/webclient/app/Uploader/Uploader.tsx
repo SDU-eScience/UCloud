@@ -9,7 +9,7 @@ import { bulkUpload, multipartUpload, UploadPolicy } from "./api";
 import { connect } from "react-redux";
 import { ReduxObject, Sensitivity } from "DefaultObjects";
 import { Upload, UploadOperations, UploaderProps } from ".";
-import { setUploaderVisible, setUploads, setUploaderError } from "Uploader/Redux/UploaderActions";
+import { setUploaderVisible, setUploads, setUploaderError, setLoading } from "Uploader/Redux/UploaderActions";
 import { removeEntry } from "Utilities/CollectionUtilities";
 import { Box, Flex, Error } from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -20,6 +20,7 @@ import { Dispatch } from "redux";
 import { FileIcon } from "UtilityComponents";
 import { Spacer } from "ui-components/Spacer";
 import { File as SDUCloudFile } from "Files";
+import { Refresh } from "Navigation/Header";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -64,6 +65,7 @@ class Uploader extends React.Component<UploaderProps> {
         if (files.some(it => it.name.length > 1025)) infoNotification("Filenames can't exceed a length of 1024 characters.");
         const filteredFiles = files.filter(it => it.size > 0 && it.name.length < 1025).map(it => newUpload(it));
         if (filteredFiles.length == 0) return;
+        this.props.setLoading(true);
         for (let index = 0; index < files.length; index++) {
             const file = filteredFiles[index];
             try {
@@ -75,6 +77,7 @@ class Uploader extends React.Component<UploaderProps> {
         } else {
             this.props.setUploads([filteredFiles[0]])
         }
+        this.props.setLoading(false);
     }
 
     private beforeUnload = (e: { returnValue: string; }) => {
@@ -186,7 +189,7 @@ class Uploader extends React.Component<UploaderProps> {
     private clearUpload = (index: number) => this.props.setUploads(removeEntry(this.props.uploads, index))
 
     private clearFinishedUploads = () =>
-        this.props.setUploads(this.props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)))
+        this.props.setUploads(this.props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)));
 
 
     private setRewritePolicy(index: number, policy: UploadPolicy) {
@@ -201,7 +204,10 @@ class Uploader extends React.Component<UploaderProps> {
             <Modal isOpen={props.visible} shouldCloseOnEsc ariaHideApp={false} onRequestClose={() => this.props.setUploaderVisible(false)}
                 style={this.modalStyle}
             >
-                <Heading>Upload Files</Heading>
+                <Spacer
+                    left={<Heading>Upload Files</Heading>}
+                    right={props.loading ? <Refresh onClick={() => undefined} spin /> : null}
+                />
                 <Divider />
                 {props.error ?
                     <Box pt="0.5em" pr="0.5em" pl="0.5em">
@@ -212,9 +218,8 @@ class Uploader extends React.Component<UploaderProps> {
                 </OutlineButton>) : null}
                 <Box>
                     {uploads.map((upload, index) => (
-                        <>
+                        <React.Fragment key={index}>
                             <UploaderRow
-                                key={index}
                                 upload={upload}
                                 setSensitivity={sensitivity => this.updateSensitivity(index, sensitivity)}
                                 onExtractChange={value => this.onExtractChange(index, value)}
@@ -225,7 +230,7 @@ class Uploader extends React.Component<UploaderProps> {
                                 setRewritePolicy={policy => this.setRewritePolicy(index, policy)}
                             />
                             <Divider />
-                        </>
+                        </React.Fragment>
                     ))}
                     {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile) ?
                         <Button fullWidth color="green" onClick={this.startAllUploads}>
@@ -388,13 +393,15 @@ const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
     allowMultiple: true,
     uploads: uploader.uploads,
     onFilesUploaded: uploader.onFilesUploaded,
-    error: uploader.error
+    error: uploader.error,
+    loading: uploader.loading
 });
 
 const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploads: uploads => dispatch(setUploads(uploads)),
     setUploaderError: err => dispatch(setUploaderError(err)),
-    setUploaderVisible: visible => dispatch(setUploaderVisible(visible))
+    setUploaderVisible: visible => dispatch(setUploaderVisible(visible)),
+    setLoading: loading => dispatch(setLoading(loading))
 });
 
 export default connect<UploaderProps, UploadOperations>(mapStateToProps, mapDispatchToProps)(Uploader);

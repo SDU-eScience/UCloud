@@ -23,6 +23,7 @@ export interface UploaderStateProps {
     uploads: Upload[]
     allowMultiple?: boolean
     location: string
+    loading: boolean
     onFilesUploaded?: (path: string) => void
 }
 
@@ -30,6 +31,7 @@ export interface UploadOperations {
     setUploads: (uploads: Upload[]) => void
     setUploaderError: (err?: string) => void
     setUploaderVisible: (visible: boolean) => void
+    setLoading: (loading: boolean) => void
 }
 
 export type UploaderProps = UploadOperations & UploaderStateProps;

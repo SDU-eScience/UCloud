@@ -1,12 +1,12 @@
 import { Upload } from "Uploader";
-import { SET_UPLOADER_CALLBACK, SET_UPLOADER_UPLOADS, SET_UPLOADER_VISIBLE, SET_UPLOADER_ERROR } from "./UploaderReducer";
+import { SET_UPLOADER_CALLBACK, SET_UPLOADER_UPLOADS, SET_UPLOADER_VISIBLE, SET_UPLOADER_ERROR, SET_UPLOADER_LOADING } from "./UploaderReducer";
 import { PayloadAction, Error } from "Types";
 
 interface SetUploaderVisibleProps extends PayloadAction<typeof SET_UPLOADER_VISIBLE, { visible: boolean }> { }
 interface SetUploadsProps extends PayloadAction<typeof SET_UPLOADER_UPLOADS, { uploads: Upload[] }> { }
-interface SetUploaderCallbackProps extends PayloadAction<typeof SET_UPLOADER_CALLBACK, { onFilesUploaded: (str :string) => void }> { }
+interface SetUploaderCallbackProps extends PayloadAction<typeof SET_UPLOADER_CALLBACK, { onFilesUploaded: (str: string) => void }> { }
 
-export type UploaderActions = SetUploaderCallbackProps | SetUploadsProps | SetUploaderVisibleProps | Error<typeof SET_UPLOADER_ERROR>
+export type UploaderActions = SetUploaderCallbackProps | SetUploadsProps | SetUploaderVisibleProps | Error<typeof SET_UPLOADER_ERROR> | SetLoading
 
 export const setUploaderVisible = (visible: boolean): SetUploaderVisibleProps => ({
     type: SET_UPLOADER_VISIBLE,
@@ -26,4 +26,10 @@ export const setUploaderCallback = (onFilesUploaded: (s: string) => void): SetUp
 export const setUploaderError = (error?: string): Error<typeof SET_UPLOADER_ERROR> => ({
     type: SET_UPLOADER_ERROR,
     payload: { error }
-}) 
+});
+
+type SetLoading = PayloadAction<typeof SET_UPLOADER_LOADING, { loading: boolean }>
+export const setLoading = (loading: boolean): SetLoading => ({
+    type: SET_UPLOADER_LOADING,
+    payload: { loading }
+});

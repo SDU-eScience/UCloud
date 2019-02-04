@@ -177,6 +177,7 @@ export interface UploaderReduxObject {
     allowMultiple: boolean
     onFilesUploaded: (p: string) => void
     error?: string
+    loading: boolean
 }
 
 interface LegacyReducers {
@@ -333,7 +334,8 @@ export const initUploads = (): UploaderReduxObject => ({
     visible: false,
     allowMultiple: false,
     error: undefined,
-    onFilesUploaded: () => null
+    onFilesUploaded: () => null,
+    loading: false
 });
 
 export const initFileInfo = (): FileInfoReduxObject => ({
