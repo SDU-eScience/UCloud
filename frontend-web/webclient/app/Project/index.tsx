@@ -1,4 +1,3 @@
-import { History } from "history";
 import { Contributor, Subject, RelatedIdentifier } from "./api";
 import { RouterLocationProps } from "Utilities/URIUtilities";
 import { License } from "./licenses";
@@ -11,10 +10,10 @@ export interface CreateUpdateState {
     path: string
     title: string
     description: string
-    license?: License
+    license?: { title: string, link: string, identifier: string }
     keywords: string[]
-    notes: ""
-    dataManagementPlan: ""
+    notes: string
+    dataManagementPlan: string
     contributors: Contributor[]
     references: string[]
     grants: string[]
@@ -29,9 +28,7 @@ export interface CreateUpdateState {
     }
 }
 
-export interface CreateUpdateProps extends RouterLocationProps {
-    history: History
-}
+export type CreateUpdateProps = RouterLocationProps;
 
 export interface DetailedProjectSearchReduxState {
     error?: string

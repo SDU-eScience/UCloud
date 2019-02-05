@@ -1,6 +1,6 @@
 import * as React from "react";
 import { allLicenses } from "./licenses";
-import { Contributor, RelatedIdentifier, Subject, getByPath, updateById } from "./api";
+import { Contributor, RelatedIdentifier, Subject, getByPath, updateById, ProjectMetadataWithRights } from "./api";
 import { blankOrUndefined } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { CreateUpdateProps, CreateUpdateState } from ".";
@@ -11,44 +11,36 @@ import { contentValuePairLicenses, contentValuePairIdentifierTypes } from "ui-co
 import { TextSpan } from "ui-components/Text";
 import { connect } from "react-redux";
 import { MainContainer } from "MainContainer/MainContainer";
-
-// FIXME: MISSING TYPESAFETY THROUGHOUT
+import { Dispatch } from "redux";
 
 const newContributor = (): Contributor => ({ name: "", affiliation: "", orcId: "", gnd: "" });
 const newIdentifier = (): RelatedIdentifier => ({ identifier: "", relation: "" });
 const newSubject = (): Subject => ({ term: "", identifier: "" });
 
-const contributorHasValue = (contributor: Contributor): boolean => {
-    return (
-        !blankOrUndefined(contributor.affiliation) ||
-        !blankOrUndefined(contributor.orcId) ||
-        !blankOrUndefined(contributor.gnd) ||
-        !blankOrUndefined(contributor.name)
-    );
-}
+const contributorHasValue = (contributor: Contributor): boolean => (
+    !blankOrUndefined(contributor.affiliation) ||
+    !blankOrUndefined(contributor.orcId) ||
+    !blankOrUndefined(contributor.gnd) ||
+    !blankOrUndefined(contributor.name)
+);
 
-const subjectHasValue = (subject: Subject): boolean => {
-    return (
-        !blankOrUndefined(subject.identifier) ||
-        !blankOrUndefined(subject.term)
-    );
-}
+const subjectHasValue = (subject: Subject): boolean => (
+    !blankOrUndefined(subject.identifier) ||
+    !blankOrUndefined(subject.term)
+);
 
 const identifierHasValue = (identifier: RelatedIdentifier): boolean =>
     !blankOrUndefined(identifier.identifier) ||
     !blankOrUndefined(identifier.relation);
 
-const filePathFromProps = (props: CreateUpdateProps): string | null =>
-    getQueryParam(props, "filePath");
+const filePathFromProps = (props: CreateUpdateProps): string | null => getQueryParam(props, "filePath");
 
-
-
-class CreateUpdate extends React.Component<CreateUpdateProps, any> {
-    constructor(props) {
+class CreateUpdate extends React.Component<CreateUpdateProps, CreateUpdateState> {
+    constructor(props: Readonly<CreateUpdateProps> & { dispatch: Dispatch }) {
         super(props);
-        const path = filePathFromProps(props);
+        const path = filePathFromProps(props) || "";
         this.state = {
-            path: path!,
+            path: path,
             title: "",
             description: "",
             license: undefined,
@@ -71,14 +63,14 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         getByPath(this.state.path).then(it => this.setMetadata(it, this.state.path));
     }
 
-    setMetadata(it, path: string) {
+    setMetadata(it: ProjectMetadataWithRights, path: string) {
         const md = it.metadata;
         const license = allLicenses.find(it => it.identifier == md.license);
         const mappedLicense = license ? {
             title: license.name,
             link: license.link,
             identifier: license.identifier
-        } : null;
+        } : undefined;
 
         this.setState(() => ({
             path: path,
@@ -96,7 +88,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         }));
     };
 
-    shouldComponentUpdate(nextProps: CreateUpdateProps, _nextState) {
+    shouldComponentUpdate(nextProps: CreateUpdateProps) {
         const path = filePathFromProps(nextProps);
         if (!!path && path !== this.state.path) {
             getByPath(path).then(it => this.setMetadata(it, path))
@@ -104,13 +96,12 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
         return true;
     }
 
-    onSubmit(e) {
+    onSubmit(e: { preventDefault: () => void }) {
         e.preventDefault();
-
         const hasErrors = this.validateForm();
 
         if (!hasErrors) {
-            const s = this.state;
+            const { ...s } = this.state;
             const licenseIdentifier = s.license ? s.license.identifier : null;
 
             const payload = {
@@ -135,10 +126,10 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     }
 
     validateForm(): boolean {
-        let errors = {};
+        let errors: any = {};
 
-        if (blankOrUndefined(this.state.title)) errors["title"] = true;
-        if (blankOrUndefined(this.state.description)) errors["description"] = true;
+        if (blankOrUndefined(this.state.title)) errors.title = true;
+        if (blankOrUndefined(this.state.description)) errors.description = true;
 
         let errCollaborators = {};
         this.state.contributors.forEach((element, index) => {
@@ -146,7 +137,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                 if (blankOrUndefined(element.name)) errCollaborators[index] = true;
             }
         });
-        errors["contributors"] = errCollaborators;
+        errors.contributors = errCollaborators;
 
         let errSubjects = {};
         this.state.subjects.forEach((element, index) => {
@@ -154,7 +145,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                 if (blankOrUndefined(element.term)) errSubjects[index] = true;
             }
         });
-        errors["subjects"] = errSubjects;
+        errors.subjects = errSubjects;
 
         let errIdentifiers = {};
         this.state.relatedIdentifiers.forEach((element, index) => {
@@ -162,9 +153,9 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                 if (blankOrUndefined(element.identifier)) errIdentifiers[index] = true;
             }
         });
-        errors["relatedIdentifiers"] = errIdentifiers;
+        errors.relatedIdentifiers = errIdentifiers;
 
-        this.setState({ errors });
+        this.setState(() => ({ errors }));
 
         let hasError = false;
         Object.keys(errors).forEach(key => {
@@ -183,37 +174,38 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
     }
 
 
-    addRow(e, key) {
+    addRow(e: { preventDefault: () => void }, key: "keywords" | "references" | "grants") {
         e.preventDefault();
+        // @ts-ignore
         this.setState(() => ({ [key]: this.state[key].concat([""]) }));
     }
 
-    addCollaborator(e) {
+    addCollaborator(e: { preventDefault: () => void }) {
         e.preventDefault();
         this.setState(() => ({ contributors: this.state.contributors.concat(newContributor()) }));
     }
 
-    addSubject(e) {
+    addSubject(e: { preventDefault: () => void }) {
         e.preventDefault();
         this.setState(() => ({ subjects: this.state.subjects.concat(newSubject()) }));
     }
 
-    addIdentifier(e) {
+    addIdentifier(e: { preventDefault: () => void }) {
         e.preventDefault();
         this.setState(() => ({ relatedIdentifiers: this.state.relatedIdentifiers.concat(newIdentifier()) }));
     }
 
-    setStateEv(key) {
-        return ({ target }) => {
-            this.setState(() => ({ [key]: target.value }));
-        };
+    setStateEv(key: "title" | "description" | "license" | "notes" | "dataManagementPlan") {
+        // @ts-ignore
+        return ({ target }: { target: { value: string } }) => this.setState(() => ({ [key]: target.value }));
     }
 
-    setStateEvList(key: keyof CreateUpdateState) {
-        return (value, index, member) => {
+    setStateEvList(key: "keywords" | "contributors" | "references" | "grants" | "subjects" | "relatedIdentifiers") {
+        return (value: any, index: number, member?: string | number) => {
             const list = this.state[key];
             if (!!member) list[index][member] = value;
             else list[index] = value;
+            // @ts-ignore
             this.setState(() => ({ [key]: list }));
         };
     }
@@ -271,14 +263,16 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                             </label>
                         </Box>
                         <Box mb="1em">
-                            <label>
-                                <TextSpan bold>Keywords</TextSpan>
-                                <FormFieldList
-                                    items={this.state.keywords}
-                                    name="keyword"
-                                    onChange={this.setStateEvList("keywords")}
-                                />
-                            </label>
+                            <Box>
+                                <label>
+                                    <TextSpan bold>Keywords</TextSpan>
+                                    <FormFieldList
+                                        items={this.state.keywords}
+                                        name="keyword"
+                                        onChange={this.setStateEvList("keywords")}
+                                    />
+                                </label>
+                            </Box>
 
                             <Button type="button" onClick={e => this.addRow(e, "keywords")}>
                                 New keyword
@@ -287,7 +281,7 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
 
                         <Box mb="1em">
                             <label>Notes
-                    <TextArea
+                                <TextArea
                                     width={1}
                                     value={this.state.notes}
                                     placeholder="Notes..."
@@ -308,13 +302,16 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                         </Box>
 
                         <Box mb="1em">
-                            <label><TextSpan bold>Contributors</TextSpan>
-                                <Contributors
-                                    contributors={this.state.contributors}
-                                    errors={this.state.errors.contributors}
-                                    onChange={this.setStateEvList("contributors")}
-                                />
-                            </label>
+                            <Box>
+                                <label>
+                                    <TextSpan bold>Contributors</TextSpan>
+                                    <Contributors
+                                        contributors={this.state.contributors}
+                                        errors={this.state.errors.contributors}
+                                        onChange={this.setStateEvList("contributors")}
+                                    />
+                                </label>
+                            </Box>
                             <Button mt="0.5em"
                                 type="button"
                                 onClick={e => this.addCollaborator(e)}
@@ -322,13 +319,15 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                         </Box>
 
                         <Box mb="1em">
-                            <label><TextSpan bold>References</TextSpan>
-                                <FormFieldList
-                                    name="reference"
-                                    items={this.state.references}
-                                    onChange={this.setStateEvList("references")}
-                                />
-                            </label>
+                            <Box>
+                                <label><TextSpan bold>References</TextSpan>
+                                    <FormFieldList
+                                        name="reference"
+                                        items={this.state.references}
+                                        onChange={this.setStateEvList("references")}
+                                    />
+                                </label>
+                            </Box>
                             <Button
                                 type="button"
                                 onClick={e => this.addRow(e, "references")}
@@ -336,13 +335,15 @@ class CreateUpdate extends React.Component<CreateUpdateProps, any> {
                         </Box>
 
                         <Box mb="1em">
-                            <label><TextSpan bold>Grants</TextSpan>
-                                <FormFieldList
-                                    name="grant"
-                                    items={this.state.grants}
-                                    onChange={this.setStateEvList("grants")}
-                                />
-                            </label>
+                            <Box>
+                                <label><TextSpan bold>Grants</TextSpan>
+                                    <FormFieldList
+                                        name="grant"
+                                        items={this.state.grants}
+                                        onChange={this.setStateEvList("grants")}
+                                    />
+                                </label>
+                            </Box>
                             <Button
                                 type="button"
                                 onClick={e => this.addRow(e, "grants")}
