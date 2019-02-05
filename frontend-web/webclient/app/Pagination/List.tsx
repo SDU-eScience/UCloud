@@ -48,7 +48,7 @@ export class List<T> extends React.PureComponent<ListProps<T>> {
                 {body}
                 <Self.PaginationButtons
                     currentPage={props.page.pageNumber}
-                    toPage={(page) => ifPresent(props.onPageChanged, c => c(page, props.page))}
+                    toPage={page => ifPresent(props.onPageChanged, c => c(page, props.page))}
                     totalPages={props.page.pagesInTotal}
                 />
             </>
