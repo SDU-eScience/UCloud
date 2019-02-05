@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-elastic-datasource
+  namespace: grafana
+  labels:
+    grafana_datasource: "1"
+data:
+  elastic.yml: |-
+    ---
+    apiVersion: 1
+    
+    datasources:
+    - name: elasticsearch
+      type: elasticsearch
+      access: proxy
+      url: http://elasticsearch:9200
+      editable: true
+ 

@@ -1,0 +1,10 @@
+---
+# Values for Stolon: https://github.com/helm/charts/tree/master/stable/stolon
+persistence:
+  storageClassName: rbd
+  size: 250Gi
+
+pgParameters:
+  max_connections: "1000"
+  maintenance_work_mem: 250MB
+  shared_buffers: 4000MB

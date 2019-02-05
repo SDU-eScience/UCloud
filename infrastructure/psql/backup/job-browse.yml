@@ -1,0 +1,44 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: psql-backup-browse
+  namespace: stolon
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+
+      containers:
+      - name: psql-client
+        image: registry.cloud.sdu.dk/sdu-cloud/psql-client:0.1.2
+        command:
+        - /bin/sleep
+        - "100000"
+        env:
+        - name: BACKUP_DIR
+          value: /mnt/backup/
+        - name: HOSTNAME
+          value: stolon-proxy
+        - name: USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: psql-backup-user
+              key: username
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: psql-backup-user
+              key: password
+
+        volumeMounts:
+        - mountPath: /mnt/backup
+          name: backup-mount
+
+      volumes:
+      - name: backup-mount
+        persistentVolumeClaim:
+          claimName: psql-backup-vol
+
+      imagePullSecrets:
+        - name: esci-docker

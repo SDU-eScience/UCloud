@@ -1,0 +1,46 @@
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: psql-backup
+  namespace: stolon
+spec:
+  schedule: "0 3 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+
+          containers:
+          - name: psql-client
+            image: registry.cloud.sdu.dk/sdu-cloud/psql-client:0.1.2
+            command:
+            - /opt/backup/pg_backup_rotated.sh
+            env:
+            - name: BACKUP_DIR
+              value: /mnt/backup/
+            - name: HOSTNAME
+              value: stolon-proxy
+            - name: USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: psql-backup-user
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: psql-backup-user
+                  key: password
+
+            volumeMounts:
+            - mountPath: /mnt/backup
+              name: backup-mount
+
+          volumes:
+          - name: backup-mount
+            persistentVolumeClaim:
+              claimName: psql-backup-vol
+
+          imagePullSecrets:
+            - name: esci-docker
