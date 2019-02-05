@@ -16,7 +16,7 @@ import { SpaceProps } from "styled-system";
 
 export const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
-    fileOperations, sortOrder, onFavoriteFile, sortBy, customEntriesPerPage, onNavigationClick, notStickyHeader
+    fileOperations, sortOrder, onFavoriteFile, sortBy, onNavigationClick, notStickyHeader
 }: FilesTableProps) => {
     const checkedFiles = files.filter(it => it.isChecked);
     const checkedCount = checkedFiles.length;
@@ -31,7 +31,6 @@ export const FilesTable = ({
                 toSortingIcon={sortingIcon}
                 sortFiles={sortFiles}
                 sortBy={sortBy}
-                customEntriesPerPage={customEntriesPerPage}
                 customEntriesWidth={fileOperations.length > 1 ? "4em" : "7em"} //on modal thi is lenght=1
             >
                 {/* FIXME: Figure out how to handle responsiveness for FileOperations */}
@@ -116,7 +115,6 @@ const FilesTableHeader = ({
     sortingColumns,
     onDropdownSelect,
     sortBy,
-    customEntriesPerPage,
     customEntriesWidth,
     notStickyHeader,
     children
@@ -144,7 +142,7 @@ const FilesTableHeader = ({
                     />
                 ))}
                 <FileTableHeaderCell notSticky={notStickyHeader} width={customEntriesWidth}>
-                    <Flex>{customEntriesPerPage}{children}</Flex>
+                    <Flex>{children}</Flex>
                 </FileTableHeaderCell>
             </TableRow>
         </TableHeader>
@@ -296,7 +294,7 @@ const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.lengt
 
 interface FileOperations extends SpaceProps { files: File[], fileOperations: FileOperation[], As: any }
 export const FileOperations = ({ files, fileOperations, As, ...props }/* :FileOperations */) => files.length && fileOperations.length ?
-    fileOperations.map((fileOp, i) => {
+    fileOperations.map((fileOp: FileOperation, i: number) => {
         let operation = fileOp;
         if ("predicate" in operation) {
             operation = (fileOp as PredicatedOperation).predicate(files, Cloud) ? operation.onTrue : operation.onFalse;
