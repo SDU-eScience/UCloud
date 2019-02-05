@@ -1,24 +1,19 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`UserCreation Mount 1`] = `
-.c1 {
+.c0 {
   cursor: auto;
-  width: 70%;
+  margin-left: 68px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+  padding-top: 48px;
 }
 
-.c0 {
-  cursor: inherit;
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-align-items: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-  -webkit-flex-direction: column;
-  -ms-flex-direction: column;
-  flex-direction: column;
+.c3 {
+  cursor: auto;
+  padding-right: 14px;
+  padding-top: 120px;
 }
 
 .c2 {
@@ -27,7 +22,7 @@ exports[`UserCreation Mount 1`] = `
   margin: 0px;
 }
 
-.c5 {
+.c6 {
   -webkit-font-smoothing: antialiased;
   display: inline-block;
   vertical-align: middle;
@@ -49,21 +44,21 @@ exports[`UserCreation Mount 1`] = `
   padding: 9.5px 18px;
 }
 
-.c5:disabled {
+.c6:disabled {
   opacity: 0.25;
 }
 
-.c5:focus {
+.c6:focus {
   outline: none;
 }
 
-.c5:hover {
+.c6:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c3 {
+.c4 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;
   -moz-letter-spacing: 0.2px;
@@ -78,7 +73,7 @@ exports[`UserCreation Mount 1`] = `
   font-weight: 700;
 }
 
-.c4 {
+.c5 {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -100,44 +95,61 @@ exports[`UserCreation Mount 1`] = `
   border-radius: 5px;
 }
 
-.c4::-webkit-input-placeholder {
+.c5::-webkit-input-placeholder {
   color: #8393A7;
 }
 
-.c4::-moz-placeholder {
+.c5::-moz-placeholder {
   color: #8393A7;
 }
 
-.c4:-ms-input-placeholder {
+.c5:-ms-input-placeholder {
   color: #8393A7;
 }
 
-.c4::placeholder {
+.c5::placeholder {
   color: #8393A7;
 }
 
-.c4::-ms-clear {
+.c5::-ms-clear {
   display: none;
 }
 
-.c4:focus {
+.c5:focus {
   outline: none;
 }
 
-.c4:focus {
+.c5:focus {
   outline: 0;
   border-color: #8393A7;
   box-shadow: 0 0 0 2px #8393A7;
 }
 
+.c1 {
+  cursor: auto;
+  padding-left: 82px;
+  padding-right: 14px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  width: 100%;
+  height: 120px;
+  background-color: #fff;
+  position: absolute;
+  top: 48px;
+  left: 0;
+  position: fixed;
+  z-index: 50;
+}
+
 <div
   className="c0"
-  cursor="inherit"
+  cursor="auto"
 >
   <div
     className="c1"
     cursor="auto"
-    width={0.7}
+    height={120}
+    width={1}
   >
     <h1
       className="c2"
@@ -149,18 +161,23 @@ exports[`UserCreation Mount 1`] = `
     <p>
       Admins can create new users on this page.
     </p>
+  </div>
+  <div
+    className="c3"
+    cursor="auto"
+  >
     <form
       onSubmit={[Function]}
     >
       <label
-        className="c3"
+        className="c4"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Username
         <input
-          className="c4"
+          className="c5"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -169,14 +186,14 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="c3"
+        className="c4"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Password
         <input
-          className="c4"
+          className="c5"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -186,14 +203,14 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <label
-        className="c3"
+        className="c4"
         color="black"
         fontSize={1}
         fontWeight="bold"
       >
         Repeat password
         <input
-          className="c4"
+          className="c5"
           color="gray"
           id="default"
           onChange={[Function]}
@@ -203,7 +220,7 @@ exports[`UserCreation Mount 1`] = `
         />
       </label>
       <button
-        className="c5"
+        className="c6"
         color="green"
         content="Create user"
         type="submit"

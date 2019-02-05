@@ -151,7 +151,6 @@ export interface StatusReduxObject {
 }
 
 export interface SidebarReduxObject {
-    loading: boolean
     pp: boolean
     options: SidebarOption[]
     kcCount: number
@@ -322,7 +321,6 @@ export const initZenodo = (): ZenodoReduxObject => ({
 })
 
 export const initSidebar = (): SidebarReduxObject => ({
-    loading: false,
     pp: false,
     kcCount: 0,
     options: []

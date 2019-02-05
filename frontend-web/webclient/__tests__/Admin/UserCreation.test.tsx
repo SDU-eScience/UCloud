@@ -5,26 +5,32 @@ import { configure, mount } from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import PromiseKeeper from "PromiseKeeper";
 import "jest-styled-components";
-import { createStore } from "redux";
-import status from "Navigation/Redux/StatusReducer";
-import { initStatus } from "DefaultObjects";
+import { initStatus, initResponsive } from "DefaultObjects";
 import { Provider } from "react-redux";
+import { configureStore } from "Utilities/ReduxUtilities";
+import { responsiveBP } from "ui-components/theme";
+import { createResponsiveStateReducer } from "redux-responsive";
+import status from "Navigation/Redux/StatusReducer";
 
 configure({ adapter: new Adapter() });
 
 
-const store = createStore(status, initStatus());
 
-function userCreation() {
-    return <Provider store={store}>
+
+const store = configureStore({ status: initStatus(), responsive: initResponsive() }, {
+    status,
+    responsive: createResponsiveStateReducer(
+        responsiveBP,
+        { infinity: "xxl" })
+});
+
+const userCreation = () =>
+    <Provider store={store}>
         <UserCreation />
     </Provider>
-}
 
 describe("UserCreation", () => {
-    test("Mount", () =>
-        expect(create(userCreation()).toJSON()).toMatchSnapshot()
-    );
+    test("Mount", () => expect(create(userCreation()).toJSON()).toMatchSnapshot());
 
     test.skip("Update username field", () => {
         const uC = mount(userCreation());

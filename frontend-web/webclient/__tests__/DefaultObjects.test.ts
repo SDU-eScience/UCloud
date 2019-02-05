@@ -81,8 +81,6 @@ describe("Initialize Redux Objects", () => {
     test("Sidebar", () =>
         expect(Defaults.initSidebar()).toEqual({
             kcCount: 0,
-            open: false,
-            loading: false,
             pp: false,
             options: []
         })
@@ -92,6 +90,7 @@ describe("Initialize Redux Objects", () => {
         expect(JSON.parse(JSON.stringify(Defaults.initUploads()))).toEqual(JSON.parse(JSON.stringify({
             path: "",
             uploads: [],
+            loading: false,
             visible: false,
             allowMultiple: false,
             onFilesUploaded: () => null
