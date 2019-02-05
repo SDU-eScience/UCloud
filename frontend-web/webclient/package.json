@@ -43,9 +43,9 @@
   "scripts": {
     "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
     "clean": "rm -rf dist/",
-    "build": "npm run clean && npm run prepare-icons && webpack --config webpack.prod.js --progress --profile --bail",
+    "build": "npm run clean && webpack --config webpack.prod.js --progress --profile --bail",
     "install": "napa && npm run prepare-icons",
-    "test": "npm run prepare-icons && jest --no-cache",
+    "test": "jest --no-cache",
     "prepare-icons": "npm run icons-clean && npm run icons-components && npm run icons-index",
     "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
     "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components",
@@ -54,7 +54,7 @@
   "dependencies": {
     "@svgr/cli": "^4.1.0",
     "avataaars": "^1.2.1",
-    "fuse.js": "^3.3.0",
+    "fuse.js": "^3.3.1",
     "install": "^0.12.2",
     "jsonwebtoken": "8.4.0",
     "moment": "~2.24.0",
