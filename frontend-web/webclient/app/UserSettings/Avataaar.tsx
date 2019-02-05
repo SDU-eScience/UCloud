@@ -51,7 +51,8 @@ class AvataaarModification extends React.Component<AvataaarModificationProps, Av
             loading: true,
             promises: new PromiseKeeper()
         };
-        this.fetchCurrentAvatar()
+        this.fetchCurrentAvatar();
+        props.setActivePage()
     }
 
     private fetchCurrentAvatar = () =>

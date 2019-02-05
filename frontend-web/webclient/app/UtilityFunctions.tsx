@@ -90,6 +90,17 @@ export function uploadsNotifications(finished: number, total: number) {
     });
 }
 
+export function overwriteSwal() {
+    return swal({
+        allowEscapeKey: true,
+        allowOutsideClick: true,
+        showCancelButton: true,
+        title: "Warning",
+        type: "warning",
+        text: "The existing file is being overwritten. Cancelling will leave it in an inconsistent state. Continue?"
+    });
+}
+
 export function shareSwal() {
     return swal({
         title: "Share",

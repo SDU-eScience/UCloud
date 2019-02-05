@@ -3,8 +3,8 @@ import * as Modal from "react-modal";
 import { Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Checkbox, Label, Select } from "ui-components";
 import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs } from "UtilityFunctions";
-import { sizeToString, archiveExtensions, isArchiveExtension, checkIfFileExists, statFileQuery, getFilenameFromPath } from "Utilities/FileUtilities";
+import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal } from "UtilityFunctions";
+import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, UploadPolicy } from "./api";
 import { connect } from "react-redux";
 import { ReduxObject, Sensitivity } from "DefaultObjects";
@@ -149,9 +149,13 @@ class Uploader extends React.Component<UploaderProps> {
         }
     }
 
-    private abort = (index: number) => {
+    private abort = async (index: number) => {
         const upload = this.props.uploads[index];
         if (!!upload.uploadXHR && upload.uploadXHR.readyState != XMLHttpRequest.DONE) {
+            if (upload.resolution === UploadPolicy.OVERWRITE) {
+                const result = await overwriteSwal();
+                if (!!result.dismiss) return;
+            }
             upload.uploadXHR.abort();
             this.removeUpload(index);
         }

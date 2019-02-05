@@ -33,8 +33,10 @@ export const hpcApplicationsTagSearchQuery = (tag: string, page: number, itemsPe
 export const favoriteApplicationFromPage = async (name: string, version: string, page: Page<Application>, cloud: Cloud): Promise<Page<Application>> => {
     const a = page.items.find(it => it.description.info.name === name && it.description.info.version === version)!;
     // FIXME better error handling. Pass as callback, call on success?
-    await cloud.post(hpcFavoriteApp(name, version)).catch(() => failureNotification(`An error ocurred favoriting ${name}`));
-    a.favorite = !a.favorite;
+    try {
+        await cloud.post(hpcFavoriteApp(name, version)).catch(() => failureNotification(`An error ocurred favoriting ${name}`));
+        a.favorite = !a.favorite;
+    } catch { }
     return page;
 }
 

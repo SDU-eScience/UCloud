@@ -104,7 +104,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
 
         const main = (
             <Box mt="5px">
-                <form onSubmit={(e) => this.submit(e)}>
+                <form onSubmit={e => this.submit(e)}>
                     <FileSelections
                         handleFileSelection={this.handleFileSelection}
                         files={this.state.files}
@@ -151,7 +151,7 @@ class ZenodoPublish extends React.Component<ZenodoPublishProps & ZenodoPublishOp
 const FileSelections = ({ files, handleFileSelection, removeFile }: { files: string[], handleFileSelection: Function, removeFile: Function }) => (
     <>
         {files.map((file, index) =>
-            (<Box mb="0.3em">
+            (<Box mb="0.3em" key={file}>
                 <FileSelector
                     key={index}
                     isRequired={files.length === 1}

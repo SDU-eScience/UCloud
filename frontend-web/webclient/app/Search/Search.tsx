@@ -204,7 +204,7 @@ class Search extends React.Component<SearchProps> {
                     <React.Fragment>
                         <Error error={errors.join("\n")} clearError={() => this.props.setError(undefined)} />
                         <Hide xxl xl md>
-                            <form onSubmit={e => { e.preventDefault(); this.search(); }}>
+                            <form onSubmit={e => (e.preventDefault(), this.search())}>
                                 <Input onChange={({ target: { value } }) => this.props.setSearch(value)} />
                             </form>
                         </Hide>
