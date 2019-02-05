@@ -67,7 +67,10 @@ class HibernateSessionFactory(
                     if (jdbcUrl != null) applySetting("hibernate.connection.url", jdbcUrl)
                     if (username != null) applySetting("hibernate.connection.username", username)
                     applySetting("hibernate.connection.password", password ?: "")
-                    if (poolSize != null) applySetting("hibernate.connection.pool_size", poolSize.toString())
+                    if (poolSize != null) {
+                        applySetting("hibernate.connection.pool_size", poolSize.toString())
+                        applySetting("hibernate.hikari.maximumPoolSize", poolSize.toString())
+                    }
                     if (dialect != null) applySetting("hibernate.dialect", dialect)
                     if (showSQLInStdout) applySetting("hibernate.show_sql", true.toString())
                     if (recreateSchemaOnStartup) applySetting("hibernate.hbm2ddl.auto", "create")
@@ -119,7 +122,7 @@ data class HibernateDatabaseConfig(
     val username: String?,
     val password: String?,
     val usePool: Boolean = true,
-    val poolSize: Int? = 10,
+    val poolSize: Int? = 50,
     val defaultSchema: String = "public",
     val skipXml: Boolean = true,
     val showSQLInStdout: Boolean = false,

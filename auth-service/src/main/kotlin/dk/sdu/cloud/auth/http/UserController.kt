@@ -32,7 +32,8 @@ class UserController<DBSession>(
     private val userDAO: UserDAO<DBSession>,
     private val userCreationService: UserCreationService<DBSession>,
     private val userIterationService: UserIterationService,
-    private val tokenService: TokenService<DBSession>
+    private val tokenService: TokenService<DBSession>,
+    private val developmentMode: Boolean = false
 ) : Controller {
     override val baseContext = UserDescriptions.baseContext
 
@@ -103,6 +104,7 @@ class UserController<DBSession>(
     }
 
     private fun checkUserAccessToIterator(principal: SecurityPrincipal) {
+        if (developmentMode) return
         val allowed = principal.role in allowedRoles && principal.username in allowedUsernames
         if (!allowed) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
     }

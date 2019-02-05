@@ -17,6 +17,7 @@ import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.updateCriteria
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.orThrow
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.header
 import io.ktor.http.HttpStatusCode
@@ -48,7 +49,8 @@ class UserIterationService(
     private val db: HibernateSessionFactory,
     private val cursorStateDao: CursorStateDao<HibernateSession>,
 
-    private val serviceCloud: RefreshingJWTAuthenticatedCloud
+    private val serviceCloud: RefreshingJWTAuthenticatedCloud,
+    private val maxConnections: Int = 10
 ) {
     private lateinit var cleaner: ScheduledExecutorService
 
@@ -64,25 +66,30 @@ class UserIterationService(
         if (this::cleaner.isInitialized) throw IllegalStateException()
         cleaner = Executors.newSingleThreadScheduledExecutor()
         cleaner.scheduleAtFixedRate({
-            log.debug("Running clean up script")
-            synchronized(this) {
-                val iterator = openIterators.iterator()
-                while (iterator.hasNext()) {
-                    val next = iterator.next()
-                    val state = db.withTransaction {
-                        cursorStateDao.findByIdOrNull(it, next.key)
-                    }
+            try {
+                log.debug("Running clean up script")
+                synchronized(this) {
+                    val iterator = openIterators.iterator()
+                    while (iterator.hasNext()) {
+                        val next = iterator.next()
+                        val state = db.withTransaction {
+                            cursorStateDao.findByIdOrNull(it, next.key)
+                        }
 
-                    if (state == null) {
-                        log.debug("Removing ${next.key} (could not find in db)")
-                        iterator.remove()
-                    } else {
-                        if (System.currentTimeMillis() > state.expiresAt) {
-                            log.debug("Removing ${next.key} (expired)")
+                        if (state == null) {
+                            log.debug("Removing ${next.key} (could not find in db)")
                             iterator.remove()
+                        } else {
+                            if (System.currentTimeMillis() > state.expiresAt) {
+                                log.debug("Removing ${next.key} (expired)")
+                                iterator.remove()
+                            }
                         }
                     }
                 }
+            } catch (ex: Throwable) {
+                log.warn("Caught exception in UserIterationService cleaner thread!")
+                log.warn(ex.stackTraceToString())
             }
         }, 1, 1, TimeUnit.MINUTES)
     }
@@ -93,22 +100,24 @@ class UserIterationService(
     }
 
     fun create(): String {
-        val id = UUID.randomUUID().toString()
-        val session = db.openStatelessSession()
-        val iterator = session.createQuery("from PrincipalEntity").scroll(ScrollMode.FORWARD_ONLY)
-        val state = CursorState(id, localhostName, localPort, nextExpiresAt())
-
-        db.withTransaction {
-            cursorStateDao.create(
-                it,
-                state
-            )
-        }
-
         synchronized(this) {
+            if (openIterators.size >= maxConnections) throw UserIteratorException.TooManyOpen()
+
+            val id = UUID.randomUUID().toString()
+            val session = db.openStatelessSession()
+            val iterator = session.createQuery("from PrincipalEntity").scroll(ScrollMode.FORWARD_ONLY)
+            val state = CursorState(id, localhostName, localPort, nextExpiresAt())
+
+            db.withTransaction {
+                cursorStateDao.create(
+                    it,
+                    state
+                )
+            }
+
             openIterators[id] = OpenIterator(state, session, iterator)
+            return id
         }
-        return id
     }
 
     private fun closeLocal(id: String) {
@@ -184,7 +193,7 @@ private class AuthenticatedCloudWithJobId(private val delegate: AuthenticatedClo
         get() = delegate.parent
 
     override fun HttpRequestBuilder.configureCall() {
-        with (delegate) {
+        with(delegate) {
             configureCall()
         }
 
@@ -255,4 +264,8 @@ class CursorStateHibernateDao : CursorStateDao<HibernateSession> {
     private fun CursorStateEntity.toModel(): CursorState {
         return CursorState(id, hostname, port, expiresAt.time)
     }
+}
+
+sealed class UserIteratorException(why: String, statusCode: HttpStatusCode) : RPCException(why, statusCode) {
+    class TooManyOpen : UserIteratorException("Too many iterators currently open", HttpStatusCode.Conflict)
 }

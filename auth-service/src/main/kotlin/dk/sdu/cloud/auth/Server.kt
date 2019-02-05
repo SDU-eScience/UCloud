@@ -232,7 +232,8 @@ class Server(
                         userDAO = userDao,
                         userCreationService = userCreationService,
                         tokenService = tokenService,
-                        userIterationService = userIterator
+                        userIterationService = userIterator,
+                        developmentMode = micro.developmentModeEnabled
                     ),
 
                     TwoFactorAuthController(twoFactorChallengeService, loginResponder)

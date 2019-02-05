@@ -1,13 +1,17 @@
 group 'dk.sdu.cloud'
-version '1.14.0'
+version '1.14.1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.4/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.6/sdu-cloud.gradle"
 
 repositories {
     jcenter()
+}
+
+buildscript {
+    ext.serviceCommonVersion = "0.24.0"
 }
 
 dependencies {
@@ -35,8 +39,8 @@ dependencies {
     compile 'com.google.zxing:javase:3.3.0'
 
     // Internal services
-    compile 'dk.sdu.cloud:service-common:0.23.3'
-    testCompile 'dk.sdu.cloud:service-common-test:0.23.3'
+    compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
+    testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 
 sduCloud.createTasksForApiJar("auth", [])
