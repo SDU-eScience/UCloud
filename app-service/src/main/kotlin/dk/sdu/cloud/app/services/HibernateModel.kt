@@ -1,14 +1,24 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.api.ApplicationInvocationDescription
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
+import org.hibernate.annotations.Fetch
 import org.hibernate.annotations.Type
 import java.io.Serializable
 import java.util.Date
-import javax.persistence.*
+import javax.persistence.Column
+import javax.persistence.EmbeddedId
+import javax.persistence.Entity
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.ManyToOne
+import javax.persistence.OneToMany
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
 import kotlin.collections.ArrayList
 
 /**
@@ -37,26 +47,6 @@ data class ToolEntity(
     var id: EmbeddedNameAndVersion
 ) {
     companion object : HibernateEntity<ToolEntity>, WithId<EmbeddedNameAndVersion>
-}
-
-/**
- * Added in:
- *
- * - V8__Tags.sql
- */
-@Entity
-@Table(name = "application_tags")
-class ApplicationTagEntity(
-    @ManyToOne
-    var application: ApplicationEntity,
-
-    var tag: String,
-
-    @Id
-    @GeneratedValue
-    var id: Long? = null
-) {
-    companion object : HibernateEntity<ApplicationTagEntity>, WithId<Long>
 }
 
 @Entity
@@ -92,25 +82,32 @@ class ApplicationEntity(
     @Temporal(TemporalType.TIMESTAMP)
     var modifiedAt: Date,
 
+    // New start
     @Type(type = JSONB_TYPE)
-    var application: NormalizedApplicationDescription,
+    var authors: List<String>,
 
-    // Note: This is just the original document. We _do not_ attempt to keep this synchronized with changes
-    // to description etc.
-    //
-    // In case this is used for migration we should apply these updates on top of it!
-    @Column(length = 1024 * 64)
-    var originalDocument: String,
+    var title: String,
 
-    @ManyToOne
-    var tool: ToolEntity,
+    var description: String,
+
+    var website: String?,
+
+    @Type(type = JSONB_TYPE)
+    var tags: List<String>,
+    // New end
+
+    @Type(type = JSONB_TYPE)
+    var application: ApplicationInvocationDescription,
+
+    @Column(name = "tool_name")
+    var toolName: String,
+
+    @Column(name = "tool_version")
+    var toolVersion: String,
 
     @EmbeddedId
     var id: EmbeddedNameAndVersion
 ) {
-    @OneToMany
-    var tags: MutableList<ApplicationTagEntity> = ArrayList()
-
     companion object : HibernateEntity<ApplicationEntity>, WithId<EmbeddedNameAndVersion>
 }
 

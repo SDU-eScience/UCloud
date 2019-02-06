@@ -7,6 +7,7 @@ import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.FileForUploadArchiveType
 import dk.sdu.cloud.app.api.FileTransferDescription
 import dk.sdu.cloud.app.api.JobState
+import dk.sdu.cloud.app.api.ToolReference
 import dk.sdu.cloud.app.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
@@ -36,7 +37,8 @@ data class VerifiedJobWithAccessToken(
 
 class JobVerificationService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
-    private val applicationDAO: ApplicationDAO<DBSession>
+    private val applicationDAO: ApplicationDAO<DBSession>,
+    private val toolDAO: ToolDAO<DBSession>
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
@@ -44,6 +46,7 @@ class JobVerificationService<DBSession>(
     ): VerifiedJobWithAccessToken {
         val jobId = UUID.randomUUID().toString()
         val application = findApplication(unverifiedJob)
+        val tool = application.invocation.tool.tool!!
         val verifiedParameters = verifyParameters(application, unverifiedJob)
         val workDir = URI("/$jobId")
         val files = collectFiles(application, verifiedParameters, workDir, cloud).map {
@@ -52,9 +55,9 @@ class JobVerificationService<DBSession>(
             )
         }
 
-        val numberOfJobs = unverifiedJob.request.numberOfNodes ?: application.tool.description.defaultNumberOfNodes
-        val tasksPerNode = unverifiedJob.request.tasksPerNode ?: application.tool.description.defaultTasksPerNode
-        val maxTime = unverifiedJob.request.maxTime ?: application.tool.description.defaultMaxTime
+        val numberOfJobs = unverifiedJob.request.numberOfNodes ?: tool.description.defaultNumberOfNodes
+        val tasksPerNode = unverifiedJob.request.tasksPerNode ?: tool.description.defaultTasksPerNode
+        val maxTime = unverifiedJob.request.maxTime ?: tool.description.defaultMaxTime
 
         return VerifiedJobWithAccessToken(
             VerifiedJob(
@@ -76,9 +79,16 @@ class JobVerificationService<DBSession>(
 
     private fun findApplication(job: UnverifiedJob): Application = db.withTransaction { session ->
         try {
-            with(job.request.application) {
+            val result = with(job.request.application) {
                 applicationDAO.findByNameAndVersion(session, job.principal.subject, name, version)
             }
+
+            val toolName = result.invocation.tool.name
+            val toolVersion = result.invocation.tool.version
+            val loadedTool =
+                toolDAO.findByNameAndVersion(session, null, toolName, toolVersion)
+
+            result.copy(invocation = result.invocation.copy(tool = ToolReference(toolName, toolVersion, loadedTool)))
         } catch (ex: ApplicationException.NotFound) {
             throw JobException.VerificationError("Application '${job.request.application}' does not exist")
         }
@@ -87,12 +97,12 @@ class JobVerificationService<DBSession>(
     private fun verifyParameters(app: Application, job: UnverifiedJob): VerifiedJobInput {
         val userParameters = job.request.parameters
         return VerifiedJobInput(
-            app.description.parameters.map { appParameter ->
+            app.invocation.parameters.map { appParameter ->
                 try {
                     appParameter.name to appParameter.map(userParameters[appParameter.name])
                 } catch (ex: IllegalArgumentException) {
                     log.debug(ex.stackTraceToString())
-                    log.debug("Description: ${app.description}")
+                    log.debug("Invocation: ${app.invocation}")
                     throw JobException.VerificationError("Bad parameter: ${appParameter.name}. ${ex.message}")
                 }
             }.toMap()
@@ -106,7 +116,7 @@ class JobVerificationService<DBSession>(
         cloud: AuthenticatedCloud
     ): List<ValidatedFileForUpload> {
         return coroutineScope {
-            application.description.parameters
+            application.invocation.parameters
                 .asSequence()
                 .filter { it is ApplicationParameter.InputFile || it is ApplicationParameter.InputDirectory }
                 .map {

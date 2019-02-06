@@ -2,17 +2,15 @@ package dk.sdu.cloud.app.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.app.api.JobState
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
-import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.Tool
-import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.app.api.WordInvocationParameter
 import dk.sdu.cloud.app.services.JobDao
 import dk.sdu.cloud.app.services.VerifiedJobWithAccessToken
+import dk.sdu.cloud.app.services.normAppDesc
+import dk.sdu.cloud.app.services.withInvocation
+import dk.sdu.cloud.app.services.withNameAndVersion
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
@@ -44,39 +42,10 @@ private fun KtorApplicationTestSetupContext.configureJobServer(
 
 class JobTest {
     private val mapper = jacksonObjectMapper()
-    private val tool = Tool(
-        "",
-        System.currentTimeMillis(),
-        System.currentTimeMillis(),
-        NormalizedToolDescription(
-            NameAndVersion("tool", "1.0.0"),
-            "container",
-            1,
-            1,
-            SimpleDuration(1, 0, 0),
-            emptyList(),
-            listOf("asd"),
-            "title",
-            "description",
-            ToolBackend.SINGULARITY
-        )
-    )
-    private val app = CloudApp(
-        "appOwner",
-        System.currentTimeMillis(),
-        System.currentTimeMillis(),
-        NormalizedApplicationDescription(
-            NameAndVersion("app", "1.0.0"),
-            tool.description.info,
-            listOf("asd"),
-            "app",
-            "description",
-            listOf(WordInvocationParameter("foo")),
-            emptyList(),
-            emptyList()
-        ),
-        tool
-    )
+
+    private val app = normAppDesc
+        .withNameAndVersion("app", "1.0.0")
+        .withInvocation(listOf(WordInvocationParameter("foo")))
 
     private val job = VerifiedJobWithAccessToken(
         VerifiedJob(

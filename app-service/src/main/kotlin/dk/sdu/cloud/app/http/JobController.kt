@@ -100,14 +100,10 @@ class JobController<DBSession>(
             job.owner,
             job.currentState,
             job.status,
-            job.application.description.info.name,
-            job.application.description.info.version,
+            job.application.metadata.name,
+            job.application.metadata.version,
             job.createdAt,
             job.modifiedAt
         )
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(JobController::class.java)
     }
 }

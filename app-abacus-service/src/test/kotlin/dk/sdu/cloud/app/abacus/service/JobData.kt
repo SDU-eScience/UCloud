@@ -1,9 +1,7 @@
 package dk.sdu.cloud.app.abacus.service
 
-import dk.sdu.cloud.app.api.Application
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.Tool
@@ -11,44 +9,12 @@ import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.app.api.WordInvocationParameter
-import dk.sdu.cloud.client.defaultMapper
 
 object JobData {
-    val tool = Tool(
-        "appOwner",
-        System.currentTimeMillis(),
-        System.currentTimeMillis(),
-        NormalizedToolDescription(
-            NameAndVersion("tool", "1"),
-            "container",
-            1,
-            1,
-            SimpleDuration(1, 0, 0),
-            emptyList(),
-            listOf("Author"),
-            "tool",
-            "tool",
-            ToolBackend.SINGULARITY
-        )
-    )
-
-    val application = Application(
-        "appOwner",
-        System.currentTimeMillis(),
-        System.currentTimeMillis(),
-        NormalizedApplicationDescription(
-            NameAndVersion("app", "1"),
-            tool.description.info,
-            listOf("Author"),
-            "app",
-            "appDescription",
-            listOf(WordInvocationParameter("test")),
-            emptyList(),
-            listOf("stdout.txt", "stderr.txt"),
-            emptyList()
-        ),
-        tool
-    )
+    val application = normAppDesc
+        .withNameAndVersion("app", "1")
+        .withInvocation(listOf(WordInvocationParameter("test")))
+        .withOutputFiles(listOf("stdout.txt", "stderr.txt"))
 
     val job: VerifiedJob = VerifiedJob(
         application,

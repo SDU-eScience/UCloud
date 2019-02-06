@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
@@ -27,6 +28,8 @@ data class TagSearchRequest(
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
+
+val TagSearchRequest.tags: List<String> get() = query.split(",")
 
 data class AppSearchRequest(
     val query: String,
@@ -56,7 +59,7 @@ object ApplicationDescriptions : RESTDescriptions("hpc.apps") {
         }
     }
 
-    val retrieveFavorites = callDescription<PaginationRequest, Page<ApplicationForUser>, CommonErrorMessage> {
+    val retrieveFavorites = callDescription<PaginationRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage> {
         name = "retrieveFavorites"
         method = HttpMethod.Get
 
@@ -74,7 +77,7 @@ object ApplicationDescriptions : RESTDescriptions("hpc.apps") {
             +boundTo(PaginationRequest::page)
         }
     }
-    val searchTags = callDescription<TagSearchRequest, Page<ApplicationForUser>, CommonErrorMessage> {
+    val searchTags = callDescription<TagSearchRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage> {
         name = "searchTags"
         method = HttpMethod.Get
 
@@ -94,7 +97,7 @@ object ApplicationDescriptions : RESTDescriptions("hpc.apps") {
         }
     }
 
-    val searchApps = callDescription<AppSearchRequest, Page<ApplicationForUser>, CommonErrorMessage> {
+    val searchApps = callDescription<AppSearchRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage> {
         name = "searchApps"
         method = HttpMethod.Get
 
@@ -114,7 +117,7 @@ object ApplicationDescriptions : RESTDescriptions("hpc.apps") {
         }
     }
 
-    val findByName = callDescription<FindByNameAndPagination, Page<Application>, CommonErrorMessage> {
+    val findByName = callDescription<FindByNameAndPagination, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage> {
         name = "findByName"
 
         auth {
@@ -134,7 +137,7 @@ object ApplicationDescriptions : RESTDescriptions("hpc.apps") {
 
     val findByNameAndVersion = callDescription<
             FindApplicationAndOptionalDependencies,
-            ApplicationForUser,
+            ApplicationWithFavorite,
             CommonErrorMessage> {
         name = "appsFindByNameAndVersion"
 
@@ -149,7 +152,7 @@ object ApplicationDescriptions : RESTDescriptions("hpc.apps") {
         }
     }
 
-    val listAll = callDescription<PaginationRequest, Page<ApplicationForUser>, CommonErrorMessage> {
+    val listAll = callDescription<PaginationRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage> {
         name = "listAll"
         path { using(baseContext) }
 
@@ -187,6 +190,7 @@ object ApplicationDescriptions : RESTDescriptions("hpc.apps") {
 )
 sealed class AppRequest {
     data class Start(
+        @JsonDeserialize(`as` = NameAndVersionImpl::class)
         val application: NameAndVersion,
         val parameters: Map<String, Any>,
         val numberOfNodes: Int? = null,

@@ -1,11 +1,7 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.JobState
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
-import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.service.HibernateFeature
@@ -20,39 +16,14 @@ import kotlin.test.assertEquals
 class JobHibernateDaoTest {
     private val user = "User1"
     private val systemId = UUID.randomUUID().toString()
-    private val appName = "Name of application"
-    private val version = "2.2"
-
-    private val normAppDesc = NormalizedApplicationDescription(
-        NameAndVersion(appName, version),
-        NameAndVersion(appName, version),
-        listOf("authors"),
-        "title",
-        "description",
-        emptyList(),
-        emptyList(),
-        listOf("Globs"),
-        listOf()
-    )
-
-    private val normToolDesc = NormalizedToolDescription(
-        NameAndVersion(appName, version),
-        "container",
-        2,
-        2,
-        SimpleDuration(1, 0, 0),
-        listOf(""),
-        listOf("author"),
-        "title",
-        "description",
-        ToolBackend.UDOCKER
-    )
+    private val appName = normAppDesc.metadata.name
+    private val version = normAppDesc.metadata.version
 
     @Test
     fun `create, find and update jobinfo test`() {
         val toolDao = ToolHibernateDAO()
-        val appDao = ApplicationHibernateDAO(toolDao, DefaultImageGenerator())
-        val jobHibDao = JobHibernateDao(appDao)
+        val appDao = ApplicationHibernateDAO(toolDao)
+        val jobHibDao = JobHibernateDao(appDao, toolDao)
 
         val micro = initializeMicro()
         micro.install(HibernateFeature)

@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.http
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
 import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.Tool
@@ -36,18 +35,6 @@ private fun KtorApplicationTestSetupContext.configureToolServer(
 class ToolTest {
     private val mapper = jacksonObjectMapper()
 
-    private val normAppDesc = NormalizedApplicationDescription(
-        NameAndVersion("name", "2.2"),
-        NameAndVersion("name", "2.2"),
-        listOf("Authors"),
-        "title",
-        "app description",
-        mockk(relaxed = true),
-        mockk(relaxed = true),
-        listOf("glob"),
-        listOf()
-    )
-
     private val normToolDesc = NormalizedToolDescription(
         NameAndVersion("name", "2.2"),
         "container",
@@ -66,14 +53,6 @@ class ToolTest {
         1234567,
         123456789,
         normToolDesc
-    )
-
-    private val app = dk.sdu.cloud.app.api.Application(
-        "owner",
-        1234567,
-        123456789,
-        normAppDesc,
-        tool
     )
 
     @Test

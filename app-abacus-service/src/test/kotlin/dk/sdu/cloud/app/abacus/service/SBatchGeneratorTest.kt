@@ -1,95 +1,44 @@
 package dk.sdu.cloud.app.abacus.service
 
 import dk.sdu.cloud.app.abacus.services.SBatchGenerator
-import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.Application
 import dk.sdu.cloud.app.api.ApplicationParameter
 import dk.sdu.cloud.app.api.FileTransferDescription
 import dk.sdu.cloud.app.api.JobState
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
-import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.StringApplicationParameter
-import dk.sdu.cloud.app.api.Tool
-import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.VariableInvocationParameter
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
 import dk.sdu.cloud.app.api.WordInvocationParameter
-import dk.sdu.cloud.service.JsonSerde.jsonSerde
+import dk.sdu.cloud.service.test.assertThatInstance
 import org.hamcrest.CoreMatchers.containsString
 import org.hamcrest.CoreMatchers.hasItem
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Test
 
 class SBatchGeneratorTest {
-    private fun newTool(): Tool {
-        return Tool(
-            "foo",
-            0L,
-            0L,
-            NormalizedToolDescription(
-                title = "hello",
-                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
-                description = "hello",
-                info = NameAndVersion("test", "1.0.0"),
-                container = "container-name",
-                defaultNumberOfNodes = 1,
-                defaultTasksPerNode = 1,
-                defaultMaxTime = SimpleDuration(1, 0, 0),
-                requiredModules = emptyList(),
-                backend = ToolBackend.SINGULARITY
-            )
-        )
-    }
-
     private fun simpleApp(): Application {
-        val tool = newTool()
-
-        return Application(
-            "foo",
-            0L,
-            0L,
-            NormalizedApplicationDescription(
-                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
-                title = "Figlet",
-                description = "Render some text!",
-                tool = NameAndVersion("test", "1.0.0"),
-                info = NameAndVersion("app", "1.0.0"),
-                invocation = listOf(WordInvocationParameter("hello")),
-                parameters = emptyList(),
-                outputFileGlobs = emptyList(),
-                tags = listOf()
-            ),
-            tool
-        )
+        return normAppDesc
+            .withNameAndVersion("app", "1.0.0")
+            .withInvocation(listOf(WordInvocationParameter("hello")))
     }
 
-    private fun applicationWithFile(tool: Tool = newTool()): Application {
-        return Application(
-            "foo",
-            0L,
-            0L,
-            NormalizedApplicationDescription(
-                authors = listOf("Dan Sebastian Thrane <dthrane@imada.sdu.dk>"),
-                title = "Figlet",
-                description = "Render some text!",
-                tool = NameAndVersion("hello_world", "1.0.0"),
-                info = NameAndVersion("hello", "1.0.0"),
-                invocation = listOf(
+    private fun applicationWithFile(): Application {
+        return normAppDesc
+            .withNameAndVersion("hello", "1.0.0")
+            .withInvocation(
+                listOf(
                     VariableInvocationParameter(listOf("greeting"), prefixVariable = "--greeting "),
                     VariableInvocationParameter(listOf("infile"))
-                ),
-                parameters = listOf(
+                )
+            )
+            .withParameters(
+                listOf(
                     ApplicationParameter.Text("greeting", false, null, "greeting", "greeting"),
                     ApplicationParameter.InputFile("infile", false, null, "infile", "infile")
-                ),
-                outputFileGlobs = emptyList(),
-                tags = listOf()
-            ),
-            tool
-        )
+                )
+            )
     }
 
     private fun simpleJob(app: Application = simpleApp()): VerifiedJob {
@@ -119,8 +68,8 @@ class SBatchGeneratorTest {
         val generatedJob = generator.generate(job, "")
         val lines = generatedJob.lines()
 
-        val runLine = lines.find { it.startsWith("srun singularity") }
-        assertThat(runLine, containsString("\"container-name\""))
+        val runLine = lines.find { it.trim().startsWith("srun singularity") }
+        assertThat(runLine, containsString(job.application.invocation.tool.tool!!.description.container))
 
         assertThat(lines, hasItem(containsString("#SBATCH --nodes 1")))
         assertThat(lines, hasItem(containsString("#SBATCH --ntasks-per-node 1")))
@@ -132,7 +81,7 @@ class SBatchGeneratorTest {
     @Test
     fun testWithFileParameters() {
         val app = applicationWithFile()
-        val parameters = app.description.parameters
+        val parameters = app.invocation.parameters
         val textParam = parameters.asSequence().filterIsInstance<ApplicationParameter.Text>()
             .first()
 
@@ -151,13 +100,10 @@ class SBatchGeneratorTest {
         )
         val jobLines = generator.generate(job, "").lines()
 
-        val srunLine = jobLines.find { it.startsWith("srun singularity") }
-        assertThat(
-            srunLine, containsString(
-                """
-                    --greeting "$textValue" "$destination"
-                """.trimIndent()
-            )
+        val srunLine = jobLines.find { it.trim().startsWith("srun singularity") }
+        assertThatInstance(
+            srunLine,
+            matcher = { it!!.contains("--greeting \"$textValue\" \"$destination\"") }
         )
     }
 }

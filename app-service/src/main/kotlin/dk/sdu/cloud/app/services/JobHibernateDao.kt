@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.app.api.ToolReference
 import dk.sdu.cloud.app.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
@@ -111,7 +112,8 @@ data class JobInformationEntity(
 }
 
 class JobHibernateDao(
-    private val appDao: ApplicationDAO<HibernateSession>
+    private val appDao: ApplicationDAO<HibernateSession>,
+    private val toolDao: ToolDAO<HibernateSession>
 ) : JobDao<HibernateSession> {
     override fun create(session: HibernateSession, jobWithToken: VerifiedJobWithAccessToken) {
         val (job, token) = jobWithToken
@@ -119,7 +121,7 @@ class JobHibernateDao(
         val entity = JobInformationEntity(
             job.id,
             job.owner,
-            job.application.description.info.toEmbedded(),
+            job.application.metadata.toEmbedded(),
             "Verified",
             job.currentState,
             job.nodes,
@@ -164,9 +166,23 @@ class JobHibernateDao(
         systemId: String,
         owner: String?
     ): VerifiedJobWithAccessToken? {
-        return JobInformationEntity[session, systemId]
+        val result = JobInformationEntity[session, systemId]
             ?.takeIf { owner == null || it.owner == owner }
-            ?.toModel(session)
+            ?.toModel(session) ?: return null
+
+        val toolReference = result.job.application.invocation.tool
+        val tool =
+            toolDao.findByNameAndVersion(session, owner, toolReference.name, toolReference.version)
+
+        return result.copy(
+            job = result.job.copy(
+                application = result.job.application.copy(
+                    invocation = result.job.application.invocation.copy(
+                        tool = ToolReference(toolReference.name, toolReference.version, tool)
+                    )
+                )
+            )
+        )
     }
 
     override suspend fun findJobsCreatedBefore(

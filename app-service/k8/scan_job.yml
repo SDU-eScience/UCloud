@@ -13,7 +13,7 @@ spec:
 
           containers:
           - name: app-service
-            image: registry.cloud.sdu.dk/sdu-cloud/app-service:0.11.8
+            image: registry.cloud.sdu.dk/sdu-cloud/app-service:0.13.0
             command:
             - /opt/service/bin/service
             - --config-dir

@@ -5,7 +5,6 @@ import org.junit.Test
 import kotlin.test.assertEquals
 
 class AppsAndToolsTest {
-
     @Test
     fun `create simple V1 Application description with string invocation`() {
         val v1 = ApplicationDescription.V1(
@@ -32,16 +31,16 @@ class AppsAndToolsTest {
         assertEquals("string", v1.parameters.keys.first())
         assertEquals("globs", v1.outputFileGlobs.first())
 
-        val normTool = v1.normalize()
+        val normalizedApplication = v1.normalize()
 
-        assertEquals("name", normTool.info.name)
-        assertEquals("2.2", normTool.info.version)
-        assertEquals("title", normTool.title)
-        assertEquals("description", normTool.description)
-        assertEquals("Authors", normTool.authors.first())
-        assertEquals("globs", normTool.outputFileGlobs.first().toString())
-        assertEquals("name", normTool.tool.name)
-        assertEquals("2.2", normTool.tool.version)
+        assertEquals("name", normalizedApplication.metadata.name)
+        assertEquals("2.2", normalizedApplication.metadata.version)
+        assertEquals("title", normalizedApplication.metadata.title)
+        assertEquals("description", normalizedApplication.metadata.description)
+        assertEquals("Authors", normalizedApplication.metadata.authors.first())
+        assertEquals("globs", normalizedApplication.invocation.outputFileGlobs.first().toString())
+        assertEquals("name", normalizedApplication.invocation.tool.name)
+        assertEquals("2.2", normalizedApplication.invocation.tool.version)
 
     }
 

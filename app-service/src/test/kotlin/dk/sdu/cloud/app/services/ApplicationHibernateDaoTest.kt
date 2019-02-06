@@ -1,79 +1,15 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.app.api.NameAndVersion
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
-import dk.sdu.cloud.app.api.NormalizedToolDescription
-import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.utils.withDatabase
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
-import io.mockk.mockk
+import dk.sdu.cloud.service.test.assertThatPropertyEquals
+import org.junit.Ignore
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
 
 class ApplicationHibernateDaoTest {
     private val user = "user"
-    private val normAppDesc = NormalizedApplicationDescription(
-        NameAndVersion("name", "2.2"),
-        NameAndVersion("name", "2.2"),
-        listOf("Authors"),
-        "title",
-        "app description",
-        mockk(relaxed = true),
-        mockk(relaxed = true),
-        listOf("glob"),
-        listOf("tag1", "tag2")
-    )
-    private val normAppDesc2 = NormalizedApplicationDescription(
-        NameAndVersion("name", "1.2"),
-        NameAndVersion("name", "2.2"),
-        listOf("Authors"),
-        "title",
-        "app description",
-        mockk(relaxed = true),
-        mockk(relaxed = true),
-        listOf("glob"),
-        listOf()
-    )
-    private val normAppDesc3 = NormalizedApplicationDescription(
-        NameAndVersion("app", "3.2"),
-        NameAndVersion("name", "2.2"),
-        listOf("Authors"),
-        "title",
-        "app description",
-        mockk(relaxed = true),
-        mockk(relaxed = true),
-        listOf("glob"),
-        listOf()
-    )
-    private val normAppDesc4 = NormalizedApplicationDescription(
-        NameAndVersion("app", "4.2"),
-        NameAndVersion("name", "2.2"),
-        listOf("Authors"),
-        "title",
-        "app description",
-        mockk(relaxed = true),
-        mockk(relaxed = true),
-        listOf("glob"),
-        listOf()
-    )
-
-    private val normToolDesc = NormalizedToolDescription(
-        NameAndVersion("name", "2.2"),
-        "container",
-        2,
-        2,
-        SimpleDuration(1, 0, 0),
-        listOf(""),
-        listOf("auther"),
-        "title",
-        "description",
-        ToolBackend.UDOCKER
-    )
 
     @Test
     fun `create, find, update test`() {
@@ -83,13 +19,13 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
+                val appDAO = ApplicationHibernateDAO(toolDAO)
                 appDAO.create(it, user, normAppDesc)
 
                 run {
                     // Load from page
                     val hits = appDAO.findAllByName(it, user, "name", NormalizedPaginationRequest(10, 0))
-                    val loadedApp = hits.items.first().description.description
+                    val loadedApp = hits.items.first().metadata.description
 
                     assertEquals("app description", loadedApp)
                     assertEquals(1, hits.itemsInTotal)
@@ -98,7 +34,7 @@ class ApplicationHibernateDaoTest {
                 run {
                     // Load from specific version
                     val loadedApp = appDAO.findByNameAndVersion(it, user, "name", "2.2")
-                    assertEquals("app description", loadedApp.description.description)
+                    assertEquals("app description", loadedApp.metadata.description)
                 }
 
                 appDAO.updateDescription(it, user, "name", "2.2", "new description")
@@ -106,8 +42,8 @@ class ApplicationHibernateDaoTest {
                 run {
                     // Load from specific version after update
                     val loadedApp = appDAO.findByNameAndVersion(it, user, "name", "2.2")
-                    assertEquals("new description", loadedApp.description.description)
-                    assertEquals("Authors", loadedApp.description.authors.first())
+                    assertEquals("new description", loadedApp.metadata.description)
+                    assertEquals("Authors", loadedApp.metadata.authors.first())
                 }
 
                 appDAO.updateDescription(it, user, "name", "2.2", null, listOf("New Authors"))
@@ -115,42 +51,32 @@ class ApplicationHibernateDaoTest {
                 run {
                     // Load from specific version after another update
                     val loadedApp = appDAO.findByNameAndVersion(it, user, "name", "2.2")
-                    assertEquals("new description", loadedApp.description.description)
-                    assertEquals("New Authors", loadedApp.description.authors.first())
+                    assertEquals("new description", loadedApp.metadata.description)
+                    assertEquals("New Authors", loadedApp.metadata.authors.first())
                 }
             }
         }
     }
 
     @Test
-    fun `list all`() {
+    fun `test creating different versions`() {
         withDatabase { db ->
             db.withTransaction {
+                val version1 = normAppDesc.withNameAndVersion("app", "v1")
+                val version2 = normAppDesc.withNameAndVersion("app", "v2")
+
                 val toolDAO = ToolHibernateDAO()
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
-                appDAO.create(it, user, normAppDesc2)
-                Thread.sleep(1000)
-                appDAO.create(it, user, normAppDesc)
-                Thread.sleep(1000)
-                appDAO.create(it, user, normAppDesc3)
-                Thread.sleep(1000)
-                appDAO.create(it, user, normAppDesc4)
-
-                appDAO.toggleFavorite(it, user, normAppDesc.info.name, normAppDesc.info.version)
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+                appDAO.create(it, user, version1)
+                Thread.sleep(1000) // Wait a bit to make sure they get different createdAt
+                appDAO.create(it, user, version2)
 
                 val allListed = appDAO.listLatestVersion(it, user, NormalizedPaginationRequest(10, 0))
-
-                var previous = ""
-                allListed.items.forEach {
-                    if (it.application.description.info.name < previous)
-                        assert(false)
-                    previous = it.application.description.info.name
-                }
-
-                assertEquals(2, allListed.itemsInTotal)
+                assertEquals(1, allListed.itemsInTotal)
+                assertThatPropertyEquals(allListed.items.single(), { it.metadata.version }, version2.metadata.version)
             }
         }
     }
@@ -160,51 +86,34 @@ class ApplicationHibernateDaoTest {
         withDatabase { db ->
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
-
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
-                appDAO.create(it, user, normAppDesc2)
-                Thread.sleep(1000)
-                appDAO.create(it, user, normAppDesc)
-                Thread.sleep(1000)
-                appDAO.create(it, user, normAppDesc3)
-                Thread.sleep(1000)
-                appDAO.create(it, user, normAppDesc4)
+                val applicationA = normAppDesc.withNameAndVersion("AAA", "1")
+                val applicationB = normAppDesc.withNameAndVersion("BBB", "1")
 
-                appDAO.toggleFavorite(it, user, normAppDesc.info.name, normAppDesc.info.version)
+                val appDAO = ApplicationHibernateDAO(toolDAO)
+                appDAO.create(it, user, applicationA)
+                appDAO.create(it, user, applicationB)
 
                 run {
-                    val searchResult = appDAO.search(it, user, "nam", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, "A", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
-                    assertEquals("name", searchResult.items.first().application.description.info.name)
+                    assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "ap", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, "AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
-                    assertEquals("app", searchResult.items.first().application.description.info.name)
+                    assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "a", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, "AAA", NormalizedPaginationRequest(10, 0))
 
-                    assertEquals(2, searchResult.itemsInTotal)
-                    assertEquals("app", searchResult.items[0].application.description.info.name)
-                    assertEquals("name", searchResult.items[1].application.description.info.name)
-
-                    assertFalse(searchResult.items[0].favorite)
-                    assertTrue(searchResult.items[1].favorite)
-                }
-
-                run {
-                    val searchResult = appDAO.search(it, user, "", NormalizedPaginationRequest(10, 0))
-
-                    assertEquals(2, searchResult.itemsInTotal)
-                    assertEquals("app", searchResult.items[0].application.description.info.name)
-                    assertEquals("name", searchResult.items[1].application.description.info.name)
+                    assertEquals(1, searchResult.itemsInTotal)
+                    assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
 
                 run {
@@ -212,57 +121,6 @@ class ApplicationHibernateDaoTest {
 
                     assertEquals(0, searchResult.itemsInTotal)
                 }
-            }
-        }
-    }
-
-    @Test
-    fun `list all - same date test`() {
-        withDatabase { db ->
-            db.withTransaction {
-                val toolDAO = ToolHibernateDAO()
-
-                toolDAO.create(it, user, normToolDesc)
-
-                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
-
-                val tool = toolDAO.internalByNameAndVersion(it, normAppDesc.tool.name, normAppDesc.tool.version)
-
-                val date = Date()
-                it.save(
-                    ApplicationEntity(
-                        user,
-                        date,
-                        date,
-                        normAppDesc,
-                        "",
-                        tool!!,
-                        EmbeddedNameAndVersion(normAppDesc.info.name, normAppDesc.info.version)
-                    )
-                )
-
-                it.save(
-                    ApplicationEntity(
-                        user,
-                        date,
-                        date,
-                        normAppDesc4,
-                        "",
-                        tool,
-                        EmbeddedNameAndVersion(normAppDesc4.info.name, normAppDesc4.info.version)
-                    )
-                )
-
-
-                val allListed = appDAO.listLatestVersion(it, user, NormalizedPaginationRequest(10, 0))
-                var previous = ""
-                allListed.items.forEach {
-                    if (it.application.description.info.name < previous)
-                        assert(false)
-                    previous = it.application.description.info.name
-                }
-
-                assertEquals(2, allListed.itemsInTotal)
             }
         }
     }
@@ -275,7 +133,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
+                val appDAO = ApplicationHibernateDAO(toolDAO)
                 appDAO.create(it, user, normAppDesc)
                 appDAO.create(it, user, normAppDesc)
 
@@ -291,7 +149,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
+                val appDAO = ApplicationHibernateDAO(toolDAO)
                 appDAO.create(it, user, normAppDesc)
                 appDAO.create(it, "Not the user", normAppDesc)
 
@@ -304,7 +162,7 @@ class ApplicationHibernateDaoTest {
         withDatabase { db ->
             db.withTransaction {
 
-                val appDAO = ApplicationHibernateDAO(ToolHibernateDAO(), DefaultImageGenerator())
+                val appDAO = ApplicationHibernateDAO(ToolHibernateDAO())
                 appDAO.create(it, user, normAppDesc)
             }
         }
@@ -315,84 +173,61 @@ class ApplicationHibernateDaoTest {
         withDatabase { db ->
             db.withTransaction {
 
-                val appDAO = ApplicationHibernateDAO(ToolHibernateDAO(), DefaultImageGenerator())
+                val appDAO = ApplicationHibernateDAO(ToolHibernateDAO())
                 appDAO.findByNameAndVersion(it, user, "name", "version")
             }
         }
     }
 
+    @Ignore // Code only works in postgres
     @Test
     fun `tagSearch test`() {
         withDatabase { db ->
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
-
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
-                appDAO.create(it, user, normAppDesc)
-                appDAO.create(it, user, normAppDesc3)
-                appDAO.create(
-                    it, user, normAppDesc.copy(
-                        info = NameAndVersion("App2", "3.4"),
-                        tags = listOf("tag2", "tag5")
-                    )
-                )
-                appDAO.create(
-                    it, user, normAppDesc.copy(
-                        info = NameAndVersion("App1", "1.4"),
-                        tags = listOf("tag2", "tag4")
-                    )
-                )
+                val appDAO = ApplicationHibernateDAO(toolDAO)
 
-                appDAO.toggleFavorite(it, user, "App1", "1.4")
-                appDAO.toggleFavorite(it, user, "App2", "3.4")
+                val commonTag = "common"
+                val appA = normAppDesc.withNameAndVersion("A", "1").withTags(listOf("A1", "A2", commonTag))
+                val appB = normAppDesc.withNameAndVersion("B", "1").withTags(listOf("B1", "B2", commonTag))
+
+                appDAO.create(it, user, appA)
+                appDAO.create(it, user, appB)
 
                 run {
                     // Search for no hits
-                    val hits = appDAO.searchTags(it, user, "tag20", NormalizedPaginationRequest(10, 0))
-                    println(hits)
+                    val hits = appDAO.searchTags(it, user, listOf("tag20"), NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, hits.itemsInTotal)
                 }
 
                 run {
                     // Search for one hit tag
-                    val hits = appDAO.searchTags(it, user, "tag1", NormalizedPaginationRequest(10, 0))
-                    println(hits)
-                    val loadedApp = hits.items.first().application.description.description
+                    val hits = appDAO.searchTags(it, user, listOf("A1"), NormalizedPaginationRequest(10, 0))
 
-                    assertEquals("app description", loadedApp)
+                    val result = hits.items.single().metadata
+
                     assertEquals(1, hits.itemsInTotal)
+                    assertEquals(appA.metadata.name, result.name)
+                    assertEquals(appA.metadata.version, result.version)
                 }
 
                 run {
                     // Search for multiple hit tag
-                    val hits = appDAO.searchTags(it, user, "tag2", NormalizedPaginationRequest(10, 0))
+                    val hits = appDAO.searchTags(it, user, listOf(commonTag), NormalizedPaginationRequest(10, 0))
 
-                    var previous = ""
-                    hits.items.forEach {
-                        if (it.application.description.info.name < previous)
-                            assert(false)
-                        previous = it.application.description.info.name
-                    }
-
-                    assertEquals(3, hits.itemsInTotal)
-                    assertEquals("App1", hits.items[0].application.description.info.name)
-                    assertEquals("App2", hits.items[1].application.description.info.name)
-                    assertEquals("name", hits.items[2].application.description.info.name)
-
-                    assertTrue(hits.items[0].favorite)
-                    assertTrue(hits.items[1].favorite)
-                    assertFalse(hits.items[2].favorite)
+                    assertEquals(2, hits.itemsInTotal)
+                    assertEquals(appA.metadata.name, hits.items[0].metadata.name)
+                    assertEquals(appB.metadata.name, hits.items[1].metadata.name)
                 }
 
                 run {
                     // Search for empty tag. Should be empty since it is not a wildcard search
-                    val hits = appDAO.searchTags(it, user, "", NormalizedPaginationRequest(10, 0))
+                    val hits = appDAO.searchTags(it, user, listOf(""), NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, hits.itemsInTotal)
-
                 }
             }
         }
@@ -403,56 +238,39 @@ class ApplicationHibernateDaoTest {
         withDatabase { db ->
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
-
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
-                appDAO.create(it, user, normAppDesc)
-                appDAO.create(it, user, normAppDesc3)
-                appDAO.create(
-                    it, user, normAppDesc.copy(
-                        info = NameAndVersion("App2", "3.4")
-                    )
-                )
-                appDAO.create(
-                    it, user, normAppDesc.copy(
-                        info = NameAndVersion("App1", "1.4")
-                    )
-                )
+                val appDAO = ApplicationHibernateDAO(toolDAO)
 
-                run {
-                    val favorites = appDAO.retrieveFavorites(it, user, NormalizedPaginationRequest(10, 0))
-                    assertEquals(0, favorites.itemsInTotal)
-                }
+                val userA = "userA"
+                val userB = "userB"
 
-                run {
-                    appDAO.toggleFavorite(it, user, "App2", "3.4")
-                    val favorites = appDAO.retrieveFavorites(it, user, NormalizedPaginationRequest(10, 0))
-                    assertEquals(1, favorites.itemsInTotal)
-                }
+                val aVersion1 = normAppDesc.withNameAndVersion("A", "v1")
+                val aVersion2 = normAppDesc.withNameAndVersion("A", "v2")
+                val bVersion1 = normAppDesc.withNameAndVersion("B", "v1")
 
-                run {
-                    appDAO.toggleFavorite(it, user, "App1", "1.4")
-                    val favorites = appDAO.retrieveFavorites(it, user, NormalizedPaginationRequest(10, 0))
-                    assertEquals(2, favorites.itemsInTotal)
-                }
+                appDAO.create(it, user, aVersion1)
+                Thread.sleep(100) // Ensure different createdAt
+                appDAO.create(it, user, aVersion2)
+                appDAO.create(it, user, bVersion1)
 
-                run {
-                    appDAO.toggleFavorite(it, "AnotherUser", "App1", "1.4")
-                    val favorites = appDAO.retrieveFavorites(it, "AnotherUser", NormalizedPaginationRequest(10, 0))
-                    assertEquals(1, favorites.itemsInTotal)
-                }
+                listOf(userA, userB).forEach { currentUser ->
+                    run {
+                        val favorites = appDAO.retrieveFavorites(it, currentUser, NormalizedPaginationRequest(10, 0))
+                        assertEquals(0, favorites.itemsInTotal)
+                    }
 
-                run {
-                    appDAO.toggleFavorite(it, user, "App1", "1.4")
-                    val favorites = appDAO.retrieveFavorites(it, user, NormalizedPaginationRequest(10, 0))
-                    assertEquals(1, favorites.itemsInTotal)
-                }
+                    run {
+                        appDAO.toggleFavorite(it, currentUser, aVersion1.metadata.name, aVersion1.metadata.version)
+                        val favorites = appDAO.retrieveFavorites(it, currentUser, NormalizedPaginationRequest(10, 0))
+                        assertEquals(1, favorites.itemsInTotal)
+                    }
 
-                run {
-                    appDAO.toggleFavorite(it, "AnotherUser", "App1", "1.4")
-                    val favorites = appDAO.retrieveFavorites(it, "AnotherUser", NormalizedPaginationRequest(10, 0))
-                    assertEquals(0, favorites.itemsInTotal)
+                    run {
+                        appDAO.toggleFavorite(it, currentUser, aVersion2.metadata.name, aVersion2.metadata.version)
+                        val favorites = appDAO.retrieveFavorites(it, currentUser, NormalizedPaginationRequest(10, 0))
+                        assertEquals(2, favorites.itemsInTotal)
+                    }
                 }
             }
         }
@@ -466,7 +284,7 @@ class ApplicationHibernateDaoTest {
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, DefaultImageGenerator())
+                val appDAO = ApplicationHibernateDAO(toolDAO)
 
                 appDAO.toggleFavorite(it, user, "App1", "1.4")
             }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.ApplicationDescription
 import dk.sdu.cloud.app.api.ApplicationDescriptions
+import dk.sdu.cloud.app.api.tags
 import dk.sdu.cloud.app.services.ApplicationDAO
 import dk.sdu.cloud.app.util.yamlMapper
 import dk.sdu.cloud.service.Controller
@@ -59,7 +60,7 @@ class AppController<DBSession>(
                 source.searchTags(
                     it,
                     call.securityPrincipal.username,
-                    req.query,
+                    req.tags,
                     req.normalize()
                 )
             }

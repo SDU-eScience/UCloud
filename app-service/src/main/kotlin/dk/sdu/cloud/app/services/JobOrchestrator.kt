@@ -9,6 +9,7 @@ import dk.sdu.cloud.app.api.InternalFollowStdStreamsRequest
 import dk.sdu.cloud.app.api.JobCompletedEvent
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.JobStateChange
+import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.app.api.VerifiedJob
@@ -183,7 +184,7 @@ class JobOrchestrator<DBSession>(
                     wallDuration,
                     job.nodes,
                     System.currentTimeMillis(),
-                    job.application.description.info,
+                    NameAndVersion(job.application.metadata.name, job.application.metadata.version),
                     success
                 )
             )
@@ -226,7 +227,7 @@ class JobOrchestrator<DBSession>(
             internalResult.stdoutNextLine,
             internalResult.stderr,
             internalResult.stderrNextLine,
-            job.application.description.info,
+            NameAndVersion(job.application.metadata.name, job.application.metadata.version),
             job.currentState,
             job.status,
             job.currentState.isFinal(),
@@ -347,7 +348,9 @@ class JobOrchestrator<DBSession>(
     }
 
     private fun findJobForId(id: String): VerifiedJobWithAccessToken =
-        db.withTransaction { session -> jobDao.findOrNull(session, id) ?: throw JobException.NotFound("Job: $id") }
+        db.withTransaction { session ->
+            jobDao.findOrNull(session, id) ?: throw JobException.NotFound("Job: $id")
+        }
 
     companion object : Loggable {
         override val log = logger()

@@ -1,8 +1,11 @@
 package dk.sdu.cloud.app.services
 
+import com.vladmihalcea.hibernate.type.array.StringArrayType
 import dk.sdu.cloud.app.api.Application
-import dk.sdu.cloud.app.api.ApplicationForUser
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.api.ApplicationMetadata
+import dk.sdu.cloud.app.api.ApplicationSummary
+import dk.sdu.cloud.app.api.ApplicationSummaryWithFavorite
+import dk.sdu.cloud.app.api.ApplicationWithFavorite
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.RPCException
@@ -16,12 +19,13 @@ import dk.sdu.cloud.service.db.paginatedList
 import dk.sdu.cloud.service.db.typedQuery
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
+import org.hibernate.jpa.TypedParameterValue
+import java.math.BigInteger
 import java.util.*
 
 @Suppress("TooManyFunctions") // Does not make sense to split
 class ApplicationHibernateDAO(
-    private val toolDAO: ToolHibernateDAO,
-    private val defaultImageGenerator: DefaultImageGenerator
+    private val toolDAO: ToolHibernateDAO
 ) : ApplicationDAO<HibernateSession> {
 
     override fun toggleFavorite(
@@ -72,7 +76,7 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: String,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationForUser> {
+    ): Page<ApplicationSummaryWithFavorite> {
         val itemsInTotal = session.createCriteriaBuilder<Long, FavoriteApplicationEntity>().run {
             criteria.where(entity[FavoriteApplicationEntity::user] equal user)
             criteria.select(count(entity))
@@ -87,42 +91,72 @@ class ApplicationHibernateDAO(
             """.trimIndent()
         ).setParameter("user", user)
             .paginatedList(paging)
-            .map { it.toModel(defaultImageGenerator) }
-
-        val preparedForUserPageItems = mutableListOf<ApplicationForUser>()
-        items.forEach {
-            preparedForUserPageItems.add(ApplicationForUser(it, true))
-        }
+            .asSequence()
+            .map { it.toModel() }
+            .map { ApplicationSummaryWithFavorite(it.metadata, true) }
+            .toList()
 
         return Page(
             itemsInTotal.toInt(),
             paging.itemsPerPage,
             paging.page,
-            preparedForUserPageItems
+            items
         )
     }
 
     override fun searchTags(
         session: HibernateSession,
         user: String,
-        query: String,
+        tags: List<String>,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationForUser> {
-        val itemsInTotal = session.createCriteriaBuilder<Long, ApplicationTagEntity>().run {
-            criteria.where(entity[ApplicationTagEntity::tag] equal query)
-            criteria.select(count(entity))
-        }.createQuery(session).uniqueResult()
+    ): Page<ApplicationSummaryWithFavorite> {
+        val itemsInTotal = session
+            .createNativeQuery(
+                // language=sql
+                """
+                select count(*)
+                from {h-schema}applications a
+                where
+                  jsonb_exists_any(tags, :tags) and
+                  a.created_at in (
+                    select max(created_at)
+                    from app.applications b
+                    where a.name = b.name
+                    group by a.name
+                  )
+                """.trimIndent()
+            )
+            .apply {
+                setParameter("tags", TypedParameterValue(StringArrayType.INSTANCE, tags.toTypedArray()))
+            }
+            .resultList
+            .single() as BigInteger
 
-        val items = session.typedQuery<ApplicationEntity>(
-            """
-                select application
-                from ApplicationTagEntity
-                where tag=:query
-                order by application
-            """.trimIndent()
-        ).setParameter("query", query)
-            .paginatedList(paging)
-            .map { it.toModel(defaultImageGenerator) }
+        val items = session
+            .createNativeQuery<ApplicationEntity>(
+                // language=sql
+                """
+                select *
+                from {h-schema}applications a
+                where
+                  jsonb_exists_any(tags, :tags) and
+                  a.created_at in (
+                    select max(created_at)
+                    from app.applications b
+                    where a.name = b.name
+                    group by a.name
+                  )
+                """.trimIndent(),
+                ApplicationEntity::class.java
+            )
+            .apply {
+                setParameter("tags", TypedParameterValue(StringArrayType.INSTANCE, tags.toTypedArray()))
+
+                maxResults = paging.itemsPerPage
+                firstResult = paging.page * paging.itemsPerPage
+            }
+            .resultList
+            .map { it.toModelWithInvocation() }
 
         return preparePageForUser(
             session,
@@ -133,7 +167,7 @@ class ApplicationHibernateDAO(
                 paging.page,
                 items
             )
-        )
+        ).mapItems { it.withoutInvocation() }
     }
 
     override fun search(
@@ -141,7 +175,7 @@ class ApplicationHibernateDAO(
         user: String,
         query: String,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationForUser> {
+    ): Page<ApplicationSummaryWithFavorite> {
         val normalizedQuery = normalizeQuery(query)
         val count = session.typedQuery<Long>(
             """
@@ -160,7 +194,7 @@ class ApplicationHibernateDAO(
         val items = session.typedQuery<ApplicationEntity>(
             """
                 from
-                    ApplicationEntity as A left join fetch A.tool
+                    ApplicationEntity as A
                 where
                     (A.createdAt) in (
                         select max(createdAt)
@@ -173,7 +207,7 @@ class ApplicationHibernateDAO(
             """.trimIndent()
         ).setParameter("query", normalizedQuery)
             .paginatedList(paging)
-            .map { it.toModel(defaultImageGenerator) }
+            .map { it.toModelWithInvocation() }
 
         return preparePageForUser(
             session,
@@ -184,7 +218,7 @@ class ApplicationHibernateDAO(
                 paging.page,
                 items
             )
-        )
+        ).mapItems { it.withoutInvocation() }
     }
 
     override fun findAllByName(
@@ -192,11 +226,14 @@ class ApplicationHibernateDAO(
         user: String?,
         name: String,
         paging: NormalizedPaginationRequest
-    ): Page<Application> {
-        return session.paginatedCriteria<ApplicationEntity>(paging) {
-            entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
-        }.mapItems { it.toModel(defaultImageGenerator) }
-
+    ): Page<ApplicationSummaryWithFavorite> {
+        return preparePageForUser(
+            session,
+            user,
+            session.paginatedCriteria<ApplicationEntity>(paging) {
+                entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
+            }.mapItems { it.toModelWithInvocation() }
+        ).mapItems { it.withoutInvocation() }
     }
 
     override fun findByNameAndVersion(
@@ -206,7 +243,7 @@ class ApplicationHibernateDAO(
         version: String
     ): Application {
         return internalByNameAndVersion(session, name, version)
-            ?.toModel(defaultImageGenerator) ?: throw ApplicationException.NotFound()
+            ?.toModelWithInvocation() ?: throw ApplicationException.NotFound()
     }
 
     override fun findByNameAndVersionForUser(
@@ -214,8 +251,8 @@ class ApplicationHibernateDAO(
         user: String,
         name: String,
         version: String
-    ): ApplicationForUser {
-        val entity = internalByNameAndVersion(session, name, version)?.toModel(defaultImageGenerator)
+    ): ApplicationWithFavorite {
+        val entity = internalByNameAndVersion(session, name, version)?.toModelWithInvocation()
             ?: throw ApplicationException.NotFound()
         return preparePageForUser(session, user, Page(1, 1, 0, listOf(entity))).items.first()
     }
@@ -224,7 +261,7 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: String?,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationForUser> {
+    ): Page<ApplicationSummaryWithFavorite> {
         val count = session.typedQuery<Long>(
             """
             select count (A.id.name)
@@ -240,7 +277,7 @@ class ApplicationHibernateDAO(
 
         val items = session.typedQuery<ApplicationEntity>(
             """
-            from ApplicationEntity as A left join fetch A.tool where (A.createdAt) in (
+            from ApplicationEntity as A where (A.createdAt) in (
                 select max(createdAt)
                 from ApplicationEntity as B
                 where A.id.name = B.id.name
@@ -249,7 +286,7 @@ class ApplicationHibernateDAO(
             order by A.id.name
         """.trimIndent()
         ).paginatedList(paging)
-            .map { it.toModel(defaultImageGenerator) }
+            .map { it.toModelWithInvocation() }
         return preparePageForUser(
             session,
             user,
@@ -259,40 +296,44 @@ class ApplicationHibernateDAO(
                 paging.page,
                 items
             )
-        )
+        ).mapItems { it.withoutInvocation() }
     }
 
     override fun create(
         session: HibernateSession,
         user: String,
-        description: NormalizedApplicationDescription,
+        description: Application,
         originalDocument: String
     ) {
-        val existingOwner = findOwnerOfApplication(session, description.info.name)
+        val existingOwner = findOwnerOfApplication(session, description.metadata.name)
         if (existingOwner != null && existingOwner != user) {
             throw ApplicationException.NotAllowed()
         }
 
-        val existing = internalByNameAndVersion(session, description.info.name, description.info.version)
+        val existing = internalByNameAndVersion(session, description.metadata.name, description.metadata.version)
         if (existing != null) throw ApplicationException.AlreadyExists()
 
-        val existingTool = toolDAO.internalByNameAndVersion(session, description.tool.name, description.tool.version)
-            ?: throw ApplicationException.BadToolReference()
+        val existingTool = toolDAO.internalByNameAndVersion(
+            session,
+            description.invocation.tool.name,
+            description.invocation.tool.version
+        ) ?: throw ApplicationException.BadToolReference()
 
         val entity = ApplicationEntity(
             user,
             Date(),
             Date(),
-            description,
-            originalDocument,
-            existingTool,
-            EmbeddedNameAndVersion(description.info.name, description.info.version)
+            description.metadata.authors,
+            description.metadata.title,
+            description.metadata.description,
+            description.metadata.website,
+            description.metadata.tags,
+            description.invocation,
+            existingTool.tool.info.name,
+            existingTool.tool.info.version,
+            EmbeddedNameAndVersion(description.metadata.name, description.metadata.version)
         )
         session.save(entity)
-
-        description.tags.forEach { tag ->
-            session.save(ApplicationTagEntity(entity, tag))
-        }
     }
 
     override fun updateDescription(
@@ -306,15 +347,9 @@ class ApplicationHibernateDAO(
         val existing = internalByNameAndVersion(session, name, version) ?: throw ApplicationException.NotFound()
         if (existing.owner != user) throw ApplicationException.NotAllowed()
 
-        val newApplication = existing.application.let {
-            if (newDescription != null) it.copy(description = newDescription)
-            else it
-        }.let {
-            if (newAuthors != null) it.copy(authors = newAuthors)
-            else it
-        }
+        if (newDescription != null) existing.description = newDescription
+        if (newAuthors != null) existing.authors = newAuthors
 
-        existing.application = newApplication
         session.update(existing)
     }
 
@@ -343,7 +378,7 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: String?,
         page: Page<Application>
-    ): Page<ApplicationForUser> {
+    ): Page<ApplicationWithFavorite> {
         if (!user.isNullOrBlank()) {
             val allFavorites = session
                 .criteria<FavoriteApplicationEntity> { entity[FavoriteApplicationEntity::user] equal user }
@@ -351,16 +386,16 @@ class ApplicationHibernateDAO(
 
             val preparedPageItems = page.items.map { item ->
                 val isFavorite = allFavorites.any { fav ->
-                    fav.application.id.name == item.description.info.name &&
-                            fav.application.id.version == item.description.info.version
+                    fav.application.id.name == item.metadata.name &&
+                            fav.application.id.version == item.metadata.version
                 }
 
-                ApplicationForUser(item, isFavorite)
+                ApplicationWithFavorite(item.metadata, item.invocation, isFavorite)
             }
 
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         } else {
-            val preparedPageItems = page.items.map { ApplicationForUser(it, false) }
+            val preparedPageItems = page.items.map { ApplicationWithFavorite(it.metadata, it.invocation, false) }
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         }
     }
@@ -370,14 +405,22 @@ class ApplicationHibernateDAO(
     }
 }
 
-internal fun ApplicationEntity.toModel(imageGen: DefaultImageGenerator? = null): Application {
-    return Application(
-        owner,
-        createdAt.time,
-        modifiedAt.time,
-        application,
-        tool.toModel()
-    ).let { imageGen?.processApplication(it) ?: it }
+internal fun ApplicationEntity.toMetadata(): ApplicationMetadata = ApplicationMetadata(
+    id.name,
+    id.version,
+    authors,
+    title,
+    description,
+    tags,
+    website
+)
+
+internal fun ApplicationEntity.toModel(): ApplicationSummary {
+    return ApplicationSummary(toMetadata())
+}
+
+internal fun ApplicationEntity.toModelWithInvocation(): Application {
+    return Application(toMetadata(), application)
 }
 
 sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {

@@ -10,8 +10,8 @@ class SBatchGenerator {
         verifiedJob: VerifiedJob,
         workDir: String
     ): String {
-        val app = verifiedJob.application.description
-        val tool = verifiedJob.application.tool.description
+        val app = verifiedJob.application.invocation
+        val tool = verifiedJob.application.invocation.tool.tool!!.description
         val givenParameters = verifiedJob.jobInput.asMap().mapNotNull { (paramName, value) ->
             if (value != null) {
                 app.parameters.find { it.name == paramName }!! to value

@@ -2,67 +2,10 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.annotation.JsonUnwrapped
-import dk.sdu.cloud.service.Loggable
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
-import org.slf4j.Logger
 import kotlin.reflect.KProperty0
-
-// Note: It is currently assumed that validation is done in layers above
-data class Application(
-    val owner: String,
-    val createdAt: Long,
-    val modifiedAt: Long,
-    val description: NormalizedApplicationDescription,
-    val tool: Tool,
-    val imageUrl: String = ""
-) {
-    override fun toString(): String {
-        return "Application(owner='$owner', createdAt=$createdAt, modifiedAt=$modifiedAt, description=$description, tool=$tool)"
-    }
-}
-
-data class ApplicationForUser(
-    @JsonUnwrapped
-    val application: Application,
-
-    val favorite: Boolean
-)
-
-// TODO Contains duplicate data: Info, Tool, Tags. Issue #307
-data class NormalizedApplicationDescription(
-    val info: NameAndVersion,
-    val tool: NameAndVersion,
-    val authors: List<String>,
-    val title: String,
-    val description: String,
-    val invocation: List<InvocationParameter>,
-    val parameters: List<ApplicationParameter<*>>,
-    val outputFileGlobs: List<String>,
-    val tags: List<String> = emptyList(),
-
-    val applicationType: ApplicationType = ApplicationType.BATCH,
-    val website: String? = null,
-    val resources: ResourceRequirements = ResourceRequirements()
-) {
-    override fun toString(): String {
-        return "NormalizedApplicationDescription(info=$info, tool=$tool)"
-    }
-}
-
-enum class ApplicationType {
-    BATCH
-}
-
-data class ResourceRequirements(
-    val multiNodeSupport: Boolean = false,
-    val coreRequirements: Int = -1,
-    val memoryRequirementsMb: Int = -1,
-    val gpuRequirements: Int = -1,
-    val tempStorageRequirementsGb: Int = -1,
-    val persistentStorageRequirementsGb: Int = -1
-)
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -73,12 +16,13 @@ data class ResourceRequirements(
     JsonSubTypes.Type(value = ApplicationDescription.V1::class, name = "v1")
 )
 sealed class ApplicationDescription(val application: String) {
-    abstract fun normalize(): NormalizedApplicationDescription
+    abstract fun normalize(): Application
 
     class V1(
         val name: String,
         val version: String,
 
+        @JsonDeserialize(`as` = NameAndVersionImpl::class)
         val tool: NameAndVersion,
         val authors: List<String>,
         val title: String,
@@ -253,18 +197,25 @@ sealed class ApplicationDescription(val application: String) {
             )
         }
 
-        override fun normalize(): NormalizedApplicationDescription {
-            return NormalizedApplicationDescription(
-                NameAndVersion(name, version),
-                tool,
+        override fun normalize(): Application {
+            val metadata = ApplicationMetadata(
+                name,
+                version,
                 authors,
                 title,
                 description,
+                tags,
+                null
+            )
+
+            val invocation = ApplicationInvocationDescription(
+                ToolReference(tool.name, tool.version, null),
                 invocation,
                 parameters.values.toList(),
-                outputFileGlobs,
-                tags
+                outputFileGlobs
             )
+
+            return Application(metadata, invocation)
         }
     }
 }
@@ -288,114 +239,15 @@ sealed class ApplicationVerificationException(why: String, httpStatusCode: HttpS
         )
 }
 
-enum class ToolBackend {
-    SINGULARITY,
-    UDOCKER
+enum class ApplicationType {
+    BATCH
 }
 
-data class NameAndVersion(val name: String, val version: String) {
-    override fun toString() = "$name@$version"
-}
-
-data class NormalizedToolDescription(
-    val info: NameAndVersion,
-    val container: String,
-    val defaultNumberOfNodes: Int,
-    val defaultTasksPerNode: Int,
-    val defaultMaxTime: SimpleDuration,
-    val requiredModules: List<String>,
-    val authors: List<String>,
-    val title: String,
-    val description: String,
-    val backend: ToolBackend
-) {
-    override fun toString(): String {
-        return "NormalizedToolDescription(info=$info, container='$container')"
-    }
-}
-
-private const val MAX_LENGTH = 255
-
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.EXISTING_PROPERTY,
-    property = "tool"
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = ToolDescription.V1::class, name = "v1")
-)
-sealed class ToolDescription(val tool: String) {
-    abstract fun normalize(): NormalizedToolDescription
-
-    class V1(
-        val name: String,
-        val version: String,
-        val title: String,
-        val container: String,
-        val backend: ToolBackend,
-        val authors: List<String>,
-        val defaultNumberOfNodes: Int = 1,
-        val defaultTasksPerNode: Int = 1,
-        val defaultMaxTime: SimpleDuration = SimpleDuration(1, 0, 0),
-        val requiredModules: List<String> = emptyList(),
-        val description: String = ""
-    ) : ToolDescription("v1") {
-        init {
-            if (name.length > MAX_LENGTH)
-                throw ToolVerificationException.BadValue(::name.name, "Name is too long")
-            if (version.length > MAX_LENGTH)
-                throw ToolVerificationException.BadValue(::version.name, "Version is too long")
-            if (title.length > MAX_LENGTH)
-                throw ToolVerificationException.BadValue(::title.name, "Title is too long")
-
-            if (name.isBlank()) throw ToolVerificationException.BadValue(::name.name, "Name is blank")
-            if (version.isBlank()) throw ToolVerificationException.BadValue(::version.name, "Version is blank")
-            if (title.isBlank()) throw ToolVerificationException.BadValue(::title.name, "Title is blank")
-
-            if (name.contains('\n')) throw ToolVerificationException.BadValue(::name.name, "Name contains newlines")
-            if (version.contains('\n')) throw ToolVerificationException.BadValue(
-                ::version.name,
-                "Version contains newlines"
-            )
-            if (title.contains('\n')) throw ToolVerificationException.BadValue(::title.name, "Title contains newlines")
-
-            if (authors.isEmpty()) throw ToolVerificationException.BadValue(::authors.name, "Authors is empty")
-            val badAuthorIndex = authors.indexOfFirst { it.contains("\n") }
-            if (badAuthorIndex != -1) {
-                throw ToolVerificationException.BadValue("author[$badAuthorIndex]", "Cannot contain new lines")
-            }
-        }
-
-        override fun normalize(): NormalizedToolDescription {
-            return NormalizedToolDescription(
-                NameAndVersion(name, version),
-                container,
-                defaultNumberOfNodes,
-                defaultTasksPerNode,
-                defaultMaxTime,
-                requiredModules,
-                authors,
-                title,
-                description,
-                backend
-            )
-        }
-    }
-
-    companion object : Loggable {
-        override val log: Logger = logger()
-    }
-}
-
-sealed class ToolVerificationException(why: String, httpStatusCode: HttpStatusCode) :
-    RPCException(why, httpStatusCode) {
-    class BadValue(parameter: String, reason: String) :
-        ToolVerificationException("Parameter '$parameter' received a bad value. $reason", HttpStatusCode.BadRequest)
-}
-
-data class Tool(
-    val owner: String,
-    val createdAt: Long,
-    val modifiedAt: Long,
-    val description: NormalizedToolDescription
+data class ResourceRequirements(
+    val multiNodeSupport: Boolean = false,
+    val coreRequirements: Int = -1,
+    val memoryRequirementsMb: Int = -1,
+    val gpuRequirements: Int = -1,
+    val tempStorageRequirementsGb: Int = -1,
+    val persistentStorageRequirementsGb: Int = -1
 )

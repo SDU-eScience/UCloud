@@ -11,7 +11,6 @@ import dk.sdu.cloud.app.http.JobController
 import dk.sdu.cloud.app.http.ToolController
 import dk.sdu.cloud.app.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.services.ComputationBackendService
-import dk.sdu.cloud.app.services.DefaultImageGenerator
 import dk.sdu.cloud.app.services.JobFileService
 import dk.sdu.cloud.app.services.JobHibernateDao
 import dk.sdu.cloud.app.services.JobOrchestrator
@@ -61,11 +60,11 @@ class Server(
         if (initialized) throw IllegalStateException("Already started!")
 
         val toolDao = ToolHibernateDAO()
-        val applicationDao = ApplicationHibernateDAO(toolDao, DefaultImageGenerator())
+        val applicationDao = ApplicationHibernateDAO(toolDao)
 
         val computationBackendService = ComputationBackendService(config.backends, micro.developmentModeEnabled)
-        val jobDao = JobHibernateDao(applicationDao)
-        val jobVerificationService = JobVerificationService(db, applicationDao)
+        val jobDao = JobHibernateDao(applicationDao, toolDao)
+        val jobVerificationService = JobVerificationService(db, applicationDao, toolDao)
         val jobFileService = JobFileService(cloud)
 
         val jobOrchestrator = JobOrchestrator(

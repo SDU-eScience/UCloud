@@ -104,7 +104,7 @@ class JobFileService(
         val directory = filesDirectoryForJob(job.id)
 
         sshConnectionPool.use {
-            val outputs = job.application.description.outputFileGlobs
+            val outputs = job.application.invocation.outputFileGlobs
                 .flatMap { lsWithGlob(directory.absolutePath, it) }
                 .map { File(it.fileName).absolutePath }
 

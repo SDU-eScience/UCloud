@@ -1,8 +1,8 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.Application
-import dk.sdu.cloud.app.api.ApplicationForUser
-import dk.sdu.cloud.app.api.NormalizedApplicationDescription
+import dk.sdu.cloud.app.api.ApplicationSummaryWithFavorite
+import dk.sdu.cloud.app.api.ApplicationWithFavorite
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 
@@ -18,21 +18,21 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: String,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationForUser>
+    ): Page<ApplicationSummaryWithFavorite>
 
     fun searchTags(
         session: Session,
         user: String,
-        query: String,
+        tags: List<String>,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationForUser>
+    ): Page<ApplicationSummaryWithFavorite>
 
     fun search(
         session: Session,
         user: String,
         query: String,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationForUser>
+    ): Page<ApplicationSummaryWithFavorite>
 
     fun findAllByName(
         session: Session,
@@ -40,7 +40,7 @@ interface ApplicationDAO<Session> {
 
         name: String,
         paging: NormalizedPaginationRequest
-    ): Page<Application>
+    ): Page<ApplicationSummaryWithFavorite>
 
     fun findByNameAndVersion(
         session: Session,
@@ -55,19 +55,19 @@ interface ApplicationDAO<Session> {
         user: String,
         name: String,
         version: String
-    ): ApplicationForUser
+    ): ApplicationWithFavorite
 
     fun listLatestVersion(
         session: Session,
         user: String?,
 
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationForUser>
+    ): Page<ApplicationSummaryWithFavorite>
 
     fun create(
         session: Session,
         user: String,
-        description: NormalizedApplicationDescription,
+        description: Application,
         originalDocument: String = ""
     )
 
