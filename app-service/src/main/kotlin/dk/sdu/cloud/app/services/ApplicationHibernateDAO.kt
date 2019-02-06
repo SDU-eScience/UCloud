@@ -38,11 +38,11 @@ class ApplicationHibernateDAO(
 
         val isFavorite = session.typedQuery<Long>(
             """
-                select count (A.application.id.name)
+                select count (A.applicationName)
                 from FavoriteApplicationEntity as A
                 where A.user = :user
-                    and A.application.id.name = :name
-                    and A.application.id.version = :version
+                    and A.applicationName = :name
+                    and A.applicationVersion= :version
             """.trimIndent()
         ).setParameter("user", user)
             .setParameter("name", name)
@@ -54,8 +54,8 @@ class ApplicationHibernateDAO(
                 """
                 delete from FavoriteApplicationEntity as A
                 where A.user = :user
-                    and A.application.id.name = :name
-                    and A.application.id.version = :version
+                    and A.applicationName = :name
+                    and A.applicationVersion = :version
                 """.trimIndent()
             ).setParameter("user", user)
                 .setParameter("name", name)
@@ -86,9 +86,12 @@ class ApplicationHibernateDAO(
         val items = session.typedQuery<ApplicationEntity>(
             """
                 select application
-                from FavoriteApplicationEntity as A
-                where A.user = :user
-                order by A.application.id.name
+                from FavoriteApplicationEntity as fav, ApplicationEntity as application
+                where
+                    fav.user = :user and
+                    fav.applicationName = application.id.name and
+                    fav.applicationVersion = application.id.version
+                order by fav.applicationName
             """.trimIndent()
         ).setParameter("user", user)
             .paginatedList(paging)
@@ -121,7 +124,7 @@ class ApplicationHibernateDAO(
                   jsonb_exists_any(tags, :tags) and
                   a.created_at in (
                     select max(created_at)
-                    from app.applications b
+                    from {h-schema}applications b
                     where a.name = b.name
                     group by a.name
                   )
@@ -143,7 +146,7 @@ class ApplicationHibernateDAO(
                   jsonb_exists_any(tags, :tags) and
                   a.created_at in (
                     select max(created_at)
-                    from app.applications b
+                    from {h-schema}applications b
                     where a.name = b.name
                     group by a.name
                   )
