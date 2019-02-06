@@ -13,6 +13,7 @@ metadata:
       prefix_regex: true
       rewrite: ""
       service: storage:8080
+      timeout_ms: 30000
       method: GET
       headers:
         x-no-load: true
@@ -22,6 +23,7 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: storage_list_2
+      timeout_ms: 30000
       rewrite: ""
       prefix: /api/files/
       service: storage:8080

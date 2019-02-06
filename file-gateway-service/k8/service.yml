@@ -13,6 +13,7 @@ metadata:
       prefix_regex: true
       rewrite: ""
       service: file-gateway:8080
+      timeout_ms: 30000
       method: GET
       precedence: 9
 
@@ -24,6 +25,7 @@ metadata:
       prefix_regex: true
       rewrite: ""
       service: file-gateway:8080
+      timeout_ms: 30000
       method: GET
       precedence: 9
 
@@ -34,6 +36,7 @@ metadata:
       prefix: ^/api/file-search(/.*)?$
       prefix_regex: true
       service: file-gateway:8080
+      timeout_ms: 30000
       rewrite: ""
       precedence: 9
 
