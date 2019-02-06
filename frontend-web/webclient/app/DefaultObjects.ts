@@ -12,9 +12,11 @@ import { Reducer } from "redux";
 import { SimpleSearchStateProps } from "Search";
 import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
+import * as SnackbarRedux from "Snackbar/Redux";
 import { defaultAvatar } from "UserSettings/Avataaar";
 import { DetailedProjectSearchReduxState } from "Project";
 import { SidebarPages } from "ui-components/Sidebar";
+import { SnackbarReduxObject } from "Snackbar/Redux";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -203,6 +205,7 @@ export const initDetailedResult = (): DetailedResultReduxObject => ({
     error: undefined
 });
 
+/* FIXME */
 interface LegacyReduxObject {
     dashboard: DashboardStateProps
     files: FilesReduxObject,
@@ -222,6 +225,7 @@ interface LegacyReduxObject {
     fileInfo: FileInfoReduxObject
     avatar: AvatarReduxObject
     filePreview: FilePreviewReduxState
+    snackbar: SnackbarReduxObject
     responsive?: ResponsiveReduxObject
 }
 
@@ -280,6 +284,7 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     fileInfo: initFileInfo(),
     ...ApplicationRedux.init(),
     ...AccountingRedux.init(),
+    snackbar: SnackbarRedux.init(),
     avatar: initAvatar(),
     filePreview: initFilePreview(),
     responsive: undefined,
@@ -311,7 +316,6 @@ export const initAnalyses = (): ComponentWithPage<Analysis> => ({
     loading: false,
     error: undefined
 });
-
 
 export const initZenodo = (): ZenodoReduxObject => ({
     connected: false,

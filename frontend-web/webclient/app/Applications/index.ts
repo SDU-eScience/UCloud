@@ -300,3 +300,37 @@ export interface DetailedApplicationOperations {
     fetchApplicationsFromName: (q: string, i: number, p: number, c?: Function) => void
     fetchApplicationsFromTag: (t: string, i: number, p: number, c?: Function) => void
 }
+
+
+
+// New interfaces
+interface ApplicationMetadata {
+    name: String
+    version: String
+    authors: String[]
+    title: String
+    description: String
+    tags: String[]
+    website?: String
+}
+
+interface ApplicationInvocationDescription {
+    //tool: ToolReference
+    //invocation: InvocationParameter[]
+    //parameters:ApplicationParameter<*>[]
+    outputFileGlobs: String[],
+    //applicationType: ApplicationType = ApplicationType.BATCH,
+    //resources: ResourceRequirements = ResourceRequirements()
+}
+
+interface WithAppMetadata {
+    metadata: ApplicationMetadata
+}
+
+interface WithAppInvocation {
+    invocation: ApplicationInvocationDescription
+}
+
+interface WithAppFavorite {
+    favorite: Boolean
+}
