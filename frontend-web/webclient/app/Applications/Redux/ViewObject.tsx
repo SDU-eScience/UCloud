@@ -1,10 +1,10 @@
-import { Application } from "Applications";
+import { WithAppMetadata, WithAppFavorite, WithAppInvocation } from "Applications";
 import { Page } from "Types";
 import { emptyLoadableContent, LoadableContent } from "LoadableContent";
 
 export interface Type {
-    application: LoadableContent<Application>
-    previous: LoadableContent<Page<Application>>
+    application: LoadableContent<WithAppMetadata & WithAppFavorite & WithAppInvocation>
+    previous: LoadableContent<Page<WithAppMetadata>>
     favorite: LoadableContent<void>
 }
 

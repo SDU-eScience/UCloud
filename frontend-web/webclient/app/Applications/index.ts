@@ -134,12 +134,6 @@ export type MaxTime = {
     seconds: number
 }
 
-// export interface JobSchedulingOptions {
-//     maxTime: MaxTime
-//     numberOfNodes: number | null
-//     tasksPerNode: number | null
-// }
-
 export interface MaxTimeForInput {
     hours: number | null,
     minutes: number | null,
@@ -160,7 +154,7 @@ export interface RunAppState {
     error?: string
     loading: boolean
 
-    application?: Application
+    application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
     parameterValues: {}
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
@@ -304,33 +298,33 @@ export interface DetailedApplicationOperations {
 
 
 // New interfaces
-interface ApplicationMetadata {
-    name: String
-    version: String
-    authors: String[]
-    title: String
-    description: String
-    tags: String[]
-    website?: String
+export interface ApplicationMetadata {
+    name: string
+    version: string
+    authors: string[]
+    title: string
+    description: string
+    tags: string[]
+    website?: string
 }
 
-interface ApplicationInvocationDescription {
-    //tool: ToolReference
-    //invocation: InvocationParameter[]
-    //parameters:ApplicationParameter<*>[]
-    outputFileGlobs: String[],
-    //applicationType: ApplicationType = ApplicationType.BATCH,
-    //resources: ResourceRequirements = ResourceRequirements()
+export interface ApplicationInvocationDescription {
+    tool: any/* ToolReference */
+    invocation: Invocation[]
+    parameters: ApplicationParameter[]
+    outputFileGlobs: string[]
+    applicationType: any /* ApplicationType = ApplicationType.BATCH, */
+    resources: any /* ResourceRequirements = ResourceRequirements() */
 }
 
-interface WithAppMetadata {
+export interface WithAppMetadata {
     metadata: ApplicationMetadata
 }
 
-interface WithAppInvocation {
+export interface WithAppInvocation {
     invocation: ApplicationInvocationDescription
 }
 
-interface WithAppFavorite {
-    favorite: Boolean
+export interface WithAppFavorite {
+    favorite: boolean
 }

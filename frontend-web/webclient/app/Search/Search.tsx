@@ -172,7 +172,7 @@ class Search extends React.Component<SearchProps> {
                             <GridCardGroup>
                                 {items.map(app =>
                                     <NewApplicationCard
-                                        key={`${app.description.info.name}${app.description.info.version}`}
+                                        key={`${app.metadata.name}${app.metadata.version}`}
                                         app={app}
                                         isFavorite={app.favorite}
                                     />)}

@@ -3,15 +3,15 @@ import { Link, Markdown } from "ui-components";
 import { Box, Absolute, Icon, Flex, RatingBadge, Text } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import * as Pages from "./Pages";
-import { Application } from ".";
+import { WithAppMetadata } from ".";
 import styled, { css } from "styled-components";
 import * as Heading from "ui-components/Heading"
 import theme from "ui-components/theme"
 
 interface ApplicationCardProps {
-    onFavorite?: (name: string, version: string) => void,
-    app: Application,
-    isFavorite?: boolean,
+    onFavorite?: (name: string, version: string) => void
+    app: WithAppMetadata
+    isFavorite?: boolean
     linkToRun?: boolean
 }
 
@@ -71,15 +71,16 @@ export const ApplicationCardContainer = styled.div`
 `;
 
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
+    const { metadata } = props.app;
     return (
-        <AppCardBase to={props.linkToRun ? Pages.runApplication(props.app) : Pages.viewApplication(props.app)}>
+        <AppCardBase to={props.linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
             <Box mr={16} >
-                <AppLogo size={"32px"} hash={hashF(props.app.description.title)} />
+                <AppLogo size={"32px"} hash={hashF(metadata.title)} />
             </Box>
-            <strong>{props.app.description.title} v{props.app.description.info.version}</strong>
+            <strong>{metadata.title} v{metadata.version}</strong>
             <EllipsedText>
                 <Markdown
-                    source={props.app.description.description}
+                    source={metadata.description}
                     allowedTypes={["text", "root", "paragraph"]} />
             </EllipsedText>
             <AppCardActionsBase><Icon name="chevronDown" rotation={-90} /></AppCardActionsBase>
@@ -527,21 +528,21 @@ const AbsoluteNoPointerEvents = styled(Absolute)`
 `
 
 export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
-    const appDesc = app.description;
-    const hash = hashF(appDesc.title);
+    const hash = hashF(app.metadata.title);
+    const { metadata } = app;
     const appC = appColor(hash);
     return (
-        <NewAppCard to={linkToRun ? Pages.runApplication(app) : Pages.viewApplication(app)} hoverColor={null}>
+        <NewAppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)} hoverColor={null}>
             <AbsoluteNoPointerEvents right={0} top={0} cursor="inherit">
                 <AppBg_triangle {...bgGradients[appC]} />
             </AbsoluteNoPointerEvents>
-            {!onFavorite ? null :
+            {(!onFavorite && !isFavorite) ? null :
                 <AppRibbonContainer
                     cursor="inherit"
                     right={0}
                     top={0}
                     favorite={isFavorite}
-                    onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(appDesc.info.name, appDesc.info.version)) : undefined}
+                    onClick={e => !!onFavorite ? (e.preventDefault(), onFavorite(metadata.name, metadata.version)) : undefined}
                 >
                     <Icon name={"starRibbon"} color="red" size={48} />
                 </AppRibbonContainer>
@@ -550,17 +551,17 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
                 <AppLogo size={"48px"} hash={hash} />
                 <Flex flexDirection={"column"} ml="10px">
                     <Flex>
-                        <Heading.h4>{appDesc.title}</Heading.h4>
-                        <Text ml="0.4em" mt="3px" color="gray">v{appDesc.info.version}</Text>
+                        <Heading.h4>{metadata.title}</Heading.h4>
+                        <Text ml="0.4em" mt="3px" color="gray">v{metadata.version}</Text>
                     </Flex>
-                    <EllipsedText width={200} title={`by ${appDesc.authors.join(", ")} `} color="gray">
-                        by {appDesc.authors.join(", ")}
+                    <EllipsedText width={200} title={`by ${metadata.authors.join(", ")} `} color="gray">
+                        by {app.metadata.authors.join(", ")}
                     </EllipsedText>
                 </Flex>
             </Flex>
             <Box mt="auto" />
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
-                {appDesc.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
+                {app.metadata.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
         </NewAppCard>
     );

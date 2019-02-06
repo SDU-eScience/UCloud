@@ -3,7 +3,7 @@ import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { updatePageTitle, StatusActions, setActivePage } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
-import { Application } from ".";
+import { Application, ApplicationMetadata, WithAppFavorite, WithAppMetadata } from ".";
 import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
@@ -134,19 +134,18 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 
     render() {
-        const page = this.props.applications.content as Page<Application>
         this.props.setRefresh(() => this.fetch(this.props));
         const main = (
             <Pagination.List
                 loading={this.props.applications.loading}
                 customEntriesPerPage
-                pageRenderer={(page: Page<Application>) =>
+                pageRenderer={(page: Page<WithAppMetadata & WithAppFavorite>) =>
                     <GridCardGroup>
                         {page.items.map((app, index) =>
                             <NewApplicationCard
                                 key={index}
                                 onFavorite={async () => {
-                                    await favoriteApplicationFromPage(app.description.info.name, app.description.info.version, page, Cloud);
+                                    await favoriteApplicationFromPage(app.metadata.name, app.metadata.version, page, Cloud);
                                     this.fetch(this.props);
                                 }}
                                 app={app}
@@ -155,7 +154,7 @@ class Applications extends React.Component<ApplicationsProps> {
                         )}
                     </GridCardGroup>
                 }
-                page={this.props.applications.content as Page<Application>}
+                page={this.props.applications.content as Page<WithAppMetadata>}
                 onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
             />
         );

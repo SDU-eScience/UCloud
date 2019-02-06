@@ -1,7 +1,7 @@
 import { match } from "react-router-dom";
 import PromiseKeeper from "PromiseKeeper";
 import { Page } from "Types";
-import { Application, DetailedApplicationSearchReduxState } from "Applications";
+import { Application, DetailedApplicationSearchReduxState, ApplicationMetadata, WithAppFavorite, WithAppMetadata } from "Applications";
 import { File, DetailedFileSearchReduxState, AdvancedSearchRequest } from "Files";
 import { ProjectMetadata } from "Project/api";
 import { History } from "history";
@@ -17,7 +17,7 @@ export interface SearchProps extends SimpleSearchOperations, SimpleSearchStatePr
 export interface SimpleSearchStateProps {
     files: Page<File>
     filesLoading: boolean
-    applications: Page<Application>
+    applications: Page<WithAppMetadata & WithAppFavorite>
     applicationsLoading: boolean
     projects: Page<ProjectMetadata>
     projectsLoading: boolean
@@ -37,7 +37,7 @@ export interface SimpleSearchOperations {
     searchApplications: (query: string, page: number, itemsPerPage: number) => void
     searchProjects: (query: string, page: number, itemsPerPage: number) => void
     setFilesPage: (page: Page<File>) => void
-    setApplicationsPage: (page: Page<Application>) => void
+    setApplicationsPage: (page: Page<WithAppMetadata & WithAppFavorite>) => void
     setProjectsPage: (page: Page<ProjectMetadata>) => void
     setSearch: (search: string) => void
     setPrioritizedSearch: (st: HeaderSearchType) => void

@@ -2,7 +2,7 @@ import * as SSActionTypes from "./SearchReducer";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { Page, PayloadAction } from "Types";
 import { File, AdvancedSearchRequest } from "Files";
-import { Application } from "Applications";
+import { WithAppFavorite, WithAppMetadata } from "Applications";
 import { ProjectMetadata, simpleSearch } from "Project/api";
 import { hpcApplicationsSearchQuery } from "Utilities/ApplicationUtilities";
 import { advancedFileSearch } from "Utilities/FileUtilities";
@@ -52,8 +52,8 @@ export const receiveFiles = (files: Page<File>): ReceiveFiles => ({
     payload: { files, filesLoading: false }
 });
 
-type ReceiveApplications = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE, { applications: Page<Application>, applicationsLoading: false }>
-export const receiveApplications = (applications: Page<Application>): ReceiveApplications => ({
+type ReceiveApplications = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE, { applications: Page<WithAppMetadata & WithAppFavorite>, applicationsLoading: false }>
+export const receiveApplications = (applications: Page<WithAppMetadata & WithAppFavorite>): ReceiveApplications => ({
     type: SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE,
     payload: { applications, applicationsLoading: false }
 });
