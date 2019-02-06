@@ -88,23 +88,22 @@ class Uploader extends React.Component<UploaderProps> {
         return e;
     }
 
+    private onUploadFinished(upload: Upload, xhr: XMLHttpRequest) {
+        xhr.onloadend = () => {
+            if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads)) {
+                window.removeEventListener("beforeunload", this.beforeUnload);
+                this.props.onFilesUploaded(this.props.location);
+            }
+        }
+        upload.uploadXHR = xhr;
+        this.props.setUploads(this.props.uploads);
+    }
+
     private startUpload = (index: number) => {
         const upload = this.props.uploads[index];
         upload.isUploading = true;
         this.props.setUploads(this.props.uploads);
-
-        // FIXME Move outside?
-        const onThen = (xhr: XMLHttpRequest) => {
-            xhr.onloadend = () => {
-                if (!!this.props.onFilesUploaded && uploadsFinished(this.props.uploads)) {
-                    window.removeEventListener("beforeunload", this.beforeUnload);
-                    this.props.onFilesUploaded(this.props.location);
-                }
-            }
-            upload.uploadXHR = xhr;
-            this.props.setUploads(this.props.uploads);
-        };
-
+        
         window.addEventListener("beforeunload", this.beforeUnload);
         if (!upload.extractArchive) {
             multipartUpload(
@@ -117,7 +116,7 @@ class Uploader extends React.Component<UploaderProps> {
                     this.props.setUploads(this.props.uploads);
                 },
                 err => this.props.setUploaderError(err)
-            ).then(xhr => onThen(xhr)); // FIXME Add error handling
+            ).then(xhr => this.onUploadFinished(upload, xhr)); // FIXME Add error handling
         } else {
             bulkUpload(
                 this.props.location,
@@ -129,7 +128,7 @@ class Uploader extends React.Component<UploaderProps> {
                     this.props.setUploads(this.props.uploads);
                 },
                 err => this.props.setUploaderError(err)
-            ).then(xhr => onThen(xhr)); // FIXME Add error handling
+            ).then(xhr => this.onUploadFinished(upload, xhr)); // FIXME Add error handling
         }
     }
 

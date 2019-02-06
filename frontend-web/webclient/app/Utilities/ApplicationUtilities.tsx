@@ -1,5 +1,5 @@
 import { failureNotification } from "UtilityFunctions";
-import { Application, ParameterTypes } from "Applications";
+import { Application, ParameterTypes, ApplicationMetadata, WithAppFavorite, WithAppMetadata } from "Applications";
 import Cloud from "Authentication/lib";
 import { Page } from "Types";
 
@@ -30,8 +30,8 @@ export const hpcApplicationsTagSearchQuery = (tag: string, page: number, itemsPe
 * @param {Application} Application the application to be favorited
 * @param {Cloud} cloud The cloud instance for requests
 */
-export const favoriteApplicationFromPage = async (name: string, version: string, page: Page<Application>, cloud: Cloud): Promise<Page<Application>> => {
-    const a = page.items.find(it => it.description.info.name === name && it.description.info.version === version)!;
+export const favoriteApplicationFromPage = async (name: string, version: string, page: Page<WithAppMetadata & WithAppFavorite>, cloud: Cloud): Promise<Page<WithAppMetadata & WithAppFavorite>> => {
+    const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     // FIXME better error handling. Pass as callback, call on success?
     try {
         await cloud.post(hpcFavoriteApp(name, version)).catch(() => failureNotification(`An error ocurred favoriting ${name}`));

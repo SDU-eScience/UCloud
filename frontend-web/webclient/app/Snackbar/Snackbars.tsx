@@ -45,7 +45,7 @@ class Snackbars extends React.Component<{}, { snacks: Snacks }> {
 
 export default connect()(Snackbars);
 
-const enum SnackType {
+export const enum SnackType {
     Success,
     Information,
     Failure,
@@ -63,7 +63,7 @@ interface CustomSnack {
     icon: IconName
 }
 
-type Snack = CustomSnack | DefaultSnack;
+export type Snack = CustomSnack | DefaultSnack;
 type Snacks = Snack[];
 
 const mockSnacks: Snacks = [{

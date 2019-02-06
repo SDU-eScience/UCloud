@@ -4,7 +4,7 @@ import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
 import { updatePageTitle, StatusActions, setActivePage } from "Navigation/Redux/StatusActions";
 import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigation/Redux/HeaderActions";
-import { Application } from "Applications";
+import { Application, ApplicationMetadata, WithAppMetadata, WithAppFavorite } from "Applications";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
 import { NewApplicationCard } from "./Card";
@@ -56,8 +56,7 @@ class Installed extends React.Component<InstalledProps> {
 
     render() {
         const { props } = this;
-        const page = props.applications.content as Page<Application>;
-
+        const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
         const main = (
             <Pagination.List
                 loading={props.applications.loading}
@@ -79,10 +78,10 @@ class Installed extends React.Component<InstalledProps> {
     }
 }
 
-const InstalledPage: React.StatelessComponent<{ page: Page<Application> }> = props => (
+const InstalledPage: React.StatelessComponent<{ page: Page<WithAppMetadata & WithAppFavorite> }> = props => (
     <GridCardGroup>
         {props.page.items.map((it, idx) => (
-            <NewApplicationCard app={it} key={idx} linkToRun />)
+            <NewApplicationCard app={it} key={idx} isFavorite={it.favorite} linkToRun />)
         )}
     </GridCardGroup>
 );

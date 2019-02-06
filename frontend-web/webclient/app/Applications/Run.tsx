@@ -5,7 +5,7 @@ import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput } from "."
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput, ApplicationMetadata, ApplicationInvocationDescription, WithAppInvocation, WithAppMetadata } from "."
 import { Application } from ".";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
@@ -77,7 +77,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (maxTime && maxTime.hours === null && maxTime.minutes === null && maxTime.seconds === null) maxTime = null;
 
         let job = {
-            application: this.state.application.description.info,
+            application: { name: this.state.application!.metadata.name, version: this.state.application!.metadata.version },
             parameters: { ...this.state.parameterValues },
             numberOfNodes: this.state.schedulingOptions.numberOfNodes,
             tasksPerNode: this.state.schedulingOptions.tasksPerNode,
@@ -114,7 +114,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
     private toggleFavorite() {
         if (!this.state.application) return;
-        const { name, version } = this.state.application.description.info;
+        const { name, version } = this.state.application.metadata;
         this.setState(() => ({ favoriteLoading: true }));
         this.state.promises.makeCancelable(Cloud.post(hpcFavoriteApp(name, version))).promise
             .then(() => this.setState(() => ({ favorite: !this.state.favorite })))
@@ -128,7 +128,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         this.state.promises.makeCancelable(
             Cloud.get(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
-        ).promise.then((req: { response: Application }) => {
+        ).promise.then((req) => {
             const app = req.response;
 
             this.setState(() => ({
@@ -151,15 +151,15 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const result = fileReader.result as string;
             try {
                 const { application, parameters, numberOfNodes, tasksPerNode, maxTime, siteVersion } = JSON.parse(result);
-                if (application.name !== thisApp.description.info.name) {
+                if (application.name !== thisApp.metadata.name) {
                     failureNotification("Application name does not match");
                     return;
-                } else if (application.version !== thisApp.description.info.version) {
+                } else if (application.version !== thisApp.metadata.version) {
                     infoNotification("Application version does not match. Some parameters may not be filled out correctly.")
                 }
                 const extractedParameters = extractParameters(
                     parameters,
-                    thisApp.description.parameters.map(it => ({
+                    thisApp.invocation.parameters.map(it => ({
                         name: it.name, type: it.type as ParameterTypes
                     })),
                     siteVersion
@@ -180,7 +180,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     private exportParameters() {
         const { application, schedulingOptions } = this.state;
         if (!application) return;
-        const appInfo = application.description.info;
+        const appInfo = application.metadata.description;
 
         const jobInfo = this.extractJobInfo(schedulingOptions);
         const element = document.createElement("a");
@@ -193,7 +193,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             maxTime: jobInfo.maxTime,
         })));
 
-        element.setAttribute("download", `${appInfo.name}-${appInfo.version}-params.json`);
+        element.setAttribute("download", `${application.metadata.name}-${application.metadata.version}-params.json`);
         element.style.display = "none";
         document.body.appendChild(element);
         element.click();
@@ -226,7 +226,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 <Parameters
                     values={parameterValues}
-                    parameters={application.description.parameters}
+                    parameters={application.invocation.parameters}
                     onSubmit={this.onSubmit}
                     onChange={this.onInputChange}
                     schedulingOptions={schedulingOptions}
@@ -236,7 +236,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             </ContainerForText>
         );
 
-        const requiredKeys = application.description.parameters.filter(it => !it.optional).map(it => ({ name: it.name, title: it.title }));
+        const requiredKeys = application.invocation.parameters.filter(it => !it.optional).map(it => ({ name: it.name, title: it.title }));
         let disabled = requiredKeys.map(it => it.name).some(it => !parameterValues[it]);
         let title: string | undefined = undefined;
         title = `Missing input for fields ${requiredKeys.map(it => it.title).join(", ")}.`
@@ -286,7 +286,7 @@ interface ParameterProps {
     values: ParameterValues,
     parameters: ApplicationParameter[],
     schedulingOptions: JobSchedulingOptionsForInput,
-    app: Application,
+    app: WithAppMetadata & WithAppInvocation,
     onChange: (name: string, value: any) => void,
     onSubmit: (e: React.FormEvent) => void,
     onJobSchedulingParamsChange: (field, value, subField) => void,
@@ -350,17 +350,16 @@ const SchedulingField: React.StatelessComponent<SchedulingFieldProps> = props =>
 );
 
 
-interface JobSchedulingOptionsProps { onChange: (a, b, c) => void, options: any, app: Application }
+interface JobSchedulingOptionsProps { onChange: (a, b, c) => void, options: any, app: WithAppMetadata & WithAppInvocation }
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
     if (!props.app) return null;
-    const tool = props.app.tool.description;
+    const { tool } = props.app.invocation;
     const { maxTime, numberOfNodes, tasksPerNode } = props.options;
-    const defaultMaxTime = tool.defaultMaxTime;
-
+    const { defaultMaxTime } = tool.tool.description;
     return (
         <>
             <Flex mb="1em">
-                {!props.app.description.resources.multiNodeSupport ? null :
+                {!props.app.invocation.resources.multiNodeSupport ? null :
                     <>
                         <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" defaultValue={tool.defaultNumberOfNodes} value={numberOfNodes} onChange={props.onChange} />
                         <Box ml="5px" />

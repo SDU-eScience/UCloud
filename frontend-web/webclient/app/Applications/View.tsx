@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 
-import { Application } from "Applications";
+import { WithAppMetadata, WithAppFavorite, WithAppInvocation } from "Applications";
 import { Page } from "Types";
 import { loadingEvent, LoadableContent } from "LoadableContent";
 
@@ -27,7 +27,7 @@ import * as Pages from "./Pages";
 
 interface MainContentProps {
     onFavorite?: () => void
-    application: Application
+    application: WithAppMetadata & WithAppFavorite & WithAppInvocation
     favorite?: LoadableContent<void>
 }
 
@@ -56,9 +56,9 @@ class View extends React.Component<ViewProps> {
     componentDidUpdate() {
         if (this.props.application.loading) return;
         if (this.props.application.content) {
-            const { info } = this.props.application.content.description;
+            const { name, version } = this.props.application.content.metadata;
             const { appName, appVersion } = this.props.match.params;
-            if (appName !== info.name || appVersion !== info.version)
+            if (appName !== name || appVersion !== version)
                 this.fetchApp();
         }
     }
@@ -74,7 +74,7 @@ class View extends React.Component<ViewProps> {
         const application = this.props.application.content;
         if (previous.content) {
             previous.content.items = previous.content.items.filter(
-                ({ description }) => description.info.version !== appVersion
+                ({ metadata }) => metadata.version !== appVersion
             );
         }
         return (
@@ -127,13 +127,13 @@ export const AppHeader: React.StatelessComponent<MainContentProps> = props => (
     <AppHeaderBase>
         {/* <Image src={props.application.imageUrl} /> */}
         <Box mr={16} >
-            <AppLogo size={"128px"} hash={hashF(props.application.description.title)} />
+            <AppLogo size={"128px"} hash={hashF(props.application.metadata.title)} />
         </Box>
         <AppHeaderDetails>
-            <Heading.h2>{props.application.description.title}</Heading.h2>
-            <Heading.h3>v{props.application.description.info.version}</Heading.h3>
-            <TextSpan>{props.application.description.authors.join(", ")}</TextSpan>
-            <Tags tags={props.application.description.tags} />
+            <Heading.h2>{props.application.metadata.title}</Heading.h2>
+            <Heading.h3>v{props.application.metadata.version}</Heading.h3>
+            <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
+            <Tags tags={props.application.metadata.tags} />
         </AppHeaderDetails>
     </AppHeaderBase>
 );
@@ -148,12 +148,11 @@ const Sidebar: React.StatelessComponent<MainContentProps> = props => (
             {props.application.favorite ? "Remove from My Apps" : "Add to My Apps"}
         </ActionButton>
 
-        <Link to={Pages.runApplication(props.application)}>
+        <Link to={Pages.runApplication(props.application.metadata)}>
             <OutlineButton fullWidth color={"blue"}>Run Application</OutlineButton>
         </Link>
-
-        {!props.application.description.website ? null :
-            <ExternalLink href={props.application.description.website}>
+        {!props.application.metadata.website ? null :
+            <ExternalLink href={props.application.metadata.website}>
                 <OutlineButton fullWidth color={"blue"}>Website</OutlineButton>
             </ExternalLink>
         }
@@ -164,13 +163,13 @@ const AppSection = styled(Box)`
     margin-bottom: 16px;
 `;
 
-function Content(props: MainContentProps & { previousVersions?: Page<Application> }): JSX.Element {
+function Content(props: MainContentProps & { previousVersions?: Page<WithAppMetadata> }): JSX.Element {
     return (
         <>
             <AppSection>
                 <Markdown
                     unwrapDisallowed
-                    source={props.application.description.description}
+                    source={props.application.metadata.description}
                     disallowedTypes={[
                         "image",
                         "heading"
@@ -189,7 +188,7 @@ function Content(props: MainContentProps & { previousVersions?: Page<Application
     );
 }
 
-const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<Application> }> = props => {
+const PreviousVersions: React.StatelessComponent<{ previousVersions?: Page<WithAppMetadata> }> = props => {
     return (
         <>
             <Heading.h4>Previous Versions</Heading.h4>
@@ -251,8 +250,8 @@ const InfoAttributes = styled.div`
     flex-direction: row;
 `;
 
-function Information({ application }: { application: Application }) {
-    const time = application.tool.description.defaultMaxTime;
+function Information({ application }: { application: WithAppMetadata & WithAppInvocation }) {
+    const time = application.invocation.tool.tool.defaultMaxTime;
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
 
     return <>
@@ -261,7 +260,7 @@ function Information({ application }: { application: Application }) {
         <InfoAttributes>
             <InfoAttribute
                 name="Release Date"
-                value={dateToString(application.createdAt)} />
+                value={dateToString(application.invocation.tool.tool.createdAt)} />
 
             <InfoAttribute
                 name="Default Time Allocation"
@@ -269,11 +268,11 @@ function Information({ application }: { application: Application }) {
 
             <InfoAttribute
                 name="Default Nodes"
-                value={`${application.tool.description.defaultNumberOfNodes}`} />
+                value={`${application.invocation.tool.tool.defaultNumberOfNodes}`} />
 
             <InfoAttribute
                 name="Container Type"
-                value={toLowerCaseAndCapitalize(application.tool.description.backend)} />
+                value={toLowerCaseAndCapitalize(application.invocation.tool.tool.description.backend)} />
         </InfoAttributes>
     </>;
 }

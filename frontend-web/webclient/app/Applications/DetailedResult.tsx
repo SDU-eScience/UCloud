@@ -284,7 +284,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             onCheckFile={() => null}
                             sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
-                            customEntriesPerPage={<Box />}
                         />}
                     customEntriesPerPage
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}

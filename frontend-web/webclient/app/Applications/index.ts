@@ -134,12 +134,6 @@ export type MaxTime = {
     seconds: number
 }
 
-// export interface JobSchedulingOptions {
-//     maxTime: MaxTime
-//     numberOfNodes: number | null
-//     tasksPerNode: number | null
-// }
-
 export interface MaxTimeForInput {
     hours: number | null,
     minutes: number | null,
@@ -160,7 +154,7 @@ export interface RunAppState {
     error?: string
     loading: boolean
 
-    application?: Application
+    application?: WithAppMetadata & WithAppInvocation & WithAppFavorite
     parameterValues: {}
     schedulingOptions: JobSchedulingOptionsForInput
     favorite: boolean
@@ -299,4 +293,38 @@ export interface DetailedApplicationOperations {
     setError: (err?: string) => void
     fetchApplicationsFromName: (q: string, i: number, p: number, c?: Function) => void
     fetchApplicationsFromTag: (t: string, i: number, p: number, c?: Function) => void
+}
+
+
+
+// New interfaces
+export interface ApplicationMetadata {
+    name: string
+    version: string
+    authors: string[]
+    title: string
+    description: string
+    tags: string[]
+    website?: string
+}
+
+export interface ApplicationInvocationDescription {
+    tool: any/* ToolReference */
+    invocation: Invocation[]
+    parameters: ApplicationParameter[]
+    outputFileGlobs: string[]
+    applicationType: any /* ApplicationType = ApplicationType.BATCH, */
+    resources: any /* ResourceRequirements = ResourceRequirements() */
+}
+
+export interface WithAppMetadata {
+    metadata: ApplicationMetadata
+}
+
+export interface WithAppInvocation {
+    invocation: ApplicationInvocationDescription
+}
+
+export interface WithAppFavorite {
+    favorite: boolean
 }

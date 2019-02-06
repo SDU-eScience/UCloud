@@ -136,7 +136,6 @@ export interface FilesTableProps {
     sortBy: SortBy
     onFavoriteFile?: (f: File[]) => void
     fileOperations: FileOperation[]
-    customEntriesPerPage?: React.ReactNode
     notStickyHeader?: boolean
 }
 
@@ -153,7 +152,6 @@ export interface FilesTableHeaderProps {
     masterCheckbox?: React.ReactNode
     sortingColumns: SortBy[]
     onDropdownSelect?: (sortOrder: SortOrder, sortBy: SortBy, index: number) => void
-    customEntriesPerPage?: React.ReactNode
     customEntriesWidth?: string
     notStickyHeader?: boolean
     children: React.ReactNode
