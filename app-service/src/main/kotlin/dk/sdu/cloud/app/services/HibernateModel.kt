@@ -5,21 +5,17 @@ import dk.sdu.cloud.app.api.NormalizedToolDescription
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
-import org.hibernate.annotations.Fetch
 import org.hibernate.annotations.Type
 import java.io.Serializable
-import java.util.Date
+import java.util.*
 import javax.persistence.Column
 import javax.persistence.EmbeddedId
 import javax.persistence.Entity
 import javax.persistence.GeneratedValue
 import javax.persistence.Id
-import javax.persistence.ManyToOne
-import javax.persistence.OneToMany
 import javax.persistence.Table
 import javax.persistence.Temporal
 import javax.persistence.TemporalType
-import kotlin.collections.ArrayList
 
 /**
  * Updated in:
@@ -52,8 +48,9 @@ data class ToolEntity(
 @Entity
 @Table(name = "favorited_by")
 class FavoriteApplicationEntity(
-    @ManyToOne
-    var application: ApplicationEntity,
+    var applicationName: String,
+
+    var applicationVersion: String,
 
     @Column(name = "the_user")
     var user: String,
@@ -82,7 +79,6 @@ class ApplicationEntity(
     @Temporal(TemporalType.TIMESTAMP)
     var modifiedAt: Date,
 
-    // New start
     @Type(type = JSONB_TYPE)
     var authors: List<String>,
 
@@ -94,7 +90,6 @@ class ApplicationEntity(
 
     @Type(type = JSONB_TYPE)
     var tags: List<String>,
-    // New end
 
     @Type(type = JSONB_TYPE)
     var application: ApplicationInvocationDescription,

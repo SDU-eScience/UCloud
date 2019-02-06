@@ -40,7 +40,7 @@ fun TestApplicationRequest.setUser(username: String = "user1", role: Role = Role
 private fun KtorApplicationTestSetupContext.configureAppServer(
     appDao: ApplicationHibernateDAO
 ): List<Controller> {
-    return listOf(AppController(micro.hibernateDatabase, appDao))
+    return listOf(AppController(micro.hibernateDatabase, appDao, mockk(relaxed = true)))
 }
 
 class AppTest {

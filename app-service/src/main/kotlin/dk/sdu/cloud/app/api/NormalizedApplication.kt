@@ -1,12 +1,5 @@
 package dk.sdu.cloud.app.api
 
-// TODO Some parts of the service will need this. But we don't really need to export this information.
-interface ResourceMetadata {
-    val owner: String
-    val createdAt: Long
-    val modifiedAt: Long
-}
-
 data class ApplicationMetadata(
     override val name: String,
     override val version: String,

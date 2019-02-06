@@ -65,7 +65,8 @@ class ApplicationHibernateDAO(
         } else {
             session.save(
                 FavoriteApplicationEntity(
-                    foundApp,
+                    foundApp.id.name,
+                    foundApp.id.version,
                     user
                 )
             )
@@ -287,6 +288,8 @@ class ApplicationHibernateDAO(
         """.trimIndent()
         ).paginatedList(paging)
             .map { it.toModelWithInvocation() }
+
+
         return preparePageForUser(
             session,
             user,
@@ -386,8 +389,8 @@ class ApplicationHibernateDAO(
 
             val preparedPageItems = page.items.map { item ->
                 val isFavorite = allFavorites.any { fav ->
-                    fav.application.id.name == item.metadata.name &&
-                            fav.application.id.version == item.metadata.version
+                    fav.applicationName == item.metadata.name &&
+                            fav.applicationVersion == item.metadata.version
                 }
 
                 ApplicationWithFavorite(item.metadata, item.invocation, isFavorite)

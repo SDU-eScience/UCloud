@@ -99,7 +99,8 @@ class Server(
                 configureControllers(
                     AppController(
                         db,
-                        applicationDao
+                        applicationDao,
+                        toolDao
                     ),
 
                     JobController(db, jobOrchestrator, jobDao, micro.tokenValidation as TokenValidationJWT),

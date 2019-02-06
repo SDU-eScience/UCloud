@@ -6,8 +6,10 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.ApplicationDescription
 import dk.sdu.cloud.app.api.ApplicationDescriptions
+import dk.sdu.cloud.app.api.ToolReference
 import dk.sdu.cloud.app.api.tags
 import dk.sdu.cloud.app.services.ApplicationDAO
+import dk.sdu.cloud.app.services.ToolDAO
 import dk.sdu.cloud.app.util.yamlMapper
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -25,7 +27,8 @@ import org.yaml.snakeyaml.reader.ReaderException
 
 class AppController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
-    private val source: ApplicationDAO<DBSession>
+    private val source: ApplicationDAO<DBSession>,
+    private val toolDao: ToolDAO<DBSession>
 ) : Controller {
     override val baseContext = ApplicationDescriptions.baseContext
 
@@ -84,11 +87,26 @@ class AppController<DBSession>(
 
         implement(ApplicationDescriptions.findByNameAndVersion) { req ->
             val app = db.withTransaction {
-                source.findByNameAndVersionForUser(
+                val user = call.securityPrincipal.username
+                val result = source.findByNameAndVersionForUser(
                     it,
-                    call.securityPrincipal.username,
+                    user,
                     req.name,
                     req.version
+                )
+
+                val toolRef = result.invocation.tool
+                val tool =
+                    toolDao.findByNameAndVersion(it, user, toolRef.name, toolRef.version)
+
+                result.copy(
+                    invocation = result.invocation.copy(
+                        tool = ToolReference(
+                            toolRef.name,
+                            toolRef.version,
+                            tool
+                        )
+                    )
                 )
             }
 
