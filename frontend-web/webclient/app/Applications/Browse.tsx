@@ -134,7 +134,6 @@ class Applications extends React.Component<ApplicationsProps> {
     }
 
     render() {
-        this.props.setRefresh(() => this.fetch(this.props));
         const main = (
             <Pagination.List
                 loading={this.props.applications.loading}
