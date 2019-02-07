@@ -1,0 +1,6 @@
+write-open
+hello
+1
+ceof
+write
+hello this is my fileceof

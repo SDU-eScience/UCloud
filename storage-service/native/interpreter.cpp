@@ -6,9 +6,7 @@
 #include <sys/param.h>
 #include <fcntl.h>
 #include <cerrno>
-#include <ctime>
 #include <cstdint>
-#include <sys/timeb.h>
 #include <cmath>
 #include <string>
 #include <sys/stat.h>
@@ -26,6 +24,7 @@
 #include "file_utils.h"
 #include "symlink.h"
 #include "chmod.h"
+#include "timers.h"
 
 #define MAX_LINE_LENGTH 4096
 #define MAX_ARGUMENTS 16
@@ -33,12 +32,6 @@
 #define NEXT_ARGUMENT(idx) read_argument(line, args, idx)
 #define NEXT_ARGUMENT_INT(idx) read_integer_argument(line, args, idx)
 #define INTERNAL_BUFFER_CAPACITY (32 * 1024)
-
-uint64_t ms() {
-    struct timeb timer_msec{};
-    ftime(&timer_msec);
-    return ((uint64_t) timer_msec.time) * 1000ll + (uint64_t) timer_msec.millitm;
-}
 
 ssize_t stdin_read_line(char *result, size_t size);
 
@@ -52,9 +45,6 @@ static size_t cleared_bytes = 0;
 static bool boundary_found = false;
 
 auto stdin_no = STDIN_FILENO;
-
-#define START_TIMER(a) auto timer ## a = ms();
-#define END_TIMER(a) a += ms() - timer ## a;
 
 char *read_argument(char *line, char args[MAX_ARGUMENTS][MAX_LINE_LENGTH], size_t arg_idx) {
     assert(arg_idx >= 0);
@@ -266,6 +256,7 @@ int write_open_command(char *path, bool allow_overwrite) {
 }
 
 int write_command() {
+    START_TIMER(write);
     struct stat s{};
 
     size_t write_buffer_size = INTERNAL_BUFFER_CAPACITY;
@@ -298,15 +289,20 @@ int write_command() {
 
         read = stdin_read(write_buffer, write_buffer_size);
     }
+    END_TIMER(write);
+    fprintf(stderr, "It took %llu ms to write a single file.\n", timerwrite);
+    START_TIMER(info);
     fstat(file_opened_for_writing, &s);
 
     close(out_file);
     free(write_buffer);
 
-    print_file_information(std::cout, file_opened_for_writing_path, 
-        &s, CREATED_OR_MODIFIED);
+    print_file_information(std::cout, file_opened_for_writing_path,
+                           &s, CREATED_OR_MODIFIED);
     file_opened_for_writing = -1;
     memset(file_opened_for_writing_path, 0, MAXPATHLEN);
+    END_TIMER(info);
+    fprintf(stderr, "It took %llu ms to retrieve file info.\n", timerinfo);
     return 0;
 }
 
@@ -383,14 +379,9 @@ void read_command(int64_t start, int64_t max) {
 }
 
 int main(int argc, char **argv) {
-    if (argc < 3) {
+    if (argc < 5) {
         fprintf(stderr, "incorrect usage");
         return 1;
-    }
-
-    if (argc > 3) {
-        fprintf(stderr, "Using input from file: %s\n", argv[3]);
-        stdin_no = open(argv[3], O_RDONLY);
     }
 
     // Disable buffering of stdout and stderr (not only used for newline terminated messages)
@@ -400,9 +391,18 @@ int main(int argc, char **argv) {
     // Initialize streams
     auto client_boundary = argv[1];
     auto server_boundary = argv[2];
+    uint32_t requested_uid = (uint32_t) std::stoul(argv[3]);
+    uint32_t requested_gid = (uint32_t) std::stoul(argv[4]);
 
     // Start by sending the boundary immediately (Allowing client to detect if we have started)
     fprintf(stderr, "%s", server_boundary);
+
+    uid_t uid = requested_uid;
+    gid_t gid = requested_gid;
+    int gid_status = setgid(gid);
+    int uid_status = setuid(uid);
+
+    if (gid_status != 0 || uid_status != 0) return 1;
 
     initialize_stdin_stream(client_boundary);
 

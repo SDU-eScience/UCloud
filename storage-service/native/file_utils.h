@@ -28,7 +28,7 @@
 #define SHARED_WITH_EXECUTE 8
 
 typedef struct {
-    char *name;
+    uid_t name;
     uint8_t mode;
 } shared_with_t;
 

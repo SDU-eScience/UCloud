@@ -4,8 +4,12 @@
 #include <sys/acl.h>
 #include <ostream>
 #include <sstream>
+#include <stdlib.h>
+#include <stdio.h>
 
 #include "file_utils.h"
+#include "timers.h"
+#include "uthash.h"
 
 #ifdef __linux__
 #include <acl/libacl.h>
@@ -24,6 +28,27 @@ static int acl_get_perm(acl_permset_t perm, int value) {
 
 #define EMIT(id, stat) { if ((mode & (id)) != 0) EMIT_STAT(stat); }
 #define EMIT_STAT(stat) stream << (stat) << std::endl
+
+struct real_path_mapping {
+    char *parent;
+    char *result;
+    UT_hash_handle hh;
+};
+
+struct real_path_mapping *real_path_mappings = nullptr;
+
+void add_real_path_mapping(char *parent, char *result) {
+    auto mapping = (struct real_path_mapping *) malloc(sizeof(struct real_path_mapping));
+    mapping->parent = parent;
+    mapping->result = result;
+    HASH_ADD_STR(real_path_mappings, parent, mapping);
+}
+
+struct real_path_mapping *find_real_path_mapping(char *parent) {
+    struct real_path_mapping *result;
+    HASH_FIND_STR(real_path_mappings, parent, result);
+    return result;
+}
 
 static int
 print_type_and_link_status(std::ostream &stream, const char *path, const struct stat *stat_inp, uint64_t mode) {
@@ -63,17 +88,9 @@ static void print_basic(std::ostream &stream, const char *path, const struct sta
 
         auto unix_mode = (stat_inp->st_mode & (S_IRWXU | S_IRWXG | S_IRWXO));
 
-        auto user = getpwuid(uid);
-        if (user == nullptr) FATAL("Could not find user");
-
-        char *group_name;
-        auto gr = getgrgid(gid);
-        if (gr == nullptr) group_name = const_cast<char *>("nobody");
-        else group_name = gr->gr_name;
-
         EMIT(UNIX_MODE, unix_mode);
-        EMIT(OWNER, user->pw_name);
-        EMIT(GROUP, group_name);
+        EMIT(OWNER, uid);
+        EMIT(GROUP, gid);
     }
 
     if ((mode & TIMESTAMPS) != 0) {
@@ -83,15 +100,27 @@ static void print_basic(std::ostream &stream, const char *path, const struct sta
     }
 
     if ((mode & PATH) != 0) {
+        char *resolved_parent = nullptr;
+
         auto parent = parent_path(path);
-        auto resolved_parent = realpath(parent.c_str(), nullptr);
+        auto parent_c = strdup(parent.c_str());
+
+        auto cached = find_real_path_mapping(parent_c);
+        if (cached != nullptr) {
+            resolved_parent = cached->result;
+        } else {
+            resolved_parent = realpath(parent.c_str(), nullptr);
+            if (resolved_parent == nullptr) FATAL("resolved_parent == nullptr")
+            add_real_path_mapping(parent_c, resolved_parent);
+        }
+
         if (resolved_parent == nullptr) FATAL("resolved_parent == nullptr")
+
         std::stringstream resolved_stream;
         resolved_stream << resolved_parent << '/' << file_name(path);
         auto resolved_path = resolved_stream.str();
 
-        EMIT_STAT(resolved_path.c_str());
-        free(resolved_parent);
+        EMIT_STAT(resolved_path);
     }
 
     EMIT(RAW_PATH, path);
@@ -120,51 +149,29 @@ static void print_shares(std::ostream &stream, const char *path) {
 
             if (acl_get_tag_type(entry, &acl_tag) == -1) FATAL("acl_get_tag_type");
             auto qualifier = acl_get_qualifier(entry);
-            bool retrieve_permissions = false;
-            bool is_user = false;
-            char *share_name = nullptr;
+            auto acl_uid = (uid_t *) qualifier;
+            bool is_user;
 
-            if (acl_tag == ACL_USER) {
-                is_user = true;
+            is_user = acl_tag == ACL_USER;
 
-                auto acl_uid = (uid_t *) qualifier;
-                passwd *pPasswd = getpwuid(*acl_uid);
+            if (acl_get_permset(entry, &permset) == -1) FATAL("permset");
+            bool has_read = acl_get_perm(permset, ACL_READ) == 1;
+            bool has_write = acl_get_perm(permset, ACL_WRITE) == 1;
+            bool has_execute = acl_get_perm(permset, ACL_EXECUTE) == 1;
 
-                if (pPasswd != nullptr) {
-                    share_name = pPasswd->pw_name;
-                    retrieve_permissions = true;
-                }
-            } else if (acl_tag == ACL_GROUP) {
-                auto acl_uid = (gid_t *) qualifier;
-                group *pGroup = getgrgid(*acl_uid);
+            uint8_t mode_out = 0;
+            if (!is_user) mode_out |= SHARED_WITH_UTYPE;
+            if (has_read) mode_out |= SHARED_WITH_READ;
+            if (has_write) mode_out |= SHARED_WITH_WRITE;
+            if (has_execute) mode_out |= SHARED_WITH_EXECUTE;
 
-                if (pGroup != nullptr) {
-                    share_name = pGroup->gr_name;
-                    retrieve_permissions = true;
-                }
-            }
+            shared_with_t shared{};
 
-            if (retrieve_permissions) {
-                if (acl_get_permset(entry, &permset) == -1) FATAL("permset");
-                bool has_read = acl_get_perm(permset, ACL_READ) == 1;
-                bool has_write = acl_get_perm(permset, ACL_WRITE) == 1;
-                bool has_execute = acl_get_perm(permset, ACL_EXECUTE) == 1;
+            shared.name = *acl_uid;
+            shared.mode = mode_out;
 
-                uint8_t mode_out = 0;
-                if (!is_user) mode_out |= SHARED_WITH_UTYPE;
-                if (has_read) mode_out |= SHARED_WITH_READ;
-                if (has_write) mode_out |= SHARED_WITH_WRITE;
-                if (has_execute) mode_out |= SHARED_WITH_EXECUTE;
-
-                shared_with_t shared{};
-                assert(share_name != nullptr);
-
-                shared.name = strdup(share_name);
-                shared.mode = mode_out;
-
-                shares.emplace_back(shared);
-                entry_count++;
-            }
+            shares.emplace_back(shared);
+            entry_count++;
 
             acl_free(qualifier);
         }
@@ -175,7 +182,6 @@ static void print_shares(std::ostream &stream, const char *path) {
     for (const auto &e : shares) {
         EMIT_STAT(e.name);
         printf("%d\n", e.mode);
-        free(e.name);
     }
 }
 
