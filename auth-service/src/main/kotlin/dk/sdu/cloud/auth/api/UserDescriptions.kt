@@ -10,7 +10,7 @@ import dk.sdu.cloud.client.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
 
 data class LookupUsersRequest(val users: List<String>)
-data class UserLookup(val subject: String, val role: Role)
+data class UserLookup(val subject: String, val uid: Long, val role: Role)
 data class LookupUsersResponse(val results: Map<String, UserLookup?>)
 
 typealias CreateUserAudit = List<CreateSingleUserAudit>

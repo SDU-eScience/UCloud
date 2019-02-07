@@ -107,25 +107,22 @@ class UserHibernateDAOTest {
     @Test
     fun `insert WAYF`() {
         val auth = mockk<SamlRequestProcessor>()
-
-        db.withTransaction { session ->
-            val userDao = UserHibernateDAO(passwordHashingService)
-            every { auth.authenticated } returns true
-            every { auth.attributes } answers {
-                val h = HashMap<String, List<String>>(10)
-                h.put(AttributeURIs.EduPersonTargetedId, listOf("hello"))
-                h.put("gn", listOf("Firstname"))
-                h.put("sn", listOf("Lastname"))
-                h.put("schacHomeOrganization", listOf("SDU"))
-                h
-            }
-
-            val person = personService.createUserByWAYF(auth)
-
-            userDao.insert(session, person)
-
-            assertEquals("SDU", person.organizationId)
+        val userDao = UserHibernateDAO(passwordHashingService)
+        every { auth.authenticated } returns true
+        every { auth.attributes } answers {
+            val h = HashMap<String, List<String>>(10)
+            h.put(AttributeURIs.EduPersonTargetedId, listOf("hello"))
+            h.put("gn", listOf("Firstname"))
+            h.put("sn", listOf("Lastname"))
+            h.put("schacHomeOrganization", listOf("SDU"))
+            h
         }
+
+        val person = personService.createUserByWAYF(auth)
+        db.withTransaction { session ->
+            userDao.insert(session, person)
+        }
+        assertEquals("SDU", person.organizationId)
     }
 
     @Test
@@ -155,8 +152,8 @@ class UserHibernateDAOTest {
             "lastname",
             "phone",
             "orcid",
-            ByteArray(2),
-            ByteArray(4)
+            hashedPassword = ByteArray(2),
+            salt = ByteArray(4)
         )
         val person2 = PersonEntityByPassword(
             "id",
@@ -168,8 +165,8 @@ class UserHibernateDAOTest {
             "lastname",
             "phone",
             "orcid",
-            ByteArray(2),
-            ByteArray(4)
+            hashedPassword = ByteArray(2),
+            salt = ByteArray(4)
         )
 
         assertTrue(person1.equals(person2))
@@ -192,8 +189,8 @@ class UserHibernateDAOTest {
             "lastname",
             "phone",
             "orcid",
-            "orgid",
-            "wayfid"
+            orgId = "orgid",
+            wayfId = "wayfid"
         )
         val model = entity.toModel()
         val backToEntity = model.toEntity()

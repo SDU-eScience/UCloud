@@ -13,6 +13,7 @@ import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.list
 import org.hibernate.annotations.NaturalId
 import java.util.*
+import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.EnumType
 import javax.persistence.Enumerated
@@ -46,6 +47,14 @@ sealed class PrincipalEntity {
     @get:Temporal(TemporalType.TIMESTAMP)
     abstract var modifiedAt: Date
 
+    @get:Column(
+        unique = true,
+        updatable = false,
+        insertable = false,
+        columnDefinition = "bigint not null auto_increment" // This is only true for testing
+    )
+    abstract var uid: Long
+
     abstract fun toModel(): Principal
 
     companion object : HibernateEntity<PrincipalEntity>, WithId<String>
@@ -56,10 +65,11 @@ data class ServiceEntity(
     override var id: String,
     override var role: Role,
     override var createdAt: Date,
-    override var modifiedAt: Date
+    override var modifiedAt: Date,
+    override var uid: Long = 0
 ) : PrincipalEntity() {
     override fun toModel(): Principal {
-        return ServicePrincipal(id, role)
+        return ServicePrincipal(id, role, uid)
     }
 }
 
@@ -68,10 +78,11 @@ data class ProjectProxyEntity(
     override var id: String,
     override var role: Role,
     override var createdAt: Date,
-    override var modifiedAt: Date
+    override var modifiedAt: Date,
+    override var uid: Long = 0
 ) : PrincipalEntity() {
     override fun toModel(): Principal {
-        return ProjectProxy(id, role)
+        return ProjectProxy(id, role, uid)
     }
 }
 
@@ -95,6 +106,7 @@ data class PersonEntityByPassword(
     override var lastName: String,
     override var phoneNumber: String?,
     override var orcId: String?,
+    override var uid: Long = 0,
 
     var hashedPassword: ByteArray,
     var salt: ByteArray
@@ -110,6 +122,7 @@ data class PersonEntityByPassword(
             orcId,
             emptyList(),
             null,
+            uid,
             hashedPassword,
             salt
         )
@@ -163,6 +176,7 @@ data class PersonEntityByWAYF(
     override var lastName: String,
     override var phoneNumber: String?,
     override var orcId: String?,
+    override var uid: Long = 0,
     var orgId: String,
     var wayfId: String
 ) : PersonEntity() {
@@ -177,6 +191,7 @@ data class PersonEntityByWAYF(
             orcId,
             emptyList(),
             null,
+            uid,
             orgId,
             wayfId
         )
@@ -268,6 +283,7 @@ fun Principal.toEntity(): PrincipalEntity {
             lastName,
             phoneNumber,
             orcId,
+            uid,
             organizationId,
             wayfId
         )
@@ -282,6 +298,7 @@ fun Principal.toEntity(): PrincipalEntity {
             lastName,
             phoneNumber,
             orcId,
+            uid,
             password,
             salt
         )
@@ -290,14 +307,16 @@ fun Principal.toEntity(): PrincipalEntity {
             id,
             role,
             Date(),
-            Date()
+            Date(),
+            uid
         )
 
         is ProjectProxy -> ProjectProxyEntity(
             id,
             role,
             Date(),
-            Date()
+            Date(),
+            uid
         )
     }
 }

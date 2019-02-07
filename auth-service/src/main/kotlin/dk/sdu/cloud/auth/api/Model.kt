@@ -23,7 +23,7 @@ import dk.sdu.cloud.service.TYPE_PROPERTY
 )
 sealed class Principal {
     /**
-     * A unique ID for this principle. It should generally not contain sensitive data as this ID will be used a public
+     * A unique ID for this principal. It should generally not contain sensitive data as this ID will be used a public
      * identifier of a person.
      */
     abstract val id: String
@@ -34,6 +34,12 @@ sealed class Principal {
      * can be used.
      */
     abstract val role: Role
+
+    /**
+     * A unique numeric id for this principal. This is suitable for systems that require numeric identifiers.
+     * Use of [id] is strongly preferred.
+     */
+    abstract val uid: Long
 
     protected open fun validate() {
         if (id.isEmpty()) throw IllegalArgumentException("ID cannot be empty!")
@@ -83,6 +89,7 @@ sealed class Person : Principal() {
         override val orcId: String?,
         override val emailAddresses: List<String>,
         override val preferredEmailAddress: String?,
+        override val uid: Long = 0,
 
         /**
          * Given by WAYF in the property `schacHomeOrganization`
@@ -116,6 +123,7 @@ sealed class Person : Principal() {
         override val orcId: String?,
         override val emailAddresses: List<String>,
         override val preferredEmailAddress: String?,
+        override val uid: Long = 0,
 
         @JsonIgnore
         val password: ByteArray = ByteArray(0),
@@ -139,7 +147,8 @@ sealed class Person : Principal() {
 
 data class ProjectProxy(
     override val id: String,
-    override val role: Role
+    override val role: Role,
+    override val uid: Long = 0
 ) : Principal() {
     init {
         validate()
@@ -152,7 +161,8 @@ data class ProjectProxy(
  */
 data class ServicePrincipal(
     override val id: String,
-    override val role: Role
+    override val role: Role,
+    override val uid: Long = 0
 ) : Principal() {
     init {
         validate()

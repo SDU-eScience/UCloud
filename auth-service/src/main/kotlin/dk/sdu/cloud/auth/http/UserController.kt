@@ -80,7 +80,7 @@ class UserController<DBSession>(
                 LookupUsersResponse(
                     db.withTransaction { session ->
                         userDAO.findAllByIds(session, req.users).mapValues { (_, principal) ->
-                            principal?.let { UserLookup(it.id, it.role) }
+                            principal?.let { UserLookup(it.id, it.uid, it.role) }
                         }
                     }
                 )

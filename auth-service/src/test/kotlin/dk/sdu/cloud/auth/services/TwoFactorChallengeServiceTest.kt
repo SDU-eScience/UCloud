@@ -27,8 +27,8 @@ class TwoFactorChallengeServiceTest {
             null,
             emptyList(),
             null,
-            ByteArray(64),
-            ByteArray(64)
+            password = ByteArray(64),
+            salt = ByteArray(64)
         )
     ): Principal {
         @Suppress("UNCHECKED_CAST")
