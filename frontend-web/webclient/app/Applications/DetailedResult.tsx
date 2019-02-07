@@ -118,10 +118,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             failure => {
                 if (!failure.isCanceled)
                     failureNotification("An error occurred retrieving Information and Output from the job.");
-            }).then(
-                () => this.props.setLoading(false),
-                () => this.props.setLoading(false)
-            );// FIXME, should be .finally(() => this.props.setLoading(false));, blocked by ts-jest
+            }).finally(() => this.props.setLoading(false));
     }
 
     retrieveStateWhenCompleted() {
