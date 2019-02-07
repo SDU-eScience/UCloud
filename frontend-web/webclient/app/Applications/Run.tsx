@@ -361,9 +361,9 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
             <Flex mb="1em">
                 {!props.app.invocation.resources.multiNodeSupport ? null :
                     <>
-                        <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" defaultValue={tool.defaultNumberOfNodes} value={numberOfNodes} onChange={props.onChange} />
+                        <SchedulingField min={1} field="numberOfNodes" text="Number of Nodes" defaultValue={tool.tool.description.defaultNumberOfNodes} value={numberOfNodes} onChange={props.onChange} />
                         <Box ml="5px" />
-                        <SchedulingField min={1} field="tasksPerNode" text="Tasks per Node" defaultValue={tool.defaultTasksPerNode} value={tasksPerNode} onChange={props.onChange} />
+                        <SchedulingField min={1} field="tasksPerNode" text="Tasks per Node" defaultValue={tool.tool.description.defaultTasksPerNode} value={tasksPerNode} onChange={props.onChange} />
                     </>
                 }
             </Flex>
