@@ -397,12 +397,14 @@ int main(int argc, char **argv) {
     // Start by sending the boundary immediately (Allowing client to detect if we have started)
     fprintf(stderr, "%s", server_boundary);
 
-    uid_t uid = requested_uid;
-    gid_t gid = requested_gid;
-    int gid_status = setgid(gid);
-    int uid_status = setuid(uid);
+    if (requested_gid != 0 && requested_uid != 0) {
+        uid_t uid = requested_uid;
+        gid_t gid = requested_gid;
+        int gid_status = setgid(gid);
+        int uid_status = setuid(uid);
 
-    if (gid_status != 0 || uid_status != 0) return 1;
+        if (gid_status != 0 || uid_status != 0) return 1;
+    }
 
     initialize_stdin_stream(client_boundary);
 
