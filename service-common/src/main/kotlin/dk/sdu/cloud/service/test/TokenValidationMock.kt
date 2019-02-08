@@ -8,6 +8,8 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.service.TokenValidationJWT
 import java.util.*
+import kotlin.math.absoluteValue
+import kotlin.random.Random
 
 object TokenValidationMock {
     internal const val sharedSecret = "shared-secret-for-testing"
@@ -81,7 +83,12 @@ fun TokenValidationMock.createTokenForUser(
     issuedAt: Long = 0L,
     expiresAt: Long = System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 365)
 ): String {
-    return createTokenForPrincipal(SecurityPrincipal(username, role, "user", "user"), scopes, issuedAt, expiresAt)
+    return createTokenForPrincipal(
+        SecurityPrincipal(username, role, "user", "user", Random.nextLong().absoluteValue),
+        scopes,
+        issuedAt,
+        expiresAt
+    )
 }
 
 fun TokenValidationMock.createTokenForService(
@@ -91,7 +98,13 @@ fun TokenValidationMock.createTokenForService(
     expiresAt: Long = System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 365)
 ): String {
     return createTokenForPrincipal(
-        SecurityPrincipal("_" + serviceName.removePrefix("_"), Role.SERVICE, "service", "service"),
+        SecurityPrincipal(
+            "_" + serviceName.removePrefix("_"),
+            Role.SERVICE,
+            "service",
+            "service",
+            Random.nextLong().absoluteValue
+        ),
         scopes,
         issuedAt,
         expiresAt
@@ -99,19 +112,19 @@ fun TokenValidationMock.createTokenForService(
 }
 
 object TestUsers {
-    val user = SecurityPrincipal("user", Role.USER, "user", "user")
+    val user = SecurityPrincipal("user", Role.USER, "user", "user", Random.nextLong().absoluteValue)
     val user2 = user.copy(username = "user2")
     val user3 = user.copy(username = "user3")
     val user4 = user.copy(username = "user4")
     val user5 = user.copy(username = "user5")
 
-    val admin = SecurityPrincipal("admin", Role.ADMIN, "admin", "admin")
+    val admin = SecurityPrincipal("admin", Role.ADMIN, "admin", "admin", Random.nextLong().absoluteValue)
     val admin2 = admin.copy(username = "admin2")
     val admin3 = admin.copy(username = "admin3")
     val admin4 = admin.copy(username = "admin4")
     val admin5 = admin.copy(username = "admin5")
 
-    val service = SecurityPrincipal("_service", Role.SERVICE, "service", "service")
+    val service = SecurityPrincipal("_service", Role.SERVICE, "service", "service", Random.nextLong().absoluteValue)
     val service2 = service.copy(username = "_service2")
     val service3 = service.copy(username = "_service3")
     val service4 = service.copy(username = "_service4")

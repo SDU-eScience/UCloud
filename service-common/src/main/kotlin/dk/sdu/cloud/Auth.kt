@@ -95,7 +95,12 @@ data class SecurityPrincipal(
     /**
      * The last name of the security principal. Can be empty.
      */
-    val lastName: String
+    val lastName: String,
+
+    /**
+     * A numeric unique identifier for this principal. The username is the preferred unique identifier.
+     */
+    val uid: Long
 )
 
 /**

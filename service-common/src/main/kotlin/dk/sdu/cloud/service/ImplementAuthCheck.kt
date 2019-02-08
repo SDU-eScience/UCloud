@@ -187,7 +187,8 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
         validatedToken.subject,
         role,
         firstNames,
-        lastName
+        lastName,
+        validatedToken.getClaim("uid").asLong()
     )
 
     val issuedAt = validatedToken.issuedAt.time
