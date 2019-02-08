@@ -5,8 +5,6 @@ USER=$1
 PRETTY=$2
 CREATE_DIR=$3
 
-id -u "${USER}" || adduser -D -H -s /bin/false "${USER}" # Compatible with Alpine (busybox)
-
 if [ ! -f /mnt/cephfs/home ]; then
     mkdir -p /mnt/cephfs/home
     chown 711 /mnt/cephfs/home
@@ -15,12 +13,8 @@ fi
 if [ "${CREATE_DIR}" != "no" ]; then
     # User initialization
     mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/"
-    mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/Favorites"
     mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/Jobs"
-    mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/Uploads"
     mkdir -p -m771 "/mnt/cephfs/home/${PRETTY}/Trash"
 
-    # For some reason busybox is having problems chowning directly on the username
-    # TODO That will likely become a problem later
-    chown -R `id -u ${USER}`: "/mnt/cephfs/home/${PRETTY}"
+    chown -R ${USER}:${USER} "/mnt/cephfs/home/${PRETTY}"
 fi
