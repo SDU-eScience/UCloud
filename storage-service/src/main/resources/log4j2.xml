@@ -45,8 +45,11 @@
         <Logger name="dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
-        <!--<Logger name="dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner" level="info" additivity="false">-->
-            <!--<AppenderRef ref="Console"/>-->
-        <!--</Logger>-->
+        <Logger name="dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        <Logger name="dk.sdu.cloud.file.services.unixfs.FileOwnerLookupService" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
     </Loggers>
 </Configuration>

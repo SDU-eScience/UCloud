@@ -45,7 +45,10 @@ data class UpdateShareRequest(
     val rights: Set<AccessRight>
 )
 
-data class AcceptShareRequest(val id: Long, val createLink: Boolean = true)
+data class AcceptShareRequest(
+    val id: Long,
+    val createLink: Boolean?
+)
 
 object ShareDescriptions : RESTDescriptions("shares") {
     const val baseContext = "/api/shares"

@@ -61,7 +61,7 @@ class AuthUIDLookupService(
         val uid = response.result.results[username]?.uid ?: return null
 
         storeMapping(username, uid)
-        return uid
+        return moveUIDToUnixNS(uid)
     }
 
     override suspend fun reverseLookup(uid: Long): String? {
@@ -95,5 +95,7 @@ class AuthUIDLookupService(
 
     companion object : Loggable {
         override val log = logger()
+
     }
 }
+

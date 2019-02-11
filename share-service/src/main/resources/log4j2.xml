@@ -42,5 +42,8 @@
         <Logger name="dk.sdu.cloud.service.KafkaEventConsumer" level="info" additivity="false">
             <AppenderRef ref="Console"/>
         </Logger>
+        <Logger name="dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
     </Loggers>
 </Configuration>

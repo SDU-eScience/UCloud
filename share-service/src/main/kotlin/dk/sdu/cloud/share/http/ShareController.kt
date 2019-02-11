@@ -34,7 +34,7 @@ class ShareController(
                 call.securityPrincipal.username,
                 req.id,
                 cloudContext.bearerAuth(call.request.bearer!!),
-                req.createLink
+                req.createLink ?: true
             )
 
             ok(Unit)

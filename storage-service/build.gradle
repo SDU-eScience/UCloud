@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.19.2'
+version '0.19.2D'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"
