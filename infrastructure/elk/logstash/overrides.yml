@@ -6,9 +6,13 @@ persistence:
 elasticsearch:
   host: elasticsearch-client.elasticsearch.svc.cluster.local
 
+livenessProbe:
+  initialDelaySeconds: 60
+readinessProbe:
+  initialDelaySeconds: 60
+
 inputs:
-  main:
-  kafka: |-
+  main: |-
     input {
       kafka {
         topics => ["http.logs"]
@@ -18,7 +22,7 @@ inputs:
     }
 
 filters:
-  kafka: |-
+  main: |-
     filter {
       json {
         source => "message"
@@ -30,8 +34,7 @@ filters:
     }
 
 outputs:
-  main:
-  kafka: |-
+  main: |-
     output {
       elasticsearch {
         hosts => ["http://elasticsearch-client.elasticsearch.svc.cluster.local:9200"]
