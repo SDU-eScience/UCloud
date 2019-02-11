@@ -1,7 +1,7 @@
 import * as React from 'react'
 import styled from 'styled-components'
 import { style, space, color, SpaceProps, ColorProps, ResponsiveValue } from "styled-system"
-import * as icons from './icons/index';
+import * as icons from './icons';
 import theme from './theme'
 import * as CSS from "csstype";
 
@@ -63,7 +63,7 @@ Icon.defaultProps = {
   size: 24
 }
 
-// Use to see every available icon.
+// Use to see every available icon in debugging.
 export const EveryIcon = () => (
   <>
     {Object.keys(icons).map((it: IconName, i: number) =>
