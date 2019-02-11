@@ -25,7 +25,9 @@ class FileAttributeParser(
         attributes: Set<FileAttribute>
     ): Sequence<StatusTerminatedItem<FileRow>> {
         var line = 0
-        val sortedAttributes = attributes.toSortedSet(Comparator.comparingLong { it.value })
+        val sortedAttributes = attributes
+            .filter { it in ATTRIBUTES_FROM_SERVER }
+            .toSortedSet(Comparator.comparingLong { it.value })
 
         fun next(): String {
             line++
@@ -55,7 +57,6 @@ class FileAttributeParser(
             var checksum: FileChecksum? = null
             var sensitivityLevel: SensitivityLevel? = null
             var linkInode: String? = null
-            var xowner: String? = null
 
             var attributesCovered = 0
             for (attribute in sortedAttributes) {
@@ -154,12 +155,10 @@ class FileAttributeParser(
                     FileAttribute.LINK_INODE -> {
                         linkInode = currentLine
                     }
-
-                    FileAttribute.XOWNER -> xowner = currentLine
                 }
             }
 
-            if (attributesCovered == attributes.size) {
+            if (attributesCovered == sortedAttributes.size) {
                 StatusTerminatedItem.Item(
                     FileRow(
                         fileType,
@@ -178,7 +177,7 @@ class FileAttributeParser(
                         checksum,
                         sensitivityLevel,
                         linkInode,
-                        xowner
+                        null
                     )
                 )
             } else {
@@ -186,6 +185,10 @@ class FileAttributeParser(
                 null
             }
         }
+    }
+
+    companion object {
+        private val ATTRIBUTES_FROM_SERVER = FileAttribute.values().toSet() - FileAttribute.XOWNER
     }
 }
 

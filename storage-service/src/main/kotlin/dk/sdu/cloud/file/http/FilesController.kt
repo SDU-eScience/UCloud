@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
@@ -17,7 +18,6 @@ import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.withContext
@@ -46,7 +46,6 @@ class FilesController<Ctx : FSUserContext>(
     private val fileLookupService: FileLookupService<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val aclService: ACLService<Ctx>,
-    private val fileOwnerService: FileOwnerService<Ctx>,
     private val homeFolderService: HomeFolderService,
     private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {
@@ -321,30 +320,19 @@ class FilesController<Ctx : FSUserContext>(
 
     private suspend fun RESTHandler<*, *, *, *>.runCodeAsUnixOwner(path: String, handler: suspend (Ctx) -> Unit) {
         log.debug("We need to run request at '$path' as real owner")
-        val realOwner = fileOwnerService.lookupOwner(path) // We lookup owner since the xattr is async
+        val stat = commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
+            coreFs.stat(ctx, path, setOf(FileAttribute.OWNER, FileAttribute.XOWNER))
+        }
+
+        val realOwner = stat.xowner
+        val creator = stat.owner
+
         val user = call.securityPrincipal.username
         log.debug("Real owner is $realOwner and user is $user")
 
         if (realOwner != user) throw FSException.PermissionException()
 
-        val switchUserTo = commandRunnerFactory.withContext(user) { ctx ->
-            val stat = coreFs.stat(ctx, path, setOf(FileAttribute.OWNER, FileAttribute.XOWNER))
-            log.debug("Got back the following stat: owner = ${stat.owner}, xowner = ${stat.xowner}")
-            if (stat.owner != user) {
-                // Authenticated user is the true owner of the file, but not the file create (unix file owner)
-                // We must switch context to perform the chmod
-                log.debug("We must switch user to perform this action")
-                stat.owner
-            } else {
-                log.debug("We can run this action as the current user")
-                handler(ctx)
-                null
-            }
-        }
-
-        if (switchUserTo != null) {
-            commandRunnerFactory.withContext(switchUserTo) { ctx -> handler(ctx) }
-        }
+        commandRunnerFactory.withContext(creator) { ctx -> handler(ctx) }
     }
 
     private fun RESTHandler<*, *, *, *>.requirePermissionToChangeFilePermissions() {

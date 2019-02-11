@@ -6,7 +6,7 @@ import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.ExternalFileService
+import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.services.withBlockingContext
@@ -17,7 +17,7 @@ import org.apache.kafka.streams.kstream.KStream
 class UserProcessor<FSCtx : CommandRunner, UID>(
     private val stream: KStream<String, UserEvent>,
     private val userDao: StorageUserDao<UID>,
-    private val externalFileService: ExternalFileService<FSCtx>,
+    private val externalFileService: FileScanner<FSCtx>,
     private val runnerFactory: FSCommandRunnerFactory<FSCtx>,
     private val coreFs: CoreFileSystemService<FSCtx>
 ) {

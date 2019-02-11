@@ -77,12 +77,12 @@ class DiffTest {
     ): TestingContext<UnixFSCommandRunner> {
         val userDao = storageUserDaoWithFixedAnswer(FILE_OWNER)
         val root = File(createFS(builder))
-        val cephFs = UnixFileSystem(userDao, FileAttributeParser(userDao), root.absolutePath)
+        val commandRunnerFactory = UnixFSCommandRunnerFactory(userDao)
+        val cephFs = UnixFileSystem(commandRunnerFactory, userDao, FileAttributeParser(userDao), root.absolutePath)
 
         val eventProducer = mockk<StorageEventProducer>(relaxed = true)
         val coreFs = CoreFileSystemService(cephFs, eventProducer)
 
-        val commandRunnerFactory = UnixFSCommandRunnerFactory(userDao)
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
 
         return TestingContext(

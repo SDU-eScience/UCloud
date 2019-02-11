@@ -1,5 +1,7 @@
 package dk.sdu.cloud.file.services.unixfs
 
+import dk.sdu.cloud.file.SERVICE_UNIX_USER
+import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageEvent
@@ -26,12 +28,16 @@ import java.io.OutputStream
 private const val NOT_FOUND = -2
 
 class UnixFileSystem(
+    private val processRunner: UnixFSCommandRunnerFactory,
     private val userDao: StorageUserDao<Long>,
     private val fileAttributeParser: FileAttributeParser,
     private val fsRoot: String
 ) : LowLevelFileSystemInterface<UnixFSCommandRunner> {
     // TODO This attribute probably needs to live somewhere else
     private val attributesToCopy = listOf(FileSensitivityService.XATTRIBUTE)
+
+    // Note: We should generally avoid these cyclic dependencies
+    private val fileOwnerLookupService = FileOwnerLookupService(processRunner, this)
 
     override suspend fun copy(
         ctx: UnixFSCommandRunner,
@@ -52,8 +58,7 @@ class UnixFileSystem(
                 parseFileAttributes(
                     out.stdoutLineSequence(),
                     CREATED_OR_MODIFIED_ATTRIBUTES
-                )
-                    .asFSResult { createdOrModifiedFromRow(it, ctx.user) }
+                ).asFSResult { createdOrModifiedFromRow(it, ctx.user) }
             }
         )
 
@@ -133,12 +138,13 @@ class UnixFileSystem(
         directory: String,
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>> {
+        val requestedAttributes = processRequestedAttributes(mode)
         return ctx.runCommand(
             InterpreterCommand.LIST_DIRECTORY,
             translateAndCheckFile(directory),
-            mode.asBitSet().toString(),
+            requestedAttributes.asBitSet().toString(),
 
-            consumer = { parseFileAttributes(it.stdoutLineSequence(), mode).asFSResult() }
+            consumer = { parseFileAttributes(it.stdoutLineSequence(), requestedAttributes).asFSResult() }
         )
     }
 
@@ -208,11 +214,12 @@ class UnixFileSystem(
         mode: Set<FileAttribute>
     ): FSResult<List<FileRow>> {
         val absolutePath = translateAndCheckFile(path)
+        val requestedAttributes = processRequestedAttributes(mode)
         return ctx.runCommand(
             InterpreterCommand.TREE,
             absolutePath,
-            mode.asBitSet().toString(),
-            consumer = { parseFileAttributes(it.stdoutLineSequence(), mode).asFSResult() }
+            requestedAttributes.asBitSet().toString(),
+            consumer = { parseFileAttributes(it.stdoutLineSequence(), requestedAttributes).asFSResult() }
         )
     }
 
@@ -309,12 +316,13 @@ class UnixFileSystem(
 
     override suspend fun stat(ctx: UnixFSCommandRunner, path: String, mode: Set<FileAttribute>): FSResult<FileRow> {
         val absolutePath = translateAndCheckFile(path)
+        val requestedAttributes = processRequestedAttributes(mode)
         return ctx.runCommand(
             InterpreterCommand.STAT,
             absolutePath,
-            mode.asBitSet().toString(),
+            requestedAttributes.asBitSet().toString(),
             consumer = { out ->
-                parseFileAttributes(out.stdoutLineSequence(), mode).asFSResult().let {
+                parseFileAttributes(out.stdoutLineSequence(), requestedAttributes).asFSResult().let {
                     FSResult(it.statusCode, it.value.singleOrNull())
                 }
             }
@@ -542,6 +550,11 @@ class UnixFileSystem(
         return parseFileAttributes(sequence.iterator(), attributes)
     }
 
+    private fun processRequestedAttributes(requestedAttributes: Set<FileAttribute>): Set<FileAttribute> {
+        if (FileAttribute.XOWNER in requestedAttributes) return requestedAttributes + setOf(FileAttribute.PATH)
+        return requestedAttributes
+    }
+
     private fun parseFileAttributes(
         iterator: Iterator<String>,
         attributes: Set<FileAttribute>
@@ -550,16 +563,53 @@ class UnixFileSystem(
             runBlocking {
                 when (item) {
                     is StatusTerminatedItem.Item -> item.copy(
-                        item = item.item.convertToCloud(
-                            usernameConverter = { it },
-                            pathConverter = { it.toCloudPath() }
-                        )
+                        item = item.item.convertToCloud(attributes)
                     )
 
                     else -> item
                 }
             }
         }
+    }
+
+    private fun FileRow.convertToCloud(attributes: Set<FileAttribute>): FileRow {
+        fun normalizeShares(incoming: List<AccessEntry>): List<AccessEntry> {
+            return incoming.mapNotNull {
+                if (it.isGroup) {
+                    it
+                } else {
+                    if (it.entity == SERVICE_UNIX_USER) null
+                    else it
+                }
+            }
+        }
+
+        val realOwner = if (FileAttribute.XOWNER in attributes) {
+            val realPath = path.toCloudPath()
+            runBlocking { fileOwnerLookupService.lookupOwner(realPath) }
+        } else {
+            null
+        }
+
+        return FileRow(
+            _fileType,
+            _isLink,
+            _linkTarget?.toCloudPath(),
+            _unixMode,
+            _owner,
+            _group,
+            _timestamps,
+            _path?.toCloudPath(),
+            _rawPath?.toCloudPath(),
+            _inode,
+            _size,
+            _shares?.let { normalizeShares(it) },
+            _annotations,
+            _checksum,
+            _sensitivityLevel,
+            _linkInode,
+            realOwner
+        )
     }
 
     private inline fun <T, R> Sequence<StatusTerminatedItem<T>>.asFSResult(mapper: (T) -> R): FSResult<List<R>> {

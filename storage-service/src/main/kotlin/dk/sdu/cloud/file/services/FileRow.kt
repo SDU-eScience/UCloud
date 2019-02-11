@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.file.SERVICE_UNIX_USER
 import dk.sdu.cloud.file.api.AccessEntry
 import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
@@ -10,23 +9,23 @@ import dk.sdu.cloud.file.api.Timestamps
 // This slightly messy code allows us to skip null checks. This makes for a better API
 @Suppress("ConstructorParameterNaming")
 class FileRow(
-    private val _fileType: FileType?,
-    private val _isLink: Boolean?,
-    private val _linkTarget: String?,
-    private val _unixMode: Int?,
-    private val _owner: String?,
-    private val _group: String?,
-    private val _timestamps: Timestamps?,
-    private val _path: String?,
-    private val _rawPath: String?,
-    private val _inode: String?,
-    private val _size: Long?,
-    private val _shares: List<AccessEntry>?,
-    private val _annotations: Set<String>?,
-    private val _checksum: FileChecksum?,
-    private val _sensitivityLevel: SensitivityLevel?,
-    private val _linkInode: String?,
-    private val _xowner: String?
+    val _fileType: FileType?,
+    val _isLink: Boolean?,
+    val _linkTarget: String?,
+    val _unixMode: Int?,
+    val _owner: String?,
+    val _group: String?,
+    val _timestamps: Timestamps?,
+    val _path: String?,
+    val _rawPath: String?,
+    val _inode: String?,
+    val _size: Long?,
+    val _shares: List<AccessEntry>?,
+    val _annotations: Set<String>?,
+    val _checksum: FileChecksum?,
+    val _sensitivityLevel: SensitivityLevel?,
+    val _linkInode: String?,
+    val _xowner: String?
 ) {
     val fileType: FileType get() = _fileType!!
     val isLink: Boolean get() = _isLink!!
@@ -45,42 +44,6 @@ class FileRow(
     val sensitivityLevel: SensitivityLevel get() = _sensitivityLevel!!
     val linkInode: String get() = _linkInode!!
     val xowner: String get() = _xowner!!
-
-    fun convertToCloud(
-        usernameConverter: (String) -> String,
-        pathConverter: (String) -> String
-    ): FileRow {
-        fun normalizeShares(incoming: List<AccessEntry>): List<AccessEntry> {
-            return incoming.mapNotNull {
-                if (it.isGroup) {
-                    it
-                } else {
-                    if (it.entity == SERVICE_UNIX_USER) null
-                    else it.copy(entity = usernameConverter(it.entity))
-                }
-            }
-        }
-
-        return FileRow(
-            _fileType,
-            _isLink,
-            _linkTarget?.let { pathConverter(it) },
-            _unixMode,
-            _owner?.let { usernameConverter(it) },
-            _group,
-            _timestamps,
-            _path?.let { pathConverter(it) },
-            _rawPath?.let { pathConverter(it) },
-            _inode,
-            _size,
-            _shares?.let { normalizeShares(it) },
-            _annotations,
-            _checksum,
-            _sensitivityLevel,
-            _linkInode,
-            _xowner
-        )
-    }
 }
 
 

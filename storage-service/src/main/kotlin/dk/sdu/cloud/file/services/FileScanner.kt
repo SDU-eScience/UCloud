@@ -13,7 +13,7 @@ import dk.sdu.cloud.service.stackTraceToString
 /**
  * A service for dealing with files created by external systems
  */
-class ExternalFileService<FSCtx : CommandRunner>(
+class FileScanner<FSCtx : CommandRunner>(
     private val processRunner: FSCommandRunnerFactory<FSCtx>,
     private val fs: CoreFileSystemService<FSCtx>,
     private val eventProducer: StorageEventProducer

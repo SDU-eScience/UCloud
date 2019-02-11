@@ -226,19 +226,6 @@ static void print_sensitivity(std::ostream &stream, const char *path) {
     EMIT_STAT(sensitivity_result);
 }
 
-static void print_owner(std::ostream &stream, const char *path) {
-    char xattr_buffer[1024];
-    memset(&xattr_buffer, 0, 1024);
-    GETXATTR(path, "user.owner", &xattr_buffer, 1024);
-
-    char *result = xattr_buffer;
-    if (strlen(xattr_buffer) == 0) {
-        result = const_cast<char *>("");
-    }
-
-    EMIT_STAT(result);
-}
-
 static void print_checksum(std::ostream &stream, const char *path) {
     char checksum_buffer[CHECKSUM_MAX];
     char checksum_type_buffer[CHECKSUM_TYPE_MAX];
@@ -263,6 +250,5 @@ int print_file_information(std::ostream &stream, const char *path, const struct 
     if ((mode & ANNOTATIONS) != 0) print_annotations(stream, path);
     if ((mode & CHECKSUM) != 0) print_checksum(stream, path);
     if ((mode & SENSITIVITY) != 0) print_sensitivity(stream, path);
-    if ((mode & XOWNER) != 0) print_owner(stream, path);
     return 0;
 }

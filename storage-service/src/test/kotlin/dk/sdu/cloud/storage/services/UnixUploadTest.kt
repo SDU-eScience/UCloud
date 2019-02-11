@@ -18,8 +18,8 @@ class UnixUploadTest {
     fun `test storage events for new file`() {
         val userDao = simpleStorageUserDao()
         val fsRoot = Files.createTempDirectory("ceph-fs").toFile()
-        val cephFs = UnixFileSystem(userDao, FileAttributeParser(userDao), fsRoot.absolutePath)
         val factory = UnixFSCommandRunnerFactory(userDao)
+        val cephFs = UnixFileSystem(factory, userDao, FileAttributeParser(userDao), fsRoot.absolutePath)
         val owner = SERVICE_USER
 
         factory.withBlockingContext(owner) { ctx ->

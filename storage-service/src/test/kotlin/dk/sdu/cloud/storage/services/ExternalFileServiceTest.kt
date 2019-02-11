@@ -5,7 +5,7 @@ import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.ExternalFileService
+import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
@@ -27,7 +27,7 @@ class ExternalFileServiceTest {
         val runner: FSCommandRunnerFactory<Ctx>,
         val fs: CoreFileSystemService<Ctx>,
         val producer: StorageEventProducer,
-        val service: ExternalFileService<Ctx>,
+        val service: FileScanner<Ctx>,
         val collectedEvents: MutableList<StorageEvent>
     )
 
@@ -48,7 +48,7 @@ class ExternalFileServiceTest {
             fs = coreFs,
             producer = eventProducer,
             collectedEvents = collectedEvents,
-            service = ExternalFileService(runner, coreFs, eventProducer)
+            service = FileScanner(runner, coreFs, eventProducer)
         )
     }
 

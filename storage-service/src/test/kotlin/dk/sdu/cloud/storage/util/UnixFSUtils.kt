@@ -33,6 +33,7 @@ fun unixFSWithRelaxedMocks(
     return Pair(
         commandRunner,
         UnixFileSystem(
+            commandRunner,
             userDao,
             FileAttributeParser(userDao),
             fsRoot

@@ -21,7 +21,6 @@ int list_command(const char *path, uint64_t mode) {
         mode = FILE_TYPE |
                TIMESTAMPS |
                OWNER |
-               XOWNER |
                GROUP |
                SIZE |
                SHARES |
