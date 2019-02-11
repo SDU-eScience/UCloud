@@ -11,9 +11,11 @@ import dk.sdu.cloud.file.http.SimpleDownloadController
 import dk.sdu.cloud.file.processors.StorageEventProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLService
+import dk.sdu.cloud.file.services.AuthUIDLookupService
 import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.BulkDownloadService
 import dk.sdu.cloud.file.services.CoreFileSystemService
+import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
 import dk.sdu.cloud.file.services.ExternalFileService
 import dk.sdu.cloud.file.services.FileAnnotationService
 import dk.sdu.cloud.file.services.FileLookupService
@@ -21,8 +23,8 @@ import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFSUserDao
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
@@ -30,16 +32,21 @@ import dk.sdu.cloud.service.HttpServerProvider
 import dk.sdu.cloud.service.KafkaServices
 import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.TokenValidationJWT
+import dk.sdu.cloud.service.bearer
 import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.developmentModeEnabled
 import dk.sdu.cloud.service.forStream
 import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
+import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.service.stream
 import dk.sdu.cloud.service.tokenValidation
+import dk.sdu.cloud.service.validateAndDecodeOrNull
+import io.ktor.application.ApplicationCallPipeline
+import io.ktor.application.call
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
@@ -69,15 +76,17 @@ class Server(
         log.info("Creating core services")
         BackgroundScope.init()
         val useFakeUsers = micro.developmentModeEnabled && !micro.commandLineArguments.contains("--real-users")
-        val cloudToCephFsDao = UnixFSUserDao(useFakeUsers)
+        val uidLookupService =
+            if (useFakeUsers) DevelopmentUIDLookupService("admin@dev") else AuthUIDLookupService(cloud)
         val processRunner =
-            UnixFSCommandRunnerFactory(cloudToCephFsDao, useFakeUsers)
-        val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() } ?:
-            if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
+            UnixFSCommandRunnerFactory(uidLookupService)
+        val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() }
+            ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
         val fsRoot = fsRootFile.normalize().absolutePath
 
-        val fs = UnixFileSystem(cloudToCephFsDao, fsRoot)
+        val fileAttributeParser = FileAttributeParser(uidLookupService)
+        val fs = UnixFileSystem(uidLookupService, fileAttributeParser, fsRoot)
         val storageEventProducer = kafka.producer.forStream(StorageEvents.events)
         val coreFileSystem = CoreFileSystemService(fs, storageEventProducer)
 
@@ -122,8 +131,7 @@ class Server(
         kStreams = buildStreams { kBuilder ->
             UserProcessor(
                 kBuilder.stream(AuthStreams.UserUpdateStream),
-                micro.developmentModeEnabled,
-                cloudToCephFsDao,
+                uidLookupService,
                 externalFileService,
                 processRunner,
                 coreFileSystem
@@ -137,6 +145,13 @@ class Server(
         httpServer = ktor {
             log.info("Configuring HTTP server")
             installDefaultFeatures(micro)
+
+            intercept(ApplicationCallPipeline.Features) {
+                // We really need to redo the RPC layer
+                val bearer = call.request.bearer ?: return@intercept
+                val principal = tokenValidation.validateAndDecodeOrNull(bearer)?.principal ?: return@intercept
+                uidLookupService.storeMapping(principal.username, principal.uid)
+            }
 
             routing {
                 configureControllers(

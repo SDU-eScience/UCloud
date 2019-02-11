@@ -259,6 +259,7 @@ class FilesController<Ctx : FSUserContext>(
                 runCodeAsUnixOwner(req.path) { ctx ->
                     coreFs.chmod(ctx, req.path, req.owner, req.group, req.other, req.recurse, fileIdsUpdated)
                 }
+                ok(Unit)
             }
         }
 

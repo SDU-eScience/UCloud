@@ -1,9 +1,13 @@
 package dk.sdu.cloud.storage.util
 
 import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.services.DevelopmentUIDLookupService
 import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.services.UIDLookupService
+import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.service.test.TestUsers
 import io.mockk.every
 import io.mockk.mockk
 import java.io.File
@@ -13,34 +17,24 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-fun simpleStorageUserDao(): StorageUserDao {
-    val dao = mockk<StorageUserDao>()
-    every { dao.findStorageUser(any()) } answers {
-        firstArg() as String
-    }
-
-    every { dao.findCloudUser(any()) } answers {
-        firstArg() as String
-    }
-    return dao
+fun simpleStorageUserDao(): UIDLookupService {
+    return DevelopmentUIDLookupService(TestUsers.user.username)
 }
 
-fun storageUserDaoWithFixedAnswer(answer: String): StorageUserDao {
-    val dao = mockk<StorageUserDao>()
-    every { dao.findStorageUser(any()) } returns answer
-    every { dao.findCloudUser(any()) } returns answer
-    return dao
+fun storageUserDaoWithFixedAnswer(answer: String): UIDLookupService {
+    return DevelopmentUIDLookupService(answer)
 }
 
 fun unixFSWithRelaxedMocks(
     fsRoot: String,
-    userDao: StorageUserDao = simpleStorageUserDao()
+    userDao: UIDLookupService = simpleStorageUserDao()
 ): Pair<UnixFSCommandRunnerFactory, UnixFileSystem> {
-    val commandRunner = UnixFSCommandRunnerFactory(userDao, true)
+    val commandRunner = UnixFSCommandRunnerFactory(userDao)
     return Pair(
         commandRunner,
         UnixFileSystem(
             userDao,
+            FileAttributeParser(userDao),
             fsRoot
         )
     )

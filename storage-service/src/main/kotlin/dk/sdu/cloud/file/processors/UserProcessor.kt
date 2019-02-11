@@ -14,10 +14,9 @@ import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.runBlocking
 import org.apache.kafka.streams.kstream.KStream
 
-class UserProcessor<FSCtx : CommandRunner>(
+class UserProcessor<FSCtx : CommandRunner, UID>(
     private val stream: KStream<String, UserEvent>,
-    private val isDevelopment: Boolean,
-    private val userDao: StorageUserDao,
+    private val userDao: StorageUserDao<UID>,
     private val externalFileService: ExternalFileService<FSCtx>,
     private val runnerFactory: FSCommandRunnerFactory<FSCtx>,
     private val coreFs: CoreFileSystemService<FSCtx>
@@ -42,17 +41,12 @@ class UserProcessor<FSCtx : CommandRunner>(
                         }
 
                         val projectName = event.userId.substringBeforeLast('#')
-                        val rootExists = runnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
-                            coreFs.exists(ctx, homeDirectory(projectName))
-                        }
+                        val role = event.userId.substringAfterLast('#')
 
-                        if (!rootExists) {
+                        if (role == "PI") {
                             log.info("Creating a home folder for project: $event ($projectName)")
                             createHomeFolder("$projectName#PI", projectName)
                         }
-
-                        log.info("Creating user for project: ${event.userCreated.id}")
-                        createUser(event.userId)
 
                         runnerFactory.withBlockingContext(SERVICE_USER) { ctx ->
                             coreFs.createSymbolicLink(ctx, homeDirectory(projectName), homeDirectory(event.userId))
@@ -69,23 +63,16 @@ class UserProcessor<FSCtx : CommandRunner>(
         }
     }
 
-    private fun createUser(user: String) {
-        val prefix = if (isDevelopment) emptyList() else listOf("sudo")
-        val command =
-            listOf("sdu_cloud_add_user", userDao.findStorageUser(user), "", "no")
-        val process = ProcessBuilder().apply { command(prefix + command) }.start()
-        if (process.waitFor() != 0) {
-            throw IllegalStateException("Unable to create new user: $user")
-        }
-    }
-
     private fun createHomeFolder(owner: String, folderName: String = owner) {
-        val prefix = if (isDevelopment) emptyList() else listOf("sudo")
-        val command =
-            listOf("sdu_cloud_add_user", userDao.findStorageUser(owner), folderName, "yes")
+        val command = listOf(
+            "sdu_cloud_add_user",
+            runBlocking { userDao.findStorageUser(owner).toString() },
+            folderName,
+            "yes"
+        )
         log.debug(command.toString())
 
-        val process = ProcessBuilder().apply { command(prefix + command) }.start()
+        val process = ProcessBuilder().apply { command(command) }.start()
         if (process.waitFor() != 0) {
             throw IllegalStateException("Unable to create new user: $owner")
         }

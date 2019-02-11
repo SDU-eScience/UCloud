@@ -18,6 +18,7 @@ import dk.sdu.cloud.file.services.FileOwnerService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
@@ -69,7 +70,7 @@ object TestContext {
 
 fun Application.configureServerWithFileController(
     fsRootInitializer: () -> File = { createDummyFS() },
-    userDao: StorageUserDao = simpleStorageUserDao(),
+    userDao: UIDLookupService = simpleStorageUserDao(),
     additional: Routing.(FileControllerContext) -> Unit = {}
 ) {
     BackgroundScope.reset()

@@ -29,7 +29,7 @@ sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: 
     abstract suspend fun upload(
         serviceCloud: AuthenticatedCloud,
         fs: CoreFileSystemService<Ctx>,
-        contextFactory: () -> Ctx,
+        contextFactory: suspend () -> Ctx,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream
@@ -55,7 +55,7 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
     override suspend fun upload(
         serviceCloud: AuthenticatedCloud,
         fs: CoreFileSystemService<UnixFSCommandRunner>,
-        contextFactory: () -> UnixFSCommandRunner,
+        contextFactory: suspend () -> UnixFSCommandRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream
@@ -95,7 +95,7 @@ object TarGzUploader : BulkUploader<UnixFSCommandRunner>("tgz", UnixFSCommandRun
     override suspend fun upload(
         serviceCloud: AuthenticatedCloud,
         fs: CoreFileSystemService<UnixFSCommandRunner>,
-        contextFactory: () -> UnixFSCommandRunner,
+        contextFactory: suspend () -> UnixFSCommandRunner,
         path: String,
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream
@@ -153,7 +153,7 @@ private object BasicUploader : Loggable {
         serviceCloud: AuthenticatedCloud,
         path: String,
         fs: CoreFileSystemService<Ctx>,
-        contextFactory: () -> Ctx,
+        contextFactory: suspend () -> Ctx,
         conflictPolicy: WriteConflictPolicy,
         sequence: Sequence<ArchiveEntry>
     ): List<String> {

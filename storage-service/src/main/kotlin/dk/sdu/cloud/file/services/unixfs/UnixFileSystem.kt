@@ -18,6 +18,7 @@ import dk.sdu.cloud.file.util.unwrap
 import dk.sdu.cloud.service.BashEscaper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -25,7 +26,8 @@ import java.io.OutputStream
 private const val NOT_FOUND = -2
 
 class UnixFileSystem(
-    private val userDao: StorageUserDao,
+    private val userDao: StorageUserDao<Long>,
+    private val fileAttributeParser: FileAttributeParser,
     private val fsRoot: String
 ) : LowLevelFileSystemInterface<UnixFSCommandRunner> {
     // TODO This attribute probably needs to live somewhere else
@@ -459,12 +461,12 @@ class UnixFileSystem(
         )
     }
 
-    private fun FSACLEntity.toUnixEntity(): FSResult<FSACLEntity> {
+    private suspend fun FSACLEntity.toUnixEntity(): FSResult<FSACLEntity> {
         val entity = this
         return when (entity) {
             is FSACLEntity.User -> {
                 val user = userDao.findStorageUser(entity.user) ?: return FSResult(NOT_FOUND)
-                FSResult(0, FSACLEntity.User(user))
+                FSResult(0, FSACLEntity.User(user.toString()))
             }
 
             else -> FSResult(0, entity)
@@ -544,16 +546,18 @@ class UnixFileSystem(
         iterator: Iterator<String>,
         attributes: Set<FileAttribute>
     ): Sequence<StatusTerminatedItem<FileRow>> {
-        return FileAttribute.rawParse(iterator, attributes).map { item ->
-            when (item) {
-                is StatusTerminatedItem.Item -> item.copy(
-                    item = item.item.convertToCloud(
-                        usernameConverter = { userDao.findCloudUser(it)!! },
-                        pathConverter = { it.toCloudPath() }
+        return fileAttributeParser.parse(iterator, attributes).map { item ->
+            runBlocking {
+                when (item) {
+                    is StatusTerminatedItem.Item -> item.copy(
+                        item = item.item.convertToCloud(
+                            usernameConverter = { it },
+                            pathConverter = { it.toCloudPath() }
+                        )
                     )
-                )
 
-                else -> item
+                    else -> item
+                }
             }
         }
     }

@@ -14,7 +14,8 @@ import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.StorageUserDao
+import dk.sdu.cloud.file.services.UIDLookupService
+import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
@@ -31,7 +32,6 @@ import dk.sdu.cloud.storage.util.touch
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.verify
@@ -47,7 +47,7 @@ private const val FILE_OWNER = "file owner"
 class DiffTest {
     private data class TestingContext<Ctx : FSUserContext>(
         val fsRoot: File,
-        val userDao: StorageUserDao,
+        val userDao: UIDLookupService,
         val fs: LowLevelFileSystemInterface<Ctx>,
         val mockedEventProducer: StorageEventProducer,
         val coreFs: CoreFileSystemService<Ctx>,
@@ -77,12 +77,12 @@ class DiffTest {
     ): TestingContext<UnixFSCommandRunner> {
         val userDao = storageUserDaoWithFixedAnswer(FILE_OWNER)
         val root = File(createFS(builder))
-        val cephFs = UnixFileSystem(userDao, root.absolutePath)
+        val cephFs = UnixFileSystem(userDao, FileAttributeParser(userDao), root.absolutePath)
 
         val eventProducer = mockk<StorageEventProducer>(relaxed = true)
         val coreFs = CoreFileSystemService(cephFs, eventProducer)
 
-        val commandRunnerFactory = UnixFSCommandRunnerFactory(userDao, true)
+        val commandRunnerFactory = UnixFSCommandRunnerFactory(userDao)
         val indexingService = IndexingService(commandRunnerFactory, coreFs, eventProducer)
 
         return TestingContext(
@@ -548,10 +548,11 @@ class DiffTest {
         val eventProducer = mockk<StorageEventProducer>()
 
         val ctx = mockk<FSUserContext>(relaxed = true)
-        every { commandRunnerFactory.invoke(any()) } returns ctx
+        coEvery { commandRunnerFactory.invoke(any()) } returns ctx
 
         val directory = mockk<FileRow>()
         coEvery { directory.fileType } returns FileType.DIRECTORY
+        coEvery { directory.isLink } returns false
         coEvery { coreFs.statOrNull(any(), any(), any()) } returns directory
 
         coEvery { coreFs.listDirectory(any(), any(), any()) } throws FSException.CriticalException("Mock")

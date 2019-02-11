@@ -163,7 +163,7 @@ class MoveTest {
         }
     }
 
-    @Test(expected = FSException.BadRequest::class)
+    @Test(expected = FSException.IsDirectoryConflict::class)
     fun `moving file to non-empty directory`() {
         runTest {
             val userRootPath = "/home/user1"

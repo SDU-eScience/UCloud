@@ -6,10 +6,13 @@ import kotlin.reflect.KClass
 
 abstract class FSCommandRunnerFactory<Ctx : FSUserContext> {
     abstract val type: KClass<Ctx>
-    abstract operator fun invoke(user: String): Ctx
+    abstract suspend operator fun invoke(user: String): Ctx
 }
 
-inline fun <Ctx : FSUserContext, R> FSCommandRunnerFactory<Ctx>.withContext(user: String, consumer: (Ctx) -> R): R {
+suspend inline fun <Ctx : FSUserContext, R> FSCommandRunnerFactory<Ctx>.withContext(
+    user: String,
+    consumer: (Ctx) -> R
+): R {
     return invoke(user).use(consumer)
 }
 
@@ -17,8 +20,8 @@ fun <Ctx : FSUserContext, R> FSCommandRunnerFactory<Ctx>.withBlockingContext(
     user: String,
     consumer: suspend (Ctx) -> R
 ): R {
-    return invoke(user).use {
-        runBlocking {
+    return runBlocking {
+        invoke(user).use {
             consumer(it)
         }
     }

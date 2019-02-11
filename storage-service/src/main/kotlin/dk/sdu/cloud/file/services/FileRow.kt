@@ -46,7 +46,10 @@ class FileRow(
     val linkInode: String get() = _linkInode!!
     val xowner: String get() = _xowner!!
 
-    fun convertToCloud(usernameConverter: (String) -> String, pathConverter: (String) -> String): FileRow {
+    fun convertToCloud(
+        usernameConverter: (String) -> String,
+        pathConverter: (String) -> String
+    ): FileRow {
         fun normalizeShares(incoming: List<AccessEntry>): List<AccessEntry> {
             return incoming.mapNotNull {
                 if (it.isGroup) {
@@ -61,13 +64,13 @@ class FileRow(
         return FileRow(
             _fileType,
             _isLink,
-            _linkTarget?.let(pathConverter),
+            _linkTarget?.let { pathConverter(it) },
             _unixMode,
-            _owner?.let(usernameConverter),
+            _owner?.let { usernameConverter(it) },
             _group,
             _timestamps,
-            _path?.let(pathConverter),
-            _rawPath?.let(pathConverter),
+            _path?.let { pathConverter(it) },
+            _rawPath?.let { pathConverter(it) },
             _inode,
             _size,
             _shares?.let { normalizeShares(it) },

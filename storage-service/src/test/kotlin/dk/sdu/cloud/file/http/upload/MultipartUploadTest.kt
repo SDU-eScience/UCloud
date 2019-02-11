@@ -86,7 +86,7 @@ class MultipartUploadTest {
                 moduleFunction = {
                     val runner = mockk<FSCommandRunnerFactory<UnixFSCommandRunner>>(relaxed = true)
                     val userContext = mockk<UnixFSCommandRunner>(relaxed = true)
-                    every { runner.invoke(any()) } returns userContext
+                    coEvery { runner.invoke(any()) } returns userContext
 
                     val fs = mockk<UnixFileSystem>()
                     coEvery { fs.openForWriting(any(), any(), any()) } throws FSException.PermissionException()

@@ -1,12 +1,13 @@
 package dk.sdu.cloud.file.services.unixfs
 
-import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.util.BoundaryContainedStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.GuardedOutputStream
+import dk.sdu.cloud.service.RPCException
+import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.io.OutputStream
@@ -17,13 +18,13 @@ import kotlin.collections.ArrayList
 import kotlin.collections.set
 
 class UnixFSCommandRunnerFactory(
-    private val userDao: StorageUserDao,
-    private val isDevelopment: Boolean
+    private val userDao: StorageUserDao<Long>
 ) : FSCommandRunnerFactory<UnixFSCommandRunner>() {
     override val type = UnixFSCommandRunner::class
 
-    override fun invoke(user: String): UnixFSCommandRunner {
-        return UnixFSCommandRunner(userDao, isDevelopment, user)
+    override suspend fun invoke(user: String): UnixFSCommandRunner {
+        val uid = userDao.findStorageUser(user) ?: throw RPCException("User not found", HttpStatusCode.Unauthorized)
+        return UnixFSCommandRunner(uid, user)
     }
 }
 
@@ -31,8 +32,7 @@ class UnixFSCommandRunnerFactory(
 data class ProcessRunnerAttributeKey<T>(val name: String)
 
 class UnixFSCommandRunner(
-    private val userDao: StorageUserDao,
-    private val isDevelopment: Boolean,
+    private val uid: Long,
     override val user: String
 ) : CommandRunner {
     private val cache: MutableMap<ProcessRunnerAttributeKey<*>, Any> = hashMapOf()
@@ -41,26 +41,17 @@ class UnixFSCommandRunner(
     private val serverBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
 
     private val interpreter: Process = run {
-        val prefix = if (isDevelopment) {
-            emptyList()
-        } else {
-            if (user == SERVICE_USER) {
-                emptyList()
-            } else {
-                val unixUser = userDao.findStorageUser(user) ?: throw IllegalStateException("Could not find user")
-                listOf("sudo", "-u", unixUser)
-            }
-        }
-
         val command = listOf(
             "ceph-interpreter",
             String(clientBoundary, Charsets.UTF_8),
-            String(serverBoundary, Charsets.UTF_8)
+            String(serverBoundary, Charsets.UTF_8),
+            uid.toString(),
+            uid.toString()
         )
 
-        log.debug("Invoking command: " + (prefix + command).toString())
+        log.debug("Invoking command: $command")
 
-        ProcessBuilder().apply { command(prefix + command) }.start().also { process ->
+        ProcessBuilder().apply { command(command) }.start().also { process ->
             val bytes = ByteArray(serverBoundary.size)
             var ptr = 0
 

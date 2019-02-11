@@ -2,10 +2,11 @@ package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.SERVICE_USER
+import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
-import dk.sdu.cloud.file.services.unixfs.UnixFSUserDao
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
 import dk.sdu.cloud.file.services.withBlockingContext
+import dk.sdu.cloud.storage.util.simpleStorageUserDao
 import org.junit.Ignore
 import org.junit.Test
 import java.nio.file.Files
@@ -15,10 +16,10 @@ class UnixUploadTest {
     @Ignore
     @Test
     fun `test storage events for new file`() {
-        val userDao = UnixFSUserDao(true)
+        val userDao = simpleStorageUserDao()
         val fsRoot = Files.createTempDirectory("ceph-fs").toFile()
-        val cephFs = UnixFileSystem(userDao, fsRoot.absolutePath)
-        val factory = UnixFSCommandRunnerFactory(userDao, true)
+        val cephFs = UnixFileSystem(userDao, FileAttributeParser(userDao), fsRoot.absolutePath)
+        val factory = UnixFSCommandRunnerFactory(userDao)
         val owner = SERVICE_USER
 
         factory.withBlockingContext(owner) { ctx ->
