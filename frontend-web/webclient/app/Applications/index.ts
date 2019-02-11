@@ -128,7 +128,7 @@ export interface DetailedResultState {
 
 export type StdElement = { scrollTop: number, scrollHeight: number } | null
 
-export type MaxTime = {
+export interface MaxTime {
     hours: number
     minutes: number
     seconds: number
@@ -236,29 +236,6 @@ export interface Description {
     outputFileGlobs: [string, string]
     tags: string[]
 }
-interface Tool {
-    owner: string
-    createdAt: number
-    modifiedAt: number
-    description: ToolDescription
-}
-
-interface ToolDescription {
-    info: Info
-    container: string
-    defaultNumberOfNodes: number,
-    defaultTasksPerNode: number,
-    defaultMaxTime: {
-        hours: number
-        minutes: number
-        seconds: number
-    }
-    requiredModules: any[],
-    authors: string[]
-    title: string,
-    description: string
-    backend: string
-}
 
 export enum ParameterTypes {
     InputFile = "input_file",
@@ -309,12 +286,52 @@ export interface ApplicationMetadata {
 }
 
 export interface ApplicationInvocationDescription {
-    tool: any/* ToolReference */
+    tool: Tool
     invocation: Invocation[]
     parameters: ApplicationParameter[]
     outputFileGlobs: string[]
-    applicationType: any /* ApplicationType = ApplicationType.BATCH, */
-    resources: any /* ResourceRequirements = ResourceRequirements() */
+    applicationType: "BATCH"
+    resources: Resources
+}
+
+interface Resources {
+    multiNodeSupport: boolean
+    coreRequirements: number
+    memoryRequirementsMb: number
+    gpuRequirements: number
+    tempStorageRequirementsGb: number
+    persistentStorageRequirementsGb: number
+}
+
+interface Tool {
+    name: string
+    version: string
+    tool: ToolReference
+}
+
+interface ToolReference {
+    owner: string
+    createdAt: number
+    modifiedAt: number
+    description: ToolDescription
+}
+
+interface NameAndVersion {
+    name: string
+    version: string
+}
+
+interface ToolDescription {
+    info: NameAndVersion
+    container: string
+    defaultNumberOfNodes: number
+    defaultTasksPerNode: number
+    defaultMaxTime: MaxTime
+    requiredModules: string[]
+    authors: string[]
+    title: string
+    description: string
+    backend: string
 }
 
 export interface WithAppMetadata {

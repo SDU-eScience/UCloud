@@ -16,6 +16,7 @@ const saveAvataaar = (avatar: AvatarType): SaveAvataaar => ({
 export const saveAvatar = (avatar: AvatarType): Promise<SaveAvataaar> =>
     Cloud.post(saveAvatarQuery, { ...avatar }).then(it =>
         (successNotification("Updated avatar"), saveAvataaar(avatar))
+        // FIXME, don't save avatar if the saving fails.
     ).catch(it => (failureNotification("Updating of avatar failed"), saveAvataaar(avatar)));
 
 export const updateAvatar = (avatar: AvatarType): SaveAvataaar => saveAvataaar(avatar);

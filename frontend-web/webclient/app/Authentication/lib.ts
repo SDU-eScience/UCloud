@@ -150,7 +150,7 @@ export default class SDUCloud {
     /**
      * Calls with the GET HTTP method. See call(method, path, body)
      */
-    async get<T = any>(path, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
+    async get<T = any>(path: string, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call("GET", path, undefined, context);
     }
 
@@ -164,21 +164,21 @@ export default class SDUCloud {
     /**
      * Calls with the PUT HTTP method. See call(method, path, body)
      */
-    async put(path, body, context = this.apiContext): Promise<any> {
+    async put<T = any>(path: string, body: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call("PUT", path, body, context);
     }
 
     /**
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
-    async delete(path, body, context = this.apiContext): Promise<any> {
+    async delete(path: string, body: object, context = this.apiContext): Promise<any> {
         return this.call("DELETE", path, body, context);
     }
 
     /**
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
-    async patch(path, body, context = this.apiContext): Promise<any> {
+    async patch(path: string, body: object, context = this.apiContext): Promise<any> {
         return this.call("PATCH", path, body, context);
     }
 

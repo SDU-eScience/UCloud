@@ -621,7 +621,6 @@ export const batchDeleteFiles = (files: File[], cloud: SDUCloud, setLoading: () 
 const deletionSwal = (filePaths: string[]) => {
     const deletionText = filePaths.length > 1 ? `Delete ${filePaths.length} files?` :
         `Delete file ${getFilenameFromPath(filePaths[0])}`;
-    `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
     return swal({
         title: "Delete files",
         text: deletionText,
@@ -632,19 +631,23 @@ const deletionSwal = (filePaths: string[]) => {
     });
 };
 
-export const moveFile = (oldPath: string, newPath: string, cloud: SDUCloud, setLoading: () => void, onSuccess: () => void) => {
+export async function moveFile(oldPath: string, newPath: string, cloud: SDUCloud, setLoading: () => void, onSuccess: () => void): Promise<void> {
     setLoading();
-    cloud.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`).then(({ request }) => {
-        if (UF.inSuccessRange(request.status)) {
-            onSuccess()
-        }
-    }).catch(() => UF.failureNotification("An error ocurred trying to rename the file."));
+    try {
+        await cloud.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`);
+        onSuccess();
+    } catch {
+        UF.failureNotification("An error ocurred trying to rename the file.");
+    }
 }
 
-export const createFolder = (path: string, cloud: SDUCloud, onSuccess: () => void) =>
-    cloud.post("/files/directory", { path }).then(({ request }) => {
-        if (UF.inSuccessRange(request.status)) onSuccess()
-    }).catch(() => UF.failureNotification("An error ocurred trying to creating the file."));
-
+export async function createFolder(path: string, cloud: SDUCloud, onSuccess: () => void): Promise<void> {
+    try {
+        await cloud.post("/files/directory", { path })
+        onSuccess();
+    } catch {
+        UF.failureNotification("An error ocurred trying to creating the file.");
+    }
+}
 
 const inTrashDir = (path: string, cloud: SDUCloud): boolean => getParentPath(path) === cloud.trashFolder;
