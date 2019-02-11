@@ -45,8 +45,7 @@ class SDUCloud(private val endpoint: String) : CloudContext {
     override fun resolveEndpoint(namespace: String): String = endpoint
 
     override fun tryReconfigurationOnConnectException(call: PreparedRESTCall<*, *>, ex: ConnectException): Boolean {
-        // There is not much to do if gateway is not responding
-        return false
+        return true
     }
 }
 
