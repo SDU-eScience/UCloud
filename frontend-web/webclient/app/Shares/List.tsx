@@ -344,9 +344,7 @@ interface AccessRightsDisplayProps {
 const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
     const { floated } = props;
     const [accessRights, setAccessRights] = useState(new Set(props.rights));
-
     const { READ, WRITE } = AccessRight;
-
     const read = accessRights.has(READ);
     const write = accessRights.has(WRITE);
     const pendingChanges = accessRights.has(READ) !== props.read || accessRights.has(WRITE) !== props.write;
