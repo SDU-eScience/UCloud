@@ -26,6 +26,7 @@ import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
 import detailedApplicationSearch from "Applications/Redux/DetailedApplicationSearchReducer";
 import detailedProjectSearch from "Project/Redux/ProjectSearchReducer";
 import filePreview from "Files/Redux/FilePreviewReducer";
+import shares from "Shares/Redux/SharesReducer";
 import * as AppRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
 import * as SnackbarRedux from "Snackbar/Redux";
@@ -58,6 +59,7 @@ const store = configureStore(initObject(Cloud.homeFolder), {
     ...AccountingRedux.reducers,
     snackbar: SnackbarRedux.reducers,
     avatar,
+    shares,
     responsive: createResponsiveStateReducer(
         responsiveBP,
         { infinity: "xxl" }),
