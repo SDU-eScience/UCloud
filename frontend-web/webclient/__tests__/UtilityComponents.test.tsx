@@ -14,11 +14,11 @@ describe("PP", () => {
     });
 
     test("Visible PP-Component", () => {
-        expect(create(<PP visible={true} />).toJSON()).toMatchSnapshot();
+        expect(create(<PP visible />).toJSON()).toMatchSnapshot();
     });
 
     test.skip("Change PP-value", () => {
-        const pP = shallow(<PP visible={true} />);
+        const pP = shallow(<PP visible />);
         pP.findWhere(it => !!it.props().type().range).simulate("change", { target: { value: "500" } });
         expect(pP.state()["duration"]).toBe(500);
     });

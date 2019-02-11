@@ -2,7 +2,6 @@ import * as React from "react";
 import { Icon, FtIcon, Absolute, Flex, Text, Label, Checkbox, Input } from "ui-components";
 import { DropdownContent, Dropdown } from "ui-components/Dropdown";
 import { FtIconProps } from "UtilityFunctions";
-import { EntriesPerPageSelector } from "Pagination";
 import styled from "styled-components";
 
 
@@ -13,7 +12,7 @@ export const FileIcon = ({ shared = false, link = false, fileIcon }: FileIconPro
         <FtIcon size={30} fileIcon={fileIcon}/>
         <Absolute bottom={"-6px"} right={"-2px"}>
             <Dropdown>
-                <Icon size={"15px"} name={"link"} color2={"white"}/>
+                <Icon size="15px" name="link" color2="white"/>
                 <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
                     <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
                 </DropdownContent>

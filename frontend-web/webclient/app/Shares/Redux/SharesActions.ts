@@ -1,5 +1,5 @@
-import { SharesByPath, ShareState, ShareId } from "Shares";
-import { Page, PayloadAction, AccessRight, AccessRightValues, Error } from "Types";
+import { SharesByPath, ShareState } from "Shares";
+import { Page, PayloadAction, Error } from "Types";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { sharesByPathQuery } from "Utilities/SharesUtilities";
 import { RECEIVE_SHARES, SET_SHARES_ERROR, SET_SHARE_STATE } from "./SharesReducer";

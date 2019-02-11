@@ -5,11 +5,10 @@ import PromiseKeeper from "PromiseKeeper";
 import { connect } from "react-redux";
 import { inSuccessRange, failureNotification, infoNotification, errorMessageOrDefault } from "UtilityFunctions";
 import { updatePageTitle } from "Navigation/Redux/StatusActions";
-import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput, ApplicationMetadata, ApplicationInvocationDescription, WithAppInvocation, WithAppMetadata } from "."
-import { Application } from ".";
+import { RunAppProps, RunAppState, ApplicationParameter, ParameterTypes, JobSchedulingOptionsForInput, MaxTimeForInput, WithAppInvocation, WithAppMetadata } from "."
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
-import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton, Button } from "ui-components";
+import { Box, Flex, Text, Label, Error, OutlineButton, ContainerForText, VerticalButtonGroup, LoadingButton } from "ui-components";
 import Input, { HiddenInputField } from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
 import { Parameter } from "./ParameterWidgets";
@@ -17,12 +16,10 @@ import { extractParameters, hpcFavoriteApp, hpcJobQueryPost } from "Utilities/Ap
 import { AppHeader } from "./View";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
 
-type Tool = any;
-
 class Run extends React.Component<RunAppProps, RunAppState> {
     private siteVersion = 1;
 
-    constructor(props) {
+    constructor(props: Readonly<RunAppProps>) {
         super(props);
         this.state = {
             promises: new PromiseKeeper(),
@@ -56,8 +53,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
     componentWillUnmount = () => this.state.promises.cancelPromises();
 
-    private onJobSchedulingParamsChange = (field, value, timeField) => {
-        let { schedulingOptions } = this.state;
+    private onJobSchedulingParamsChange = (field: string | number, value: number, timeField: string) => {
+        const { schedulingOptions } = this.state;
         if (timeField) {
             schedulingOptions[field][timeField] = !isNaN(value) ? value : null;
         } else {
@@ -68,7 +65,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }));
     }
 
-    private onSubmit = event => {
+    private onSubmit = (event: { preventDefault: () => void; }) => {
         event.preventDefault();
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
@@ -238,8 +235,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const requiredKeys = application.invocation.parameters.filter(it => !it.optional).map(it => ({ name: it.name, title: it.title }));
         let disabled = requiredKeys.map(it => it.name).some(it => !parameterValues[it]);
-        let title: string | undefined = undefined;
-        title = `Missing input for fields ${requiredKeys.map(it => it.title).join(", ")}.`
+        const title = `Missing input for fields ${requiredKeys.map(it => it.title).join(", ")}.`
 
         const sidebar = (
             <VerticalButtonGroup>
@@ -260,9 +256,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 </LoadingButton>
                 <Dropdown>
                     <LoadingButton disabled={disabled} onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>
-                    {disabled ? <DropdownContent width={"auto"} colorOnHover={false} color="white" backgroundColor="black">
+                    <DropdownContent visible={disabled} colorOnHover={false} width="auto" color="white" backgroundColor="black">
                         <Text>{title}</Text>
-                    </DropdownContent> : null}
+                    </DropdownContent>
                 </Dropdown>
             </VerticalButtonGroup>
         );

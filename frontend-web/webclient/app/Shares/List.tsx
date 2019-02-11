@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { AccessRight, Page, AccessRightValues } from "Types";
+import { AccessRight, Page } from "Types";
 import { shareSwal, prettierString, iconFromFilePath } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
@@ -334,7 +334,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
 interface AccessRightsDisplayProps {
     disabled?: boolean
-    rights?: AccessRightValues[]
+    rights?: AccessRight[]
 
     read?: boolean
     write?: boolean
@@ -345,7 +345,7 @@ interface AccessRightsDisplayProps {
 
 const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
     const { floated } = props;
-    const [accessRights, setAccessRights] = useState(new Set(props.rights) as Set<AccessRight>);
+    const [accessRights, setAccessRights] = useState(new Set(props.rights));
 
     const { READ, WRITE } = AccessRight;
 
@@ -412,7 +412,7 @@ const revokeShare = async (shareId: ShareId): Promise<any> =>
 const createShare = async (user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> =>
     (await Cloud.put(`/shares/`, { sharedWith: user, path, rights })).response; // FIXME Add error handling
 
-const updateShare = async (id: ShareId, rights: AccessRightValues[]): Promise<any> =>
+const updateShare = async (id: ShareId, rights: AccessRight[]): Promise<any> =>
     (await Cloud.post(`/shares/`, { id, rights })).response;
 
 interface SharesOperations {

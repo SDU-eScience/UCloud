@@ -1,5 +1,5 @@
 export { default as List } from "./List";
-import { AccessRightValues } from "Types";
+import { AccessRight } from "Types";
 
 export interface ListProps {
     innerComponent?: boolean
@@ -9,7 +9,7 @@ export interface ListProps {
 export interface Share {
     id: ShareId,
     sharedWith: String,
-    rights: AccessRightValues[],
+    rights: AccessRight[],
     state: ShareStateValues
 }
 
