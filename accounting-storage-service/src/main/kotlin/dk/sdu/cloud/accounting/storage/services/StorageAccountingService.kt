@@ -77,14 +77,17 @@ class StorageAccountingService<DBSession>(
             var userlist = UserDescriptions.fetchNextIterator.call(id, serviceCloud).orThrow()
             while (userlist.isNotEmpty()) {
                 coroutineScope {
-                    userlist.map {
-                        async {
-                            val home = FileDescriptions.findHomeFolder.call(FindHomeFolderRequest(it.id), serviceCloud)
-                                .orThrow()
-                            val usage = calculateUsage(home.path, it.id).first().units
-                            dao.insert(session, it, usage)
-                        }
-                    }.awaitAll()
+                    userlist.chunked(16).forEach { chunk ->
+                        chunk.map {
+                            async {
+                                val home =
+                                    FileDescriptions.findHomeFolder.call(FindHomeFolderRequest(it.id), serviceCloud)
+                                        .orThrow()
+                                val usage = calculateUsage(home.path, it.id).first().units
+                                dao.insert(session, it, usage)
+                            }
+                        }.awaitAll()
+                    }
                 }
                 userlist = UserDescriptions.fetchNextIterator.call(id, serviceCloud).orThrow()
             }
