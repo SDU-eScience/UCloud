@@ -1,14 +1,13 @@
 import * as React from "react";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { AccessRight, Page, AccessRightValues } from "Types";
+import { AccessRight, Page } from "Types";
 import { shareSwal, prettierString, iconFromFilePath } from "UtilityFunctions";
 import { getFilenameFromPath } from "Utilities/FileUtilities";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
-import { SharesByPath, Share, ShareId, ListProps, ListState, ShareState } from ".";
+import { SharesByPath, Share, ShareId, ListProps, ShareState } from ".";
 import PromiseKeeper from "PromiseKeeper";
 import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Button, Icon } from "ui-components";
-import { sharesByPathQuery } from "Utilities/SharesUtilities";
 import * as Heading from "ui-components/Heading";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
@@ -16,22 +15,16 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import { TextSpan } from "ui-components/Text";
 import { MainContainer } from "MainContainer/MainContainer";
 import { FileIcon } from "UtilityComponents";
-import { setsDiffer } from "Utilities/CollectionUtilities";
 import { SidebarPages } from "ui-components/Sidebar";
 import { Spacer } from "ui-components/Spacer";
+import { ReduxObject, SharesReduxObject } from "DefaultObjects";
+import { retrieveShares, receiveShares, setErrorMessage, setShareState, fetchSharesByPath } from "./Redux/SharesActions";
+import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
+import { useState } from "react";
 
-class List extends React.Component<ListProps & SharesOperations, ListState> {
-    constructor(props: Readonly<ListProps & SharesOperations>) {
+class List extends React.Component<ListProps & SharesReduxObject & SharesOperations, { a: string }> {
+    constructor(props: Readonly<ListProps & SharesReduxObject & SharesOperations>) {
         super(props);
-        this.state = {
-            promises: new PromiseKeeper(),
-            shares: [],
-            errorMessage: undefined,
-            page: 0,
-            itemsPerPage: 10,
-            loading: true,
-            byState: ShareState.REQUEST_SENT
-        };
         // FIXME potentially move following to a parent component
         if (!props.innerComponent) {
             this.props.updatePageTitle();
@@ -39,43 +32,33 @@ class List extends React.Component<ListProps & SharesOperations, ListState> {
         }
     }
 
-    public componentDidMount = () => this.reload();
+    public componentDidMount = () => {
+        this.reload();
+        if (!this.props.innerComponent) { this.props.setRefresh(() => this.reload()) }
+    }
 
-    public componentWillUnmount = () => this.state.promises.cancelPromises();
+    public componentWillUnmount = () => {
+        if (!this.props.innerComponent) { this.props.setRefresh(); }
+    }
 
     private reload(state?: ShareState) {
-        const query = !!this.props.byPath ? sharesByPath(this.props.byPath) : retrieveShares(this.state.page, this.state.itemsPerPage, state || this.state.byState);
-        this.state.promises.makeCancelable(query)
-            .promise
-            .then(e => this.setState({ shares: e.items, loading: false }))
-            .catch(({ request }) => {
-                if (!request.isCanceled) {
-                    let errorMessage: string | undefined = "Unable to retrieve shares!";
-                    if (request.status === 404) {
-                        errorMessage = undefined;
-                    }
-                    this.setState(() => ({ errorMessage, loading: false }));
-                }
-            });
+        const { page } = this.props;
+        if (!!this.props.byPath) {
+            this.props.fetchSharesByPath(this.props.byPath)
+        } else {
+            this.props.retrieveShares(page.pageNumber, page.itemsPerPage, state || this.props.byState);
+        }
     }
 
     private updateShareState(byState: ShareState): void {
-        this.setState(() => ({ byState }));
+        this.props.setShareState(byState);
         this.reload(byState);
     }
 
-    private updateShare(path: string, share: Share): void {
-        const { shares } = this.state;
-        const sharesByPath = shares.find(it => it.path === path)!
-        const i = sharesByPath.shares.findIndex(it => it.id === share.id);
-        shares.find(it => it.path === path)!.shares[i].pendingRightChanges = share.pendingRightChanges;
-        this.setState(() => ({ shares }));
-    }
-
     public render() {
-        let { shares, errorMessage, byState } = this.state;
-        const noSharesWith = shares.filter(it => !it.sharedByMe).length === 0;
-        const noSharesBy = shares.filter(it => it.sharedByMe).length === 0;
+        let { page, error, byState } = this.props;
+        const noSharesWith = page.items.filter(it => !it.sharedByMe).length === 0;
+        const noSharesBy = page.items.filter(it => it.sharedByMe).length === 0;
         const header = (
             <Flex>
                 <Box ml="auto" />
@@ -91,13 +74,12 @@ class List extends React.Component<ListProps & SharesOperations, ListState> {
         const main = (
             <>
                 {this.props.innerComponent ? header : null}
-                <Error clearError={() => this.setState({ errorMessage: undefined })} error={errorMessage} />
-                {this.state.loading ? <LoadingIcon size={18} /> : null}
+                <Error clearError={() => this.props.setError()} error={error} />
+                {this.props.loading ? <LoadingIcon size={18} /> : null}
                 <Heading.h3>Shared with Me</Heading.h3>
                 {
-                    noSharesWith ? <NoShares /> : shares.filter(it => !it.sharedByMe).map(it =>
+                    noSharesWith ? <NoShares /> : page.items.filter(it => !it.sharedByMe).map(it =>
                         <ListEntry
-                            updateShare={() => undefined}
                             groupedShare={it}
                             key={it.path}
                             onAccepted={e => this.onEntryAction()}
@@ -105,14 +87,13 @@ class List extends React.Component<ListProps & SharesOperations, ListState> {
                             onRevoked={e => this.onEntryAction()}
                             onShared={e => this.onEntryAction()}
                             onRights={e => this.onEntryAction()}
-                            onError={it => this.setState({ errorMessage: it })} />
+                            onError={it => this.props.setError(it)} />
                     )
                 }
                 <Heading.h3 pt="25px">Shared by Me</Heading.h3>
                 {
-                    noSharesBy ? <NoShares /> : shares.filter(it => it.sharedByMe).map(it =>
+                    noSharesBy ? <NoShares /> : page.items.filter(it => it.sharedByMe).map(it =>
                         <ListEntry
-                            updateShare={(path, share) => this.updateShare(path, share)}
                             groupedShare={it}
                             key={it.path}
                             onAccepted={e => this.onEntryAction()}
@@ -120,7 +101,7 @@ class List extends React.Component<ListProps & SharesOperations, ListState> {
                             onRevoked={e => this.onEntryAction()}
                             onShared={e => this.onEntryAction()}
                             onRights={e => this.onEntryAction()}
-                            onError={it => this.setState(() => ({ errorMessage: it }))} />
+                            onError={it => this.props.setError(it)} />
                     )
                 }
             </>
@@ -151,7 +132,6 @@ interface ListEntryProperties {
     onRevoked?: (share: Share) => void
     onRights?: (share: Share) => void
     onShared?: (shareId: ShareId) => void
-    updateShare: (path: string, share: Share) => void
 }
 
 interface ListEntryState {
@@ -184,7 +164,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         let actualShare = groupedShare.shares[0]; // TODO Is this always true?
         let hasBeenShared = actualShare.state == ShareState.ACCEPTED;
 
-        let message = (hasBeenShared) ?
+        const message = hasBeenShared ?
             `${groupedShare.sharedBy} has shared ${groupedShare.path} with you.` :
             `${groupedShare.sharedBy} wishes to share ${groupedShare.path} with you.`
 
@@ -232,10 +212,10 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
                     left={<Box>
                         {e.sharedWith}
                         <AccessRightsDisplay
-                            pendingChanges={e.pendingRightChanges}
+                            read={e.rights.some(it => it === "READ")}
+                            write={e.rights.some(it => it === "WRITE")}
                             rights={e.rights}
-                            onRightsToggle={it => this.onRightsToggle(e, it)}
-                            onAcceptChange={() => this.onAcceptChange(e)}
+                            onAcceptChange={aR => this.onAcceptChange(e, aR)}
                         />
                     </Box>}
                     right={
@@ -286,20 +266,9 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         if (f) f(payload)
     }
 
-    onRightsToggle(share: Share, right: AccessRight) {
-        const { pendingRightChanges } = share;
-        let pending = pendingRightChanges || new Set(share.rights);
-
-        pending.has(right) ? pending.delete(right) : pending.add(right);
-        share.pendingRightChanges = pending;
-
-        this.props.updateShare(this.props.groupedShare.path, share);
-    }
-
-    async onAcceptChange(share: Share) {
-        const pendingRightChanges = share.pendingRightChanges!;
+    async onAcceptChange(share: Share, accessRights: Set<AccessRight>) {
         this.setState(() => ({ isLoading: true }));
-        await updateShare(share.id, [...pendingRightChanges])
+        await updateShare(share.id, [...accessRights])
             .then(it => this.maybeInvoke(it.id, this.props.onRights))
             .catch(e => {
                 if (!e.isCanceled) {
@@ -313,7 +282,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
         this.setState(() => ({ isLoading: true }));
         shareSwal().then(async ({ dismiss, value }) => {
             if (dismiss) { this.setState(() => ({ isLoading: false })); return; }
-            const rights = [] as AccessRight[];
+            const rights: AccessRight[] = [];
             // FIXME Fix immediately when SweetAlert allows forms
             (document.getElementById("read") as HTMLInputElement).checked ? rights.push(AccessRight.READ) : null;
             (document.getElementById("read_edit") as HTMLInputElement).checked ? rights.push(AccessRight.WRITE) : null;
@@ -345,8 +314,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     async onAccept(share: Share) {
         this.setState(() => ({ isLoading: true }))
 
-        await this.state.promises.makeCancelable(acceptShare(share.id))
-            .promise
+        await this.state.promises.makeCancelable(acceptShare(share.id)).promise
             .then(() => this.maybeInvoke(share, this.props.onAccepted))
             .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
         this.setState(() => ({ isLoading: false }));
@@ -355,8 +323,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     async onReject(share: Share) {
         this.setState(() => ({ isLoading: true }))
 
-        await this.state.promises.makeCancelable(revokeShare(share.id))
-            .promise
+        await this.state.promises.makeCancelable(revokeShare(share.id)).promise
             .then(() => this.maybeInvoke(share, this.props.onRejected))
             .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError));
         this.setState(() => ({ isLoading: false }))
@@ -365,27 +332,22 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
 
 interface AccessRightsDisplayProps {
     disabled?: boolean
-    rights?: AccessRightValues[]
-    pendingChanges?: Set<AccessRightValues>
+    rights?: AccessRight[]
 
     read?: boolean
     write?: boolean
     floated?: boolean
 
-    onRightsToggle?: (aR: AccessRight) => void
-    onAcceptChange?: () => void
+    onAcceptChange?: (aR: Set<AccessRight>) => void
 }
 
 const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
-    let { read, write, floated } = props;
-    if (!!props.pendingChanges) {
-        read = props.pendingChanges.has("READ");
-        write = props.pendingChanges.has("WRITE");
-    } else if (props.rights != null) {
-        read = props.rights.indexOf(AccessRight.READ) != -1;
-        write = props.rights.indexOf(AccessRight.WRITE) != -1;
-    }
-
+    const { floated } = props;
+    const [accessRights, setAccessRights] = useState(new Set(props.rights));
+    const { READ, WRITE } = AccessRight;
+    const read = accessRights.has(READ);
+    const write = accessRights.has(WRITE);
+    const pendingChanges = accessRights.has(READ) !== props.read || accessRights.has(WRITE) !== props.write;
     return (
         <Flex>
             {floated ? <Box ml="auto" /> : null}
@@ -394,7 +356,10 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                     disabled={props.disabled}
                     color={read ? "green" : "lightGray"}
                     textColor={read ? "white" : "gray"}
-                    onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.READ) : 0}
+                    onClick={() => {
+                        read ? accessRights.delete(READ) : accessRights.add(READ);
+                        setAccessRights(new Set(accessRights));
+                    }}
                 >
                     <Flex alignItems="center" justifyContent="center">
                         <Icon size={18} name="search" />
@@ -405,7 +370,10 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                     disabled={props.disabled}
                     color={write ? "green" : "lightGray"}
                     textColor={write ? "white" : "gray"}
-                    onClick={() => props.onRightsToggle ? props.onRightsToggle(AccessRight.WRITE) : 0}
+                    onClick={() => {
+                        write ? accessRights.delete(WRITE) : accessRights.add(WRITE), accessRights;
+                        setAccessRights(new Set(accessRights))
+                    }}
                 >
                     <Flex alignItems="center" justifyContent="center">
                         <Icon size={18} name="rename" />
@@ -413,16 +381,14 @@ const AccessRightsDisplay = (props: AccessRightsDisplayProps) => {
                     </Flex>
                 </Button>
             </ButtonGroup>
-            {props.pendingChanges && setsDiffer(new Set(props.rights), props.pendingChanges) ?
-                <ButtonGroup width="150px">
-                    <Button ml="0.5em" onClick={() => props.onAcceptChange!()}>
-                        <Flex alignItems="center" justifyContent="center">
-                            <Icon size={18} name="check" />
-                            <Text ml="5px">Confirm</Text>
-                        </Flex>
-                    </Button>
-                </ButtonGroup>
-                : null}
+            {pendingChanges && props.onAcceptChange ? <ButtonGroup width="150px">
+                <Button ml="0.5em" onClick={() => props.onAcceptChange!(accessRights)}>
+                    <Flex alignItems="center" justifyContent="center">
+                        <Icon size={18} name="check" />
+                        <Text ml="5px">Confirm</Text>
+                    </Flex>
+                </Button>
+            </ButtonGroup> : null}
         </Flex>
     );
 }
@@ -431,12 +397,6 @@ interface FileTypeGuess { path: string }
 function fileTypeGuess({ path }: FileTypeGuess) {
     const hasExtension = path.split("/").pop()!.includes(".");
     return hasExtension ? "FILE" : "DIRECTORY";
-}
-
-async function retrieveShares(page: Number, itemsPerPage: Number, byState?: ShareState): Promise<Page<SharesByPath>> {
-    let url = `/shares?itemsPerPage=${itemsPerPage}&page=${page}`;
-    if (byState) url += `&state=${encodeURIComponent(byState)}`;
-    return (await Cloud.get(url)).response;
 }
 
 const acceptShare = async (shareId: ShareId): Promise<any> =>
@@ -448,22 +408,31 @@ const revokeShare = async (shareId: ShareId): Promise<any> =>
 const createShare = async (user: string, path: string, rights: AccessRight[]): Promise<{ id: ShareId }> =>
     (await Cloud.put(`/shares/`, { sharedWith: user, path, rights })).response; // FIXME Add error handling
 
-const updateShare = async (id: ShareId, rights: AccessRightValues[]): Promise<any> =>
+const updateShare = async (id: ShareId, rights: AccessRight[]): Promise<any> =>
     (await Cloud.post(`/shares/`, { id, rights })).response;
-
-const sharesByPath = async (path: string): Promise<any> => ({
-    items: [(await Cloud.get(sharesByPathQuery(path))).response]
-});
-
 
 interface SharesOperations {
     updatePageTitle: () => void
     setActivePage: () => void
+    setError: (error?: string) => void
+    retrieveShares: (page: number, itemsPerPage: number, byState?: ShareState) => void
+    receiveShares: (page: Page<SharesByPath>) => void
+    setShareState: (s: ShareState) => void
+    fetchSharesByPath: (path: string) => void
+    setRefresh: (refresh?: () => void) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): SharesOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Shares")),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Shares))
+    setActivePage: () => dispatch(setActivePage(SidebarPages.Shares)),
+    setError: error => dispatch(setErrorMessage(error)),
+    retrieveShares: async (page, itemsPerPage, byState) => dispatch(await retrieveShares(page, itemsPerPage, byState)),
+    receiveShares: page => dispatch(receiveShares(page)),
+    fetchSharesByPath: async path => dispatch(await fetchSharesByPath(path)),
+    setShareState: shareState => dispatch(setShareState(shareState)),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
-export default connect(() => ({}), mapDispatchToProps)(List);
+const mapStateToProps = ({ shares }: ReduxObject): SharesReduxObject => shares;
+
+export default connect(mapStateToProps, mapDispatchToProps)(List);

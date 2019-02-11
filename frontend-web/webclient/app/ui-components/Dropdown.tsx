@@ -73,7 +73,7 @@ DropdownContent.defaultProps = {
     cursor: "pointer",
     minWidth: "138px",
     boxShadow: "sm",
-    visible: false,
+    visible: false
 }
 
 interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomProps, BoxShadowProps {

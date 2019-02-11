@@ -16,7 +16,6 @@ export interface Page<T> {
     items: T[]
 }
 
-export type AccessRightValues = keyof typeof AccessRight
 export enum AccessRight {
     READ = "READ",
     WRITE = "WRITE",

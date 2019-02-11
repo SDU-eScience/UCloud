@@ -118,10 +118,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             failure => {
                 if (!failure.isCanceled)
                     failureNotification("An error occurred retrieving Information and Output from the job.");
-            }).then(
-                () => this.props.setLoading(false),
-                () => this.props.setLoading(false)
-            );// FIXME, should be .finally(() => this.props.setLoading(false));, blocked by ts-jest
+            }).finally(() => this.props.setLoading(false));
     }
 
     retrieveStateWhenCompleted() {
@@ -245,7 +242,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     &nbsp;
                     <Dropdown>
                         <Icon name="info" color="white" color2="black" />
-                        <DropdownContent colorOnHover={false} color="white" backgroundColor="black">
+                        <DropdownContent visible colorOnHover={false} color="white" backgroundColor="black">
                             <span>Streams are collected from <code>stdout</code> and <code>stderr</code> of your application.</span>
                         </DropdownContent>
                     </Dropdown>
@@ -348,7 +345,10 @@ const Stream = styled.pre`
     overflow: auto;
 `;
 
-const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxObject => detailedResult;
+const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxObject & { favoriteCount: number } => ({
+    ...detailedResult,
+    favoriteCount: detailedResult.page.items.filter(it => it.favorited).length
+});
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     detailedResultError: error => dispatch(detailedResultError(error)),
     setLoading: loading => dispatch(setLoading(loading)),

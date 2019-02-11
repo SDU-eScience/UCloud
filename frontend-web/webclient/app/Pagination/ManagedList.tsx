@@ -35,14 +35,11 @@ export class ManagedList extends React.Component<Self.ManagedListProps, Self.Man
 
         this.props.dataProvider(page, itemsPerPage)
             .then(results => {
-                this.setState(() => ({ results, loading: false }));
-            })
-            .catch(e => {
+                this.setState(() => ({ results }));
+            }).catch(e => {
                 // TODO Use error message from request
-                if (!e.isCanceled)
-                    this.setState({ errorMessage: "An error has occured", loading: false });
-            });
-            /* .finally(() => this.setState({ loading: false })); */
+                if (!e.isCanceled) this.setState(() => ({ errorMessage: "An error has occured" }));
+            }).finally(() => this.setState({ loading: false }));
     }
 
     render() {
@@ -54,7 +51,7 @@ export class ManagedList extends React.Component<Self.ManagedListProps, Self.Man
             errorMessage={errorMessage}
             pageRenderer={props.pageRenderer}
             onPageChanged={page => this.retrieveData(page, results.itemsPerPage)}
-            onErrorDismiss={() => this.setState({ errorMessage: undefined })}
+            onErrorDismiss={() => this.setState(() => ({ errorMessage: undefined }))}
         />
     }
 }

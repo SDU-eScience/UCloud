@@ -97,7 +97,9 @@ export function overwriteSwal() {
         showCancelButton: true,
         title: "Warning",
         type: "warning",
-        text: "The existing file is being overwritten. Cancelling will leave it in an inconsistent state. Continue?"
+        text: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
+        cancelButtonText: "Continue",
+        confirmButtonText: "Cancel Upload"
     });
 }
 

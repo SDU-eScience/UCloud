@@ -17,6 +17,7 @@ import { defaultAvatar } from "UserSettings/Avataaar";
 import { DetailedProjectSearchReduxState } from "Project";
 import { SidebarPages } from "ui-components/Sidebar";
 import { SnackbarReduxObject } from "Snackbar/Redux";
+import { SharesByPath, ShareState } from "Shares";
 
 export const DefaultStatus: Status = {
     title: "No Issues",
@@ -205,6 +206,10 @@ export const initDetailedResult = (): DetailedResultReduxObject => ({
     error: undefined
 });
 
+export interface SharesReduxObject extends ComponentWithPage<SharesByPath> {
+    byState: ShareState
+}
+
 /* FIXME */
 interface LegacyReduxObject {
     dashboard: DashboardStateProps
@@ -226,10 +231,12 @@ interface LegacyReduxObject {
     avatar: AvatarReduxObject
     filePreview: FilePreviewReduxState
     snackbar: SnackbarReduxObject
+    shares: SharesReduxObject
     responsive?: ResponsiveReduxObject
 }
 
 export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects;
+
 
 export const initActivity = (): ActivityReduxObject => ({
     page: emptyPage,
@@ -287,7 +294,15 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     snackbar: SnackbarRedux.init(),
     avatar: initAvatar(),
     filePreview: initFilePreview(),
+    shares: initShares(),
     responsive: undefined,
+});
+
+export const initShares = (): SharesReduxObject => ({
+    page: emptyPage,
+    loading: false,
+    byState: ShareState.REQUEST_SENT,
+    error: undefined
 });
 
 export const initFilePreview = () => ({

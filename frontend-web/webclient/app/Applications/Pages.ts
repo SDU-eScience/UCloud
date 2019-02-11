@@ -1,14 +1,14 @@
-import { Application, ApplicationMetadata } from "Applications";
+import { ApplicationMetadata } from "Applications";
 import { buildQueryString } from "Utilities/URIUtilities";
 
 export const view = (name: string, version: string): string => 
-    `/applications/details/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
+    `/applications/details/${encodeURIComponent(name)}/${encodeURIComponent(version)}/`;
 
 export const viewApplication = (application: ApplicationMetadata): string =>
     view(application.name, application.version);
 
 export const run = (name: string, version: string): string =>
-    `/applications/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
+    `/applications/${encodeURIComponent(name)}/${encodeURIComponent(version)}/`;
 
 export const runApplication = (application: ApplicationMetadata): string =>
     run(application.name, application.version);

@@ -251,7 +251,7 @@ const InfoAttributes = styled.div`
 `;
 
 function Information({ application }: { application: WithAppMetadata & WithAppInvocation }) {
-    const time = application.invocation.tool.tool.defaultMaxTime;
+    const time = application.invocation.tool.tool.description.defaultMaxTime;
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
 
     return <>
@@ -268,7 +268,7 @@ function Information({ application }: { application: WithAppMetadata & WithAppIn
 
             <InfoAttribute
                 name="Default Nodes"
-                value={`${application.invocation.tool.tool.defaultNumberOfNodes}`} />
+                value={`${application.invocation.tool.tool.description.defaultNumberOfNodes}`} />
 
             <InfoAttribute
                 name="Container Type"

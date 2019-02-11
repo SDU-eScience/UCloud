@@ -170,7 +170,7 @@ export async function fetchPageFromPath(path: string, itemsPerPage: number, orde
  */
 export const fetchFileselectorFiles = async (path: string, page: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> => {
     try {
-        const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage));
+        const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, SortOrder.ASCENDING, SortBy.TYPE));
         response.items.forEach(file => file.isChecked = false);
         return receiveFileSelectorFiles(response, resolvePath(path));
     } catch (e) {

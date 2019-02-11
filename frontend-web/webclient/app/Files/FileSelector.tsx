@@ -53,12 +53,11 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
         this.state.promises.makeCancelable(Cloud.get(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(({ response }) =>
             this.setState(() => ({
                 page: response,
-                loading: false,
                 path: resolvePath(path),
                 error: undefined
             }))
-        ).catch((_) => this.setState(() => ({ error: "An error occurred fetching files", loading: false })));
-        // FIXME: Ideally finally should be used for loading, but ts-jest doesn't allow it.
+        ).catch((_) => this.setState(() => ({ error: "An error occurred fetching files" })))
+        .finally(() => this.setState(() => ({ loading: false })))
     }
 
     render() {

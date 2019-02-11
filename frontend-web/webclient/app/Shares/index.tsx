@@ -1,16 +1,5 @@
 export { default as List } from "./List";
-import { AccessRightValues } from "Types";
-import PromiseKeeper from "PromiseKeeper";
-
-export interface ListState {
-    promises: PromiseKeeper
-    shares: SharesByPath[]
-    errorMessage?: string,
-    page: number,
-    itemsPerPage: number
-    loading: boolean
-    byState: ShareState
-}
+import { AccessRight } from "Types";
 
 export interface ListProps {
     innerComponent?: boolean
@@ -20,9 +9,8 @@ export interface ListProps {
 export interface Share {
     id: ShareId,
     sharedWith: String,
-    rights: AccessRightValues[],
+    rights: AccessRight[],
     state: ShareStateValues
-    pendingRightChanges?: Set<AccessRightValues>
 }
 
 // FIXME Singular instead of plural?
