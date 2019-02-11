@@ -150,7 +150,7 @@ export default class SDUCloud {
     /**
      * Calls with the GET HTTP method. See call(method, path, body)
      */
-    async get<T = any>(path, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
+    async get<T = any>(path: string, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call("GET", path, undefined, context);
     }
 
