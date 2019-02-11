@@ -54,6 +54,8 @@ object TokenValidationMock {
                 }
             }
 
+            withClaim("uid", securityPrincipal.uid)
+
             withAudience(*(scopes.map { it.toString() }.toTypedArray()))
 
             sign(algorithm)
