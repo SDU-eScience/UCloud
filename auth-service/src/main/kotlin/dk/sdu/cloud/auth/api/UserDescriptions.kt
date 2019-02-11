@@ -30,6 +30,9 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
     override fun toString() = "ChangePasswordRequest()"
 }
 
+data class LookupUIDRequest(val uids: List<Long>)
+data class LookupUIDResponse(val users: Map<Long, UserLookup?>)
+
 object UserDescriptions : RESTDescriptions("auth.users") {
     const val baseContext = "/auth/users"
 
@@ -81,6 +84,23 @@ object UserDescriptions : RESTDescriptions("auth.users") {
         path {
             using(baseContext)
             +"lookup"
+        }
+
+        body { bindEntireRequestFromBody() }
+    }
+
+    val lookupUID = callDescription<LookupUIDRequest, LookupUIDResponse, CommonErrorMessage> {
+        name = "lookupUID"
+        method = HttpMethod.Post
+
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        path {
+            using(baseContext)
+            +"lookup-uid"
         }
 
         body { bindEntireRequestFromBody() }

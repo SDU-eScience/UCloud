@@ -18,6 +18,7 @@ import javax.persistence.Entity
 import javax.persistence.EnumType
 import javax.persistence.Enumerated
 import javax.persistence.Id
+import javax.persistence.Index
 import javax.persistence.Inheritance
 import javax.persistence.InheritanceType
 import javax.persistence.Table
@@ -32,7 +33,10 @@ import javax.persistence.TemporalType
  */
 @Entity
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@Table(name = "principals")
+@Table(
+    name = "principals",
+    indexes = [Index(columnList = "uid")]
+)
 sealed class PrincipalEntity {
     @get:Id
     @get:NaturalId
@@ -220,6 +224,19 @@ class UserHibernateDAO(
         val nullEntries = usersWeDidntFind.map { it to null as Principal? }.toMap()
 
         return usersWeFound + nullEntries
+    }
+
+    override fun findAllByUIDs(session: HibernateSession, uids: List<Long>): Map<Long, Principal?> {
+        val usersWeFound = session
+            .criteria<PrincipalEntity> { entity[PrincipalEntity::uid] isInCollection uids }
+            .list()
+            .map { it.toModel() }
+            .associateBy { it.uid }
+
+        val usersWeDidntFind = uids.filter { it !in usersWeFound }
+        val nullEntires = usersWeDidntFind.map { it to null as Principal? }.toMap()
+
+        return usersWeFound + nullEntires
     }
 
     override fun findByUsernamePrefix(session: HibernateSession, prefix: String): List<Principal> {

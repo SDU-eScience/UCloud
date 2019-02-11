@@ -5,6 +5,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.ChangePasswordAudit
 import dk.sdu.cloud.auth.api.CreateSingleUserAudit
+import dk.sdu.cloud.auth.api.LookupUIDResponse
 import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ProjectProxy
@@ -84,6 +85,18 @@ class UserController<DBSession>(
                         }
                     }
                 )
+            )
+        }
+
+        implement(UserDescriptions.lookupUID) { req ->
+            ok(
+                db.withTransaction { session ->
+                    LookupUIDResponse(
+                        userDAO.findAllByUIDs(session, req.uids).mapValues { (_, principal) ->
+                            principal?.let { UserLookup(it.id, it.uid, it.role) }
+                        }
+                    )
+                }
             )
         }
 
