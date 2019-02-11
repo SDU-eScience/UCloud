@@ -266,46 +266,6 @@ object FileDescriptions : RESTDescriptions("files") {
         }
     }
 
-    /*
-    val markAsFavorite = callDescriptionWithAudit<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage,
-            SingleFileAudit<FavoriteCommand>> {
-        name = "markAsFavorite"
-        method = HttpMethod.Post
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        path {
-            using(baseContext)
-            +"favorite"
-        }
-
-        params {
-            +boundTo(FavoriteCommand::path)
-        }
-    }
-
-    val removeFavorite = callDescriptionWithAudit<FavoriteCommand, LongRunningResponse<Unit>, CommonErrorMessage,
-            SingleFileAudit<FavoriteCommand>> {
-        name = "removeFavorite"
-        method = HttpMethod.Delete
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        path {
-            using(baseContext)
-            +"favorite"
-        }
-
-        params {
-            +boundTo(FavoriteCommand::path)
-        }
-    }
-    */
-
     val createDirectory = callDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
         name = "createDirectory"
         method = HttpMethod.Post
