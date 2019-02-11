@@ -149,29 +149,32 @@ static void print_shares(std::ostream &stream, const char *path) {
 
             if (acl_get_tag_type(entry, &acl_tag) == -1) FATAL("acl_get_tag_type");
             auto qualifier = acl_get_qualifier(entry);
-            auto acl_uid = (uid_t *) qualifier;
-            bool is_user;
 
-            is_user = acl_tag == ACL_USER;
+            if (acl_tag == ACL_USER || acl_tag == ACL_GROUP) {
+                auto acl_uid = (uid_t *) qualifier;
+                bool is_user;
 
-            if (acl_get_permset(entry, &permset) == -1) FATAL("permset");
-            bool has_read = acl_get_perm(permset, ACL_READ) == 1;
-            bool has_write = acl_get_perm(permset, ACL_WRITE) == 1;
-            bool has_execute = acl_get_perm(permset, ACL_EXECUTE) == 1;
+                is_user = acl_tag == ACL_USER;
 
-            uint8_t mode_out = 0;
-            if (!is_user) mode_out |= SHARED_WITH_UTYPE;
-            if (has_read) mode_out |= SHARED_WITH_READ;
-            if (has_write) mode_out |= SHARED_WITH_WRITE;
-            if (has_execute) mode_out |= SHARED_WITH_EXECUTE;
+                if (acl_get_permset(entry, &permset) == -1) FATAL("permset");
+                bool has_read = acl_get_perm(permset, ACL_READ) == 1;
+                bool has_write = acl_get_perm(permset, ACL_WRITE) == 1;
+                bool has_execute = acl_get_perm(permset, ACL_EXECUTE) == 1;
 
-            shared_with_t shared{};
+                uint8_t mode_out = 0;
+                if (!is_user) mode_out |= SHARED_WITH_UTYPE;
+                if (has_read) mode_out |= SHARED_WITH_READ;
+                if (has_write) mode_out |= SHARED_WITH_WRITE;
+                if (has_execute) mode_out |= SHARED_WITH_EXECUTE;
 
-            shared.name = *acl_uid;
-            shared.mode = mode_out;
+                shared_with_t shared{};
 
-            shares.emplace_back(shared);
-            entry_count++;
+                shared.name = *acl_uid;
+                shared.mode = mode_out;
+
+                shares.emplace_back(shared);
+                entry_count++;
+            }
 
             acl_free(qualifier);
         }
