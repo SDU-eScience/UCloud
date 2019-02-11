@@ -345,7 +345,10 @@ const Stream = styled.pre`
     overflow: auto;
 `;
 
-const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxObject => detailedResult;
+const mapStateToProps = ({ detailedResult }: ReduxObject): DetailedResultReduxObject & { favoriteCount: number } => ({
+    ...detailedResult,
+    favoriteCount: detailedResult.page.items.filter(it => it.favorited).length
+});
 const mapDispatchToProps = (dispatch: Dispatch): DetailedResultOperations => ({
     detailedResultError: error => dispatch(detailedResultError(error)),
     setLoading: loading => dispatch(setLoading(loading)),

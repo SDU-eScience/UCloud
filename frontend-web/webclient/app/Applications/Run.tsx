@@ -116,8 +116,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.state.promises.makeCancelable(Cloud.post(hpcFavoriteApp(name, version))).promise
             .then(() => this.setState(() => ({ favorite: !this.state.favorite })))
             .catch(it => this.setState(() => ({ error: errorMessageOrDefault(it, "An error occurred") })))
-            .then(() => this.setState(() => ({ favoriteLoading: false })), () => this.setState(() => ({ favoriteLoading: false })))
-
+            .finally(() => this.setState(() => ({ favoriteLoading: false })));
     }
 
     private retrieveApplication(name: string, version: string) {
@@ -383,6 +382,4 @@ const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Run Application"))
 });
 
-const mapStateToProps = ({ }: ReduxObject) => ({});
-
-export default connect(mapStateToProps, mapDispatchToProps)(Run);
+export default connect(null, mapDispatchToProps)(Run);

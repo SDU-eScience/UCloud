@@ -36,8 +36,7 @@ export class ManagedList extends React.Component<Self.ManagedListProps, Self.Man
         this.props.dataProvider(page, itemsPerPage)
             .then(results => {
                 this.setState(() => ({ results }));
-            })
-            .catch(e => {
+            }).catch(e => {
                 // TODO Use error message from request
                 if (!e.isCanceled) this.setState(() => ({ errorMessage: "An error has occured" }));
             }).finally(() => this.setState({ loading: false }));

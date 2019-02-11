@@ -314,8 +314,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     async onAccept(share: Share) {
         this.setState(() => ({ isLoading: true }))
 
-        await this.state.promises.makeCancelable(acceptShare(share.id))
-            .promise
+        await this.state.promises.makeCancelable(acceptShare(share.id)).promise
             .then(() => this.maybeInvoke(share, this.props.onAccepted))
             .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError))
         this.setState(() => ({ isLoading: false }));
@@ -324,8 +323,7 @@ class ListEntry extends React.Component<ListEntryProperties, ListEntryState> {
     async onReject(share: Share) {
         this.setState(() => ({ isLoading: true }))
 
-        await this.state.promises.makeCancelable(revokeShare(share.id))
-            .promise
+        await this.state.promises.makeCancelable(revokeShare(share.id)).promise
             .then(() => this.maybeInvoke(share, this.props.onRejected))
             .catch(e => this.maybeInvoke(e.why ? e.why : "An error has occured", this.props.onError));
         this.setState(() => ({ isLoading: false }))
