@@ -100,7 +100,7 @@ const TextLabel = ({ icon, children, title, height = "30px", color = "iconColor"
 const SidebarLink = styled(Link)`
     ${props => props.active ?
         `&:not(:hover) > * > ${Text} { 
-            filter: saturate(6000%);
+            color: ${props.theme.colors.blue};
         }
         &:not(:hover) > * > ${Icon} { 
             filter: saturate(500%);
