@@ -13,6 +13,7 @@ import { SimpleSearchStateProps } from "Search";
 import * as ApplicationRedux from "Applications/Redux";
 import * as AccountingRedux from "Accounting/Redux";
 import * as SnackbarRedux from "Snackbar/Redux";
+import * as FavoritesRedux from "Favorites/Redux";
 import { defaultAvatar } from "UserSettings/Avataaar";
 import { DetailedProjectSearchReduxState } from "Project";
 import { SidebarPages } from "ui-components/Sidebar";
@@ -235,7 +236,7 @@ interface LegacyReduxObject {
     responsive?: ResponsiveReduxObject
 }
 
-export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects;
+export type ReduxObject = LegacyReduxObject & ApplicationRedux.Objects & AccountingRedux.Objects & FavoritesRedux.Objects;
 
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -291,6 +292,7 @@ export const initObject = (homeFolder: string): ReduxObject => ({
     fileInfo: initFileInfo(),
     ...ApplicationRedux.init(),
     ...AccountingRedux.init(),
+    ...FavoritesRedux.init(),
     snackbar: SnackbarRedux.init(),
     avatar: initAvatar(),
     filePreview: initFilePreview(),
