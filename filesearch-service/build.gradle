@@ -10,7 +10,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "0.23.6"
+    ext.serviceCommonVersion = "0.25.7"
     ext.fileApiVersion = "0.19.0"
 }
 
@@ -18,7 +18,7 @@ dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:file-api:$fileApiVersion"
     compile "dk.sdu.cloud:auth-api:1.14.0"
-    compile "dk.sdu.cloud:indexing-api:1.9.0"
+    compile "dk.sdu.cloud:indexing-api:1.9.1"
 
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }

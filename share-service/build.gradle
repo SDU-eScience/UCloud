@@ -20,7 +20,7 @@ dependencies {
     compile 'dk.sdu.cloud:file-api:0.19.0'
     compile 'dk.sdu.cloud:auth-api:1.14.0'
     compile 'dk.sdu.cloud:notification-api:0.7.0-SNAPSHOT'
-    compile 'dk.sdu.cloud:indexing-api:1.9.0'
+    compile 'dk.sdu.cloud:indexing-api:1.9.1'
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 

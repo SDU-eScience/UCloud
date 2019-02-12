@@ -37,7 +37,7 @@ class FileFavoriteControllerTest {
         withKtorTest(
             setup,
             test = {
-                coEvery { service.toggleFavorite(any(), any(), any()) } answers {
+                coEvery { service.toggleFavorite(any(), any(), any(), any()) } answers {
                     emptyList()
                 }
 
@@ -61,7 +61,7 @@ class FileFavoriteControllerTest {
         withKtorTest(
             setup,
             test = {
-                coEvery { service.toggleFavorite(any(), any(), any()) } answers {
+                coEvery { service.toggleFavorite(any(), any(), any(), any()) } answers {
                     listOf("/home/user/1")
                 }
 

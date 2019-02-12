@@ -85,6 +85,7 @@ class JobFileServiceTest {
         )
     }
 
+/*
     @Ignore("Mockk 1.8.13kotlin13 bytecode verification issue")
     @Test(expected = JobFileException.ErrorDuringTransfer::class)
     fun `test upload file with failure (status)`() = runBlocking {
@@ -116,7 +117,7 @@ class JobFileServiceTest {
             channel
         )
     }
-
+*/
     @Test
     fun `test upload file with extraction`() = runBlocking {
         coEvery { connection.mkdir(any(), any()) } returns 0
@@ -165,7 +166,7 @@ class JobFileServiceTest {
 
         coVerify { connection.rm(any(), any(), any()) }
     }
-
+/*
     @Ignore("Mockk 1.8.13kotlin13 bytecode verification issue")
     @Test
     fun `test transfer compute results (no results)`() = runBlocking {
@@ -307,4 +308,5 @@ class JobFileServiceTest {
         every { connection.stat(any()) } returns null
         service.transferForJob(job)
     }
+*/
 }

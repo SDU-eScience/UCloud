@@ -41,7 +41,6 @@ class FileLookupTest{
                 "user",
                 1234,
                 listOf(AccessEntry("entity", true, setOf(AccessRight.EXECUTE))),
-                false,
                 SensitivityLevel.PRIVATE,
                 false,
                 emptySet(),

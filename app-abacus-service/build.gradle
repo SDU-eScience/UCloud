@@ -15,7 +15,7 @@ dependencies {
 
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     compile 'dk.sdu.cloud:auth-api:1.14.0'
-    compile 'dk.sdu.cloud:app-api:0.13.0'
+    compile 'dk.sdu.cloud:app-api:0.13.5'
 
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
