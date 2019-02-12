@@ -155,7 +155,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
             { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
             { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
             { icon: "share", label: "Shares", to: "/shares/" },
-            { icon: "apps", label: "My Apps", to: "/applications/installed/" },
+            { icon: "starFilled", label: "Favorites", to: "/favorites" },
             { icon: "appStore", label: "App Store", to: "/applications/" },
             { icon: "results", label: "My Results", to: "/applications/results/" }
         ], predicate: () => true

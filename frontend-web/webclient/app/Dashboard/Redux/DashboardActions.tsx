@@ -13,7 +13,7 @@ import { Analysis } from "Applications";
 import { File } from "Files";
 import { hpcJobsQuery } from "Utilities/ApplicationUtilities";
 import { PayloadAction } from "Types";
-import { recentFilesQuery } from "Utilities/FileUtilities";
+import { recentFilesQuery, favoritesQuery } from "Utilities/FileUtilities";
 
 
 export type DashboardActions = Error<DashboardError> | ReceiveFavoritesProps | ReceiveRecentFilesProps |
@@ -41,7 +41,7 @@ export const setErrorMessage = (type: DashboardError, error?: string): Error<Das
  * Fetches the contents of the favorites folder and provides the initial 10 items
  */
 export const fetchFavorites = (): Promise<ReceiveFavoritesProps | Error<DashboardError>> =>
-    Cloud.get("/files/favorite").then(({ response }) =>
+    Cloud.get(favoritesQuery()).then(({ response }) =>
         receiveFavorites(response.items.slice(0, 10))
     ).catch(() => setErrorMessage(DASHBOARD_FAVORITE_ERROR, "Failed to fetch favorites. Please try again later."));
 

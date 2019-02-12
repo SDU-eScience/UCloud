@@ -1,6 +1,6 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import { PayloadAction, Page } from "Types";
-import { Application, ApplicationMetadata, WithAppMetadata, WithAppFavorite } from "Applications";
+import { WithAppMetadata, WithAppFavorite } from "Applications";
 import { LoadableEvent, unwrapCall } from "LoadableContent";
 import { buildQueryString } from "Utilities/URIUtilities";
 

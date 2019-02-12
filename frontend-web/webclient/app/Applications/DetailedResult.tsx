@@ -63,7 +63,11 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         this.props.receivePage(emptyPage);
     }
 
-    static fileOperations = (history: History, setLoading: () => void) => AllFileOperations(true, false, false, false, false, false, history, setLoading);
+    static fileOperations = (history: History, setLoading: () => void) => AllFileOperations({
+        stateless: true,
+        history,
+        setLoading
+    });
 
     scrollIfNeeded() {
         if (!this.stdoutEl || !this.stderrEl) return;
@@ -133,7 +137,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         window.clearTimeout(this.state.reloadIntervalId);
     }
 
-    favoriteFile = (file: File) => this.props.receivePage(favoriteFileFromPage(this.props.page, [file], Cloud));
+    favoriteFile = async (file: File) => this.props.receivePage(await favoriteFileFromPage(this.props.page, [file], Cloud));
 
     renderProgressPanel = () => (
         <div>

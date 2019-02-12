@@ -289,16 +289,27 @@ export const fileInfoPage = (path: string): string => `/files/info?path=${encode
 export const filePreviewPage = (path: string) => `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
-export function AllFileOperations(
-    stateless: boolean,
-    fileSelectorOps: MoveCopyOperations | false,
-    onDeleted: (() => void) | false,
-    onExtracted: (() => void) | false,
-    onClearTrash: (() => void) | false,
-    onLinkCreate: ((p: string) => void) | false,
-    history: History | false,
+
+interface AllFileOperations {
+    stateless?: boolean,
+    fileSelectorOps?: MoveCopyOperations
+    onDeleted?: () => void
+    onExtracted?: () => void
+    onClearTrash?: () => void
+    onLinkCreate?: (p: string) => void
+    history?: History,
     setLoading: () => void
-) {
+}
+export function AllFileOperations({
+    stateless,
+    fileSelectorOps,
+    onDeleted,
+    onExtracted,
+    onClearTrash,
+    onLinkCreate,
+    history,
+    setLoading
+}: AllFileOperations) {
     const stateLessOperations = stateless ? StateLessOperations(setLoading) : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps, setLoading) : [];
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
@@ -310,8 +321,7 @@ export function AllFileOperations(
         ...stateLessOperations,
         ...fileSelectorOperations,
         ...deleteOperation,
-        ...extractionOperations,
-        // ...clearTrash,
+        ...extractionOperations,        // ...clearTrash,
         ...historyOperations,
         ...createLink
     ];
@@ -361,6 +371,8 @@ export function copyFileQuery(path: string, newPath: string, policy: UploadPolic
 }
 
 export const statFileQuery = (path: string) => `/files/stat?path=${encodeURIComponent(path)}`;
+export const favoritesQuery = (page: number = 0, itemsPerPage: number = 25) =>
+    `/files/favorite?page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const newMockFolder = (path: string = "", beingRenamed: boolean = true): File => ({
     fileType: "DIRECTORY",
@@ -406,17 +418,10 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
     ].some(it => UF.removeTrailingSlash(it) === filePath)
 };
 
-/**
- * Used for favoriting files based on a path and page consisting of files.
- * @param {Page<File>} page The page of files to be searched through
- * @param {File[]} filesToFavorite Files to be favorited
- * @param {Cloud} cloud The instance of a Cloud object used for requests
- * @returns {Page<File>} The page of files with the file favorited
- */
 export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], cloud: SDUCloud): Page<File> => {
     filesToFavorite.forEach(f => {
-        const file = page.items.find(file => file.path === f.path)!;
-        favoriteFile(file, cloud);
+        const i = page.items.findIndex(file => file.path === f.path)!;
+        favoriteFile(page.items[i], cloud);
     });
     return page;
 };
@@ -427,10 +432,31 @@ export const favoriteFileFromPage = (page: Page<File>, filesToFavorite: File[], 
  * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
  */
 export const favoriteFile = (file: File, cloud: SDUCloud): File => {
+    try {
+        cloud.post(favoriteFileQuery(file.path), {})
+    } catch (e) {
+        UF.errorMessageOrDefault(e, "An error occurred favoriting file.");
+    }
     file.favorited = !file.favorited;
-    cloud.post(`/files/favorite?path=${encodeURIComponent(file.path)}`, {}); // FIXME: Error handling
     return file;
 }
+
+/**
+ * Used to favorite/defavorite a file based on its current state.
+ * @param {File} file The single file to be favorited
+ * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
+ */
+export const favoriteFileAsync = async (file: File, cloud: SDUCloud): Promise<File> => {
+    try {
+        await cloud.post(favoriteFileQuery(file.path), {})
+    } catch (e) {
+        UF.errorMessageOrDefault(e, "An error occurred favoriting file.");
+    }
+    file.favorited = !file.favorited;
+    return file;
+}
+
+const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURIComponent(path)}`;
 
 export const reclassifyFile = async (file: File, sensitivity: SensitivityLevelMap, cloud: SDUCloud): Promise<File> => {
     const callResult = await unwrap(cloud.post<void>("/files/reclassify", { path: file.path, sensitivity }));

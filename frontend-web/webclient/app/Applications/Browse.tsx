@@ -3,7 +3,7 @@ import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { updatePageTitle, StatusActions, setActivePage } from "Navigation/Redux/StatusActions";
 import { Page } from "Types";
-import { Application, ApplicationMetadata, WithAppFavorite, WithAppMetadata } from ".";
+import { WithAppFavorite, WithAppMetadata } from ".";
 import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
