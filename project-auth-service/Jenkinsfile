@@ -1,8 +1,8 @@
 def initialize() {
 
   try {
-    stage('build project.auth-service') {
-      sh '''cd project.auth-service
+    stage('build project-auth-service') {
+      sh '''cd project-auth-service
       ./gradlew clean
       ./gradlew build -x test'''
     }
@@ -10,11 +10,11 @@ def initialize() {
     echo "Build Failed"
     return currentBuild.result ?: 'FAILURE'
   } finally {
-    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'project.auth-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'project.auth-service-detekt-Report', reportTitles: ''])
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'project-auth-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'project-auth-service-detekt-Report', reportTitles: ''])
   }
   try {
-    stage('test project.auth-service') {
-      sh '''cd project.auth-service
+    stage('test project-auth-service') {
+      sh '''cd project-auth-service
       ./gradlew test'''
     } 
   } catch (e) {
