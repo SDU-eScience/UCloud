@@ -13,13 +13,11 @@ import { GridCardGroup } from "ui-components/Grid";
 import * as Actions from "./Redux/FavoriteActions";
 import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { loadingEvent } from "LoadableContent";
-import { SidebarPages } from "ui-components/Sidebar";
 import { Box } from "ui-components";
 
 interface InstalledOperations {
     onInit: () => void
     fetchItems: (pageNumber: number, itemsPerPage: number) => void
-    setActivePage: () => void
     setRefresh: (refresh?: () => void) => void
 }
 
@@ -33,7 +31,6 @@ class Installed extends React.Component<InstalledProps & { header: any }> {
 
         props.onInit();
         props.fetchItems(0, 25);
-        props.setActivePage();
         const { content } = props.applications;
         const pageNumber = !!content ? content.pageNumber : 0;
         const itemsPerPage = !!content ? content.itemsPerPage : 25;
@@ -95,7 +92,6 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | HeaderActions | St
         dispatch(await Actions.fetch(itemsPerPage, pageNumber))
     },
 
-    setActivePage: () => dispatch(setActivePage(SidebarPages.MyApps)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 

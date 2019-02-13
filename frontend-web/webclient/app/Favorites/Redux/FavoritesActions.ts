@@ -3,12 +3,12 @@ import { favoritesQuery } from "Utilities/FileUtilities";
 import { Page, PayloadAction, Error, SetLoadingAction } from "Types";
 import { File } from "Files";
 import { errorMessageOrDefault } from "UtilityFunctions";
-import { RECEIVE_FAVORITES, SET_ERROR_MESSAGE, SET_FAVORITES_LOADING } from "./FavoritesReducer";
+import { RECEIVE_FAVORITES, SET_ERROR_MESSAGE, SET_FAVORITES_LOADING, SET_FAVORITES_SHOWN } from "./FavoritesReducer";
+import { FavoriteType } from "Favorites/Favorites";
 
-export type FavoriteActions = ReceiveFavorites | SetLoading | SetError;
+export type FavoriteActions = ReceiveFavorites | SetLoading | SetError | SetFavoritesShown;
 
-export const fetchFavorites = async (pageNumber: number, itemsPerPage: number): Promise<ReceiveFavorites |
-    SetError> => {
+export const fetchFavorites = async (pageNumber: number, itemsPerPage: number): Promise<ReceiveFavorites | SetError> => {
     try {
         const res = await Cloud.get<Page<File>>(favoritesQuery(pageNumber, itemsPerPage));
         return receiveFavorites(res.response);
@@ -34,4 +34,10 @@ type SetLoading = SetLoadingAction<typeof SET_FAVORITES_LOADING>
 export const setLoading = (loading: boolean): SetLoading => ({
     type: SET_FAVORITES_LOADING,
     payload: { loading }
+});
+
+type SetFavoritesShown = PayloadAction<typeof SET_FAVORITES_SHOWN, { shown: FavoriteType }>
+export const setFavoritesShown = (shown: FavoriteType): SetFavoritesShown => ({
+    type: SET_FAVORITES_SHOWN,
+    payload: { shown }
 });

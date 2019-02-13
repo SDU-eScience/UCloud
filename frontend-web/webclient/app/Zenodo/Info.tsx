@@ -35,7 +35,7 @@ class ZenodoInfo extends React.Component<ZenodoInfoProps, ZenodoInfoState> {
             loading: false
         }));
 
-    componentWillMount() {
+    componentDidMount() {
         this.setState(() => ({ loading: true }));
         const intervalId = window.setInterval(this.reload, 2_000);
         this.setState(() => ({ intervalId: intervalId }));

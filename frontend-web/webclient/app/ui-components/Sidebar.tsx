@@ -127,7 +127,7 @@ function enumToLabel(value: SidebarPages): string {
         case SidebarPages.Dashboard: return "Dashboard";
         case SidebarPages.Files: return "Files";
         case SidebarPages.Shares: return "Shares";
-        case SidebarPages.MyApps: return "My Apps";
+        case SidebarPages.Favorites: return "Favorites";
         case SidebarPages.AppStore: return "App Store";
         case SidebarPages.MyResults: return "My Results";
         case SidebarPages.Publish: return "Publish";
@@ -229,7 +229,7 @@ export const enum SidebarPages {
     Dashboard,
     Files,
     Shares,
-    MyApps,
+    Favorites,
     AppStore,
     MyResults,
     Publish,

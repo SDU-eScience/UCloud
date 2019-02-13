@@ -1,7 +1,7 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import {
     SET_ALL_LOADING,
-    RECEIVE_FAVORITES,
+    RECEIVE_DASHBOARD_FAVORITES,
     RECEIVE_RECENT_ANALYSES,
     RECEIVE_RECENT_FILES,
     DASHBOARD_FAVORITE_ERROR,
@@ -45,13 +45,13 @@ export const fetchFavorites = (): Promise<ReceiveFavoritesProps | Error<Dashboar
         receiveFavorites(response.items.slice(0, 10))
     ).catch(() => setErrorMessage(DASHBOARD_FAVORITE_ERROR, "Failed to fetch favorites. Please try again later."));
 
-type ReceiveFavoritesProps = PayloadAction<typeof RECEIVE_FAVORITES, { content: File[] }>
+type ReceiveFavoritesProps = PayloadAction<typeof RECEIVE_DASHBOARD_FAVORITES, { content: File[] }>
 /**
  * Returns an action containing favorites
  * @param {File[]} content The list of favorites retrieved
  */
 export const receiveFavorites = (content: File[]): ReceiveFavoritesProps => ({
-    type: RECEIVE_FAVORITES,
+    type: RECEIVE_DASHBOARD_FAVORITES,
     payload: { content }
 });
 
