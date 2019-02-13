@@ -117,7 +117,7 @@ const SidebarLink = styled(Link)`
 
 interface SidebarElement { icon: IconName, label: string, to: string, external?: boolean, activePage: SidebarPages }
 const SidebarElement = ({ icon, label, to, activePage }: SidebarElement) => (
-    <SidebarLink to={to} active={enumToLabel(activePage) === label}>
+    <SidebarLink to={to} active={enumToLabel(activePage) === label ? true : undefined}>
         <TextLabel icon={icon}>{label}</TextLabel>
     </SidebarLink>
 );
@@ -166,15 +166,13 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
 };
 
 interface SidebarStateProps {
-    responsiveState?: ResponsiveReduxObject
     page: SidebarPages
 }
 interface SidebarProps extends SidebarStateProps {
     sideBarEntries?: any
-    responsiveState?: ResponsiveReduxObject
 }
 
-const Sidebar = ({ sideBarEntries = sideBarMenuElements, responsiveState, page }: SidebarProps) => {
+const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) => {
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
@@ -220,8 +218,7 @@ function copyToClipboard(value: string | undefined, message: string) {
     successNotification(message);
 }
 
-const mapStateToProps = ({ responsive, status }: ReduxObject): SidebarStateProps => ({
-    responsiveState: responsive,
+const mapStateToProps = ({ status }: ReduxObject): SidebarStateProps => ({
     page: status.page
 });
 

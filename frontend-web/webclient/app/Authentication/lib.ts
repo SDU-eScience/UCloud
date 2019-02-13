@@ -232,6 +232,9 @@ export default class SDUCloud {
         return `${this.homeFolder}Trash/`
     }
 
+    get isLoggedIn(): boolean {
+        return this.userInfo != null;
+    }
 
     /**
      * @returns {string} the userrole. Null if none available in the JWT
