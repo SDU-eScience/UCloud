@@ -39,21 +39,21 @@ data class VariableInvocationParameter(
     val variableSeparator: String = " "
 ) : InvocationParameter() {
     override fun buildInvocationSnippet(parameters: AppParametersWithValues): String? {
-        val relevantTypesToValue = parameters.filter { it.key.name in variableNames }
-        val nameToTypeAndValue = relevantTypesToValue.entries.associateBy { it.key.name }
+        val fieldToValue = parameters.filter { it.key.name in variableNames }
+        val nameToFieldAndValue = fieldToValue.entries.associateBy { it.key.name }
 
-        if (relevantTypesToValue.size != variableNames.size) {
-            val paramNames = parameters.map { it.key.name }.toSet()
-            val notFound = variableNames.filter { it !in paramNames }
-            log.warn("Could not find the following parameters: $notFound")
+        // We assume that verification has already taken place. If we have no values it should mean that they are all
+        // optional. We don't include anything (including prefixGlobal) if no values were given.
+        if (fieldToValue.isEmpty()) {
+            return ""
         }
 
         val middlePart = variableNames.asSequence().mapNotNull {
-            val typeAndValue = nameToTypeAndValue[it] ?: return@mapNotNull null
-            val value = typeAndValue.value ?: return@mapNotNull null
+            val fieldAndValue = nameToFieldAndValue[it] ?: return@mapNotNull null
+            val value = fieldAndValue.value ?: return@mapNotNull null
 
             @Suppress("UNCHECKED_CAST")
-            val parameter = typeAndValue.key as ApplicationParameter<ParsedApplicationParameter>
+            val parameter = fieldAndValue.key as ApplicationParameter<ParsedApplicationParameter>
 
             prefixVariable +
                     BashEscaper.safeBashArgument(parameter.toInvocationArgument(value)) +
