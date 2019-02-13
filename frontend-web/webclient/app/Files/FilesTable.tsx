@@ -10,23 +10,28 @@ import { TextSpan } from "ui-components/Text";
 import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText, filePreviewPage } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
-import { KeyCode } from "DefaultObjects";
+import { KeyCode, ReduxObject } from "DefaultObjects";
 import styled from "styled-components";
 import { SpaceProps } from "styled-system";
+import { connect } from "react-redux";
 
-export const FilesTable = ({
-    files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, sortingColumns, onDropdownSelect,
-    fileOperations, sortOrder, onFavoriteFile, sortBy, onNavigationClick, notStickyHeader
+const FilesTable = ({
+    files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, onDropdownSelect, sortingColumns,
+    fileOperations, sortOrder, onFavoriteFile, sortBy, onNavigationClick, notStickyHeader,
+    responsiveState
 }: FilesTableProps) => {
     const checkedFiles = files.filter(it => it.isChecked);
     const checkedCount = checkedFiles.length;
+    const columns = responsiveState!.greaterThan.md && sortingColumns.length === 2 ?
+        (responsiveState!.greaterThan.lg ? sortingColumns : [sortingColumns[1]])
+        : []; //on md or smaller display 0 columns
     return (
         <Table>
             <FilesTableHeader
                 notStickyHeader={notStickyHeader}
                 onDropdownSelect={onDropdownSelect}
                 sortOrder={sortOrder}
-                sortingColumns={sortingColumns}
+                sortingColumns={columns}
                 masterCheckbox={masterCheckbox}
                 toSortingIcon={sortingIcon}
                 sortFiles={sortFiles}
@@ -307,3 +312,11 @@ export const FileOperations = ({ files, fileOperations, As, ...props }/* :FileOp
             </As>
         ) : null;
     }) : null;
+
+const mapStateToProps = ({ responsive }: ReduxObject) => ({
+    responsiveState: responsive
+})
+
+const ft = connect<{ responsiveState: any }>(mapStateToProps)(FilesTable);
+
+export { ft as FilesTable };

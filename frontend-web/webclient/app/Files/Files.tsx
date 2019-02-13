@@ -129,15 +129,11 @@ class Files extends React.Component<FilesProps> {
 
     render() {
         const { page, path, loading, history, fetchFiles, checkFile, updateFiles, sortBy, sortOrder, leftSortingColumn,
-            rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, responsiveState, ...props } = this.props;
+            rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
         const favoriteFile = async (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const header = (<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />);
-        const columns = responsiveState!.greaterThan.md ?
-            (responsiveState!.greaterThan.lg ? [leftSortingColumn, rightSortingColumn] : [rightSortingColumn])
-            : []; //on md or smaller display 0 columns
-
         const main = (
             <Pagination.List
                 loading={loading}
@@ -151,7 +147,7 @@ class Files extends React.Component<FilesProps> {
                         sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
                         sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}
                         sortOrder={sortOrder}
-                        sortingColumns={columns}
+                        sortingColumns={[leftSortingColumn, rightSortingColumn]}
                         refetchFiles={() => this.refetch()}
                         onDropdownSelect={(sortOrder, sortBy, index) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy, index)}
                         masterCheckbox={
@@ -213,17 +209,16 @@ class Files extends React.Component<FilesProps> {
     }
 }
 
-const mapStateToProps = ({ files, responsive }: ReduxObject): FilesStateProps => {
+const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown, invalidPath,
         fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError, sortingColumns } = files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const renamingCount = page.items.filter(file => file.beingRenamed).length;
     const fileCount = page.items.length;
-    const responsiveState = responsive;
     return {
         error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath, invalidPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
-        leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], renamingCount, responsiveState
+        renamingCount, leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1]
     }
 };
 
