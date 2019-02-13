@@ -1,7 +1,7 @@
 import { Cloud } from "Authentication/SDUCloudObject";
 import {
     SET_ALL_LOADING,
-    RECEIVE_FAVORITES,
+    RECEIVE_DASHBOARD_FAVORITES,
     RECEIVE_RECENT_ANALYSES,
     RECEIVE_RECENT_FILES,
     DASHBOARD_FAVORITE_ERROR,
@@ -13,7 +13,7 @@ import { Analysis } from "Applications";
 import { File } from "Files";
 import { hpcJobsQuery } from "Utilities/ApplicationUtilities";
 import { PayloadAction } from "Types";
-import { recentFilesQuery } from "Utilities/FileUtilities";
+import { recentFilesQuery, favoritesQuery } from "Utilities/FileUtilities";
 
 
 export type DashboardActions = Error<DashboardError> | ReceiveFavoritesProps | ReceiveRecentFilesProps |
@@ -41,17 +41,17 @@ export const setErrorMessage = (type: DashboardError, error?: string): Error<Das
  * Fetches the contents of the favorites folder and provides the initial 10 items
  */
 export const fetchFavorites = (): Promise<ReceiveFavoritesProps | Error<DashboardError>> =>
-    Cloud.get("/files/favorite").then(({ response }) =>
+    Cloud.get(favoritesQuery()).then(({ response }) =>
         receiveFavorites(response.items.slice(0, 10))
     ).catch(() => setErrorMessage(DASHBOARD_FAVORITE_ERROR, "Failed to fetch favorites. Please try again later."));
 
-type ReceiveFavoritesProps = PayloadAction<typeof RECEIVE_FAVORITES, { content: File[] }>
+type ReceiveFavoritesProps = PayloadAction<typeof RECEIVE_DASHBOARD_FAVORITES, { content: File[] }>
 /**
  * Returns an action containing favorites
  * @param {File[]} content The list of favorites retrieved
  */
 export const receiveFavorites = (content: File[]): ReceiveFavoritesProps => ({
-    type: RECEIVE_FAVORITES,
+    type: RECEIVE_DASHBOARD_FAVORITES,
     payload: { content }
 });
 

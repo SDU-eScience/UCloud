@@ -7,8 +7,6 @@ import { removeTrailingSlash } from "UtilityFunctions";
 import { Dispatch } from "redux";
 import { MainContainer } from "MainContainer/MainContainer";
 import { setFilePreviewError, fetchPreviewFile } from "./Redux/FilePreviewAction";
-import { fetchFileContent } from "Utilities/FileUtilities";
-import { Cloud } from "Authentication/SDUCloudObject";
 
 interface FilePreviewStateProps {
     file: File

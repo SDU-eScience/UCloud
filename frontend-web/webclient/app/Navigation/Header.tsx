@@ -18,7 +18,6 @@ import BackgroundTask from "BackgroundTasks/BackgroundTask";
 import { withRouter } from "react-router";
 import DetailedFileSearch from "Files/DetailedFileSearch";
 import { Dropdown } from "ui-components/Dropdown";
-import { SelectableText, SearchOptions } from "Search/Search";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch"
 import { prettierString } from "UtilityFunctions";
@@ -26,6 +25,7 @@ import { AvatarType } from "UserSettings/Avataaar";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
 import { EllipsedText } from "ui-components/Text";
+import { SearchOptions, SelectableText } from "Search/Search";
 
 interface HeaderState {
     searchText: string

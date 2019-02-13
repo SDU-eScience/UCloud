@@ -3,7 +3,7 @@ import { initDashboard } from "DefaultObjects";
 import { DashboardActions } from "./DashboardActions";
 
 export const SET_ALL_LOADING = "SET_ALL_LOADING";
-export const RECEIVE_FAVORITES = "RECEIVE_FAVORITES";
+export const RECEIVE_DASHBOARD_FAVORITES = "RECEIVE_DASHBOARD_FAVORITES";
 export const RECEIVE_RECENT_ANALYSES = "RECEIVE_RECENT_ANALYSES";
 export const RECEIVE_RECENT_FILES = "RECEIVE_RECENT_FILES";
 export const DASHBOARD_FAVORITE_ERROR = "DASHBOARD_FAVORITE_ERROR";
@@ -16,7 +16,7 @@ const dashboard = (state: DashboardStateProps = initDashboard(), action: Dashboa
             const { loading } = action.payload;
             return { ...state, favoriteLoading: loading, recentLoading: loading, analysesLoading: loading };
         }
-        case RECEIVE_FAVORITES: {
+        case RECEIVE_DASHBOARD_FAVORITES: {
             return { ...state, favoriteFiles: action.payload.content, favoriteLoading: false };
         }
         case RECEIVE_RECENT_ANALYSES: {

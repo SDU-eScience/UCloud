@@ -20,7 +20,7 @@ export const multipartUpload = async (location: string, file: File, sensitivity:
         }
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
-    request.upload.onprogress = e => {
+    request.upload.onprogress = (e: ProgressEvent) => {
         if (!!onProgress)
             onProgress(e);
     };
@@ -47,7 +47,7 @@ export const bulkUpload = async (location: string, file: File, sensitivity: Sens
                 failureNotification(statusToError(request.status))
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
-    request.upload.onprogress = (e) => {
+    request.upload.onprogress = (e: ProgressEvent) => {
         if (!!onProgress)
             onProgress(e);
     };

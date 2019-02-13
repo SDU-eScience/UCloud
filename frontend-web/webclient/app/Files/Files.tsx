@@ -115,15 +115,16 @@ class Files extends React.Component<FilesProps> {
             icon: "rename",
             color: undefined
         },
-        ...AllFileOperations(
-            true,
-            this.fileSelectorOperations,
-            this.refetch,
-            this.refetch,
-            () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
-            (p) => this.props.fetchPageFromPath(p, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy),
-            this.props.history,
-            () => this.props.setLoading(true))
+        ...AllFileOperations({
+            stateless: true,
+            fileSelectorOps: this.fileSelectorOperations,
+            onDeleted: this.refetch,
+            onExtracted: this.refetch,
+            onClearTrash: () => this.props.fetchFiles(this.props.path, this.props.page.itemsPerPage, this.props.page.pageNumber, this.props.sortOrder, this.props.sortBy),
+            onLinkCreate: (p) => this.props.fetchPageFromPath(p, this.props.page.itemsPerPage, this.props.sortOrder, this.props.sortBy),
+            history: this.props.history,
+            setLoading: () => this.props.setLoading(true)
+        })
     ];
 
     render() {
@@ -131,7 +132,7 @@ class Files extends React.Component<FilesProps> {
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, responsiveState, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
-        const favoriteFile = (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
+        const favoriteFile = async (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const header = (<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />);
         const columns = responsiveState!.greaterThan.md ?
             (responsiveState!.greaterThan.lg ? [leftSortingColumn, rightSortingColumn] : [rightSortingColumn])
