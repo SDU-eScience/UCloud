@@ -7,7 +7,7 @@ import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigat
 import { WithAppMetadata, WithAppFavorite } from "Applications";
 import { Page } from "Types";
 import * as Pagination from "Pagination";
-import { NewApplicationCard } from "./Card";
+import { ApplicationCard } from "./Card";
 import { LoadingMainContainer } from "MainContainer/MainContainer";
 import { GridCardGroup } from "ui-components/Grid";
 import * as Actions from "./Redux/FavoriteActions";
@@ -76,7 +76,7 @@ class Installed extends React.Component<InstalledProps & { header: any }> {
 const InstalledPage: React.StatelessComponent<{ page: Page<WithAppMetadata & WithAppFavorite> }> = props => (
     <GridCardGroup>
         {props.page.items.map((it, idx) => (
-            <NewApplicationCard app={it} key={idx} isFavorite={it.favorite} linkToRun />)
+            <ApplicationCard app={it} key={idx} isFavorite={it.favorite} linkToRun />)
         )}
     </GridCardGroup>
 );

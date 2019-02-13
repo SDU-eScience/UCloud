@@ -8,7 +8,7 @@ import { setPrioritizedSearch, HeaderActions, setRefreshFunction } from "Navigat
 import { Dispatch } from "redux";
 import { ReduxObject } from "DefaultObjects";
 import { LoadingMainContainer } from "MainContainer/MainContainer";
-import { NewApplicationCard } from "./Card";
+import { ApplicationCard } from "./Card";
 import styled from "styled-components";
 import * as Heading from "ui-components/Heading";
 import { Link } from "ui-components";
@@ -91,19 +91,19 @@ class Applications extends React.Component<ApplicationsProps> {
         this.props.setRefresh();
     }
 
-    pageNumber(props: ApplicationsProps = this.props): number {
+    private pageNumber(props: ApplicationsProps = this.props): number {
         return parseInt(getQueryParamOrElse(props, "page", "0"));
     }
 
-    itemsPerPage(props: ApplicationsProps = this.props): number {
+    private itemsPerPage(props: ApplicationsProps = this.props): number {
         return parseInt(getQueryParamOrElse(props, "itemsPerPage", "25"));
     }
 
-    tag(props: ApplicationsProps = this.props): string | null {
+    private tag(props: ApplicationsProps = this.props): string | null {
         return getQueryParam(props, "tag");
     }
 
-    updateItemsPerPage(newItemsPerPage: number): string {
+    private updateItemsPerPage(newItemsPerPage: number): string {
         const tag = this.tag();
         if (tag === null) {
             return Pages.browse(newItemsPerPage, this.pageNumber());
@@ -141,7 +141,7 @@ class Applications extends React.Component<ApplicationsProps> {
                 pageRenderer={(page: Page<WithAppMetadata & WithAppFavorite>) =>
                     <GridCardGroup>
                         {page.items.map((app, index) =>
-                            <NewApplicationCard
+                            <ApplicationCard
                                 key={index}
                                 onFavorite={async () => {
                                     await favoriteApplicationFromPage(app.metadata.name, app.metadata.version, page, Cloud);
