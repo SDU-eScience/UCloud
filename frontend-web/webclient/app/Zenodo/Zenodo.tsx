@@ -33,7 +33,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps & ZenodoOperations, Zen
         fetchPublications(0, 25);
     }
 
-    componentWillMount() {
+    componentDidMount() {
         const { fetchPublications } = this.props;
         this.props.setRefresh(() => fetchPublications(this.props.page.pageNumber, this.props.page.itemsPerPage));
     }
@@ -50,7 +50,7 @@ class ZenodoHome extends React.Component<ZenodoHomeProps & ZenodoOperations, Zen
     render() {
         const { connected, loading, fetchPublications, page, error, onErrorDismiss, setRefresh } = this.props;
         if (!connected && !loading) {
-            return (<NotConnectedToZenodo />);
+            return (<MainContainer main={<NotConnectedToZenodo />} />);
         } else {
             return (
                 <MainContainer

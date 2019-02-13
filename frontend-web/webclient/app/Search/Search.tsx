@@ -124,7 +124,11 @@ class Search extends React.Component<SearchProps> {
 
     render() {
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
-        const fileOperations = AllFileOperations(true, false, false, false, false, false, this.props.history, () => this.props.setFilesLoading(true));
+        const fileOperations = AllFileOperations({
+            stateless: true,
+            history: this.props.history,
+            setLoading: () => this.props.setFilesLoading(true)
+        });
         // FIXME: Search Pane approach is obsolete
         const panes: SearchPane[] = [
             {
@@ -201,7 +205,7 @@ class Search extends React.Component<SearchProps> {
         return (
             <MainContainer
                 header={
-                    <React.Fragment>
+                    < React.Fragment >
                         <Error error={errors.join("\n")} clearError={() => this.props.setError(undefined)} />
                         <Hide xxl xl md>
                             <form onSubmit={e => (e.preventDefault(), this.search())}>
@@ -214,7 +218,7 @@ class Search extends React.Component<SearchProps> {
                     </React.Fragment>
                 }
                 main={panes[activeIndex].render()}
-                sidebar={<SearchBar active={panes[activeIndex].menuItem as MenuItemName} />}
+                sidebar={< SearchBar active={panes[activeIndex].menuItem as MenuItemName} />}
             />
         );
     }

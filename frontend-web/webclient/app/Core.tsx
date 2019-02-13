@@ -28,6 +28,7 @@ import * as Accounting from "Accounting";
 import Status from "Navigation/StatusPage";
 import AvataaarModification from "UserSettings/Avataaar";
 import Snackbars from "Snackbar/Snackbars";
+import Favorites from "Favorites/Favorites";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
@@ -43,11 +44,11 @@ const Core = () => (
             <Route exact path="/files/info" component={FileInfo} />
             <Route exact path="/files/preview" component={FilePreview} />
             <Route exact path="/files" component={Files} />
-
+            <Route exact path="/favorites" component={Favorites} />
             <Route exact path="/activity" component={Activity} />
             <Route exact path="/status" component={Status} />
-
             <Route exact path="/accounting/:resource/:subResource" component={Accounting.DetailedPage} />
+
 
             <Route exact path="/applications" component={Applications} />
             <Route exact path="/applications/installed" component={ApplicationsInstalled.default} />

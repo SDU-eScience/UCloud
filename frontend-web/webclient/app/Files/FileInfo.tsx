@@ -75,7 +75,7 @@ class FileInfo extends React.Component<FileInfo> {
                     <>
                         <FileView
                             file={file}
-                            onFavorite={() => props.receiveFileStat(favoriteFile(file, Cloud))}
+                            onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Cloud))}
                             onReclassify={async level => props.receiveFileStat(await reclassifyFile(file, level, Cloud))} />
                         {activity.items.length ? (
                             <Flex flexDirection="row" justifyContent="center">

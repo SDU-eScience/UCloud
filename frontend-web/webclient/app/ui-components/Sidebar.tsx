@@ -100,7 +100,7 @@ const TextLabel = ({ icon, children, title, height = "30px", color = "iconColor"
 const SidebarLink = styled(Link)`
     ${props => props.active ?
         `&:not(:hover) > * > ${Text} { 
-            filter: saturate(6000%);
+            color: ${props.theme.colors.blue};
         }
         &:not(:hover) > * > ${Icon} { 
             filter: saturate(500%);
@@ -127,7 +127,7 @@ function enumToLabel(value: SidebarPages): string {
         case SidebarPages.Dashboard: return "Dashboard";
         case SidebarPages.Files: return "Files";
         case SidebarPages.Shares: return "Shares";
-        case SidebarPages.MyApps: return "My Apps";
+        case SidebarPages.Favorites: return "Favorites";
         case SidebarPages.AppStore: return "App Store";
         case SidebarPages.MyResults: return "My Results";
         case SidebarPages.Publish: return "Publish";
@@ -155,7 +155,7 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
             { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
             { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
             { icon: "share", label: "Shares", to: "/shares/" },
-            { icon: "apps", label: "My Apps", to: "/applications/installed/" },
+            { icon: "starFilled", label: "Favorites", to: "/favorites" },
             { icon: "appStore", label: "App Store", to: "/applications/" },
             { icon: "results", label: "My Results", to: "/applications/results/" }
         ], predicate: () => true
@@ -229,7 +229,7 @@ export const enum SidebarPages {
     Dashboard,
     Files,
     Shares,
-    MyApps,
+    Favorites,
     AppStore,
     MyResults,
     Publish,

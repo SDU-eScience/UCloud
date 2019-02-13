@@ -38,13 +38,22 @@ const createMockStore = (filesPage?: Page<File>) => {
 const mockHistory = createMemoryHistory();
 const nullOp = () => null;
 
-const fileOperations = AllFileOperations(true, {
-    setFileSelectorCallback: nullOp,
-    showFileSelector: nullOp,
-    setDisallowedPaths: nullOp,
-    fetchPageFromPath: nullOp,
-    fetchFilesPage: nullOp
-}, nullOp, nullOp, nullOp, nullOp, mockHistory, nullOp);
+const fileOperations = AllFileOperations({
+    stateless: true,
+    fileSelectorOps: {
+        setFileSelectorCallback: nullOp,
+        showFileSelector: nullOp,
+        setDisallowedPaths: nullOp,
+        fetchPageFromPath: nullOp,
+        fetchFilesPage: nullOp
+    },
+    onDeleted: nullOp,
+    onExtracted: nullOp,
+    onClearTrash: nullOp,
+    onLinkCreate: nullOp,
+    history: mockHistory,
+    setLoading: nullOp
+});
 
 describe("FilesTable", () => {
     test.skip("Render empty", () => {
