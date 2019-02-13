@@ -43,7 +43,7 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
 
     public render() {
         const { searchText } = this.state;
-        const { prioritizedSearch, searchFiles, history, refresh, spin } = this.props;
+        const { prioritizedSearch, history, refresh, spin } = this.props;
         return (
             <HeaderContainer color="headerText" bg={"headerBg"}>
                 <Logo />
@@ -53,7 +53,6 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
                     onChange={searchText => this.setState(() => ({ searchText }))}
                     navigate={() => history.push(searchPage(prioritizedSearch, searchText))}
                     searchText={searchText}
-                    searchFiles={searchFiles}
                     setSearchType={st => this.props.setSearchType(st)}
                 />
                 <Box mr="auto" />
@@ -163,10 +162,9 @@ interface Search {
     searchType: HeaderSearchType
     onChange: (input: string) => void
     navigate: () => void
-    searchFiles: (input: string) => void
     setSearchType: (st: HeaderSearchType) => void
 }
-const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSearchType }: Search) => (
+const Search = ({ searchText, onChange, navigate, searchType, setSearchType }: Search) => (
     <Relative>
         <SearchInput>
             <Input
@@ -176,7 +174,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSe
                 type="text"
                 noBorder
                 onChange={e => onChange(e.target.value)}
-                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) { searchFiles(searchText); navigate(); } }}
+                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) navigate(); }}
             />
             <Absolute left="6px" top="7px">
                 <Label htmlFor="search_input">
@@ -245,14 +243,12 @@ export const UserAvatar = ({ avatar }: UserAvatar) => (
 interface HeaderOperations {
     fetchLoginStatus: () => void
     fetchAvatar: () => void
-    searchFiles: (fileName: string) => void
     setSearchType: (st: HeaderSearchType) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
     fetchAvatar: async () => dispatch(await findAvatar()),
-    searchFiles: async fileName => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] })),
     setSearchType: st => dispatch(setPrioritizedSearch(st))
 });
 

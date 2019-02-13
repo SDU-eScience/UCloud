@@ -42,7 +42,7 @@ class Search extends React.Component<SearchProps> {
         this.props.setRefresh(() => this.fetchAll(query));
     }
 
-    componentWillReceiveProps(_nextProps) {
+    componentWillReceiveProps() {
         this.props.setRefresh(() => this.fetchAll(this.query));
     }
 
@@ -218,7 +218,6 @@ class Search extends React.Component<SearchProps> {
                     </React.Fragment>
                 }
                 main={panes[activeIndex].render()}
-                sidebar={< SearchBar active={panes[activeIndex].menuItem as MenuItemName} />}
             />
         );
     }
@@ -233,19 +232,6 @@ export const SelectableText = styled(Text) <{ selected: boolean }>`
 `;
 
 type MenuItemName = "Files" | "Projects" | "Applications";
-interface SearchBarProps { active: MenuItemName }
-const SearchBar = (props: SearchBarProps) => {
-    return null;
-    // @ts-ignore
-    switch (props.active) {
-        case "Files":
-            return <DetailedFileSearch />
-        case "Projects":
-            return null;
-        case "Applications":
-            return <DetailedApplicationSearch />;
-    }
-}
 
 const SearchPriorityToNumber = (search: string): number => {
     if (search.toLocaleLowerCase() === "projects") return 1;
