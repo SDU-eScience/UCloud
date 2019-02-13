@@ -72,7 +72,14 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
                         entry = zipStream.nextEntry
                     } else {
                         if (entry.isDirectory) {
-                            yield(ArchiveEntry.Directory(initialTargetPath))
+
+                            val allComponents = initialTargetPath.components()
+                            val paths = (2..allComponents.size).map { i ->
+                                joinPath(*allComponents.take(i).toTypedArray())
+                            }
+                            paths.forEach {
+                                yield(ArchiveEntry.Directory(it))
+                            }
                         } else {
                             yield(ArchiveEntry.File(
                                 path = initialTargetPath,
@@ -210,7 +217,6 @@ private object BasicUploader : Loggable {
                         rejectedFiles += entry.path
                         return@forEach
                     }
-
                     log.debug("Downloading $entry")
 
                     val existing = fs.statOrNull(ctx, entry.path, setOf(FileAttribute.FILE_TYPE))
