@@ -35,8 +35,6 @@ import { configureStore } from "Utilities/ReduxUtilities";
 import { responsiveStoreEnhancer, createResponsiveStateReducer } from 'redux-responsive';
 import { responsiveBP } from "ui-components/theme";
 
-window.onload = () => Cloud.receiveAccessTokenOrRefreshIt();
-
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
     files,

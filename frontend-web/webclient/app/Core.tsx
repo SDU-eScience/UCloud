@@ -29,6 +29,7 @@ import Status from "Navigation/StatusPage";
 import AvataaarModification from "UserSettings/Avataaar";
 import Snackbars from "Snackbar/Snackbars";
 import Favorites from "Favorites/Favorites";
+import { LoginPage } from "Login/Login";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
@@ -39,6 +40,7 @@ const Core = () => (
         <Uploader />
         <Sidebar />
         <Switch>
+            <Route exact path="/login" component={LoginPage} />
             <Route exact path="/" component={Dashboard} />
             <Route exact path="/dashboard" component={Dashboard} />
             <Route exact path="/files/info" component={FileInfo} />

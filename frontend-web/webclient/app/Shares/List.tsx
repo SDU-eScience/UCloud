@@ -11,7 +11,6 @@ import { Error, ButtonGroup, Text, Box, Flex, LoadingButton, Card, Divider, Butt
 import * as Heading from "ui-components/Heading";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
-import ClickableDropdown from "ui-components/ClickableDropdown";
 import { TextSpan } from "ui-components/Text";
 import { MainContainer } from "MainContainer/MainContainer";
 import { FileIcon } from "UtilityComponents";
@@ -21,6 +20,7 @@ import { ReduxObject, SharesReduxObject } from "DefaultObjects";
 import { retrieveShares, receiveShares, setErrorMessage, setShareState, fetchSharesByPath } from "./Redux/SharesActions";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { useState } from "react";
+import { SearchOptions, SelectableText } from "Search/Search";
 
 class List extends React.Component<ListProps & SharesReduxObject & SharesOperations, { a: string }> {
     constructor(props: Readonly<ListProps & SharesReduxObject & SharesOperations>) {
@@ -60,16 +60,24 @@ class List extends React.Component<ListProps & SharesReduxObject & SharesOperati
         const noSharesWith = page.items.filter(it => !it.sharedByMe).length === 0;
         const noSharesBy = page.items.filter(it => it.sharedByMe).length === 0;
         const header = (
-            <Flex>
-                <Box ml="auto" />
-                <ClickableDropdown
-                    chevron
-                    width="150px"
-                    trigger={<TextSpan>Shares where: {prettierString(byState)}</TextSpan>}
-                    options={Object.keys(ShareState).map(v => ({ text: prettierString(v), value: v }))}
-                    onChange={(it: ShareState) => this.updateShareState(it)}
-                />
-            </Flex>
+            <SearchOptions>
+                <SelectableText
+                    mr="1em"
+                    cursor="pointer"
+                    selected={byState === ShareState.REQUEST_SENT}
+                    onClick={() => this.updateShareState(ShareState.REQUEST_SENT)}
+                >
+                    {prettierString(ShareState.REQUEST_SENT)}
+                </SelectableText>
+                <SelectableText
+                    mr="1em"
+                    cursor="pointer"
+                    selected={byState === ShareState.ACCEPTED}
+                    onClick={() => this.updateShareState(ShareState.ACCEPTED)}
+                >
+                    {prettierString(ShareState.ACCEPTED)}
+                </SelectableText>
+            </SearchOptions>
         );
         const main = (
             <>

@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
 import { connect } from "react-redux";
-import { NewApplicationCard } from "Applications/Card";
+import { ApplicationCard } from "Applications/Card";
 import { SearchItem } from "Project/Search";
 import { AllFileOperations } from "Utilities/FileUtilities";
 import { SearchProps, SimpleSearchOperations, SimpleSearchStateProps } from ".";
@@ -42,7 +42,7 @@ class Search extends React.Component<SearchProps> {
         this.props.setRefresh(() => this.fetchAll(query));
     }
 
-    componentWillReceiveProps(_nextProps) {
+    componentWillReceiveProps() {
         this.props.setRefresh(() => this.fetchAll(this.query));
     }
 
@@ -80,7 +80,7 @@ class Search extends React.Component<SearchProps> {
         }
     }
 
-    componentWillUnmount = () => {
+    componentWillUnmount() {
         this.props.toggleAdvancedSearch();
         this.props.clear();
         this.props.setRefresh();
@@ -175,7 +175,7 @@ class Search extends React.Component<SearchProps> {
                         pageRenderer={({ items }) =>
                             <GridCardGroup>
                                 {items.map(app =>
-                                    <NewApplicationCard
+                                    <ApplicationCard
                                         key={`${app.metadata.name}${app.metadata.version}`}
                                         app={app}
                                         isFavorite={app.favorite}
@@ -205,7 +205,7 @@ class Search extends React.Component<SearchProps> {
         return (
             <MainContainer
                 header={
-                    < React.Fragment >
+                    <React.Fragment>
                         <Error error={errors.join("\n")} clearError={() => this.props.setError(undefined)} />
                         <Hide xxl xl md>
                             <form onSubmit={e => (e.preventDefault(), this.search())}>
@@ -218,7 +218,6 @@ class Search extends React.Component<SearchProps> {
                     </React.Fragment>
                 }
                 main={panes[activeIndex].render()}
-                sidebar={< SearchBar active={panes[activeIndex].menuItem as MenuItemName} />}
             />
         );
     }
@@ -229,23 +228,10 @@ export const SearchOptions = styled(Flex)`
 `;
 
 export const SelectableText = styled(Text) <{ selected: boolean }>`
-    border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : undefined};
+    border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : ""};
 `;
 
 type MenuItemName = "Files" | "Projects" | "Applications";
-interface SearchBarProps { active: MenuItemName }
-const SearchBar = (props: SearchBarProps) => {
-    return null;
-    // @ts-ignore
-    switch (props.active) {
-        case "Files":
-            return <DetailedFileSearch />
-        case "Projects":
-            return null;
-        case "Applications":
-            return <DetailedApplicationSearch />;
-    }
-}
 
 const SearchPriorityToNumber = (search: string): number => {
     if (search.toLocaleLowerCase() === "projects") return 1;

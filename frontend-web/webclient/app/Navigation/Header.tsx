@@ -12,7 +12,6 @@ import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Divider, Suppo
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { searchFiles } from "Search/Redux/SearchActions";
 import { searchPage } from "Utilities/SearchUtilities";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
 import { withRouter } from "react-router";
@@ -32,7 +31,7 @@ interface HeaderState {
 }
 
 class Header extends React.Component<HeaderStateToProps & HeaderOperations & { history: History }, HeaderState> {
-    constructor(props: any) {
+    constructor(props) {
         super(props);
         this.state = {
             searchText: ""
@@ -43,9 +42,10 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
 
     public render() {
         const { searchText } = this.state;
-        const { prioritizedSearch, searchFiles, history, refresh, spin } = this.props;
+        const { prioritizedSearch, history, refresh, spin } = this.props;
+        if (!Cloud.isLoggedIn) return null;
         return (
-            <HeaderContainer color="headerText" bg={"headerBg"}>
+            <HeaderContainer color="headerText" bg="headerBg">
                 <Logo />
                 <Box ml="auto" />
                 <Search
@@ -53,7 +53,6 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
                     onChange={searchText => this.setState(() => ({ searchText }))}
                     navigate={() => history.push(searchPage(prioritizedSearch, searchText))}
                     searchText={searchText}
-                    searchFiles={searchFiles}
                     setSearchType={st => this.props.setSearchType(st)}
                 />
                 <Box mr="auto" />
@@ -62,8 +61,6 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
                 <Support />
                 <Notification />
                 <ClickableDropdown width="200px" left={"-180%"} trigger={<Flex><UserAvatar avatar={this.props.avatar} /></Flex>}>
-                    <WhiteBackgroundEllipsedText width={"170px"}>Welcome, {Cloud.userInfo.firstNames}</WhiteBackgroundEllipsedText>
-                    <Divider />
                     <Box ml="-17px" mr="-17px" pl="15px">
                         <Link color="black" to={"/users/settings"}>
                             <Flex>
@@ -95,13 +92,6 @@ const RefreshIcon = styled(Icon)`
     cursor: pointer;
 `;
 
-const WhiteBackgroundEllipsedText = styled(EllipsedText)`
-    &&&&& {
-        background-color: white
-        cursor: default;
-    }
-`;
-
 const HeaderContainer = styled(Flex)`
     height: 48px;
     align-items: center;
@@ -117,6 +107,10 @@ const Logo = () => (
             SDUCloud
         </Text>
     </Link>
+);
+
+const Login = () => (
+    <Icon name="user" />
 );
 
 
@@ -163,10 +157,9 @@ interface Search {
     searchType: HeaderSearchType
     onChange: (input: string) => void
     navigate: () => void
-    searchFiles: (input: string) => void
     setSearchType: (st: HeaderSearchType) => void
 }
-const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSearchType }: Search) => (
+const Search = ({ searchText, onChange, navigate, searchType, setSearchType }: Search) => (
     <Relative>
         <SearchInput>
             <Input
@@ -176,7 +169,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSe
                 type="text"
                 noBorder
                 onChange={e => onChange(e.target.value)}
-                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) { searchFiles(searchText); navigate(); } }}
+                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) navigate(); }}
             />
             <Absolute left="6px" top="7px">
                 <Label htmlFor="search_input">
@@ -209,6 +202,7 @@ const Search = ({ searchText, onChange, navigate, searchFiles, searchType, setSe
                     searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchText} /> :
                         searchType === "projects" ? <DetailedProjectSearch defaultProjectName={searchText} /> : null}
             </ClickableDropdown>
+            {!Cloud.isLoggedIn ? <Login /> : null}
         </SearchInput>
     </Relative >
 );
@@ -222,7 +216,7 @@ const ClippedBox = styled(Flex)`
 `;
 
 interface UserAvatar { avatar: AvatarType }
-export const UserAvatar = ({ avatar }: UserAvatar) => (
+export const UserAvatar = ({ avatar }: UserAvatar) => Cloud.isLoggedIn ? (
     <ClippedBox mx="8px" width="60px">
         <Avatar
             avatarStyle="Circle"
@@ -239,31 +233,28 @@ export const UserAvatar = ({ avatar }: UserAvatar) => (
             mouthType={avatar.mouthTypes}
             skinColor={avatar.skinColors}
         />
-    </ClippedBox>
-);
+    </ClippedBox>) : null;
 
 interface HeaderOperations {
     fetchLoginStatus: () => void
     fetchAvatar: () => void
-    searchFiles: (fileName: string) => void
     setSearchType: (st: HeaderSearchType) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     fetchLoginStatus: async () => dispatch(await fetchLoginStatus()),
     fetchAvatar: async () => dispatch(await findAvatar()),
-    searchFiles: async fileName => dispatch(await searchFiles({ fileName, fileTypes: ["FILE", "DIRECTORY"] })),
     setSearchType: st => dispatch(setPrioritizedSearch(st))
 });
 
 const mapStateToProps = ({ header, avatar, ...rest }: ReduxObject): HeaderStateToProps => ({
     ...header,
     avatar,
-    spin: loading(rest)
+    spin: anyLoading(rest as ReduxObject)
 });
 
-const loading = (rO): boolean =>
-    rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.sidebar.loading || rO.simpleSearch.filesLoading
+const anyLoading = (rO: ReduxObject): boolean =>
+    rO.files.loading || rO.fileInfo.loading || rO.notifications.loading || rO.simpleSearch.filesLoading
     || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
     || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading

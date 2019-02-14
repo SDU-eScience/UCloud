@@ -1,6 +1,5 @@
 import * as React from "react";
-import { Link, Markdown } from "ui-components";
-import { Box, Absolute, Icon, Flex, RatingBadge, Text } from "ui-components";
+import { Markdown, Link, Box, Absolute, Icon, Flex, RatingBadge, Text } from "ui-components";
 import { EllipsedText } from "ui-components/Text";
 import * as Pages from "./Pages";
 import { WithAppMetadata } from ".";
@@ -88,7 +87,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
     );
 };
 
-export const NewAppCard = styled(Link)`
+export const AppCard = styled(Link)`
 
     padding: 10px;
     width: 100%;
@@ -527,12 +526,12 @@ const AbsoluteNoPointerEvents = styled(Absolute)`
     pointer-events: none;
 `
 
-export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
+export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({ app, onFavorite, isFavorite, linkToRun }: ApplicationCardProps) => {
     const hash = hashF(app.metadata.title);
     const { metadata } = app;
     const appC = appColor(hash);
     return (
-        <NewAppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)} hoverColor={null}>
+        <AppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)} hoverColor={null}>
             <AbsoluteNoPointerEvents right={0} top={0} cursor="inherit">
                 <AppBg_triangle {...bgGradients[appC]} />
             </AbsoluteNoPointerEvents>
@@ -563,6 +562,6 @@ export const NewApplicationCard: React.FunctionComponent<ApplicationCardProps> =
             <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
                 {app.metadata.tags.map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
-        </NewAppCard>
+        </AppCard>
     );
 };

@@ -74,7 +74,6 @@ export interface FilesStateProps { // Redux Props
     leftSortingColumn: SortBy
     rightSortingColumn: SortBy
     invalidPath: boolean
-    responsiveState?: ResponsiveReduxObject
 }
 
 export interface FilesOperations { // Redux operations
@@ -136,6 +135,7 @@ export interface FilesTableProps {
     sortBy: SortBy
     onFavoriteFile?: (f: File[]) => void
     fileOperations: FileOperation[]
+    responsiveState?: ResponsiveReduxObject
     notStickyHeader?: boolean
 }
 
