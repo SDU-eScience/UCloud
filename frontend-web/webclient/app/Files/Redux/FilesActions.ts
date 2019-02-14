@@ -145,7 +145,7 @@ export const receiveFileSelectorFiles = (page: Page<File>, path: string): Receiv
 
 /**
  * Fetches a page that contains a specific path
- * @param {string} path The file path that must be contained within the page.
+ * @param {string} path The file path of the file that the page must contain.
  * @param {number} itemsPerPage The items per page within the page
  * @param {SortOrder} order the order to sort by, either ascending or descending
  * @param {SortBy} sortBy the field to be sorted by

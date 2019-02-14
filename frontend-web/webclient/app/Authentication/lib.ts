@@ -60,6 +60,7 @@ export default class SDUCloud {
         this.authContext = "/auth";
 
         this.decodedToken = null;
+        // FIXME: Set to false when login page is part of app
         this.redirectOnInvalidTokens = true;
 
         let accessToken = SDUCloud.storedAccessToken;
@@ -185,14 +186,14 @@ export default class SDUCloud {
     /**
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
-    async options(path, body, context = this.apiContext): Promise<any> {
+    async options(path: string, body: object, context = this.apiContext): Promise<any> {
         return this.call("OPTIONS", path, body, context);
     }
 
     /**
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
-    async head(path, context = this.apiContext): Promise<any> {
+    async head(path: string, context = this.apiContext): Promise<any> {
         return this.call("HEAD", path, undefined, context);
     }
 
@@ -257,9 +258,9 @@ export default class SDUCloud {
      * will be able to put whatever they want in this. This is normally not a problem since all backend services _will_
      * verify the token.
      */
-    get userInfo() {
+    get userInfo(): undefined | JWT {
         let token = this.decodedToken;
-        if (!token) return null;
+        if (!token) return undefined;
         else return this.decodedToken.payload;
     }
 
@@ -365,23 +366,26 @@ export default class SDUCloud {
         }
     }
 
-    logout() {
-        fetch(`${this.context}${this.authContext}/logout/web`, {
-            headers: {
-                "X-CSRFToken": SDUCloud.storedCsrfToken,
-                "Content-Type": "application/json",
-            },
-            method: "POST",
-            credentials: "same-origin"
-        }).then(response => {
-            if (!is5xxStatusCode(response.status)) {
+    async logout() {
+        try {
+            const res = await fetch(`${this.context}${this.authContext}/logout/web`, {
+                headers: {
+                    "X-CSRFToken": SDUCloud.storedCsrfToken,
+                    "Content-Type": "application/json",
+                },
+                method: "POST",
+                credentials: "same-origin"
+            });
+            if (!is5xxStatusCode(res.status)) {
                 window.localStorage.removeItem("accessToken");
                 window.localStorage.removeItem("csrfToken");
                 this.openBrowserLoginPage();
                 return;
             };
             throw Error("The server was unreachable, please try again later.")
-        }).catch(err => failureNotification(err.message));
+        } catch (err) {
+            failureNotification(err.message);
+        }
     }
 
     clearTokens() {
@@ -406,10 +410,10 @@ export default class SDUCloud {
     }
 
     private isTokenExpired() {
-        let token = this.decodedToken;
+        const token = this.decodedToken;
         if (!token || !token.payload) return true;
-        let nowInSeconds = Math.floor(Date.now() / 1000);
-        let inFiveMinutes = nowInSeconds + (5 * 60);
+        const nowInSeconds = Math.floor(Date.now() / 1000);
+        const inFiveMinutes = nowInSeconds + (5 * 60);
         return token.payload.exp < inFiveMinutes;
     }
 
@@ -421,6 +425,21 @@ export default class SDUCloud {
             return new MissingAuthError();
         }
     }
+}
+
+interface JWT {
+    sub: string
+    uid: number
+    lastName: string
+    aud: string
+    role: string
+    iss: string
+    firstNames: string
+    exp: number
+    extendedByChain: any[]
+    iat: number
+    principalType: string
+    publicSessionReference: string
 }
 
 export class MissingAuthError {

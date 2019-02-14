@@ -8,13 +8,12 @@ import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { fileTablePage } from "Utilities/FileUtilities";
-import { ExternalLink, RatingBadge, Tooltip, theme } from "ui-components";
+import { ExternalLink, RatingBadge, Tooltip } from "ui-components";
 import { RBox } from "ui-components";
-import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects"
+import { ReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
 import { FlexCProps } from "./Flex";
 import { successNotification } from "UtilityFunctions";
-import { Theme } from "./theme";
 
 const SidebarElementContainer = styled(Flex) <{ hover?: boolean, active?: boolean }>`
     justify-content: left;
@@ -149,7 +148,14 @@ type SidebarMenuElements = {
     predicate: () => boolean
 }
 
-export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements } = {
+export const sideBarMenuElements: { guest: SidebarMenuElements, general: SidebarMenuElements, dev: SidebarMenuElements, auditing: SidebarMenuElements, admin: SidebarMenuElements } = {
+    guest: {
+        items: [
+            { icon: "files", label: "Files", to: "/login" },
+            { icon: "projects", label: "Projects", to: "/login" },
+            { icon: "apps", label: "Apps", to: "/login" }
+        ], predicate: () => !Cloud.isLoggedIn
+    },
     general: {
         items: [
             { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
@@ -158,10 +164,10 @@ export const sideBarMenuElements: { general: SidebarMenuElements, dev: SidebarMe
             { icon: "starFilled", label: "Favorites", to: "/favorites" },
             { icon: "appStore", label: "App Store", to: "/applications/" },
             { icon: "results", label: "My Results", to: "/applications/results/" }
-        ], predicate: () => true
+        ], predicate: () => Cloud.isLoggedIn
     },
-    dev: { items: [{ icon: "publish", label: "Publish", to: "/zenodo/publish/" }], predicate: () => process.env.NODE_ENV === "development" },
-    auditing: { items: [{ icon: "activity", label: "Activity", to: "/activity/" }], predicate: () => true },
+    dev: { items: [{ icon: "publish", label: "Publish", to: "/zenodo/publish/" }], predicate: () => process.env.NODE_ENV === "development" && Cloud.isLoggedIn },
+    auditing: { items: [{ icon: "activity", label: "Activity", to: "/activity/" }], predicate: () => Cloud.isLoggedIn },
     admin: { items: [{ icon: "admin", label: "Admin", to: "/admin/userCreation/" }], predicate: () => Cloud.userIsAdmin }
 };
 
@@ -173,6 +179,7 @@ interface SidebarProps extends SidebarStateProps {
 }
 
 const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) => {
+    if (!Cloud.isLoggedIn) return null;
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());
@@ -192,11 +199,11 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) =
             {/* Screen size indicator */}
             {process.env.NODE_ENV === "development" ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
 
-            <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username || ""}>
+            {Cloud.isLoggedIn ? <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username || ""}>
                 <Tooltip top mb="35px" trigger={<EllipsedText cursor="pointer" onClick={() => copyToClipboard(Cloud.username, "Username copied to clipboard")} width={"140px"}>{Cloud.username}</EllipsedText>}>
                     Click to copy to clipboard
                 </Tooltip>
-            </TextLabel>
+            </TextLabel> : null}
 
             <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
                 <TextLabel height="25px" icon="verified" color2="lightGray" iconSize="1em" textSize={1} space=".5em">
