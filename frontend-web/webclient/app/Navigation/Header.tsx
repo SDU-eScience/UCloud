@@ -23,7 +23,6 @@ import { prettierString } from "UtilityFunctions";
 import { AvatarType } from "UserSettings/Avataaar";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
-import { EllipsedText } from "ui-components/Text";
 import { SearchOptions, SelectableText } from "Search/Search";
 
 interface HeaderState {
@@ -86,7 +85,7 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
 }
 
 export const Refresh = ({ onClick, spin }: { onClick?: () => void, spin: boolean }) => !!onClick ?
-    <RefreshIcon name="refresh" spin={spin} onClick={() => onClick()} /> : null
+    <RefreshIcon name="refresh" spin={spin} onClick={() => onClick()} /> : <Box width="24px" />
 
 const RefreshIcon = styled(Icon)`
     cursor: pointer;
