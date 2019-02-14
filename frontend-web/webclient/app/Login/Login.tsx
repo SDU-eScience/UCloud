@@ -8,7 +8,6 @@ const bg2 = require("Assets/LoginImages/cloud2.jpg");
 const bg3 = require("Assets/LoginImages/cloud3.jpg");
 
 function randImage() {
-    const img = (Math.random() * 3) | 0;
     switch ((Math.random() * 3) | 0) {
         case 0:
             return bg1;

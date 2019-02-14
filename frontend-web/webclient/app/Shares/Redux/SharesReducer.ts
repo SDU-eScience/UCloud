@@ -8,6 +8,7 @@ export const SET_SHARE_STATE = "SET_SHARE_STATE";
 const shares = (state: SharesReduxObject = initShares(), action: SharesActions) => {
     switch (action.type) {
         case RECEIVE_SHARES:
+        case SET_SHARE_STATE:
         case SET_SHARES_ERROR:
             return { ...state, ...action.payload };
         default:
