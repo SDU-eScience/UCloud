@@ -19,7 +19,7 @@ export const fetchFavorites = async (pageNumber: number, itemsPerPage: number): 
 
 
 type ReceiveFavorites = PayloadAction<typeof RECEIVE_FAVORITES, { page: Page<File> }>
-const receiveFavorites = (page: Page<File>): ReceiveFavorites => ({
+export const receiveFavorites = (page: Page<File>): ReceiveFavorites => ({
     type: RECEIVE_FAVORITES,
     payload: { page }
 });

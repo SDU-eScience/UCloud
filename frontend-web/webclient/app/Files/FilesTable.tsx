@@ -290,7 +290,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
     </TableCell>
 };
 
-const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
+export const FileOptions = ({ files, fileOperations }: FileOptionsProps) => files.length ? (
     <Box mb="13px">
         <Heading.h5 pl="20px" pt="5px" pb="8px">{toFileText(files)}</Heading.h5>
         <FileOperations files={files} fileOperations={fileOperations} As={Box} pl="20px" />

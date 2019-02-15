@@ -59,7 +59,7 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
                 <Refresh spin={spin} onClick={refresh} />
                 <Support />
                 <Notification />
-                <ClickableDropdown width="200px" left={"-180%"} trigger={<Flex><UserAvatar avatar={this.props.avatar} /></Flex>}>
+                <ClickableDropdown width="200px" left="-180%" trigger={<Flex><UserAvatar avatar={this.props.avatar} /></Flex>}>
                     <Box ml="-17px" mr="-17px" pl="15px">
                         <Link color="black" to={"/users/settings"}>
                             <Flex>
