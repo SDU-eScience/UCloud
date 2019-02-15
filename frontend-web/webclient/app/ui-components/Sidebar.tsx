@@ -123,7 +123,7 @@ const SidebarElement = ({ icon, label, to, activePage }: SidebarElement) => (
 
 function enumToLabel(value: SidebarPages): string {
     switch (value) {
-        case SidebarPages.Dashboard: return "Dashboard";
+        /* case SidebarPages.Dashboard: return "Dashboard"; */
         case SidebarPages.Files: return "Files";
         case SidebarPages.Shares: return "Shares";
         case SidebarPages.Favorites: return "Favorites";
@@ -158,7 +158,7 @@ export const sideBarMenuElements: { guest: SidebarMenuElements, general: Sidebar
     },
     general: {
         items: [
-            { icon: "dashboard", label: "Dashboard", to: "/dashboard/" },
+            /* { icon: "dashboard", label: "Dashboard", to: "/dashboard/" }, */
             { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
             { icon: "share", label: "Shares", to: "/shares/" },
             { icon: "starFilled", label: "Favorites", to: "/favorites" },
@@ -230,7 +230,6 @@ const mapStateToProps = ({ status }: ReduxObject): SidebarStateProps => ({
 });
 
 export const enum SidebarPages {
-    Dashboard,
     Files,
     Shares,
     Favorites,

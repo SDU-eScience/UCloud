@@ -14,10 +14,12 @@ import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { fetchFavorites, setLoading, receiveFavorites } from "./Redux/FavoritesActions";
 import { MasterCheckbox } from "UtilityComponents";
 import { Page } from "Types";
+import { History } from "history";
 
-class FavoriteFiles extends React.Component<FavoritesOperations & ReduxType & { header: any }> {
-    constructor(props: Readonly<FavoritesOperations & ReduxType & { header: any }>) {
+class FavoriteFiles extends React.Component<FavoritesOperations & ReduxType & { header: any, history: History }> {
+    constructor(props: Readonly<FavoritesOperations & ReduxType & { header: any, history: History }>) {
         super(props);
+        console.log(props);
         props.fetchFileFavorites(emptyPage.pageNumber, emptyPage.itemsPerPage);
         props.setRefresh(() => props.fetchFileFavorites(emptyPage.pageNumber, emptyPage.itemsPerPage));
     }
@@ -32,19 +34,25 @@ class FavoriteFiles extends React.Component<FavoritesOperations & ReduxType & { 
     }
 
     // FIXME: Make action instead
-    checkFile(checked: boolean, path: string) {
+    private checkFile(checked: boolean, path: string) {
         this.props.page.items.find(it => it.path === path)!.isChecked = checked;
         this.props.receiveFavorites(this.props.page);
     }
 
     // FIXME: Make action instead
-    checkAll(checked: boolean) {
+    private checkAll(checked: boolean) {
         this.props.page.items.forEach(it => it.isChecked = checked);
         this.props.receiveFavorites(this.props.page);
     }
 
     public render() {
-        const fileoperations = AllFileOperations({ stateless: true, setLoading: () => this.setState(() => ({ loading: true })) });
+        const fileoperations = AllFileOperations({
+            stateless: true,
+            history: this.props.history,
+            onDeleted: () => undefined,
+            onLinkCreate: () => undefined,
+            setLoading: () => this.props.setLoading(true)
+        });
         const { page } = this.props;
         const { pageNumber, itemsPerPage } = page;
         const selectedFiles = page.items.filter(it => it.isChecked);
@@ -88,6 +96,7 @@ interface FavoritesOperations {
     setRefresh: (refresh?: () => void) => void
     fetchFileFavorites: (pageNumber: number, itemsPerPage: number) => void
     receiveFavorites: (page: Page<File>) => void
+    setLoading: (loading: boolean) => void
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({
@@ -97,7 +106,8 @@ const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({
         dispatch(await fetchFavorites(pageNumber, itemsPerPage))
         setLoading(false);
     },
-    receiveFavorites: page => dispatch(receiveFavorites(page))
+    receiveFavorites: page => dispatch(receiveFavorites(page)),
+    setLoading: loading => dispatch(setLoading(loading))
 });
 
 const mapStateToProps = ({ favorites }: ReduxObject): ReduxType & { checkedCount: number } => ({ ...favorites, checkedCount: favorites.page.items.filter(it => it.isChecked).length });

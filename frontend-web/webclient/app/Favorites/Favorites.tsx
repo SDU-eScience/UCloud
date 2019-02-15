@@ -9,13 +9,14 @@ import { updatePageTitle, setActivePage } from "Navigation/Redux/StatusActions";
 import { ReduxObject } from "DefaultObjects";
 import { setFavoritesShown } from "./Redux/FavoritesActions";
 import { SidebarPages } from "ui-components/Sidebar";
+import { History } from "history";
 
 export enum FavoriteType {
     FILES = "FILES",
     APPLICATIONS = "APPLICATIONS"
 }
 
-const Favorites = (props: FavoritesStateProps & FavoritesOperations) => {
+const Favorites = (props: FavoritesStateProps & FavoritesOperations & { history: History }) => {
     React.useEffect(() => {
         props.setPageTitle();
         props.setActivePage(SidebarPages.Favorites);
@@ -31,7 +32,7 @@ const Favorites = (props: FavoritesStateProps & FavoritesOperations) => {
         )}
     </SearchOptions>);
     if (shown === FavoriteType.FILES) {
-        return (<FavoriteFiles header={header} />);
+        return (<FavoriteFiles header={header} history={props.history} />);
     } else {
         return (<Installed header={header} />)
     }

@@ -124,6 +124,13 @@ export interface DetailedResultState {
     stderrOldTop: number,
     reloadIntervalId: number
     promises: PromiseKeeper
+    fsError?: string
+    fsLoading: boolean
+    fsShown: boolean
+    fsPath: string
+    fsPage: Page<File>
+    fsDisallowedPaths: string[]
+    fsCallback: Function
 }
 
 export type StdElement = { scrollTop: number, scrollHeight: number } | null

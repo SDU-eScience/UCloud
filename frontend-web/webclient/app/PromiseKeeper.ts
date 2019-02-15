@@ -1,5 +1,5 @@
 export default class PromiseKeeper {
-    promises: Array<CancelablePromise<any>>
+    private promises: Array<CancelablePromise<any>>
     constructor() {
         this.promises = [];
     }

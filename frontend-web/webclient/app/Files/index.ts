@@ -207,7 +207,7 @@ export interface FileListProps {
 export interface MoveCopyOperations {
     showFileSelector: (show: boolean) => void
     setDisallowedPaths: (paths: string[]) => void
-    setFileSelectorCallback: (callback?: Function) => void
+    setFileSelectorCallback: (callback: Function) => void
     fetchPageFromPath: (path: string) => void
     fetchFilesPage: (path: string) => void
 }

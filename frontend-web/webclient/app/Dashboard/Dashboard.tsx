@@ -258,7 +258,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Dashboard)),
+    setActivePage: () => dispatch(setActivePage(SidebarPages.None)),
     // FIXME: Make action instead
     receiveFavorites: files => dispatch(receiveFavorites(files)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))

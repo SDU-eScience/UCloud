@@ -2,7 +2,7 @@ import * as React from "react";
 import LoadingIcon from "LoadingIcon/LoadingIcon"
 import PromiseKeeper from "PromiseKeeper";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { shortUUID, failureNotification } from "UtilityFunctions";
+import { shortUUID, failureNotification, errorMessageOrDefault } from "UtilityFunctions";
 import { Link } from "react-router-dom";
 import { FilesTable } from "Files/FilesTable";
 import { List as PaginationList } from "Pagination";
@@ -11,10 +11,9 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { ReduxObject, DetailedResultReduxObject, emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations, AppState } from ".";
 import { File, SortBy, SortOrder } from "Files";
-import { AllFileOperations, fileTablePage } from "Utilities/FileUtilities";
+import { AllFileOperations, fileTablePage, filepathQuery } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
 import { hpcJobQuery } from "Utilities/ApplicationUtilities";
-import { History } from "history";
 import { Dispatch } from "redux";
 import { detailedResultError, fetchPage, setLoading, receivePage } from "Applications/Redux/DetailedResultActions";
 import { Dropdown, DropdownContent } from "ui-components/Dropdown";
@@ -24,6 +23,8 @@ import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 import Icon, { IconName } from "ui-components/Icon";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
+import { FileSelectorModal } from "Files/FileSelector";
+import { Page } from "Types";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -43,7 +44,14 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             stdoutOldTop: -1,
             stderrOldTop: -1,
             reloadIntervalId: -1,
-            promises: new PromiseKeeper()
+            promises: new PromiseKeeper(),
+            fsShown: false,
+            fsLoading: false,
+            fsPage: emptyPage,
+            fsPath: Cloud.homeFolder,
+            fsError: undefined,
+            fsDisallowedPaths: [],
+            fsCallback: () => undefined
         };
         this.props.setPageTitle(shortUUID(this.jobId));
     }
@@ -54,6 +62,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
 
     componentDidMount() {
         let reloadIntervalId = window.setTimeout(() => this.retrieveStdStreams(), 1_000);
+        const { state } = this;
+        this.fetchSelectorFiles(state.fsPath, state.fsPage.pageNumber, state.fsPage.itemsInTotal);
         this.setState(() => ({ reloadIntervalId: reloadIntervalId }));
     }
 
@@ -63,10 +73,18 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         this.props.receivePage(emptyPage);
     }
 
-    static fileOperations = (history: History, setLoading: () => void) => AllFileOperations({
+    fileOperations = () => AllFileOperations({
         stateless: true,
-        history,
-        setLoading
+        history: this.props.history,
+        fileSelectorOps: {
+            fetchFilesPage: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
+            fetchPageFromPath: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
+            setDisallowedPaths: (paths) => this.setState(() => ({ fsDisallowedPaths: paths })),
+            showFileSelector: fsShown => this.setState(() => ({ fsShown })),
+            setFileSelectorCallback: callback => this.setState(() => ({ fsCallback: callback }))
+        },
+        onDeleted: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
+        setLoading: () => this.props.setLoading(true)
     });
 
     scrollIfNeeded() {
@@ -89,7 +107,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         }));
     }
 
-    retrieveStdStreams() {
+    private retrieveStdStreams() {
         if (this.state.complete) {
             this.retrieveStateWhenCompleted();
             return;
@@ -125,19 +143,19 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             }).finally(() => this.props.setLoading(false));
     }
 
-    retrieveStateWhenCompleted() {
+    private retrieveStateWhenCompleted() {
         if (!this.state.complete) return;
         if (this.props.page.items.length) return;
         this.props.setLoading(true);
         this.retrieveFilesPage(this.props.page.pageNumber, this.props.page.itemsPerPage)
     }
 
-    retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
+    private retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
         this.props.fetchPage(this.jobId, pageNumber, itemsPerPage);
         window.clearTimeout(this.state.reloadIntervalId);
     }
 
-    favoriteFile = async (file: File) => this.props.receivePage(await favoriteFileFromPage(this.props.page, [file], Cloud));
+    private readonly favoriteFile = async (file: File) => this.props.receivePage(await favoriteFileFromPage(this.props.page, [file], Cloud));
 
     renderProgressPanel = () => (
         <div>
@@ -148,31 +166,31 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     failed={this.isStateFailure()}
                     active={this.isStateActive(AppState.VALIDATED)}
                     complete={this.isStateComplete(AppState.VALIDATED)}
-                    title={"Validated"} />
+                    title="Validated" />
                 <StepTrackerItem
                     icon="hourglass"
                     failed={this.isStateFailure()}
                     active={this.isStateActive(AppState.PREPARED)}
                     complete={this.isStateComplete(AppState.PREPARED)}
-                    title={"Pending"} />
+                    title="Pending" />
                 <StepTrackerItem
                     icon="calendar"
                     failed={this.isStateFailure()}
                     active={this.isStateActive(AppState.SCHEDULED)}
                     complete={this.isStateComplete(AppState.SCHEDULED)}
-                    title={"Scheduled"} />
+                    title="Scheduled" />
                 <StepTrackerItem
                     icon="chrono"
                     failed={this.isStateFailure()}
                     active={this.isStateActive(AppState.RUNNING)}
                     complete={this.isStateComplete(AppState.RUNNING)}
-                    title={"Running"} />
+                    title="Running" />
                 <StepTrackerItem
                     icon="move"
                     failed={this.isStateFailure()}
                     active={this.isStateActive(AppState.TRANSFER_SUCCESS)}
                     complete={this.isStateComplete(AppState.TRANSFER_SUCCESS)}
-                    title={"Transferring"} />
+                    title="Transferring" />
             </StepGroup>
         </div>
     );
@@ -268,6 +286,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     renderFilePanel() {
         const { page } = this.props;
         if (!page.items.length) return null;
+        const { state } = this;
         return (
             <div>
                 <h4>Output Files</h4>
@@ -278,7 +297,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                         <FilesTable
                             sortOrder={SortOrder.ASCENDING}
                             sortBy={SortBy.PATH}
-                            fileOperations={DetailedResult.fileOperations(this.props.history, () => this.props.setLoading(true))}
+                            fileOperations={this.fileOperations()}
                             files={page.items}
                             refetchFiles={() => null}
                             sortFiles={() => null}
@@ -289,8 +308,27 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     customEntriesPerPage
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
                 />
+                <FileSelectorModal
+                    show={state.fsShown}
+                    onHide={() => this.setState(() => ({ fsShown: false }))}
+                    path={state.fsPath}
+                    fetchFiles={(path, pageNumber, itemsPerPage) => this.fetchSelectorFiles(path, pageNumber, itemsPerPage)}
+                    loading={state.fsLoading}
+                    errorMessage={state.fsError}
+                    onErrorDismiss={() => this.setState(() => ({ fsError: undefined }))}
+                    onlyAllowFolders
+                    canSelectFolders
+                    page={state.fsPage}
+                    setSelectedFile={state.fsCallback}
+                    disallowedPaths={state.fsDisallowedPaths}
+                />
             </div>
         );
+    }
+    fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): void {
+        this.state.promises.makeCancelable(Cloud.get<Page<File>>(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(r => {
+            this.setState(() => ({ fsPage: r.response, fsPath: path }))
+        }).catch(it => this.setState(() => ({ fsError: errorMessageOrDefault(it, "An error occurred fetching files")})));
     }
 
     render = () => (
