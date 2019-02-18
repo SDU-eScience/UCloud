@@ -3,14 +3,12 @@ package dk.sdu.cloud.calls.server
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.calls.RPCException
 import io.ktor.application.call
 import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
 import io.ktor.request.header
 import java.util.*
 
-class JobIdInterceptor(private val requireJobId: Boolean) {
+class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
     fun register(server: RpcServer) {
         server.attachFilter(object : IngoingCallFilter.BeforeParsing() {
             override fun canUseContext(ctx: IngoingCall): Boolean = true
@@ -19,15 +17,14 @@ class JobIdInterceptor(private val requireJobId: Boolean) {
                 val readJobId = readJobId(context)
                 val readCausedBy = readCausedBy(context)
 
-                when {
-                    readJobId != null -> context.jobId = readJobId
-
-                    requireJobId -> {
+                if (readJobId != null) {
+                    context.jobId = readJobId
+                } else {
+                    if (complainAboutMissingJobId) {
                         log.warn("Missing Job ID (required)")
-                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
                     }
 
-                    else -> context.jobId = "MISSING-${UUID.randomUUID()}"
+                    context.jobId = "MISSING-${UUID.randomUUID()}"
                 }
 
                 if (readCausedBy != null) context.causedBy = readCausedBy
