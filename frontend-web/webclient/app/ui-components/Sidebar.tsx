@@ -160,7 +160,6 @@ export const sideBarMenuElements: { guest: SidebarMenuElements, general: Sidebar
     },
     general: {
         items: [
-            /* { icon: "dashboard", label: "Dashboard", to: "/dashboard/" }, */
             { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
             { icon: "share", label: "Shares", to: "/shares/" },
             { icon: "starFilled", label: "Favorites", to: "/favorites" },
