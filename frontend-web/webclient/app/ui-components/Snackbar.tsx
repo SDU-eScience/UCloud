@@ -1,5 +1,5 @@
 import styled, { css } from "styled-components";
-import { Box } from "ui-components";
+import Box from "./Box";
 
 // https://www.w3schools.com/howto/howto_js_snackbar.asp
 

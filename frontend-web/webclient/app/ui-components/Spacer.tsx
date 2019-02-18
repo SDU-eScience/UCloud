@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Flex, Box } from "ui-components";
+import Flex from "./Flex";
+import Box from "./Box";
 import { SpaceProps, WidthProps, AlignItemsProps, JustifyContentProps, FlexWrapProps, FlexDirectionProps, HeightProps } from "styled-system";
 
 interface SpacerProps extends SpaceProps, WidthProps, AlignItemsProps, JustifyContentProps, FlexWrapProps, FlexDirectionProps, HeightProps {

@@ -1,6 +1,7 @@
 import * as React from "react";
-import { RatingBadge, Box } from "ui-components";
-import * as Heading from "ui-components/Heading"
+import RatingBadge from "./RatingBadge";
+import Box from "./Box";
+import * as Heading from "./Heading"
 import { ReduxObject, ResponsiveReduxObject } from "DefaultObjects";
 import { connect } from 'react-redux'
 
@@ -18,14 +19,6 @@ const RBox = ({ responsiveState }: RBoxProps) => {
         message += "undef";
     } else {
         message += `${responsiveState.mediaType}`;
-
-        // if (responsiveState.lessThan.small) {
-        //     message += 'Secret message for viewports smaller than than the "small" breakpoint!'
-        // } else if (responsiveState.lessThan.medium) {
-        //     message += 'Secret message for viewports between the "small" and "medium" breakpoints!'
-        // } else {
-        //     message += 'Message for viewports greater than the "medium" breakpoint.'
-        // }
     }
 
     return (

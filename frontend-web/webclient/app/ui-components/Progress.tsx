@@ -1,8 +1,9 @@
 import * as React from "react";
 import styled from "styled-components";
 import Box from "./Box";
-import { theme, Flex, Text } from "ui-components";
-import { ThemeColor } from "./theme";
+import Flex from "./Flex";
+import Text from "./Text";
+import { ThemeColor, default as theme } from "./theme";
 
 interface ProgressBaseProps {
     width?: number | string

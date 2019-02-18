@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as Modal from "react-modal";
-import { Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Checkbox, Label, Select } from "ui-components";
+import { Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select } from "ui-components";
 import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal } from "UtilityFunctions";

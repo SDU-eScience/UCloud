@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 import { HiddenInputField } from "./Input";
-import { Label } from "ui-components";
+import Label from "./Label";
 
 // https://www.w3schools.com/howto/howto_css_switch.asp
 const ToggleLabel = styled(Label) <{ scale: number }>`

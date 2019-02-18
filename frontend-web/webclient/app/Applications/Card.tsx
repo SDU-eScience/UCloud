@@ -1,5 +1,8 @@
 import * as React from "react";
-import { Markdown, Link, Box, Absolute, Icon, Flex, RatingBadge, Text } from "ui-components";
+import Markdown from "ui-components/Markdown"
+import { Absolute, Icon, Flex, RatingBadge, Text } from "ui-components";
+import Box from "ui-components/Box";
+import Link from "ui-components/Link";
 import { EllipsedText } from "ui-components/Text";
 import * as Pages from "./Pages";
 import { WithAppMetadata } from ".";

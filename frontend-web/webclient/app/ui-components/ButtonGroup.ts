@@ -1,5 +1,6 @@
 import styled from "styled-components";
-import { Button, Flex } from ".";
+import Button from "./Button";
+import Flex from "./Flex";
 
 const ButtonGroup = styled(Flex)`
     & > ${Button} {

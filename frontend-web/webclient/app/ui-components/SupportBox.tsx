@@ -10,7 +10,8 @@ import Button from "./Button";
 import * as Heading from "ui-components/Heading";
 import ClickableDropdown from "./ClickableDropdown";
 import { useEffect, useRef, useState } from "react";
-import { Radio, Label } from "ui-components";
+import Radio from "./Radio";
+import Label from "./Label";
 
 const enum SupportType {
     SUGGESTION = "SUGGESTION",

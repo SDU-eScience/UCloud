@@ -8,8 +8,10 @@ import Link from "./Link";
 import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { fileTablePage } from "Utilities/FileUtilities";
-import { ExternalLink, RatingBadge, Tooltip } from "ui-components";
-import { RBox } from "ui-components";
+import ExternalLink from "./ExternalLink";
+import  RatingBadge from "./RatingBadge"
+import Tooltip from "./Tooltip";
+import RBox from "./RBox";
 import { ReduxObject } from "DefaultObjects"
 import { connect } from 'react-redux'
 import { FlexCProps } from "./Flex";
