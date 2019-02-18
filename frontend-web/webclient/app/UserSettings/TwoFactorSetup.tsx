@@ -128,7 +128,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
                 <h4>Step Five</h4>
                 <p>Enter the verification code from your app in the field below.</p>
 
-                <form onSubmit={() => this.onVerificationSubmit()}>
+                <form onSubmit={e => (e.preventDefault(), this.onVerificationSubmit())}>
                     <Input
                         placeholder="6-digit verification code"
                         value={this.state.verificationCode}
@@ -142,7 +142,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
 
                     <LoadingButton
                         color="blue"
-                        type="submit"
+                        type="button"
                         content="Submit code"
                         loading={this.state.isLoading}
                     />
@@ -166,7 +166,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
     }
 
     private setLoading = (isLoading: boolean) => this.setState(() => ({ isLoading }));
-    
+
 
     private onVerificationSubmit() {
         this.setLoading(true);
@@ -174,7 +174,7 @@ export class TwoFactorSetup extends React.Component<{}, TwoFactorSetupState> {
             challengeId: this.state.challengeId,
             verificationCode: this.state.verificationCode
         }, "/auth").then((res) => {
-            this.setState(() => ({ 
+            this.setState(() => ({
                 isConnectedToAccount: true
             }));
         }).catch((res) => {
