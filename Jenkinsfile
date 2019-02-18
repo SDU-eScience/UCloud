@@ -32,7 +32,6 @@ volumes: [
             def needToBuild = []
 
             def serviceList = [
-                "abc2-sync",
                 "frontend-web",
                 "service-common"
             ]
