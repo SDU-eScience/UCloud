@@ -75,7 +75,6 @@ class FavoriteFiles extends React.Component<FavoritesOperations & ReduxType & { 
                         /* FIXME: ADD */
                         refetchFiles={() => undefined}
                         sortingColumns={[SortBy.MODIFIED_AT, SortBy.SIZE]}
-                        /* FIXME Fix */
                         onCheckFile={(checked, file) => this.checkFile(checked, file.path)}
                         masterCheckbox={
                             <MasterCheckbox
