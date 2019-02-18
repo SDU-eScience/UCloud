@@ -1,13 +1,12 @@
 package dk.sdu.cloud.file.http.files
 
 import dk.sdu.cloud.file.http.ExtractController
-import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.storage.util.mkdir
 import dk.sdu.cloud.storage.util.touch
-import dk.sdu.cloud.storage.util.withAuthMock
-import io.ktor.application.Application
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.withTestApplication
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
@@ -36,14 +35,14 @@ class ExtractTest {
         return fsRoot
     }
 
-    private fun setupApplication(): Application.() -> Unit = {
-        configureServerWithFileController(
+    private fun KtorApplicationTestSetupContext.setupApplication(): List<Controller> {
+        return configureServerWithFileController(
             fsRootInitializer = {
                 fsForTest()
             },
 
             additional = {
-                configureControllers(ExtractController(it.cloud, it.coreFs, it.lookupService, it.runner))
+                listOf(ExtractController(it.authenticatedClient, it.coreFs, it.lookupService, it.runner))
             }
         )
     }
@@ -51,46 +50,39 @@ class ExtractTest {
     // NONE of these tests actually extracts, but tests stat and auto detect type
     @Test
     fun `Tar test`() {
-        withAuthMock {
-            withTestApplication(
-                moduleFunction = setupApplication(),
-                test = {
-                    val path = "/home/user1/another-one/a.tar.gz"
-                    val response = extract(path)
-                    assertEquals(HttpStatusCode.OK, response.status())
-                }
-            )
-        }
+        withKtorTest(
+            setup = { setupApplication() },
+            test = {
+                val path = "/home/user1/another-one/a.tar.gz"
+                val response = engine.extract(path)
+                assertEquals(HttpStatusCode.OK, response.status())
+            }
+        )
     }
 
 
     @Test
     fun `Zip test`() {
-        withAuthMock {
-            withTestApplication(
-                moduleFunction = setupApplication(),
-
-                test = {
-                    val path = "/home/user1/folder/a.zip"
-                    val response = extract(path)
-                    assertEquals(HttpStatusCode.OK, response.status())
-                }
-            )
-        }
+        withKtorTest(
+            setup = { setupApplication() },
+            test = {
+                val path = "/home/user1/folder/a.zip"
+                val response = engine.extract(path)
+                assertEquals(HttpStatusCode.OK, response.status())
+            }
+        )
     }
 
     @Test
     fun `Unknown format test`() {
-        withAuthMock {
-            withTestApplication(
-                moduleFunction = setupApplication(),
+        withKtorTest(
+            setup = { setupApplication() },
 
-                test = {
-                    val path = "/home/user1/folder/a.txt"
-                    val response = extract(path)
-                    assertEquals(HttpStatusCode.BadRequest, response.status())
-                }
-            )
-        }
+            test = {
+                val path = "/home/user1/folder/a.txt"
+                val response = engine.extract(path)
+                assertEquals(HttpStatusCode.BadRequest, response.status())
+            }
+        )
     }
 }

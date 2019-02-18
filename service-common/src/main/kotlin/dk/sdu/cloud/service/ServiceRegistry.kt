@@ -1,6 +1,6 @@
 package dk.sdu.cloud.service
 
-import dk.sdu.cloud.client.ServiceDescription
+import dk.sdu.cloud.ServiceDescription
 
 fun ServiceDescription.definition(): ServiceDefinition = ServiceDefinition(name, version)
 

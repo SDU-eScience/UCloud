@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.app.api.JobState
-import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.HttpStatusCode
 
 sealed class JobException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {

@@ -1,13 +1,12 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.client.defaultMapper
-import dk.sdu.cloud.indexing.api.NumericStatisticsRequest
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.indexing.utils.elasticFile
 import dk.sdu.cloud.indexing.utils.eventMatStorFile
 import dk.sdu.cloud.indexing.utils.fileQuery
 import dk.sdu.cloud.indexing.utils.minimumStatisticRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.RPCException
 import io.mockk.every
 import io.mockk.mockk
 import org.elasticsearch.action.get.GetResponse
@@ -15,11 +14,6 @@ import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
-import org.elasticsearch.search.aggregations.Aggregation
-import org.elasticsearch.search.aggregations.AggregationBuilders
-import org.elasticsearch.search.aggregations.Aggregations
-import org.elasticsearch.search.aggregations.BucketOrder.aggregation
-import org.elasticsearch.search.aggregations.InternalOrder
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -96,14 +90,14 @@ class ElasticQueryTest {
     @Test
     fun `Simple Query Test`() {
         mockElasticSearchReponseTwentyHits(client)
-        val queryResults = elastic.query(fileQuery, NormalizedPaginationRequest(25,0))
+        val queryResults = elastic.query(fileQuery, NormalizedPaginationRequest(25, 0))
         assertEquals(NUMBER_OF_HITS, queryResults.itemsInTotal)
     }
 
     @Test
     fun `Simple Query Test - empty string`() {
         mockElasticSearchReponseTwentyHits(client)
-        val queryResults = elastic.query(fileQuery.copy(fileNameQuery = listOf("")), NormalizedPaginationRequest(25,0))
+        val queryResults = elastic.query(fileQuery.copy(fileNameQuery = listOf("")), NormalizedPaginationRequest(25, 0))
         assertEquals(NUMBER_OF_HITS, queryResults.itemsInTotal)
     }
 

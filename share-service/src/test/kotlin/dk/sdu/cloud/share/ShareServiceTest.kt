@@ -7,7 +7,9 @@ import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.OptionalAuthenticationTokens
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
-import dk.sdu.cloud.client.bearerAuth
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
@@ -17,16 +19,14 @@ import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupResponse
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.notification.api.FindByNotificationId
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.TokenValidationMock
@@ -55,10 +55,10 @@ class ShareServiceTest {
         micro.install(HibernateFeature)
 
         service = ShareService(
-            serviceCloud = micro.authenticatedCloud,
+            serviceCloud = ClientMock.authenticatedClient,
             db = micro.hibernateDatabase,
             shareDao = ShareHibernateDAO(),
-            userCloudFactory = { micro.authenticatedCloud }
+            userCloudFactory = { ClientMock.authenticatedClient }
         )
         this.micro = micro
     }
@@ -78,7 +78,7 @@ class ShareServiceTest {
         ),
 
         val lookupResult: TestCallResult<LookupUsersResponse, CommonErrorMessage> = TestCallResult.Ok(
-            LookupUsersResponse(mapOf(recipient.username to UserLookup(recipient.username, recipient.role)))
+            LookupUsersResponse(mapOf(recipient.username to UserLookup(recipient.username, 0L, recipient.role)))
         ),
 
         val extensionResult: TestCallResult<OptionalAuthenticationTokens, CommonErrorMessage> = TestCallResult.Ok(
@@ -95,35 +95,35 @@ class ShareServiceTest {
     }
 
     private suspend fun CreateMock.sendCreateRequest(): ShareId {
+        val bearerToken = TokenValidationMock.createTokenForPrincipal(
+            owner
+        )
         return service.create(
             owner.username,
             CreateShareRequest(recipient.username, sharePath, rights),
-            micro.authenticatedCloud.parent.bearerAuth(TokenValidationMock.createTokenForPrincipal(owner))
+            bearerToken,
+            ClientMock.authenticatedClient.withoutAuthentication().bearerAuth(bearerToken)
         )
     }
 
     private inline fun <T> CreateMock.mock(consumer: CreateMock.() -> T = { Unit as T }): T {
-        CloudMock.mockCall(
-            FileDescriptions,
-            { FileDescriptions.stat },
+        ClientMock.mockCall(
+            FileDescriptions.stat,
             { statResult }
         )
 
-        CloudMock.mockCall(
-            UserDescriptions,
-            { UserDescriptions.lookupUsers },
+        ClientMock.mockCall(
+            UserDescriptions.lookupUsers,
             { lookupResult }
         )
 
-        CloudMock.mockCall(
-            AuthDescriptions,
-            { AuthDescriptions.tokenExtension },
+        ClientMock.mockCall(
+            AuthDescriptions.tokenExtension,
             { extensionResult }
         )
 
-        CloudMock.mockCall(
-            NotificationDescriptions,
-            { NotificationDescriptions.create },
+        ClientMock.mockCall(
+            NotificationDescriptions.create,
             { notificationResult }
         )
 
@@ -152,21 +152,18 @@ class ShareServiceTest {
     )
 
     private inline fun <T> AcceptMock.mock(consumer: AcceptMock.() -> T = { Unit as T }): T {
-        CloudMock.mockCall(
-            AuthDescriptions,
-            { AuthDescriptions.tokenExtension },
+        ClientMock.mockCall(
+            AuthDescriptions.tokenExtension,
             { extensionResult }
         )
 
-        CloudMock.mockCall(
-            FileDescriptions,
-            { FileDescriptions.createLink },
+        ClientMock.mockCall(
+            FileDescriptions.createLink,
             { createLinkResult }
         )
 
-        CloudMock.mockCall(
-            FileDescriptions,
-            { FileDescriptions.updateAcl },
+        ClientMock.mockCall(
+            FileDescriptions.updateAcl,
             { updateAclResult }
         )
 
@@ -174,10 +171,14 @@ class ShareServiceTest {
     }
 
     private suspend fun AcceptMock.sendAcceptRequest(shareId: ShareId) {
+        val bearerToken = TokenValidationMock.createTokenForPrincipal(
+            recipient
+        )
         service.acceptShare(
             recipient.username,
             shareId,
-            micro.authenticatedCloud.parent.bearerAuth(TokenValidationMock.createTokenForPrincipal(recipient))
+            bearerToken,
+            ClientMock.authenticatedClient.withoutAuthentication().bearerAuth(bearerToken)
         )
     }
 
@@ -202,33 +203,28 @@ class ShareServiceTest {
     )
 
     private fun <T> DeleteMock.mock(consumer: DeleteMock.() -> T = { Unit as T }): T {
-        CloudMock.mockCall(
-            FileDescriptions,
-            { FileDescriptions.updateAcl },
+        ClientMock.mockCall(
+            FileDescriptions.updateAcl,
             { updateAclResult }
         )
 
-        CloudMock.mockCall(
-            FileDescriptions,
-            { FileDescriptions.deleteFile },
+        ClientMock.mockCall(
+            FileDescriptions.deleteFile,
             { deleteFileResult }
         )
 
-        CloudMock.mockCall(
-            FileDescriptions,
-            { FileDescriptions.stat },
+        ClientMock.mockCall(
+            FileDescriptions.stat,
             { linkStatResult }
         )
 
-        CloudMock.mockCall(
-            LookupDescriptions,
-            { LookupDescriptions.reverseLookup },
+        ClientMock.mockCall(
+            LookupDescriptions.reverseLookup,
             { linkLookup }
         )
 
-        CloudMock.mockCallSuccess(
-            AuthDescriptions,
-            { AuthDescriptions.logout },
+        ClientMock.mockCallSuccess(
+            AuthDescriptions.logout,
             Unit
         )
 
@@ -334,9 +330,8 @@ class ShareServiceTest {
 
     @Test
     fun `create, accept, and delete`() {
-        CloudMock.mockCallSuccess(
-            FileDescriptions,
-            {FileDescriptions.findHomeFolder},
+        ClientMock.mockCallSuccess(
+            FileDescriptions.findHomeFolder,
             FindHomeFolderResponse("/home/user/")
         )
         runBlocking {

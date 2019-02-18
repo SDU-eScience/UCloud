@@ -1,8 +1,8 @@
 package dk.sdu.cloud.support.services
 
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async

@@ -1,41 +1,37 @@
 package dk.sdu.cloud.project.auth.http
 
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.CloudContext
-import dk.sdu.cloud.client.jwtAuth
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.calls.server.CallHandler
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.bearer
+import dk.sdu.cloud.calls.server.jobId
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.auth.api.ProjectAuthDescriptions
 import dk.sdu.cloud.project.auth.services.TokenRefresher
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.bearer
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.jobId
-import dk.sdu.cloud.service.optionallyCausedBy
-import dk.sdu.cloud.service.safeJobId
-import dk.sdu.cloud.service.securityPrincipal
-import dk.sdu.cloud.service.withCausedBy
-import io.ktor.application.ApplicationCall
+import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.Route
 
 class ProjectAuthController(
     private val tokenRefresher: TokenRefresher<*>,
-    private val cloudContext: CloudContext
+    private val cloudContext: AuthenticatedClient
 ) : Controller {
-    override val baseContext = ProjectAuthDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(ProjectAuthDescriptions.fetchToken) { req ->
-            ok(tokenRefresher.refreshTokenForUser(call.securityPrincipal.username, call.userCloud(), req.project))
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(ProjectAuthDescriptions.fetchToken) {
+            ok(tokenRefresher.refreshTokenForUser(ctx.securityPrincipal.username, userCloud(), request.project))
         }
     }
 
-    private fun ApplicationCall.userCloud(): AuthenticatedCloud =
-        cloudContext
-            .jwtAuth(
-                request.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-            ).optionallyCausedBy(request.safeJobId)
+    private fun CallHandler<*, *, *>.userCloud(): AuthenticatedClient =
+        cloudContext.withoutAuthentication()
+            .bearerAuth(
+                (ctx as? HttpCall)?.call?.request?.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+            )//.optionallyCausedBy(ctx.jobId)
 
     companion object : Loggable {
         override val log = logger()

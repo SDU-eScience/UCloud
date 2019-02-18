@@ -1,5 +1,6 @@
 package dk.sdu.cloud.service
 
+import dk.sdu.cloud.kafka.StreamDescription
 import java.io.Closeable
 
 interface ConsumedEvent<V> {

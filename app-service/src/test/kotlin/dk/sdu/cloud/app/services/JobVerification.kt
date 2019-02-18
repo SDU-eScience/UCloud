@@ -5,13 +5,13 @@ import dk.sdu.cloud.app.api.AppRequest
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.app.api.ToolBackend
-import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.app.api.buildSafeBashString
-import dk.sdu.cloud.app.utils.withDatabase
-import dk.sdu.cloud.service.BashEscaper
-import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.every
 import io.mockk.mockk
@@ -20,7 +20,7 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class JobVerification{
+class JobVerification {
 
     val unverifiedJob = UnverifiedJob(
         AppRequest.Start(
@@ -28,7 +28,7 @@ class JobVerification{
             mapOf("int" to 5, "great" to "mojn", "missing" to 23),
             1,
             1,
-            SimpleDuration(1,0,0),
+            SimpleDuration(1, 0, 0),
             "backend"
         ),
         mockk<DecodedJWT>(relaxed = true).also {
@@ -39,29 +39,29 @@ class JobVerification{
     @Test
     fun `test verification`() {
         val micro = initializeMicro()
-        val cloud = micro.authenticatedCloud
+        val cloud = ClientMock.authenticatedClient
+        micro.install(HibernateFeature)
+        val db = micro.hibernateDatabase
 
-        withDatabase { db ->
-            val toolDao = ToolHibernateDAO()
-            val appDao = ApplicationHibernateDAO(toolDao)
-            db.withTransaction {
-                toolDao.create(it, "user", normToolDesc)
-                appDao.create(it, "user", normAppDesc3)
-            }
-            val service = JobVerificationService(db, appDao, toolDao)
-            val verified = runBlocking {
-                service.verifyOrThrow(unverifiedJob, cloud)
-            }
-
-            val VJob = verified.job
-            assertTrue(VJob.jobInput.backingData.keys.contains("missing"))
-            assertTrue(VJob.jobInput.backingData.keys.contains("great"))
-            assertTrue(VJob.jobInput.backingData.keys.contains("int"))
-            assertTrue(VJob.jobInput.backingData.values.toString().contains("23"))
-            assertTrue(VJob.jobInput.backingData.values.toString().contains("mojn"))
-            assertTrue(VJob.jobInput.backingData.values.toString().contains("5"))
-            assertEquals(JobState.VALIDATED, VJob.currentState)
+        val toolDao = ToolHibernateDAO()
+        val appDao = ApplicationHibernateDAO(toolDao)
+        db.withTransaction {
+            toolDao.create(it, "user", normToolDesc)
+            appDao.create(it, "user", normAppDesc3)
         }
+        val service = JobVerificationService(db, appDao, toolDao)
+        val verified = runBlocking {
+            service.verifyOrThrow(unverifiedJob, cloud)
+        }
+
+        val VJob = verified.job
+        assertTrue(VJob.jobInput.backingData.keys.contains("missing"))
+        assertTrue(VJob.jobInput.backingData.keys.contains("great"))
+        assertTrue(VJob.jobInput.backingData.keys.contains("int"))
+        assertTrue(VJob.jobInput.backingData.values.toString().contains("23"))
+        assertTrue(VJob.jobInput.backingData.values.toString().contains("mojn"))
+        assertTrue(VJob.jobInput.backingData.values.toString().contains("5"))
+        assertEquals(JobState.VALIDATED, VJob.currentState)
     }
 
     val unverifiedJobWithWrongParamType = UnverifiedJob(
@@ -70,7 +70,7 @@ class JobVerification{
             mapOf("int" to 2, "missing" to "NotAnInt"),
             1,
             1,
-            SimpleDuration(1,0,0),
+            SimpleDuration(1, 0, 0),
             "backend"
         ),
         mockk<DecodedJWT>(relaxed = true).also {
@@ -78,22 +78,22 @@ class JobVerification{
         }
     )
 
-    @Test (expected = JobException.VerificationError::class)
+    @Test(expected = JobException.VerificationError::class)
     fun `test verification - wrong param`() {
         val micro = initializeMicro()
-        val cloud = micro.authenticatedCloud
+        micro.install(HibernateFeature)
+        val cloud = ClientMock.authenticatedClient
+        val db = micro.hibernateDatabase
 
-        withDatabase { db ->
-            val toolDao = ToolHibernateDAO()
-            val appDao = ApplicationHibernateDAO(toolDao)
-            db.withTransaction {
-                toolDao.create(it, "user", normToolDesc)
-                appDao.create(it, "user", normAppDesc3)
-            }
-            val service = JobVerificationService(db, appDao, toolDao)
-            runBlocking {
-                service.verifyOrThrow(unverifiedJobWithWrongParamType, cloud)
-            }
+        val toolDao = ToolHibernateDAO()
+        val appDao = ApplicationHibernateDAO(toolDao)
+        db.withTransaction {
+            toolDao.create(it, "user", normToolDesc)
+            appDao.create(it, "user", normAppDesc3)
+        }
+        val service = JobVerificationService(db, appDao, toolDao)
+        runBlocking {
+            service.verifyOrThrow(unverifiedJobWithWrongParamType, cloud)
         }
     }
 
@@ -103,7 +103,7 @@ class JobVerification{
             mapOf("great" to "mojn"),
             1,
             1,
-            SimpleDuration(1,0,0),
+            SimpleDuration(1, 0, 0),
             "backend"
         ),
         mockk<DecodedJWT>(relaxed = true).also {
@@ -111,22 +111,22 @@ class JobVerification{
         }
     )
 
-    @Test (expected = JobException.VerificationError::class)
+    @Test(expected = JobException.VerificationError::class)
     fun `test verification - missing non-optional`() {
         val micro = initializeMicro()
-        val cloud = micro.authenticatedCloud
+        val cloud = ClientMock.authenticatedClient
 
-        withDatabase { db ->
-            val toolDao = ToolHibernateDAO()
-            val appDao = ApplicationHibernateDAO(toolDao)
-            db.withTransaction {
-                toolDao.create(it, "user", normToolDesc)
-                appDao.create(it, "user", normAppDesc3)
-            }
-            val service = JobVerificationService(db, appDao, toolDao)
-            runBlocking {
-                service.verifyOrThrow(unverifiedJobWithMissingNonOptional, cloud)
-            }
+        micro.install(HibernateFeature)
+        val db = micro.hibernateDatabase
+        val toolDao = ToolHibernateDAO()
+        val appDao = ApplicationHibernateDAO(toolDao)
+        db.withTransaction {
+            toolDao.create(it, "user", normToolDesc)
+            appDao.create(it, "user", normAppDesc3)
+        }
+        val service = JobVerificationService(db, appDao, toolDao)
+        runBlocking {
+            service.verifyOrThrow(unverifiedJobWithMissingNonOptional, cloud)
         }
     }
 }

@@ -4,6 +4,13 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.kafka.forStream
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.project.api.AddMemberRequest
 import dk.sdu.cloud.project.api.AddMemberResponse
 import dk.sdu.cloud.project.api.ChangeUserRoleRequest
@@ -20,15 +27,7 @@ import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
 import dk.sdu.cloud.project.api.ViewProjectResponse
 import dk.sdu.cloud.project.services.ProjectHibernateDao
 import dk.sdu.cloud.project.services.ProjectService
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.authenticatedCloud
-import dk.sdu.cloud.service.forStream
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.kafka
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestCallResult
@@ -131,11 +130,11 @@ class ServiceTest {
         users: List<SecurityPrincipal>
     ) {
         val userLookup = users.associateBy { it.username }
-        CloudMock.mockCall(UserDescriptions, { UserDescriptions.lookupUsers }) { req ->
+        ClientMock.mockCall(UserDescriptions.lookupUsers) { req ->
             TestCallResult.Ok(
                 LookupUsersResponse(req.users.map {
                     val role = userLookup[it]?.role
-                    it to (if (role != null) UserLookup(it, role) else null)
+                    it to (if (role != null) UserLookup(it, 0L, role) else null)
                 }.toMap())
             )
         }
@@ -155,7 +154,7 @@ class ServiceTest {
                         micro.hibernateDatabase,
                         ProjectHibernateDao(),
                         micro.kafka.producer.forStream(ProjectEvents.events),
-                        micro.authenticatedCloud
+                        ClientMock.authenticatedClient
                     )
                 )
             )
@@ -180,7 +179,10 @@ class ServiceTest {
             microConfigure = configureMicro(),
             setup = setupServer(),
             test = {
-                CloudMock.mockCallError(UserDescriptions, { UserDescriptions.lookupUsers }, statusCode = HttpStatusCode.InternalServerError)
+                ClientMock.mockCallError(
+                    UserDescriptions.lookupUsers,
+                    statusCode = HttpStatusCode.InternalServerError
+                )
                 val exception = runCatching { createProject() }.exceptionOrNull() as RPCException
                 assertEquals(HttpStatusCode.InternalServerError, exception.httpStatusCode)
             }

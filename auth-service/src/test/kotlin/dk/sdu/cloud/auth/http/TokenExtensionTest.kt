@@ -17,13 +17,14 @@ import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
@@ -32,7 +33,6 @@ import dk.sdu.cloud.service.test.parseSuccessful
 import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
-import dk.sdu.cloud.service.tokenValidation
 import io.ktor.http.HttpMethod
 import io.mockk.mockk
 import kotlin.test.Test

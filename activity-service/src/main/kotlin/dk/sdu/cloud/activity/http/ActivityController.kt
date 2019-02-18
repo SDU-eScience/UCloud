@@ -2,49 +2,50 @@ package dk.sdu.cloud.activity.http
 
 import dk.sdu.cloud.activity.api.ActivityDescriptions
 import dk.sdu.cloud.activity.services.ActivityService
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.bearer
+import dk.sdu.cloud.calls.server.jobId
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.bearer
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.safeJobId
-import dk.sdu.cloud.service.securityPrincipal
-import io.ktor.routing.Route
+import io.ktor.application.call
 
 class ActivityController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val activityService: ActivityService<DBSession>
 ) : Controller {
-    override val baseContext: String = ActivityDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(ActivityDescriptions.listByFileId) { req ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(ActivityDescriptions.listByFileId) {
             val page = db.withTransaction {
-                activityService.findEventsForFileId(it, req.normalize(), req.id)
+                activityService.findEventsForFileId(it, request.normalize(), request.id)
             }
 
             ok(page)
         }
 
-        implement(ActivityDescriptions.listByPath) { req ->
-            val page = db.withTransaction {
-                activityService.findEventsForPath(
-                    it,
-                    req.normalize(),
-                    req.path,
-                    call.request.bearer!!,
-                    call.request.safeJobId
-                )
-            }
+        implement(ActivityDescriptions.listByPath) {
+            with(ctx as HttpCall) {
+                val page = db.withTransaction {
+                    activityService.findEventsForPath(
+                        it,
+                        request.normalize(),
+                        request.path,
+                        call.request.bearer!!,
+                        ctx.jobId
+                    )
+                }
 
-            ok(page)
+                ok(page)
+            }
         }
 
-        implement(ActivityDescriptions.listByUser) { req ->
+        implement(ActivityDescriptions.listByUser) {
             ok(
                 db.withTransaction {
-                    activityService.findEventsForUser(it, req.normalize(), call.securityPrincipal.username)
+                    activityService.findEventsForUser(it, request.normalize(), ctx.securityPrincipal.username)
                 }
             )
         }

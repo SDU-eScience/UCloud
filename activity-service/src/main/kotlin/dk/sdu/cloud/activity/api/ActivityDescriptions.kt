@@ -3,106 +3,109 @@ package dk.sdu.cloud.activity.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
-object ActivityDescriptions : RESTDescriptions("activity") {
+object ActivityDescriptions : CallDescriptionContainer("activity") {
     val baseContext = "/api/activity"
 
-    val listByFileId = callDescription<ListActivityByIdRequest, ListActivityByIdResponse, CommonErrorMessage> {
-        name = "listByFileId"
-
+    val listByFileId = call<ListActivityByIdRequest, ListActivityByIdResponse, CommonErrorMessage>("listByFileId") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"by-file-id"
-        }
+        http {
+            path {
+                using(baseContext)
+                +"by-file-id"
+            }
 
-        params {
-            +boundTo(ListActivityByIdRequest::itemsPerPage)
-            +boundTo(ListActivityByIdRequest::page)
-            +boundTo(ListActivityByIdRequest::id)
+            params {
+                +boundTo(ListActivityByIdRequest::itemsPerPage)
+                +boundTo(ListActivityByIdRequest::page)
+                +boundTo(ListActivityByIdRequest::id)
+            }
         }
     }
 
-    val listByPath = callDescription<ListActivityByPathRequest, ListActivityByPathResponse, CommonErrorMessage> {
-        name = "listByPath"
-
+    val listByPath = call<ListActivityByPathRequest, ListActivityByPathResponse, CommonErrorMessage>("listByPath") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"by-path"
-        }
+        http {
+            path {
+                using(baseContext)
+                +"by-path"
+            }
 
-        params {
-            +boundTo(ListActivityByPathRequest::itemsPerPage)
-            +boundTo(ListActivityByPathRequest::page)
-            +boundTo(ListActivityByPathRequest::path)
+            params {
+                +boundTo(ListActivityByPathRequest::itemsPerPage)
+                +boundTo(ListActivityByPathRequest::page)
+                +boundTo(ListActivityByPathRequest::path)
+            }
         }
     }
 
-    val listByUser = callDescription<ListActivityByUserRequest, ListActivityByUserResponse, CommonErrorMessage> {
-        name = "listByUser"
-        method = HttpMethod.Get
-
+    val listByUser = call<ListActivityByUserRequest, ListActivityByUserResponse, CommonErrorMessage>("listByUser") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(ListActivityByUserRequest::itemsPerPage)
-            +boundTo(ListActivityByUserRequest::page)
+            path {
+                using(baseContext)
+            }
+
+            params {
+                +boundTo(ListActivityByUserRequest::itemsPerPage)
+                +boundTo(ListActivityByUserRequest::page)
+            }
         }
     }
 
-    val streamByPath = callDescription<StreamByPathRequest, StreamByPathResponse, CommonErrorMessage> {
-        name = "streamByPath"
-
+    val streamByPath = call<StreamByPathRequest, StreamByPathResponse, CommonErrorMessage>("streamByPath") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"stream"
-            +"by-path"
-        }
+        http {
+            path {
+                using(baseContext)
+                +"stream"
+                +"by-path"
+            }
 
-        params {
-            +boundTo(StreamByPathRequest::path)
-            +boundTo(StreamByPathRequest::itemsPerPage)
-            +boundTo(StreamByPathRequest::page)
+            params {
+                +boundTo(StreamByPathRequest::path)
+                +boundTo(StreamByPathRequest::itemsPerPage)
+                +boundTo(StreamByPathRequest::page)
+            }
         }
     }
 
-    val streamForUser = callDescription<StreamForUserRequest, StreamForUserResponse, CommonErrorMessage> {
-        name = "streamForUser"
-
+    val streamForUser = call<StreamForUserRequest, StreamForUserResponse, CommonErrorMessage>("streamForUser") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"stream"
-        }
+        http {
+            path {
+                using(baseContext)
+                +"stream"
+            }
 
-        params {
-            +boundTo(StreamForUserRequest::user)
-            +boundTo(StreamForUserRequest::itemsPerPage)
-            +boundTo(StreamForUserRequest::page)
+            params {
+                +boundTo(StreamForUserRequest::user)
+                +boundTo(StreamForUserRequest::itemsPerPage)
+                +boundTo(StreamForUserRequest::page)
+            }
         }
     }
 }

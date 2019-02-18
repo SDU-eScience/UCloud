@@ -11,7 +11,7 @@ import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.ViewProjectResponse
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
@@ -73,7 +73,7 @@ class MetadataTest {
     @Test
     fun `make update of metadata test`() {
         val micro = initializeMicro()
-        val cloud = micro.authenticatedCloud
+        val cloud = ClientMock.authenticatedClient
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = ElasticMetadataService(
             elasticClient = elasticClient,
@@ -94,9 +94,8 @@ class MetadataTest {
             },
             test = {
 
-                CloudMock.mockCallSuccess(
-                    ProjectDescriptions,
-                    { ProjectDescriptions.view },
+                ClientMock.mockCallSuccess(
+                    ProjectDescriptions.view,
                     ViewProjectResponse(
                         "ThisIsTheID",
                         "ThisIsTheID",
@@ -134,7 +133,7 @@ class MetadataTest {
     @Test
     fun `find by ID test`() {
         val micro = initializeMicro()
-        val cloud = micro.authenticatedCloud
+        val cloud = ClientMock.authenticatedClient
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = ElasticMetadataService(
             elasticClient = elasticClient,
@@ -153,17 +152,15 @@ class MetadataTest {
                 configureMetadataServer(elasticService)
             },
             test = {
-               run {
-
-                   CloudMock.mockCallSuccess(
-                       ProjectDescriptions,
-                       { ProjectDescriptions.view },
-                       ViewProjectResponse(
-                           "hello",
-                           "hello",
-                           listOf(ProjectMember("user1", ProjectRole.PI))
-                       )
-                   )
+                run {
+                    ClientMock.mockCallSuccess(
+                        ProjectDescriptions.view,
+                        ViewProjectResponse(
+                            "hello",
+                            "hello",
+                            listOf(ProjectMember("user1", ProjectRole.PI))
+                        )
+                    )
 
                     val request =
                         sendRequest(
@@ -191,7 +188,7 @@ class MetadataTest {
     @Test
     fun `find by ID - Nothing found - test`() {
         val micro = initializeMicro()
-        val cloud = micro.authenticatedCloud
+        val cloud = ClientMock.authenticatedClient
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = ElasticMetadataService(
             elasticClient = elasticClient,
@@ -220,7 +217,7 @@ class MetadataTest {
     @Test
     fun `simple query test`() {
         val micro = initializeMicro()
-        val cloud = micro.authenticatedCloud
+        val cloud = ClientMock.authenticatedClient
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = ElasticMetadataService(
             elasticClient = elasticClient,
@@ -240,7 +237,7 @@ class MetadataTest {
                 configureMetadataServer(elasticService)
             },
             test = {
-               run {
+                run {
                     val request =
                         sendRequest(
                             method = HttpMethod.Get,
@@ -287,7 +284,7 @@ class MetadataTest {
     @Test
     fun `query test live`() {
         val micro = initializeMicro()
-        val cloud = micro.authenticatedCloud
+        val cloud = ClientMock.authenticatedClient
         val elasticClient = RestHighLevelClient(RestClient.builder(HttpHost("localhost", 9200, "http")))
         val elasticService = ElasticMetadataService(
             elasticClient = elasticClient,

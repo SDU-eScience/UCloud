@@ -1,7 +1,11 @@
 package dk.sdu.cloud.service
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.client.ServiceDescription
+import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.micro.ConfigurationFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.install
 import org.junit.Test
 import java.nio.file.Files
 import kotlin.test.assertEquals

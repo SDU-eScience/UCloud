@@ -1,14 +1,13 @@
 package dk.sdu.cloud.file.gateway.services
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.gateway.api.FileResource
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.authenticatedCloud
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
@@ -44,7 +43,7 @@ class FileAnnotationServiceTest {
 
     @Test
     fun `test loading of no resources`(): Unit = runBlocking {
-        val annotated = service.annotate(emptySet(), listOf(fileA, fileB), micro.authenticatedCloud)
+        val annotated = service.annotate(emptySet(), listOf(fileA, fileB), ClientMock.authenticatedClient)
 
         assertThatPropertyEquals(annotated, { it.size }, 2)
 
@@ -63,9 +62,8 @@ class FileAnnotationServiceTest {
 
     @Test
     fun `test loading of favorites`(): Unit = runBlocking {
-        CloudMock.mockCallSuccess(
-            FileFavoriteDescriptions,
-            { FileFavoriteDescriptions.favoriteStatus },
+        ClientMock.mockCallSuccess(
+            FileFavoriteDescriptions.favoriteStatus,
             FavoriteStatusResponse(
                 favorited = mapOf(
                     fileA.fileId to true,
@@ -74,7 +72,8 @@ class FileAnnotationServiceTest {
             )
         )
 
-        val annotated = service.annotate(setOf(FileResource.FAVORITES), listOf(fileA, fileB), micro.authenticatedCloud)
+        val annotated =
+            service.annotate(setOf(FileResource.FAVORITES), listOf(fileA, fileB), ClientMock.authenticatedClient)
 
         assertThatPropertyEquals(annotated, { it.size }, 2)
 
@@ -95,15 +94,14 @@ class FileAnnotationServiceTest {
     fun `test loading of favorites with failure`(): Unit = runBlocking {
         val remoteStatusCode = HttpStatusCode.InternalServerError
 
-        CloudMock.mockCallError(
-            FileFavoriteDescriptions,
-            { FileFavoriteDescriptions.favoriteStatus },
+        ClientMock.mockCallError(
+            FileFavoriteDescriptions.favoriteStatus,
             error = null,
             statusCode = remoteStatusCode
         )
 
         val exception = runCatching {
-            service.annotate(setOf(FileResource.FAVORITES), listOf(fileA), micro.authenticatedCloud)
+            service.annotate(setOf(FileResource.FAVORITES), listOf(fileA), ClientMock.authenticatedClient)
         }.exceptionOrNull()
 
         assertThatInstance(

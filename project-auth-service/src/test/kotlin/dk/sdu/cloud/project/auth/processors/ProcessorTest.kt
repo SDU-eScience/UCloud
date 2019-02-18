@@ -2,6 +2,12 @@ package dk.sdu.cloud.project.auth.processors
 
 import dk.sdu.cloud.auth.api.CreateSingleUserResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.kafka.forStream
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.kafka
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectEvents
@@ -11,18 +17,10 @@ import dk.sdu.cloud.project.auth.services.AuthTokenDao
 import dk.sdu.cloud.project.auth.services.AuthTokenHibernateDao
 import dk.sdu.cloud.project.auth.services.TokenInvalidator
 import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.authenticatedCloud
-import dk.sdu.cloud.service.cloudContext
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.forStream
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.kafka
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.MockedEventConsumerFactory
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.assertThatProperty
@@ -30,13 +28,11 @@ import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.retrySection
 import io.mockk.coVerify
 import io.mockk.mockk
-import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import java.util.*
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ProcessorTest {
@@ -57,7 +53,7 @@ class ProcessorTest {
         authTokenDao = AuthTokenHibernateDao()
         tokenInvalidator = mockk(relaxed = true)
         processor = ProjectEventProcessor(
-            micro.authenticatedCloud,
+            ClientMock.authenticatedClient,
             db,
             authTokenDao,
             tokenInvalidator,
@@ -82,9 +78,8 @@ class ProcessorTest {
 
     private fun createProject(id: String = "projectA") {
         var usersCreated = false
-        CloudMock.mockCall(
-            UserDescriptions,
-            { UserDescriptions.createNewUser },
+        ClientMock.mockCall(
+            UserDescriptions.createNewUser,
             {
                 usersCreated = true
                 TestCallResult.Ok(it.map { CreateSingleUserResponse("access", "refresh", "csrf") })

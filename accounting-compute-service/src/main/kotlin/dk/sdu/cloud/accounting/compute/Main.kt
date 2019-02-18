@@ -2,14 +2,11 @@ package dk.sdu.cloud.accounting.compute
 
 import dk.sdu.cloud.accounting.compute.api.AccountingComputeServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.initWithDefaultFeatures
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.kafka
-import dk.sdu.cloud.service.runScriptHandler
-import dk.sdu.cloud.service.serverProvider
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.initWithDefaultFeatures
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.runScriptHandler
 
 fun main(args: Array<String>) {
     val micro = Micro().apply {
@@ -20,10 +17,5 @@ fun main(args: Array<String>) {
 
     if (micro.runScriptHandler()) return
 
-    Server(
-        micro.kafka,
-        micro.serverProvider,
-        micro.hibernateDatabase,
-        micro
-    ).start()
+    Server(micro).start()
 }

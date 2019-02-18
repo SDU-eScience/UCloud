@@ -1,13 +1,13 @@
 package dk.sdu.cloud.metadata.services
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.metadata.api.ProjectMetadata
 import dk.sdu.cloud.project.api.ProjectDescriptions
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.ViewProjectResponse
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
@@ -45,7 +45,7 @@ class ElasticMetadataTest {
         val micro = initializeMicro()
         return ElasticMetadataService(
             elasticClient = elasticClient,
-            cloud = micro.authenticatedCloud
+            cloud = ClientMock.authenticatedClient
         )
     }
 
@@ -92,9 +92,8 @@ class ElasticMetadataTest {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = initService(elasticClient)
         runBlocking {
-            CloudMock.mockCallSuccess(
-                ProjectDescriptions,
-                { ProjectDescriptions.view },
+            ClientMock.mockCallSuccess(
+                ProjectDescriptions.view,
                 ViewProjectResponse(
                     "ProjectID",
                     "Title of project",
@@ -120,9 +119,8 @@ class ElasticMetadataTest {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = initService(elasticClient)
 
-        CloudMock.mockCallError(
-            ProjectDescriptions,
-            { ProjectDescriptions.view },
+        ClientMock.mockCallError(
+            ProjectDescriptions.view,
             CommonErrorMessage("Not found"),
             HttpStatusCode.NotFound
         )
@@ -137,9 +135,8 @@ class ElasticMetadataTest {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
         val elasticService = initService(elasticClient)
 
-        CloudMock.mockCallSuccess(
-            ProjectDescriptions,
-            { ProjectDescriptions.view },
+        ClientMock.mockCallSuccess(
+            ProjectDescriptions.view,
             ViewProjectResponse(
                 "ProjectID",
                 "Title of project",
@@ -151,6 +148,7 @@ class ElasticMetadataTest {
             elasticService.delete("notUser", "ProjectId")
         }
     }
+
     @Test
     fun `initialize test`() {
         val elasticClient = mockk<RestHighLevelClient>(relaxed = true)

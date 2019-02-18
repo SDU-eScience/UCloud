@@ -5,7 +5,7 @@ import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.util.withDatabase
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
-import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.service.test.ClientMock
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -24,7 +24,7 @@ class CompletedJobsServiceTest {
     fun `Compute Billable Items test`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
+            val service = CompletedJobsService(db, dao, ClientMock.authenticatedClient)
 
             val events = (0 until 10).map { dummyEvent }
             service.insertBatch(events)

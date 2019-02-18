@@ -1,34 +1,22 @@
 package dk.sdu.cloud.file.favorite
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.file.favorite.http.FileFavoriteController
 import dk.sdu.cloud.file.favorite.processors.StorageEventProcessor
 import dk.sdu.cloud.file.favorite.services.FileFavoriteHibernateDAO
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
-import org.apache.kafka.streams.KafkaStreams
 
-class Server(
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val db: HibernateSessionFactory,
-    private val micro: Micro
-) : CommonServer {
-    override lateinit var httpServer: ApplicationEngine
-    override val kStreams: KafkaStreams? = null
+class Server(override val micro: Micro) : CommonServer {
     private val eventConsumers = ArrayList<EventConsumer<*>>()
 
     override val log = logger()
@@ -39,22 +27,22 @@ class Server(
     }
 
     override fun start() {
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val db = micro.hibernateDatabase
+        val kafka = micro.kafka
+
         // Initialize services here
         val fileFavoriteDao = FileFavoriteHibernateDAO()
-        val fileFavoriteService = FileFavoriteService(db, fileFavoriteDao, micro.authenticatedCloud)
+        val fileFavoriteService = FileFavoriteService(db, fileFavoriteDao, client)
 
         // Processors
         addConsumers(StorageEventProcessor(fileFavoriteService, kafka).init())
 
         // Initialize server
-        httpServer = ktor {
-            installDefaultFeatures(micro)
-
-            routing {
-                configureControllers(
-                    FileFavoriteController(fileFavoriteService, cloud.parent)
-                )
-            }
+        with(micro.server) {
+            configureControllers(
+                FileFavoriteController(fileFavoriteService, client)
+            )
         }
 
         startServices()

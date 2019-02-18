@@ -9,30 +9,27 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class FileLookupTest{
-
+class FileLookupTest {
     @Test
     fun `test file lookup`() {
         val mirco = initializeMicro()
-        val cloud = mirco.authenticatedCloud
+        val cloud = ClientMock.authenticatedClient
         val fileLookUp = FileLookupService(cloud)
 
-        CloudMock.mockCallSuccess(
-            AuthDescriptions,
-            {AuthDescriptions.tokenExtension},
+        ClientMock.mockCallSuccess(
+            AuthDescriptions.tokenExtension,
             TokenExtensionResponse("token", null, null)
         )
 
-        CloudMock.mockCallSuccess(
-            FileDescriptions,
-            {FileDescriptions.stat},
+        ClientMock.mockCallSuccess(
+            FileDescriptions.stat,
             StorageFile(
                 FileType.FILE,
                 "path/to/file",

@@ -1,8 +1,12 @@
 package dk.sdu.cloud.file.gateway.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.authDescription
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.server.requiredAuthScope
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
@@ -21,29 +25,29 @@ fun ListRequest(
 
 typealias ListResponse = Page<StorageFileWithMetadata>
 
-object FavoriteGWDescriptions : RESTDescriptions("${FileFavoriteDescriptions.namespace}.gateway") {
+object FavoriteGWDescriptions : CallDescriptionContainer("${FileFavoriteDescriptions.namespace}.gateway") {
     val baseContext = "/api/files/favorite"
 
-    val list = callDescription<ListRequest, ListResponse, CommonErrorMessage> {
+    val list = call<ListRequest, ListResponse, CommonErrorMessage>("list") {
         val delegate = FileFavoriteDescriptions.list
 
-        name = "list"
-        method = delegate.method
-
         auth {
-            access = delegate.auth.access
-            roles = delegate.auth.roles
-            desiredScope = delegate.requiredAuthScope
+            access = delegate.authDescription.access
+            roles = delegate.authDescription.roles
+            requiredScope = delegate.requiredAuthScope
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = delegate.http.method
+            path {
+                using(baseContext)
+            }
 
-        params {
-            +boundTo(ListRequest::itemsPerPage)
-            +boundTo(ListRequest::page)
-            +boundTo(ListRequest::load)
+            params {
+                +boundTo(ListRequest::itemsPerPage)
+                +boundTo(ListRequest::page)
+                +boundTo(ListRequest::load)
+            }
         }
     }
 }

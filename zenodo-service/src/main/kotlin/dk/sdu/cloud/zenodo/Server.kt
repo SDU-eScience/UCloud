@@ -1,17 +1,19 @@
 package dk.sdu.cloud.zenodo
 
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.kafka.forStream
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.service.WithKafkaStreams
 import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.forStream
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
-import dk.sdu.cloud.service.tokenValidation
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.http.ZenodoController
 import dk.sdu.cloud.zenodo.processors.PublishProcessor
@@ -26,24 +28,22 @@ import io.ktor.response.respondRedirect
 import io.ktor.routing.get
 import io.ktor.routing.route
 import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 
 class Server(
-    private val db: HibernateSessionFactory,
-    private val cloud: AuthenticatedCloud,
-    override val kafka: KafkaServices,
     private val config: Configuration,
-    private val ktor: HttpServerProvider,
-    private val micro: Micro
-) : CommonServer {
+    override val micro: Micro
+) : CommonServer, WithKafkaStreams {
     override val log: Logger = logger()
 
-    override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
 
     override fun start() {
+        val db = micro.hibernateDatabase
+        val kafka = micro.kafka
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+
         log.info("Configuring core services")
         val zenodoOauth = ZenodoOAuth(
             db = db,
@@ -62,38 +62,41 @@ class Server(
         log.info("Core services configured")
 
         kStreams = buildStreams { kBuilder ->
-            PublishProcessor(db, zenodo, publicationService, cloud.parent, micro.tokenValidation).also {
+            PublishProcessor(db, zenodo, publicationService, client, micro.tokenValidation).also {
                 it.init(
                     kBuilder
                 )
             }
         }
 
-        httpServer = ktor {
-            installDefaultFeatures(micro)
+        with(micro.server) {
+            with(micro.feature(ServerFeature).ktorApplicationEngine!!.application) {
+                routing {
+                    route("zenodo") {
+                        get("oauth") {
+                            val state =
+                                call.request.queryParameters["state"]
+                                    ?: return@get call.respond(HttpStatusCode.BadRequest)
+                            val code =
+                                call.request.queryParameters["code"]
+                                    ?: return@get call.respond(HttpStatusCode.BadRequest)
 
-            routing {
-                route("zenodo") {
-                    get("oauth") {
-                        val state =
-                            call.request.queryParameters["state"] ?: return@get call.respond(HttpStatusCode.BadRequest)
-                        val code =
-                            call.request.queryParameters["code"] ?: return@get call.respond(HttpStatusCode.BadRequest)
-
-                        val redirectTo = zenodoOauth.requestTokenWithCode(code, state) ?: "/"
-                        call.respondRedirect(redirectTo)
+                            val redirectTo = zenodoOauth.requestTokenWithCode(code, state) ?: "/"
+                            call.respondRedirect(redirectTo)
+                        }
                     }
                 }
-
-                configureControllers(
-                    ZenodoController(
-                        db,
-                        publicationService,
-                        zenodo,
-                        kafka.producer.forStream(ZenodoCommandStreams.publishCommands)
-                    )
-                )
             }
+
+            configureControllers(
+                ZenodoController(
+                    db,
+                    publicationService,
+                    zenodo,
+                    kafka.producer.forStream(ZenodoCommandStreams.publishCommands),
+                    client
+                )
+            )
         }
 
         startServices()

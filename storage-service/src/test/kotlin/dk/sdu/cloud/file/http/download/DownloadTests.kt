@@ -1,182 +1,148 @@
 package dk.sdu.cloud.file.http.download
 
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.validateAndClaim
-import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.file.api.BulkDownloadRequest
 import dk.sdu.cloud.file.http.SimpleDownloadController
-import dk.sdu.cloud.file.http.files.TestContext
 import dk.sdu.cloud.file.http.files.configureServerWithFileController
-import dk.sdu.cloud.file.http.files.setUser
 import dk.sdu.cloud.file.services.BulkDownloadService
-import dk.sdu.cloud.storage.util.mockedUser
-import dk.sdu.cloud.storage.util.withAuthMock
-import io.ktor.application.Application
+import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.TokenValidationJWT
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
+import dk.sdu.cloud.service.test.TestUsers
+import dk.sdu.cloud.service.test.TokenValidationMock
+import dk.sdu.cloud.service.test.sendJson
+import dk.sdu.cloud.service.test.sendRequest
+import dk.sdu.cloud.service.test.withKtorTest
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.handleRequest
-import io.ktor.server.testing.setBody
-import io.ktor.server.testing.withTestApplication
 import io.mockk.coEvery
-import io.mockk.staticMockk
-import io.mockk.use
+import io.mockk.mockkStatic
 import org.junit.Test
 import kotlin.test.assertEquals
 
 class DownloadTests {
     @Test
     fun downloadFileTest() {
-        staticMockk("dk.sdu.cloud.auth.api.ValidationUtilsKt").use {
-            withAuthMock {
+        withKtorTest(
+            setup = { configureWithDownloadController() },
 
-                withTestApplication(
-                    moduleFunction = configureWithDownloadController(),
+            test = {
+                val token = TokenValidationMock.createTokenForPrincipal(TestUsers.user)
+                val response = sendRequest(
+                    HttpMethod.Get,
+                    "/api/files/download?path=/home/user1/folder/a&token=$token",
+                    TestUsers.user
+                ).response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/api/files/download?path=/home/user1/folder/a&token=token") {
-                                setUser("User", Role.USER)
-                            }.response
+                assertEquals(HttpStatusCode.OK, response.status())
+                assertEquals(
+                    "attachment; filename=\"a\"",
+                    response.headers.values(HttpHeaders.ContentDisposition).single()
+                )
 
-                        println(response.headers.allValues())
-                        assertEquals(HttpStatusCode.OK, response.status())
-                        assertEquals(
-                            """[attachment; filename="a"]""",
-                            response.headers.values("Content-Disposition").toString()
-                        )
-                        assertEquals("[6]", response.headers.values("Content-Length").toString())
-                    }
+                assertEquals(
+                    6,
+                    response.headers[HttpHeaders.ContentLength]?.toLongOrNull()
                 )
             }
-        }
+        )
     }
 
-    private fun configureWithDownloadController(): Application.() -> Unit {
-        return {
-            configureServerWithFileController {
-                val user = mockedUser()
-                coEvery { TestContext.tokenValidation.validateAndClaim(any(), any(), any()) } returns user
-
-                val bulk = BulkDownloadService(it.coreFs)
-                configureControllers(
-                    SimpleDownloadController(
-                        it.cloud,
-                        it.runner,
-                        it.coreFs,
-                        bulk,
-                        TestContext.tokenValidation
-                    )
+    private fun KtorApplicationTestSetupContext.configureWithDownloadController(): List<Controller> {
+        return configureServerWithFileController {
+            val tokenValidation = micro.tokenValidation as TokenValidationJWT
+            val jwt = tokenValidation.validate(TokenValidationMock.createTokenForPrincipal(TestUsers.user))
+            mockkStatic("dk.sdu.cloud.auth.api.ValidationUtilsKt")
+            coEvery { tokenValidation.validateAndClaim(any(), any(), any()) } returns jwt
+            val bulk = BulkDownloadService(it.coreFs)
+            listOf(
+                SimpleDownloadController(
+                    it.authenticatedClient,
+                    it.runner,
+                    it.coreFs,
+                    bulk,
+                    tokenValidation
                 )
-            }
+            )
         }
     }
 
     @Test
     fun downloadFolderTest() {
-        staticMockk("dk.sdu.cloud.auth.api.ValidationUtilsKt").use {
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = configureWithDownloadController(),
+        withKtorTest(
+            setup = { configureWithDownloadController() },
+            test = {
+                val token = TokenValidationMock.createTokenForPrincipal(TestUsers.user)
+                val response =
+                    sendRequest(
+                        HttpMethod.Get,
+                        "/api/files/download?path=/home/user1/folder&token=$token",
+                        TestUsers.user
+                    ).response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Get, "/api/files/download?path=/home/user1/folder&token=token") {
-                                setUser("User", Role.USER)
-                            }.response
 
-
-                        assertEquals(HttpStatusCode.OK, response.status())
-                        assertEquals(
-                            """[attachment; filename="folder.zip"]""",
-                            response.headers.values("Content-Disposition").toString()
-                        )
-                    }
+                assertEquals(HttpStatusCode.OK, response.status())
+                assertEquals(
+                    """[attachment; filename="folder.zip"]""",
+                    response.headers.values("Content-Disposition").toString()
                 )
             }
-        }
+        )
     }
 
     @Test
     fun downloadNonexistingPathTest() {
-        staticMockk("dk.sdu.cloud.auth.api.ValidationUtilsKt").use {
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = configureWithDownloadController(),
+        withKtorTest(
+            setup = { configureWithDownloadController() },
+            test = {
+                val token = TokenValidationMock.createTokenForPrincipal(TestUsers.user)
+                val response = sendRequest(
+                    HttpMethod.Get,
+                    "/api/files/download?path=/home/user1/folder/notThere/a&token=$token",
+                    TestUsers.user
+                ).response
 
-                    test = {
-                        val response =
-                            handleRequest(
-                                HttpMethod.Get,
-                                "/api/files/download?path=/home/user1/folder/notThere/a&token=token"
-                            ) {
-                                setUser("User", Role.USER)
-                            }.response
-
-
-                        assertEquals(HttpStatusCode.NotFound, response.status())
-                    }
-                )
+                assertEquals(HttpStatusCode.NotFound, response.status())
             }
-        }
+        )
     }
 
     @Test
     fun downloadBulkFilesTest() {
-        staticMockk("dk.sdu.cloud.auth.api.ValidationUtilsKt").use {
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = configureWithDownloadController(),
+        withKtorTest(
+            setup = { configureWithDownloadController() },
+            test = {
+                val response = sendJson(
+                    HttpMethod.Post,
+                    "/api/files/bulk",
+                    BulkDownloadRequest("/home/user1/folder/", listOf("a", "b", "c")),
+                    TestUsers.user
+                ).response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/api/files/bulk") {
-                                setUser("User", Role.USER)
-                                setBody(
-                                    """
-                                    {
-                                    "prefix" : "/home/user1/folder/",
-                                    "files" : ["a", "b", "c"]
-                                    }
-                                    """.trimIndent()
-                                )
-                            }.response
-
-                        println(response.headers.allValues())
-                        assertEquals(HttpStatusCode.OK, response.status())
-
-                    }
-                )
+                println(response.headers.allValues())
+                assertEquals(HttpStatusCode.OK, response.status())
             }
-        }
+        )
     }
 
     @Test
     fun downloadBulkFilesWithSingleMissingFileTest() {
-        staticMockk("dk.sdu.cloud.auth.api.ValidationUtilsKt").use {
-            withAuthMock {
-                withTestApplication(
-                    moduleFunction = configureWithDownloadController(),
+        withKtorTest(
+            setup = { configureWithDownloadController() },
+            test = {
+                val response = sendJson(
+                    HttpMethod.Post,
+                    "/api/files/bulk",
+                    BulkDownloadRequest("/home/user1/folder/", listOf("a", "b", "c", "d")),
+                    TestUsers.user
+                ).response
 
-                    test = {
-                        val response =
-                            handleRequest(HttpMethod.Post, "/api/files/bulk") {
-                                setUser("User", Role.USER)
-                                setBody(
-                                    """
-                                    {
-                                    "prefix" : "/home/user1/folder/",
-                                    "files" : ["a", "b", "c", "d"]
-                                    }
-                                    """.trimIndent()
-                                )
-                            }.response
-
-                        //Should be OK since non existing files are filtered away.
-                        assertEquals(HttpStatusCode.OK, response.status())
-
-                    }
-                )
+                //Should be OK since non existing files are filtered away.
+                assertEquals(HttpStatusCode.OK, response.status())
             }
-        }
+        )
     }
 }
 

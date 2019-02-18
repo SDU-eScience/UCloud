@@ -1,12 +1,14 @@
 package dk.sdu.cloud.accounting.compute.api
 
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import dk.sdu.cloud.accounting.api.AbstractAccountingResourceDescriptions
 import dk.sdu.cloud.accounting.api.AccountingEvent
 import dk.sdu.cloud.app.api.NameAndVersion
+import dk.sdu.cloud.app.api.NameAndVersionImpl
 import dk.sdu.cloud.app.api.SimpleDuration
 
 data class AccountingJobCompletedEvent(
-    val application: NameAndVersion,
+    @JsonDeserialize(`as` = NameAndVersionImpl::class) val application: NameAndVersion,
     val nodes: Int,
     val totalDuration: SimpleDuration,
     val startedBy: String,

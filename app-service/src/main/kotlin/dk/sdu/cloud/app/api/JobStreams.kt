@@ -1,10 +1,7 @@
 package dk.sdu.cloud.app.api
 
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.service.KafkaDescriptions
-
-@Deprecated("Replaced with JobStreams", ReplaceWith("JobStreams"))
-typealias HPCStreams = JobStreams
+import dk.sdu.cloud.kafka.KafkaDescriptions
 
 object JobStreams : KafkaDescriptions() {
     val jobStateEvents = stream<String, JobStateChange>("app.job-state") { it.systemId }

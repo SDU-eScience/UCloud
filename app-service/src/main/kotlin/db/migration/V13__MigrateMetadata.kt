@@ -1,6 +1,6 @@
 package db.migration
 
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
 import org.flywaydb.core.api.migration.BaseJavaMigration
 import org.flywaydb.core.api.migration.Context
 

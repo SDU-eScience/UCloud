@@ -1,79 +1,85 @@
 package dk.sdu.cloud.share.http
 
-import dk.sdu.cloud.client.CloudContext
-import dk.sdu.cloud.client.bearerAuth
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.bearer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.bearer
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.share.api.FindByShareId
 import dk.sdu.cloud.share.api.ShareDescriptions
 import dk.sdu.cloud.share.services.ShareService
-import io.ktor.routing.Route
+import io.ktor.application.call
 
 class ShareController(
     private val shareService: ShareService<*>,
-    private val cloudContext: CloudContext
+    private val serviceClient: AuthenticatedClient
 ) : Controller {
-    override val baseContext = ShareDescriptions.baseContext
+    private val clientAndBackend = serviceClient.withoutAuthentication()
 
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(ShareDescriptions.create) { req ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(ShareDescriptions.create) {
+            val bearer = (ctx as HttpCall).call.request.bearer!!
             val id = shareService.create(
-                call.securityPrincipal.username,
-                req,
-                cloudContext.bearerAuth(call.request.bearer!!)
+                ctx.securityPrincipal.username,
+                request,
+                bearer,
+                clientAndBackend.bearerAuth(bearer)
             )
 
             ok(FindByShareId(id))
         }
 
-        implement(ShareDescriptions.accept) { req ->
+        implement(ShareDescriptions.accept) {
+            val bearer = (ctx as HttpCall).call.request.bearer!!
             shareService.acceptShare(
-                call.securityPrincipal.username,
-                req.id,
-                cloudContext.bearerAuth(call.request.bearer!!),
-                req.createLink ?: true
+                ctx.securityPrincipal.username,
+                request.id,
+                bearer,
+                clientAndBackend.bearerAuth(bearer),
+                request.createLink ?: true
             )
 
             ok(Unit)
         }
 
-        implement(ShareDescriptions.revoke) { req ->
+        implement(ShareDescriptions.revoke) {
             shareService.deleteShare(
-                call.securityPrincipal.username,
-                req.id
+                ctx.securityPrincipal.username,
+                request.id
             )
 
             ok(Unit)
         }
 
-        implement(ShareDescriptions.update) { req ->
+        implement(ShareDescriptions.update) {
             shareService.updateRights(
-                call.securityPrincipal.username,
-                req.id,
-                req.rights
+                ctx.securityPrincipal.username,
+                request.id,
+                request.rights
             )
 
             ok(Unit)
         }
 
-        implement(ShareDescriptions.list) { req ->
+        implement(ShareDescriptions.list) {
             ok(
                 shareService.list(
-                    call.securityPrincipal.username,
-                    req.state,
-                    req.normalize()
+                    ctx.securityPrincipal.username,
+                    request.state,
+                    request.normalize()
                 )
             )
         }
 
-        implement(ShareDescriptions.findByPath) { req ->
+        implement(ShareDescriptions.findByPath) {
             ok(
                 shareService.findSharesForPath(
-                    call.securityPrincipal.username,
-                    req.path
+                    ctx.securityPrincipal.username,
+                    request.path
                 )
             )
         }

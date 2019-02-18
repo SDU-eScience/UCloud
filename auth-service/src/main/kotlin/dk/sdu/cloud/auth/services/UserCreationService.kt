@@ -3,7 +3,7 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.auth.api.UserEventProducer
-import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
@@ -27,14 +27,14 @@ class UserCreationService<DBSession>(
 
     suspend fun createUsers(users: List<Principal>) {
         db.withTransaction {
-        	users.forEach { user ->
-	            val exists = userDao.findByIdOrNull(it, user.id) != null
-	            if (exists) {
-	                throw UserException.AlreadyExists()
-	            } else {
-	                log.info("Creating user: $user")
-	                userDao.insert(it, user)
-	            }
+            users.forEach { user ->
+                val exists = userDao.findByIdOrNull(it, user.id) != null
+                if (exists) {
+                    throw UserException.AlreadyExists()
+                } else {
+                    log.info("Creating user: $user")
+                    userDao.insert(it, user)
+                }
             }
         }
 

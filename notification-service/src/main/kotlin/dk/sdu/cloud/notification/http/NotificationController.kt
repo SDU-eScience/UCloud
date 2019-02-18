@@ -1,6 +1,8 @@
 package dk.sdu.cloud.notification.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.notification.api.DeleteResponse
 import dk.sdu.cloud.notification.api.FindByNotificationId
 import dk.sdu.cloud.notification.api.MarkResponse
@@ -10,8 +12,6 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
 import io.ktor.routing.Route
 import org.slf4j.Logger
@@ -20,24 +20,22 @@ class NotificationController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val source: NotificationDAO<DBSession>
 ) : Controller {
-    override val baseContext = NotificationDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(NotificationDescriptions.list) { req ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(NotificationDescriptions.list) {
             ok(
                 db.withTransaction {
-                    source.findNotifications(it, call.securityPrincipal.username, req.type, req.since, req.pagination)
+                    source.findNotifications(it, ctx.securityPrincipal.username, request.type, request.since, request.pagination)
                 }
             )
         }
 
-        implement(NotificationDescriptions.markAsRead) { req ->
+        implement(NotificationDescriptions.markAsRead) {
             // TODO Optimize this
             val failedMarkings = mutableListOf<Long>()
             val isTrue: (Boolean) -> Boolean = { it == true }
             val success = db.withTransaction { session ->
-                val user = call.securityPrincipal.username
-                req.bulkId.id.map { id ->
+                val user = ctx.securityPrincipal.username
+                request.bulkId.ids.map { id ->
                     val accepted = source.markAsRead(session, user, id)
                     if (!accepted) failedMarkings.add(id)
                     accepted
@@ -49,23 +47,23 @@ class NotificationController<DBSession>(
             else error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
         }
 
-        implement(NotificationDescriptions.markAllAsRead) { req ->
+        implement(NotificationDescriptions.markAllAsRead) {
             db.withTransaction {
-                source.markAllAsRead(it, call.securityPrincipal.username)
+                source.markAllAsRead(it, ctx.securityPrincipal.username)
             }
 
             ok(Unit)
         }
 
-        implement(NotificationDescriptions.create) { req ->
-            ok(db.withTransaction { FindByNotificationId(source.create(it, req.user, req.notification)) })
+        implement(NotificationDescriptions.create) {
+            ok(db.withTransaction { FindByNotificationId(source.create(it, request.user, request.notification)) })
         }
 
-        implement(NotificationDescriptions.delete) { req ->
+        implement(NotificationDescriptions.delete) {
             val failedDeletions = mutableListOf<Long>()
-            val isTrue: (Boolean) -> Boolean = { it == true }
+            val isTrue: (Boolean) -> Boolean = { it }
             val success = db.withTransaction { session ->
-                req.bulkId.id.map { id ->
+                request.bulkId.ids.map { id ->
                     val deleted = source.delete(session, id)
                     if (!deleted) failedDeletions.add(id)
                     deleted

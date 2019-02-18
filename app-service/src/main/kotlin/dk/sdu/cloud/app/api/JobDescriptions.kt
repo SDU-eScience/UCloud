@@ -3,19 +3,19 @@ package dk.sdu.cloud.app.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import io.ktor.http.HttpMethod
 
-@Deprecated("Replaced with JobDescriptions", ReplaceWith("JobDescriptions"))
-typealias HPCJobDescriptions = JobDescriptions
-
 /**
  * Call descriptions for the endpoint `/api/hpc/jobs`
  */
-object JobDescriptions : RESTDescriptions("hpc.jobs") {
+object JobDescriptions : CallDescriptionContainer("hpc.jobs") {
     const val baseContext = "/api/hpc/jobs"
 
     /**
@@ -30,16 +30,16 @@ object JobDescriptions : RESTDescriptions("hpc.jobs") {
      *
      * __Example:__ `http :42200/api/hpc/jobs/<jobId>`
      */
-    val findById = callDescription<FindByStringId, JobWithStatus, CommonErrorMessage> {
-        name = "jobsFindById"
-
+    val findById = call<FindByStringId, JobWithStatus, CommonErrorMessage>("findById") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +boundTo(FindByStringId::id)
+        http {
+            path {
+                using(baseContext)
+                +boundTo(FindByStringId::id)
+            }
         }
     }
 
@@ -52,20 +52,20 @@ object JobDescriptions : RESTDescriptions("hpc.jobs") {
      *
      * __Example:__ `http :42200/api/hpc/jobs?page=0&itemsPerPage=10`
      */
-    val listRecent = callDescription<PaginationRequest, Page<JobWithStatus>, CommonErrorMessage> {
-        name = "jobsListRecent"
-
+    val listRecent = call<PaginationRequest, Page<JobWithStatus>, CommonErrorMessage>("listRecent") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            path {
+                using(baseContext)
+            }
 
-        params {
-            +boundTo(PaginationRequest::itemsPerPage)
-            +boundTo(PaginationRequest::page)
+            params {
+                +boundTo(PaginationRequest::itemsPerPage)
+                +boundTo(PaginationRequest::page)
+            }
         }
     }
 
@@ -78,20 +78,21 @@ object JobDescriptions : RESTDescriptions("hpc.jobs") {
      *
      * __Example:__ `http :42200/api/hpc/jobs?page=0&itemsPerPage=10`
      */
-    val start = callDescription<AppRequest.Start, JobStartedResponse, CommonErrorMessage> {
-        name = "jobsStart"
-        method = HttpMethod.Post
-
+    val start = call<AppRequest.Start, JobStartedResponse, CommonErrorMessage>("start") {
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Post
 
-        body {
-            bindEntireRequestFromBody()
+            path {
+                using(baseContext)
+            }
+
+            body {
+                bindEntireRequestFromBody()
+            }
         }
     }
 
@@ -102,25 +103,26 @@ object JobDescriptions : RESTDescriptions("hpc.jobs") {
      *
      * __Response:__ [FollowStdStreamsResponse]
      */
-    val follow = callDescription<FollowStdStreamsRequest, FollowStdStreamsResponse, CommonErrorMessage> {
-        name = "followStdStreams"
-        method = HttpMethod.Get
-
+    val follow = call<FollowStdStreamsRequest, FollowStdStreamsResponse, CommonErrorMessage>("follow") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"follow"
-            +boundTo(FollowStdStreamsRequest::jobId)
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(FollowStdStreamsRequest::stderrLineStart)
-            +boundTo(FollowStdStreamsRequest::stderrMaxLines)
-            +boundTo(FollowStdStreamsRequest::stdoutLineStart)
-            +boundTo(FollowStdStreamsRequest::stdoutMaxLines)
+            path {
+                using(baseContext)
+                +"follow"
+                +boundTo(FollowStdStreamsRequest::jobId)
+            }
+
+            params {
+                +boundTo(FollowStdStreamsRequest::stderrLineStart)
+                +boundTo(FollowStdStreamsRequest::stderrMaxLines)
+                +boundTo(FollowStdStreamsRequest::stdoutLineStart)
+                +boundTo(FollowStdStreamsRequest::stdoutMaxLines)
+            }
         }
     }
 }

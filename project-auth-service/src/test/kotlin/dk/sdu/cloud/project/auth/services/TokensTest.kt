@@ -3,19 +3,19 @@ package dk.sdu.cloud.project.auth.services
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.project.api.ProjectDescriptions
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.assertThatInstance
@@ -46,8 +46,8 @@ class TokensTest {
 
         db = micro.hibernateDatabase
         tokenDao = AuthTokenHibernateDao()
-        tokenInvalidator = TokenInvalidator(micro.authenticatedCloud, db, tokenDao)
-        tokenRefresher = TokenRefresher(micro.authenticatedCloud, db, tokenDao, tokenInvalidator)
+        tokenInvalidator = TokenInvalidator(ClientMock.authenticatedClient, db, tokenDao)
+        tokenRefresher = TokenRefresher(ClientMock.authenticatedClient, db, tokenDao, tokenInvalidator)
 
 
         db.withTransaction { session ->
@@ -74,7 +74,7 @@ class TokensTest {
 
     @Test
     fun `test simple invalidation of project tokens`() = runBlocking {
-        CloudMock.mockCallSuccess(AuthDescriptions, { AuthDescriptions.bulkInvalidate }, Unit)
+        ClientMock.mockCallSuccess(AuthDescriptions.bulkInvalidate, Unit)
 
         assertTokensExistForProject(projectA)
         assertTokensExistForProject(projectB)
@@ -90,7 +90,7 @@ class TokensTest {
 
     @Test(expected = AuthTokenException.NotFound::class)
     fun `test double invalidation`() = runBlocking {
-        CloudMock.mockCallSuccess(AuthDescriptions, { AuthDescriptions.bulkInvalidate }, Unit)
+        ClientMock.mockCallSuccess(AuthDescriptions.bulkInvalidate, Unit)
         tokenInvalidator.invalidateTokensForProject(projectA)
         tokenInvalidator.invalidateTokensForProject(projectA)
     }
@@ -100,30 +100,27 @@ class TokensTest {
         val authRefreshStatus = HttpStatusCode.Forbidden
         var didCallInvalidate = false
 
-        CloudMock.mockCallError(
-            AuthDescriptions,
-            { AuthDescriptions.refresh },
+        ClientMock.mockCallError(
+            AuthDescriptions.refresh,
             statusCode = authRefreshStatus
         )
 
-        CloudMock.mockCall(
-            AuthDescriptions,
-            { AuthDescriptions.bulkInvalidate },
+        ClientMock.mockCall(
+            AuthDescriptions.bulkInvalidate,
             {
                 didCallInvalidate = true
                 TestCallResult.Ok(Unit)
             }
         )
 
-        CloudMock.mockCall(
-            ProjectDescriptions,
-            { ProjectDescriptions.viewMemberInProject },
+        ClientMock.mockCall(
+            ProjectDescriptions.viewMemberInProject,
             { TestCallResult.Ok(ViewMemberInProjectResponse(ProjectMember(it.username, ProjectRole.USER))) }
         )
 
         assertThatProperty(
             instance = runCatching {
-                tokenRefresher.refreshTokenForUser("myuser", micro.authenticatedCloud, projectA)
+                tokenRefresher.refreshTokenForUser("myuser", ClientMock.authenticatedClient, projectA)
             }.exceptionOrNull(),
             property = { it },
             matcher = { it is RPCException && it.httpStatusCode == authRefreshStatus }
@@ -135,41 +132,37 @@ class TokensTest {
     @Test
     fun `test token refresh`() = runBlocking {
         val accessToken = "token"
-        CloudMock.mockCallSuccess(
-            AuthDescriptions,
-            { AuthDescriptions.refresh },
+        ClientMock.mockCallSuccess(
+            AuthDescriptions.refresh,
             AccessToken(accessToken)
         )
 
-        CloudMock.mockCall(
-            ProjectDescriptions,
-            { ProjectDescriptions.viewMemberInProject },
+        ClientMock.mockCall(
+            ProjectDescriptions.viewMemberInProject,
             { TestCallResult.Ok(ViewMemberInProjectResponse(ProjectMember(it.username, ProjectRole.USER))) }
         )
 
 
-        CloudMock.mockCallSuccess(
-            AuthDescriptions,
-            { AuthDescriptions.tokenExtension },
+        ClientMock.mockCallSuccess(
+            AuthDescriptions.tokenExtension,
             TokenExtensionResponse(accessToken, null, null)
         )
 
-        val result = tokenRefresher.refreshTokenForUser("myuser", micro.authenticatedCloud, projectA)
+        val result = tokenRefresher.refreshTokenForUser("myuser", ClientMock.authenticatedClient, projectA)
         assertEquals(accessToken, result.accessToken)
     }
 
     @Test
     fun `test token refresh (bad project)`() = runBlocking {
-        CloudMock.mockCall(
-            ProjectDescriptions,
-            { ProjectDescriptions.viewMemberInProject },
+        ClientMock.mockCall(
+            ProjectDescriptions.viewMemberInProject,
             { TestCallResult.Error(error = null, statusCode = HttpStatusCode.NotFound) }
         )
 
         val exception = runCatching {
             tokenRefresher.refreshTokenForUser(
                 "myuser",
-                micro.authenticatedCloud,
+                ClientMock.authenticatedClient,
                 projectA
             )
         }.exceptionOrNull()
@@ -178,22 +171,20 @@ class TokensTest {
 
     @Test
     fun `test token refresh (bad auth service)`() = runBlocking {
-        CloudMock.mockCall(
-            ProjectDescriptions,
-            { ProjectDescriptions.viewMemberInProject },
+        ClientMock.mockCall(
+            ProjectDescriptions.viewMemberInProject,
             { TestCallResult.Ok(ViewMemberInProjectResponse(ProjectMember(it.username, ProjectRole.USER))) }
         )
 
-        CloudMock.mockCall(
-            AuthDescriptions,
-            { AuthDescriptions.refresh },
+        ClientMock.mockCall(
+            AuthDescriptions.refresh,
             { TestCallResult.Error(error = null, statusCode = HttpStatusCode.InternalServerError) }
         )
 
         val exception = runCatching {
             tokenRefresher.refreshTokenForUser(
                 "myuser",
-                micro.authenticatedCloud,
+                ClientMock.authenticatedClient,
                 projectA
             )
         }.exceptionOrNull()

@@ -1,7 +1,10 @@
 package dk.sdu.cloud.file.trash.services
 
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
@@ -12,16 +15,15 @@ import dk.sdu.cloud.file.api.MoveRequest
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.orThrow
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.isSuccess
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-class TrashService(private val serviceCloud: AuthenticatedCloud) {
+class TrashService(private val serviceCloud: AuthenticatedClient) {
     private suspend fun trashDirectory(username: String): String {
         val homeFolder = FileDescriptions.findHomeFolder.call(
             FindHomeFolderRequest(username),
@@ -30,7 +32,7 @@ class TrashService(private val serviceCloud: AuthenticatedCloud) {
         return joinPath(homeFolder, "Trash")
     }
 
-    suspend fun emptyTrash(username: String, userCloud: AuthenticatedCloud) {
+    suspend fun emptyTrash(username: String, userCloud: AuthenticatedClient) {
         validateTrashDirectory(username, userCloud)
         GlobalScope.launch {
             runCatching {
@@ -45,7 +47,7 @@ class TrashService(private val serviceCloud: AuthenticatedCloud) {
         }
     }
 
-    suspend fun moveFilesToTrash(files: List<String>, username: String, userCloud: AuthenticatedCloud): List<String> {
+    suspend fun moveFilesToTrash(files: List<String>, username: String, userCloud: AuthenticatedClient): List<String> {
         return coroutineScope {
             validateTrashDirectory(username, userCloud)
 
@@ -54,7 +56,7 @@ class TrashService(private val serviceCloud: AuthenticatedCloud) {
         }
     }
 
-    private suspend fun moveFileToTrash(file: String, username: String, userCloud: AuthenticatedCloud): Boolean {
+    private suspend fun moveFileToTrash(file: String, username: String, userCloud: AuthenticatedClient): Boolean {
         val result = FileDescriptions.move.call(
             MoveRequest(
                 path = file,
@@ -64,10 +66,10 @@ class TrashService(private val serviceCloud: AuthenticatedCloud) {
             userCloud
         )
 
-        return result.status in 200..299
+        return result.statusCode.isSuccess()
     }
 
-    private suspend fun validateTrashDirectory(username: String, userCloud: AuthenticatedCloud) {
+    private suspend fun validateTrashDirectory(username: String, userCloud: AuthenticatedClient) {
         val trashDirectoryPath = trashDirectory(username)
 
         suspend fun createTrashDirectory() {
@@ -78,14 +80,10 @@ class TrashService(private val serviceCloud: AuthenticatedCloud) {
         }
 
         val statCall = FileDescriptions.stat.call(FindByPath(trashDirectoryPath), userCloud)
-        if (statCall.status == HttpStatusCode.NotFound.value) {
+        if (statCall.statusCode == HttpStatusCode.NotFound) {
             createTrashDirectory()
         } else {
-            val stat = (statCall as? RESTResponse.Ok)?.result ?: throw RPCException.fromStatusCode(
-                HttpStatusCode.fromValue(
-                    statCall.status
-                )
-            )
+            val stat = statCall.orThrow()
 
             if (stat.link || stat.fileType != FileType.DIRECTORY) {
                 FileDescriptions.move.call(

@@ -1,12 +1,12 @@
 package dk.sdu.cloud.file.services.unixfs
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.util.BoundaryContainedStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.GuardedOutputStream
-import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import java.io.InputStream

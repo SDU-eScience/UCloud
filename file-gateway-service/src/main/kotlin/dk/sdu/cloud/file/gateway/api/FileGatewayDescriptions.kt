@@ -2,7 +2,11 @@ package dk.sdu.cloud.file.gateway.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.server.requiredAuthScope
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
@@ -68,74 +72,77 @@ typealias StatResponse = StorageFileWithMetadata
  * associated data. A client can request additional data by setting the load query parameter to a set of resources to
  * load (see [FileResource.text]). This list should be comma separated.
  */
-object FileGatewayDescriptions : RESTDescriptions("${FileDescriptions.namespace}.gateway") {
+object FileGatewayDescriptions : CallDescriptionContainer("${FileDescriptions.namespace}.gateway") {
     val baseContext = "/api/files"
 
-    val listAtDirectory = callDescription<ListAtDirectoryRequest, ListAtDirectoryResponse, CommonErrorMessage> {
-        name = "listAtDirectory"
-        method = HttpMethod.Get
-
+    val listAtDirectory = call<ListAtDirectoryRequest, ListAtDirectoryResponse, CommonErrorMessage>("listAtDirectory") {
         auth {
             access = AccessRight.READ
-            desiredScope = FileDescriptions.listAtPath.requiredAuthScope
+            requiredScope = FileDescriptions.listAtPath.requiredAuthScope
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(ListAtDirectoryRequest::path)
-            +boundTo(ListAtDirectoryRequest::itemsPerPage)
-            +boundTo(ListAtDirectoryRequest::page)
-            +boundTo(ListAtDirectoryRequest::order)
-            +boundTo(ListAtDirectoryRequest::sortBy)
+            path {
+                using(baseContext)
+            }
 
-            +boundTo(ListAtDirectoryRequest::load)
+            params {
+                +boundTo(ListAtDirectoryRequest::path)
+                +boundTo(ListAtDirectoryRequest::itemsPerPage)
+                +boundTo(ListAtDirectoryRequest::page)
+                +boundTo(ListAtDirectoryRequest::order)
+                +boundTo(ListAtDirectoryRequest::sortBy)
+
+                +boundTo(ListAtDirectoryRequest::load)
+            }
         }
     }
 
     val lookupFileInDirectory =
-        callDescription<LookupFileInDirectoryRequest, LookupFileInDirectoryResponse, CommonErrorMessage> {
-            name = "lookupFileInDirectory"
-            method = HttpMethod.Get
-
+        call<LookupFileInDirectoryRequest, LookupFileInDirectoryResponse, CommonErrorMessage>("lookupFileInDirectory") {
             auth {
                 access = AccessRight.READ
-                desiredScope = FileDescriptions.lookupFileInDirectory.requiredAuthScope
+                requiredScope = FileDescriptions.lookupFileInDirectory.requiredAuthScope
             }
+
+            http {
+                method = HttpMethod.Get
+
+                path {
+                    using(baseContext)
+                    +"lookup"
+                }
+
+                params {
+                    +boundTo(LookupFileInDirectoryRequest::path)
+                    +boundTo(LookupFileInDirectoryRequest::itemsPerPage)
+                    +boundTo(LookupFileInDirectoryRequest::sortBy)
+                    +boundTo(LookupFileInDirectoryRequest::order)
+                    +boundTo(LookupFileInDirectoryRequest::load)
+                }
+            }
+        }
+
+    val stat = call<StatRequest, StatResponse, CommonErrorMessage>("stat") {
+        auth {
+            access = AccessRight.READ
+            requiredScope = FileDescriptions.stat.requiredAuthScope
+        }
+
+        http {
+            method = HttpMethod.Get
 
             path {
                 using(baseContext)
-                +"lookup"
+                +"stat"
             }
 
             params {
-                +boundTo(LookupFileInDirectoryRequest::path)
-                +boundTo(LookupFileInDirectoryRequest::itemsPerPage)
-                +boundTo(LookupFileInDirectoryRequest::sortBy)
-                +boundTo(LookupFileInDirectoryRequest::order)
-                +boundTo(LookupFileInDirectoryRequest::load)
+                +boundTo(StatRequest::path)
+                +boundTo(StatRequest::load)
             }
-        }
-
-    val stat = callDescription<StatRequest, StatResponse, CommonErrorMessage> {
-        name = "stat"
-        method = HttpMethod.Get
-
-        auth {
-            access = AccessRight.READ
-            desiredScope = FileDescriptions.stat.requiredAuthScope
-        }
-
-        path {
-            using(baseContext)
-            +"stat"
-        }
-
-        params {
-            +boundTo(StatRequest::path)
-            +boundTo(StatRequest::load)
         }
     }
 }

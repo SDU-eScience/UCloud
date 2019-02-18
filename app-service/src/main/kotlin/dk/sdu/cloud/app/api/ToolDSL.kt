@@ -2,8 +2,8 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
 import org.slf4j.Logger
 

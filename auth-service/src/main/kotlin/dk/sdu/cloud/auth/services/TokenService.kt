@@ -14,12 +14,12 @@ import dk.sdu.cloud.auth.api.RefreshTokenAndCsrf
 import dk.sdu.cloud.auth.http.CoreAuthController.Companion.MAX_EXTENSION_TIME_IN_MS
 import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
+import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.service.toSecurityToken
 import kotlinx.coroutines.delay
 import java.security.SecureRandom
 import java.util.*
@@ -224,7 +224,7 @@ class TokenService<DBSession>(
     ): AccessTokenAndCsrf {
         if (csrfToken != null && csrfToken != token.csrf) {
             log.info("Invalid CSRF token")
-            log.debug("Received token: $csrfToken, but I expected ${token.csrf}")
+            log.debug("Received token: '$csrfToken', but I expected '${token.csrf}'")
             throw RefreshTokenException.InvalidToken()
         }
 

@@ -155,6 +155,10 @@ class FileAttributeParser(
                     FileAttribute.LINK_INODE -> {
                         linkInode = currentLine
                     }
+
+                    FileAttribute.XOWNER -> {
+                        // Not included in server output
+                    }
                 }
             }
 

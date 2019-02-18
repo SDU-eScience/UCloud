@@ -2,10 +2,9 @@ package dk.sdu.cloud.indexing.http
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.indexing.services.ReverseLookupService
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
 import dk.sdu.cloud.service.test.withKtorTest

@@ -20,16 +20,15 @@ import dk.sdu.cloud.auth.services.UserDAO
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.auth.services.WSTOTPService
 import dk.sdu.cloud.auth.services.ZXingQRService
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.defaultMapper
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.KafkaServices
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.KafkaServices
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -48,7 +47,6 @@ class TwoFactorAuthControllerTest {
     private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
 
     private data class TestContext(
-        val cloud: AuthenticatedCloud,
         val kafka: KafkaServices,
         val loginResponder: LoginResponder<HibernateSession>,
         val twoFactorChallengeService: TwoFactorChallengeService<HibernateSession>,
@@ -81,7 +79,6 @@ class TwoFactorAuthControllerTest {
     }
 
     private fun runTest(
-        cloud: AuthenticatedCloud = mockk(relaxed = true),
         kafka: KafkaServices = KafkaServices(Properties(), Properties(), mockk(relaxed = true), mockk(relaxed = true)),
         loginResponder: LoginResponder<HibernateSession> = mockk(relaxed = true),
 
@@ -112,7 +109,6 @@ class TwoFactorAuthControllerTest {
             },
             test = {
                 val ctx = TestContext(
-                    cloud,
                     kafka,
                     loginResponder,
                     twoFactorService,

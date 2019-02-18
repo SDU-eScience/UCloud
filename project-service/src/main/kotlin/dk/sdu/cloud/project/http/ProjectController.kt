@@ -1,55 +1,52 @@
 package dk.sdu.cloud.project.http
 
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.api.CreateProjectResponse
 import dk.sdu.cloud.project.api.ProjectDescriptions
 import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
 import dk.sdu.cloud.project.services.ProjectService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
-import io.ktor.routing.Route
 
 class ProjectController(
     private val service: ProjectService<*>
 ) : Controller {
-    override val baseContext = ProjectDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(ProjectDescriptions.create) { req ->
-            ok(CreateProjectResponse(service.create(req.title, req.principalInvestigator).id))
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(ProjectDescriptions.create) {
+            ok(CreateProjectResponse(service.create(request.title, request.principalInvestigator).id))
         }
 
-        implement(ProjectDescriptions.delete) { req ->
-            service.delete(req.id)
+        implement(ProjectDescriptions.delete) {
+            service.delete(request.id)
             ok(Unit)
         }
 
-        implement(ProjectDescriptions.addMember) { req ->
-            service.addMember(call.securityPrincipal.username, req.projectId, req.member)
+        implement(ProjectDescriptions.addMember) {
+            service.addMember(ctx.securityPrincipal.username, request.projectId, request.member)
             ok(Unit)
         }
 
-        implement(ProjectDescriptions.deleteMember) { req ->
-            service.deleteMember(call.securityPrincipal.username, req.projectId, req.member)
+        implement(ProjectDescriptions.deleteMember) {
+            service.deleteMember(ctx.securityPrincipal.username, request.projectId, request.member)
             ok(Unit)
         }
 
-        implement(ProjectDescriptions.changeUserRole) { req ->
-            service.changeMemberRole(call.securityPrincipal.username, req.projectId, req.member, req.newRole)
+        implement(ProjectDescriptions.changeUserRole) {
+            service.changeMemberRole(ctx.securityPrincipal.username, request.projectId, request.member, request.newRole)
             ok(Unit)
         }
 
-        implement(ProjectDescriptions.view) { req ->
-            ok(service.view(call.securityPrincipal.username, req.id))
+        implement(ProjectDescriptions.view) {
+            ok(service.view(ctx.securityPrincipal.username, request.id))
         }
 
-        implement(ProjectDescriptions.viewMemberInProject) { req ->
-            ok(ViewMemberInProjectResponse(service.viewMemberInProject(req.username, req.projectId)))
+        implement(ProjectDescriptions.viewMemberInProject) {
+            ok(ViewMemberInProjectResponse(service.viewMemberInProject(request.username, request.projectId)))
         }
 
-        implement(ProjectDescriptions.listProjects) { req ->
-            ok(service.listProjects(call.securityPrincipal.username, req.normalize()))
+        implement(ProjectDescriptions.listProjects) {
+            ok(service.listProjects(ctx.securityPrincipal.username, request.normalize()))
         }
     }
 

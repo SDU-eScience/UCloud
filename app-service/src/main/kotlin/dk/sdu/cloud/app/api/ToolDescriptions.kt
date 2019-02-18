@@ -3,7 +3,10 @@ package dk.sdu.cloud.app.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.WithPaginationRequest
@@ -15,78 +18,76 @@ data class FindByNameAndPagination(
     override val page: Int?
 ) : WithPaginationRequest
 
-@Deprecated("Replaced with ToolDescriptions", ReplaceWith("ToolDescriptions"))
-typealias HPCToolDescriptions = ToolDescriptions
-
-object ToolDescriptions : RESTDescriptions("hpc.tools") {
+object ToolDescriptions : CallDescriptionContainer("hpc.tools") {
     val baseContext = "/api/hpc/tools"
 
-    val findByNameAndVersion = callDescription<FindByNameAndVersion, Tool, CommonErrorMessage> {
-        name = "toolsByNameAndVersion"
-
+    val findByNameAndVersion = call<FindByNameAndVersion, Tool, CommonErrorMessage>("findByNameAndVersion") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +boundTo(FindByNameAndVersion::name)
-            +boundTo(FindByNameAndVersion::version)
+        http {
+            path {
+                using(baseContext)
+                +boundTo(FindByNameAndVersion::name)
+                +boundTo(FindByNameAndVersion::version)
+            }
         }
     }
 
-    val findByName = callDescription<FindByNameAndPagination, Page<Tool>, CommonErrorMessage> {
-        name = "toolsByName"
-
+    val findByName = call<FindByNameAndPagination, Page<Tool>, CommonErrorMessage>("findByName") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +boundTo(FindByNameAndPagination::name)
-        }
+        http {
+            path {
+                using(baseContext)
+                +boundTo(FindByNameAndPagination::name)
+            }
 
-        params {
-            +boundTo(FindByNameAndPagination::itemsPerPage)
-            +boundTo(FindByNameAndPagination::page)
+            params {
+                +boundTo(FindByNameAndPagination::itemsPerPage)
+                +boundTo(FindByNameAndPagination::page)
+            }
         }
     }
 
-    val listAll = callDescription<PaginationRequest, Page<Tool>, CommonErrorMessage> {
-        name = "toolsListAll"
-
+    val listAll = call<PaginationRequest, Page<Tool>, CommonErrorMessage>("listAll") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            path {
+                using(baseContext)
+            }
 
-        params {
-            +boundTo(PaginationRequest::itemsPerPage)
-            +boundTo(PaginationRequest::page)
+            params {
+                +boundTo(PaginationRequest::itemsPerPage)
+                +boundTo(PaginationRequest::page)
+            }
         }
     }
 
-    val create = callDescription<Unit, Unit, CommonErrorMessage> {
-        name = "toolsCreate"
-        method = HttpMethod.Put
-
+    val create = call<Unit, Unit, CommonErrorMessage>("create") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Put
 
-        /*
+            path {
+                using(baseContext)
+            }
+
+            /*
         body {
             // YAML document TODO Need support in implement feature for this
         }
         */
+        }
     }
 }

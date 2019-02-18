@@ -8,19 +8,18 @@ import dk.sdu.cloud.accounting.storage.Configuration
 import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.StatisticsResponse
-import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
@@ -40,7 +39,7 @@ class StorageAccountingServiceTest {
     fun setupService(): StorageAccountingService<HibernateSession> {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
-        val cloud = micro.authenticatedCloud
+        val cloud = ClientMock.authenticatedClient
 
         return StorageAccountingService(
             cloud,
@@ -54,9 +53,8 @@ class StorageAccountingServiceTest {
     fun `test calculation`() {
         val storageAccountService = setupService()
 
-        CloudMock.mockCallSuccess(
-            QueryDescriptions,
-            { QueryDescriptions.statistics },
+        ClientMock.mockCallSuccess(
+            QueryDescriptions.statistics,
             StatisticsResponse(
                 22,
                 NumericStatistics(null, null, null, 150.4, emptyList()),
@@ -81,9 +79,8 @@ class StorageAccountingServiceTest {
         val statisticResponse = mockk<StatisticsResponse>()
         every { statisticResponse.size?.sum } returns null
 
-        CloudMock.mockCallSuccess(
-            QueryDescriptions,
-            { QueryDescriptions.statistics },
+        ClientMock.mockCallSuccess(
+            QueryDescriptions.statistics,
             statisticResponse
         )
 
@@ -96,16 +93,14 @@ class StorageAccountingServiceTest {
     fun `test generate data points`() = runBlocking {
         val storageAccountingService = setupService()
 
-        CloudMock.mockCallSuccess(
-            UserDescriptions,
-            { UserDescriptions.openUserIterator },
+        ClientMock.mockCallSuccess(
+            UserDescriptions.openUserIterator,
             FindByStringId("1")
         )
 
         var callCount = 0
-        CloudMock.mockCall(
-            UserDescriptions,
-            { UserDescriptions.fetchNextIterator },
+        ClientMock.mockCall(
+            UserDescriptions.fetchNextIterator,
             {
                 callCount++
                 when (callCount) {
@@ -116,17 +111,15 @@ class StorageAccountingServiceTest {
             }
         )
 
-        CloudMock.mockCall(
-            FileDescriptions,
-            { FileDescriptions.findHomeFolder },
+        ClientMock.mockCall(
+            FileDescriptions.findHomeFolder,
             {
                 TestCallResult.Ok(FindHomeFolderResponse("/home/${it.username}"))
             }
         )
 
-        CloudMock.mockCallSuccess(
-            QueryDescriptions,
-            { QueryDescriptions.statistics },
+        ClientMock.mockCallSuccess(
+            QueryDescriptions.statistics,
             StatisticsResponse(
                 22,
                 NumericStatistics(null, null, null, 150.4, emptyList()),
@@ -134,9 +127,8 @@ class StorageAccountingServiceTest {
             )
         )
 
-        CloudMock.mockCallSuccess(
-            UserDescriptions,
-            { UserDescriptions.closeIterator },
+        ClientMock.mockCallSuccess(
+            UserDescriptions.closeIterator,
             Unit
         )
 
@@ -155,7 +147,7 @@ class StorageAccountingServiceTest {
         TestUsers.user.username
     )
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `List all Test`() {
         val storageAccountingService = setupService()
         storageAccountingService.listEvents(context, TestUsers.user.username)

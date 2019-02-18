@@ -6,8 +6,6 @@ import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.util.urlDecoded
 import dk.sdu.cloud.auth.util.urlEncoded
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.logEntry
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.http.ContentType
@@ -21,7 +19,6 @@ import io.ktor.response.respondText
 import io.ktor.routing.Route
 import io.ktor.routing.get
 import io.ktor.routing.post
-import io.ktor.util.toMap
 import org.slf4j.LoggerFactory
 
 private const val SAML_RELAY_STATE_PREFIX = "/auth/saml/login?service="
@@ -33,22 +30,16 @@ class SAMLController(
     private val samlProcessorFactory: SAMLRequestProcessorFactory,
     private val tokenService: TokenService<*>,
     private val loginResponder: LoginResponder<*>
-) : Controller {
-    override val baseContext = "/auth/saml"
-
-    override fun configure(routing: Route): Unit = with(routing) {
+) {
+    fun configure(routing: Route): Unit = with(routing) {
         get("metadata") {
-            logEntry(log)
             call.respondText(authSettings.spMetadata, ContentType.Application.Xml)
         }
 
         get("login") {
             val service = call.parameters["service"] ?: return@get run {
-                logEntry(log, mapOf("message" to "missing service"))
                 call.respondRedirect("/auth/login")
             }
-
-            logEntry(log, mapOf("service" to service))
 
             val relayState = KtorUtils.getSelfURLhost(call) +
                     "$SAML_RELAY_STATE_PREFIX${service.urlEncoded}"
@@ -70,12 +61,9 @@ class SAMLController(
             val params = try {
                 call.receiveParameters()
             } catch (ex: ContentTransformationException) {
-                logEntry(log, mapOf("message" to "missing parameters"))
                 call.respond(HttpStatusCode.BadRequest)
                 return@post
             }
-
-            logEntry(log, mapOf("params" to params.toMap()))
 
             val service = params["RelayState"]?.let {
                 val index = it.indexOf(SAML_RELAY_STATE_PREFIX)

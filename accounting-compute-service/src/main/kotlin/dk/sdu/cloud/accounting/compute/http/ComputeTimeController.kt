@@ -7,32 +7,29 @@ import dk.sdu.cloud.accounting.api.UsageResponse
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingTimeDescriptions
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.accounting.compute.services.toMillis
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
-import io.ktor.routing.Route
 
 class ComputeTimeController<DBSession>(
     private val completedJobsService: CompletedJobsService<DBSession>
 ) : Controller {
-    override val baseContext: String = ComputeAccountingTimeDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(ComputeAccountingTimeDescriptions.listEvents) { req ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(ComputeAccountingTimeDescriptions.listEvents) {
             ok(
                 completedJobsService.listEvents(
-                    req.normalize(),
-                    req,
-                    call.securityPrincipal.username,
-                    call.securityPrincipal.role
+                    request.normalize(),
+                    request,
+                    ctx.securityPrincipal.username,
+                    ctx.securityPrincipal.role
                 )
             )
         }
 
-        implement(ComputeAccountingTimeDescriptions.chart) { req ->
+        implement(ComputeAccountingTimeDescriptions.chart) {
             val events =
-                completedJobsService.listAllEvents(req, call.securityPrincipal.username, call.securityPrincipal.role)
+                completedJobsService.listAllEvents(request, ctx.securityPrincipal.username, ctx.securityPrincipal.role)
 
             ok(
                 ChartResponse(
@@ -47,13 +44,13 @@ class ComputeTimeController<DBSession>(
             )
         }
 
-        implement(ComputeAccountingTimeDescriptions.usage) { req ->
+        implement(ComputeAccountingTimeDescriptions.usage) {
             ok(
                 UsageResponse(
                     usage = completedJobsService.computeUsage(
-                        req,
-                        call.securityPrincipal.username,
-                        call.securityPrincipal.role
+                        request,
+                        ctx.securityPrincipal.username,
+                        ctx.securityPrincipal.role
                     ),
                     quota = null,
                     dataType = ChartDataTypes.DURATION,

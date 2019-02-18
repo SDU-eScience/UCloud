@@ -1,17 +1,15 @@
 package dk.sdu.cloud.notification
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.auth.api.refreshingJwtCloud
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.initWithDefaultFeatures
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.serverProvider
 import dk.sdu.cloud.notification.api.NotificationServiceDescription
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.initWithDefaultFeatures
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.kafka
-import dk.sdu.cloud.service.runScriptHandler
-import dk.sdu.cloud.service.serverProvider
-import dk.sdu.cloud.service.serviceInstance
 
 fun main(args: Array<String>) {
     val micro = Micro().apply {
@@ -22,10 +20,5 @@ fun main(args: Array<String>) {
 
     if (micro.runScriptHandler()) return
 
-    Server(
-        micro.hibernateDatabase,
-        micro.kafka,
-        micro.serverProvider,
-        micro
-    ).start()
+    Server(micro).start()
 }

@@ -1,35 +1,29 @@
 package dk.sdu.cloud.share
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.client
+import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.developmentModeEnabled
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
-import dk.sdu.cloud.service.tokenValidation
 import dk.sdu.cloud.share.http.ShareController
 import dk.sdu.cloud.share.processors.StorageEventProcessor
 import dk.sdu.cloud.share.services.ShareHibernateDAO
 import dk.sdu.cloud.share.services.ShareService
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
-import org.apache.kafka.streams.KafkaStreams
 
 class Server(
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val micro: Micro
+    override val micro: Micro
 ) : CommonServer {
-    override lateinit var httpServer: ApplicationEngine
-    override val kStreams: KafkaStreams? = null
     private val eventConsumers = ArrayList<EventConsumer<*>>()
 
     override val log = logger()
@@ -40,14 +34,21 @@ class Server(
     }
 
     override fun start() {
-        // Initialize services here:
-        val jwtValidation = micro.tokenValidation as TokenValidationJWT
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val kafka = micro.kafka
+
         val shareDao = ShareHibernateDAO()
         val shareService = ShareService(
-            serviceCloud = cloud,
+            serviceCloud = client,
             db = micro.hibernateDatabase,
             shareDao = shareDao,
-            userCloudFactory = { RefreshingJWTAuthenticatedCloud(cloud.parent, it, jwtValidation) },
+            userCloudFactory = {
+                RefreshingJWTAuthenticator(
+                    micro.client,
+                    it,
+                    micro.tokenValidation as TokenValidationJWT
+                ).authenticateClient(OutgoingHttpCall)
+            },
             devMode = micro.developmentModeEnabled
         )
 
@@ -57,14 +58,10 @@ class Server(
         )
 
         // Initialize server:
-        httpServer = ktor {
-            installDefaultFeatures(micro)
-
-            routing {
-                configureControllers(
-                    ShareController(shareService, cloud.parent)
-                )
-            }
+        with(micro.server) {
+            configureControllers(
+                ShareController(shareService, client)
+            )
         }
 
         startServices()

@@ -3,8 +3,7 @@ package dk.sdu.cloud.file.favorite.services
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.favorite.storageFile
-import dk.sdu.cloud.service.authenticatedCloud
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
@@ -17,11 +16,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class FileFavoriteServiceTest {
-
     fun fileStatMock() {
-        CloudMock.mockCall(
-            FileDescriptions,
-            { FileDescriptions.stat }) { req ->
+        ClientMock.mockCall(FileDescriptions.stat) { req ->
             val file = when (req.path) {
                 "/home/user/1" -> storageFile
                 "/home/user/2" -> storageFile.copy(path = "/home/user/2", fileId = "fileId2")
@@ -40,9 +36,9 @@ class FileFavoriteServiceTest {
         withDatabase { db ->
             val user = TestUsers.user
             val micro = initializeMicro()
-            val cloud = micro.authenticatedCloud
+            val cloud = ClientMock.authenticatedClient
             val dao = FileFavoriteHibernateDAO()
-            val service = FileFavoriteService(db, dao, micro.authenticatedCloud)
+            val service = FileFavoriteService(db, dao, cloud)
 
             fileStatMock()
 
@@ -97,9 +93,9 @@ class FileFavoriteServiceTest {
         withDatabase { db ->
             val user = TestUsers.user
             val micro = initializeMicro()
-            val cloud = micro.authenticatedCloud
+            val cloud = ClientMock.authenticatedClient
             val dao = FileFavoriteHibernateDAO()
-            val service = FileFavoriteService(db, dao, micro.authenticatedCloud)
+            val service = FileFavoriteService(db, dao, cloud)
 
             fileStatMock()
 

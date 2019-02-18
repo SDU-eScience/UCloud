@@ -5,7 +5,7 @@ import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthStreams
-import dk.sdu.cloud.auth.api.refreshingJwtCloud
+import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.LoginResponder
 import dk.sdu.cloud.auth.http.PasswordController
@@ -29,25 +29,25 @@ import dk.sdu.cloud.auth.services.UserIterationService
 import dk.sdu.cloud.auth.services.WSTOTPService
 import dk.sdu.cloud.auth.services.ZXingQRService
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
+import dk.sdu.cloud.kafka.forStream
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.client
+import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.serviceInstance
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.developmentModeEnabled
-import dk.sdu.cloud.service.forStream
-import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.service.serviceInstance
 import dk.sdu.cloud.service.startServices
 import io.ktor.application.install
 import io.ktor.features.CORS
 import io.ktor.http.HttpMethod
 import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
-import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 import java.security.SecureRandom
 import java.util.*
@@ -56,23 +56,21 @@ private const val ONE_YEAR_IN_MILLS = 1000 * 60 * 60 * 24 * 365L
 private const val PASSWORD_BYTES = 64
 
 class Server(
-    private val db: HibernateSessionFactory,
     private val jwtAlg: Algorithm,
     private val config: AuthConfiguration,
     private val authSettings: Saml2Settings,
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val tokenValidation: TokenValidationJWT,
-    private val micro: Micro
+    override val micro: Micro
 ) : CommonServer {
     override val log: Logger = logger()
 
-    override val kStreams: KafkaStreams? = null
-    override lateinit var httpServer: ApplicationEngine
     private lateinit var userIterator: UserIterationService
 
     override fun start() {
         log.info("Creating core services...")
+        val db = micro.hibernateDatabase
+        val tokenValidation = micro.tokenValidation as TokenValidationJWT
+        val kafka = micro.kafka
+
         val passwordHashingService = PasswordHashingService()
         val userDao = UserHibernateDAO(passwordHashingService)
         val refreshTokenDao = RefreshTokenHibernateDAO()
@@ -93,7 +91,8 @@ class Server(
             micro.serviceInstance.port,
             db,
             cursorStateDao,
-            micro.refreshingJwtCloud
+            micro.client,
+            micro.authenticator
         )
 
         userIterator.start()
@@ -113,7 +112,7 @@ class Server(
             service to lists.flatMap { it.parsedScopes }.toSet()
         }.toMap()
 
-        // TODO This service is accepting way too many depeendencies.
+        // TODO This service is accepting way too many dependencies.
         val tokenService = TokenService(
             db,
             personService,
@@ -179,10 +178,9 @@ class Server(
             }
         }
 
-        httpServer = ktor {
+        val serverFeature = micro.feature(ServerFeature)
+        with(serverFeature.ktorApplicationEngine!!.application) {
             log.info("Configuring HTTP server")
-
-            installDefaultFeatures(micro)
 
             if (micro.developmentModeEnabled) {
                 install(CORS) {
@@ -209,8 +207,13 @@ class Server(
             val passwordController = PasswordController(db, passwordHashingService, userDao, loginResponder)
             log.info("HTTP controllers configured!")
 
-            routing {
-                if (config.enableWayf) configureControllers(samlController)
+            if (config.enableWayf) {
+                routing {
+                    samlController.configure(this)
+                }
+            }
+
+            with(micro.server) {
                 if (config.enablePasswords) configureControllers(passwordController)
 
                 configureControllers(
@@ -222,7 +225,8 @@ class Server(
                         enablePasswords = config.enablePasswords,
                         enableWayf = config.enableWayf,
                         tokenValidation = tokenValidation,
-                        trustedOrigins = config.trustedOrigins.toSet()
+                        trustedOrigins = config.trustedOrigins.toSet(),
+                        ktor = micro.feature(ServerFeature).ktorApplicationEngine?.application
                     ),
 
                     // TODO Too many dependencies

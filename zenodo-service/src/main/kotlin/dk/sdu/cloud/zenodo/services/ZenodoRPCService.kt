@@ -1,6 +1,6 @@
 package dk.sdu.cloud.zenodo.services
 
-import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.zenodo.util.HttpClient
 import dk.sdu.cloud.zenodo.util.asJson

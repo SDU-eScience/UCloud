@@ -11,7 +11,8 @@ import dk.sdu.cloud.app.api.ToolReference
 import dk.sdu.cloud.app.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
@@ -42,7 +43,7 @@ class JobVerificationService<DBSession>(
 ) {
     suspend fun verifyOrThrow(
         unverifiedJob: UnverifiedJob,
-        cloud: AuthenticatedCloud
+        cloud: AuthenticatedClient
     ): VerifiedJobWithAccessToken {
         val jobId = UUID.randomUUID().toString()
         val application = findApplication(unverifiedJob)
@@ -113,7 +114,7 @@ class JobVerificationService<DBSession>(
         application: Application,
         verifiedParameters: VerifiedJobInput,
         workDir: URI,
-        cloud: AuthenticatedCloud
+        cloud: AuthenticatedClient
     ): List<ValidatedFileForUpload> {
         return coroutineScope {
             application.invocation.parameters
@@ -133,7 +134,7 @@ class JobVerificationService<DBSession>(
     private suspend fun collectSingleFile(
         verifiedParameters: VerifiedJobInput,
         workDir: URI,
-        cloud: AuthenticatedCloud,
+        cloud: AuthenticatedClient,
         fileAppParameter: ApplicationParameter<FileTransferDescription>
     ): ValidatedFileForUpload? {
         val desiredFileType = when (fileAppParameter) {

@@ -6,12 +6,11 @@ import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.storage.util.mkdir
 import dk.sdu.cloud.storage.util.touch
-import dk.sdu.cloud.storage.util.withAuthMock
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationEngine
-import io.ktor.server.testing.withTestApplication
 import org.junit.Test
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -44,30 +43,26 @@ class LookupTests {
 
     @Test
     fun `look up file in directory`() {
-        withAuthMock {
-            withTestApplication(
-                moduleFunction = { configureServerWithFileController(fsRootInitializer = { fsForLookup() }) },
+        withKtorTest(
+            setup = { configureServerWithFileController(fsRootInitializer = { fsForLookup() }) },
 
-                test = {
-                    repeat(100) { testLookupOfFile(it) }
-                }
-            )
-        }
+            test = {
+                repeat(100) { engine.testLookupOfFile(it) }
+            }
+        )
     }
 
     @Test
     fun `look up bad file`() {
-        withAuthMock {
-            withTestApplication(
-                moduleFunction = { configureServerWithFileController(fsRootInitializer = { fsForLookup() }) },
+        withKtorTest(
+            setup = { configureServerWithFileController(fsRootInitializer = { fsForLookup() }) },
 
-                test = {
-                    val response =
-                        lookupFileInDirectory("/home/user1/bad", 10, FileSortBy.PATH, SortOrder.ASCENDING)
-                    assertEquals(HttpStatusCode.NotFound, response.status())
-                }
-            )
-        }
+            test = {
+                val response =
+                    engine.lookupFileInDirectory("/home/user1/bad", 10, FileSortBy.PATH, SortOrder.ASCENDING)
+                assertEquals(HttpStatusCode.NotFound, response.status())
+            }
+        )
     }
 
     private fun TestApplicationEngine.testLookupOfFile(

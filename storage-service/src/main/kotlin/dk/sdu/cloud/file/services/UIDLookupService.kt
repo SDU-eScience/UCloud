@@ -3,11 +3,12 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.auth.api.LookupUIDRequest
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.throwIfInternalOrBadRequest
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.throwIfInternalOrBadRequest
 import java.util.concurrent.ConcurrentHashMap
 
 interface UIDLookupService : StorageUserDao<Long> {
@@ -24,7 +25,7 @@ interface UIDLookupService : StorageUserDao<Long> {
     }
 }
 
-class DevelopmentUIDLookupService(val result: String): UIDLookupService {
+class DevelopmentUIDLookupService(val result: String) : UIDLookupService {
     override suspend fun lookup(username: String): Long? {
         return 0L
     }
@@ -37,7 +38,7 @@ class DevelopmentUIDLookupService(val result: String): UIDLookupService {
 }
 
 class AuthUIDLookupService(
-    private val serviceCloud: AuthenticatedCloud
+    private val serviceCloud: AuthenticatedClient
 ) : UIDLookupService {
     private val cache = ConcurrentHashMap<String, Long>()
     private val reverseCache = ConcurrentHashMap<Long, String>()
@@ -56,7 +57,7 @@ class AuthUIDLookupService(
         val response = UserDescriptions.lookupUsers.call(
             LookupUsersRequest(listOf(username)),
             serviceCloud
-        ).throwIfInternalOrBadRequest() as? RESTResponse.Ok ?: return null
+        ).throwIfInternalOrBadRequest() as? IngoingCallResponse.Ok ?: return null
 
         val uid = response.result.results[username]?.uid ?: return null
 
@@ -76,7 +77,7 @@ class AuthUIDLookupService(
         val response = UserDescriptions.lookupUID.call(
             LookupUIDRequest(listOf(cloudUid)),
             serviceCloud
-        ).throwIfInternalOrBadRequest() as? RESTResponse.Ok ?: return null
+        ).throwIfInternalOrBadRequest() as? IngoingCallResponse.Ok ?: return null
 
         val lookupResult = response.result.users[cloudUid] ?: return null
         storeMapping(lookupResult.subject, lookupResult.uid)

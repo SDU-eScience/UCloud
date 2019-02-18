@@ -3,6 +3,9 @@ package dk.sdu.cloud.project.auth.http
 import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.project.api.ProjectDescriptions
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
@@ -14,16 +17,10 @@ import dk.sdu.cloud.project.auth.services.AuthTokenDao
 import dk.sdu.cloud.project.auth.services.AuthTokenHibernateDao
 import dk.sdu.cloud.project.auth.services.TokenInvalidator
 import dk.sdu.cloud.project.auth.services.TokenRefresher
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.authenticatedCloud
-import dk.sdu.cloud.service.cloudContext
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
@@ -31,7 +28,6 @@ import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.parseSuccessful
 import dk.sdu.cloud.service.test.sendJson
-import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -56,8 +52,8 @@ class HttpTest {
             setup = {
                 db = micro.hibernateDatabase
                 tokenDao = AuthTokenHibernateDao()
-                tokenInvalidator = TokenInvalidator(micro.authenticatedCloud, db, tokenDao)
-                tokenRefresher = TokenRefresher(micro.authenticatedCloud, db, tokenDao, tokenInvalidator)
+                tokenInvalidator = TokenInvalidator(ClientMock.authenticatedClient, db, tokenDao)
+                tokenRefresher = TokenRefresher(ClientMock.authenticatedClient, db, tokenDao, tokenInvalidator)
 
 
                 db.withTransaction { session ->
@@ -67,7 +63,7 @@ class HttpTest {
                     }
                 }
 
-                listOf(ProjectAuthController(tokenRefresher, micro.cloudContext))
+                listOf(ProjectAuthController(tokenRefresher, ClientMock.authenticatedClient))
             },
 
             test = test
@@ -77,21 +73,18 @@ class HttpTest {
     @Test
     fun `test fetching a token`() = runTest {
         val token = "token"
-        CloudMock.mockCall(
-            ProjectDescriptions,
-            { ProjectDescriptions.viewMemberInProject },
+        ClientMock.mockCall(
+            ProjectDescriptions.viewMemberInProject,
             { TestCallResult.Ok(ViewMemberInProjectResponse(ProjectMember(it.username, ProjectRole.USER))) }
         )
 
-        CloudMock.mockCallSuccess(
-            AuthDescriptions,
-            { AuthDescriptions.refresh },
+        ClientMock.mockCallSuccess(
+            AuthDescriptions.refresh,
             AccessToken(token)
         )
 
-        CloudMock.mockCallSuccess(
-            AuthDescriptions,
-            { AuthDescriptions.tokenExtension },
+        ClientMock.mockCallSuccess(
+            AuthDescriptions.tokenExtension,
             TokenExtensionResponse(token, null, null)
         )
 
@@ -110,15 +103,13 @@ class HttpTest {
     @Test
     fun `test fetching a token (no user)`() = runTest {
         val token = "token"
-        CloudMock.mockCall(
-            ProjectDescriptions,
-            { ProjectDescriptions.viewMemberInProject },
+        ClientMock.mockCall(
+            ProjectDescriptions.viewMemberInProject,
             { TestCallResult.Ok(ViewMemberInProjectResponse(ProjectMember(it.username, ProjectRole.USER))) }
         )
 
-        CloudMock.mockCallSuccess(
-            AuthDescriptions,
-            { AuthDescriptions.refresh },
+        ClientMock.mockCallSuccess(
+            AuthDescriptions.refresh,
             AccessToken(token)
         )
 
@@ -135,15 +126,13 @@ class HttpTest {
     @Test
     fun `test fetching a token (no project)`() = runTest {
         val token = "token"
-        CloudMock.mockCall(
-            ProjectDescriptions,
-            { ProjectDescriptions.viewMemberInProject },
+        ClientMock.mockCall(
+            ProjectDescriptions.viewMemberInProject,
             { TestCallResult.Error(error = null, statusCode = HttpStatusCode.NotFound) }
         )
 
-        CloudMock.mockCallSuccess(
-            AuthDescriptions,
-            { AuthDescriptions.refresh },
+        ClientMock.mockCallSuccess(
+            AuthDescriptions.refresh,
             AccessToken(token)
         )
 

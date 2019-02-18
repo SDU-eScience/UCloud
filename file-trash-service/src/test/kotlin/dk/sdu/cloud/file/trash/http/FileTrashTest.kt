@@ -1,12 +1,12 @@
 package dk.sdu.cloud.file.trash.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.trash.api.TrashRequest
 import dk.sdu.cloud.file.trash.api.TrashResponse
 import dk.sdu.cloud.file.trash.services.TrashService
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
@@ -22,17 +22,16 @@ import io.mockk.mockk
 import org.junit.Test
 import kotlin.test.assertTrue
 
-class FileTrashTest() {
-
+class FileTrashTest {
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         val micro = initializeMicro()
-        val cloud = micro.authenticatedCloud
+        val cloud = ClientMock.authenticatedClient
         val trashService = mockk<TrashService>()
 
-        coEvery { trashService.moveFilesToTrash(any(), any(), any())} answers {
+        coEvery { trashService.moveFilesToTrash(any(), any(), any()) } answers {
             emptyList()
         }
-        coEvery { trashService.emptyTrash(any(), any())} just Runs
+        coEvery { trashService.emptyTrash(any(), any()) } just Runs
 
         listOf(FileTrashController(cloud, trashService))
     }

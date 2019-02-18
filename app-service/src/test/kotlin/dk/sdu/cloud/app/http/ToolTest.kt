@@ -8,11 +8,11 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.Tool
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.services.ToolHibernateDAO
-import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod

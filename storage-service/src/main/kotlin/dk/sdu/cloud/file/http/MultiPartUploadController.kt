@@ -1,7 +1,10 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.audit
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.BulkUploadAudit
 import dk.sdu.cloud.file.api.BulkUploadErrorMessage
 import dk.sdu.cloud.file.api.MultiPartUploadAudit
@@ -17,31 +20,25 @@ import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.Route
 import kotlinx.coroutines.io.jvm.javaio.copyTo
 import kotlinx.coroutines.launch
 import org.slf4j.Logger
 import java.nio.file.Files
 
 class MultiPartUploadController<Ctx : FSUserContext>(
-    private val serviceCloud: AuthenticatedCloud,
+    private val serviceCloud: AuthenticatedClient,
     private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
-    private val sensitivityService: FileSensitivityService<Ctx>,
-    baseContextOverride: String? = null
+    private val sensitivityService: FileSensitivityService<Ctx>
 ) : Controller {
-    override val baseContext = baseContextOverride ?: MultiPartUploadDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(MultiPartUploadDescriptions.upload) { multipart ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(MultiPartUploadDescriptions.upload) {
             audit(MultiPartUploadAudit(null))
 
-            multipart.receiveBlocks { req ->
+            request.asIngoing().receiveBlocks { req ->
                 val sensitivity = req.sensitivity
-                val owner = call.securityPrincipal.username
+                val owner = ctx.securityPrincipal.username
 
                 audit(
                     MultiPartUploadAudit(
@@ -71,10 +68,10 @@ class MultiPartUploadController<Ctx : FSUserContext>(
             ok(Unit)
         }
 
-        implement(MultiPartUploadDescriptions.bulkUpload) { multipart ->
-            val user = call.securityPrincipal.username
+        implement(MultiPartUploadDescriptions.bulkUpload) {
+            val user = ctx.securityPrincipal.username
 
-            multipart.receiveBlocks { req ->
+            request.asIngoing().receiveBlocks { req ->
                 val uploader =
                     BulkUploader.fromFormat(req.format, commandRunnerFactory.type) ?: return@receiveBlocks error(
                         CommonErrorMessage("Unsupported format '${req.format}'"),

@@ -3,10 +3,12 @@ package dk.sdu.cloud.metadata.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import io.ktor.http.HttpMethod
-
 
 data class CreateProjectFromFormRequest(
     override val title: String? = null,
@@ -24,22 +26,23 @@ data class CreateProjectFromFormResponse(val id: String)
 
 typealias FindByProjectId = FindByStringId
 
-object ProjectDescriptions : RESTDescriptions("projects") {
+object ProjectDescriptions : CallDescriptionContainer("projects") {
     const val baseContext = "/api/projects/form"
 
-    val create = callDescription<CreateProjectFromFormRequest, CreateProjectFromFormResponse, CommonErrorMessage> {
-        name = "projectsCreate"
-        method = HttpMethod.Post
-
+    val create = call<CreateProjectFromFormRequest, CreateProjectFromFormResponse, CommonErrorMessage>("create") {
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 }
 

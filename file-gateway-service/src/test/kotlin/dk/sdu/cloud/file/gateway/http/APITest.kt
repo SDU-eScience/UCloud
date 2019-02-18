@@ -8,8 +8,7 @@ import dk.sdu.cloud.file.gateway.api.StorageFileWithMetadata
 import dk.sdu.cloud.file.gateway.services.FileAnnotationService
 import dk.sdu.cloud.file.gateway.services.UserCloudService
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.cloudContext
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertThatProperty
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
@@ -34,7 +33,7 @@ class APITest {
     @Test
     fun `test list at path`(): Unit = withKtorTest(
         setup = {
-            val userCloudService = UserCloudService(micro.cloudContext)
+            val userCloudService = UserCloudService(ClientMock.authenticatedClient)
             val fileAnnotationService: FileAnnotationService = mockk()
             coEvery { fileAnnotationService.annotate(any(), any(), any()) } answers {
                 @Suppress("UNCHECKED_CAST")
@@ -42,9 +41,8 @@ class APITest {
                 files.map { StorageFileWithMetadata(it, null) }
             }
 
-            CloudMock.mockCallSuccess(
-                FileDescriptions,
-                { FileDescriptions.listAtPath },
+            ClientMock.mockCallSuccess(
+                FileDescriptions.listAtPath,
                 Page(2, 10, 0, items)
             )
 

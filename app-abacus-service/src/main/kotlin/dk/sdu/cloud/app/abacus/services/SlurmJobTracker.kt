@@ -9,13 +9,14 @@ import dk.sdu.cloud.app.api.JobCompletedRequest
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.StateChangeRequest
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
@@ -23,7 +24,7 @@ import kotlinx.coroutines.runBlocking
 class SlurmJobTracker<DBSession>(
     private val jobFileService: JobFileService,
     private val sshConnectionPool: SSHConnectionPool,
-    private val cloud: AuthenticatedCloud,
+    private val cloud: AuthenticatedClient,
     private val db: DBSessionFactory<DBSession>,
     private val jobDao: JobDao<DBSession>
 ) {
@@ -125,7 +126,7 @@ class SlurmJobTracker<DBSession>(
             cloud
         )
 
-        if (stateResult is RESTResponse.Err) {
+        if (stateResult is IngoingCallResponse.Error) {
             log.warn("Could not notify orchestrator about failure $event [$systemId]")
             log.warn(stateResult.toString())
         }

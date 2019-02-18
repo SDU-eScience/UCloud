@@ -1,30 +1,20 @@
 package dk.sdu.cloud.file.trash
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.file.trash.http.FileTrashController
 import dk.sdu.cloud.file.trash.services.TrashService
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
-import org.apache.kafka.streams.KafkaStreams
 
 class Server(
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val micro: Micro
+    override val micro: Micro
 ) : CommonServer {
-    override lateinit var httpServer: ApplicationEngine
-    override val kStreams: KafkaStreams? = null
     private val eventConsumers = ArrayList<EventConsumer<*>>()
 
     override val log = logger()
@@ -35,19 +25,15 @@ class Server(
     }
 
     override fun start() {
-        val trashService = TrashService(micro.authenticatedCloud)
-        httpServer = ktor {
-            installDefaultFeatures(micro)
-
-            routing {
-                configureControllers(
-                    FileTrashController(cloud, trashService)
-                )
-            }
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val trashService = TrashService(client)
+        with(micro.server) {
+            configureControllers(
+                FileTrashController(client, trashService)
+            )
         }
 
-//        startServices()
-        httpServer.start(wait = true)
+        startServices()
     }
 
     override fun stop() {

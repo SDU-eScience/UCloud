@@ -2,7 +2,7 @@ package dk.sdu.cloud.project.auth.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.service.KafkaDescriptions
+import dk.sdu.cloud.kafka.KafkaDescriptions
 import dk.sdu.cloud.service.TYPE_PROPERTY
 
 @JsonTypeInfo(

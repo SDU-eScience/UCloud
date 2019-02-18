@@ -1,23 +1,19 @@
 package dk.sdu.cloud.file.stats.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.stats.api.RecentFilesResponse
-import dk.sdu.cloud.file.stats.api.SearchResult
 import dk.sdu.cloud.file.stats.api.UsageResponse
 import dk.sdu.cloud.file.stats.services.RecentFilesService
 import dk.sdu.cloud.file.stats.services.UsageService
 import dk.sdu.cloud.file.stats.storageFile
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.authenticatedCloud
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
@@ -33,12 +29,12 @@ class FileStatsTest {
         val micro = initializeMicro()
         val usageService = mockk<UsageService>()
         val recentFilesService = mockk<RecentFilesService>()
-        coEvery { usageService.calculateUsage(any(), any(), any())} returns 200
-        coEvery { recentFilesService.queryRecentFiles(any(), any())} answers {
+        coEvery { usageService.calculateUsage(any(), any(), any()) } returns 200
+        coEvery { recentFilesService.queryRecentFiles(any(), any()) } answers {
             listOf(storageFile, storageFile.copy(fileId = "id2"))
         }
 
-        listOf(FileStatsController(recentFilesService, usageService, micro.authenticatedCloud))
+        listOf(FileStatsController(recentFilesService, usageService, ClientMock.authenticatedClient))
     }
 
     @Test
@@ -66,9 +62,8 @@ class FileStatsTest {
             setup,
 
             test = {
-                CloudMock.mockCallSuccess(
-                    FileDescriptions,
-                    {FileDescriptions.findHomeFolder},
+                ClientMock.mockCallSuccess(
+                    FileDescriptions.findHomeFolder,
                     FindHomeFolderResponse("/home/user/")
                 )
 
@@ -98,7 +93,7 @@ class FileStatsTest {
                 )
                 request.assertSuccess()
 
-                val response =defaultMapper.readValue<RecentFilesResponse>(request.response.content!!)
+                val response = defaultMapper.readValue<RecentFilesResponse>(request.response.content!!)
                 assertEquals(2, response.recentFiles.size)
                 assertEquals("id", response.recentFiles.first().fileId)
                 assertEquals("id2", response.recentFiles.last().fileId)

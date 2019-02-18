@@ -18,35 +18,32 @@ import dk.sdu.cloud.avatar.api.SkinColors
 import dk.sdu.cloud.avatar.api.Top
 import dk.sdu.cloud.avatar.api.TopAccessory
 import dk.sdu.cloud.avatar.services.AvatarService
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.Route
 
 class AvatarController<DBSession>(
     private val avatarService: AvatarService<DBSession>
 ) : Controller {
-    override val baseContext = AvatarDescriptions.baseContext
+    override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
-    override fun configure(routing: Route): Unit = with(routing) {
-
-        implement(AvatarDescriptions.update) { req ->
-            val user = call.securityPrincipal.username
+        implement(AvatarDescriptions.update) {
+            val user = ctx.securityPrincipal.username
             val avatar = approvedAvatar(
-                req.top,
-                req.topAccessory,
-                req.hairColor,
-                req.facialHair,
-                req.facialHairColor,
-                req.clothes,
-                req.colorFabric,
-                req.eyes,
-                req.eyebrows,
-                req.mouthTypes,
-                req.skinColors,
-                req.clothesGraphic
+                request.top,
+                request.topAccessory,
+                request.hairColor,
+                request.facialHair,
+                request.facialHairColor,
+                request.clothes,
+                request.colorFabric,
+                request.eyes,
+                request.eyebrows,
+                request.mouthTypes,
+                request.skinColors,
+                request.clothesGraphic
             )
             if (avatar != null) {
                 avatarService.upsert(user, avatar)
@@ -57,7 +54,7 @@ class AvatarController<DBSession>(
         }
 
         implement(AvatarDescriptions.findAvatar) {
-            val avatar = avatarService.findByUser(call.securityPrincipal.username)
+            val avatar = avatarService.findByUser(ctx.securityPrincipal.username)
             ok(
                 FindResponse(
                     avatar.top.string,
@@ -76,7 +73,7 @@ class AvatarController<DBSession>(
             )
         }
 
-        implement(AvatarDescriptions.findBulk) { request ->
+        implement(AvatarDescriptions.findBulk) {
             ok(FindBulkResponse(avatarService.bulkFind(request.usernames)))
         }
     }

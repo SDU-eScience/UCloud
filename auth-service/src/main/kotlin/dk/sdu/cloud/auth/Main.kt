@@ -11,17 +11,12 @@ import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.configuration
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.initWithDefaultFeatures
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.kafka
-import dk.sdu.cloud.service.runScriptHandler
-import dk.sdu.cloud.service.serverProvider
-import dk.sdu.cloud.service.tokenValidation
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.initWithDefaultFeatures
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.runScriptHandler
 import java.io.File
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
@@ -97,20 +92,10 @@ fun main(args: Array<String>) {
     val (_, priv) = loadKeysAndInsertIntoProps(configuration.certsLocation, samlProperties)
     val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
 
-    val tokenValidation = micro.tokenValidation as? TokenValidationJWT
-        ?: throw IllegalStateException(
-            "This service is for some reason not configured to use JWTs for validation. " +
-                    "This is required!"
-        )
-
     Server(
-        db = micro.hibernateDatabase,
         jwtAlg = Algorithm.RSA256(null, priv),
         config = configuration,
         authSettings = authSettings,
-        kafka = micro.kafka,
-        ktor = micro.serverProvider,
-        tokenValidation = tokenValidation,
         micro = micro
     ).start()
 }

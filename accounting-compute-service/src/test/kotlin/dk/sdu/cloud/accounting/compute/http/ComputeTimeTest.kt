@@ -8,13 +8,13 @@ import dk.sdu.cloud.accounting.compute.services.CompletedJobsHibernateDao
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
@@ -28,7 +28,8 @@ import kotlin.test.assertTrue
 private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
     micro.install(HibernateFeature)
     val completeJobsDao = CompletedJobsHibernateDao()
-    val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao, micro.authenticatedCloud)
+    val completeJobsService =
+        CompletedJobsService(micro.hibernateDatabase, completeJobsDao, ClientMock.authenticatedClient)
 
     val events = (0 until 10).map { dummyEvent }
     completeJobsService.insertBatch(events)

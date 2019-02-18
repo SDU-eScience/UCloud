@@ -3,43 +3,44 @@ package dk.sdu.cloud.activity.http
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.activity.api.ActivityDescriptions
 import dk.sdu.cloud.activity.services.ActivityService
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.bearer
+import dk.sdu.cloud.calls.server.jobId
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.bearer
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.jobId
-import dk.sdu.cloud.service.securityPrincipal
-import io.ktor.routing.Route
+import io.ktor.application.call
 
 class StreamController<Session>(
     private val db: DBSessionFactory<Session>,
     private val activityService: ActivityService<Session>
 ) : Controller {
-    override val baseContext = ActivityDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(ActivityDescriptions.streamByPath) { req ->
-            db.withTransaction { session ->
-                ok(
-                    activityService.findStreamForPath(
-                        session,
-                        req.normalize(),
-                        req.path,
-                        call.request.bearer!!,
-                        call.request.jobId
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(ActivityDescriptions.streamByPath) {
+            with(ctx as HttpCall) {
+                db.withTransaction { session ->
+                    ok(
+                        activityService.findStreamForPath(
+                            session,
+                            request.normalize(),
+                            request.path,
+                            call.request.bearer!!,
+                            ctx.jobId
+                        )
                     )
-                )
+                }
             }
         }
 
-        implement(ActivityDescriptions.streamForUser) { req ->
+        implement(ActivityDescriptions.streamForUser) {
             val user =
-                req.user?.takeIf { call.securityPrincipal.role in Roles.ADMIN } ?: call.securityPrincipal.username
+                request.user?.takeIf { ctx.securityPrincipal.role in Roles.ADMIN } ?: ctx.securityPrincipal.username
 
             db.withTransaction { session ->
-                ok(activityService.findStreamForUser(session, req.normalize(), user))
+                ok(activityService.findStreamForUser(session, request.normalize(), user))
             }
         }
     }

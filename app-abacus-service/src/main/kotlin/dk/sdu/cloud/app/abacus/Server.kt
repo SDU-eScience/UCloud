@@ -9,33 +9,23 @@ import dk.sdu.cloud.app.abacus.services.SlurmJobTracker
 import dk.sdu.cloud.app.abacus.services.SlurmPollAgent
 import dk.sdu.cloud.app.abacus.services.SlurmScheduler
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnectionPool
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.startServices
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
-import org.apache.kafka.streams.KafkaStreams
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 class Server(
-    override val kafka: KafkaServices,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
     private val config: HPCConfig,
-    private val ktor: HttpServerProvider,
-    private val db: HibernateSessionFactory, private val micro: Micro
+    override val micro: Micro
 ) : CommonServer {
     override val log = logger()
-
-    override lateinit var httpServer: ApplicationEngine
-    override val kStreams: KafkaStreams? = null
 
     private lateinit var scheduledExecutor: ScheduledExecutorService
     private lateinit var slurmPollAgent: SlurmPollAgent
@@ -44,6 +34,8 @@ class Server(
         log.info("Initializing core services")
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
 
+        val db = micro.hibernateDatabase
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val sshPool = SSHConnectionPool(config.ssh)
         val sBatchGenerator = SBatchGenerator()
         slurmPollAgent = SlurmPollAgent(
@@ -55,7 +47,7 @@ class Server(
         )
 
         val jobDao = JobHibernateDao()
-        val jobFileService = JobFileService(sshPool, cloud, config.workingDirectory)
+        val jobFileService = JobFileService(sshPool, client, config.workingDirectory)
         val slurmScheduler =
             SlurmScheduler(
                 sshPool,
@@ -64,24 +56,20 @@ class Server(
                 slurmPollAgent,
                 db,
                 jobDao,
-                cloud,
+                client,
                 config.reservation
             )
-        val slurmTracker = SlurmJobTracker(jobFileService, sshPool, cloud, db, jobDao)
+        val slurmTracker = SlurmJobTracker(jobFileService, sshPool, client, db, jobDao)
         slurmPollAgent.addListener(slurmTracker.listener)
 
         val jobTail = JobTail(sshPool, jobFileService)
 
         log.info("Core services initialized")
 
-        httpServer = ktor {
-            installDefaultFeatures(micro)
-
-            routing {
-                configureControllers(
-                    ComputeController(jobFileService, slurmScheduler, jobTail)
-                )
-            }
+        with(micro.server) {
+            configureControllers(
+                ComputeController(jobFileService, slurmScheduler, jobTail)
+            )
         }
 
         slurmPollAgent.start()

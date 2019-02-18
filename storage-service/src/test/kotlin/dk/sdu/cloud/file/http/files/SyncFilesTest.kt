@@ -1,8 +1,7 @@
 package dk.sdu.cloud.file.http.files
 
-import dk.sdu.cloud.storage.util.withAuthMock
+import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.withTestApplication
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -10,15 +9,13 @@ class SyncFilesTest {
     // TODO
     @Test
     fun syncFileTest() {
-        withAuthMock {
-            withTestApplication(
-                moduleFunction = { configureServerWithFileController() },
+        withKtorTest(
+            setup = { configureServerWithFileController() },
 
-                test = {
-                    val response = sync("/home/user1/folder")
-                    assertEquals(HttpStatusCode.OK, response.status())
-                }
-            )
-        }
+            test = {
+                val response = engine.sync("/home/user1/folder")
+                assertEquals(HttpStatusCode.OK, response.status())
+            }
+        )
     }
 }

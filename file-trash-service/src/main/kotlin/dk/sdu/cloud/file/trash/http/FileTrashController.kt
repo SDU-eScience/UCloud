@@ -1,37 +1,33 @@
 package dk.sdu.cloud.file.trash.http
 
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.bearerAuth
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.calls.server.CallHandler
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.bearer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.trash.api.FileTrashDescriptions
 import dk.sdu.cloud.file.trash.api.TrashResponse
 import dk.sdu.cloud.file.trash.services.TrashService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.bearer
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.optionallyCausedBy
-import dk.sdu.cloud.service.safeJobId
-import dk.sdu.cloud.service.securityPrincipal
-import io.ktor.application.ApplicationCall
+import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.Route
 
 class FileTrashController(
-    private val serviceCloud: AuthenticatedCloud,
+    private val serviceCloud: AuthenticatedClient,
     private val trashService: TrashService
 ) : Controller {
-    override val baseContext = FileTrashDescriptions.baseContext
-    private val cloudContext = serviceCloud.parent
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(FileTrashDescriptions.trash) { req ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(FileTrashDescriptions.trash) {
             ok(
                 TrashResponse(
                     trashService.moveFilesToTrash(
-                        req.files,
-                        call.securityPrincipal.username,
-                        call.userCloud()
+                        request.files,
+                        ctx.securityPrincipal.username,
+                        userCloud()
                     )
                 )
             )
@@ -40,17 +36,18 @@ class FileTrashController(
         implement(FileTrashDescriptions.clear) {
             ok(
                 trashService.emptyTrash(
-                    call.securityPrincipal.username,
-                    call.userCloud()
+                    ctx.securityPrincipal.username,
+                    userCloud()
                 ),
                 HttpStatusCode.Accepted
             )
         }
     }
 
-    private fun ApplicationCall.userCloud(): AuthenticatedCloud {
-        val token = request.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-        return cloudContext.bearerAuth(token).optionallyCausedBy(request.safeJobId)
+    private fun CallHandler<*, *, *>.userCloud(): AuthenticatedClient {
+        return with(ctx as HttpCall) {
+            serviceCloud.withoutAuthentication().bearerAuth(call.request.bearer!!)
+        }
     }
 
     companion object : Loggable {

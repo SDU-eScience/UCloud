@@ -1,21 +1,21 @@
 package dk.sdu.cloud.service.test
 
-import dk.sdu.cloud.client.ServiceDescription
-import dk.sdu.cloud.service.CloudContextFeature
-import dk.sdu.cloud.service.CloudFeature
-import dk.sdu.cloud.service.ConfigurationFeature
-import dk.sdu.cloud.service.DevelopmentOverrides
-import dk.sdu.cloud.service.KafkaFeature
-import dk.sdu.cloud.service.KafkaFeatureConfiguration
-import dk.sdu.cloud.service.KafkaTopicFeature
-import dk.sdu.cloud.service.KafkaTopicFeatureConfiguration
-import dk.sdu.cloud.service.KtorServerProviderFeature
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.ScriptFeature
-import dk.sdu.cloud.service.ServiceDiscoveryOverrides
-import dk.sdu.cloud.service.ServiceInstanceFeature
-import dk.sdu.cloud.service.TokenValidationFeature
-import dk.sdu.cloud.service.install
+import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.micro.ClientFeature
+import dk.sdu.cloud.micro.ConfigurationFeature
+import dk.sdu.cloud.micro.DevelopmentOverrides
+import dk.sdu.cloud.micro.KafkaFeature
+import dk.sdu.cloud.micro.KafkaFeatureConfiguration
+import dk.sdu.cloud.micro.KtorServerProviderFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ScriptFeature
+import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.ServiceDiscoveryOverrides
+import dk.sdu.cloud.micro.ServiceInstanceFeature
+import dk.sdu.cloud.micro.TokenValidationFeature
+import dk.sdu.cloud.micro.install
+import io.ktor.server.testing.TestApplicationEngine
+import io.ktor.server.testing.withTestApplication
 import java.nio.file.Files
 
 private val tokenValidationConfig by lazy {
@@ -35,13 +35,15 @@ private val tokenValidationConfig by lazy {
 private val databaseConfig by lazy {
     Files.createTempFile("config", ".yml").toFile().also {
         // language=yaml
-        it.writeText("""
+        it.writeText(
+            """
           ---
           hibernate:
             database:
               profile: TEST_H2
               logSql: true
-        """.trimIndent())
+        """.trimIndent()
+        )
     }
 }
 
@@ -68,13 +70,22 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
         install(ConfigurationFeature)
         install(ServiceDiscoveryOverrides)
         install(DevelopmentOverrides) // Always activated
-        install(KtorServerProviderFeature)
-        install(KafkaFeature, KafkaFeatureConfiguration(kafkaServicesOverride = KafkaMock.initialize()))
-        install(CloudContextFeature)
-        install(CloudFeature)
+//        install(KtorServerProviderFeature)
+
+        attributes[KtorServerProviderFeature.serverProviderKey] = { module ->
+            val engine = TestApplicationEngine()
+            engine.start()
+            engine.application.module()
+            engine
+        }
+
+        install(
+            KafkaFeature,
+            KafkaFeatureConfiguration(kafkaServicesOverride = KafkaMock.initialize())
+        )
+        install(ClientFeature)
         install(TokenValidationFeature)
         install(ServiceInstanceFeature)
-
-        feature(CloudFeature).addAuthenticatedCloud(Int.MAX_VALUE, CloudMock.also { it.initialize() })
+        install(ServerFeature)
     }
 }

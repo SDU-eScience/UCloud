@@ -3,11 +3,14 @@ package dk.sdu.cloud.indexing.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
-import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -284,39 +287,41 @@ enum class SortDirection {
  *
  * In general, this can only be accessed by [Roles.PRIVILEDGED] users
  */
-object QueryDescriptions : RESTDescriptions("indexing") {
+object QueryDescriptions : CallDescriptionContainer("indexing") {
     const val baseContext = "/api/indexing/query"
 
-    val query = callDescription<QueryRequest, QueryResponse, CommonErrorMessage> {
-        name = "query"
-        method = HttpMethod.Post
-
+    val query = call<QueryRequest, QueryResponse, CommonErrorMessage>("query") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val statistics = callDescription<StatisticsRequest, StatisticsResponse, CommonErrorMessage> {
-        name = "statistics"
-        method = HttpMethod.Post
-
+    val statistics = call<StatisticsRequest, StatisticsResponse, CommonErrorMessage>("statistics") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"statistics"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"statistics"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 }

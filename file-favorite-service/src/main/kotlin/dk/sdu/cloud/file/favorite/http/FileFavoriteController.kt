@@ -1,9 +1,16 @@
 package dk.sdu.cloud.file.favorite.http
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.CloudContext
-import dk.sdu.cloud.client.RESTCallDescription
-import dk.sdu.cloud.client.bearerAuth
+import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.audit
+import dk.sdu.cloud.calls.server.bearer
+import dk.sdu.cloud.calls.server.jobId
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
@@ -13,54 +20,48 @@ import dk.sdu.cloud.file.favorite.api.ToggleFavoriteResponse
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.bearer
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.optionallyCausedBy
-import dk.sdu.cloud.service.safeJobId
-import dk.sdu.cloud.service.securityPrincipal
-import io.ktor.routing.Route
+import io.ktor.application.call
 
 class FileFavoriteController<DBSession>(
     private val fileFavoriteService: FileFavoriteService<DBSession>,
-    private val cloudContext: CloudContext
+    private val cloudContext: AuthenticatedClient
 ) : Controller {
-    override val baseContext = FileFavoriteDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         handleFavoriteToggle(FileFavoriteDescriptions.toggleFavorite)
         handleFavoriteToggle(FileFavoriteDescriptions.toggleFavoriteDelete)
 
-        implement(FileFavoriteDescriptions.favoriteStatus) { req ->
+        implement(FileFavoriteDescriptions.favoriteStatus) {
             ok(
                 FavoriteStatusResponse(
-                    fileFavoriteService.getFavoriteStatus(req.files, call.securityPrincipal.username)
+                    fileFavoriteService.getFavoriteStatus(request.files, ctx.securityPrincipal.username)
                 )
             )
         }
 
-        implement(FileFavoriteDescriptions.list) { req ->
-            ok(fileFavoriteService.listAll(req.normalize(), call.securityPrincipal.username))
+        implement(FileFavoriteDescriptions.list) {
+            ok(fileFavoriteService.listAll(request.normalize(), ctx.securityPrincipal.username))
         }
     }
 
-    private fun Route.handleFavoriteToggle(
-        description: RESTCallDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage,
-                ToggleFavoriteAudit>
+    private fun RpcServer.handleFavoriteToggle(
+        description: CallDescription<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage>
     ) {
-        implement(description) { req ->
-            val auditMessage = ToggleFavoriteAudit(listOf(req.path).map { ToggleFavoriteFileAudit(it) })
-            audit(auditMessage)
+        implement(description) {
+            with(ctx as HttpCall) {
+                val auditMessage = ToggleFavoriteAudit(listOf(request.path).map { ToggleFavoriteFileAudit(it) })
+                audit(auditMessage)
 
-            ok(
-                ToggleFavoriteResponse(
-                    fileFavoriteService.toggleFavorite(
-                        listOf(req.path),
-                        call.securityPrincipal.username,
-                        cloudContext.bearerAuth(call.request.bearer!!).optionallyCausedBy(call.request.safeJobId),
-                        auditMessage
+                ok(
+                    ToggleFavoriteResponse(
+                        fileFavoriteService.toggleFavorite(
+                            listOf(request.path),
+                            ctx.securityPrincipal.username,
+                            cloudContext.withoutAuthentication().bearerAuth(call.request.bearer!!),
+                            auditMessage
+                        )
                     )
                 )
-            )
+            }
         }
     }
 

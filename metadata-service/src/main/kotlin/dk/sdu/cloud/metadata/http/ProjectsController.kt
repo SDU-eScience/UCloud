@@ -1,6 +1,8 @@
 package dk.sdu.cloud.metadata.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.metadata.api.CreateProjectFromFormResponse
 import dk.sdu.cloud.metadata.api.ProjectDescriptions
 import dk.sdu.cloud.metadata.api.ProjectMetadata
@@ -8,28 +10,23 @@ import dk.sdu.cloud.metadata.api.UserEditableProjectMetadata
 import dk.sdu.cloud.metadata.services.ElasticMetadataService
 import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 
 class ProjectsController(
     private val projectService: ProjectService,
     private val elastic: ElasticMetadataService
 ) : Controller {
-    override val baseContext = ProjectDescriptions.baseContext
-
-    override fun configure(routing: Route) = with(routing) {
-        implement(ProjectDescriptions.create) { request ->
-            val id = if(checkMetadata(request)) {
-                projectService.createProject(request.title!!, call.securityPrincipal.username)
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(ProjectDescriptions.create) {
+            val id = if (checkMetadata(request)) {
+                projectService.createProject(request.title!!, ctx.securityPrincipal.username)
             } else {
                 return@implement error(CommonErrorMessage("Not correct metadata"), HttpStatusCode.BadRequest)
             }
 
             val projectMetadata = ProjectMetadata(
-                title = request.title,
+                title = request.title!!,
                 description = request.description!!,
                 license = request.license,
                 projectId = id,

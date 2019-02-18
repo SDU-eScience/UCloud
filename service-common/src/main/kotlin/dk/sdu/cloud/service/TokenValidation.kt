@@ -8,6 +8,8 @@ import com.auth0.jwt.exceptions.JWTVerificationException
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.toSecurityToken
 import io.ktor.http.HttpStatusCode
 import java.io.ByteArrayInputStream
 import java.nio.charset.StandardCharsets

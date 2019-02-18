@@ -7,7 +7,7 @@ import dk.sdu.cloud.accounting.compute.util.withDatabase
 import dk.sdu.cloud.app.api.NameAndVersion
 import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.service.test.ClientMock
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -28,7 +28,7 @@ class CompletedJobsHibernateDaoTest {
     fun `insert single, list and compute usage`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
+            val service = CompletedJobsService(db, dao, ClientMock.authenticatedClient)
 
             service.insert(dummyEvent)
 
@@ -54,7 +54,7 @@ class CompletedJobsHibernateDaoTest {
     fun `multiple insert of same`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
+            val service = CompletedJobsService(db, dao, ClientMock.authenticatedClient)
 
             val events = (0 until 10).map { dummyEvent }
             service.insertBatch(events)
@@ -78,7 +78,7 @@ class CompletedJobsHibernateDaoTest {
     fun `insert multiple for same user and list all`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
+            val service = CompletedJobsService(db, dao, ClientMock.authenticatedClient)
 
             val count = 10
             val events = (0 until count).map { idx ->
@@ -120,7 +120,7 @@ class CompletedJobsHibernateDaoTest {
     fun `insert multiple for different users`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
+            val service = CompletedJobsService(db, dao, ClientMock.authenticatedClient)
 
             val userCount = 3
             val entryCount = 5
@@ -158,7 +158,7 @@ class CompletedJobsHibernateDaoTest {
     fun `test since query`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
+            val service = CompletedJobsService(db, dao, ClientMock.authenticatedClient)
 
             val eventCount = 5
 
@@ -189,7 +189,7 @@ class CompletedJobsHibernateDaoTest {
     fun `test until query`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
+            val service = CompletedJobsService(db, dao, ClientMock.authenticatedClient)
 
             val eventCount = 5
 
@@ -220,7 +220,7 @@ class CompletedJobsHibernateDaoTest {
     fun `test between query`() {
         withDatabase { db ->
             val dao = CompletedJobsHibernateDao()
-            val service = CompletedJobsService(db, dao, micro.authenticatedCloud)
+            val service = CompletedJobsService(db, dao, ClientMock.authenticatedClient)
 
             val eventCount = 5
 

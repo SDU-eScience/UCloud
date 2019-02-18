@@ -10,25 +10,26 @@ import dk.sdu.cloud.app.services.JobDao
 import dk.sdu.cloud.app.services.JobOrchestrator
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
-import dk.sdu.cloud.client.JWTAuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.ClientAndBackend
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.bearer
+import dk.sdu.cloud.calls.server.requiredAuthScope
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.bearer
-import dk.sdu.cloud.service.cloudClient
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.implement
 import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.optionallyCausedBy
-import dk.sdu.cloud.service.safeJobId
-import dk.sdu.cloud.service.securityPrincipal
+import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.Route
-import org.slf4j.LoggerFactory
 
 internal const val JOB_MAX_TIME = 1000 * 60 * 60 * 24L
 
@@ -36,60 +37,59 @@ class JobController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val jobOrchestrator: JobOrchestrator<DBSession>,
     private val jobDao: JobDao<DBSession>,
-    private val tokenValidation: TokenValidation<DecodedJWT>
+    private val tokenValidation: TokenValidation<DecodedJWT>,
+    private val serviceClient: AuthenticatedClient
 ) : Controller {
-    override val baseContext = JobDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(JobDescriptions.findById) { req ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(JobDescriptions.findById) {
             val (job, _) = db.withTransaction { session ->
-                jobDao.findOrNull(session, req.id, call.securityPrincipal.username)
+                jobDao.findOrNull(session, request.id, ctx.securityPrincipal.username)
             } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             ok(job.toJobWithStatus())
         }
 
-        implement(JobDescriptions.listRecent) { req ->
+        implement(JobDescriptions.listRecent) {
             val result = db.withTransaction {
-                jobDao.list(it, call.securityPrincipal.username, req.normalize())
+                jobDao.list(it, ctx.securityPrincipal.username, request.normalize())
             }.mapItems { it.job.toJobWithStatus() }
 
             ok(result)
         }
 
-        implement(JobDescriptions.start) { req ->
-            val extensionResponse = AuthDescriptions.tokenExtension.call(
-                TokenExtensionRequest(
-                    call.request.bearer!!,
-                    listOf(
-                        MultiPartUploadDescriptions.upload.requiredAuthScope.toString(),
-                        FileDescriptions.download.requiredAuthScope.toString(),
-                        FileDescriptions.createDirectory.requiredAuthScope.toString(),
-                        FileDescriptions.stat.requiredAuthScope.toString()
+        implement(JobDescriptions.start) {
+            with(ctx as HttpCall) {
+                val extensionResponse = AuthDescriptions.tokenExtension.call(
+                    TokenExtensionRequest(
+                        call.request.bearer!!,
+                        listOf(
+                            MultiPartUploadDescriptions.upload.requiredAuthScope.toString(),
+                            FileDescriptions.download.requiredAuthScope.toString(),
+                            FileDescriptions.createDirectory.requiredAuthScope.toString(),
+                            FileDescriptions.stat.requiredAuthScope.toString()
+                        ),
+                        JOB_MAX_TIME
                     ),
-                    JOB_MAX_TIME
-                ),
-                call.cloudClient
-            )
+                    serviceClient
+                )
 
-            if (extensionResponse !is RESTResponse.Ok) {
-                error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
-                return@implement
+                if (extensionResponse !is IngoingCallResponse.Ok) {
+                    error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
+                    return@implement
+                }
+
+                val extendedToken = tokenValidation.validate(extensionResponse.result.accessToken)
+
+                val userClient =
+                    ClientAndBackend(serviceClient.client, serviceClient.companion).bearerAuth(extendedToken.token)
+
+                val jobId = jobOrchestrator.startJob(request, extendedToken, userClient)
+                ok(JobStartedResponse(jobId))
             }
-
-            val extendedToken = tokenValidation.validate(extensionResponse.result.accessToken)
-
-            val userCloud = JWTAuthenticatedCloud(
-                call.cloudClient.parent,
-                extendedToken.token
-            ).optionallyCausedBy(call.request.safeJobId)
-
-            val jobId = jobOrchestrator.startJob(req, extendedToken, userCloud)
-            ok(JobStartedResponse(jobId))
         }
 
-        implement(JobDescriptions.follow) { req ->
-            ok(jobOrchestrator.followStreams(req))
+        implement(JobDescriptions.follow) {
+            ok(jobOrchestrator.followStreams(request))
         }
     }
 

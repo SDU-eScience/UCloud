@@ -6,9 +6,9 @@ import dk.sdu.cloud.app.api.ApplicationMetadata
 import dk.sdu.cloud.app.api.ApplicationSummary
 import dk.sdu.cloud.app.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.api.ApplicationWithFavorite
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.createCriteriaBuilder
 import dk.sdu.cloud.service.db.createQuery

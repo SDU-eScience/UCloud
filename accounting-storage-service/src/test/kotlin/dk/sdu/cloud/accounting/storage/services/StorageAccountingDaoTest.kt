@@ -1,13 +1,9 @@
 package dk.sdu.cloud.accounting.storage.services
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.ContextQueryImpl
-import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.auth.api.ServicePrincipal
-import dk.sdu.cloud.client.defaultMapper
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.withDatabase
 import org.junit.Test
@@ -38,7 +34,7 @@ class StorageAccountingDaoTest {
                 dao.insert(it, ServicePrincipal("_user", Role.SERVICE), 12345)
             }
             db.withTransaction {
-                val result = dao.findAllPage(it, NormalizedPaginationRequest(10,0), ContextQueryImpl(202020), "_user")
+                val result = dao.findAllPage(it, NormalizedPaginationRequest(10, 0), ContextQueryImpl(202020), "_user")
                 assertEquals(12345, result.items.first().bytesUsed)
                 assertEquals("_user", result.items.first().user)
                 assertEquals(0, result.pageNumber)
@@ -58,7 +54,7 @@ class StorageAccountingDaoTest {
 
             }
             db.withTransaction {
-                val result = dao.findAllByUserId(it, "_user2", NormalizedPaginationRequest(10,0))
+                val result = dao.findAllByUserId(it, "_user2", NormalizedPaginationRequest(10, 0))
                 assertEquals(6666, result.items.first().bytesUsed)
                 assertEquals("_user2", result.items.first().user)
                 assertEquals(0, result.pageNumber)

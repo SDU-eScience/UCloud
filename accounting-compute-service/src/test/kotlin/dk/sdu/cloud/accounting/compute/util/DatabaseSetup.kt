@@ -1,10 +1,10 @@
 package dk.sdu.cloud.accounting.compute.util
 
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 

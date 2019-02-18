@@ -3,8 +3,11 @@ package dk.sdu.cloud.accounting.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -155,7 +158,7 @@ typealias BuildReportResponse = InvoiceReport
  */
 abstract class AbstractAccountingDescriptions(
     namespace: String
-) : RESTDescriptions("$ACCOUNTING_NAMESPACE.$namespace") {
+) : CallDescriptionContainer("$ACCOUNTING_NAMESPACE.$namespace") {
     val baseContext = "/api/$ACCOUNTING_NAMESPACE/$namespace"
 
     /**
@@ -167,38 +170,40 @@ abstract class AbstractAccountingDescriptions(
      *
      * Implementations should block any attempts not made by "_accounting".
      */
-    val buildReport = callDescription<BuildReportRequest, BuildReportResponse, CommonErrorMessage> {
-        name = "buildReport"
-        method = HttpMethod.Post
-
+    val buildReport = call<BuildReportRequest, BuildReportResponse, CommonErrorMessage>("buildReport") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"buildReport"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"buildReport"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
     /**
      * Informs the caller about a list of sub-resources that this [namespace] contains.
      */
-    val listResources = callDescription<Unit, ListResourceResponse, CommonErrorMessage> {
-        name = "listResources"
-        method = HttpMethod.Get
-
+    val listResources = call<Unit, ListResourceResponse, CommonErrorMessage>("listResources") {
         auth {
             roles = Roles.AUTHENTICATED // Note: This is a public endpoint!
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"list"
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"list"
+            }
         }
     }
 }
@@ -214,7 +219,7 @@ abstract class AbstractAccountingDescriptions(
 abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
     namespace: String,
     val resourceType: String
-) : RESTDescriptions("$ACCOUNTING_NAMESPACE.$namespace.$resourceType") {
+) : CallDescriptionContainer("$ACCOUNTING_NAMESPACE.$namespace.$resourceType") {
     // TODO This stuff does not work well for auditing.
 
     val baseContext: String = "/api/$ACCOUNTING_NAMESPACE/$namespace/$resourceType"
@@ -225,72 +230,75 @@ abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
      * When processing events from Kafka, remember that Kafka usually only offers "at least once" delivery. The
      * processing code should be resilient to this.
      */
-    val listEvents = callDescription<ListEventsRequest, ListEventsResponse<Event>, CommonErrorMessage> {
-        name = "listEvents"
-        method = HttpMethod.Get
-
+    val listEvents = call<ListEventsRequest, ListEventsResponse<Event>, CommonErrorMessage>("listEvents") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"events"
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(ListEventsRequest::since)
-            +boundTo(ListEventsRequest::until)
-            +boundTo(ListEventsRequest::context)
+            path {
+                using(baseContext)
+                +"events"
+            }
 
-            +boundTo(ListEventsRequest::page)
-            +boundTo(ListEventsRequest::itemsPerPage)
+            params {
+                +boundTo(ListEventsRequest::since)
+                +boundTo(ListEventsRequest::until)
+                +boundTo(ListEventsRequest::context)
+
+                +boundTo(ListEventsRequest::page)
+                +boundTo(ListEventsRequest::itemsPerPage)
+            }
         }
     }
 
     /**
      * Returns chart data for this resource.
      */
-    val chart = callDescription<ChartRequest, ChartResponse, CommonErrorMessage> {
-        name = "chart"
-        method = HttpMethod.Get
-
+    val chart = call<ChartRequest, ChartResponse, CommonErrorMessage>("chart") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"chart"
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(ChartRequest::since)
-            +boundTo(ChartRequest::until)
-            +boundTo(ChartRequest::context)
+            path {
+                using(baseContext)
+                +"chart"
+            }
+
+            params {
+                +boundTo(ChartRequest::since)
+                +boundTo(ChartRequest::until)
+                +boundTo(ChartRequest::context)
+            }
         }
     }
 
     /**
      * Returns usage for this resource for a given time period.
      */
-    val usage = callDescription<UsageRequest, UsageResponse, CommonErrorMessage> {
-        name = "usage"
-        method = HttpMethod.Get
-
+    val usage = call<UsageRequest, UsageResponse, CommonErrorMessage>("usage") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"usage"
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(UsageRequest::context)
-            +boundTo(UsageRequest::since)
-            +boundTo(UsageRequest::until)
+            path {
+                using(baseContext)
+                +"usage"
+            }
+
+            params {
+                +boundTo(UsageRequest::context)
+                +boundTo(UsageRequest::since)
+                +boundTo(UsageRequest::until)
+            }
         }
     }
 }

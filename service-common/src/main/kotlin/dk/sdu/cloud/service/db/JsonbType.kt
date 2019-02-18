@@ -1,8 +1,7 @@
 package dk.sdu.cloud.service.db
 
 import com.fasterxml.jackson.databind.JavaType
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
 import org.hibernate.collection.internal.PersistentList
 import org.hibernate.collection.spi.PersistentCollection
 import org.hibernate.dialect.Dialect

@@ -3,8 +3,11 @@ package dk.sdu.cloud.zenodo.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -47,88 +50,93 @@ data class ZenodoListPublicationsRequest(
     override val page: Int?
 ) : WithPaginationRequest
 
-object ZenodoDescriptions : RESTDescriptions("zenodo") {
+object ZenodoDescriptions : CallDescriptionContainer("zenodo") {
     const val baseContext = "/api/zenodo"
 
-    val requestAccess = callDescription<ZenodoAccessRequest, ZenodoAccessRedirectURL, CommonErrorMessage> {
-        name = "requestAccess"
-        method = HttpMethod.Post
-
+    val requestAccess = call<ZenodoAccessRequest, ZenodoAccessRedirectURL, CommonErrorMessage>("requestAccess") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"request"
-        }
+        http {
+            method = HttpMethod.Post
 
-        params {
-            +boundTo(ZenodoAccessRequest::returnTo)
+            path {
+                using(baseContext)
+                +"request"
+            }
+
+            params {
+                +boundTo(ZenodoAccessRequest::returnTo)
+            }
         }
     }
 
-    val publish = callDescription<ZenodoPublishRequest, ZenodoPublishResponse, CommonErrorMessage> {
-        name = "publish"
-        method = HttpMethod.Post
-
+    val publish = call<ZenodoPublishRequest, ZenodoPublishResponse, CommonErrorMessage>("publish") {
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"publish"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"publish"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val status = callDescription<Unit, ZenodoConnectedStatus, CommonErrorMessage> {
-        name = "status"
-        method = HttpMethod.Get
-
+    val status = call<Unit, ZenodoConnectedStatus, CommonErrorMessage>("status") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"status"
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"status"
+            }
         }
     }
 
-    val listPublications = callDescription<ZenodoListPublicationsRequest, Page<ZenodoPublication>, CommonErrorMessage> {
-        name = "listPublications"
-        method = HttpMethod.Get
-
+    val listPublications = call<ZenodoListPublicationsRequest, Page<ZenodoPublication>, CommonErrorMessage>("listPublications") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"publications"
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(ZenodoListPublicationsRequest::itemsPerPage)
-            +boundTo(ZenodoListPublicationsRequest::page)
+            path {
+                using(baseContext)
+                +"publications"
+            }
+
+            params {
+                +boundTo(ZenodoListPublicationsRequest::itemsPerPage)
+                +boundTo(ZenodoListPublicationsRequest::page)
+            }
         }
     }
 
-    val findPublicationById = callDescription<FindByLongId, ZenodoPublicationWithFiles, CommonErrorMessage> {
-        name = "findPublicationById"
-        method = HttpMethod.Get
-
+    val findPublicationById = call<FindByLongId, ZenodoPublicationWithFiles, CommonErrorMessage>("findPublicationById") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"publications"
-            +boundTo(FindByLongId::id)
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"publications"
+                +boundTo(FindByLongId::id)
+            }
         }
     }
 }

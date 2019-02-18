@@ -4,19 +4,20 @@ import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.app.api.ToolDescriptions
 import dk.sdu.cloud.app.api.ToolDescription
+import dk.sdu.cloud.app.api.ToolDescriptions
 import dk.sdu.cloud.app.services.ToolDAO
 import dk.sdu.cloud.app.util.yamlMapper
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
+import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.ContentTransformationException
 import io.ktor.request.receiveText
-import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.reader.ReaderException
 
@@ -24,86 +25,81 @@ class ToolController<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val source: ToolDAO<DBSession>
 ) : Controller {
-    override val baseContext = ToolDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(ToolDescriptions.findByName) { req ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(ToolDescriptions.findByName) {
             val result = db.withTransaction {
                 source.findAllByName(
                     it,
-                    call.securityPrincipal.username,
-                    req.name,
-                    req.normalize()
+                    ctx.securityPrincipal.username,
+                    request.name,
+                    request.normalize()
                 )
             }
 
             ok(result)
         }
 
-        implement(ToolDescriptions.findByNameAndVersion) { req ->
+        implement(ToolDescriptions.findByNameAndVersion) {
             val result = db.withTransaction {
                 source.findByNameAndVersion(
                     it,
-                    call.securityPrincipal.username,
-                    req.name,
-                    req.version
+                    ctx.securityPrincipal.username,
+                    request.name,
+                    request.version
                 )
             }
 
             ok(result)
         }
 
-        implement(ToolDescriptions.listAll) { req ->
+        implement(ToolDescriptions.listAll) {
             ok(
                 db.withTransaction {
-                    source.listLatestVersion(it, call.securityPrincipal.username, req.normalize())
+                    source.listLatestVersion(it, ctx.securityPrincipal.username, request.normalize())
                 }
             )
         }
 
-        implement(ToolDescriptions.create) { req ->
-            val content = try {
-                call.receiveText()
-            } catch (ex: ContentTransformationException) {
-                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                return@implement
-            }
+        implement(ToolDescriptions.create) {
+            with(ctx as HttpCall) {
+                val content = try {
+                    call.receiveText()
+                } catch (ex: ContentTransformationException) {
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
 
-            @Suppress("DEPRECATION")
-            val yamlDocument = try {
-                yamlMapper.readValue<ToolDescription>(content)
-            } catch (ex: JsonMappingException) {
-                error(
-                    CommonErrorMessage(
-                        "Bad value for parameter ${ex.pathReference.replace(
-                            "dk.sdu.cloud.app.api.",
-                            ""
-                        )}. ${ex.message}"
-                    ),
-                    HttpStatusCode.BadRequest
-                )
-                return@implement
-            } catch (ex: MarkedYAMLException) {
-                error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
-                return@implement
-            } catch (ex: ReaderException) {
-                error(
-                    CommonErrorMessage("Document contains illegal characters (unicode?)"),
-                    HttpStatusCode.BadRequest
-                )
-                return@implement
-            }
+                @Suppress("DEPRECATION")
+                val yamlDocument = try {
+                    yamlMapper.readValue<ToolDescription>(content)
+                } catch (ex: JsonMappingException) {
+                    error(
+                        CommonErrorMessage(
+                            "Bad value for parameter ${ex.pathReference.replace(
+                                "dk.sdu.cloud.app.api.",
+                                ""
+                            )}. ${ex.message}"
+                        ),
+                        HttpStatusCode.BadRequest
+                    )
+                    return@implement
+                } catch (ex: MarkedYAMLException) {
+                    error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
+                    return@implement
+                } catch (ex: ReaderException) {
+                    error(
+                        CommonErrorMessage("Document contains illegal characters (unicode?)"),
+                        HttpStatusCode.BadRequest
+                    )
+                    return@implement
+                }
 
-            db.withTransaction {
-                source.create(it, call.securityPrincipal.username, yamlDocument.normalize(), content)
-            }
+                db.withTransaction {
+                    source.create(it, ctx.securityPrincipal.username, yamlDocument.normalize(), content)
+                }
 
-            ok(Unit)
+                ok(Unit)
+            }
         }
-
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(ToolController::class.java)
     }
 }

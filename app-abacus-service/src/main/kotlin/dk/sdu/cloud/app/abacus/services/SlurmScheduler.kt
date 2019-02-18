@@ -9,9 +9,10 @@ import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.JobState
 import dk.sdu.cloud.app.api.StateChangeRequest
 import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
@@ -27,7 +28,7 @@ class SlurmScheduler<DBSession>(
     private val slurmPollAgent: SlurmPollAgent,
     private val db: DBSessionFactory<DBSession>,
     private val jobDao: JobDao<DBSession>,
-    private val cloud: AuthenticatedCloud,
+    private val cloud: AuthenticatedClient,
     private val reservation: String? = null
 ) {
     suspend fun schedule(job: VerifiedJob) {

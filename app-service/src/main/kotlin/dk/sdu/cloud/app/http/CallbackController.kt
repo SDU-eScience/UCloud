@@ -4,25 +4,22 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.JobStateChange
 import dk.sdu.cloud.app.services.JobOrchestrator
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
-import io.ktor.routing.Route
 
 class CallbackController<DBSession>(
     private val jobOrchestrator: JobOrchestrator<DBSession>
 ) : Controller {
-    override val baseContext = ComputationCallbackDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(ComputationCallbackDescriptions.submitFile) { multipart ->
-            multipart.receiveBlocks { req ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(ComputationCallbackDescriptions.submitFile) {
+            request.asIngoing().receiveBlocks { req ->
                 val length = req.fileData.length
                 if (length != null) {
                     jobOrchestrator.handleIncomingFile(
                         req.jobId,
-                        call.securityPrincipal,
+                        ctx.securityPrincipal,
                         req.filePath,
                         length,
                         req.fileData.channel
@@ -35,27 +32,27 @@ class CallbackController<DBSession>(
 
         }
 
-        implement(ComputationCallbackDescriptions.requestStateChange) { req ->
+        implement(ComputationCallbackDescriptions.requestStateChange) {
             jobOrchestrator.handleProposedStateChange(
-                JobStateChange(req.id, req.newState),
-                req.newStatus,
-                call.securityPrincipal
+                JobStateChange(request.id, request.newState),
+                request.newStatus,
+                ctx.securityPrincipal
             )
             ok(Unit)
         }
 
-        implement(ComputationCallbackDescriptions.addStatus) { req ->
-            jobOrchestrator.handleAddStatus(req.id, req.status, call.securityPrincipal)
+        implement(ComputationCallbackDescriptions.addStatus) {
+            jobOrchestrator.handleAddStatus(request.id, request.status, ctx.securityPrincipal)
             ok(Unit)
         }
 
-        implement(ComputationCallbackDescriptions.completed) { req ->
-            jobOrchestrator.handleJobComplete(req.id, req.wallDuration, req.success, call.securityPrincipal)
+        implement(ComputationCallbackDescriptions.completed) {
+            jobOrchestrator.handleJobComplete(request.id, request.wallDuration, request.success, ctx.securityPrincipal)
             ok(Unit)
         }
 
-        implement(ComputationCallbackDescriptions.lookup) { req ->
-            ok(jobOrchestrator.lookupOwnJob(req.id, call.securityPrincipal))
+        implement(ComputationCallbackDescriptions.lookup) {
+            ok(jobOrchestrator.lookupOwnJob(request.id, ctx.securityPrincipal))
         }
     }
 

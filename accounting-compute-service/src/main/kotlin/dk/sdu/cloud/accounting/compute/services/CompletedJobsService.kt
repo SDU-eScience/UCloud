@@ -9,21 +9,22 @@ import dk.sdu.cloud.accounting.api.SerializedMoney
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.orRethrowAs
 import io.ktor.http.HttpStatusCode
 import java.math.BigDecimal
 
 class CompletedJobsService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val dao: CompletedJobsDao<DBSession>,
-    private val serviceCloud: AuthenticatedCloud
+    private val serviceCloud: AuthenticatedClient
 ) {
     /**
      * Inserts a single event. Assumes input to be normalized, see [normalizeUsername].
@@ -100,7 +101,7 @@ class CompletedJobsService<DBSession>(
         val actualRole = UserDescriptions.lookupUsers
             .call(LookupUsersRequest(listOf(user)), serviceCloud)
             .orRethrowAs {
-                log.warn("Caught an exception while normalizing user: ${it.error} ${it.status}")
+                log.warn("Caught an exception while normalizing user: ${it.error} ${it.statusCode}")
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
             .results[user]?.role

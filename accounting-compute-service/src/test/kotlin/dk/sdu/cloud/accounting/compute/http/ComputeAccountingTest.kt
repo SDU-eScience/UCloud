@@ -14,13 +14,12 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
@@ -40,10 +39,11 @@ import kotlin.test.assertTrue
 private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
     micro.install(HibernateFeature)
     val completeJobsDao = CompletedJobsHibernateDao()
-    val completeJobsService = CompletedJobsService(micro.hibernateDatabase, completeJobsDao, micro.authenticatedCloud)
+    val completeJobsService =
+        CompletedJobsService(micro.hibernateDatabase, completeJobsDao, ClientMock.authenticatedClient)
 
-    CloudMock.mockCall(UserDescriptions, { UserDescriptions.lookupUsers }) { req ->
-        TestCallResult.Ok(LookupUsersResponse(req.users.map { it to UserLookup(it, Role.USER) }.toMap()))
+    ClientMock.mockCall(UserDescriptions.lookupUsers) { req ->
+        TestCallResult.Ok(LookupUsersResponse(req.users.map { it to UserLookup(it, 0L, Role.USER) }.toMap()))
     }
 
     val events = (0 until 10).map { dummyEvent }

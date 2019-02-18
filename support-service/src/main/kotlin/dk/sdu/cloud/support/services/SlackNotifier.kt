@@ -1,8 +1,8 @@
 package dk.sdu.cloud.support.services
 
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.call
 import io.ktor.client.call.receive
@@ -10,7 +10,6 @@ import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import org.slf4j.Logger
 

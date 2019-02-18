@@ -1,7 +1,6 @@
 package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.auth.api.LoginRequest
 import dk.sdu.cloud.auth.services.JWTFactory
 import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.PersonService
@@ -11,32 +10,28 @@ import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
-import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
-import dk.sdu.cloud.service.tokenValidation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.mockk.every
 import io.mockk.mockk
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 

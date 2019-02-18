@@ -1,15 +1,11 @@
 package dk.sdu.cloud.filesearch
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.auth.api.refreshingJwtCloud
 import dk.sdu.cloud.filesearch.api.FilesearchServiceDescription
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.initWithDefaultFeatures
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.kafka
-import dk.sdu.cloud.service.runScriptHandler
-import dk.sdu.cloud.service.serverProvider
-import dk.sdu.cloud.service.serviceInstance
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.initWithDefaultFeatures
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.runScriptHandler
 
 fun main(args: Array<String>) {
     val micro = Micro().apply {
@@ -19,9 +15,5 @@ fun main(args: Array<String>) {
 
     if (micro.runScriptHandler()) return
 
-    Server(
-        micro.kafka,
-        micro.serverProvider,
-        micro
-    ).start()
+    Server(micro).start()
 }

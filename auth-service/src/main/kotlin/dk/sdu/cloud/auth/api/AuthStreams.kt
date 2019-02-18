@@ -1,7 +1,7 @@
 package dk.sdu.cloud.auth.api
 
-import dk.sdu.cloud.service.KafkaDescriptions
-import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.kafka.KafkaDescriptions
+import dk.sdu.cloud.kafka.MappedEventProducer
 import org.apache.kafka.streams.kstream.KStream
 
 typealias UserEventProducer = MappedEventProducer<String, UserEvent>

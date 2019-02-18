@@ -16,12 +16,13 @@ import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.FileForUploadArchiveType
 import dk.sdu.cloud.app.api.SubmitComputationResult
 import dk.sdu.cloud.app.api.VerifiedJob
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.client.MultipartRequest
-import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.client.StreamingFile
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.types.StreamingFile
+import dk.sdu.cloud.calls.types.StreamingRequest
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -34,7 +35,7 @@ import java.io.File
  */
 class JobFileService(
     private val sshConnectionPool: SSHConnectionPool,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
+    private val cloud: AuthenticatedClient,
     workingDirectory: String
 ) {
     private val workingDirectory = File(workingDirectory)
@@ -149,7 +150,7 @@ class JobFileService(
 
                 scpDownload(filePath) { ins ->
                     ComputationCallbackDescriptions.submitFile.call(
-                        MultipartRequest.create(
+                        StreamingRequest.Outgoing(
                             @Suppress("DEPRECATION")
                             SubmitComputationResult(
                                 jobId,
@@ -163,7 +164,7 @@ class JobFileService(
                             )
                         ),
                         cloud
-                    ) as? RESTResponse.Ok ?: throw JobFileException.UploadToCloudFailed(originalFileName)
+                    ) as? IngoingCallResponse.Ok ?: throw JobFileException.UploadToCloudFailed(originalFileName)
                 }
             } catch (ex: Exception) {
                 log.warn("Caught exception while uploading file to SDUCloud")

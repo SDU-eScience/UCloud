@@ -2,14 +2,15 @@ package dk.sdu.cloud.project.auth.services
 
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.BulkInvalidateRequest
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.orThrow
 
 class TokenInvalidator<DBSession>(
-    private val serviceCloud: AuthenticatedCloud,
+    private val serviceCloud: AuthenticatedClient,
     private val db: DBSessionFactory<DBSession>,
     private val tokenDao: AuthTokenDao<DBSession>
 ) {

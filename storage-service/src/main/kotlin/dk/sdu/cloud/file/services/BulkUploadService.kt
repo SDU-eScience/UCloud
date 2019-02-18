@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.components
@@ -27,7 +28,7 @@ import kotlin.reflect.KClass
 
 sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: KClass<Ctx>) {
     abstract suspend fun upload(
-        serviceCloud: AuthenticatedCloud,
+        serviceCloud: AuthenticatedClient,
         fs: CoreFileSystemService<Ctx>,
         contextFactory: suspend () -> Ctx,
         path: String,
@@ -53,7 +54,7 @@ object ZipBulkUploader : BulkUploader<UnixFSCommandRunner>("zip", UnixFSCommandR
     override val log = logger()
 
     override suspend fun upload(
-        serviceCloud: AuthenticatedCloud,
+        serviceCloud: AuthenticatedClient,
         fs: CoreFileSystemService<UnixFSCommandRunner>,
         contextFactory: suspend () -> UnixFSCommandRunner,
         path: String,
@@ -100,7 +101,7 @@ object TarGzUploader : BulkUploader<UnixFSCommandRunner>("tgz", UnixFSCommandRun
     override val log: Logger = logger()
 
     override suspend fun upload(
-        serviceCloud: AuthenticatedCloud,
+        serviceCloud: AuthenticatedClient,
         fs: CoreFileSystemService<UnixFSCommandRunner>,
         contextFactory: suspend () -> UnixFSCommandRunner,
         path: String,
@@ -157,7 +158,7 @@ private object BasicUploader : Loggable {
     override val log = logger()
 
     suspend fun <Ctx : FSUserContext> uploadFromSequence(
-        serviceCloud: AuthenticatedCloud,
+        serviceCloud: AuthenticatedClient,
         path: String,
         fs: CoreFileSystemService<Ctx>,
         contextFactory: suspend () -> Ctx,

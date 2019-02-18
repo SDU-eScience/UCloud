@@ -2,7 +2,9 @@ package dk.sdu.cloud.file.http.files
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageEventProducer
@@ -20,24 +22,20 @@ import dk.sdu.cloud.file.services.UIDLookupService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.Micro
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.client
+import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.installDefaultFeatures
+import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
-import dk.sdu.cloud.service.test.initializeMicro
-import dk.sdu.cloud.service.tokenValidation
 import dk.sdu.cloud.storage.util.createDummyFS
 import dk.sdu.cloud.storage.util.simpleStorageUserDao
 import dk.sdu.cloud.storage.util.unixFSWithRelaxedMocks
-import io.ktor.application.Application
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
-import io.ktor.routing.Routing
-import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.TestApplicationResponse
@@ -49,7 +47,8 @@ import java.io.File
 import java.util.*
 
 data class FileControllerContext(
-    val cloud: AuthenticatedCloud,
+    val client: RpcClient,
+    val authenticatedClient: AuthenticatedClient,
     val fsRoot: String,
     val runner: UnixFSCommandRunnerFactory,
     val fs: UnixFileSystem,
@@ -61,24 +60,14 @@ data class FileControllerContext(
 
 object TestContext {
     lateinit var micro: Micro
-
-    val tokenValidation: TokenValidationJWT
-        get() = micro.tokenValidation as TokenValidationJWT
 }
 
-fun Application.configureServerWithFileController(
+fun KtorApplicationTestSetupContext.configureServerWithFileController(
     fsRootInitializer: () -> File = { createDummyFS() },
     userDao: UIDLookupService = simpleStorageUserDao(),
-    additional: Routing.(FileControllerContext) -> Unit = {}
-) {
+    additional: (FileControllerContext) -> List<Controller> = { emptyList() }
+): List<Controller> {
     BackgroundScope.reset()
-
-    val micro = initializeMicro()
-    micro.install(HibernateFeature)
-    TestContext.micro = micro
-
-    val cloud = mockk<AuthenticatedCloud>(relaxed = true)
-    installDefaultFeatures(micro)
 
     val fsRoot = fsRootInitializer()
     val (runner, fs) = unixFSWithRelaxedMocks(fsRoot.absolutePath, userDao)
@@ -90,7 +79,8 @@ fun Application.configureServerWithFileController(
     coEvery { homeFolderService.findHomeFolder(any()) } coAnswers { homeDirectory(it.invocation.args.first() as String) }
 
     val ctx = FileControllerContext(
-        cloud = cloud,
+        client = micro.client,
+        authenticatedClient = AuthenticatedClient(micro.client, OutgoingHttpCall) {},
         fsRoot = fsRoot.absolutePath,
         runner = runner,
         fs = fs,
@@ -100,22 +90,21 @@ fun Application.configureServerWithFileController(
         lookupService = FileLookupService(coreFs)
     )
 
-    routing {
-        configureControllers(
-            with(ctx) {
-                FilesController(
-                    runner,
-                    coreFs,
-                    annotationService,
-                    lookupService,
-                    sensitivityService,
-                    aclService,
-                    homeFolderService
-                )
-            }
-        )
-        additional(ctx)
-    }
+    micro.server.configureControllers(
+        with(ctx) {
+            FilesController(
+                runner,
+                coreFs,
+                annotationService,
+                lookupService,
+                sensitivityService,
+                aclService,
+                homeFolderService
+            )
+        }
+    )
+
+    return additional(ctx)
 }
 
 private val mapper = jacksonObjectMapper()
@@ -134,6 +123,7 @@ fun TestApplicationEngine.call(
 
     return handleRequest(method, fullUrl) {
         addHeader("Job-Id", UUID.randomUUID().toString())
+        addHeader("X-No-Load", "true")
         setUser(user, role)
 
         if (rawBody != null) {

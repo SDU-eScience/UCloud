@@ -1,8 +1,12 @@
 package dk.sdu.cloud.file.gateway.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindToSubProperty
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.authDescription
+import dk.sdu.cloud.calls.bindToSubProperty
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.filesearch.api.AdvancedSearchRequest
 import dk.sdu.cloud.filesearch.api.FileSearchDescriptions
 import dk.sdu.cloud.service.Page
@@ -24,54 +28,55 @@ data class AdvancedSearchRequestWithLoad(
     override val load: String?
 ) : LoadFileResource
 
-object SearchGWDescriptions : RESTDescriptions("${FileSearchDescriptions.namespace}.gateway") {
+object SearchGWDescriptions : CallDescriptionContainer("${FileSearchDescriptions.namespace}.gateway") {
     const val baseContext: String = "/api/file-search"
 
-    val simpleSearch = callDescription<SimpleSearchRequest, Page<StorageFileWithMetadata>, CommonErrorMessage> {
+    val simpleSearch = call<SimpleSearchRequest, Page<StorageFileWithMetadata>, CommonErrorMessage>("simpleSearch") {
         val delegate = FileSearchDescriptions.simpleSearch
-        name = "fileSearchSimple"
-        method = delegate.method
-
         auth {
-            access = delegate.auth.access
-            roles = delegate.auth.roles
-            desiredScope = delegate.auth.desiredScope
+            access = delegate.authDescription.access
+            roles = delegate.authDescription.roles
+            requiredScope = delegate.authDescription.requiredScope
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = delegate.http.method
 
-        params {
-            +boundTo(SimpleSearchRequest::query)
-            +boundTo(SimpleSearchRequest::itemsPerPage)
-            +boundTo(SimpleSearchRequest::page)
-            +boundTo(SimpleSearchRequest::load)
+            path {
+                using(baseContext)
+            }
+
+            params {
+                +boundTo(SimpleSearchRequest::query)
+                +boundTo(SimpleSearchRequest::itemsPerPage)
+                +boundTo(SimpleSearchRequest::page)
+                +boundTo(SimpleSearchRequest::load)
+            }
         }
     }
 
     val advancedSearch =
-        callDescription<AdvancedSearchRequestWithLoad, Page<StorageFileWithMetadata>, CommonErrorMessage> {
+        call<AdvancedSearchRequestWithLoad, Page<StorageFileWithMetadata>, CommonErrorMessage>("advancedSearch") {
             val delegate = FileSearchDescriptions.advancedSearch
-
-            name = "fileSearchAdvanced"
-            method = delegate.method
-
             auth {
-                access = delegate.auth.access
-                roles = delegate.auth.roles
-                desiredScope = delegate.auth.desiredScope
+                access = delegate.authDescription.access
+                roles = delegate.authDescription.roles
+                requiredScope = delegate.authDescription.requiredScope
             }
 
-            path {
-                using(baseContext)
-                +"advanced"
-            }
+            http {
+                method = delegate.http.method
 
-            params {
-                +boundTo(AdvancedSearchRequestWithLoad::load)
-            }
+                path {
+                    using(baseContext)
+                    +"advanced"
+                }
 
-            body { bindToSubProperty(AdvancedSearchRequestWithLoad::request) }
+                params {
+                    +boundTo(AdvancedSearchRequestWithLoad::load)
+                }
+
+                body { bindToSubProperty(AdvancedSearchRequestWithLoad::request) }
+            }
         }
 }

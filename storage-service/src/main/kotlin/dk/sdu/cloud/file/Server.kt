@@ -1,7 +1,11 @@
 package dk.sdu.cloud.file
 
 import dk.sdu.cloud.auth.api.AuthStreams
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.IngoingCallFilter
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.http.ExtractController
 import dk.sdu.cloud.file.http.FilesController
@@ -24,42 +28,31 @@ import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
+import dk.sdu.cloud.kafka.forStream
+import dk.sdu.cloud.kafka.stream
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.developmentModeEnabled
+import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.bearer
+import dk.sdu.cloud.service.WithKafkaStreams
 import dk.sdu.cloud.service.buildStreams
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.developmentModeEnabled
-import dk.sdu.cloud.service.forStream
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
-import dk.sdu.cloud.service.stream
-import dk.sdu.cloud.service.tokenValidation
-import dk.sdu.cloud.service.validateAndDecodeOrNull
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
 import org.apache.kafka.streams.KafkaStreams
 import org.slf4j.Logger
 import java.io.File
 
 class Server(
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
     private val config: StorageConfiguration,
-    private val micro: Micro
-) : CommonServer {
+    override val micro: Micro
+) : CommonServer, WithKafkaStreams {
     override val log: Logger = logger()
-
-    override lateinit var httpServer: ApplicationEngine
     override lateinit var kStreams: KafkaStreams
 
     private val allProcessors = ArrayList<EventConsumer<*>>()
@@ -70,6 +63,9 @@ class Server(
     }
 
     override fun start() {
+        val kafka = micro.kafka
+        val cloud = micro.authenticator.authenticateClient(OutgoingHttpCall)
+
         log.info("Creating core services")
         BackgroundScope.init()
 
@@ -128,59 +124,53 @@ class Server(
             micro.tokenValidation as? TokenValidationJWT ?: throw IllegalStateException("JWT token validation required")
 
         // HTTP
-        httpServer = ktor {
-            log.info("Configuring HTTP server")
-            installDefaultFeatures(micro)
+        with(micro.server) {
+            attachFilter(IngoingCallFilter.afterParsing(HttpCall) { _, _ ->
+                val principalOrNull = runCatching { securityPrincipal }.getOrNull()
+                if (principalOrNull != null) {
+                    uidLookupService.storeMapping(principalOrNull.username, principalOrNull.uid)
+                }
+            })
 
-            intercept(ApplicationCallPipeline.Features) {
-                // We really need to redo the RPC layer
-                val bearer = call.request.bearer ?: return@intercept
-                val principal = tokenValidation.validateAndDecodeOrNull(bearer)?.principal ?: return@intercept
-                uidLookupService.storeMapping(principal.username, principal.uid)
-            }
+            configureControllers(
+                FilesController(
+                    processRunner,
+                    coreFileSystem,
+                    annotationService,
+                    fileLookupService,
+                    sensitivityService,
+                    aclService,
+                    homeFolderService,
+                    config.filePermissionAcl
+                ),
 
-            routing {
-                configureControllers(
-                    FilesController(
-                        processRunner,
-                        coreFileSystem,
-                        annotationService,
-                        fileLookupService,
-                        sensitivityService,
-                        aclService,
-                        homeFolderService,
-                        config.filePermissionAcl
-                    ),
+                IndexingController(
+                    processRunner,
+                    indexingService
+                ),
 
-                    IndexingController(
-                        processRunner,
-                        indexingService
-                    ),
+                SimpleDownloadController(
+                    cloud,
+                    processRunner,
+                    coreFileSystem,
+                    bulkDownloadService,
+                    tokenValidation
+                ),
 
-                    SimpleDownloadController(
-                        cloud,
-                        processRunner,
-                        coreFileSystem,
-                        bulkDownloadService,
-                        tokenValidation
-                    ),
+                MultiPartUploadController(
+                    cloud,
+                    processRunner,
+                    coreFileSystem,
+                    sensitivityService
+                ),
 
-                    MultiPartUploadController(
-                        cloud,
-                        processRunner,
-                        coreFileSystem,
-                        sensitivityService
-                    ),
-
-                    ExtractController(
-                        cloud,
-                        coreFileSystem,
-                        fileLookupService,
-                        processRunner
-                    )
+                ExtractController(
+                    cloud,
+                    coreFileSystem,
+                    fileLookupService,
+                    processRunner
                 )
-            }
-            log.info("HTTP server successfully configured!")
+            )
         }
 
         startServices()

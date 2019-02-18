@@ -1,6 +1,11 @@
 package dk.sdu.cloud.file.stats.http
 
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.jobId
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.stats.api.FileStatsDescriptions
@@ -10,24 +15,17 @@ import dk.sdu.cloud.file.stats.services.RecentFilesService
 import dk.sdu.cloud.file.stats.services.UsageService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.orThrow
-import dk.sdu.cloud.service.safeJobId
-import dk.sdu.cloud.service.securityPrincipal
-import io.ktor.routing.Route
 
 class FileStatsController(
     private val recentFilesService: RecentFilesService,
     private val usageService: UsageService,
-    private val cloud: AuthenticatedCloud
+    private val cloud: AuthenticatedClient
 ) : Controller {
-    override val baseContext = FileStatsDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(FileStatsDescriptions.usage) { req ->
-            val path = req.path ?: FileDescriptions.findHomeFolder.call(
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(FileStatsDescriptions.usage) {
+            val path = request.path ?: FileDescriptions.findHomeFolder.call(
                 FindHomeFolderRequest(
-                    call.securityPrincipal.username
+                    ctx.securityPrincipal.username
                 ),
                 cloud
             ).orThrow().path
@@ -35,8 +33,8 @@ class FileStatsController(
                 UsageResponse(
                     usageService.calculateUsage(
                         path,
-                        call.securityPrincipal.username,
-                        call.request.safeJobId
+                        ctx.securityPrincipal.username,
+                        ctx.jobId
                     ),
                     path
                 )
@@ -46,7 +44,7 @@ class FileStatsController(
         implement(FileStatsDescriptions.recent) {
             ok(
                 RecentFilesResponse(
-                    recentFilesService.queryRecentFiles(call.securityPrincipal.username, call.request.safeJobId)
+                    recentFilesService.queryRecentFiles(ctx.securityPrincipal.username, ctx.jobId)
                 )
             )
         }

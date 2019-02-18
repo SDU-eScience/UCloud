@@ -1,53 +1,49 @@
 package dk.sdu.cloud.metadata.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.metadata.api.MetadataDescriptions
 import dk.sdu.cloud.metadata.api.MetadataQueryDescriptions
 import dk.sdu.cloud.metadata.api.ProjectMetadataWithRightsInfo
 import dk.sdu.cloud.metadata.services.MetadataAdvancedQueryService
 import dk.sdu.cloud.metadata.services.MetadataCommandService
 import dk.sdu.cloud.metadata.services.MetadataQueryService
-import dk.sdu.cloud.metadata.services.ProjectException
-import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.metadata.services.tryWithProject
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.Route
-import org.slf4j.LoggerFactory
 
 class MetadataController(
     private val metadataCommandService: MetadataCommandService,
     private val metadataQueryService: MetadataQueryService,
     private val metadataAdvancedQueryService: MetadataAdvancedQueryService
 ) : Controller {
-    override val baseContext: String = MetadataDescriptions.baseContext
-
-    override fun configure(routing: Route) = with(routing) {
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(MetadataDescriptions.updateProjectMetadata) {
-            metadataCommandService.update(call.securityPrincipal.username, it.id, it)
+            metadataCommandService.update(ctx.securityPrincipal.username, request.id, request)
             ok(Unit)
         }
 
         implement(MetadataDescriptions.findById) {
-            val result = metadataQueryService.getById(call.securityPrincipal.username, it.id)
+            val result = metadataQueryService.getById(ctx.securityPrincipal.username, request.id)
             if (result == null) {
                 error(CommonErrorMessage("Not found"), HttpStatusCode.NotFound)
             } else {
-                val canEdit = metadataCommandService.canEdit(call.securityPrincipal.username, it.id)
+                val canEdit = metadataCommandService.canEdit(ctx.securityPrincipal.username, request.id)
                 ok(ProjectMetadataWithRightsInfo(result, canEdit = canEdit))
             }
         }
 
         implement(MetadataQueryDescriptions.simpleQuery) {
             tryWithProject {
-                ok(metadataAdvancedQueryService.simpleQuery(call.securityPrincipal.username, it.query, it.normalize()))
+                ok(
+                    metadataAdvancedQueryService.simpleQuery(
+                        ctx.securityPrincipal.username,
+                        request.query,
+                        request.normalize()
+                    )
+                )
             }
         }
-    }
-
-    companion object {
-        private val log = LoggerFactory.getLogger(MetadataController::class.java)
     }
 }

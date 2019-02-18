@@ -8,33 +8,22 @@ import dk.sdu.cloud.activity.services.ActivityService
 import dk.sdu.cloud.activity.services.FileLookupService
 import dk.sdu.cloud.activity.services.HibernateActivityEventDao
 import dk.sdu.cloud.activity.services.HibernateActivityStreamDao
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
-import org.apache.kafka.streams.KafkaStreams
 
 class Server(
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val db: HibernateSessionFactory,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val micro: Micro
+    override val micro: Micro
 ) : CommonServer {
     override val log = logger()
-
-    override val kStreams: KafkaStreams? = null
-    override lateinit var httpServer: ApplicationEngine
 
     private val allProcessors = ArrayList<EventConsumer<*>>()
 
@@ -44,11 +33,15 @@ class Server(
     }
 
     override fun start() {
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val kafka = micro.kafka
+        val db = micro.hibernateDatabase
+
         log.info("Creating core services")
         val activityEventDao = HibernateActivityEventDao()
         val activityStreamDao = HibernateActivityStreamDao()
-        val fileLookupService = FileLookupService(cloud)
-        val activityService = ActivityService(activityEventDao, activityStreamDao, fileLookupService, cloud)
+        val fileLookupService = FileLookupService(client)
+        val activityService = ActivityService(activityEventDao, activityStreamDao, fileLookupService, client)
         log.info("Core services constructed")
 
         log.info("Creating stream processors")
@@ -56,15 +49,11 @@ class Server(
         addProcessors(StorageEventProcessor(kafka, db, activityService).init())
         log.info("Stream processors constructed")
 
-        httpServer = ktor {
-            installDefaultFeatures(micro)
-
-            routing {
-                configureControllers(
-                    ActivityController(db, activityService),
-                    StreamController(db, activityService)
-                )
-            }
+        with(micro.server) {
+            configureControllers(
+                ActivityController(db, activityService),
+                StreamController(db, activityService)
+            )
         }
 
         startServices()

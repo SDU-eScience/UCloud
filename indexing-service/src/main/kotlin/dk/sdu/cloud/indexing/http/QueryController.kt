@@ -1,12 +1,11 @@
 package dk.sdu.cloud.indexing.http
 
+import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.implement
-import io.ktor.routing.Route
 
 /**
  * A controller for [QueryDescriptions]
@@ -14,25 +13,23 @@ import io.ktor.routing.Route
 class QueryController(
     private val queryService: IndexQueryService
 ) : Controller {
-    override val baseContext = QueryDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(QueryDescriptions.query) { req ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(QueryDescriptions.query) {
             ok(
                 queryService.query(
-                    req.query.copy(roots = req.query.roots.map { it.normalizePath() }),
-                    req.normalize(),
-                    req.sortBy
+                    request.query.copy(roots = request.query.roots.map { it.normalizePath() }),
+                    request.normalize(),
+                    request.sortBy
                 )
             )
         }
 
-        implement(QueryDescriptions.statistics) { req ->
+        implement(QueryDescriptions.statistics) {
             ok(
                 queryService.statisticsQuery(
-                    req.copy(
-                        query = req.query.copy(
-                            roots = req.query.roots.map { it.normalizePath() }
+                    request.copy(
+                        query = request.query.copy(
+                            roots = request.query.roots.map { it.normalizePath() }
                         )
                     )
                 )

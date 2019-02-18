@@ -2,31 +2,34 @@ package dk.sdu.cloud.support.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
 data class CreateTicketRequest(
     val message: String
 )
 
-object SupportDescriptions : RESTDescriptions("support") {
+object SupportDescriptions : CallDescriptionContainer("support") {
     val baseContext = "/api/support"
 
-    val createTicket = callDescription<CreateTicketRequest, Unit, CommonErrorMessage> {
-        name = "createTicket"
-        method = HttpMethod.Post
-
+    val createTicket = call<CreateTicketRequest, Unit, CommonErrorMessage>("createTicket") {
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"ticket"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"ticket"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 }

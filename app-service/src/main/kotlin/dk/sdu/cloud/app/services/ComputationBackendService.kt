@@ -2,7 +2,7 @@ package dk.sdu.cloud.app.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.api.ComputationDescriptions
-import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.HttpStatusCode
 
 class NamedComputationBackendDescriptions(name: String) : ComputationDescriptions(name)

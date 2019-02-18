@@ -2,7 +2,7 @@ package dk.sdu.cloud.filesearch.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileDescriptions
@@ -17,8 +17,7 @@ import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.QueryResponse
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.authenticatedCloud
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
@@ -35,8 +34,8 @@ import kotlin.test.assertEquals
 class SearchTest {
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         val micro = initializeMicro()
-        val cloud = micro.authenticatedCloud
-        listOf(SearchController())
+        val cloud = ClientMock.authenticatedClient
+        listOf(SearchController(cloud))
     }
 
     private val file = EventMaterializedStorageFile(
@@ -67,18 +66,15 @@ class SearchTest {
     @Test
     fun `simple test`() {
         withKtorTest(
-            setup
-            ,
+            setup,
             test = {
-                CloudMock.mockCallSuccess(
-                    QueryDescriptions,
-                    { QueryDescriptions.query },
+                ClientMock.mockCallSuccess(
+                    QueryDescriptions.query,
                     queryResponse
                 )
 
-                CloudMock.mockCallSuccess(
-                    FileDescriptions,
-                    { FileDescriptions.verifyFileKnowledge },
+                ClientMock.mockCallSuccess(
+                    FileDescriptions.verifyFileKnowledge,
                     VerifyFileKnowledgeResponse(
                         listOf(true, true)
                     )
@@ -88,7 +84,8 @@ class SearchTest {
                     method = HttpMethod.Get,
                     path = "/api/file-search",
                     user = TestUsers.user,
-                    params = mapOf("query" to "path")
+                    params = mapOf("query" to "path"),
+                    configure = { addHeader("X-No-Load", "true") }
                 )
                 request.assertSuccess()
                 val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
@@ -105,18 +102,15 @@ class SearchTest {
     @Test
     fun `simple test - verify returns a single false`() {
         withKtorTest(
-            setup
-            ,
+            setup,
             test = {
-                CloudMock.mockCallSuccess(
-                    QueryDescriptions,
-                    { QueryDescriptions.query },
+                ClientMock.mockCallSuccess(
+                    QueryDescriptions.query,
                     queryResponse
                 )
 
-                CloudMock.mockCallSuccess(
-                    FileDescriptions,
-                    { FileDescriptions.verifyFileKnowledge },
+                ClientMock.mockCallSuccess(
+                    FileDescriptions.verifyFileKnowledge,
                     VerifyFileKnowledgeResponse(
                         listOf(true, false)
                     )
@@ -126,7 +120,8 @@ class SearchTest {
                     method = HttpMethod.Get,
                     path = "/api/file-search",
                     user = TestUsers.user,
-                    params = mapOf("query" to "path")
+                    params = mapOf("query" to "path"),
+                    configure = { addHeader("X-No-Load", "true") }
                 )
                 request.assertSuccess()
                 val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
@@ -142,18 +137,15 @@ class SearchTest {
     @Test
     fun `simple test - verify throws ex`() {
         withKtorTest(
-            setup
-            ,
+            setup,
             test = {
-                CloudMock.mockCallSuccess(
-                    QueryDescriptions,
-                    { QueryDescriptions.query },
+                ClientMock.mockCallSuccess(
+                    QueryDescriptions.query,
                     queryResponse
                 )
 
-                CloudMock.mockCallError(
-                    FileDescriptions,
-                    { FileDescriptions.verifyFileKnowledge },
+                ClientMock.mockCallError(
+                    FileDescriptions.verifyFileKnowledge,
                     CommonErrorMessage("fail"),
                     HttpStatusCode.InternalServerError
                 )
@@ -162,7 +154,8 @@ class SearchTest {
                     method = HttpMethod.Get,
                     path = "/api/file-search",
                     user = TestUsers.user,
-                    params = mapOf("query" to "path")
+                    params = mapOf("query" to "path"),
+                    configure = { addHeader("X-No-Load", "true") }
                 )
                 request.assertStatus(HttpStatusCode.InternalServerError)
             }
@@ -187,15 +180,13 @@ class SearchTest {
             setup
             ,
             test = {
-                CloudMock.mockCallSuccess(
-                    QueryDescriptions,
-                    { QueryDescriptions.query },
+                ClientMock.mockCallSuccess(
+                    QueryDescriptions.query,
                     queryResponse
                 )
 
-                CloudMock.mockCallSuccess(
-                    FileDescriptions,
-                    { FileDescriptions.verifyFileKnowledge },
+                ClientMock.mockCallSuccess(
+                    FileDescriptions.verifyFileKnowledge,
                     VerifyFileKnowledgeResponse(
                         listOf(true, true)
                     )
@@ -222,18 +213,15 @@ class SearchTest {
     @Test
     fun `advanced test - verify returns a single false`() {
         withKtorTest(
-            setup
-            ,
+            setup,
             test = {
-                CloudMock.mockCallSuccess(
-                    QueryDescriptions,
-                    { QueryDescriptions.query },
+                ClientMock.mockCallSuccess(
+                    QueryDescriptions.query,
                     queryResponse
                 )
 
-                CloudMock.mockCallSuccess(
-                    FileDescriptions,
-                    { FileDescriptions.verifyFileKnowledge },
+                ClientMock.mockCallSuccess(
+                    FileDescriptions.verifyFileKnowledge,
                     VerifyFileKnowledgeResponse(
                         listOf(true, false)
                     )
@@ -259,18 +247,15 @@ class SearchTest {
     @Test
     fun `advanced test - verify throws ex`() {
         withKtorTest(
-            setup
-            ,
+            setup,
             test = {
-                CloudMock.mockCallSuccess(
-                    QueryDescriptions,
-                    { QueryDescriptions.query },
+                ClientMock.mockCallSuccess(
+                    QueryDescriptions.query,
                     queryResponse
                 )
 
-                CloudMock.mockCallError(
-                    FileDescriptions,
-                    { FileDescriptions.verifyFileKnowledge },
+                ClientMock.mockCallError(
+                    FileDescriptions.verifyFileKnowledge,
                     CommonErrorMessage("fail"),
                     HttpStatusCode.InternalServerError
                 )

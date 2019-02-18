@@ -3,7 +3,9 @@ package dk.sdu.cloud.metadata.services
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.metadata.api.ProjectMetadata
 import dk.sdu.cloud.metadata.api.UserEditableProjectMetadata
 import dk.sdu.cloud.project.api.Project
@@ -12,7 +14,6 @@ import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.ViewProjectRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.runBlocking
 import mbuhot.eskotlin.query.fulltext.match
@@ -37,7 +38,7 @@ private const val MAX_ALIVE_TIME_IN_MINUTES = 5L
 
 class ElasticMetadataService(
     private val elasticClient: RestHighLevelClient,
-    private val cloud: AuthenticatedCloud
+    private val cloud: AuthenticatedClient
 ) : MetadataCommandService, MetadataQueryService, MetadataAdvancedQueryService {
     private val mapper = jacksonObjectMapper().apply {
         configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)

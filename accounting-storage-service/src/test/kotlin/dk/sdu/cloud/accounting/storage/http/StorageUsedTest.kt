@@ -7,21 +7,20 @@ import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingHibernateDao
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingService
 import dk.sdu.cloud.accounting.storage.services.StorageForUserEntity
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.StatisticsResponse
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
@@ -41,7 +40,7 @@ private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
     micro.install(HibernateFeature)
     val storageAccountingDao = StorageAccountingHibernateDao()
     val storageAccountingService = StorageAccountingService(
-        micro.authenticatedCloud,
+        ClientMock.authenticatedClient,
         micro.hibernateDatabase,
         storageAccountingDao,
         Configuration("0.1")
@@ -50,11 +49,13 @@ private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
     withDatabase { db ->
         db.withTransaction { session ->
             for (i in 0..50) {
-                session.save(StorageForUserEntity(
-                    TestUsers.user.username,
-                    Date(),
-                    12345
-                ))
+                session.save(
+                    StorageForUserEntity(
+                        TestUsers.user.username,
+                        Date(),
+                        12345
+                    )
+                )
             }
         }
     }
@@ -66,24 +67,24 @@ private fun KtorApplicationTestSetupContext.configureComputeTimeServer(
     storageAccountingService: StorageAccountingService<HibernateSession>
 ): List<Controller> {
     return listOf(
-        StorageUsedController(storageAccountingService, micro.authenticatedCloud),
-        StorageAccountingController(storageAccountingService, micro.authenticatedCloud)
+        StorageUsedController(storageAccountingService, ClientMock.authenticatedClient),
+        StorageAccountingController(storageAccountingService, ClientMock.authenticatedClient)
     )
 }
 
-class StorageUsedTest{
+class StorageUsedTest {
 
     @Test
     fun `list events`() {
         withKtorTest(
             setup,
-            test= {
+            test = {
 
                 val request = sendRequest(
                     method = HttpMethod.Get,
                     path = "/api/accounting/storage/bytesUsed/events",
                     user = TestUsers.user,
-                    params = mapOf( "since" to "12345")
+                    params = mapOf("since" to "12345")
                 )
 
                 request.assertSuccess()
@@ -101,7 +102,7 @@ class StorageUsedTest{
     fun `list events no params`() {
         withKtorTest(
             setup,
-            test= {
+            test = {
 
                 val request = sendRequest(
                     method = HttpMethod.Get,
@@ -115,7 +116,8 @@ class StorageUsedTest{
                 assertEquals(51, response.itemsInTotal)
                 assertEquals(6, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
-                assertEquals(12345, response.items.first().bytesUsed)            }
+                assertEquals(12345, response.items.first().bytesUsed)
+            }
         )
     }
 
@@ -123,7 +125,7 @@ class StorageUsedTest{
     fun `list events no events in time slot`() {
         withKtorTest(
             setup,
-            test= {
+            test = {
 
                 val request = sendRequest(
                     method = HttpMethod.Get,
@@ -147,16 +149,14 @@ class StorageUsedTest{
     fun `chart test`() {
         withKtorTest(
             setup,
-            test= {
-                CloudMock.mockCallSuccess(
-                    FileDescriptions,
-                    { FileDescriptions.findHomeFolder},
+            test = {
+                ClientMock.mockCallSuccess(
+                    FileDescriptions.findHomeFolder,
                     FindHomeFolderResponse("/home/user")
                 )
 
-                CloudMock.mockCallSuccess(
-                    QueryDescriptions,
-                    { QueryDescriptions.statistics },
+                ClientMock.mockCallSuccess(
+                    QueryDescriptions.statistics,
                     StatisticsResponse(
                         22,
                         NumericStatistics(null, null, null, 150.4, emptyList()),
@@ -168,7 +168,7 @@ class StorageUsedTest{
                     method = HttpMethod.Get,
                     path = "/api/accounting/storage/bytesUsed/chart",
                     user = TestUsers.user,
-                    params = mapOf( "since" to "12345")
+                    params = mapOf("since" to "12345")
                 )
                 request.assertSuccess()
 
@@ -186,9 +186,8 @@ class StorageUsedTest{
             setup,
             test = {
                 with(engine) {
-                    CloudMock.mockCallSuccess(
-                        QueryDescriptions,
-                        { QueryDescriptions.statistics },
+                    ClientMock.mockCallSuccess(
+                        QueryDescriptions.statistics,
                         StatisticsResponse(
                             22,
                             NumericStatistics(null, null, null, 150.4, emptyList()),
@@ -196,9 +195,8 @@ class StorageUsedTest{
                         )
                     )
 
-                    CloudMock.mockCallSuccess(
-                        FileDescriptions,
-                        {FileDescriptions.findHomeFolder},
+                    ClientMock.mockCallSuccess(
+                        FileDescriptions.findHomeFolder,
                         FindHomeFolderResponse("/home/user")
                     )
 
@@ -243,9 +241,8 @@ class StorageUsedTest{
                         }
                     }
 
-                    CloudMock.mockCallSuccess(
-                        FileDescriptions,
-                        {FileDescriptions.findHomeFolder},
+                    ClientMock.mockCallSuccess(
+                        FileDescriptions.findHomeFolder,
                         FindHomeFolderResponse("/home/user")
                     )
                     run {
@@ -318,9 +315,8 @@ class StorageUsedTest{
                         }
                     }
 
-                    CloudMock.mockCallSuccess(
-                        FileDescriptions,
-                        {FileDescriptions.findHomeFolder},
+                    ClientMock.mockCallSuccess(
+                        FileDescriptions.findHomeFolder,
                         FindHomeFolderResponse("/home/user")
                     )
 
@@ -354,10 +350,8 @@ class StorageUsedTest{
                     }
 
                     run {
-
-                        CloudMock.mockCallSuccess(
-                            QueryDescriptions,
-                            { QueryDescriptions.statistics },
+                        ClientMock.mockCallSuccess(
+                            QueryDescriptions.statistics,
                             StatisticsResponse(
                                 22,
                                 NumericStatistics(null, null, null, 150.4, emptyList()),

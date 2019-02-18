@@ -3,20 +3,26 @@ package dk.sdu.cloud.activity.processor
 import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.services.ActivityService
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.calls.server.AuditEvent
+import dk.sdu.cloud.calls.server.auditStream
+import dk.sdu.cloud.calls.server.parseAuditMessageOrNull
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.api.BulkDownloadRequest
+import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.MoveRequest
+import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
-import dk.sdu.cloud.service.AuditEvent
+import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
+import dk.sdu.cloud.kafka.StreamDescription
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.StreamDescription
-import dk.sdu.cloud.service.auditStream
 import dk.sdu.cloud.service.batched
 import dk.sdu.cloud.service.consumeBatchAndCommit
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.parseAuditMessageOrNull
 import dk.sdu.cloud.service.stackTraceToString
 
 private typealias Transformer = (parsedEvent: JsonNode) -> List<ActivityEvent>?
@@ -91,7 +97,7 @@ class StorageAuditProcessor<DBSession>(
     }
 
     private fun transformDownload(parsedEvent: JsonNode): List<ActivityEvent>? {
-        FileDescriptions.download.parseAuditMessageOrNull(parsedEvent)?.let {
+        FileDescriptions.download.parseAuditMessageOrNull<BulkFileAudit<FindByPath>>(parsedEvent)?.let {
             val username = it.username ?: return null
             val path = it.request.request.path
             return it.request.fileIds.filterNotNull().map {
@@ -103,7 +109,7 @@ class StorageAuditProcessor<DBSession>(
     }
 
     private fun transformBulkDownload(parsedEvent: JsonNode): List<ActivityEvent>? {
-        FileDescriptions.bulkDownload.parseAuditMessageOrNull(parsedEvent)?.let {
+        FileDescriptions.bulkDownload.parseAuditMessageOrNull<BulkFileAudit<BulkDownloadRequest>>(parsedEvent)?.let {
             val username = it.username ?: return null
             return it.request.fileIds.asSequence().filterNotNull().mapIndexed { index, fileId ->
                 ActivityEvent.Download(
@@ -119,7 +125,7 @@ class StorageAuditProcessor<DBSession>(
     }
 
     private fun transformStat(parsedEvent: JsonNode): List<ActivityEvent>? {
-        FileDescriptions.stat.parseAuditMessageOrNull(parsedEvent)?.let {
+        FileDescriptions.stat.parseAuditMessageOrNull<SingleFileAudit<FindByPath>>(parsedEvent)?.let {
             val username = it.username ?: return null
             val fileId = it.request.fileId ?: return null
             return listOf(
@@ -136,7 +142,7 @@ class StorageAuditProcessor<DBSession>(
     }
 
     private fun transformMove(parsedEvent: JsonNode): List<ActivityEvent>? {
-        FileDescriptions.move.parseAuditMessageOrNull(parsedEvent)?.let {
+        FileDescriptions.move.parseAuditMessageOrNull<SingleFileAudit<MoveRequest>>(parsedEvent)?.let {
             val username = it.username ?: return null
             val fileId = it.request.fileId ?: return null
             val newPath = it.request.request.newPath
@@ -157,23 +163,24 @@ class StorageAuditProcessor<DBSession>(
 
     private fun transformFavorite(parsedEvent: JsonNode): List<ActivityEvent>? {
         try {
-            FileFavoriteDescriptions.toggleFavorite.parseAuditMessageOrNull(parsedEvent)?.let { audit ->
-                val username = audit.username ?: return null
+            FileFavoriteDescriptions.toggleFavorite.parseAuditMessageOrNull<ToggleFavoriteAudit>(parsedEvent)
+                ?.let { audit ->
+                    val username = audit.username ?: return null
 
-                return audit.request.files.mapNotNull {
-                    val newStatus = it.newStatus
-                    val fileId = it.fileId
-                    if (newStatus == null || fileId == null) return@mapNotNull null
+                    return audit.request.files.mapNotNull {
+                        val newStatus = it.newStatus
+                        val fileId = it.fileId
+                        if (newStatus == null || fileId == null) return@mapNotNull null
 
-                    ActivityEvent.Favorite(
-                        username,
-                        newStatus,
-                        System.currentTimeMillis(),
-                        fileId,
-                        it.path
-                    )
+                        ActivityEvent.Favorite(
+                            username,
+                            newStatus,
+                            System.currentTimeMillis(),
+                            fileId,
+                            it.path
+                        )
+                    }
                 }
-            }
         } catch (ex: Exception) {
             log.warn(ex.stackTraceToString())
         }

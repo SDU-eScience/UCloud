@@ -1,7 +1,7 @@
 package dk.sdu.cloud.project.auth.services
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
 
 data class AuthToken(

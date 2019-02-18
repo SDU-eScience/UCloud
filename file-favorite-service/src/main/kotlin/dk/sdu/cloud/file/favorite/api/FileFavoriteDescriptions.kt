@@ -2,13 +2,16 @@ package dk.sdu.cloud.file.favorite.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.audit
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
-import io.ktor.client.request.header
 import io.ktor.http.HttpMethod
 
 data class ToggleFavoriteRequest(
@@ -43,78 +46,87 @@ typealias ListRequest = PaginationRequest
 
 typealias ListResponse = Page<StorageFile>
 
-object FileFavoriteDescriptions : RESTDescriptions("${FileDescriptions.namespace}.favorite") {
+object FileFavoriteDescriptions : CallDescriptionContainer("${FileDescriptions.namespace}.favorite") {
     val baseContext = "/api/files/favorite"
 
     internal val toggleFavoriteDelete =
-        callDescriptionWithAudit<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage, ToggleFavoriteAudit> {
-            name = "toggleFavorite"
-            method = HttpMethod.Delete
+        call<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage>("toggleFavoriteDelete") {
+            audit<ToggleFavoriteAudit>()
 
             auth {
                 access = AccessRight.READ_WRITE
             }
 
-            path {
-                using(baseContext)
-            }
+            http {
+                method = HttpMethod.Delete
 
-            params {
-                +boundTo(ToggleFavoriteRequest::path)
+                path {
+                    using(baseContext)
+                }
+
+                params {
+                    +boundTo(ToggleFavoriteRequest::path)
+                }
             }
         }
 
     val toggleFavorite =
-        callDescriptionWithAudit<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage, ToggleFavoriteAudit> {
-            name = "toggleFavorite"
-            method = HttpMethod.Post
-
+        call<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage>("toggleFavorite") {
+            audit<ToggleFavoriteAudit>()
             auth {
                 access = AccessRight.READ_WRITE
             }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                }
+
+                params {
+                    +boundTo(ToggleFavoriteRequest::path)
+                }
+            }
+        }
+
+    val favoriteStatus = call<FavoriteStatusRequest, FavoriteStatusResponse, CommonErrorMessage>("favoriteStatus") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"status"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val list = call<ListRequest, ListResponse, CommonErrorMessage>("list") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
 
             path {
                 using(baseContext)
             }
 
             params {
-                +boundTo(ToggleFavoriteRequest::path)
+                +boundTo(ListRequest::itemsPerPage)
+                +boundTo(ListRequest::page)
             }
-        }
 
-    val favoriteStatus = callDescription<FavoriteStatusRequest, FavoriteStatusResponse, CommonErrorMessage> {
-        name = "favoriteStatus"
-        method = HttpMethod.Post
-
-        auth {
-            access = AccessRight.READ
-        }
-
-        path {
-            using(baseContext)
-            +"status"
-        }
-
-        body { bindEntireRequestFromBody() }
-    }
-
-    val list = callDescription<ListRequest, ListResponse, CommonErrorMessage>(
-        additionalRequestConfiguration = { header("x-no-load", "true") }
-    ) {
-        name = "list"
-        method = HttpMethod.Get
-
-        auth {
-            access = AccessRight.READ
-        }
-
-        path {
-            using(baseContext)
-        }
-
-        params {
-            +boundTo(ListRequest::itemsPerPage)
-            +boundTo(ListRequest::page)
+            headers {
+                +"X-No-Load"
+            }
         }
     }
 }

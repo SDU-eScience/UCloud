@@ -1,10 +1,9 @@
 package dk.sdu.cloud.metadata.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.metadata.api.CreateProjectFromFormRequest
 import dk.sdu.cloud.metadata.api.CreateProjectFromFormResponse
-import dk.sdu.cloud.metadata.api.ProjectMetadataWithRightsInfo
 import dk.sdu.cloud.metadata.services.ElasticMetadataService
 import dk.sdu.cloud.metadata.services.MetadataAdvancedQueryService
 import dk.sdu.cloud.metadata.services.MetadataQueryService
@@ -12,8 +11,7 @@ import dk.sdu.cloud.metadata.services.ProjectService
 import dk.sdu.cloud.project.api.CreateProjectResponse
 import dk.sdu.cloud.project.api.ProjectDescriptions
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.authenticatedCloud
-import dk.sdu.cloud.service.test.CloudMock
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
@@ -54,7 +52,8 @@ private fun configureProjectServer(
             elasticMetadataService,
             metadataQueryService,
             metadataAdvancedQueryService
-        ))
+        )
+    )
 }
 
 private val source = """
@@ -68,9 +67,8 @@ private val source = """
 class ProjectTest {
 
     private fun createMockSucces() {
-        CloudMock.mockCallSuccess(
-            ProjectDescriptions,
-            { ProjectDescriptions.create },
+        ClientMock.mockCallSuccess(
+            ProjectDescriptions.create,
             CreateProjectResponse("Project1")
         )
     }
@@ -82,7 +80,7 @@ class ProjectTest {
         withKtorTest(
             setup = {
                 val micro = initializeMicro()
-                val cloud = micro.authenticatedCloud
+                val cloud = ClientMock.authenticatedClient
                 configureProjectServer(
                     projectService = ProjectService(cloud),
                     elasticMetadataService = ElasticMetadataService(
@@ -117,7 +115,8 @@ class ProjectTest {
 
                     createRequest.assertSuccess()
 
-                    val createResults = defaultMapper.readValue<CreateProjectFromFormResponse>(createRequest.response.content!!)
+                    val createResults =
+                        defaultMapper.readValue<CreateProjectFromFormResponse>(createRequest.response.content!!)
                     val id = createResults.id
 
                     assertEquals("Project1", id)
@@ -131,7 +130,7 @@ class ProjectTest {
         withKtorTest(
             setup = {
                 val micro = initializeMicro()
-                val cloud = micro.authenticatedCloud
+                val cloud = ClientMock.authenticatedClient
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
                 configureProjectServer(
                     projectService = ProjectService(cloud),
@@ -166,7 +165,7 @@ class ProjectTest {
         withKtorTest(
             setup = {
                 val micro = initializeMicro()
-                val cloud = micro.authenticatedCloud
+                val cloud = ClientMock.authenticatedClient
                 val elasticClient = mockk<RestHighLevelClient>(relaxed = true)
 
                 every { elasticClient.get(any()) } answers {
@@ -184,14 +183,14 @@ class ProjectTest {
                 )
             },
             test = {
-               run {
+                run {
                     val request =
                         sendRequest(
                             method = HttpMethod.Get,
                             path = "/api/metadata/notAnID",
                             user = TestUsers.user
                         )
-                   request.assertStatus(HttpStatusCode.NotFound)
+                    request.assertStatus(HttpStatusCode.NotFound)
                 }
             }
         )

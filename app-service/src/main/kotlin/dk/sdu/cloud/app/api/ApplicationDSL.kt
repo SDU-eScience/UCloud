@@ -3,7 +3,7 @@ package dk.sdu.cloud.app.api
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.HttpStatusCode
 import kotlin.reflect.KProperty0
 

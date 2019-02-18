@@ -2,14 +2,16 @@ package dk.sdu.cloud.filesearch.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
-import io.ktor.client.request.header
 import io.ktor.http.HttpMethod
 
 /**
@@ -42,45 +44,51 @@ typealias SearchResult = StorageFile
 /**
  * Contains REST calls for searching in files
  */
-object FileSearchDescriptions : RESTDescriptions("fileSearch") {
+object FileSearchDescriptions : CallDescriptionContainer("fileSearch") {
     const val baseContext: String = "/api/file-search"
 
-    val simpleSearch = callDescription<SimpleSearchRequest, Page<SearchResult>, CommonErrorMessage>(
-        additionalRequestConfiguration = { header("x-no-load", "true") }
-    ) {
-        name = "fileSearchSimple"
-        method = HttpMethod.Get
-
+    val simpleSearch = call<SimpleSearchRequest, Page<SearchResult>, CommonErrorMessage>("simpleSearch") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(SimpleSearchRequest::query)
-            +boundTo(SimpleSearchRequest::itemsPerPage)
-            +boundTo(SimpleSearchRequest::page)
+            path {
+                using(baseContext)
+            }
+
+            params {
+                +boundTo(SimpleSearchRequest::query)
+                +boundTo(SimpleSearchRequest::itemsPerPage)
+                +boundTo(SimpleSearchRequest::page)
+            }
+
+            headers {
+                +"X-No-Load"
+            }
         }
     }
 
-    val advancedSearch = callDescription<AdvancedSearchRequest, Page<SearchResult>, CommonErrorMessage>(
-        additionalRequestConfiguration = { header("x-no-load", "true") }
-    ) {
-        name = "fileSearchAdvanced"
-        method = HttpMethod.Post
-
+    val advancedSearch = call<AdvancedSearchRequest, Page<SearchResult>, CommonErrorMessage>("advancedSearch") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"advanced"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"advanced"
+            }
+
+            body { bindEntireRequestFromBody() }
+
+            headers {
+                +"X-No-Load"
+            }
+        }
     }
 }

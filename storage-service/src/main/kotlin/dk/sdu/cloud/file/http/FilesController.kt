@@ -1,6 +1,13 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.CallHandler
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.audit
+import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.securityToken
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
@@ -26,15 +33,11 @@ import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.tryWithFS
 import dk.sdu.cloud.file.util.tryWithFSAndTimeout
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.RESTHandler
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
-import dk.sdu.cloud.service.securityToken
 import dk.sdu.cloud.service.stackTraceToString
+import io.ktor.application.call
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.Route
+import io.ktor.response.respond
 import kotlinx.coroutines.io.writeStringUtf8
 import org.slf4j.LoggerFactory
 
@@ -49,13 +52,11 @@ class FilesController<Ctx : FSUserContext>(
     private val homeFolderService: HomeFolderService,
     private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {
-    override val baseContext = FileDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(FileDescriptions.listAtPath) { request ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(FileDescriptions.listAtPath) {
             audit(SingleFileAudit(null, request))
 
-            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) {
+            tryWithFS(commandRunnerFactory, ctx.securityPrincipal.username) {
                 val stat = fileLookupService.stat(it, request.path)
                 val result = fileLookupService.listDirectory(
                     it,
@@ -70,10 +71,10 @@ class FilesController<Ctx : FSUserContext>(
             }
         }
 
-        implement(FileDescriptions.lookupFileInDirectory) { request ->
+        implement(FileDescriptions.lookupFileInDirectory) {
             audit(SingleFileAudit(null, request))
 
-            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
+            tryWithFS(commandRunnerFactory, ctx.securityPrincipal.username) { ctx ->
                 val result = fileLookupService.lookupFileInDirectory(
                     ctx,
                     request.path,
@@ -88,72 +89,73 @@ class FilesController<Ctx : FSUserContext>(
             }
         }
 
-        implement(FileDescriptions.stat) { request ->
+        implement(FileDescriptions.stat) {
             audit(SingleFileAudit(null, request))
 
-            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) {
+            tryWithFS(commandRunnerFactory, ctx.securityPrincipal.username) {
                 val result = fileLookupService.stat(it, request.path)
                 audit(SingleFileAudit(result.fileId, request))
                 ok(result)
             }
         }
 
-        implement(FileDescriptions.createDirectory) { req ->
-            if (call.securityPrincipal.role in Roles.PRIVILEDGED && req.owner != null) {
-                tryWithFSAndTimeout(commandRunnerFactory, req.owner) {
-                    coreFs.makeDirectory(it, req.path)
-                    sensitivityService.setSensitivityLevel(it, req.path, req.sensitivity, null)
+        implement(FileDescriptions.createDirectory) {
+            if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.owner != null) {
+                val owner = request.owner!!
+                tryWithFSAndTimeout(commandRunnerFactory, owner) {
+                    coreFs.makeDirectory(it, request.path)
+                    sensitivityService.setSensitivityLevel(it, request.path, request.sensitivity, null)
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
             } else {
-                tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
-                    coreFs.makeDirectory(it, req.path)
+                tryWithFSAndTimeout(commandRunnerFactory, ctx.securityPrincipal.username) {
+                    coreFs.makeDirectory(it, request.path)
                     sensitivityService.setSensitivityLevel(
                         it,
-                        req.path,
-                        req.sensitivity,
-                        call.securityPrincipal.username
+                        request.path,
+                        request.sensitivity,
+                        ctx.securityPrincipal.username
                     )
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
             }
         }
 
-        implement(FileDescriptions.deleteFile) { req ->
-            audit(SingleFileAudit(null, req))
+        implement(FileDescriptions.deleteFile) {
+            audit(SingleFileAudit(null, request))
 
-            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
-                val stat = fileLookupService.stat(it, req.path)
-                coreFs.delete(it, req.path)
+            tryWithFSAndTimeout(commandRunnerFactory, ctx.securityPrincipal.username) {
+                val stat = fileLookupService.stat(it, request.path)
+                coreFs.delete(it, request.path)
 
-                audit(SingleFileAudit(stat.fileId, req))
+                audit(SingleFileAudit(stat.fileId, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
 
-        implement(FileDescriptions.move) { req ->
-            audit(SingleFileAudit(null, req))
-            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
-                val stat = fileLookupService.stat(it, req.path)
-                coreFs.move(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
+        implement(FileDescriptions.move) {
+            audit(SingleFileAudit(null, request))
+            tryWithFSAndTimeout(commandRunnerFactory, ctx.securityPrincipal.username) {
+                val stat = fileLookupService.stat(it, request.path)
+                coreFs.move(it, request.path, request.newPath, request.policy ?: WriteConflictPolicy.OVERWRITE)
 
-                audit(SingleFileAudit(stat.fileId, req))
+                audit(SingleFileAudit(stat.fileId, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
 
-        implement(FileDescriptions.copy) { req ->
-            audit(SingleFileAudit(null, req))
+        implement(FileDescriptions.copy) {
+            audit(SingleFileAudit(null, request))
 
-            tryWithFSAndTimeout(commandRunnerFactory, call.securityPrincipal.username) {
-                val stat = fileLookupService.stat(it, req.path)
-                coreFs.copy(it, req.path, req.newPath, req.policy ?: WriteConflictPolicy.OVERWRITE)
-                audit(SingleFileAudit(stat.fileId, req))
+            tryWithFSAndTimeout(commandRunnerFactory, ctx.securityPrincipal.username) {
+                val stat = fileLookupService.stat(it, request.path)
+                coreFs.copy(it, request.path, request.newPath, request.policy ?: WriteConflictPolicy.OVERWRITE)
+                audit(SingleFileAudit(stat.fileId, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
 
-        implement(FileDescriptions.syncFileList) { req ->
+        implement(FileDescriptions.syncFileList) {
             // Note(Dan): This is not serialized as JSON for a reason.
             //
             // We really want to not do pagination here. There is no real reason for it (we want the full list in
@@ -169,7 +171,7 @@ class FilesController<Ctx : FSUserContext>(
             // This implementation does nothing to prevent GC when needed. Once a file entry is sent over the wire
             // it should be eligible for GC.
 
-            audit(SingleFileAudit(null, req))
+            audit(SingleFileAudit(null, request))
 
             fun StringBuilder.appendToken(token: Any?) {
                 append(token.toString())
@@ -189,106 +191,118 @@ class FilesController<Ctx : FSUserContext>(
                 FileAttribute.RAW_PATH
             )
 
-            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                val inode = coreFs.stat(ctx, req.path, setOf(FileAttribute.INODE)).inode
-                audit(SingleFileAudit(inode, req))
-                okContentDeliveredExternally()
+            with(ctx as HttpCall) {
+                tryWithFS(commandRunnerFactory, ctx.securityPrincipal.username) { ctx ->
+                    val inode = coreFs.stat(ctx, request.path, setOf(FileAttribute.INODE)).inode
+                    audit(SingleFileAudit(inode, request))
+                    okContentAlreadyDelivered()
 
-                call.respondDirectWrite(status = HttpStatusCode.OK, contentType = ContentType.Text.Plain) {
-                    coreFs.tree(ctx, req.path, attributes).forEach {
-                        writeStringUtf8(StringBuilder().apply {
-                            appendToken(
-                                when (it.fileType) {
-                                    FileType.FILE -> "F"
-                                    FileType.DIRECTORY -> "D"
-                                    else -> throw IllegalStateException()
-                                }
-                            )
+                    call.respond(
+                        DirectWriteContent(contentType = ContentType.Text.Plain, status = HttpStatusCode.OK) {
+                            coreFs.tree(ctx, request.path, attributes).forEach {
+                                writeStringUtf8(StringBuilder().apply {
+                                    appendToken(
+                                        when (it.fileType) {
+                                            FileType.FILE -> "F"
+                                            FileType.DIRECTORY -> "D"
+                                            else -> throw IllegalStateException()
+                                        }
+                                    )
 
-                            appendToken(it.inode)
-                            appendToken(it.owner)
-                            appendToken(it.timestamps.modified)
+                                    appendToken(it.inode)
+                                    appendToken(it.owner)
+                                    appendToken(it.timestamps.modified)
 
-                            val hasChecksum = it.checksum.checksum.isNotEmpty()
-                            appendToken(if (hasChecksum) '1' else '0')
-                            if (hasChecksum) {
-                                appendToken(it.checksum.checksum)
-                                appendToken(it.checksum.algorithm)
+                                    val hasChecksum = it.checksum.checksum.isNotEmpty()
+                                    appendToken(if (hasChecksum) '1' else '0')
+                                    if (hasChecksum) {
+                                        appendToken(it.checksum.checksum)
+                                        appendToken(it.checksum.algorithm)
+                                    }
+
+                                    // Must be last entry (path may contain commas)
+                                    append(it.rawPath)
+                                    append('\n')
+
+                                    toString()
+                                })
                             }
-
-                            // Must be last entry (path may contain commas)
-                            append(it.rawPath)
-                            append('\n')
-
-                            toString()
-                        })
-                    }
+                        }
+                    )
                 }
             }
         }
 
-        implement(FileDescriptions.annotate) { req ->
-            audit(SingleFileAudit(null, req))
+        implement(FileDescriptions.annotate) {
+            audit(SingleFileAudit(null, request))
 
-            tryWithFS(commandRunnerFactory, req.proxyUser) {
-                val stat = fileLookupService.stat(it, req.path)
-                annotationService.annotateFiles(it, req.path, req.annotatedWith)
-                audit(SingleFileAudit(stat.fileId, req))
+            tryWithFS(commandRunnerFactory, request.proxyUser) {
+                val stat = fileLookupService.stat(it, request.path)
+                annotationService.annotateFiles(it, request.path, request.annotatedWith)
+                audit(SingleFileAudit(stat.fileId, request))
                 ok(Unit)
             }
         }
 
-        implement(FileDescriptions.createLink) { req ->
-            audit(SingleFileAudit(null, req))
+        implement(FileDescriptions.createLink) {
+            audit(SingleFileAudit(null, request))
 
-            tryWithFS(commandRunnerFactory, call.securityPrincipal.username) { ctx ->
-                val created = coreFs.createSymbolicLink(ctx, req.linkTargetPath, req.linkPath)
-                audit(SingleFileAudit(coreFs.stat(ctx, req.linkPath, setOf(FileAttribute.INODE)).inode, req))
+            tryWithFS(commandRunnerFactory, ctx.securityPrincipal.username) { ctx ->
+                val created = coreFs.createSymbolicLink(ctx, request.linkTargetPath, request.linkPath)
+                audit(SingleFileAudit(coreFs.stat(ctx, request.linkPath, setOf(FileAttribute.INODE)).inode, request))
 
                 ok(fileLookupService.stat(ctx, created.path))
             }
         }
 
-        implement(FileDescriptions.chmod) { req ->
+        implement(FileDescriptions.chmod) {
             val fileIdsUpdated = ArrayList<String>()
-            audit(BulkFileAudit(fileIdsUpdated, req))
+            audit(BulkFileAudit(fileIdsUpdated, request))
             requirePermissionToChangeFilePermissions()
 
             tryWithFS {
-                runCodeAsUnixOwner(req.path) { ctx ->
-                    coreFs.chmod(ctx, req.path, req.owner, req.group, req.other, req.recurse, fileIdsUpdated)
+                runCodeAsUnixOwner(request.path) { ctx ->
+                    coreFs.chmod(
+                        ctx,
+                        request.path,
+                        request.owner,
+                        request.group,
+                        request.other,
+                        request.recurse,
+                        fileIdsUpdated
+                    )
                 }
                 ok(Unit)
             }
         }
 
-        implement(FileDescriptions.updateAcl) { req ->
+        implement(FileDescriptions.updateAcl) {
             val fileIdsUpdated = ArrayList<String>()
-            audit(BulkFileAudit(fileIdsUpdated, req))
+            audit(BulkFileAudit(fileIdsUpdated, request))
             requirePermissionToChangeFilePermissions()
 
             tryWithFS {
-                runCodeAsUnixOwner(req.path) { ctx ->
-                    req.changes.forEach { change ->
+                runCodeAsUnixOwner(request.path) { ctx ->
+                    request.changes.forEach { change ->
                         val entity =
                             if (change.isUser) FSACLEntity.User(change.entity) else FSACLEntity.Group(change.entity)
 
                         if (change.revoke) {
                             log.debug("revoking")
-                            aclService.revokeRights(ctx, req.path, entity, req.recurse)
+                            aclService.revokeRights(ctx, request.path, entity, request.recurse)
                         } else {
                             log.debug("granting")
-                            aclService.grantRights(ctx, req.path, entity, change.rights, req.recurse)
+                            aclService.grantRights(ctx, request.path, entity, change.rights, request.recurse)
                         }
                     }
 
                     try {
-                        if (req.recurse) {
-                            coreFs.tree(ctx, req.path, setOf(FileAttribute.INODE)).forEach {
+                        if (request.recurse) {
+                            coreFs.tree(ctx, request.path, setOf(FileAttribute.INODE)).forEach {
                                 fileIdsUpdated.add(it.inode)
                             }
                         } else {
-                            val fileId = coreFs.stat(ctx, req.path, setOf(FileAttribute.INODE)).inode
+                            val fileId = coreFs.stat(ctx, request.path, setOf(FileAttribute.INODE)).inode
                             fileIdsUpdated.add(fileId)
                         }
                     } catch (ex: Exception) {
@@ -300,25 +314,25 @@ class FilesController<Ctx : FSUserContext>(
             }
         }
 
-        implement(FileDescriptions.reclassify) { req ->
-            audit(SingleFileAudit(null, req))
+        implement(FileDescriptions.reclassify) {
+            audit(SingleFileAudit(null, request))
 
-            val user = call.securityPrincipal.username
+            val user = ctx.securityPrincipal.username
             tryWithFS(commandRunnerFactory, user) { ctx ->
-                val stat = coreFs.stat(ctx, req.path, setOf(FileAttribute.INODE))
-                audit(SingleFileAudit(stat.inode, req))
+                val stat = coreFs.stat(ctx, request.path, setOf(FileAttribute.INODE))
+                audit(SingleFileAudit(stat.inode, request))
 
-                sensitivityService.setSensitivityLevel(ctx, req.path, req.sensitivity, user)
+                sensitivityService.setSensitivityLevel(ctx, request.path, request.sensitivity, user)
             }
             ok(Unit)
         }
 
-        implement(FileDescriptions.findHomeFolder) { req ->
-            ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(req.username)))
+        implement(FileDescriptions.findHomeFolder) {
+            ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(request.username)))
         }
     }
 
-    private suspend fun RESTHandler<*, *, *, *>.runCodeAsUnixOwner(path: String, handler: suspend (Ctx) -> Unit) {
+    private suspend fun CallHandler<*, *, *>.runCodeAsUnixOwner(path: String, handler: suspend (Ctx) -> Unit) {
         log.debug("We need to run request at '$path' as real owner")
         val stat = commandRunnerFactory.withContext(SERVICE_USER) { ctx ->
             coreFs.stat(ctx, path, setOf(FileAttribute.OWNER, FileAttribute.XOWNER))
@@ -327,7 +341,7 @@ class FilesController<Ctx : FSUserContext>(
         val realOwner = stat.xowner
         val creator = stat.owner
 
-        val user = call.securityPrincipal.username
+        val user = ctx.securityPrincipal.username
         log.debug("Real owner is $realOwner and user is $user")
 
         if (realOwner != user) throw FSException.PermissionException()
@@ -335,8 +349,8 @@ class FilesController<Ctx : FSUserContext>(
         commandRunnerFactory.withContext(creator) { ctx -> handler(ctx) }
     }
 
-    private fun RESTHandler<*, *, *, *>.requirePermissionToChangeFilePermissions() {
-        val securityToken = call.securityToken
+    private fun CallHandler<*, *, *>.requirePermissionToChangeFilePermissions() {
+        val securityToken = ctx.securityToken
         if (
             securityToken.principal.username !in filePermissionsAcl &&
             securityToken.extendedBy !in filePermissionsAcl

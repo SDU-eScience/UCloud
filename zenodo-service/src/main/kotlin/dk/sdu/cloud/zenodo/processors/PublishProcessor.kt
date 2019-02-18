@@ -3,18 +3,20 @@ package dk.sdu.cloud.zenodo.processors
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.RequestOneTimeToken
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.CloudContext
-import dk.sdu.cloud.client.JWTAuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.calls.server.requiredAuthScope
 import dk.sdu.cloud.file.api.DownloadByURI
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.kafka.stream
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.service.stream
-import dk.sdu.cloud.service.withCausedBy
 import dk.sdu.cloud.zenodo.api.ZenodoCommandStreams
 import dk.sdu.cloud.zenodo.api.ZenodoPublicationStatus
 import dk.sdu.cloud.zenodo.api.ZenodoPublishCommand
@@ -35,7 +37,7 @@ class PublishProcessor<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val zenodoService: ZenodoRPCService,
     private val publicationService: PublicationService<DBSession>,
-    private val cloudContext: CloudContext,
+    private val serviceClient: AuthenticatedClient,
     private val tokenValidation: TokenValidation<Any>
 ) {
     fun init(kBuilder: StreamsBuilder) {
@@ -55,7 +57,7 @@ class PublishProcessor<DBSession>(
                             log.debug("Bad command was: $command")
                         }
 
-                val cloud = JWTAuthenticatedCloud(cloudContext, command.jwt).withCausedBy(command.uuid)
+                val cloud = serviceClient.withoutAuthentication().bearerAuth(command.jwt)//.withCausedBy(command.uuid)
 
                 log.debug("Updating status of command: ${command.publicationId} to UPLOADING")
                 db.withTransaction {
@@ -121,7 +123,7 @@ class PublishProcessor<DBSession>(
 
     private suspend fun transferCloudFilesToTemporaryStorage(
         command: ZenodoPublishCommand,
-        cloud: AuthenticatedCloud
+        cloud: AuthenticatedClient
     ): List<File> {
         val buffer = ByteArray(BUFFER_SIZE)
         return command.request.filePaths.mapNotNull {
@@ -129,21 +131,22 @@ class PublishProcessor<DBSession>(
                 RequestOneTimeToken(FileDescriptions.download.requiredAuthScope.toString()), cloud
             )
 
-            if (tokenResponse !is RESTResponse.Ok) {
+            if (tokenResponse !is IngoingCallResponse.Ok) {
                 log.warn("Unable to request a new one time token for download!")
-                log.warn("${tokenResponse.status}: ${tokenResponse.rawResponseBody}")
+                log.warn("${tokenResponse.statusCode}")
                 throw PublishingException.CloudAuthenticationError()
             }
 
             val token = tokenResponse.result
 
             // This will generate misleading audit trail, unless we get a caused-by header added to it
-            val fileDownload = FileDescriptions.download.call(DownloadByURI(it, token.accessToken), cloud)
-            if (fileDownload is RESTResponse.Err) return@mapNotNull null
+            val fileDownload = FileDescriptions.download.call(DownloadByURI(it, token.accessToken), cloud).orNull()
+                ?: return@mapNotNull null
+
             val tempFile = Files.createTempFile("zenodo-upload", "").toFile()
             try {
                 tempFile.outputStream().use { out ->
-                    fileDownload.response.content.toInputStream().use { inp ->
+                    fileDownload.asIngoing().channel.toInputStream().use { inp ->
                         while (true) {
                             val read = inp.read(buffer)
                             if (read != -1) out.write(buffer, 0, read)

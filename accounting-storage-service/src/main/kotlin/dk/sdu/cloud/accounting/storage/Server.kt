@@ -1,34 +1,25 @@
 package dk.sdu.cloud.accounting.storage
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
 import dk.sdu.cloud.accounting.storage.http.StorageAccountingController
 import dk.sdu.cloud.accounting.storage.http.StorageUsedController
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingHibernateDao
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingService
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
 import kotlinx.coroutines.runBlocking
-import org.apache.kafka.streams.KafkaStreams
 
 class Server(
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val micro: Micro,
-    private val config: Configuration
+    private val config: Configuration,
+    override val micro: Micro
 ) : CommonServer {
-    override lateinit var httpServer: ApplicationEngine
-    override val kStreams: KafkaStreams? = null
     private val eventConsumers = ArrayList<EventConsumer<*>>()
 
     override val log = logger()
@@ -39,10 +30,11 @@ class Server(
     }
 
     override fun start() {
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         // Initialize services here
         val storageAccountingService =
             StorageAccountingService(
-                cloud,
+                client,
                 micro.hibernateDatabase,
                 StorageAccountingHibernateDao(),
                 config
@@ -61,15 +53,11 @@ class Server(
         // addConsumers(...)
 
         // Initialize server
-        httpServer = ktor {
-            installDefaultFeatures(micro)
-
-            routing {
-                configureControllers(
-                    StorageAccountingController(storageAccountingService, cloud),
-                    StorageUsedController(storageAccountingService, cloud)
-                )
-            }
+        with(micro.server) {
+            configureControllers(
+                StorageAccountingController(storageAccountingService, client),
+                StorageUsedController(storageAccountingService, client)
+            )
         }
 
         startServices()

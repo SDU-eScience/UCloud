@@ -1,14 +1,15 @@
 package dk.sdu.cloud.project.auth.services
 
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.auth.api.usernameForProjectInRole
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.share.api.AcceptShareRequest
 import dk.sdu.cloud.share.api.CreateShareRequest
 import dk.sdu.cloud.share.api.ShareDescriptions
@@ -28,7 +29,7 @@ import org.slf4j.Logger
  * many of these "ProjectInitializedListeners" we should start moving them into their own services.
  */
 class StorageInitializer(
-    private val refreshTokenCloudFactory: (String) -> AuthenticatedCloud
+    private val refreshTokenCloudFactory: (String) -> AuthenticatedClient
 ) : ProjectInitializedListener {
     override suspend fun onProjectCreated(projectId: String, users: List<AuthToken>) {
         log.info("Handling storage hook for $projectId")
@@ -57,7 +58,7 @@ class StorageInitializer(
                     piCloud
                 )
 
-                if (HttpStatusCode.fromValue(shareResponse.status) == HttpStatusCode.Conflict) return@launch
+                if (shareResponse.statusCode == HttpStatusCode.Conflict) return@launch
                 val shareId = shareResponse.orThrow()
 
                 ShareDescriptions.accept.call(
@@ -68,7 +69,7 @@ class StorageInitializer(
         }.joinAll()
     }
 
-    private suspend fun awaitFileSystem(homeFolder: String, cloud: AuthenticatedCloud) {
+    private suspend fun awaitFileSystem(homeFolder: String, cloud: AuthenticatedClient) {
         for (attempt in 1..100) {
             log.debug("Awaiting ready status from project home ($homeFolder)")
             val status = FileDescriptions.listAtPath.call(
@@ -80,7 +81,7 @@ class StorageInitializer(
                     sortBy = null
                 ),
                 cloud
-            ).status.let { HttpStatusCode.fromValue(it) }
+            ).statusCode
 
             // Forbidden is a good indicator that the FS is ready but we don't have permissions yet.
             if (status.isSuccess() || status == HttpStatusCode.Forbidden) {

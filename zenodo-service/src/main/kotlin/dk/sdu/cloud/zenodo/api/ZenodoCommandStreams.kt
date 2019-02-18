@@ -1,6 +1,6 @@
 package dk.sdu.cloud.zenodo.api
 
-import dk.sdu.cloud.service.KafkaDescriptions
+import dk.sdu.cloud.kafka.KafkaDescriptions
 
 data class ZenodoPublishCommand(
     val jwt: String,

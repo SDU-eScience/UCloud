@@ -1,6 +1,12 @@
 package dk.sdu.cloud.service
 
-import dk.sdu.cloud.client.ServiceDescription
+import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.kafka.KafkaDescriptions
+import dk.sdu.cloud.kafka.forStream
+import dk.sdu.cloud.micro.KafkaTopicFeatureConfiguration
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.installDefaultFeatures
+import dk.sdu.cloud.micro.kafka
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -21,7 +27,13 @@ fun main(args: Array<String>) {
 
     val micro = Micro().apply {
         init(description, args)
-        installDefaultFeatures(kafkaTopicConfig = KafkaTopicFeatureConfiguration(basePackages = listOf("dk.sdu.cloud.service")))
+        installDefaultFeatures(
+            kafkaTopicConfig = KafkaTopicFeatureConfiguration(
+                basePackages = listOf(
+                    "dk.sdu.cloud.service"
+                )
+            )
+        )
     }
 
     val kafka = micro.kafka

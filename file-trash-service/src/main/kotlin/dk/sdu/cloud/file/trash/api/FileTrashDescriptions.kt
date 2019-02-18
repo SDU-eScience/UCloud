@@ -2,45 +2,47 @@ package dk.sdu.cloud.file.trash.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
 data class TrashRequest(val files: List<String>)
 data class TrashResponse(val failures: List<String>)
 
-object FileTrashDescriptions : RESTDescriptions("files.trash") {
+object FileTrashDescriptions : CallDescriptionContainer("files.trash") {
     val baseContext = "/api/files/trash"
 
-    val trash = callDescription<TrashRequest, TrashResponse, CommonErrorMessage> {
-        name = "trash"
-        method = HttpMethod.Post
-
+    val trash = call<TrashRequest, TrashResponse, CommonErrorMessage>("trash") {
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val clear = callDescription<Unit, Unit, CommonErrorMessage> {
-        name = "clear"
-        method = HttpMethod.Post
-
+    val clear = call<Unit, Unit, CommonErrorMessage>("clear") {
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"clear"
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"clear"
+            }
         }
     }
 }

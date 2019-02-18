@@ -11,17 +11,17 @@ import dk.sdu.cloud.app.api.tags
 import dk.sdu.cloud.app.services.ApplicationDAO
 import dk.sdu.cloud.app.services.ToolDAO
 import dk.sdu.cloud.app.util.yamlMapper
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.ok
-import dk.sdu.cloud.service.securityPrincipal
 import dk.sdu.cloud.service.stackTraceToString
+import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.ContentTransformationException
 import io.ktor.request.receiveText
-import io.ktor.routing.Route
 import org.slf4j.LoggerFactory
 import org.yaml.snakeyaml.reader.ReaderException
 
@@ -30,41 +30,39 @@ class AppController<DBSession>(
     private val source: ApplicationDAO<DBSession>,
     private val toolDao: ToolDAO<DBSession>
 ) : Controller {
-    override val baseContext = ApplicationDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(ApplicationDescriptions.toggleFavorite) { req ->
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(ApplicationDescriptions.toggleFavorite) {
             db.withTransaction {
                 source.toggleFavorite(
                     it,
-                    call.securityPrincipal.username,
-                    req.name,
-                    req.version
+                    ctx.securityPrincipal.username,
+                    request.name,
+                    request.version
                 )
             }
 
-            ok(HttpStatusCode.OK)
+            ok(Unit)
         }
 
-        implement(ApplicationDescriptions.retrieveFavorites) { req ->
+        implement(ApplicationDescriptions.retrieveFavorites) {
             val favorites = db.withTransaction {
                 source.retrieveFavorites(
                     it,
-                    call.securityPrincipal.username,
-                    req.normalize()
+                    ctx.securityPrincipal.username,
+                    request.normalize()
                 )
             }
 
             ok(favorites)
         }
 
-        implement(ApplicationDescriptions.searchTags) { req ->
+        implement(ApplicationDescriptions.searchTags) {
             val app = db.withTransaction {
                 source.searchTags(
                     it,
-                    call.securityPrincipal.username,
-                    req.tags,
-                    req.normalize()
+                    ctx.securityPrincipal.username,
+                    request.tags,
+                    request.normalize()
                 )
             }
 
@@ -72,27 +70,27 @@ class AppController<DBSession>(
         }
 
 
-        implement(ApplicationDescriptions.searchApps) { req ->
+        implement(ApplicationDescriptions.searchApps) {
             val app = db.withTransaction {
                 source.search(
                     it,
-                    call.securityPrincipal.username,
-                    req.query,
-                    req.normalize()
+                    ctx.securityPrincipal.username,
+                    request.query,
+                    request.normalize()
                 )
             }
 
             ok(app)
         }
 
-        implement(ApplicationDescriptions.findByNameAndVersion) { req ->
+        implement(ApplicationDescriptions.findByNameAndVersion) {
             val app = db.withTransaction {
-                val user = call.securityPrincipal.username
+                val user = ctx.securityPrincipal.username
                 val result = source.findByNameAndVersionForUser(
                     it,
                     user,
-                    req.name,
-                    req.version
+                    request.name,
+                    request.version
                 )
 
                 val toolRef = result.invocation.tool
@@ -113,64 +111,65 @@ class AppController<DBSession>(
             ok(app)
         }
 
-        implement(ApplicationDescriptions.findByName) { req ->
+        implement(ApplicationDescriptions.findByName) {
             val result = db.withTransaction {
-                source.findAllByName(it, call.securityPrincipal.username, req.name, req.normalize())
+                source.findAllByName(it, ctx.securityPrincipal.username, request.name, request.normalize())
             }
 
             ok(result)
         }
 
-        implement(ApplicationDescriptions.listAll) { req ->
+        implement(ApplicationDescriptions.listAll) {
             ok(
                 db.withTransaction {
-                    source.listLatestVersion(it, call.securityPrincipal.username, req.normalize())
+                    source.listLatestVersion(it, ctx.securityPrincipal.username, request.normalize())
                 }
             )
         }
 
-        implement(ApplicationDescriptions.create) { req ->
-            val content = try {
-                call.receiveText()
-            } catch (ex: ContentTransformationException) {
-                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                return@implement
-            }
+        implement(ApplicationDescriptions.create) {
+            with(ctx as HttpCall) {
+                val content = try {
+                    call.receiveText()
+                } catch (ex: ContentTransformationException) {
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
 
-            @Suppress("DEPRECATION")
-            val yamlDocument = try {
-                yamlMapper.readValue<ApplicationDescription>(content)
-            } catch (ex: JsonMappingException) {
-                log.debug(ex.stackTraceToString())
-                error(
-                    CommonErrorMessage(
-                        "Bad value for parameter ${ex.pathReference.replace(
-                            "dk.sdu.cloud.app.api.",
-                            ""
-                        )}. ${ex.message}"
-                    ),
-                    HttpStatusCode.BadRequest
-                )
-                return@implement
-            } catch (ex: MarkedYAMLException) {
-                log.debug(ex.stackTraceToString())
-                error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
-                return@implement
-            } catch (ex: ReaderException) {
-                error(
-                    CommonErrorMessage("Document contains illegal characters (unicode?)"),
-                    HttpStatusCode.BadRequest
-                )
-                return@implement
-            }
+                @Suppress("DEPRECATION")
+                val yamlDocument = try {
+                    yamlMapper.readValue<ApplicationDescription>(content)
+                } catch (ex: JsonMappingException) {
+                    log.debug(ex.stackTraceToString())
+                    error(
+                        CommonErrorMessage(
+                            "Bad value for parameter ${ex.pathReference.replace(
+                                "dk.sdu.cloud.app.api.",
+                                ""
+                            )}. ${ex.message}"
+                        ),
+                        HttpStatusCode.BadRequest
+                    )
+                    return@implement
+                } catch (ex: MarkedYAMLException) {
+                    log.debug(ex.stackTraceToString())
+                    error(CommonErrorMessage("Invalid YAML document"), HttpStatusCode.BadRequest)
+                    return@implement
+                } catch (ex: ReaderException) {
+                    error(
+                        CommonErrorMessage("Document contains illegal characters (unicode?)"),
+                        HttpStatusCode.BadRequest
+                    )
+                    return@implement
+                }
 
-            db.withTransaction {
-                source.create(it, call.securityPrincipal.username, yamlDocument.normalize(), content)
-            }
+                db.withTransaction {
+                    source.create(it, ctx.securityPrincipal.username, yamlDocument.normalize(), content)
+                }
 
-            ok(Unit)
+                ok(Unit)
+            }
         }
-
     }
 
     companion object {

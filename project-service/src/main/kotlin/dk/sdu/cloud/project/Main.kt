@@ -1,16 +1,12 @@
 package dk.sdu.cloud.project
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.auth.api.refreshingJwtCloud
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.initWithDefaultFeatures
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.runScriptHandler
 import dk.sdu.cloud.project.api.ProjectServiceDescription
-import dk.sdu.cloud.service.configuration
-import dk.sdu.cloud.service.initWithDefaultFeatures
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.kafka
-import dk.sdu.cloud.service.runScriptHandler
-import dk.sdu.cloud.service.serverProvider
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.HibernateFeature
 
 fun main(args: Array<String>) {
     val micro = Micro().apply {
@@ -21,10 +17,5 @@ fun main(args: Array<String>) {
 
     if (micro.runScriptHandler()) return
 
-    Server(
-        micro.kafka,
-        micro.serverProvider,
-        micro.refreshingJwtCloud,
-        micro
-    ).start()
+    Server(micro).start()
 }

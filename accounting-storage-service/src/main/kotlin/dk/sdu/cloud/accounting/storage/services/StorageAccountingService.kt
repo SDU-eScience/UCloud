@@ -8,7 +8,10 @@ import dk.sdu.cloud.accounting.storage.Configuration
 import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.indexing.api.AllOf
@@ -19,11 +22,8 @@ import dk.sdu.cloud.indexing.api.StatisticsRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.optionallyCausedBy
-import dk.sdu.cloud.service.orThrow
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -35,7 +35,7 @@ import kotlin.math.roundToLong
 val FIRST_PAGE = NormalizedPaginationRequest(null, null)
 
 class StorageAccountingService<DBSession>(
-    private val serviceCloud: AuthenticatedCloud,
+    private val serviceCloud: AuthenticatedClient,
     private val db: DBSessionFactory<DBSession>,
     private val dao: StorageAccountingDao<DBSession>,
     config: Configuration
@@ -58,7 +58,7 @@ class StorageAccountingService<DBSession>(
                     calculateSum = true
                 )
             ),
-            serviceCloud.optionallyCausedBy(causedById)
+            serviceCloud
         ).orThrow()
 
         val usedStorage = result.size?.sum?.roundToLong() ?: run {

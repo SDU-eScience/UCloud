@@ -7,10 +7,15 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.ToolBackend
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.api.VerifiedJobInput
-import dk.sdu.cloud.app.utils.withDatabase
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.service.MappedEventProducer
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.kafka.MappedEventProducer
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -35,45 +40,46 @@ class JobOrchestratorTest {
 
     @Test
     fun `test this`() {
-        withDatabase { db ->
+        val micro = initializeMicro()
+        micro.install(HibernateFeature)
+        val db = micro.hibernateDatabase
 
-            val toolDao = ToolHibernateDAO()
-            val appDao = ApplicationHibernateDAO(toolDao)
-            val jobDao = JobHibernateDao(appDao, toolDao)
+        val client = ClientMock.authenticatedClient
+        val toolDao = ToolHibernateDAO()
+        val appDao = ApplicationHibernateDAO(toolDao)
+        val jobDao = JobHibernateDao(appDao, toolDao)
 
-            val cloud = mockk<RefreshingJWTAuthenticatedCloud>(relaxed = true)
-            val jobStateChange = mockk<MappedEventProducer<String, JobStateChange>>(relaxed = true)
-            val jobCompletedEvent = mockk<MappedEventProducer<String, JobCompletedEvent>>(relaxed = true)
-            val orchestrator = JobOrchestrator(
-                cloud,
-                jobStateChange,
-                jobCompletedEvent,
-                db,
-                JobVerificationService(db, appDao, toolDao),
-                ComputationBackendService(listOf(ToolBackend.UDOCKER.name), true),
-                JobFileService(cloud),
-                jobDao
-            )
-            db.withTransaction { session ->
-                toolDao.create(session, "user", normToolDesc)
-                appDao.create(session, "user", normAppDesc)
-                jobDao.create(session, VerifiedJobWithAccessToken(verifiedJob, "token"))
-
-                runBlocking {
-                    jobDao.findJobsCreatedBefore(session, Date().time).forEach {
-                        println(it.job)
-                    }
-                }
-            }
+        val jobStateChange = mockk<MappedEventProducer<String, JobStateChange>>(relaxed = true)
+        val jobCompletedEvent = mockk<MappedEventProducer<String, JobCompletedEvent>>(relaxed = true)
+        val orchestrator = JobOrchestrator(
+            client,
+            jobStateChange,
+            jobCompletedEvent,
+            db,
+            JobVerificationService(db, appDao, toolDao),
+            ComputationBackendService(listOf(ToolBackend.UDOCKER.name), true),
+            JobFileService(client),
+            jobDao
+        )
+        db.withTransaction { session ->
+            toolDao.create(session, "user", normToolDesc)
+            appDao.create(session, "user", normAppDesc)
+            jobDao.create(session, VerifiedJobWithAccessToken(verifiedJob, "token"))
 
             runBlocking {
-                orchestrator.removeExpiredJobs()
-            }
-
-            db.withTransaction { session ->
-                runBlocking {
-                    println(jobDao.findOrNull(session, "verifiedId", "owner"))
+                jobDao.findJobsCreatedBefore(session, Date().time).forEach {
+                    println(it.job)
                 }
+            }
+        }
+
+        runBlocking {
+            orchestrator.removeExpiredJobs()
+        }
+
+        db.withTransaction { session ->
+            runBlocking {
+                println(jobDao.findOrNull(session, "verifiedId", "owner"))
             }
         }
     }

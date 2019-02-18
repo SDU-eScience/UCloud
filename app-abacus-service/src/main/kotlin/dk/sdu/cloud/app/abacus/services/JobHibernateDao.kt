@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.abacus.services
 
-import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId

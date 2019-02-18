@@ -7,17 +7,18 @@ import dk.sdu.cloud.auth.services.TwoFactorChallenge
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.auth.services.TwoFactorException
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.application.ApplicationCall
+import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
-import io.ktor.routing.Route
 import io.ktor.util.toMap
 import org.slf4j.Logger
 
@@ -25,43 +26,43 @@ class TwoFactorAuthController<DBSession>(
     private val twoFactorChallengeService: TwoFactorChallengeService<DBSession>,
     private val loginResponder: LoginResponder<DBSession>
 ) : Controller {
-    override val baseContext: String = TwoFactorAuthDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(TwoFactorAuthDescriptions.createCredentials) { req ->
-            ok(twoFactorChallengeService.createSetupCredentialsAndChallenge(call.securityPrincipal.username))
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(TwoFactorAuthDescriptions.createCredentials) {
+            ok(twoFactorChallengeService.createSetupCredentialsAndChallenge(ctx.securityPrincipal.username))
         }
 
-        implement(TwoFactorAuthDescriptions.answerChallenge) { req ->
-            verifyChallenge(call, req.challengeId, req.verificationCode)
-            okContentDeliveredExternally()
+        implement(TwoFactorAuthDescriptions.answerChallenge) {
+            verifyChallenge((ctx as HttpCall).call, request.challengeId, request.verificationCode)
+            okContentAlreadyDelivered()
         }
 
-        implement(TwoFactorAuthDescriptions.answerChallengeViaForm) { req ->
-            val params = try {
-                call.receiveParameters().toMap()
-            } catch (ex: Exception) {
-                return@implement call.respondRedirect("/auth/login?invalid")
+        implement(TwoFactorAuthDescriptions.answerChallengeViaForm) {
+            with(ctx as HttpCall) {
+                val params = try {
+                    call.receiveParameters().toMap()
+                } catch (ex: Exception) {
+                    return@implement call.respondRedirect("/auth/login?invalid")
+                }
+
+                val challengeId = params["challengeId"]?.firstOrNull()
+                val verificationCode = params["verificationCode"]?.firstOrNull()
+
+                if (challengeId == null || verificationCode == null) {
+                    return@implement call.respondRedirect("/auth/login?invalid")
+                }
+
+                okContentAlreadyDelivered()
+
+                val codeAsInt =
+                    verificationCode.toIntOrNull()
+                        ?: return@implement call.respondRedirect("/auth/2fa?challengeId=$challengeId&invalid")
+
+                verifyChallenge(call, challengeId, codeAsInt, submittedViaForm = true)
             }
-
-            val challengeId = params["challengeId"]?.firstOrNull()
-            val verificationCode = params["verificationCode"]?.firstOrNull()
-
-            if (challengeId == null || verificationCode == null) {
-                return@implement call.respondRedirect("/auth/login?invalid")
-            }
-
-            okContentDeliveredExternally()
-
-            val codeAsInt =
-                verificationCode.toIntOrNull()
-                    ?: return@implement call.respondRedirect("/auth/2fa?challengeId=$challengeId&invalid")
-
-            verifyChallenge(call, challengeId, codeAsInt, submittedViaForm = true)
         }
 
-        implement(TwoFactorAuthDescriptions.twoFactorStatus) { req ->
-            ok(TwoFactorStatusResponse(twoFactorChallengeService.isConnected(call.securityPrincipal.username)))
+        implement(TwoFactorAuthDescriptions.twoFactorStatus) {
+            ok(TwoFactorStatusResponse(twoFactorChallengeService.isConnected(ctx.securityPrincipal.username)))
         }
     }
 

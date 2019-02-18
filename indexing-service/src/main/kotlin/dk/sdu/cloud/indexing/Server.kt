@@ -1,25 +1,22 @@
 package dk.sdu.cloud.indexing
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.indexing.http.LookupController
 import dk.sdu.cloud.indexing.http.QueryController
 import dk.sdu.cloud.indexing.processor.StorageEventProcessor
 import dk.sdu.cloud.indexing.services.ElasticIndexingService
 import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.indexing.services.FileIndexScanner
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
 import org.apache.http.HttpHost
-import org.apache.kafka.streams.KafkaStreams
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import kotlin.system.exitProcess
@@ -29,13 +26,8 @@ import kotlin.system.exitProcess
  */
 class Server(
     private val elasticHostAndPort: ElasticHostAndPort,
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val micro: Micro
+    override val micro: Micro
 ) : CommonServer {
-    override lateinit var httpServer: ApplicationEngine
-    override val kStreams: KafkaStreams? = null
     private val eventConsumers = ArrayList<EventConsumer<*>>()
     private lateinit var elastic: RestHighLevelClient
 
@@ -47,6 +39,9 @@ class Server(
     }
 
     override fun start() {
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val kafka = micro.kafka
+
         elastic = RestHighLevelClient(
             RestClient.builder(
                 HttpHost(
@@ -62,7 +57,7 @@ class Server(
         if (micro.commandLineArguments.contains("--scan")) {
             @Suppress("TooGenericExceptionCaught")
             try {
-                val scanner = FileIndexScanner(cloud, elastic)
+                val scanner = FileIndexScanner(client, elastic)
                 scanner.scan()
 
                 exitProcess(0)
@@ -74,15 +69,11 @@ class Server(
 
         addConsumers(StorageEventProcessor(kafka, indexingService).init())
 
-        httpServer = ktor {
-            installDefaultFeatures(micro)
-
-            routing {
-                configureControllers(
-                    LookupController(queryService),
-                    QueryController(queryService)
-                )
-            }
+        with(micro.server) {
+            configureControllers(
+                LookupController(queryService),
+                QueryController(queryService)
+            )
         }
 
         startServices()

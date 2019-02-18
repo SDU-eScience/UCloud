@@ -6,19 +6,14 @@ import dk.sdu.cloud.activity.api.CountedFileActivityOperation
 import dk.sdu.cloud.activity.api.StreamFileReference
 import dk.sdu.cloud.activity.api.TrackedFileActivityOperation
 import dk.sdu.cloud.activity.api.UserReference
-import dk.sdu.cloud.auth.api.TokenExtensionResponse
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.CloudContext
-import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.client.jwtAuth
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.withCausedBy
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -29,7 +24,7 @@ class ActivityService<DBSession>(
     private val activityDao: ActivityEventDao<DBSession>,
     private val streamDao: ActivityStreamDao<DBSession>,
     private val fileLookupService: FileLookupService,
-    private val cloud: AuthenticatedCloud
+    private val cloud: AuthenticatedClient
 ) {
     fun insert(
         session: DBSession,
@@ -228,18 +223,3 @@ class ActivityService<DBSession>(
     }
 }
 
-internal fun <T> RESTResponse<T, *>.orThrow(): T {
-    if (this !is RESTResponse.Ok) {
-        throw RPCException(rawResponseBody, HttpStatusCode.fromValue(status))
-    }
-    return result
-}
-
-internal fun AuthenticatedCloud.optionallyCausedBy(causedBy: String?): AuthenticatedCloud {
-    return if (causedBy != null) withCausedBy(causedBy)
-    else this
-}
-
-fun TokenExtensionResponse.asCloud(context: CloudContext, causedBy: String?): AuthenticatedCloud {
-    return context.jwtAuth(this.accessToken).optionallyCausedBy(causedBy)
-}

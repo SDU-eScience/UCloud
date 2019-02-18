@@ -1,6 +1,8 @@
 package dk.sdu.cloud.file.util
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.file.api.favoritesDirectory
 import dk.sdu.cloud.file.api.homeDirectory
@@ -8,8 +10,6 @@ import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSResult
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.withContext
-import dk.sdu.cloud.service.RESTHandler
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.Deferred
@@ -88,7 +88,7 @@ sealed class FSException(why: String, httpStatusCode: HttpStatusCode) : RPCExcep
     class IsDirectoryConflict : FSException("File cannot overwrite directory.", HttpStatusCode.Conflict)
 }
 
-suspend inline fun RESTHandler<*, *, CommonErrorMessage, *>.tryWithFS(
+suspend inline fun CallHandler<*, *, CommonErrorMessage>.tryWithFS(
     body: () -> Unit
 ) {
     try {
@@ -100,7 +100,7 @@ suspend inline fun RESTHandler<*, *, CommonErrorMessage, *>.tryWithFS(
     }
 }
 
-suspend inline fun <Ctx : FSUserContext> RESTHandler<*, *, CommonErrorMessage, *>.tryWithFS(
+suspend inline fun <Ctx : FSUserContext> CallHandler<*, *, CommonErrorMessage>.tryWithFS(
     factory: FSCommandRunnerFactory<Ctx>,
     user: String,
     body: (Ctx) -> Unit
@@ -121,7 +121,7 @@ sealed class CallResult<S, E>(val status: HttpStatusCode) {
 
 private const val DELAY_IN_MILLIS = 10_000L
 
-suspend fun <Ctx : FSUserContext, S> RESTHandler<*, LongRunningResponse<S>, CommonErrorMessage, *>.tryWithFSAndTimeout(
+suspend fun <Ctx : FSUserContext, S> CallHandler<*, LongRunningResponse<S>, CommonErrorMessage>.tryWithFSAndTimeout(
     factory: FSCommandRunnerFactory<Ctx>,
     user: String,
     job: suspend (Ctx) -> CallResult<S, CommonErrorMessage>

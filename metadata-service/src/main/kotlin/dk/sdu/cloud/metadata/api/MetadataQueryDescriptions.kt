@@ -2,7 +2,10 @@ package dk.sdu.cloud.metadata.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.RESTDescriptions
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -13,26 +16,27 @@ data class SimpleQueryRequest(
     override val page: Int?
 ) : WithPaginationRequest
 
-object MetadataQueryDescriptions : RESTDescriptions("metadata") {
+object MetadataQueryDescriptions : CallDescriptionContainer("metadata") {
     private const val baseContext = "/api/metadata"
 
-    val simpleQuery = callDescription<SimpleQueryRequest, Page<ProjectMetadata>, CommonErrorMessage> {
-        name = "metadataSimpleQuery"
-        method = HttpMethod.Get
-
+    val simpleQuery = call<SimpleQueryRequest, Page<ProjectMetadata>, CommonErrorMessage>("simpleQuery") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"search"
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(SimpleQueryRequest::query)
-            +boundTo(SimpleQueryRequest::itemsPerPage)
-            +boundTo(SimpleQueryRequest::page)
+            path {
+                using(baseContext)
+                +"search"
+            }
+
+            params {
+                +boundTo(SimpleQueryRequest::query)
+                +boundTo(SimpleQueryRequest::itemsPerPage)
+                +boundTo(SimpleQueryRequest::page)
+            }
         }
     }
 }

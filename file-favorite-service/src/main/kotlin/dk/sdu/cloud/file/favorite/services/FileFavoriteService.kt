@@ -1,6 +1,9 @@
 package dk.sdu.cloud.file.favorite.services
 
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.StorageFile
@@ -10,20 +13,18 @@ import dk.sdu.cloud.indexing.api.ReverseLookupFilesRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.orThrow
 
 class FileFavoriteService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val dao: FileFavoriteDAO<DBSession>,
-    private val serviceCloud: AuthenticatedCloud
+    private val serviceCloud: AuthenticatedClient
 ) {
     suspend fun toggleFavorite(
         files: List<String>,
         user: String,
-        userCloud: AuthenticatedCloud,
+        userCloud: AuthenticatedClient,
         audit: ToggleFavoriteAudit? = null
     ): List<String> {
         // Note: This function must ensure that the user has the correct privileges to the file!

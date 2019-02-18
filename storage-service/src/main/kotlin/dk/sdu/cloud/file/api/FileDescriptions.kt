@@ -5,12 +5,17 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.audit
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.server.requiredAuthScope
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
-import io.ktor.client.request.header
 import io.ktor.http.HttpMethod
 import dk.sdu.cloud.file.api.AccessRight as FileAccessRight
 
@@ -156,8 +161,6 @@ val DOWNLOAD_FILE_SCOPE = FileDescriptions.download.requiredAuthScope
 
 data class DownloadByURI(val path: String, val token: String?)
 
-data class FavoriteCommand(val path: String)
-
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
@@ -189,402 +192,415 @@ data class DeliverMaterializedFileSystemResponse(
     val shouldContinue: Map<String, Boolean>
 )
 
-object FileDescriptions : RESTDescriptions("files") {
+object FileDescriptions : CallDescriptionContainer("files") {
     val baseContext = "/api/files"
 
-    val listAtPath = callDescriptionWithAudit<
-            ListDirectoryRequest,
-            Page<StorageFile>,
-            CommonErrorMessage,
-            SingleFileAudit<ListDirectoryRequest>>(
-        additionalRequestConfiguration = { header("X-No-Load", "true") }
-    ) {
-        name = "listAtPath"
+    val listAtPath = call<ListDirectoryRequest, Page<StorageFile>, CommonErrorMessage>("listAtPath") {
+        audit<SingleFileAudit<ListDirectoryRequest>>()
 
         auth {
             access = AccessRight.READ
         }
 
-        path { using(baseContext) }
+        http {
+            path { using(baseContext) }
 
-        params {
-            +boundTo(ListDirectoryRequest::path)
-            +boundTo(ListDirectoryRequest::itemsPerPage)
-            +boundTo(ListDirectoryRequest::page)
-            +boundTo(ListDirectoryRequest::order)
-            +boundTo(ListDirectoryRequest::sortBy)
+            params {
+                +boundTo(ListDirectoryRequest::path)
+                +boundTo(ListDirectoryRequest::itemsPerPage)
+                +boundTo(ListDirectoryRequest::page)
+                +boundTo(ListDirectoryRequest::order)
+                +boundTo(ListDirectoryRequest::sortBy)
+            }
+
+            headers {
+                +"X-No-Load"
+            }
         }
     }
 
-    val lookupFileInDirectory = callDescriptionWithAudit<
-            LookupFileInDirectoryRequest,
-            Page<StorageFile>,
-            CommonErrorMessage,
-            SingleFileAudit<LookupFileInDirectoryRequest>>(
-        additionalRequestConfiguration = { header("X-No-Load", "true") }
-    ) {
-        name = "lookupFileInDirectory"
+    val lookupFileInDirectory =
+        call<LookupFileInDirectoryRequest, Page<StorageFile>, CommonErrorMessage>("lookupFileInDirectory") {
+            audit<SingleFileAudit<LookupFileInDirectoryRequest>>()
 
-        auth {
-            access = AccessRight.READ
+            auth {
+                access = AccessRight.READ
+            }
+
+            http {
+                path {
+                    using(baseContext)
+                    +"lookup"
+                }
+
+                params {
+                    +boundTo(LookupFileInDirectoryRequest::path)
+                    +boundTo(LookupFileInDirectoryRequest::itemsPerPage)
+                    +boundTo(LookupFileInDirectoryRequest::sortBy)
+                    +boundTo(LookupFileInDirectoryRequest::order)
+                }
+
+                headers {
+                    +"X-No-Load"
+                }
+            }
         }
 
-        path {
-            using(baseContext)
-            +"lookup"
-        }
-
-        params {
-            +boundTo(LookupFileInDirectoryRequest::path)
-            +boundTo(LookupFileInDirectoryRequest::itemsPerPage)
-            +boundTo(LookupFileInDirectoryRequest::sortBy)
-            +boundTo(LookupFileInDirectoryRequest::order)
-        }
-    }
-
-    val stat = callDescriptionWithAudit<
+    val stat = call<
             FindByPath,
             StorageFile,
-            CommonErrorMessage,
-            SingleFileAudit<FindByPath>
-            >(
-        additionalRequestConfiguration = { header("X-No-Load", "true") }
-    ) {
-        name = "stat"
+            CommonErrorMessage>("stat") {
+        audit<SingleFileAudit<FindByPath>>()
 
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"stat"
-        }
+        http {
+            path {
+                using(baseContext)
+                +"stat"
+            }
 
-        params {
-            +boundTo(FindByPath::path)
+            params {
+                +boundTo(FindByPath::path)
+            }
+
+            headers {
+                +"X-No-Load"
+            }
         }
     }
 
-    val createDirectory = callDescription<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage> {
-        name = "createDirectory"
-        method = HttpMethod.Post
+    val createDirectory =
+        call<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage>("createDirectory") {
+            auth {
+                access = AccessRight.READ_WRITE
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"directory"
+                }
+
+                body {
+                    bindEntireRequestFromBody()
+                }
+            }
+        }
+
+    val deleteFile = call<DeleteFileRequest, LongRunningResponse<Unit>, CommonErrorMessage>("deleteFile") {
+        audit<SingleFileAudit<DeleteFileRequest>>()
 
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"directory"
-        }
+        http {
+            method = HttpMethod.Delete
 
-        body {
-            bindEntireRequestFromBody()
-        }
-    }
+            path {
+                using(baseContext)
+            }
 
-    val deleteFile = callDescriptionWithAudit<DeleteFileRequest, LongRunningResponse<Unit>, CommonErrorMessage,
-            SingleFileAudit<DeleteFileRequest>> {
-        name = "deleteFile"
-        method = HttpMethod.Delete
-
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        path {
-            using(baseContext)
-        }
-
-        body {
-            bindEntireRequestFromBody()
+            body {
+                bindEntireRequestFromBody()
+            }
         }
     }
 
-    val download = callDescriptionWithAudit<DownloadByURI, Unit, CommonErrorMessage, BulkFileAudit<FindByPath>> {
-        name = "download"
-
+    val download = call<DownloadByURI, BinaryStream, CommonErrorMessage>("download") {
+        audit<BulkFileAudit<FindByPath>>()
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"download"
-        }
+        http {
+            path {
+                using(baseContext)
+                +"download"
+            }
 
-        params {
-            +boundTo(DownloadByURI::path)
-            +boundTo(DownloadByURI::token)
+            params {
+                +boundTo(DownloadByURI::path)
+                +boundTo(DownloadByURI::token)
+            }
         }
     }
 
-    val move = callDescriptionWithAudit<MoveRequest, LongRunningResponse<Unit>, CommonErrorMessage,
-            SingleFileAudit<MoveRequest>> {
-        name = "move"
-        method = HttpMethod.Post
+    val move = call<MoveRequest, LongRunningResponse<Unit>, CommonErrorMessage>("move") {
+        audit<SingleFileAudit<MoveRequest>>()
 
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"move"
-        }
+        http {
+            method = HttpMethod.Post
 
-        params {
-            +boundTo(MoveRequest::path)
-            +boundTo(MoveRequest::newPath)
-            +boundTo(MoveRequest::policy)
+            path {
+                using(baseContext)
+                +"move"
+            }
+
+            params {
+                +boundTo(MoveRequest::path)
+                +boundTo(MoveRequest::newPath)
+                +boundTo(MoveRequest::policy)
+            }
         }
     }
 
-    val copy = callDescriptionWithAudit<CopyRequest, LongRunningResponse<Unit>, CommonErrorMessage,
-            SingleFileAudit<CopyRequest>> {
-        name = "copy"
-        method = HttpMethod.Post
+    val copy = call<CopyRequest, LongRunningResponse<Unit>, CommonErrorMessage>("copy") {
+        audit<SingleFileAudit<CopyRequest>>()
 
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"copy"
-        }
+        http {
+            method = HttpMethod.Post
 
-        params {
-            +boundTo(CopyRequest::path)
-            +boundTo(CopyRequest::newPath)
-            +boundTo(CopyRequest::policy)
+            path {
+                using(baseContext)
+                +"copy"
+            }
+
+            params {
+                +boundTo(CopyRequest::path)
+                +boundTo(CopyRequest::newPath)
+                +boundTo(CopyRequest::policy)
+            }
         }
     }
 
-    val bulkDownload = callDescriptionWithAudit<BulkDownloadRequest, Unit, CommonErrorMessage,
-            BulkFileAudit<BulkDownloadRequest>> {
-        name = "bulkDownload"
-        method = HttpMethod.Post
+    val bulkDownload = call<BulkDownloadRequest, BinaryStream, CommonErrorMessage>("bulkDownload") {
+        audit<BulkFileAudit<BulkDownloadRequest>>()
 
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"bulk"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"bulk"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val syncFileList = callDescriptionWithAudit<SyncFileListRequest, Unit, CommonErrorMessage,
-            SingleFileAudit<SyncFileListRequest>> {
-        name = "syncFileList"
-        method = HttpMethod.Post
+    val syncFileList = call<SyncFileListRequest, Unit, CommonErrorMessage>("syncFileList") {
+        audit<SingleFileAudit<SyncFileListRequest>>()
 
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"sync"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"sync"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
     /**
      * Annotates a file with metadata. Privileged API.
      */
-    val annotate = callDescriptionWithAudit<AnnotateFileRequest, Unit, CommonErrorMessage,
-            SingleFileAudit<AnnotateFileRequest>> {
-        name = "annotate"
-        method = HttpMethod.Post
+    val annotate = call<AnnotateFileRequest, Unit, CommonErrorMessage>("annotate") {
+        audit<SingleFileAudit<AnnotateFileRequest>>()
 
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"annotate"
-        }
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"annotate"
+            }
 
-        body { bindEntireRequestFromBody() }
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val verifyFileKnowledge = callDescription<
+    val verifyFileKnowledge = call<
             VerifyFileKnowledgeRequest,
             VerifyFileKnowledgeResponse,
-            CommonErrorMessage>
+            CommonErrorMessage>("verifyFileKnowledge")
     {
-        name = "verifyFileKnowledge"
-        method = HttpMethod.Post
-
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"verify-knowledge"
-        }
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"verify-knowledge"
+            }
 
-        body { bindEntireRequestFromBody() }
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val deliverMaterializedFileSystem = callDescriptionWithAudit<
+    val deliverMaterializedFileSystem = call<
             DeliverMaterializedFileSystemRequest,
             DeliverMaterializedFileSystemResponse,
-            CommonErrorMessage,
-            DeliverMaterializedFileSystemAudit>
+            CommonErrorMessage>("deliverMaterializedFileSystem")
     {
-        name = "deliverMaterializedFileSystem"
-        method = HttpMethod.Post
+        audit<DeliverMaterializedFileSystemAudit>()
 
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"deliver-materialized"
-        }
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"deliver-materialized"
+            }
 
-        body { bindEntireRequestFromBody() }
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val chmod = callDescriptionWithAudit<
-            ChmodRequest,
-            Unit,
-            CommonErrorMessage,
-            BulkFileAudit<ChmodRequest>
-            > {
-        name = "chmod"
-        method = HttpMethod.Post
+    val chmod = call<ChmodRequest, Unit, CommonErrorMessage>("chmod") {
+        audit<BulkFileAudit<ChmodRequest>>()
 
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"chmod"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"chmod"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val updateAcl = callDescriptionWithAudit<
-            UpdateAclRequest,
-            Unit,
-            CommonErrorMessage,
-            BulkFileAudit<UpdateAclRequest>
-            > {
-        name = "updateAcl"
-        method = HttpMethod.Post
+    val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
+        audit<BulkFileAudit<UpdateAclRequest>>()
 
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"update-acl"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"update-acl"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val createLink = callDescriptionWithAudit<
+    val createLink = call<
             CreateLinkRequest,
             StorageFile,
-            CommonErrorMessage,
-            SingleFileAudit<CreateLinkRequest>
-            > {
-        name = "createLink"
-        method = HttpMethod.Post
+            CommonErrorMessage>("createLink") {
+        audit<SingleFileAudit<CreateLinkRequest>>()
 
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"create-link"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"create-link"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val reclassify = callDescriptionWithAudit<
+    val reclassify = call<
             ReclassifyRequest,
             Unit,
-            CommonErrorMessage,
-            SingleFileAudit<ReclassifyRequest>> {
-        name = "reclassify"
-        method = HttpMethod.Post
+            CommonErrorMessage>("reclassify") {
+        audit<SingleFileAudit<ReclassifyRequest>>()
 
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"reclassify"
-        }
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"reclassify"
+            }
 
-        body { bindEntireRequestFromBody() }
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val extract = callDescriptionWithAudit<
+    val extract = call<
             ExtractRequest,
             Unit,
-            CommonErrorMessage,
-            SingleFileAudit<ExtractRequest>
-            > {
-        name = "extract"
-        method = HttpMethod.Post
+            CommonErrorMessage>("extract") {
+        audit<SingleFileAudit<ExtractRequest>>()
 
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"extract"
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+                +"extract"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val findHomeFolder = callDescription<
-            FindHomeFolderRequest,
-            FindHomeFolderResponse,
-            CommonErrorMessage> {
-        name = "findHomeFolder"
-        method = HttpMethod.Get
-
+    val findHomeFolder = call<FindHomeFolderRequest, FindHomeFolderResponse, CommonErrorMessage>("findHomeFolder") {
         auth {
             access = AccessRight.READ
             roles = Roles.PRIVILEDGED
         }
 
-        path {
-            using(baseContext)
-            +"homeFolder"
-        }
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"homeFolder"
+            }
 
-        params {
-            +boundTo(FindHomeFolderRequest::username)
+            params {
+                +boundTo(FindHomeFolderRequest::username)
+            }
         }
-
     }
 }

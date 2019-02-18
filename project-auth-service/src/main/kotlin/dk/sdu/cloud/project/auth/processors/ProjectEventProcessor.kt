@@ -3,7 +3,10 @@ package dk.sdu.cloud.project.auth.processors
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.CreateSingleUserRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.kafka.MappedEventProducer
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.project.api.ProjectRole
@@ -11,21 +14,18 @@ import dk.sdu.cloud.project.auth.api.ProjectAuthEvent
 import dk.sdu.cloud.project.auth.api.usernameForProjectInRole
 import dk.sdu.cloud.project.auth.services.AuthToken
 import dk.sdu.cloud.project.auth.services.AuthTokenDao
-import dk.sdu.cloud.project.auth.services.ProjectInitializedListener
 import dk.sdu.cloud.project.auth.services.TokenInvalidator
 import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.EventConsumerFactory
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.consumeAndCommit
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.orThrow
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 
 class ProjectEventProcessor<DBSession>(
-    private val serviceCloud: AuthenticatedCloud,
+    private val serviceCloud: AuthenticatedClient,
     private val db: DBSessionFactory<DBSession>,
     private val authTokenDao: AuthTokenDao<DBSession>,
     private val tokenInvalidator: TokenInvalidator<DBSession>,

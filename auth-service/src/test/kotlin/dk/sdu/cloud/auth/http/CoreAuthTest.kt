@@ -18,22 +18,22 @@ import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.calls.server.toSecurityToken
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.assertStatus
 import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.withKtorTest
-import dk.sdu.cloud.service.toSecurityToken
-import dk.sdu.cloud.service.tokenValidation
 import io.ktor.http.Cookie
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
@@ -300,7 +300,7 @@ class CoreAuthTest {
             }
 
             sendRequest(HttpMethod.Post, "/auth/claim/$jti", user = username, role = role)
-                .assertStatus(HttpStatusCode.NoContent)
+                .assertSuccess()
         }
     }
 
@@ -343,7 +343,7 @@ class CoreAuthTest {
             }
 
             sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", user = username, role = role)
-                .assertStatus(HttpStatusCode.NoContent)
+                .assertSuccess()
 
             sendRequest(HttpMethod.Post, "/auth/claim/givenJTI", user = username, role = role)
                 .assertStatus(HttpStatusCode.Conflict)
@@ -601,7 +601,7 @@ class CoreAuthTest {
     ) {
         val extensionPolicy = mapOf(serviceName to serviceScope.toSet())
         val userJwt = TokenValidationMock.createTokenForPrincipal(
-            SecurityPrincipal(user, userRole, "", ""), userAudience
+            SecurityPrincipal(user, userRole, "", "", 0L), userAudience
         )
 
         withBasicSetup(serviceExtensionPolicy = extensionPolicy) { ctx ->

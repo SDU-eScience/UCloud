@@ -1,6 +1,6 @@
 package dk.sdu.cloud.support.services
 
-import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.calls.RPCException
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 

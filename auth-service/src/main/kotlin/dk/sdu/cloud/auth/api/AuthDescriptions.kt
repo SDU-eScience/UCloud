@@ -1,16 +1,19 @@
 package dk.sdu.cloud.auth.api
 
 import dk.sdu.cloud.AccessRight
-import dk.sdu.cloud.BinaryStream
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.audit
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
-typealias HTMLPage = BinaryStream
+typealias HTMLPage = Unit
 
 internal data class TwoFactorPageRequest(
     val challengeId: String?,
@@ -81,187 +84,197 @@ data class TokenExtensionAudit(
 data class BulkInvalidateRequest(val tokens: List<String>)
 typealias BulkInvalidateResponse = Unit
 
-object AuthDescriptions : RESTDescriptions("auth") {
+object AuthDescriptions : CallDescriptionContainer("auth") {
     const val baseContext = "/auth"
 
-    val refresh = callDescription<Unit, AccessToken, Unit> {
-        method = HttpMethod.Post
-        name = "refresh"
-
+    val refresh = call<Unit, AccessToken, Unit>("refresh") {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"refresh"
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"refresh"
+            }
         }
     }
 
-    val webRefresh = callDescription<Unit, AccessTokenAndCsrf, CommonErrorMessage> {
-        method = HttpMethod.Post
-        name = "refreshWeb"
-
+    val webRefresh = call<Unit, AccessTokenAndCsrf, CommonErrorMessage>("webRefresh") {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"refresh"
-            +"web"
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"refresh"
+                +"web"
+            }
         }
     }
 
-    val bulkInvalidate = callDescriptionWithAudit<BulkInvalidateRequest, BulkInvalidateResponse, CommonErrorMessage, Unit> {
-        name = "bulkInvalidate"
-        method = HttpMethod.Post
+    val bulkInvalidate = call<BulkInvalidateRequest, BulkInvalidateResponse, CommonErrorMessage>("bulkInvalidate") {
+        audit<Unit>()
 
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"logout"
-            +"bulk"
-        }
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"logout"
+                +"bulk"
+            }
 
-        body { bindEntireRequestFromBody() }
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val logout = callDescription<Unit, Unit, Unit> {
-        method = HttpMethod.Post
-        name = "logout"
-
+    val logout = call<Unit, Unit, Unit>("logout") {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"logout"
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"logout"
+            }
         }
     }
 
-    val webLogout = callDescription<Unit, Unit, CommonErrorMessage> {
-        method = HttpMethod.Post
-        name = "logoutWeb"
-
+    val webLogout = call<Unit, Unit, CommonErrorMessage>("webLogout") {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"logout"
-            +"web"
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"logout"
+                +"web"
+            }
         }
     }
 
-    val claim = callDescription<ClaimOneTimeToken, Unit, Unit> {
-        method = HttpMethod.Post
-        name = "claim"
-
+    val claim = call<ClaimOneTimeToken, Unit, Unit>("claim") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"claim"
-            +boundTo(ClaimOneTimeToken::jti)
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"claim"
+                +boundTo(ClaimOneTimeToken::jti)
+            }
         }
     }
 
-    val requestOneTimeTokenWithAudience = callDescription<RequestOneTimeToken, OneTimeAccessToken, Unit> {
-        method = HttpMethod.Post
-        name = "requestOneTimeTokenWithAudience"
-
+    val requestOneTimeTokenWithAudience = call<RequestOneTimeToken, OneTimeAccessToken, Unit>("requestOneTimeTokenWithAudience") {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"request"
-        }
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"request"
+            }
 
-        params {
-            +boundTo(RequestOneTimeToken::audience)
+            params {
+                +boundTo(RequestOneTimeToken::audience)
+            }
         }
     }
 
-    val tokenExtension = callDescriptionWithAudit<TokenExtensionRequest, TokenExtensionResponse,
-            CommonErrorMessage, TokenExtensionAudit> {
-        method = HttpMethod.Post
-        name = "tokenExtension"
-
+    val tokenExtension = call<TokenExtensionRequest, TokenExtensionResponse, CommonErrorMessage>("tokenExtension") {
+        audit<TokenExtensionAudit>()
         auth {
             roles = setOf(Role.USER, Role.SERVICE, Role.ADMIN)
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"extend"
-        }
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"extend"
+            }
 
-        body { bindEntireRequestFromBody() }
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    internal val twoFactorPage = callDescriptionWithAudit<Unit, HTMLPage, HTMLPage, TwoFactorPageRequest> {
-        name = "twoFactorPage"
-        method = HttpMethod.Get
+    internal val twoFactorPage = call<Unit, HTMLPage, HTMLPage>("twoFactorPage") {
+        audit<TwoFactorPageRequest>()
+        auth {
+            roles = Roles.PUBLIC
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"2fa"
+            }
+        }
+    }
+
+    internal val loginPage = call<Unit, HTMLPage, HTMLPage>("loginPage") {
+        audit<LoginPageRequest>()
 
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"2fa"
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"login"
+            }
         }
     }
 
-    internal val loginPage = callDescriptionWithAudit<Unit, HTMLPage, HTMLPage, LoginPageRequest> {
-        name = "loginPage"
-        method = HttpMethod.Get
+    internal val passwordLogin = call<Unit, HTMLPage, HTMLPage>("passwordLogin") {
+        audit<LoginRequest>()
 
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"login"
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"login"
+            }
+
+            body { bindEntireRequestFromBody() }
         }
-    }
-
-    internal val passwordLogin = callDescriptionWithAudit<Unit, HTMLPage, HTMLPage, LoginRequest> {
-        name = "passwordLogin"
-        method = HttpMethod.Post
-
-        auth {
-            roles = Roles.PUBLIC
-            access = AccessRight.READ
-        }
-
-        path {
-            using(baseContext)
-            +"login"
-        }
-
-        body { bindEntireRequestFromBody() }
     }
 }
 

@@ -3,8 +3,15 @@ package dk.sdu.cloud.notification.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.client.HttpClientConverter
+import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.HttpServerConverter
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -20,6 +27,22 @@ data class ListNotificationRequest(
 
 data class CreateNotification(val user: String, val notification: Notification)
 
+data class FindByNotificationIdBulk(val ids: List<Long>) : HttpClientConverter.OutgoingPath {
+    override fun clientOutgoingPath(call: CallDescription<*, *, *>): String {
+        return ids.joinToString(",")
+    }
+
+    companion object : HttpServerConverter.IngoingPath<FindByNotificationIdBulk> {
+        override fun serverIngoingPath(
+            description: CallDescription<*, *, *>,
+            call: HttpCall,
+            value: String
+        ): FindByNotificationIdBulk {
+            return FindByNotificationIdBulk(value.split(",").map { it.toLong() })
+        }
+    }
+}
+
 data class MarkAsReadRequest(
     val bulkId: FindByNotificationIdBulk
 )
@@ -32,89 +55,93 @@ data class DeleteResponse(val failures: List<Long>)
 data class MarkResponse(val failures: List<Long>)
 
 
-object NotificationDescriptions : RESTDescriptions("notifications") {
+object NotificationDescriptions : CallDescriptionContainer("notifications") {
     const val baseContext = "/api/notifications"
 
-    val list = callDescription<ListNotificationRequest, Page<Notification>, CommonErrorMessage> {
-        name = "list"
-        method = HttpMethod.Get
-
+    val list = call<ListNotificationRequest, Page<Notification>, CommonErrorMessage>("list") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(ListNotificationRequest::type)
-            +boundTo(ListNotificationRequest::since)
-            +boundTo(ListNotificationRequest::itemsPerPage)
-            +boundTo(ListNotificationRequest::page)
+            path {
+                using(baseContext)
+            }
+
+            params {
+                +boundTo(ListNotificationRequest::type)
+                +boundTo(ListNotificationRequest::since)
+                +boundTo(ListNotificationRequest::itemsPerPage)
+                +boundTo(ListNotificationRequest::page)
+            }
         }
     }
 
-    val markAsRead = callDescription<MarkAsReadRequest, MarkResponse, CommonErrorMessage> {
-        name = "markAsRead"
-        method = HttpMethod.Post
-
+    val markAsRead = call<MarkAsReadRequest, MarkResponse, CommonErrorMessage>("markAsRead") {
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"read"
-            +boundTo(MarkAsReadRequest::bulkId)
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"read"
+                +boundTo(MarkAsReadRequest::bulkId)
+            }
         }
     }
 
-    val markAllAsRead = callDescription<Unit, Unit, CommonErrorMessage> {
-        name = "markAllAsRead"
-        method = HttpMethod.Post
-
+    val markAllAsRead = call<Unit, Unit, CommonErrorMessage>("markAllAsRead") {
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"read"
-            +"all"
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"read"
+                +"all"
+            }
         }
     }
 
-    val create = callDescription<CreateNotification, FindByNotificationId, CommonErrorMessage> {
-        name = "create"
-        method = HttpMethod.Put
-
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ_WRITE
-        }
-
-        path {
-            using(baseContext)
-        }
-
-        body {
-            bindEntireRequestFromBody()
-        }
-    }
-
-    val delete = callDescription<DeleteNotificationRequest, DeleteResponse, CommonErrorMessage> {
-        name = "delete"
-        method = HttpMethod.Delete
-
+    val create = call<CreateNotification, FindByNotificationId, CommonErrorMessage>("create") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +boundTo(DeleteNotificationRequest::bulkId)
+        http {
+            method = HttpMethod.Put
+
+            path {
+                using(baseContext)
+            }
+
+            body {
+                bindEntireRequestFromBody()
+            }
+        }
+    }
+
+    val delete = call<DeleteNotificationRequest, DeleteResponse, CommonErrorMessage>("delete") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+                +boundTo(DeleteNotificationRequest::bulkId)
+            }
         }
     }
 }

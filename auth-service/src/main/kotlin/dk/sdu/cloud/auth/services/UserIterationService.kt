@@ -2,13 +2,16 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.auth.api.Principal
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.CloudContext
-import dk.sdu.cloud.client.SDUCloud
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.HostInfo
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.RpcClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.outgoingTargetHost
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
@@ -16,10 +19,7 @@ import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.updateCriteria
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.stackTraceToString
-import io.ktor.client.request.HttpRequestBuilder
-import io.ktor.client.request.header
 import io.ktor.http.HttpStatusCode
 import org.hibernate.ScrollMode
 import org.hibernate.ScrollableResults
@@ -49,7 +49,8 @@ class UserIterationService(
     private val db: HibernateSessionFactory,
     private val cursorStateDao: CursorStateDao<HibernateSession>,
 
-    private val serviceCloud: RefreshingJWTAuthenticatedCloud,
+    private val client: RpcClient,
+    private val authenticator: RefreshingJWTAuthenticator,
     private val maxConnections: Int = 10
 ) {
     private lateinit var cleaner: ScheduledExecutorService
@@ -150,7 +151,13 @@ class UserIterationService(
             fetchLocal(id)
         } else {
             val targetedCloud = findRemoteCloud(id)
-            UserDescriptions.fetchNextIterator.call(FindByStringId(id), targetedCloud).orThrow()
+            client.call(
+                UserDescriptions.fetchNextIterator,
+                FindByStringId(id),
+                OutgoingHttpCall,
+                beforeFilters = { authenticator.authenticateCall(it) },
+                afterFilters = { it.attributes.outgoingTargetHost = targetedCloud }
+            ).orThrow()
         }
     }
 
@@ -159,11 +166,17 @@ class UserIterationService(
             return closeLocal(id)
         } else {
             val targetedCloud = findRemoteCloud(id)
-            UserDescriptions.closeIterator.call(FindByStringId(id), targetedCloud).orThrow()
+            client.call(
+                UserDescriptions.closeIterator,
+                FindByStringId(id),
+                OutgoingHttpCall,
+                beforeFilters = { authenticator.authenticateCall(it) },
+                afterFilters = { it.attributes.outgoingTargetHost = targetedCloud }
+            )
         }
     }
 
-    private fun findRemoteCloud(id: String): AuthenticatedCloud {
+    private fun findRemoteCloud(id: String): HostInfo {
         val state = db.withTransaction {
             cursorStateDao.findByIdOrNull(it, id)
         } ?: throw UserIterationException.BadIterator()
@@ -172,13 +185,7 @@ class UserIterationService(
             throw UserIterationException.BadIterator()
         }
 
-        return cloudForHostname(state.hostname, state.port)
-    }
-
-    private fun cloudForHostname(hostname: String, port: Int): AuthenticatedCloud {
-        val refresher = serviceCloud.tokenRefresher
-        val cloudContext = SDUCloud("http://$hostname:$port")
-        return RefreshingJWTAuthenticatedCloud(cloudContext, refresher).withJobId()
+        return HostInfo(state.hostname, port = state.port)
     }
 
     companion object : Loggable {
@@ -187,21 +194,6 @@ class UserIterationService(
         const val PAGE_SIZE = 1000
     }
 }
-
-private class AuthenticatedCloudWithJobId(private val delegate: AuthenticatedCloud) : AuthenticatedCloud {
-    override val parent: CloudContext
-        get() = delegate.parent
-
-    override fun HttpRequestBuilder.configureCall() {
-        with(delegate) {
-            configureCall()
-        }
-
-        header("Job-Id", UUID.randomUUID().toString())
-    }
-}
-
-private fun AuthenticatedCloud.withJobId(): AuthenticatedCloud = AuthenticatedCloudWithJobId(this)
 
 sealed class UserIterationException(why: String, statusCode: HttpStatusCode) : RPCException(why, statusCode) {
     class BadIterator : UserIterationException("Bad iterator (Not found)", HttpStatusCode.NotFound)

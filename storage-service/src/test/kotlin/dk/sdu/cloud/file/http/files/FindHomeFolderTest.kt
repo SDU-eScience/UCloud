@@ -2,9 +2,11 @@ package dk.sdu.cloud.file.http.files
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.service.test.withKtorTest
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.withTestApplication
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -14,11 +16,11 @@ class FindHomeFolderTest{
 
     @Test
     fun `find home folder test`() {
-        withTestApplication(
-            moduleFunction = { configureServerWithFileController() },
+        withKtorTest(
+            setup = { configureServerWithFileController() },
 
             test = {
-                val response = findHome("user@name.dk")
+                val response = engine.findHome("user@name.dk")
                 val result = defaultMapper.readValue<FindHomeFolderResponse>(response.content!!)
                 assertEquals("/home/user@name.dk".normalize(), result.path.normalize())
             }
@@ -27,12 +29,12 @@ class FindHomeFolderTest{
 
     @Test
     fun `find home folder test - not admin`() {
-        withTestApplication(
-            moduleFunction = { configureServerWithFileController() },
+        withKtorTest(
+            setup = { configureServerWithFileController() },
 
             test = {
-                val response = findHome("user@name.dk", role = Role.USER)
-                assertNull(response.content)
+                val response = engine.findHome("user@name.dk", role = Role.USER)
+                assertEquals(HttpStatusCode.Unauthorized, response.status())
             }
         )
     }

@@ -1,25 +1,16 @@
 package dk.sdu.cloud.app.abacus.service
 
-import com.jcraft.jsch.SftpATTRS
-import dk.sdu.cloud.app.abacus.service.JobData.job
 import dk.sdu.cloud.app.abacus.services.JobFileException
 import dk.sdu.cloud.app.abacus.services.JobFileService
-import dk.sdu.cloud.app.abacus.services.ssh.LSWithGlobResult
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnection
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnectionPool
-import dk.sdu.cloud.app.abacus.services.ssh.createZipFileOfDirectory
-import dk.sdu.cloud.app.abacus.services.ssh.lsWithGlob
 import dk.sdu.cloud.app.abacus.services.ssh.mkdir
 import dk.sdu.cloud.app.abacus.services.ssh.rm
-import dk.sdu.cloud.app.abacus.services.ssh.scpDownload
 import dk.sdu.cloud.app.abacus.services.ssh.scpUpload
-import dk.sdu.cloud.app.abacus.services.ssh.stat
 import dk.sdu.cloud.app.abacus.services.ssh.unzip
 import dk.sdu.cloud.app.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.api.FileForUploadArchiveType
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
-import io.mockk.CapturingSlot
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -27,20 +18,14 @@ import io.mockk.mockk
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import kotlinx.coroutines.io.ByteReadChannel
-import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import kotlinx.coroutines.runBlocking
-import kotlinx.io.core.ExperimentalIoApi
-import org.junit.Ignore
 import org.junit.Test
-import java.io.ByteArrayInputStream
-import java.io.IOException
-import java.io.InputStream
 import kotlin.test.BeforeTest
 
 class JobFileServiceTest {
     private val connectionPool: SSHConnectionPool = mockk(relaxed = true)
     private val connection: SSHConnection = mockk(relaxed = true)
-    private val cloud: RefreshingJWTAuthenticatedCloud
+    private val cloud: AuthenticatedClient
     private val service: JobFileService
     private val workingDirectory = "/work/"
 
@@ -85,39 +70,39 @@ class JobFileServiceTest {
         )
     }
 
-/*
-    @Ignore("Mockk 1.8.13kotlin13 bytecode verification issue")
-    @Test(expected = JobFileException.ErrorDuringTransfer::class)
-    fun `test upload file with failure (status)`() = runBlocking {
-        coEvery { connection.mkdir(any(), any()) } returns 0
-        coEvery { connection.scpUpload(any(), any(), any(), any(), any()) } returns 1
+    /*
+        @Ignore("Mockk 1.8.13kotlin13 bytecode verification issue")
+        @Test(expected = JobFileException.ErrorDuringTransfer::class)
+        fun `test upload file with failure (status)`() = runBlocking {
+            coEvery { connection.mkdir(any(), any()) } returns 0
+            coEvery { connection.scpUpload(any(), any(), any(), any(), any()) } returns 1
 
-        val channel = ByteReadChannel("Hello")
-        service.uploadFile(
-            "jobId",
-            "./foo",
-            42L,
-            null,
-            channel
-        )
-        Unit
-    }
+            val channel = ByteReadChannel("Hello")
+            service.uploadFile(
+                "jobId",
+                "./foo",
+                42L,
+                null,
+                channel
+            )
+            Unit
+        }
 
-    @Ignore("Mockk 1.8.13kotlin13 bytecode verification issue")
-    @Test(expected = JobFileException.ErrorDuringTransfer::class)
-    fun `test upload file with failure (exception)`() = runBlocking {
-        coEvery { connection.mkdir(any(), any()) } returns 0
-        coEvery { connection.scpUpload(any(), any(), any(), any(), any()) } throws IOException("BAD!")
-        val channel = ByteReadChannel("Hello")
-        service.uploadFile(
-            "jobId",
-            "./foo",
-            42L,
-            null,
-            channel
-        )
-    }
-*/
+        @Ignore("Mockk 1.8.13kotlin13 bytecode verification issue")
+        @Test(expected = JobFileException.ErrorDuringTransfer::class)
+        fun `test upload file with failure (exception)`() = runBlocking {
+            coEvery { connection.mkdir(any(), any()) } returns 0
+            coEvery { connection.scpUpload(any(), any(), any(), any(), any()) } throws IOException("BAD!")
+            val channel = ByteReadChannel("Hello")
+            service.uploadFile(
+                "jobId",
+                "./foo",
+                42L,
+                null,
+                channel
+            )
+        }
+    */
     @Test
     fun `test upload file with extraction`() = runBlocking {
         coEvery { connection.mkdir(any(), any()) } returns 0

@@ -1,8 +1,12 @@
 package dk.sdu.cloud.filesearch.http
 
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
@@ -20,13 +24,7 @@ import dk.sdu.cloud.indexing.api.QueryRequest
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.cloudClient
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.orThrow
-import dk.sdu.cloud.service.securityPrincipal
 import io.ktor.http.HttpStatusCode
-import io.ktor.routing.Route
 import org.slf4j.Logger
 
 /**
@@ -42,54 +40,54 @@ sealed class SearchException(why: String, statusCode: HttpStatusCode) : RPCExcep
 /**
  * A controller for [FileSearchDescriptions]
  */
-class SearchController : Controller {
-    override val baseContext: String = FileSearchDescriptions.baseContext
-
-    override fun configure(routing: Route): Unit = with(routing) {
-        implement(FileSearchDescriptions.simpleSearch) { req ->
-            val roots = rootsForUser(call.securityPrincipal.username)
+class SearchController(
+    private val client: AuthenticatedClient
+) : Controller {
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(FileSearchDescriptions.simpleSearch) {
+            val roots = rootsForUser(ctx.securityPrincipal.username)
 
             val queryResponse = QueryDescriptions.query.call(
                 QueryRequest(
                     query = FileQuery(
                         roots = roots,
-                        fileNameQuery = listOf(req.query),
-                        owner = AllOf.with(call.securityPrincipal.username)
+                        fileNameQuery = listOf(request.query),
+                        owner = AllOf.with(ctx.securityPrincipal.username)
                     ),
-                    itemsPerPage =  req.itemsPerPage,
-                    page = req.page
+                    itemsPerPage = request.itemsPerPage,
+                    page = request.page
                 ),
-                call.cloudClient
+                client
             ).orThrow()
 
-            ok(verify(queryResponse, call.securityPrincipal.username, call.cloudClient))
+            ok(verify(queryResponse, ctx.securityPrincipal.username, client))
         }
 
-        implement(FileSearchDescriptions.advancedSearch) { req ->
-            val roots = rootsForUser(call.securityPrincipal.username)
+        implement(FileSearchDescriptions.advancedSearch) {
+            val roots = rootsForUser(ctx.securityPrincipal.username)
             val queryResponse = QueryDescriptions.query.call(
                 QueryRequest(
                     query = FileQuery(
                         roots = roots,
-                        owner = AllOf.with(call.securityPrincipal.username),
+                        owner = AllOf.with(ctx.securityPrincipal.username),
 
-                        fileNameQuery = req.fileName?.let { listOf(it) },
+                        fileNameQuery = request.fileName?.let { listOf(it) },
 
-                        extensions = req.annotations?.let { AnyOf.with(*it.toTypedArray()) },
-                        fileTypes = req.fileTypes?.let { AnyOf.with(*it.toTypedArray()) },
-                        annotations = req.annotations?.let { AnyOf.with(*it.toTypedArray()) },
-                        sensitivity = req.sensitivity?.let { AnyOf.with(*it.toTypedArray()) },
+                        extensions = request.annotations?.let { AnyOf.with(*it.toTypedArray()) },
+                        fileTypes = request.fileTypes?.let { AnyOf.with(*it.toTypedArray()) },
+                        annotations = request.annotations?.let { AnyOf.with(*it.toTypedArray()) },
+                        sensitivity = request.sensitivity?.let { AnyOf.with(*it.toTypedArray()) },
 
-                        createdAt = req.createdAt?.toPredicateCollection(),
-                        modifiedAt = req.modifiedAt?.toPredicateCollection()
+                        createdAt = request.createdAt?.toPredicateCollection(),
+                        modifiedAt = request.modifiedAt?.toPredicateCollection()
                     ),
-                    itemsPerPage = req.itemsPerPage,
-                    page = req.page
+                    itemsPerPage = request.itemsPerPage,
+                    page = request.page
                 ),
-                call.cloudClient
+                client
             ).orThrow()
 
-            ok(verify(queryResponse, call.securityPrincipal.username, call.cloudClient))
+            ok(verify(queryResponse, ctx.securityPrincipal.username, client))
         }
     }
 
@@ -104,7 +102,7 @@ class SearchController : Controller {
     private suspend fun verify(
         queryResponse: Page<StorageFile>,
         user: String,
-        cloud: AuthenticatedCloud
+        cloud: AuthenticatedClient
     ): Page<SearchResult> {
         val verifiedFiles = FileDescriptions.verifyFileKnowledge.call(
             VerifyFileKnowledgeRequest(
@@ -112,16 +110,16 @@ class SearchController : Controller {
                 queryResponse.items.map { it.path }
             ),
             cloud
-        ) as? RESTResponse.Ok ?: throw SearchException.InternalServerError()
+        ).orRethrowAs { throw SearchException.InternalServerError() }
 
         val queryResultsVerified = ArrayList<SearchResult>()
 
-        if (verifiedFiles.result.responses.size != queryResponse.items.size) {
+        if (verifiedFiles.responses.size != queryResponse.items.size) {
             log.warn("verifiedFiles.size != queryResponse.size")
             throw SearchException.InternalServerError()
         }
 
-        for ((index, verified) in verifiedFiles.result.responses.withIndex()) {
+        for ((index, verified) in verifiedFiles.responses.withIndex()) {
             if (verified) queryResultsVerified.add(queryResponse.items[index])
         }
 

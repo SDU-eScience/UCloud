@@ -1,8 +1,11 @@
 package dk.sdu.cloud.share.api
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
@@ -50,109 +53,115 @@ data class AcceptShareRequest(
     val createLink: Boolean?
 )
 
-object ShareDescriptions : RESTDescriptions("shares") {
+object ShareDescriptions : CallDescriptionContainer("shares") {
     const val baseContext = "/api/shares"
 
-    val list = callDescription<ListSharesRequest, Page<SharesByPath>, CommonErrorMessage> {
-        name = "list"
-        method = HttpMethod.Get
-
+    val list = call<ListSharesRequest, Page<SharesByPath>, CommonErrorMessage>("list") {
         auth {
             access = AuthAccessRight.READ
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(ListSharesRequest::state)
-            +boundTo(ListSharesRequest::itemsPerPage)
-            +boundTo(ListSharesRequest::page)
+            path {
+                using(baseContext)
+            }
+
+            params {
+                +boundTo(ListSharesRequest::state)
+                +boundTo(ListSharesRequest::itemsPerPage)
+                +boundTo(ListSharesRequest::page)
+            }
         }
     }
 
-    val findByPath = callDescription<FindByPathRequest, SharesByPath, CommonErrorMessage> {
-        name = "findByPath"
-        method = HttpMethod.Get
-
+    val findByPath = call<FindByPathRequest, SharesByPath, CommonErrorMessage>("findByPath") {
         auth {
             access = AuthAccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +"byPath"
-        }
+        http {
+            method = HttpMethod.Get
 
-        params {
-            +boundTo(FindByPathRequest::path)
+            path {
+                using(baseContext)
+                +"byPath"
+            }
+
+            params {
+                +boundTo(FindByPathRequest::path)
+            }
         }
     }
 
-    val create = callDescription<CreateShareRequest, FindByShareId, CommonErrorMessage> {
-        name = "create"
-        method = HttpMethod.Put
-
+    val create = call<CreateShareRequest, FindByShareId, CommonErrorMessage>("create") {
         auth {
             access = AuthAccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Put
 
-        body {
-            bindEntireRequestFromBody()
+            path {
+                using(baseContext)
+            }
+
+            body {
+                bindEntireRequestFromBody()
+            }
         }
     }
 
-    val update = callDescription<UpdateShareRequest, Unit, CommonErrorMessage> {
-        name = "update"
-        method = HttpMethod.Post
-
+    val update = call<UpdateShareRequest, Unit, CommonErrorMessage>("update") {
         auth {
             access = AuthAccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Post
 
-        body {
-            bindEntireRequestFromBody()
+            path {
+                using(baseContext)
+            }
+
+            body {
+                bindEntireRequestFromBody()
+            }
         }
     }
 
-    val revoke = callDescription<FindByShareId, Unit, CommonErrorMessage> {
-        name = "revoke"
-        method = HttpMethod.Post
-
+    val revoke = call<FindByShareId, Unit, CommonErrorMessage>("revoke") {
         auth {
             access = AuthAccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"revoke"
-            +boundTo(FindByShareId::id)
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"revoke"
+                +boundTo(FindByShareId::id)
+            }
         }
     }
 
-    val accept = callDescription<AcceptShareRequest, Unit, CommonErrorMessage> {
-        name = "accept"
-        method = HttpMethod.Post
-
+    val accept = call<AcceptShareRequest, Unit, CommonErrorMessage>("accept") {
         auth {
             access = AuthAccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-            +"accept"
-            +boundTo(AcceptShareRequest::id)
-        }
+        http {
+            method = HttpMethod.Post
 
-        params { +boundTo(AcceptShareRequest::createLink) }
+            path {
+                using(baseContext)
+                +"accept"
+                +boundTo(AcceptShareRequest::id)
+            }
+
+            params { +boundTo(AcceptShareRequest::createLink) }
+        }
     }
 }

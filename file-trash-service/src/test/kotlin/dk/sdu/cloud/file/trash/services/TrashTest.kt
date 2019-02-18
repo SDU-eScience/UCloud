@@ -1,15 +1,15 @@
 package dk.sdu.cloud.file.trash.services
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.file.trash.storageFile
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
@@ -22,54 +22,51 @@ class TrashTest {
     private val user = TestUsers.user
     private lateinit var service: TrashService
     private lateinit var micro: Micro
-    private lateinit var cloud: AuthenticatedCloud
+    private lateinit var cloud: AuthenticatedClient
 
     private fun mockStat(returnDirectory: Boolean = false) {
-        CloudMock.mockCallSuccess(
-            FileDescriptions,
-            { FileDescriptions.stat },
-            if (returnDirectory) {storageFile.copy(fileType = FileType.DIRECTORY)}
-            else { storageFile}
+        ClientMock.mockCallSuccess(
+            FileDescriptions.stat,
+            if (returnDirectory) {
+                storageFile.copy(fileType = FileType.DIRECTORY)
+            } else {
+                storageFile
+            }
         )
     }
 
     private fun mockFailingStat() {
-        CloudMock.mockCallError(
-            FileDescriptions,
-            { FileDescriptions.stat },
+        ClientMock.mockCallError(
+            FileDescriptions.stat,
             CommonErrorMessage("ERROR"),
             HttpStatusCode.NotFound
         )
     }
 
     private fun mockMove() {
-        CloudMock.mockCallSuccess(
-            FileDescriptions,
-            { FileDescriptions.move },
+        ClientMock.mockCallSuccess(
+            FileDescriptions.move,
             LongRunningResponse.Result(item = Unit)
         )
     }
 
     private fun mockCreateDir() {
-        CloudMock.mockCallSuccess(
-            FileDescriptions,
-            { FileDescriptions.createDirectory },
+        ClientMock.mockCallSuccess(
+            FileDescriptions.createDirectory,
             LongRunningResponse.Result(item = Unit)
         )
     }
 
     private fun mockDelete() {
-        CloudMock.mockCallSuccess(
-            FileDescriptions,
-            { FileDescriptions.deleteFile },
+        ClientMock.mockCallSuccess(
+            FileDescriptions.deleteFile,
             LongRunningResponse.Result(item = Unit)
         )
     }
 
     private fun mockHomeFolder() {
-        CloudMock.mockCallSuccess(
-            FileDescriptions,
-            {FileDescriptions.findHomeFolder},
+        ClientMock.mockCallSuccess(
+            FileDescriptions.findHomeFolder,
             FindHomeFolderResponse("/home/user/")
         )
     }
@@ -77,8 +74,8 @@ class TrashTest {
     @BeforeTest
     fun initTest() {
         micro = initializeMicro()
-        service = TrashService(micro.authenticatedCloud)
-        cloud = micro.authenticatedCloud
+        service = TrashService(ClientMock.authenticatedClient)
+        cloud = ClientMock.authenticatedClient
     }
 
     @Test
@@ -117,13 +114,12 @@ class TrashTest {
         }
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `Empty Trash - creation fails - Test`() {
         mockFailingStat()
         mockHomeFolder()
-        CloudMock.mockCallError(
-            FileDescriptions,
-            { FileDescriptions.createDirectory },
+        ClientMock.mockCallError(
+            FileDescriptions.createDirectory,
             CommonErrorMessage("ERROR"),
             HttpStatusCode.InternalServerError
         )

@@ -5,7 +5,6 @@ import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.file.stats.api.SearchResult
 
 internal val storageFile = EventMaterializedStorageFile(
     "id",

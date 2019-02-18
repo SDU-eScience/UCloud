@@ -14,32 +14,33 @@ import dk.sdu.cloud.app.api.SimpleDuration
 import dk.sdu.cloud.app.api.SubmitFileToComputation
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.app.http.JOB_MAX_TIME
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.MultipartRequest
-import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.client.StreamingFile
-import dk.sdu.cloud.client.jwtAuth
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.calls.types.StreamingFile
+import dk.sdu.cloud.calls.types.StreamingRequest
 import dk.sdu.cloud.file.api.DownloadByURI
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.kafka.MappedEventProducer
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.MappedEventProducer
-import dk.sdu.cloud.service.RPCException
-import dk.sdu.cloud.service.awaitAllOrThrow
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.okChannelOrNull
-import dk.sdu.cloud.service.orThrow
-import dk.sdu.cloud.service.safeAsync
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 
 class JobOrchestrator<DBSession>(
-    private val serviceCloud: RefreshingJWTAuthenticatedCloud,
+    private val serviceCloud: AuthenticatedClient,
 
     private val stateChangeProducer: MappedEventProducer<String, JobStateChange>,
     private val accountingEventProducer: MappedEventProducer<String, JobCompletedEvent>,
@@ -105,7 +106,7 @@ class JobOrchestrator<DBSession>(
     suspend fun startJob(
         req: AppRequest.Start,
         principal: DecodedJWT,
-        cloud: AuthenticatedCloud
+        cloud: AuthenticatedClient
     ): String {
         val (initialState, jobWithToken) = validateJob(req, principal, cloud)
         db.withTransaction { session -> jobDao.create(session, jobWithToken) }
@@ -116,7 +117,7 @@ class JobOrchestrator<DBSession>(
     private suspend fun validateJob(
         req: AppRequest.Start,
         principal: DecodedJWT,
-        userCloud: AuthenticatedCloud
+        userCloud: AuthenticatedClient
     ): Pair<JobStateChange, VerifiedJobWithAccessToken> {
         val backend = computationBackendService.getAndVerifyByName(resolveBackend(req.backend))
         val unverifiedJob = UnverifiedJob(req, principal)
@@ -289,7 +290,7 @@ class JobOrchestrator<DBSession>(
                     JobState.SUCCESS, JobState.FAILURE -> {
                         // This one should _NEVER_ throw an exception
                         val resp = backend.cleanup.call(job, serviceCloud)
-                        if (resp is RESTResponse.Err) {
+                        if (resp is IngoingCallResponse.Error) {
                             log.info("unable to clean up for job $job.")
                             log.info(resp.toString())
                         }
@@ -305,30 +306,38 @@ class JobOrchestrator<DBSession>(
         val backend = computationBackendService.getAndVerifyByName(job.backend)
         coroutineScope {
             job.files.map { file ->
-                safeAsync {
-                    val userCloud = serviceCloud.parent.jwtAuth(accessToken)
-                    val fileStream = FileDescriptions.download.call(
-                        DownloadByURI(file.sourcePath, null),
-                        userCloud
-                    ).okChannelOrNull ?: throw JobException.TransferError()
+                async {
+                    runCatching {
+                        val userCloud = serviceCloud.withoutAuthentication().bearerAuth(accessToken)
+                        val fileStream = FileDescriptions.download.call(
+                            DownloadByURI(file.sourcePath, null),
+                            userCloud
+                        ).orRethrowAs { throw JobException.TransferError() }.asIngoing()
+                        // TODO FIXME We cannot do custom parsing of responses
+                        // (we need this to implement a BinaryStream type)
 
-                    backend.submitFile.call(
-                        MultipartRequest.create(
-                            SubmitFileToComputation(
-                                job,
-                                file.id,
-                                StreamingFile(
-                                    fileStream.contentType ?: ContentType.Application.OctetStream,
-                                    fileStream.contentLength,
-                                    file.destinationPath,
-                                    fileStream.stream
+                        backend.submitFile.call(
+                            StreamingRequest.Outgoing(
+                                SubmitFileToComputation(
+                                    job,
+                                    file.id,
+                                    StreamingFile(
+                                        fileStream.contentType ?: ContentType.Application.OctetStream,
+                                        fileStream.length,
+                                        file.destinationPath,
+                                        fileStream.channel
+                                    )
                                 )
-                            )
-                        ),
-                        serviceCloud
-                    ).orThrow()
+                            ),
+                            serviceCloud
+                        ).orThrow()
+                    }
                 }
-            }.awaitAllOrThrow()
+            }.awaitAll().firstOrNull { it.isFailure }.let {
+                if (it != null) {
+                    throw it.exceptionOrNull()!!
+                }
+            }
         }
     }
 
@@ -370,12 +379,12 @@ class JobOrchestrator<DBSession>(
     }
 }
 
-inline fun <T, E> RESTResponse<T, E>.orThrowOnError(
-    onError: (RESTResponse.Err<T, E>) -> Nothing
-): RESTResponse.Ok<T, E> {
+inline fun <T : Any, E : Any> IngoingCallResponse<T, E>.orThrowOnError(
+    onError: (IngoingCallResponse.Error<T, E>) -> Nothing
+): IngoingCallResponse.Ok<T, E> {
     return when (this) {
-        is RESTResponse.Ok -> this
-        is RESTResponse.Err -> onError(this)
+        is IngoingCallResponse.Ok -> this
+        is IngoingCallResponse.Error -> onError(this)
         else -> throw IllegalStateException()
     }
 }

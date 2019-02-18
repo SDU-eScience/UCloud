@@ -5,11 +5,16 @@ import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.BearerTokenAuthenticatedCloud
-import dk.sdu.cloud.client.JWTAuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
-import dk.sdu.cloud.client.bearerAuth
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.throwIfInternal
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.calls.server.requiredAuthScope
 import dk.sdu.cloud.file.api.ACLEntryRequest
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.CreateLinkRequest
@@ -32,9 +37,6 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.orNull
-import dk.sdu.cloud.service.orThrow
-import dk.sdu.cloud.service.throwIfInternal
 import dk.sdu.cloud.share.api.CreateShareRequest
 import dk.sdu.cloud.share.api.MinimalShare
 import dk.sdu.cloud.share.api.ShareId
@@ -46,16 +48,17 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
 class ShareService<DBSession>(
-    private val serviceCloud: AuthenticatedCloud,
+    private val serviceCloud: AuthenticatedClient,
     private val db: DBSessionFactory<DBSession>,
     private val shareDao: ShareDAO<DBSession>,
-    private val userCloudFactory: (refreshToken: String) -> AuthenticatedCloud,
+    private val userCloudFactory: (refreshToken: String) -> AuthenticatedClient,
     private val devMode: Boolean = false
 ) {
     suspend fun create(
         user: String,
         share: CreateShareRequest,
-        userCloud: BearerTokenAuthenticatedCloud
+        userToken: String,
+        userCloud: AuthenticatedClient
     ): ShareId {
         log.debug("Creating share for $user $share")
         lateinit var fileId: String
@@ -76,11 +79,11 @@ class ShareService<DBSession>(
                 val lookup = UserDescriptions.lookupUsers.call(
                     LookupUsersRequest(listOf(share.sharedWith)),
                     serviceCloud
-                ) as? RESTResponse.Ok ?: throw ShareException.InternalError("Could not look up user")
+                ).orRethrowAs { throw ShareException.InternalError("Could not look up user") }
 
                 log.debug("Lookup success!")
 
-                lookup.result.results[share.sharedWith]
+                lookup.results[share.sharedWith]
                     ?: throw ShareException.BadRequest("The user you are attempting to share with does not exist")
             }
 
@@ -97,7 +100,7 @@ class ShareService<DBSession>(
             val extendJob = async {
                 AuthDescriptions.tokenExtension.call(
                     TokenExtensionRequest(
-                        userCloud.token,
+                        userToken,
                         listOf(
                             FileDescriptions.updateAcl.requiredAuthScope
                         ).map { it.toString() },
@@ -108,8 +111,8 @@ class ShareService<DBSession>(
                 ).orThrow()
             }
 
-            ownerToken = extendJob.await().refreshToken ?:
-                    throw ShareException.InternalError("Bad response from token extension. refreshToken == null")
+            ownerToken = extendJob.await().refreshToken
+                ?: throw ShareException.InternalError("Bad response from token extension. refreshToken == null")
         }
 
         // Save internal state
@@ -213,7 +216,8 @@ class ShareService<DBSession>(
     suspend fun acceptShare(
         user: String,
         shareId: ShareId,
-        userCloud: JWTAuthenticatedCloud,
+        userToken: String,
+        userCloud: AuthenticatedClient,
         createLink: Boolean = true
     ) {
         val auth = AuthRequirements(user, ShareRole.RECIPIENT)
@@ -228,7 +232,7 @@ class ShareService<DBSession>(
             val extendCall = async {
                 AuthDescriptions.tokenExtension.call(
                     TokenExtensionRequest(
-                        userCloud.token,
+                        userToken,
                         listOf(
                             FileDescriptions.stat.requiredAuthScope,
                             FileDescriptions.createLink.requiredAuthScope,
@@ -328,7 +332,7 @@ class ShareService<DBSession>(
                         ?: throw ShareException.InternalError("recipient token not yet established when deleting share")
 
                     val stat = FileDescriptions.stat.call(FindByPath(linkPath), recipientCloud).throwIfInternal()
-                    if ((stat as? RESTResponse.Ok)?.result?.link == true) {
+                    if (stat.orNull()?.link == true) {
                         log.debug("Found link!")
                         val deleteLinkCall =
                             launch {
@@ -350,12 +354,18 @@ class ShareService<DBSession>(
         // Revoke tokens
         coroutineScope {
             val ownerTokenRevoke = launch {
-                AuthDescriptions.logout.call(Unit, serviceCloud.parent.bearerAuth(existingShare.ownerToken))
+                AuthDescriptions.logout.call(
+                    Unit,
+                    serviceCloud.withoutAuthentication().bearerAuth(existingShare.ownerToken)
+                )
             }
 
             val recipientTokenRevoke = if (existingShare.recipientToken != null) {
                 launch {
-                    AuthDescriptions.logout.call(Unit, serviceCloud.parent.bearerAuth(existingShare.recipientToken))
+                    AuthDescriptions.logout.call(
+                        Unit,
+                        serviceCloud.withoutAuthentication().bearerAuth(existingShare.recipientToken)
+                    )
                 }
             } else {
                 null
@@ -382,7 +392,7 @@ class ShareService<DBSession>(
         lateinit var deletedShares: List<InternalShare>
         db.withTransaction { session ->
             deletedShares =
-                    shareDao.findAllByFileIds(session, events.map { it.id }, includeShares = true, includeLinks = false)
+                shareDao.findAllByFileIds(session, events.map { it.id }, includeShares = true, includeLinks = false)
         }
 
         coroutineScope {
@@ -423,7 +433,7 @@ class ShareService<DBSession>(
                             recipientCloud
                         ).throwIfInternal()
 
-                        val isLink = (stat as? RESTResponse.Ok)?.result?.fileType == FileType.LINK
+                        val isLink = stat.orNull()?.fileType == FileType.LINK
                         log.debug("Found link? $isLink")
                         if (isLink) {
                             FileDescriptions.deleteFile.call(
@@ -455,8 +465,8 @@ class ShareService<DBSession>(
     private suspend fun updateFSPermissions(
         existingShare: InternalShare,
         newRights: Set<AccessRight>,
-        userCloud: AuthenticatedCloud
-    ): RESTResponse<Unit, CommonErrorMessage> {
+        userCloud: AuthenticatedClient
+    ): IngoingCallResponse<Unit, CommonErrorMessage> {
         return FileDescriptions.updateAcl.call(
             UpdateAclRequest(
                 existingShare.path,
@@ -479,9 +489,9 @@ class ShareService<DBSession>(
         val result = LookupDescriptions.reverseLookup.call(
             ReverseLookupRequest(linkId),
             serviceCloud
-        ) as? RESTResponse.Ok ?: return null
+        ).orNull() ?: return null
 
-        return result.result.canonicalPath.firstOrNull()
+        return result.canonicalPath.firstOrNull()
     }
 
     companion object : Loggable {

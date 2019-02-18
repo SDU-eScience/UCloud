@@ -2,24 +2,25 @@ package dk.sdu.cloud.service.test
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.JobId
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.application.Application
+import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
-import io.ktor.routing.routing
 import io.ktor.server.testing.TestApplicationCall
 import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.setBody
-import io.ktor.server.testing.withTestApplication
 import java.util.*
+import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
@@ -32,13 +33,6 @@ data class KtorApplicationTestContext(
     val engine: TestApplicationEngine,
     val micro: Micro
 )
-
-fun Application.configureBaseServer(micro: Micro, vararg controllers: Controller) {
-    installDefaultFeatures(micro)
-    routing {
-        configureControllers(*controllers)
-    }
-}
 
 private fun TestApplicationRequest.setToken(token: String) {
     addHeader("Authorization", "Bearer $token")
@@ -66,7 +60,7 @@ fun KtorApplicationTestContext.sendRequest(
                 setToken(token)
             }
 
-            addHeader("Job-Id", UUID.randomUUID().toString())
+            addHeader(HttpHeaders.JobId, UUID.randomUUID().toString())
 
             configure()
         }
@@ -141,15 +135,15 @@ fun withKtorTest(
     val micro = initializeMicro(microArgs)
     micro.microConfigure()
 
-    withTestApplication(
-        moduleFunction = {
-            val controllers = KtorApplicationTestSetupContext(this, micro).setup()
+    val serverFeature = micro.feature(ServerFeature)
+    val engine = serverFeature.ktorApplicationEngine!! as TestApplicationEngine
 
-            configureBaseServer(micro, *controllers.toTypedArray())
-        },
-
-        test = {
-            KtorApplicationTestContext(this, micro).test()
-        }
-    )
+    try {
+        val controllers = KtorApplicationTestSetupContext(engine.application, micro).setup()
+        serverFeature.server.configureControllers(*controllers.toTypedArray())
+        serverFeature.server.start()
+        KtorApplicationTestContext(engine, micro).test()
+    } finally {
+        engine.stop(0L, 0L, TimeUnit.SECONDS)
+    }
 }

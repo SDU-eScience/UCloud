@@ -10,12 +10,12 @@ import dk.sdu.cloud.app.services.normAppDesc
 import dk.sdu.cloud.app.services.normAppDesc2
 import dk.sdu.cloud.app.services.normToolDesc
 import dk.sdu.cloud.app.services.withNameAndVersion
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
@@ -31,7 +31,6 @@ import org.junit.Ignore
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 fun TestApplicationRequest.setUser(username: String = "user1", role: Role = Role.USER) {
     addHeader(HttpHeaders.Authorization, "Bearer ${TokenValidationMock.createTokenForUser(username, role)}")

@@ -1,6 +1,15 @@
 package dk.sdu.cloud.service
 
-import dk.sdu.cloud.client.ServiceDescription
+import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.kafka.KafkaDescriptions
+import dk.sdu.cloud.kafka.forStream
+import dk.sdu.cloud.micro.ConfigurationFeature
+import dk.sdu.cloud.micro.KafkaFeature
+import dk.sdu.cloud.micro.KafkaFeatureConfiguration
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.kafka
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

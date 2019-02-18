@@ -1,5 +1,7 @@
 package dk.sdu.cloud.storage.services
 
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.BulkUploader
@@ -7,7 +9,7 @@ import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.withBlockingContext
-import dk.sdu.cloud.service.authenticatedCloud
+import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.service.test.assertCollectionHasItem
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
@@ -25,7 +27,7 @@ import java.util.zip.GZIPOutputStream
 
 class BulkUploadTest {
     val micro = initializeMicro()
-    val cloud = micro.authenticatedCloud
+    val cloud = AuthenticatedClient(micro.client, OutgoingHttpCall) {}
 
     fun File.mkdir(name: String, closure: File.() -> Unit) {
         val f = File(this, name)

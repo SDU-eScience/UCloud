@@ -3,20 +3,21 @@ package dk.sdu.cloud.project.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.kafka.MappedEventProducer
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.UserProjectSummary
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.orRethrowAs
 import io.ktor.http.HttpStatusCode
 import java.util.*
 
@@ -24,7 +25,7 @@ class ProjectService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val dao: ProjectDao<DBSession>,
     private val eventProducer: MappedEventProducer<*, ProjectEvent>,
-    private val serviceCloud: AuthenticatedCloud
+    private val serviceCloud: AuthenticatedClient
 ) {
     suspend fun create(title: String, principalInvestigator: String): Project {
         confirmUserExists(principalInvestigator)
@@ -99,7 +100,7 @@ class ProjectService<DBSession>(
             LookupUsersRequest(listOf(username)),
             serviceCloud
         ).orRethrowAs {
-            log.warn("Caught the following error while looking up user: ${it.error} ${it.status}")
+            log.warn("Caught the following error while looking up user: ${it.error} ${it.statusCode}")
             throw ProjectException.InternalError()
         }
 
@@ -153,7 +154,9 @@ sealed class ProjectException(why: String, statusCode: HttpStatusCode) : RPCExce
     class NotFound : ProjectException("Not found", HttpStatusCode.NotFound)
     class Unauthorized : ProjectException("Unauthorized", HttpStatusCode.Unauthorized)
     class UserDoesNotExist : ProjectException("User does not exist", HttpStatusCode.BadRequest)
-    class CantAddUserToProject : ProjectException("This user cannot be added to this project", HttpStatusCode.BadRequest)
+    class CantAddUserToProject :
+        ProjectException("This user cannot be added to this project", HttpStatusCode.BadRequest)
+
     class AlreadyMember : ProjectException("User is already a member of this project", HttpStatusCode.Conflict)
     class InternalError : ProjectException("Internal Server Error", HttpStatusCode.InternalServerError)
 }

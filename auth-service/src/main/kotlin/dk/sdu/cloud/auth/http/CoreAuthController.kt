@@ -15,17 +15,19 @@ import dk.sdu.cloud.auth.services.OneTimeTokenDAO
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.CallHandler
+import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.audit
+import dk.sdu.cloud.calls.server.bearer
+import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.RESTHandler
 import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.bearer
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.error
-import dk.sdu.cloud.service.implement
-import dk.sdu.cloud.service.ok
-import dk.sdu.cloud.service.securityPrincipal
-import dk.sdu.cloud.service.toSecurityToken
+import io.ktor.application.Application
 import io.ktor.application.ApplicationCallPipeline
 import io.ktor.application.call
 import io.ktor.application.install
@@ -42,7 +44,8 @@ import io.ktor.request.header
 import io.ktor.response.header
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
-import io.ktor.routing.Route
+import io.ktor.routing.route
+import io.ktor.routing.routing
 import kotlinx.html.ButtonType
 import kotlinx.html.FORM
 import kotlinx.html.FlowContent
@@ -81,219 +84,231 @@ class CoreAuthController<DBSession>(
     private val enablePasswords: Boolean,
     private val enableWayf: Boolean,
     private val tokenValidation: TokenValidation<DecodedJWT>,
-    private val trustedOrigins: Set<String> = setOf("localhost", "cloud.sdu.dk")
+    private val trustedOrigins: Set<String> = setOf("localhost", "cloud.sdu.dk"),
+    private val ktor: Application? = null
 ) : Controller {
-    override val baseContext = "/auth"
     private val log = LoggerFactory.getLogger(CoreAuthController::class.java)
 
-    private suspend fun RESTHandler<*, *, CommonErrorMessage, *>.requestOriginIsTrusted(): Boolean {
+    private suspend fun CallHandler<*, *, CommonErrorMessage>.requestOriginIsTrusted(): Boolean {
         fun isValidHostname(hostname: String): Boolean = hostname in trustedOrigins
 
-        // First validate referer/origin headers (according to recommendations from OWASP)
-        val referer = call.request.header(HttpHeaders.Referrer)
-        val origin = call.request.header(HttpHeaders.Origin)
+        with(ctx as HttpCall) {
+            // First validate referer/origin headers (according to recommendations from OWASP)
+            val referer = call.request.header(HttpHeaders.Referrer)
+            val origin = call.request.header(HttpHeaders.Origin)
 
-        val hostnameFromHeaders = try {
-            if (!origin.isNullOrBlank()) {
-                URL(origin).host
-            } else if (!referer.isNullOrBlank()) {
-                URL(referer).host
-            } else {
+            val hostnameFromHeaders = try {
+                if (!origin.isNullOrBlank()) {
+                    URL(origin).host
+                } else if (!referer.isNullOrBlank()) {
+                    URL(referer).host
+                } else {
+                    // Block request (OWASP recommendation)
+                    log.info("Missing referer and origin header")
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return false
+                }
+            } catch (ex: MalformedURLException) {
                 // Block request (OWASP recommendation)
-                log.info("Missing referer and origin header")
+                log.info("Bad URL from header: $referer $origin")
                 error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
                 return false
             }
-        } catch (ex: MalformedURLException) {
-            // Block request (OWASP recommendation)
-            log.info("Bad URL from header: $referer $origin")
-            error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-            return false
-        }
 
-        if (!isValidHostname(hostnameFromHeaders)) {
-            log.info(
-                "Origin from headers (referer=$referer, origin=$origin, " +
-                        "hostnameFromHeaders=$hostnameFromHeaders) is not trusted."
-            )
-            error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-            return false
-        }
+            if (!isValidHostname(hostnameFromHeaders)) {
+                log.info(
+                    "Origin from headers (referer=$referer, origin=$origin, " +
+                            "hostnameFromHeaders=$hostnameFromHeaders) is not trusted."
+                )
+                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                return false
+            }
 
-        return true
+            return true
+        }
     }
 
-    override fun configure(routing: Route): Unit = with(routing) {
-        install(CachingHeaders) {
-            options {
-                // For some reason there is no other way to specify which version we want.
-                // Likely working around a bug.
-                CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private), null)
-            }
-        }
-
-        intercept(ApplicationCallPipeline.Features) {
-            call.response.header(HttpHeaders.Pragma, "no-cache")
-        }
-
-        static {
-            val staticFolder = listOf("./static", "/var/auth-static")
-                .asSequence()
-                .map { File(it) }
-                .find { it.exists() && it.isDirectory }
-
-            if (staticFolder != null) {
-                files(staticFolder)
+    override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        ktor?.apply {
+            install(CachingHeaders) {
+                options {
+                    // For some reason there is no other way to specify which version we want.
+                    // Likely working around a bug.
+                    CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private), null)
+                }
             }
 
-            resource("redirect.js", resourcePackage = "assets")
-        }
-
-        implement(AuthDescriptions.twoFactorPage) { _ ->
-            val challengeId = call.parameters["challengeId"]
-            val isInvalid = call.parameters["invalid"] != null
-            val message = call.parameters["message"] // TODO Is this a good idea?
-
-            audit(TwoFactorPageRequest(challengeId, isInvalid, message))
-            okContentDeliveredExternally()
-
-            if (challengeId == null) {
-                call.respondRedirect("/auth/login?invalid")
-                return@implement
+            intercept(ApplicationCallPipeline.Features) {
+                call.response.header(HttpHeaders.Pragma, "no-cache")
             }
 
-            call.respondHtml {
-                formPage(
-                    title = "Two Factor Authentication Required",
+            routing {
+                route("auth") {
+                    static {
+                        val staticFolder = listOf("./static", "/var/auth-static")
+                            .asSequence()
+                            .map { File(it) }
+                            .find { it.exists() && it.isDirectory }
 
-                    beforeForm = {
-                        h3 { +"2FA is Enabled for this Account" }
-
-                        if (isInvalid) {
-                            div(classes = "ui message warning") {
-                                +"The verification code you entered was incorrect"
-                            }
+                        if (staticFolder != null) {
+                            files(staticFolder)
                         }
 
-                        if (message != null) {
-                            div(classes = "ui message warning") {
-                                +message
-                            }
-                        }
-                    },
-
-                    action = "/auth/2fa/challenge/form",
-                    method = FormMethod.post,
-
-                    form = {
-                        input {
-                            type = InputType.hidden
-                            value = challengeId
-                            name = "challengeId"
-                        }
-
-                        formControlField(
-                            name = "verificationCode",
-                            text = "6-digit code",
-                            iconType = "lock",
-                            type = "password"
-                        )
-
-                        button(type = ButtonType.submit, classes = "ui fluid large blue submit button") {
-                            +"Submit"
-                        }
+                        resource("redirect.js", resourcePackage = "assets")
                     }
-                )
+                }
             }
         }
 
-        implement(AuthDescriptions.loginPage) { _ ->
-            val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) }
-            val isInvalid = call.parameters["invalid"] != null
+        implement(AuthDescriptions.twoFactorPage) {
+            with(ctx as HttpCall) {
+                val challengeId = call.parameters["challengeId"]
+                val isInvalid = call.parameters["invalid"] != null
+                val message = call.parameters["message"] // TODO Is this a good idea?
 
-            audit(LoginPageRequest(service?.name, isInvalid))
-            okContentDeliveredExternally()
+                audit(TwoFactorPageRequest(challengeId, isInvalid, message))
+                okContentAlreadyDelivered()
 
-            call.respondHtml {
-                formPage(
-                    title = "Login",
+                if (challengeId == null) {
+                    call.respondRedirect("/auth/login?invalid")
+                    return@implement
+                }
 
-                    beforeForm = {
-                        if (service == null) {
-                            div(classes = "ui message error") {
-                                +"An error has occurred. Try again later."
+                call.respondHtml {
+                    formPage(
+                        title = "Two Factor Authentication Required",
+
+                        beforeForm = {
+                            h3 { +"2FA is Enabled for this Account" }
+
+                            if (isInvalid) {
+                                div(classes = "ui message warning") {
+                                    +"The verification code you entered was incorrect"
+                                }
                             }
-                        }
 
-                        if (isInvalid) {
-                            div(classes = "ui message warning") {
-                                +"Invalid username or password"
+                            if (message != null) {
+                                div(classes = "ui message warning") {
+                                    +message
+                                }
                             }
-                        }
-                    },
+                        },
 
-                    form = {
-                        if (service == null) return@formPage
+                        action = "/auth/2fa/challenge/form",
+                        method = FormMethod.post,
 
-                        if (enablePasswords) {
+                        form = {
                             input {
                                 type = InputType.hidden
-                                value = service.name
-                                name = "service"
+                                value = challengeId
+                                name = "challengeId"
                             }
 
                             formControlField(
-                                name = "username",
-                                iconType = "user",
-                                text = "Username"
-                            )
-
-                            formControlField(
-                                name = "password",
-                                text = "Password",
+                                name = "verificationCode",
+                                text = "6-digit code",
                                 iconType = "lock",
                                 type = "password"
                             )
 
                             button(type = ButtonType.submit, classes = "ui fluid large blue submit button") {
-                                +"Login"
+                                +"Submit"
                             }
                         }
+                    )
+                }
+            }
+        }
 
-                        if (enablePasswords && enableWayf) {
-                            div(classes = "ui horizontal divider") {
-                                +"Or Using SSO"
+        implement(AuthDescriptions.loginPage) {
+            with(ctx as HttpCall) {
+                val service = call.parameters["service"]?.let { ServiceDAO.findByName(it) }
+                val isInvalid = call.parameters["invalid"] != null
+
+                audit(LoginPageRequest(service?.name, isInvalid))
+                okContentAlreadyDelivered()
+
+                call.respondHtml {
+                    formPage(
+                        title = "Login",
+
+                        beforeForm = {
+                            if (service == null) {
+                                div(classes = "ui message error") {
+                                    +"An error has occurred. Try again later."
+                                }
                             }
-                        }
+
+                            if (isInvalid) {
+                                div(classes = "ui message warning") {
+                                    +"Invalid username or password"
+                                }
+                            }
+                        },
+
+                        form = {
+                            if (service == null) return@formPage
+
+                            if (enablePasswords) {
+                                input {
+                                    type = InputType.hidden
+                                    value = service.name
+                                    name = "service"
+                                }
+
+                                formControlField(
+                                    name = "username",
+                                    iconType = "user",
+                                    text = "Username"
+                                )
+
+                                formControlField(
+                                    name = "password",
+                                    text = "Password",
+                                    iconType = "lock",
+                                    type = "password"
+                                )
+
+                                button(type = ButtonType.submit, classes = "ui fluid large blue submit button") {
+                                    +"Login"
+                                }
+                            }
+
+                            if (enablePasswords && enableWayf) {
+                                div(classes = "ui horizontal divider") {
+                                    +"Or Using SSO"
+                                }
+                            }
 
 
-                        if (enableWayf) {
-                            div {
-                                a(
-                                    href = "/auth/saml/login?service=${service.name.urlEncoded}",
-                                    classes = "ui fluid button icon labeled"
-                                ) {
-                                    +"Login using WAYF"
-                                    img(
-                                        alt = "WAYF Logo",
-                                        src = "wayf_logo.png",
-                                        classes = "wayf icon"
-                                    )
+                            if (enableWayf) {
+                                div {
+                                    a(
+                                        href = "/auth/saml/login?service=${service.name.urlEncoded}",
+                                        classes = "ui fluid button icon labeled"
+                                    ) {
+                                        +"Login using WAYF"
+                                        img(
+                                            alt = "WAYF Logo",
+                                            src = "wayf_logo.png",
+                                            classes = "wayf icon"
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
-                )
+                    )
+                }
             }
         }
 
         implement(AuthDescriptions.refresh) {
-            val refreshToken = call.request.bearer ?: return@implement run {
-                error(HttpStatusCode.Unauthorized)
-            }
+            with(ctx as HttpCall) {
+                val refreshToken = call.request.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
 
-            val token = tokenService.refresh(refreshToken)
-            ok(AccessToken(token.accessToken))
+                val token = tokenService.refresh(refreshToken)
+                ok(AccessToken(token.accessToken))
+            }
         }
 
         implement(AuthDescriptions.webRefresh) {
@@ -303,125 +318,134 @@ class CoreAuthController<DBSession>(
 
             if (!requestOriginIsTrusted()) return@implement
 
-            // Then validate CSRF and refresh token
-            val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
-                log.info("No CSRF token included")
-                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                return@implement
-            }
+            with(ctx as HttpCall) {
+                // Then validate CSRF and refresh token
+                val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
+                    log.info("No CSRF token included")
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
 
-            val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
-                log.info("Missing refresh token")
-                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                return@implement
-            }
+                val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
+                    log.info("Missing refresh token")
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
 
-            ok(tokenService.refresh(refreshToken, csrfToken))
+                ok(tokenService.refresh(refreshToken, csrfToken))
+            }
         }
 
-        implement(AuthDescriptions.tokenExtension) { req ->
-            val auditMessage = TokenExtensionAudit(
-                requestedBy = call.securityPrincipal.username,
-                username = null,
-                role = null,
-                requestedScopes = req.requestedScopes,
-                expiresIn = req.expiresIn,
-                allowRefreshes = req.allowRefreshes
-            )
-
-            audit(auditMessage)
-
-            log.debug("Validating input token")
-            val token = tokenValidation.validateOrNull(req.validJWT)?.toSecurityToken() ?: return@implement error(
-                CommonErrorMessage("Unauthorized"),
-                HttpStatusCode.Unauthorized
-            )
-
-            log.debug("Validating extender role versus input token")
-            if (token.principal.role != Role.PROJECT_PROXY && call.securityPrincipal.role !in Roles.PRIVILEDGED) {
-                error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
-                return@implement
-            }
-
-            audit(auditMessage.copy(username = token.principal.username, role = token.principal.role))
-
-            log.debug("Extension is OK to proceed")
-            ok(
-                tokenService.extendToken(
-                    token,
-                    req.expiresIn,
-                    req.requestedScopes,
-                    call.securityPrincipal.username,
-                    req.allowRefreshes
+        implement(AuthDescriptions.tokenExtension) {
+            with(ctx as HttpCall) {
+                val auditMessage = TokenExtensionAudit(
+                    requestedBy = securityPrincipal.username,
+                    username = null,
+                    role = null,
+                    requestedScopes = request.requestedScopes,
+                    expiresIn = request.expiresIn,
+                    allowRefreshes = request.allowRefreshes
                 )
-            )
-        }
 
-        implement(AuthDescriptions.requestOneTimeTokenWithAudience) { req ->
-            val bearerToken = call.request.bearer ?: return@implement run {
-                error(HttpStatusCode.Unauthorized)
+                audit(auditMessage)
+
+                log.debug("Validating input token")
+                val token =
+                    tokenValidation.validateOrNull(request.validJWT)?.toSecurityToken() ?: return@implement error(
+                        CommonErrorMessage("Unauthorized"),
+                        HttpStatusCode.Unauthorized
+                    )
+
+                log.debug("Validating extender role versus input token")
+                if (token.principal.role != Role.PROJECT_PROXY && securityPrincipal.role !in Roles.PRIVILEDGED) {
+                    error(CommonErrorMessage("Unauthorized"), HttpStatusCode.Unauthorized)
+                    return@implement
+                }
+
+                audit(auditMessage.copy(username = token.principal.username, role = token.principal.role))
+
+                log.debug("Extension is OK to proceed")
+                ok(
+                    tokenService.extendToken(
+                        token,
+                        request.expiresIn,
+                        request.requestedScopes,
+                        securityPrincipal.username,
+                        request.allowRefreshes
+                    )
+                )
             }
-
-            val audiences = req.audience.split(",")
-                .asSequence()
-                .map { SecurityScope.parseFromString(it) }
-                .toList()
-
-            val token = tokenService.requestOneTimeToken(bearerToken, audiences)
-            ok(token)
         }
 
-        implement(AuthDescriptions.claim) { req ->
+        implement(AuthDescriptions.requestOneTimeTokenWithAudience) {
+            with(ctx as HttpCall) {
+                val bearerToken = call.request.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+
+                val audiences = request.audience.split(",")
+                    .asSequence()
+                    .map { SecurityScope.parseFromString(it) }
+                    .toList()
+
+                val token = tokenService.requestOneTimeToken(bearerToken, audiences)
+                ok(token)
+            }
+        }
+
+        implement(AuthDescriptions.claim) {
             val tokenWasClaimed = db.withTransaction {
-                ottDao.claim(it, req.jti, call.securityPrincipal.username)
+                ottDao.claim(it, request.jti, ctx.securityPrincipal.username)
             }
 
             if (tokenWasClaimed) {
-                ok(HttpStatusCode.NoContent)
+                ok(Unit)
             } else {
-                error(HttpStatusCode.Conflict)
+                error(Unit, statusCode = HttpStatusCode.Conflict)
             }
         }
 
         implement(AuthDescriptions.logout) {
-            okContentDeliveredExternally()
+            with(ctx as HttpCall) {
+                okContentAlreadyDelivered()
 
-            val refreshToken = call.request.bearer ?: return@implement run {
-                call.respond(HttpStatusCode.Unauthorized)
+                val refreshToken = call.request.bearer ?: return@implement run {
+                    call.respond(HttpStatusCode.Unauthorized)
+                }
+
+                tokenService.logout(refreshToken)
+                call.respond(HttpStatusCode.NoContent)
             }
-
-            tokenService.logout(refreshToken)
-            call.respond(HttpStatusCode.NoContent)
         }
 
         implement(AuthDescriptions.webLogout) {
             if (!requestOriginIsTrusted()) return@implement
 
-            // Then validate CSRF and refresh token
-            val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
-                log.info("No CSRF token included")
-                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                return@implement
-            }
+            with(ctx as HttpCall) {
+                // Then validate CSRF and refresh token
+                val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN) ?: run {
+                    log.info("No CSRF token included")
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
 
-            val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
-                log.info("Missing refresh token")
-                error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
-                return@implement
-            }
+                val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE] ?: run {
+                    log.info("Missing refresh token")
+                    error(CommonErrorMessage("Bad request"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
 
-            okContentDeliveredExternally()
-            tokenService.logout(refreshToken, csrfToken)
-            call.response.cookies.appendExpired(REFRESH_WEB_REFRESH_TOKEN_COOKIE, path = "/")
-            call.respond(HttpStatusCode.NoContent)
+                okContentAlreadyDelivered()
+                tokenService.logout(refreshToken, csrfToken)
+                call.response.cookies.appendExpired(REFRESH_WEB_REFRESH_TOKEN_COOKIE, path = "/")
+                call.respond(HttpStatusCode.NoContent)
+            }
         }
 
-        implement(AuthDescriptions.bulkInvalidate) { req ->
+        implement(AuthDescriptions.bulkInvalidate) {
             // We suppress all exceptions when invalidating in bulk. This is mostly done by services to ensure that all
             // of their tokens are invalidated. This will also ensure that a single invalid token won't cause remaining
             // tokens to not be invalidated.
 
-            val tokens = req.tokens.map { RefreshTokenAndCsrf(it, null) }
+            val tokens = request.tokens.map { RefreshTokenAndCsrf(it, null) }
             tokenService.bulkLogout(tokens, suppressExceptions = true)
             ok(Unit)
         }

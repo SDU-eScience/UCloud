@@ -2,7 +2,7 @@ package dk.sdu.cloud.support.services
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.service.RPCException
+import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.HttpStatusCode
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -15,7 +15,7 @@ import java.lang.IllegalArgumentException
 
 internal val ticket = Ticket(
     "ID",
-    SecurityPrincipal("username", Role.USER, "first", "last"),
+    SecurityPrincipal("username", Role.USER, "first", "last", 123456),
     "userAgent",
     "This is the message")
 

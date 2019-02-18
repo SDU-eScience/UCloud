@@ -2,7 +2,10 @@ package dk.sdu.cloud.notification.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.DeleteResponse
 import dk.sdu.cloud.notification.api.MarkResponse
@@ -10,10 +13,7 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationServiceDescription
 import dk.sdu.cloud.notification.services.NotificationHibernateDAO
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
 import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers

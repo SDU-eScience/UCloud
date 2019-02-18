@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.api
 
-import dk.sdu.cloud.service.KafkaDescriptions
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import dk.sdu.cloud.kafka.KafkaDescriptions
 
 data class JobCompletedEvent(
     val jobId: String,
@@ -9,7 +10,7 @@ data class JobCompletedEvent(
     val nodes: Int,
     val jobCompletedAt: Long,
 
-    val application: NameAndVersion,
+    @JsonDeserialize(`as` = NameAndVersionImpl::class) val application: NameAndVersion,
     val success: Boolean
 )
 

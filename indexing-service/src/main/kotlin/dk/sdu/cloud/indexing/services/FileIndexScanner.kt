@@ -1,8 +1,10 @@
 package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.RESTResponse
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
@@ -15,7 +17,6 @@ import dk.sdu.cloud.indexing.util.scrollThroughSearch
 import dk.sdu.cloud.indexing.util.source
 import dk.sdu.cloud.indexing.util.term
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.RPCException
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -34,7 +35,7 @@ private const val CHUNK_SIZE = 100
  * This service is responsible for delivering a reliable materialized view based on the [StorageEvent] stream.
  */
 class FileIndexScanner(
-    private val cloud: AuthenticatedCloud,
+    private val cloud: AuthenticatedClient,
     private val elasticClient: RestHighLevelClient
 ) {
     private val mapper = jacksonObjectMapper()
@@ -84,10 +85,8 @@ class FileIndexScanner(
                                 cloud
                             )
 
-                        if (deliveryResponse !is RESTResponse.Ok) {
-                            throw FileIndexScanException.CouldNotDeliver(
-                                "${deliveryResponse.status} - ${deliveryResponse.rawResponseBody}"
-                            )
+                        if (deliveryResponse !is IngoingCallResponse.Ok) {
+                            throw FileIndexScanException.CouldNotDeliver("${deliveryResponse.statusCode}")
                         }
 
                         // Continue on all roots that the FS agrees on

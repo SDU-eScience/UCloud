@@ -4,10 +4,11 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
+import dk.sdu.cloud.kafka.MappedEventProducer
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.MappedEventProducer
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.FakeDBSessionFactory
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TokenValidationMock
@@ -56,7 +57,8 @@ private fun configureZenodoServer(
             FakeDBSessionFactory,
             publicationService as PublicationService<Unit>,
             zenodoRpcService,
-            eventEmitter
+            eventEmitter,
+            ClientMock.authenticatedClient
         )
     )
 }
@@ -205,9 +207,8 @@ class ZenodoTest {
                     )
                 } returns 1
 
-                CloudMock.mockCall(
-                    AuthDescriptions,
-                    { AuthDescriptions.tokenExtension },
+                ClientMock.mockCall(
+                    AuthDescriptions.tokenExtension,
                     {
                         TestCallResult.Ok(
                             TokenExtensionResponse(
@@ -277,9 +278,8 @@ class ZenodoTest {
                     throw PublicationException.NotConnected()
                 }
 
-                CloudMock.mockCall(
-                    AuthDescriptions,
-                    { AuthDescriptions.tokenExtension },
+                ClientMock.mockCall(
+                    AuthDescriptions.tokenExtension,
                     {
                         TestCallResult.Ok(
                             TokenExtensionResponse(

@@ -1,16 +1,15 @@
 package dk.sdu.cloud.file
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.auth.api.refreshingJwtCloud
-import dk.sdu.cloud.service.HibernateFeature
-import dk.sdu.cloud.service.KafkaTopicFeatureConfiguration
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.configuration
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.service.kafka
-import dk.sdu.cloud.service.runScriptHandler
-import dk.sdu.cloud.service.serverProvider
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.KafkaTopicFeatureConfiguration
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.installDefaultFeatures
+import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.serverProvider
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 
 val SERVICE_USER = "_${StorageServiceDescription.name}"
@@ -38,9 +37,6 @@ fun main(args: Array<String>) {
     val config = micro.configuration.requestChunkAtOrNull("storage") ?: StorageConfiguration()
 
     Server(
-        micro.kafka,
-        micro.serverProvider,
-        micro.refreshingJwtCloud,
         config,
         micro
     ).start()

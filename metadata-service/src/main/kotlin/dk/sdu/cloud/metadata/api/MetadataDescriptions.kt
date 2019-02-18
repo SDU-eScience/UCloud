@@ -2,9 +2,11 @@ package dk.sdu.cloud.metadata.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.client.RESTDescriptions
-import dk.sdu.cloud.client.bindEntireRequestFromBody
-import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.auth
+import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.call
+import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
 data class ProjectMetadataWithRightsInfo(
@@ -12,35 +14,37 @@ data class ProjectMetadataWithRightsInfo(
     val canEdit: Boolean
 )
 
-object MetadataDescriptions : RESTDescriptions("metadata") {
+object MetadataDescriptions : CallDescriptionContainer("metadata") {
     const val baseContext = "/api/metadata"
 
-    val updateProjectMetadata = callDescription<ProjectMetadataEditRequest, Unit, CommonErrorMessage> {
-        name = "metadataUpdate"
-        method = HttpMethod.Post
-
+    val updateProjectMetadata = call<ProjectMetadataEditRequest, Unit, CommonErrorMessage>("updateProjectMetadata") {
         auth {
             access = AccessRight.READ_WRITE
         }
 
-        path {
-            using(baseContext)
-        }
+        http {
+            method = HttpMethod.Post
 
-        body { bindEntireRequestFromBody() }
+            path {
+                using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 
-    val findById = callDescription<FindByProjectId, ProjectMetadataWithRightsInfo, CommonErrorMessage> {
-        name = "metadataFind"
-        method = HttpMethod.Get
-
+    val findById = call<FindByProjectId, ProjectMetadataWithRightsInfo, CommonErrorMessage>("findById") {
         auth {
             access = AccessRight.READ
         }
 
-        path {
-            using(baseContext)
-            +boundTo(FindByProjectId::id)
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +boundTo(FindByProjectId::id)
+            }
         }
     }
 }

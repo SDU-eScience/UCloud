@@ -11,16 +11,21 @@ import dk.sdu.cloud.app.services.VerifiedJobWithAccessToken
 import dk.sdu.cloud.app.services.normAppDesc
 import dk.sdu.cloud.app.services.withInvocation
 import dk.sdu.cloud.app.services.withNameAndVersion
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.HibernateFeature
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.install
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.withKtorTest
-import dk.sdu.cloud.service.tokenValidation
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.handleRequest
@@ -37,7 +42,15 @@ private fun KtorApplicationTestSetupContext.configureJobServer(
 ): List<Controller> {
     micro.install(HibernateFeature)
     val tokenValidation = micro.tokenValidation as TokenValidationJWT
-    return listOf(JobController(micro.hibernateDatabase, mockk(relaxed = true), jobService, tokenValidation))
+    return listOf(
+        JobController(
+            micro.hibernateDatabase,
+            mockk(relaxed = true),
+            jobService,
+            tokenValidation,
+            ClientMock.authenticatedClient
+        )
+    )
 }
 
 class JobTest {

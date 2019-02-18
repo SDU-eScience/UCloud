@@ -6,7 +6,7 @@ import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ListActivityByIdResponse
 import dk.sdu.cloud.activity.services.ActivityService
 import dk.sdu.cloud.activity.util.setUser
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.paginate
 import dk.sdu.cloud.service.test.withKtorTest
@@ -39,7 +39,8 @@ class ActivityControllerTest {
                 with(engine) {
                     val fileId = "file"
                     val paginationRequest = PaginationRequest().normalize()
-                    val expectedResult = listOf(ActivityEvent.Download("user1", 0L, fileId, "file")).paginate(paginationRequest)
+                    val expectedResult =
+                        listOf(ActivityEvent.Download("user1", 0L, fileId, "file")).paginate(paginationRequest)
 
                     every { activityService.findEventsForFileId(any(), any(), any()) } returns expectedResult
 

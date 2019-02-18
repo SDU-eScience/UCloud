@@ -1,31 +1,21 @@
 package dk.sdu.cloud.file.stats
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.file.stats.http.FileStatsController
 import dk.sdu.cloud.file.stats.services.RecentFilesService
 import dk.sdu.cloud.file.stats.services.UsageService
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.authenticatedCloud
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
-import org.apache.kafka.streams.KafkaStreams
 
 class Server(
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val micro: Micro
+    override val micro: Micro
 ) : CommonServer {
-    override lateinit var httpServer: ApplicationEngine
-    override val kStreams: KafkaStreams? = null
     private val eventConsumers = ArrayList<EventConsumer<*>>()
 
     override val log = logger()
@@ -36,22 +26,19 @@ class Server(
     }
 
     override fun start() {
-        val recentFilesService = RecentFilesService(cloud)
-        val usageFileService = UsageService(cloud)
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val recentFilesService = RecentFilesService(client)
+        val usageFileService = UsageService(client)
         // Initialize services here
 
         // Initialize consumers here:
         // addConsumers(...)
 
         // Initialize server
-        httpServer = ktor {
-            installDefaultFeatures(micro)
-
-            routing {
-                configureControllers(
-                    FileStatsController(recentFilesService, usageFileService, cloud)
-                )
-            }
+        with(micro.server) {
+            configureControllers(
+                FileStatsController(recentFilesService, usageFileService, client)
+            )
         }
 
         startServices()

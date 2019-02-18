@@ -1,9 +1,12 @@
 package dk.sdu.cloud.app.services
 
-import dk.sdu.cloud.client.AuthenticatedCloud
-import dk.sdu.cloud.client.MultipartRequest
-import dk.sdu.cloud.client.StreamingFile
-import dk.sdu.cloud.client.jwtAuth
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.ClientAndBackend
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.types.StreamingFile
+import dk.sdu.cloud.calls.types.StreamingRequest
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
@@ -12,23 +15,24 @@ import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.UploadRequest
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.orThrow
 import io.ktor.http.ContentType
 import io.ktor.http.defaultForFilePath
 import kotlinx.coroutines.io.ByteReadChannel
 import java.io.File
 
 class JobFileService(
-    val cloud: AuthenticatedCloud
+    private val client: AuthenticatedClient
 ) {
-    private val cloudContext = cloud.parent
+    private fun AuthenticatedClient.bearerAuth(token: String): AuthenticatedClient {
+        return ClientAndBackend(client, companion).bearerAuth(token)
+    }
 
     suspend fun initializeResultFolder(
         jobWithToken: VerifiedJobWithAccessToken
     ) {
         val (job, accessToken) = jobWithToken
 
-        val userCloud = cloudContext.jwtAuth(accessToken)
+        val userCloud = client.bearerAuth(accessToken)
         FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(jobFolder(job.id, job.owner), null),
             userCloud
@@ -58,12 +62,13 @@ class JobFileService(
 
         log.debug("The destination path is ${destPath.path}")
 
-        val sensitivityLevel = jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
-            ?: SensitivityLevel.PRIVATE
+        val sensitivityLevel =
+            jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
+                ?: SensitivityLevel.PRIVATE
 
         val (_, accessToken) = jobWithToken
         MultiPartUploadDescriptions.upload.call(
-            MultipartRequest.create(
+            StreamingRequest.Outgoing(
                 UploadRequest(
                     location = destPath.path,
                     sensitivity = sensitivityLevel,
@@ -75,19 +80,17 @@ class JobFileService(
                     )
                 )
             ),
-            cloudContext.jwtAuth(accessToken)
+            client.bearerAuth(accessToken)
         )
     }
 
     private suspend fun jobFolder(jobId: String, user: String): String {
         val homeFolder = FileDescriptions.findHomeFolder.call(
             FindHomeFolderRequest(user),
-            cloud
+            client
         ).orThrow().path
         return joinPath(homeFolder, "Jobs", jobId)
     }
-
-
 
 
     companion object : Loggable {

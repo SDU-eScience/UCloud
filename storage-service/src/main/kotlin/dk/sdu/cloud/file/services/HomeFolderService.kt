@@ -3,13 +3,14 @@ package dk.sdu.cloud.file.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.client.AuthenticatedCloud
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.service.orThrow
 
 class HomeFolderService(
-    private val serviceCloud: AuthenticatedCloud
+    private val serviceCloud: AuthenticatedClient
 ) {
     suspend fun findHomeFolder(username: String): String {
         val user =

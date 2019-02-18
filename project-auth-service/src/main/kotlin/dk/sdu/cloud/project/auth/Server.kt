@@ -1,6 +1,15 @@
 package dk.sdu.cloud.project.auth
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.bearerAuth
+import dk.sdu.cloud.calls.client.withoutAuthentication
+import dk.sdu.cloud.kafka.forStream
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.kafka
+import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.project.auth.api.ProjectAuthEvents
 import dk.sdu.cloud.project.auth.http.ProjectAuthController
 import dk.sdu.cloud.project.auth.processors.ProjectAuthEventProcessor
@@ -12,31 +21,15 @@ import dk.sdu.cloud.project.auth.services.TokenInvalidator
 import dk.sdu.cloud.project.auth.services.TokenRefresher
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.cloudContext
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.forStream
-import dk.sdu.cloud.service.hibernateDatabase
-import dk.sdu.cloud.service.installDefaultFeatures
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
-import dk.sdu.cloud.service.tokenValidation
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
-import org.apache.kafka.streams.KafkaStreams
 
 class Server(
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val micro: Micro
+    override val micro: Micro
 ) : CommonServer {
-    override lateinit var httpServer: ApplicationEngine
-    override val kStreams: KafkaStreams? = null
     private val eventConsumers = ArrayList<EventConsumer<*>>()
 
     override val log = logger()
@@ -48,22 +41,23 @@ class Server(
 
     override fun start() {
         // Initialize services here
+        val kafka = micro.kafka
         val db = micro.hibernateDatabase
+        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val tokenDao: AuthTokenDao<HibernateSession> = AuthTokenHibernateDao()
-        val tokenInvalidator = TokenInvalidator(cloud, db, tokenDao)
-        val tokenRefresher = TokenRefresher(cloud, db, tokenDao, tokenInvalidator)
+        val tokenInvalidator = TokenInvalidator(client, db, tokenDao)
+        val tokenRefresher = TokenRefresher(client, db, tokenDao, tokenInvalidator)
 
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
-        val cloudContext = micro.cloudContext
         val storageInitializer = StorageInitializer(
             refreshTokenCloudFactory = { refreshToken ->
-                RefreshingJWTAuthenticatedCloud(cloudContext, refreshToken, tokenValidation)
+                client.withoutAuthentication().bearerAuth(refreshToken)
             }
         )
 
         // Initialize consumers here:
         ProjectEventProcessor(
-            cloud,
+            client,
             db,
             tokenDao,
             tokenInvalidator,
@@ -84,14 +78,10 @@ class Server(
         }
 
         // Initialize server
-        httpServer = ktor {
-            installDefaultFeatures(micro)
-
-            routing {
-                configureControllers(
-                    ProjectAuthController(tokenRefresher, cloud.parent)
-                )
-            }
+        with(micro.server) {
+            configureControllers(
+                ProjectAuthController(tokenRefresher, client)
+            )
         }
 
         startServices()

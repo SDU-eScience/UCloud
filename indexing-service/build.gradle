@@ -1,18 +1,18 @@
 group 'dk.sdu.cloud'
-version '1.9.1'
+version '1.10.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.5/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.6/sdu-cloud.gradle"
 
 repositories {
     maven { url  "http://dl.bintray.com/mbuhot/maven" }
 }
 
 buildscript {
-    ext.serviceCommonVersion = "0.23.3"
-    ext.fileApiVersion = "0.19.0"
+    ext.serviceCommonVersion = "1.0.0"
+    ext.fileApiVersion = "1.0.0"
 }
 
 dependencies {
@@ -21,7 +21,7 @@ dependencies {
 
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:file-api:$fileApiVersion"
-    compile "dk.sdu.cloud:auth-api:1.14.0"
+    compile "dk.sdu.cloud:auth-api:1.17.0"
 
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }

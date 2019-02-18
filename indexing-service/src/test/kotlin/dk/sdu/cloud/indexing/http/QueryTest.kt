@@ -1,5 +1,5 @@
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.client.defaultMapper
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.NumericStatisticsRequest
 import dk.sdu.cloud.indexing.api.StatisticsRequest
@@ -26,14 +26,15 @@ import kotlin.test.assertEquals
 private fun configureQueryServer(indexQueryService: IndexQueryService): List<Controller> {
     return listOf(QueryController(indexQueryService))
 }
-class QueryTest{
+
+class QueryTest {
 
     @Test
     fun `query test`() {
         withKtorTest(
             setup = {
                 val indexQueryService = mockk<IndexQueryService>()
-                every { indexQueryService.query(any(),any()) } answers {
+                every { indexQueryService.query(any(), any()) } answers {
                     val returnpage = Page(1, 25, 1, listOf(eventMatStorFile))
                     returnpage
                 }
@@ -61,7 +62,7 @@ class QueryTest{
         withKtorTest(
             setup = {
                 val indexQueryService = mockk<IndexQueryService>()
-                every { indexQueryService.query(any(),any()) } answers {
+                every { indexQueryService.query(any(), any()) } answers {
                     val returnpage = Page(1, 25, 1, listOf(eventMatStorFile))
                     returnpage
                 }
