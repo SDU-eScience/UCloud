@@ -10,7 +10,6 @@ import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.file.trash.storageFile
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.service.test.ClientMock
-import dk.sdu.cloud.service.test.CloudMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import io.ktor.http.HttpStatusCode
@@ -74,7 +73,7 @@ class TrashTest {
     @BeforeTest
     fun initTest() {
         micro = initializeMicro()
-        service = TrashService(ClientMock.authenticatedClient)
+        service = TrashService(TrashDirectoryService(ClientMock.authenticatedClient))
         cloud = ClientMock.authenticatedClient
     }
 

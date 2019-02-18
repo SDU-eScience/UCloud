@@ -1,8 +1,6 @@
 package dk.sdu.cloud.file.trash.services
 
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
@@ -10,7 +8,6 @@ import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.MoveRequest
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
@@ -23,15 +20,9 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-class TrashService(private val serviceCloud: AuthenticatedClient) {
-    private suspend fun trashDirectory(username: String): String {
-        val homeFolder = FileDescriptions.findHomeFolder.call(
-            FindHomeFolderRequest(username),
-            serviceCloud
-        ).orThrow().path
-        return joinPath(homeFolder, "Trash")
-    }
-
+class TrashService(
+    private val trashDirectoryService: TrashDirectoryService
+) {
     suspend fun emptyTrash(username: String, userCloud: AuthenticatedClient) {
         validateTrashDirectory(username, userCloud)
         GlobalScope.launch {
@@ -39,7 +30,7 @@ class TrashService(private val serviceCloud: AuthenticatedClient) {
                 FileDescriptions.deleteFile
                     .call(
                         DeleteFileRequest(
-                            trashDirectory(username)
+                            trashDirectoryService.findTrashDirectory(username)
                         ),
                         userCloud
                     )
@@ -60,7 +51,7 @@ class TrashService(private val serviceCloud: AuthenticatedClient) {
         val result = FileDescriptions.move.call(
             MoveRequest(
                 path = file,
-                newPath = joinPath(trashDirectory(username), file.fileName()),
+                newPath = joinPath(trashDirectoryService.findTrashDirectory(username), file.fileName()),
                 policy = WriteConflictPolicy.RENAME
             ),
             userCloud
@@ -70,7 +61,7 @@ class TrashService(private val serviceCloud: AuthenticatedClient) {
     }
 
     private suspend fun validateTrashDirectory(username: String, userCloud: AuthenticatedClient) {
-        val trashDirectoryPath = trashDirectory(username)
+        val trashDirectoryPath = trashDirectoryService.findTrashDirectory(username)
 
         suspend fun createTrashDirectory() {
             FileDescriptions.createDirectory.call(

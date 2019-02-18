@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.trash
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.file.trash.http.FileTrashController
+import dk.sdu.cloud.file.trash.services.TrashDirectoryService
 import dk.sdu.cloud.file.trash.services.TrashService
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.server
@@ -26,7 +27,8 @@ class Server(
 
     override fun start() {
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val trashService = TrashService(client)
+        val trashDirectoryService = TrashDirectoryService(client)
+        val trashService = TrashService(trashDirectoryService)
         with(micro.server) {
             configureControllers(
                 FileTrashController(client, trashService)
