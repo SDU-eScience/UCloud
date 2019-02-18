@@ -38,7 +38,7 @@ class FileFavoriteService<DBSession>(
                     val fileAudit = audit?.files?.get(index)
                     if (fileAudit != null) {
                         fileAudit.fileId = fileId
-                        fileAudit.newStatus = favorite
+                        fileAudit.newStatus = !favorite
                     }
 
                     if (favorite) {
