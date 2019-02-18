@@ -15,25 +15,6 @@ import { failureNotification } from "UtilityFunctions";
 import { setActivePage } from "Navigation/Redux/StatusActions";
 import { SidebarPages } from "ui-components/Sidebar";
 
-
-
-interface AvataaarModificationState {
-    top: Options.Top
-    topAccessory: Options.TopAccessory
-    hairColor: Options.HairColor
-    facialHair: Options.FacialHair
-    facialHairColor: Options.FacialHairColor
-    clothes: Options.Clothes
-    colorFabric: Options.ColorFabric
-    clothesGraphic: Options.ClothesGraphic
-    eyes: Options.Eyes
-    eyebrows: Options.Eyebrows
-    mouthTypes: Options.MouthTypes
-    skinColors: Options.SkinColors
-    promises: PromiseKeeper
-    loading: boolean
-}
-
 type AvataaarModificationStateProps = AvatarType;
 interface AvataaarModificationOperations {
     save: (avatar: AvatarType) => void
