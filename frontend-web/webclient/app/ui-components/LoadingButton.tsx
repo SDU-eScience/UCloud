@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Button, Icon } from ".";
-import { ButtonProps } from "./Button";
+import Icon from "./Icon";
+import { ButtonProps, default as Button } from "./Button";
 import { ThemeColor } from "./theme";
 
 const LoadingButton = ({ loading, ...props }: ButtonProps & { loading: boolean, children: any, color: ThemeColor } & any) => loading ?

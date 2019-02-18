@@ -9,54 +9,40 @@ import Icon from "./Icon";
 import Button from "./Button";
 import * as Heading from "ui-components/Heading";
 import ClickableDropdown from "./ClickableDropdown";
+import { useEffect, useRef, useState } from "react";
+import Radio from "./Radio";
+import Label from "./Label";
 
-interface SupportState {
-    visible: boolean
-    loading: boolean
+const enum SupportType {
+    SUGGESTION = "SUGGESTION",
+    BUG = "BUG"
 }
 
-class Support extends React.Component<{}, SupportState> {
-    private textArea = React.createRef<HTMLTextAreaElement>();
-    private supportBox = React.createRef<HTMLDivElement>();
+function Support() {
+    const textArea = useRef<HTMLTextAreaElement>(null);
+    const supportBox = useRef<HTMLTextAreaElement>(null);
+    const [loading, setLoading] = useState(false);
+    const [visible, setVisible] = useState(false);
+    const [type, setType] = useState(SupportType.SUGGESTION);
 
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            visible: false,
-            loading: false
-        };
-        document.addEventListener("keydown", this.handleESC);
-        document.addEventListener("mousedown", this.handleClickOutside);
+    function handleESC(e) {
+        if (e.keyCode == KeyCode.ESC) setVisible(false)
     }
 
-    componentWillUnmount = () => {
-        document.removeEventListener("keydown", this.handleESC);
-        document.removeEventListener("mousedown", this.handleClickOutside);
+    function handleClickOutside(event) {
+        if (supportBox.current && !supportBox.current.contains(event.target) && visible)
+            setVisible(false);
     }
 
-    private handleESC = (e) => {
-        if (e.keyCode == KeyCode.ESC) this.setState(() => ({ visible: false }))
-    }
-
-    onSupportClick(event: React.SyntheticEvent) {
+    function onSubmit(event: React.FormEvent) {
         event.preventDefault();
-        this.setState(() => ({ visible: !this.state.visible }));
-    }
-
-    private handleClickOutside = event => {
-        if (this.supportBox.current && !this.supportBox.current.contains(event.target) && this.state.visible)
-            this.setState(() => ({ visible: false }));
-    }
-
-    onSubmit(event: React.FormEvent) {
-        event.preventDefault();
-        const text = this.textArea.current;
+        const text = textArea.current;
         if (!!text) {
-            this.setState(() => ({ loading: true }));
-            Cloud.post("/support/ticket", { message: text.value }).then(e => {
+            setLoading(true);
+            Cloud.post("/support/ticket", { message: `${type}: ${text.value}` }).then(e => {
                 text.value = "";
-                this.setState(({ visible: false, loading: false }));
+                setVisible(false);
+                setLoading(false);
                 successNotification("Support ticket submitted!");
             }).catch(e => {
                 if (!!e.response.why) {
@@ -68,31 +54,49 @@ class Support extends React.Component<{}, SupportState> {
         }
     }
 
-    render() {
-        return (
-            <ClickableDropdown colorOnHover={false} keepOpenOnClick trigger={
-                <Flex width="48px" justifyContent="center" >
-                    <Icon name={"chat"} size="24px" color="headerIconColor" color2={"headerBg"} />
+    useEffect(() => {
+        document.addEventListener("keydown", handleESC);
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("keydown", handleESC);
+            document.removeEventListener("mousedown", handleClickOutside);
+        }
+    }, []);
+
+    return (
+        <ClickableDropdown colorOnHover={false} keepOpenOnClick trigger={
+            <Flex width="48px" justifyContent="center">
+                <Icon name={"chat"} size="24px" color="headerIconColor" color2={"headerBg"} />
+            </Flex>
+        }
+            width="650px"
+            height="350px"
+            right="10px"
+            top="37px"
+        >
+            <Box color="text">
+                <Heading.h3>Support Form</Heading.h3>
+                <Flex mt="3px">
+                    <Label>
+                        <Radio checked={type === SupportType.SUGGESTION} onClick={() => setType(SupportType.SUGGESTION)} />
+                        Suggestion
+                    </Label>
+                    <Label>
+                        <Radio checked={type === SupportType.BUG} onClick={() => setType(SupportType.BUG)} />
+                        Bug
+                    </Label>
                 </Flex>
-            }
-                width={"650px"}
-                height={"350px"}
-                right="10px"
-                top="37px"
-            >
-                <Box color="text">
-                    <Heading.h3>Support Form</Heading.h3>
-                    <p>Describe your problem below and we will investigate it.</p>
-                    <form onSubmit={e => this.onSubmit(e)}>
-                        <TextArea width="100%" ref={this.textArea} rows={6} />
-                        <Button mt="0.4em" fullWidth type="submit" disabled={this.state.loading}>
-                            <Icon name="mail" size="1em" mr=".5em" color="lightGray" color2="white" />
-                            Send
-                        </Button>
-                    </form>
-                </Box>
-            </ClickableDropdown>);
-    }
+                {type === "SUGGESTION" ? <p>Describe you suggestion and we will look into it.</p> :
+                    <p>Describe your problem below and we will investigate it.</p>}
+                <form onSubmit={e => onSubmit(e)}>
+                    <TextArea width="100%" ref={textArea} rows={6} />
+                    <Button mt="0.4em" fullWidth type="submit" disabled={loading}>
+                        <Icon name="mail" size="1em" mr=".5em" color="lightGray" color2="white" />
+                        Send
+                    </Button>
+                </form>
+            </Box>
+        </ClickableDropdown>);
 }
 
 export default Support;

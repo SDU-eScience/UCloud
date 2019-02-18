@@ -1,6 +1,7 @@
 import Box from "./Box";
 import * as React from "react";
-import { Text, LoadingButton } from "ui-components";
+import LoadingButton from "ui-components/LoadingButton";
+import Text from "ui-components/Text";
 import { LoadableContent } from "LoadableContent";
 import { ButtonProps } from "./Button";
 

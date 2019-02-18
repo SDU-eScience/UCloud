@@ -164,6 +164,17 @@ exports[`View component Mount view 1`] = `
   transform: scale(1.03);
 }
 
+.c6 {
+  cursor: pointer;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  color: text;
+}
+
+.c6:hover {
+  color: textHighlight;
+}
+
 .c1 {
   cursor: auto;
   padding-left: 204px;
@@ -193,17 +204,6 @@ exports[`View component Mount view 1`] = `
   overflow-y: auto;
   position: fixed;
   z-index: 45;
-}
-
-.c6 {
-  cursor: pointer;
-  -webkit-text-decoration: none;
-  text-decoration: none;
-  color: text;
-}
-
-.c6:hover {
-  color: textHighlight;
 }
 
 .c18 {

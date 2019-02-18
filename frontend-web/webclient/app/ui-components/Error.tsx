@@ -1,5 +1,9 @@
 import * as React from "react";
-import { Card, Flex, Box, Text, Icon } from "ui-components";
+import Flex from "ui-components/Flex"
+import Box from "ui-components/Box"
+import Text from "ui-components/Text"
+import Icon from "ui-components/Icon"
+import Card from "ui-components/Card";
 
 interface ErrorProps { clearError?: () => void, error?: string, width?: string | number }
 const Error = (props: ErrorProps) => !!props.error ?

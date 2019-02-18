@@ -1,6 +1,7 @@
 import styled from "styled-components";
-import { Button, OutlineButton, Flex } from ".";
-
+import Button from "./Button";
+import OutlineButton from "./OutlineButton";
+import Flex from "./Flex";
 
 const VerticalButtonGroup = styled(Flex)`
     flex-direction: column;

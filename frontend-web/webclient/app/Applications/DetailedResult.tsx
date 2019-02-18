@@ -295,6 +295,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     page={page}
                     pageRenderer={page =>
                         <FilesTable
+                            notStickyHeader
                             sortOrder={SortOrder.ASCENDING}
                             sortBy={SortBy.PATH}
                             fileOperations={this.fileOperations()}

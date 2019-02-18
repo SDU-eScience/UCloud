@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as Modal from "react-modal";
-import { Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Checkbox, Label, Select } from "ui-components";
+import { Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select } from "ui-components";
 import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal } from "UtilityFunctions";
@@ -103,7 +103,7 @@ class Uploader extends React.Component<UploaderProps> {
         const upload = this.props.uploads[index];
         upload.isUploading = true;
         this.props.setUploads(this.props.uploads);
-        
+
         window.addEventListener("beforeunload", this.beforeUnload);
         if (!upload.extractArchive) {
             multipartUpload(
@@ -221,6 +221,10 @@ class Uploader extends React.Component<UploaderProps> {
                 {finishedUploads(uploads) > 0 ? (<OutlineButton mt="4px" mb="4px" color="green" fullWidth onClick={() => this.clearFinishedUploads()}>
                     Clear finished uploads
                 </OutlineButton>) : null}
+                {uploads.filter(it => !it.isUploading).length >= 5 ?
+                    <OutlineButton color="blue" fullWidth mt="4px" mb="4px" onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}>
+                        Clear unstarted uploads 
+                    </OutlineButton> : null}
                 <Box>
                     {uploads.map((upload, index) => (
                         <React.Fragment key={index}>
@@ -237,7 +241,7 @@ class Uploader extends React.Component<UploaderProps> {
                             <Divider />
                         </React.Fragment>
                     ))}
-                    {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile) ?
+                    {uploads.filter(it => !it.isUploading).length > 1 && uploads.filter(it => !it.conflictFile).length ?
                         <Button fullWidth color="green" onClick={this.startAllUploads}>
                             <Icon name={"upload"} />{" "}Start all!</Button> : null}
                     <ReactDropzone onDrop={this.onFilesAdded}>
@@ -391,6 +395,7 @@ interface ConflictFile { file?: SDUCloudFile }
 const ConflictFile = ({ file }: ConflictFile) => !!file ?
     <Box>File already exists in folder, {sizeToString(file.size)}</Box> : null;
 
+/* FIXME, add typesafety */
 const mapStateToProps = ({ files, uploader }: ReduxObject): any => ({
     activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
     location: files.path,

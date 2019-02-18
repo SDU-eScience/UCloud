@@ -251,7 +251,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         onChange={e => { if (e.target.files) this.importParameters(e.target.files[0]) }} />
                 </OutlineButton>
                 <LoadingButton fullWidth loading={this.state.favoriteLoading} onClick={() => this.toggleFavorite()}>
-                    {this.state.favorite ? "Remove from My Apps" : "Add to My Apps"}
+                    {this.state.favorite ? "Remove from favorites" : "Add to favorites"}
                 </LoadingButton>
                 <Dropdown>
                     <LoadingButton disabled={disabled} onClick={this.onSubmit} loading={jobSubmitted} color="blue">Submit</LoadingButton>

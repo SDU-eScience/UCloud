@@ -62,7 +62,7 @@ export function copyOrMove(operation: CopyOrMove, files: File[], operations: Mov
             if (policy === UploadPolicy.RENAME) operations.fetchFilesPage(getParentPath(pathToFetch));
             else operations.fetchPageFromPath(pathToFetch);
         }
-        if (!failures && successes) onOnlySuccess(operation === CopyOrMove.Copy ? "Moved" : "Copied", files.length);
+        if (!failures && successes) onOnlySuccess(operation === CopyOrMove.Copy ? "Copied" : "Moved", files.length);
         else if (failures) UF.failureNotification(`Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`, 10);
     });
 };

@@ -10,11 +10,14 @@ import { setPrioritizedSearch, setRefreshFunction } from "Navigation/Redux/Heade
 import { Dispatch } from "redux";
 import { SortOrder, SortBy, AdvancedSearchRequest, FileType } from "Files";
 import * as SSActions from "./Redux/SearchActions";
-import { Error, Hide, Input, Text, Flex, theme } from "ui-components";
+import Error from "ui-components/Error";
+import Text from "ui-components/Text";
+import Flex from "ui-components/Flex";
+import Hide from "ui-components/Hide";
+import theme from "ui-components/theme";
+import Input from "ui-components/Input";
 import { MainContainer } from "MainContainer/MainContainer";
-import DetailedFileSearch from "Files/DetailedFileSearch";
 import { toggleFilesSearchHidden, setFilename } from "Files/Redux/DetailedFileSearchActions";
-import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import { setAppName } from "Applications/Redux/DetailedApplicationSearchActions";
 import { FilesTable } from "Files/FilesTable";
 import { searchPage } from "Utilities/SearchUtilities";
@@ -227,9 +230,17 @@ export const SearchOptions = styled(Flex)`
     border-bottom: 1px solid ${theme.colors.lightGray};
 `;
 
+SearchOptions.defaultProps = {
+    theme
+}
+
 export const SelectableText = styled(Text) <{ selected: boolean }>`
     border-bottom: ${props => props.selected ? `2px solid ${theme.colors.blue}` : ""};
 `;
+
+SelectableText.defaultProps = {
+    theme
+}
 
 type MenuItemName = "Files" | "Projects" | "Applications";
 

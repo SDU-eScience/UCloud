@@ -1,5 +1,5 @@
 import * as React from 'react'
-import styled, { ThemeConsumer } from 'styled-components'
+import styled from 'styled-components'
 import { space, color, width, SpaceProps, ColorProps, WidthProps } from "styled-system"
 import Text from "./Text"
 import Icon from "./Icon"
