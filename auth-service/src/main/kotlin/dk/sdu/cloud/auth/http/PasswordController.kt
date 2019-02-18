@@ -28,9 +28,9 @@ class PasswordController<DBSession>(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(AuthDescriptions.passwordLogin) {
-            with(ctx as HttpCall) {
-                audit(LoginRequest(null, null))
+            audit(LoginRequest(null, null))
 
+            with(ctx as HttpCall) {
                 val params = try {
                     call.receiveParameters().toMap()
                 } catch (ex: Exception) {

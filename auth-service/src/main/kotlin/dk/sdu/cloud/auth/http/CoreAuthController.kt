@@ -445,6 +445,7 @@ class CoreAuthController<DBSession>(
             // of their tokens are invalidated. This will also ensure that a single invalid token won't cause remaining
             // tokens to not be invalidated.
 
+            audit(Unit)
             val tokens = request.tokens.map { RefreshTokenAndCsrf(it, null) }
             tokenService.bulkLogout(tokens, suppressExceptions = true)
             ok(Unit)

@@ -15,7 +15,9 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
+import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.request.accept
 import io.ktor.request.receiveParameters
 import io.ktor.response.respond
 import io.ktor.response.respondRedirect
@@ -81,7 +83,7 @@ class TwoFactorAuthController<DBSession>(
         }
 
         suspend fun fail() {
-            if (submittedViaForm) {
+            if (submittedViaForm && call.request.accept()?.contains(ContentType.Application.Json.toString()) != true) {
                 val params = ArrayList<Pair<String, String>>()
 
                 if (exception is TwoFactorException.InvalidChallenge) {

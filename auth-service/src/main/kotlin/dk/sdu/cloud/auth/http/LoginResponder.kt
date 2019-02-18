@@ -1,14 +1,27 @@
 package dk.sdu.cloud.auth.http
 
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
+import dk.sdu.cloud.auth.api.AuthenticationTokens
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
 import dk.sdu.cloud.auth.util.urlEncoded
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
+import io.ktor.content.TextContent
+import io.ktor.features.origin
 import io.ktor.html.respondHtml
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.request.accept
+import io.ktor.response.header
+import io.ktor.response.respond
 import io.ktor.response.respondRedirect
+import io.ktor.util.date.GMTDate
 import io.ktor.util.escapeHTML
 import kotlinx.html.FormMethod
 import kotlinx.html.InputType
@@ -34,17 +47,42 @@ class LoginResponder<DBSession>(
     //
     // TODO Should we put services that deal with http logic in http package or services?
 
+    private fun shouldRespondWithJson(call: ApplicationCall): Boolean {
+        return call.request.accept()?.contains(ContentType.Application.Json.toString()) == true
+    }
+
     suspend fun handleUnsuccessfulLogin(call: ApplicationCall, service: String) {
-        call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
+        if (shouldRespondWithJson(call)) {
+            call.respond(
+                TextContent(
+                    defaultMapper.writeValueAsString(CommonErrorMessage("Incorrect username or password")),
+                    ContentType.Application.Json,
+                    HttpStatusCode.Unauthorized
+                )
+            )
+        } else {
+            call.respondRedirect("/auth/login?service=${service.urlEncoded}&invalid")
+        }
     }
 
     suspend fun handleSuccessfulLogin(call: ApplicationCall, service: String, user: Principal) {
         val loginChallenge = twoFactorChallengeService.createLoginChallengeOrNull(user.id, service)
         if (loginChallenge != null) {
-            call.respondRedirect(
-                "/auth/2fa?" +
-                        "&challengeId=${loginChallenge.urlEncoded}"
-            )
+            if (shouldRespondWithJson(call)) {
+                call.respond(
+                    TextContent(
+                        defaultMapper.writeValueAsString(
+                            mapOf<String, Any>("2fa" to loginChallenge)
+                        ),
+                        ContentType.Application.Json
+                    )
+                )
+            } else {
+                call.respondRedirect(
+                    "/auth/2fa?" +
+                            "&challengeId=${loginChallenge.urlEncoded}"
+                )
+            }
         } else {
             handleCompletedLogin(call, service, user)
         }
@@ -63,44 +101,66 @@ class LoginResponder<DBSession>(
 
         val (token, refreshToken, csrfToken) = tokenService.createAndRegisterTokenFor(user, refreshTokenExpiry = expiry)
 
-        call.respondHtml {
-            head {
-                meta("charset", "UTF-8")
-                title("SDU Login Redirection")
-            }
+        if (shouldRespondWithJson(call)) {
+            call.response.header(HttpHeaders.AccessControlAllowCredentials, "true")
+            call.response.cookies.append(
+                name = CoreAuthController.REFRESH_WEB_REFRESH_TOKEN_COOKIE,
+                value = refreshToken,
+                secure = call.request.origin.scheme == "https",
+                httpOnly = true,
+                expires = GMTDate(expiry ?: System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
+                path = "/",
+                extensions = mapOf(
+                    "SameSite" to "strict"
+                )
+            )
 
-            body {
-                p {
-                    +("If your browser does not automatically redirect you, then please " +
-                            "click submit.")
+            call.respond(
+                TextContent(
+                    defaultMapper.writeValueAsString(AccessTokenAndCsrf(token, csrfToken)),
+                    ContentType.Application.Json
+                )
+            )
+        } else {
+            call.respondHtml {
+                head {
+                    meta("charset", "UTF-8")
+                    title("SDU Login Redirection")
                 }
 
-                form {
-                    method = FormMethod.post
-                    action = resolvedService.endpoint
-                    id = "form"
-
-                    input(InputType.hidden) {
-                        name = "accessToken"
-                        value = token.escapeHTML()
+                body {
+                    p {
+                        +("If your browser does not automatically redirect you, then please " +
+                                "click submit.")
                     }
 
-                    input(InputType.hidden) {
-                        name = "refreshToken"
-                        value = refreshToken.escapeHTML()
+                    form {
+                        method = FormMethod.post
+                        action = resolvedService.endpoint
+                        id = "form"
+
+                        input(InputType.hidden) {
+                            name = "accessToken"
+                            value = token.escapeHTML()
+                        }
+
+                        input(InputType.hidden) {
+                            name = "refreshToken"
+                            value = refreshToken.escapeHTML()
+                        }
+
+                        input(InputType.hidden) {
+                            name = "csrfToken"
+                            value = csrfToken.escapeHTML()
+                        }
+
+                        input(InputType.submit) {
+                            value = "Submit"
+                        }
                     }
 
-                    input(InputType.hidden) {
-                        name = "csrfToken"
-                        value = csrfToken.escapeHTML()
-                    }
-
-                    input(InputType.submit) {
-                        value = "Submit"
-                    }
+                    script(src = "/auth/redirect.js") {}
                 }
-
-                script(src = "/auth/redirect.js") {}
             }
         }
     }
