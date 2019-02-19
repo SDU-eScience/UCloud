@@ -19,7 +19,6 @@ import { History } from "history";
 class FavoriteFiles extends React.Component<FavoritesOperations & ReduxType & { header: any, history: History }> {
     constructor(props: Readonly<FavoritesOperations & ReduxType & { header: any, history: History }>) {
         super(props);
-        console.log(props);
         props.fetchFileFavorites(emptyPage.pageNumber, emptyPage.itemsPerPage);
         props.setRefresh(() => props.fetchFileFavorites(emptyPage.pageNumber, emptyPage.itemsPerPage));
     }

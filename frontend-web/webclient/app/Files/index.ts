@@ -64,6 +64,7 @@ export interface FilesStateProps { // Redux Props
     fileSelectorCallback: Function
     fileSelectorPath: string
     fileSelectorPage: Page<File>
+    fileSelectorIsFavorites: boolean
     sortBy: SortBy
     sortOrder: SortOrder
     error?: string
@@ -83,6 +84,7 @@ export interface FilesOperations { // Redux operations
     fetchFiles: (path: string, itemsPerPage: number, pageNumber: number, sortOrder: SortOrder, sortBy: SortBy, index?: number) => void
     fetchPageFromPath: (path: string, itemsPerPage: number, sortOrder: SortOrder, sortBy: SortBy) => void;
     fetchSelectorFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
+    fetchFileSelectorFavorites: (pageNumber: number, itemsPerPage: number) => void
     setFileSelectorCallback: (callback: Function) => void
     checkFile: (checked: boolean, path: string) => void
     setPageTitle: () => void
@@ -116,7 +118,7 @@ export interface FileSelectorState {
     loading: boolean
     page: Page<File>
     modalShown: boolean
-    creatingFolder: boolean
+    isFavorites: boolean
 }
 
 export interface FilesTableProps {
@@ -176,9 +178,11 @@ export interface FileSelectorModalProps {
     page: Page<File>
     setSelectedFile: Function
     fetchFiles: (path: string, pageNumber: number, itemsPerPage: number) => void
+    fetchFavorites: (pageNumber: number, itemsPerPage: number) => void
     disallowedPaths?: string[]
     onlyAllowFolders?: boolean
     canSelectFolders?: boolean
+    isFavorites: boolean
     errorMessage?: string
     onErrorDismiss?: () => void
     navigate?: (path: string, pageNumber: number, itemsPerPage: number) => void
@@ -195,6 +199,7 @@ export interface FileSelectorBodyProps {
     setSelectedFile: Function
     createFolder?: () => void
     path: string
+    omitRelativeFolders: boolean
 }
 
 export interface FileListProps {

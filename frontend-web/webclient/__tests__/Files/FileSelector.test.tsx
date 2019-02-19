@@ -71,6 +71,8 @@ describe("File Selector Modal", () => {
         expect(Renderer.create(
             <MemoryRouter>
                 <FileSelectorModal
+                    isFavorites={false}
+                    fetchFavorites={() => undefined}
                     show={false}
                     path="/home/Folder/Fawlder"
                     loading={false}
