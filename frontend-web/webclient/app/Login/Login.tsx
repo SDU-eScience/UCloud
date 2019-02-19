@@ -38,31 +38,40 @@ export const LoginPage = (props) => {
         props.history.push("/");
         return <div />;
     }
-    const [challengeId, setChallengeID] = useState<string | undefined>(undefined);
+    const [bg] = useState(randImage());
+    const [challengeId, setChallengeID] = useState<string>("");
     const verificationInput = useRef<HTMLInputElement>(null);
     const usernameInput = useRef<HTMLInputElement>(null);
     const passwordInput = useRef<HTMLInputElement>(null);
     const [promises] = useState(new PromiseKeeper());
-    const [enabled2fa] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
     useEffect(() => () => promises.cancelPromises(), []);
 
     async function attemptLogin() {
-        if (!(usernameInput.current && usernameInput.current.value) || !(passwordInput.current && passwordInput.current.value)) {
+        if (!(usernameInput.current!.value) || !(passwordInput.current!.value)) {
             setError("Invalid username or password");
             return;
         }
         try {
             setLoading(true);
-            const { response } = await Cloud.post<{ accessToken: string, csrfToken: string } | { "2fa": string }>(inDevEnvironment ? "/login?service=local-dev-csrf" : "/login?service=web-csrf", {
-                /* FIXME, missing body */
-            }, "auth");
-            if ("2fa" in response) {
-                setChallengeID(response["2fa"]);
+            const formData = new FormData();
+            const service = inDevEnvironment ? "local-dev-csrf" : "web-csrf";
+            formData.append("service", service);
+            formData.append("username", usernameInput.current!.value);
+            formData.append("password", passwordInput.current!.value);
+            const result = await fetch(`/auth/login?service=${service}`, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json"
+                },
+                body: formData
+            }).then(it => it.json());
+            if ("2fa" in result) {
+                setChallengeID(result["2fa"]);
             } else {
-                Cloud.setTokens(response.accessToken, response.csrfToken)
+                Cloud.setTokens(result.accessToken, result.csrfToken)
             }
         } catch (e) {
             setError(errorMessageOrDefault(e, "An error occurred"))
@@ -72,16 +81,22 @@ export const LoginPage = (props) => {
     }
 
     async function submit2FA() {
+        console.log(verificationInput.current);
         const verificationCode = verificationInput.current && verificationInput.current.value || "";
         if (!verificationCode) return;
         try {
             setLoading(true);
-            // FIXME: MISSING `Accept: application/json`
-            const { response } = await promises.makeCancelable(Cloud.post("2fa/challenge", {
-                challengeId,
-                verificationCode
-            }, "/auth")).promise;
-            Cloud.setTokens(response.accessToken, response.csrfToken);
+            const formData = new FormData();
+            formData.append("challengeId", challengeId);
+            formData.append("verificationCode", verificationCode);
+            const result = await fetch(`/auth/2fa/challenge/form`, {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json"
+                },
+                body: formData
+            }).then(it => it.json());
+            Cloud.setTokens(result.accessToken, result.csrfToken);
             props.history.push("/");
         } catch (e) {
             setError(errorMessageOrDefault(e, "Could not submit verification code. Try again later"));
@@ -89,16 +104,16 @@ export const LoginPage = (props) => {
     }
 
     return (<>
-        <FullPageImage src={randImage()} />
+        <FullPageImage src={bg} />
         <Box alignItems="center" width="25%" minWidth="400px" maxWidth="420px">
             <CenteredBox>
                 <Flex><Box mr="auto" /><Heading.h2>SDUCloud</Heading.h2><Box ml="auto" /></Flex>
                 <form onSubmit={e => e.preventDefault()}>
                     <Card bg="lightGray" borderRadius="0.5em" p="1em 1em 1em 1em">
-                        <Login enabled2fa={enabled2fa} />
-                        <TwoFactor enabled2fa={enabled2fa} ref={verificationInput} />
+                        <Login enabled2fa={challengeId} usernameRef={usernameInput} passwordRef={passwordInput} />
+                        <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
                         <Button fullWidth onClick={() => challengeId ? submit2FA() : attemptLogin()}>
-                            {enabled2fa ? "Submit" : "Login"}
+                            {challengeId ? "Submit" : "Login"}
                         </Button>
                         <Box mt="5px"><Error error={error} clearError={() => setError("")} /></Box>
                     </Card>
@@ -114,15 +129,15 @@ export const LoginPage = (props) => {
     </>);
 }
 
-export const TwoFactor = ({ enabled2fa, ref }) => enabled2fa ? (
-    <Input ref={ref} mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
+export const TwoFactor = ({ enabled2fa, inputRef }) => enabled2fa ? (
+    <Input ref={inputRef} mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
 ) : null;
 
-export const Login = ({ enabled2fa }) => !enabled2fa ? (
+export const Login = ({ enabled2fa, usernameRef, passwordRef }) => !enabled2fa ? (
     <>
         <Input type="hidden" value="web-csrf" name="service" />
-        <Input mb="0.5em" type="text" name="username" id="username" placeholder="Username" />
-        <Input mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
+        <Input ref={usernameRef} mb="0.5em" type="text" name="username" id="username" placeholder="Username" />
+        <Input ref={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
     </>
 ) : null;
 
