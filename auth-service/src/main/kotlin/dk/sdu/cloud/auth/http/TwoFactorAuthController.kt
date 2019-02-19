@@ -11,10 +11,12 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
+import io.ktor.content.TextContent
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.accept
@@ -105,7 +107,13 @@ class TwoFactorAuthController<DBSession>(
                 if (exception != null) {
                     call.respond(exception.httpStatusCode, exception.why)
                 } else {
-                    call.respond(HttpStatusCode.Unauthorized, CommonErrorMessage("Incorrect code"))
+                    call.respond(
+                        HttpStatusCode.Unauthorized,
+                        TextContent(
+                            defaultMapper.writeValueAsString(CommonErrorMessage("Incorrect code")),
+                            ContentType.Application.Json
+                        )
+                    )
                 }
             }
         }
