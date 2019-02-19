@@ -55,6 +55,7 @@ class AuthInterceptor(private val tokenValidator: TokenValidation<Any>) {
     private fun readAuthenticationToken(context: IngoingCall): String? {
         return when (context) {
             is HttpCall -> context.call.request.bearer
+            is WSCall -> context.frameNode["bearer"].takeIf { !it.isNull && it.isTextual }?.textValue()
             else -> {
                 log.warn("Unable to perform authentication check in call context: $context")
                 throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)

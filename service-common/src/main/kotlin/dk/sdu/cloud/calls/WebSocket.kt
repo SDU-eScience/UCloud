@@ -1,8 +1,11 @@
 package dk.sdu.cloud.calls
 
-class WebSocketRequest<R : Any, S : Any, E : Any>(
+import io.ktor.http.cio.websocket.WebSocketSession
+
+class WebSocketRequest<R : Any, S : Any, E : Any> internal constructor(
     val context: CallDescription<R, S, E>,
-    val path: String
+    val path: String,
+    val serverOnClose: ((WebSocketSession) -> Unit)?
 ) {
     companion object {
         internal val callKey = AttributeKey<WebSocketRequest<*, *, *>>("websocket-request")
@@ -19,9 +22,14 @@ val <R : Any, S : Any, E : Any> CallDescription<R, S, E>.websocketOrNull: WebSoc
 
 // Builders
 
-class WebSocketBuilder<R : Any, S : Any, E : Any>(val context: CallDescription<R, S, E>, val path: String) {
+class WebSocketBuilder<R : Any, S : Any, E : Any> internal constructor(
+    val context: CallDescription<R, S, E>,
+    val path: String
+) {
+    var serverOnClose: ((WebSocketSession) -> Unit)? = null
+
     fun build(): WebSocketRequest<R, S, E> {
-        return WebSocketRequest(context, path)
+        return WebSocketRequest(context, path, serverOnClose)
     }
 }
 

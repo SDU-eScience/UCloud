@@ -3,26 +3,11 @@ package dk.sdu.cloud.calls.server
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlin.reflect.KClass
-
-/*
-In this file we will deal with the server-side of the equation.
-
-The RPC layer goes through the following phases (similar to how ktor does it):
-
-- Request parsing (including pre- and post-phases)
-  - Common code for handling assembly and conversion. Platform dependant code for retrieving the data.
-- Call implementation
-- Response handling (including pre- and post-phases)
-  - Common code for producing a byte stream. Platform dependant for additional info.
-
-
-Communication mediums are registered in a common container (This way we will only require a single implement call).
- */
 
 interface IngoingCall {
     val attributes: AttributeContainer
@@ -66,7 +51,12 @@ sealed class IngoingCallFilter : IngoingContextFilter {
      * It is possible to stop the pipeline from progressing at this point by throwing an exception.
      */
     abstract class BeforeResponse : IngoingCallFilter() {
-        abstract fun run(context: IngoingCall, call: CallDescription<*, *, *>, request: Any, result: OutgoingCallResponse<*, *>)
+        abstract fun run(
+            context: IngoingCall,
+            call: CallDescription<*, *, *>,
+            request: Any,
+            result: OutgoingCallResponse<*, *>
+        )
     }
 
     /**
@@ -177,6 +167,7 @@ sealed class OutgoingCallResponse<S : Any, E : Any> {
     ) : OutgoingCallResponse<S, E>() {
         override fun toString() = "OutgoingCallResponse.Ok($statusCode, ${result.toString().take(100)})"
     }
+
     class Error<S : Any, E : Any>(
         val error: E?,
         override val statusCode: HttpStatusCode
@@ -343,7 +334,7 @@ class RpcServer {
 
             log.debug("Running BeforeParsing filters")
             val beforeParsing = filters.filterIsInstance<IngoingCallFilter.BeforeParsing>()
-            beforeParsing.forEach { it.run(ctx, call) }
+            beforeParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call) }
 
             log.debug("Parsing call: $call")
             val capturedRequest = try {
@@ -363,7 +354,7 @@ class RpcServer {
 
             log.debug("Running AfterParsing filters")
             val afterParsing = filters.filterIsInstance<IngoingCallFilter.AfterParsing>()
-            afterParsing.forEach { it.run(ctx, call, capturedRequest) }
+            afterParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call, capturedRequest) }
 
             log.info("Incoming call: $call ($request)")
             val callHandler = CallHandler<R, S, E>(ctx, capturedRequest).also { handler(it) }
@@ -377,7 +368,9 @@ class RpcServer {
 
             log.debug("Running BeforeResponse filters")
             val beforeResponse = filters.filterIsInstance<IngoingCallFilter.BeforeResponse>()
-            beforeResponse.forEach { it.run(ctx, call, capturedRequest, responseResult) }
+            beforeResponse
+                .filter { it.canUseContext(ctx) }
+                .forEach { it.run(ctx, call, capturedRequest, responseResult) }
             log.debug("Result of $call is $responseResult")
             source.produceResponse(ctx, call, responseResult)
         } catch (ex: Throwable) {
@@ -394,7 +387,8 @@ class RpcServer {
                 else CommonErrorMessage("Internal Server Error")
 
                 @Suppress("UNCHECKED_CAST")
-                source.produceResponse(ctx, call,
+                source.produceResponse(
+                    ctx, call,
                     OutgoingCallResponse.Error(errorMessage as E, statusCode)
                 )
             } else {
@@ -407,14 +401,16 @@ class RpcServer {
             HttpStatusCode.InternalServerError
         )
         val afterResponse = filters.filterIsInstance<IngoingCallFilter.AfterResponse>()
-        afterResponse.forEach {
-            try {
-                it.run(ctx, call, request, responseOrDefault)
-            } catch (ex: Throwable) {
-                log.info("Uncaught exception in AfterResponse handler for $call")
-                log.info(ex.stackTraceToString())
+        afterResponse
+            .filter { it.canUseContext(ctx) }
+            .forEach {
+                try {
+                    it.run(ctx, call, request, responseOrDefault)
+                } catch (ex: Throwable) {
+                    log.info("Uncaught exception in AfterResponse handler for $call")
+                    log.info(ex.stackTraceToString())
+                }
             }
-        }
     }
 
     companion object : Loggable {
