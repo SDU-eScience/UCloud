@@ -33,13 +33,13 @@ const FullPageImage = styled(Image)`
 
 const inDevEnvironment = process.env.NODE_ENV === "development"
 const enabledWayf = false;
+const wayfService = inDevEnvironment ? "web-dev" : "web";
 
 export const LoginPage = (props: { history: History }) => {
     if (Cloud.isLoggedIn) {   
         props.history.push("/");
         return <div />;
     }
-    const wayfService = inDevEnvironment ? "web-dev" : "web";
     const [bg] = useState(randImage());
     const [challengeId, setChallengeID] = useState<string>("");
     const verificationInput = useRef<HTMLInputElement>(null);
