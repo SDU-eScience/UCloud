@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Box, Button, Input, Card, Flex, Text, Image, Error } from "ui-components";
+import { Box, Button, Input, Card, Flex, Text, Image, Error as ErrorMessage } from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import { useState, useEffect, useRef } from "react";
@@ -32,13 +32,12 @@ const FullPageImage = styled(Image)`
 `;
 
 const inDevEnvironment = process.env.NODE_ENV === "development"
-const enabledWayf = true;
+const enabledWayf = false;
 
-export const LoginPage = (props: { history: History }) => {
-    if (Cloud.isLoggedIn && false) {
-        //@ts-ignore
+export function LoginPage(props: { history: History }) {
+    if (Cloud.isLoggedIn) {
         props.history.push("/");
-        return <div />;
+        return null;
     }
     const wayfService = inDevEnvironment ? "web-dev" : "web";
     const [bg] = useState(randImage());
@@ -78,7 +77,7 @@ export const LoginPage = (props: { history: History }) => {
                 props.history.push("/");
             }
         } catch (e) {
-            setError(errorMessageOrDefault(e, "An error occurred"))
+            setError(errorMessageOrDefault(e, "An error occurred"));
         } finally {
             setLoading(false);
         }
@@ -92,13 +91,13 @@ export const LoginPage = (props: { history: History }) => {
             const formData = new FormData();
             formData.append("challengeId", challengeId);
             formData.append("verificationCode", verificationCode);
-            const result = await fetch(`/auth/2fa/challenge/form`, {
+            const result = await promises.makeCancelable(fetch(`/auth/2fa/challenge/form`, {
                 method: "POST",
                 headers: {
                     "Accept": "application/json"
                 },
                 body: formData
-            }).then(it => it.json());
+            })).promise.then(it => it.json()).catch(it => { if (it.hasCanceled) throw it });
             Cloud.setTokens(result.accessToken, result.csrfToken);
             props.history.push("/");
         } catch (e) {
@@ -119,7 +118,7 @@ export const LoginPage = (props: { history: History }) => {
                             {challengeId ? "Submit" : "Login"}
                         </Button>
                     </form>
-                    <Box mt="5px"><Error error={error} clearError={() => setError("")} /></Box>
+                    <Box mt="5px"><ErrorMessage error={error} clearError={() => setError("")} /></Box>
                     {enabledWayf ? <a href={`/auth/saml/login?service=${wayfService}`}>
                         <Button fullWidth color="wayfGreen">Login with WAYF</Button>
                     </a> : null}
