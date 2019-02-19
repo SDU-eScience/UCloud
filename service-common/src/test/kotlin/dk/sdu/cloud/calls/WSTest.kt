@@ -4,27 +4,18 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.CallTracing
-import dk.sdu.cloud.calls.client.ClientAndBackend
-import dk.sdu.cloud.calls.client.FixedOutgoingHostResolver
-import dk.sdu.cloud.calls.client.HostInfo
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.OutgoingHttpRequestInterceptor
-import dk.sdu.cloud.calls.client.RpcClient
-import dk.sdu.cloud.calls.server.JobId
 import dk.sdu.cloud.calls.server.WSCall
+import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.calls.server.wsServerConfig
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.runScriptHandler
 import dk.sdu.cloud.micro.server
-import io.ktor.client.request.header
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
-import java.util.*
+import kotlinx.coroutines.launch
 
 data class HelloWorldRequest(val name: String)
 data class HelloWorldResponse(val greeting: String)
@@ -66,7 +57,7 @@ fun main(args: Array<String>) {
 
     val server = micro.server
 
-    with (server) {
+    with(server) {
         implement(WSDescriptions.helloWorld) {
             withContext<WSCall> {
                 ctx.session.addOnCloseHandler {
@@ -74,14 +65,21 @@ fun main(args: Array<String>) {
                 }
             }
 
-            repeat(5) {
-                delay(1000)
-            }
-
             ok(HelloWorldResponse("Hello, ${request.name}!"))
+
+            GlobalScope.launch {
+                withContext<WSCall> {
+                    repeat(5) {
+                        delay(1000)
+
+                        println(ctx.bearer)
+                        ctx.sendMessage(42)
+                    }
+                }
+            }
         }
 
-        with (WSDescriptions.helloWorld.wsServerConfig) {
+        with(WSDescriptions.helloWorld.wsServerConfig) {
             onClose = {
                 println("Closing session: $it")
             }

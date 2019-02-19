@@ -1,5 +1,7 @@
 package dk.sdu.cloud.calls.server
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.AttributeKey
@@ -7,6 +9,7 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.websocketOrNull
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.TYPE_PROPERTY
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.cio.websocket.CloseReason
@@ -31,13 +34,40 @@ class WSCall internal constructor(
 ) : IngoingCall {
     override val attributes = AttributeContainer()
 
+    suspend fun sendMessage(message: Any) {
+        session.sendMessage(streamId, message)
+    }
+
     companion object : IngoingCallCompanion<WSCall> {
         override val klass = WSCall::class
         override val attributes = AttributeContainer()
     }
 }
 
-internal data class WSResponse<T>(val status: Int, val streamId: String, val payload: T)
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = WSMessage.Response::class, name = "response"),
+    JsonSubTypes.Type(value = WSMessage.Message::class, name = "message")
+)
+internal sealed class WSMessage<T> {
+    abstract val payload: T
+    abstract val streamId: String
+
+    internal data class Response<T>(
+        override val streamId: String,
+        override val payload: T,
+        val status: Int
+    ) : WSMessage<T>()
+
+    internal data class Message<T>(
+        override val streamId: String,
+        override val payload: T
+    ) : WSMessage<T>()
+}
 
 class WSSession internal constructor(val id: String, val underlyingSession: WebSocketServerSession) {
     internal val onCloseHandlers = ArrayList<() -> Unit>()
@@ -50,8 +80,8 @@ class WSSession internal constructor(val id: String, val underlyingSession: WebS
         underlyingSession.send(text)
     }
 
-    suspend fun sendPayload(streamId: String, message: Any, statusCode: HttpStatusCode = HttpStatusCode.OK) {
-        rawSend(defaultMapper.writeValueAsString(WSResponse(statusCode.value, streamId, message)))
+    suspend fun sendMessage(streamId: String, message: Any) {
+        rawSend(defaultMapper.writeValueAsString(WSMessage.Message(streamId, message)))
     }
 
     suspend fun close(reason: String? = null) {
@@ -105,7 +135,8 @@ class IngoingWebSocketInterceptor(
 
                                 // We silently discard messages that don't follow the correct format
                                 val requestedCall =
-                                    parsedMessage["call"]?.takeIf { !it.isNull && it.isTextual }?.textValue() ?: continue
+                                    parsedMessage["call"]?.takeIf { !it.isNull && it.isTextual }?.textValue()
+                                        ?: continue
 
                                 if (parsedMessage["payload"]?.isNull != false) continue
 
@@ -118,10 +149,10 @@ class IngoingWebSocketInterceptor(
                                 if (call == null) {
                                     send(
                                         defaultMapper.writeValueAsString(
-                                            WSResponse(
-                                                HttpStatusCode.NotFound.value,
+                                            WSMessage.Response(
                                                 streamId,
-                                                Unit
+                                                Unit,
+                                                HttpStatusCode.NotFound.value
                                             )
                                         )
                                     )
@@ -179,14 +210,22 @@ class IngoingWebSocketInterceptor(
         }
 
         val response = when (callResult) {
-            is OutgoingCallResponse.Ok -> WSResponse(callResult.statusCode.value, ctx.streamId, callResult.result)
-            is OutgoingCallResponse.Error -> WSResponse(callResult.statusCode.value, ctx.streamId, callResult.error)
+            is OutgoingCallResponse.Ok -> WSMessage.Response(
+                ctx.streamId,
+                callResult.result,
+                callResult.statusCode.value
+            )
+            is OutgoingCallResponse.Error -> WSMessage.Response(
+                ctx.streamId,
+                callResult.error,
+                callResult.statusCode.value
+            )
             is OutgoingCallResponse.AlreadyDelivered -> null
         }
 
         if (response != null && typeRef != null) {
             val responseType = defaultMapper.typeFactory.constructParametricType(
-                WSResponse::class.java,
+                WSMessage::class.java,
                 defaultMapper.typeFactory.constructType(typeRef)
             )
 
