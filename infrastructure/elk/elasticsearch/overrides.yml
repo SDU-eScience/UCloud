@@ -2,29 +2,33 @@
 master:
   persistence:
     storageClass: rbd
-  heapSize: 1024m
+  heapSize: 2048m
   resources:
     limits:
-      cpu: "4000m"
+      cpu: "2000m"
     requests:
-      cpu: "1000m"
+      cpu: "2000m"
+      memory: "4Gi"
 
 data:
+  replicas: 4
   persistence:
     storageClass: rbd
     size: 50Gi
-  heapSize: 16384m
+  heapSize: 12288m
   resources:
     limits:
       cpu: "8000m"
     requests:
-      cpu: "1000m"
+      cpu: "8000m"
+      memory: "25Gi"
 
 client:
-  heapSize: 1024m
+  heapSize: 2048m
   resources:
-    limits:
-      cpu: "4000m"
+    limits: 
+      cpu: "2000m"
     requests:
-      cpu: "1000m"
+      cpu: "2000m"
+      memory: "4Gi"
 

@@ -39,6 +39,6 @@ outputs:
       elasticsearch {
         hosts => ["http://elasticsearch-client.elasticsearch.svc.cluster.local:9200"]
         manage_template => false
-        index => "http_logs_%{requestName}"
+        index => "http_logs_%{requestName}-%{+YYYY.MM.dd}"
       }
     }
