@@ -227,6 +227,7 @@ const colors = {
   FtIconColor2,
   spinnerColor,
   tableRowHighlight,
+  wayfGreen: "#bfd730"
 }
 
 export type ThemeColor = keyof typeof colors;
