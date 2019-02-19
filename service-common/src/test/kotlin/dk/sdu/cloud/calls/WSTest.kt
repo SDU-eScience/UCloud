@@ -13,6 +13,9 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingHttpRequestInterceptor
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.calls.server.JobId
+import dk.sdu.cloud.calls.server.WSCall
+import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.calls.server.wsServerConfig
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.runScriptHandler
@@ -20,6 +23,7 @@ import dk.sdu.cloud.micro.server
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import kotlinx.coroutines.delay
 import java.util.*
 
 data class HelloWorldRequest(val name: String)
@@ -64,8 +68,25 @@ fun main(args: Array<String>) {
 
     with (server) {
         implement(WSDescriptions.helloWorld) {
+            withContext<WSCall> {
+                ctx.session.addOnCloseHandler {
+                    println("Done")
+                }
+            }
+
+            repeat(5) {
+                delay(1000)
+            }
+
             ok(HelloWorldResponse("Hello, ${request.name}!"))
         }
+
+        with (WSDescriptions.helloWorld.wsServerConfig) {
+            onClose = {
+                println("Closing session: $it")
+            }
+        }
+
     }
 
     server.start()

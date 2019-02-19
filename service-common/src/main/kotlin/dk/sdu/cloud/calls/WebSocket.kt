@@ -4,8 +4,7 @@ import io.ktor.http.cio.websocket.WebSocketSession
 
 class WebSocketRequest<R : Any, S : Any, E : Any> internal constructor(
     val context: CallDescription<R, S, E>,
-    val path: String,
-    val serverOnClose: ((WebSocketSession) -> Unit)?
+    val path: String
 ) {
     companion object {
         internal val callKey = AttributeKey<WebSocketRequest<*, *, *>>("websocket-request")
@@ -26,10 +25,8 @@ class WebSocketBuilder<R : Any, S : Any, E : Any> internal constructor(
     val context: CallDescription<R, S, E>,
     val path: String
 ) {
-    var serverOnClose: ((WebSocketSession) -> Unit)? = null
-
     fun build(): WebSocketRequest<R, S, E> {
-        return WebSocketRequest(context, path, serverOnClose)
+        return WebSocketRequest(context, path)
     }
 }
 
