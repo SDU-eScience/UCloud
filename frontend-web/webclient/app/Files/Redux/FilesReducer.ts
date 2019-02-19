@@ -50,7 +50,7 @@ function files(state: FilesReduxObject = initFiles(""), action: FileActions): Fi
             return { ...state, fileSelectorShown: action.payload.state };
         }
         case RECEIVE_FILE_SELECTOR_FILES: {
-            return { ...state, fileSelectorPage: action.payload.page, fileSelectorPath: action.payload.path, fileSelectorLoading: false };
+            return { ...state, fileSelectorPage: action.payload.page, fileSelectorPath: action.payload.path, fileSelectorLoading: false, fileSelectorIsFavorites: action.payload.fileSelectorIsFavorites };
         }
         case SET_FILE_SELECTOR_LOADING: {
             return { ...state, fileSelectorLoading: true };

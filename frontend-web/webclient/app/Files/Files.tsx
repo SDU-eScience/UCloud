@@ -183,6 +183,8 @@ class Files extends React.Component<FilesProps> {
         );
         const additional = (
             <FileSelectorModal
+                isFavorites={props.fileSelectorIsFavorites}
+                fetchFavorites={(pageNumber, itemsPerPage) => props.fetchFileSelectorFavorites(pageNumber, itemsPerPage)}
                 show={props.fileSelectorShown}
                 onHide={() => showFileSelector(false)}
                 path={props.fileSelectorPath}
@@ -211,14 +213,14 @@ class Files extends React.Component<FilesProps> {
 
 const mapStateToProps = ({ files }: ReduxObject): FilesStateProps => {
     const { page, loading, path, fileSelectorPage, fileSelectorPath, sortBy, sortOrder, fileSelectorShown, invalidPath,
-        fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError, sortingColumns } = files;
+        fileSelectorCallback, disallowedPaths, fileSelectorLoading, error, fileSelectorError, sortingColumns, fileSelectorIsFavorites } = files;
     const favFilesCount = page.items.filter(file => file.favorited).length; // HACK to ensure changes to favorites are rendered.
     const renamingCount = page.items.filter(file => file.beingRenamed).length;
     const fileCount = page.items.length;
     return {
         error, fileSelectorError, page, loading, path, favFilesCount, fileSelectorPage, fileSelectorPath, invalidPath,
         fileSelectorShown, fileSelectorCallback, disallowedPaths, sortOrder, sortBy, fileCount, fileSelectorLoading,
-        renamingCount, leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1]
+        renamingCount, leftSortingColumn: sortingColumns[0], rightSortingColumn: sortingColumns[1], fileSelectorIsFavorites
     }
 };
 
@@ -243,6 +245,10 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
         dispatch(setFileSelectorLoading());
         dispatch(await Actions.fetchFileselectorFiles(path, pageNumber, itemsPerPage));
     },
+    fetchFileSelectorFavorites: async (pageNumber, itemsPerPage) => {
+        dispatch(setFileSelectorLoading());
+        dispatch(await Actions.fetchFileSelectorFavorites(pageNumber, itemsPerPage))
+    },  
     showFileSelector: open => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: callback => dispatch(Actions.setFileSelectorCallback(callback)),
     checkFile: (checked, path) => dispatch(Actions.checkFile(checked, path)),

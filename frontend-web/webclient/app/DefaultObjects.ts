@@ -127,6 +127,7 @@ export interface FilesReduxObject extends ComponentWithPage<File> {
     fileSelectorPage: Page<File>
     fileSelectorPath: string
     fileSelectorCallback: Function
+    fileSelectorIsFavorites: boolean
     disallowedPaths: string[]
     invalidPath: boolean
 }
@@ -375,6 +376,7 @@ export const initFiles = (homeFolder: string): FilesReduxObject => ({
     fileSelectorShown: false,
     fileSelectorPage: emptyPage,
     fileSelectorPath: homeFolder,
+    fileSelectorIsFavorites: false,
     fileSelectorCallback: () => undefined,
     fileSelectorError: undefined,
     disallowedPaths: [],

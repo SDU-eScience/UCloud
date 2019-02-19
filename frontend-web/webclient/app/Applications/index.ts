@@ -131,6 +131,7 @@ export interface DetailedResultState {
     fsPage: Page<File>
     fsDisallowedPaths: string[]
     fsCallback: Function
+    fsIsFavorite: boolean
 }
 
 export type StdElement = { scrollTop: number, scrollHeight: number } | null

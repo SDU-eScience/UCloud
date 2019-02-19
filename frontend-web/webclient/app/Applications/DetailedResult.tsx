@@ -11,7 +11,7 @@ import { updatePageTitle } from "Navigation/Redux/StatusActions";
 import { ReduxObject, DetailedResultReduxObject, emptyPage } from "DefaultObjects";
 import { DetailedResultProps, DetailedResultState, StdElement, DetailedResultOperations, AppState } from ".";
 import { File, SortBy, SortOrder } from "Files";
-import { AllFileOperations, fileTablePage, filepathQuery } from "Utilities/FileUtilities";
+import { AllFileOperations, fileTablePage, filepathQuery, favoritesQuery, resolvePath } from "Utilities/FileUtilities";
 import { favoriteFileFromPage } from "Utilities/FileUtilities";
 import { hpcJobQuery } from "Utilities/ApplicationUtilities";
 import { Dispatch } from "redux";
@@ -48,6 +48,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             fsShown: false,
             fsLoading: false,
             fsPage: emptyPage,
+            fsIsFavorite: false,
             fsPath: Cloud.homeFolder,
             fsError: undefined,
             fsDisallowedPaths: [],
@@ -153,6 +154,22 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     private retrieveFilesPage(pageNumber: number, itemsPerPage: number) {
         this.props.fetchPage(this.jobId, pageNumber, itemsPerPage);
         window.clearTimeout(this.state.reloadIntervalId);
+    }
+
+    private async fetchFavorites(pageNumber: number, itemsPerPage: number) {
+        this.setState(() => ({ fsLoading: true }))
+        try {
+            const result = await this.state.promises.makeCancelable(Cloud.get(favoritesQuery(pageNumber, itemsPerPage))).promise;
+            this.setState(() => ({
+                fsIsFavorite: true,
+                fsPath: "Favorites",
+                fsPage: result.response
+            }));
+        } catch (e) {
+            this.setState(() => ({ fsError: errorMessageOrDefault(e, "An error occurred fetching favorites")}));
+        } finally {
+            this.setState(() => ({ fsLoading: false }))
+        }
     }
 
     private readonly favoriteFile = async (file: File) => this.props.receivePage(await favoriteFileFromPage(this.props.page, [file], Cloud));
@@ -310,6 +327,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
                 />
                 <FileSelectorModal
+                    isFavorites={this.state.fsIsFavorite}
+                    fetchFavorites={(pageNumber, itemsPerPage) => this.fetchFavorites(pageNumber, itemsPerPage)}
                     show={state.fsShown}
                     onHide={() => this.setState(() => ({ fsShown: false }))}
                     path={state.fsPath}
@@ -328,8 +347,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
     }
     fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): void {
         this.state.promises.makeCancelable(Cloud.get<Page<File>>(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(r => {
-            this.setState(() => ({ fsPage: r.response, fsPath: path }))
-        }).catch(it => this.setState(() => ({ fsError: errorMessageOrDefault(it, "An error occurred fetching files")})));
+            this.setState(() => ({ fsPage: r.response, fsPath: resolvePath(path), fsIsFavorite: false }))
+        }).catch(it => this.setState(() => ({ fsError: errorMessageOrDefault(it, "An error occurred fetching files") })));
     }
 
     render = () => (
