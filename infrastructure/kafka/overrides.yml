@@ -3,3 +3,9 @@ persistence:
   size: 25Gi
   storageClass: rbd
 
+prometheus:
+  jmx:
+    enabled: true
+  kafka:
+    enabled: true
+
