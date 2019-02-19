@@ -16,7 +16,7 @@ import {
     CHECK_FILE,
     CREATE_FOLDER
 } from "./FilesReducer";
-import { getFilenameFromPath, replaceHomeFolder, getParentPath, resolvePath } from "Utilities/FileUtilities";
+import { getFilenameFromPath, replaceHomeFolder, getParentPath, resolvePath, favoritesQuery } from "Utilities/FileUtilities";
 import { Page, ReceivePage, SetLoadingAction, Error, PayloadAction } from "Types";
 import { SortOrder, SortBy, File } from "..";
 import { Action } from "redux";
@@ -129,17 +129,18 @@ export const fileSelectorShown = (state: boolean): FileSelectorShownAction => ({
     payload: { state }
 });
 
-type ReceiveFileSelectorFilesAction = PayloadAction<typeof RECEIVE_FILE_SELECTOR_FILES, { path: string, page: Page<File> }>
+type ReceiveFileSelectorFilesAction = PayloadAction<typeof RECEIVE_FILE_SELECTOR_FILES, { path: string, page: Page<File>, fileSelectorIsFavorites: boolean }>
 /**
  * Returns action for receiving files for the fileselector.
  * @param {Page<File>} page the page of files
  * @param {string} path the path of the page the file selector is showing
  */
-export const receiveFileSelectorFiles = (page: Page<File>, path: string): ReceiveFileSelectorFilesAction => ({
+export const receiveFileSelectorFiles = (page: Page<File>, path: string, fileSelectorIsFavorites: boolean): ReceiveFileSelectorFilesAction => ({
     type: RECEIVE_FILE_SELECTOR_FILES,
     payload: {
         page,
-        path: resolvePath(path)
+        path: resolvePath(path),
+        fileSelectorIsFavorites
     }
 });
 
@@ -172,7 +173,7 @@ export const fetchFileselectorFiles = async (path: string, page: number, itemsPe
     try {
         const { response } = await Cloud.get<Page<File>>(filepathQuery(path, page, itemsPerPage, SortOrder.ASCENDING, SortBy.TYPE));
         response.items.forEach(file => file.isChecked = false);
-        return receiveFileSelectorFiles(response, resolvePath(path));
+        return receiveFileSelectorFiles(response, resolvePath(path), false);
     } catch (e) {
         return setFileSelectorError({ error: `An error occured fetching the page for ${getFilenameFromPath(replaceHomeFolder(path, Cloud.homeFolder))}` });
     }
@@ -232,3 +233,15 @@ export const checkFile = (checked: boolean, path: string): CheckFileAction => ({
 
 type CreateFolderAction = Action<typeof CREATE_FOLDER>
 export const createFolder = () => ({ type: CREATE_FOLDER });
+
+export const fetchFileSelectorFavorites = async (pageNumber: number, itemsPerPage: number): Promise<ReceiveFileSelectorFilesAction | Error<typeof SET_FILE_SELECTOR_ERROR>> => {
+    try {
+        const result = await Cloud.get(favoritesQuery(pageNumber, itemsPerPage));
+        return receiveFileSelectorFiles(result.response, "Favorites", true);
+    } catch (e) {
+        return setFileSelectorError({
+            error: errorMessageOrDefault(e, "Error occurred fetching favorites"),
+            statusCode: e.request.statusCode
+        });
+    }
+}

@@ -167,13 +167,13 @@ describe("File Selector Loading", () => {
 describe("Receive fileselector page", () => {
     test("Receive empty page for file selector", () => {
         const pathForEmptyPage = "/home/user@test.telecity/";
-        nonEmptyPageStore.dispatch(FileActions.receiveFileSelectorFiles(emptyPage, pathForEmptyPage));
+        nonEmptyPageStore.dispatch(FileActions.receiveFileSelectorFiles(emptyPage, pathForEmptyPage, false));
         expect(nonEmptyPageStore.getState().files.fileSelectorPage).toBe(emptyPage);
     });
 
     test("Receive non-empty page for file selector", () => {
         const pathForNonEmptyPage = "/home/user@test.telecity/";
-        emptyPageStore.dispatch(FileActions.receiveFileSelectorFiles(mockFiles_SensitivityConfidential, pathForNonEmptyPage));
+        emptyPageStore.dispatch(FileActions.receiveFileSelectorFiles(mockFiles_SensitivityConfidential, pathForNonEmptyPage, false));
         expect(emptyPageStore.getState().files.fileSelectorPage).toBe(mockFiles_SensitivityConfidential);
     });
 });

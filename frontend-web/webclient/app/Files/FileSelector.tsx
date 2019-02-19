@@ -2,7 +2,7 @@ import * as React from "react";
 import { List as PaginationList } from "Pagination/List";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { BreadCrumbs } from "ui-components/Breadcrumbs";
-import { replaceHomeFolder, isDirectory, newMockFolder, resolvePath } from "Utilities/FileUtilities";
+import { replaceHomeFolder, isDirectory, newMockFolder, resolvePath, favoritesQuery } from "Utilities/FileUtilities";
 import PromiseKeeper from "PromiseKeeper";
 import { emptyPage } from "DefaultObjects";
 import { FileSelectorProps, FileSelectorState, FileSelectorModalProps, FileSelectorBodyProps, File, SortOrder, SortBy, FileOperation } from ".";
@@ -13,10 +13,11 @@ import * as Heading from "ui-components/Heading";
 import { Spacer } from "ui-components/Spacer";
 import { FilesTable } from "./FilesTable";
 import SDUCloud from "Authentication/lib";
-import { addTrailingSlash } from "UtilityFunctions";
+import { addTrailingSlash, errorMessageOrDefault } from "UtilityFunctions";
 import styled from "styled-components";
 import { SpaceProps } from "styled-system";
 import { Refresh } from "Navigation/Header";
+import { Page } from "Types";
 
 class FileSelector extends React.Component<FileSelectorProps, FileSelectorState> {
     constructor(props: Readonly<FileSelectorProps>) {
@@ -28,7 +29,7 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
             error: undefined,
             page: emptyPage,
             modalShown: false,
-            creatingFolder: false
+            isFavorites: false
         };
     }
 
@@ -41,23 +42,38 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
 
     setSelectedFile = (file: File) => {
         let fileCopy = { path: file.path };
-        this.setState(() => ({
-            modalShown: false,
-            creatingFolder: false
-        }));
+        this.setState(() => ({ modalShown: false }));
         this.props.onFileSelect(fileCopy);
     }
 
-    fetchFiles = (path: string, pageNumber: number, itemsPerPage: number) => {
-        this.setState(() => ({ loading: true, creatingFolder: false }));
+    private fetchFiles = (path: string, pageNumber: number, itemsPerPage: number) => {
+        this.setState(() => ({ loading: true }));
         this.state.promises.makeCancelable(Cloud.get(filepathQuery(path, pageNumber, itemsPerPage))).promise.then(({ response }) =>
             this.setState(() => ({
                 page: response,
                 path: resolvePath(path),
-                error: undefined
+                error: undefined,
+                isFavorites: false
             }))
         ).catch((_) => this.setState(() => ({ error: "An error occurred fetching files" })))
-        .finally(() => this.setState(() => ({ loading: false })))
+            .finally(() => this.setState(() => ({ loading: false })))
+    }
+
+    private async fetchFavorites(pageNumber: number, itemsPerPage: number) {
+        this.setState(() => ({ loading: true }));
+        try {
+            const result = await this.state.promises.makeCancelable(Cloud.get<Page<File>>(favoritesQuery(pageNumber, itemsPerPage))).promise;
+            this.setState(() => ({
+                page: result.response,
+                error: undefined,
+                isFavorites: true,
+                path: "Favorites"
+            }));
+        } catch (e) {
+            this.setState(() => ({ error: errorMessageOrDefault(e, "An error occurred fetching favorites") }));
+        } finally {
+            this.setState(() => ({ loading: false }));
+        }
     }
 
     render() {
@@ -80,10 +96,12 @@ class FileSelector extends React.Component<FileSelectorProps, FileSelectorState>
                 {uploadButton}
                 {removeButton}
                 <FileSelectorModal
+                    isFavorites={this.state.isFavorites}
+                    fetchFavorites={(pageNumber, itemsPerPage) => this.fetchFavorites(pageNumber, itemsPerPage)}
                     errorMessage={this.state.error}
                     onErrorDismiss={() => this.setState(() => ({ error: undefined }))}
                     show={this.state.modalShown}
-                    onHide={() => this.setState(() => ({ modalShown: false, creatingFolder: false }))}
+                    onHide={() => this.setState(() => ({ modalShown: false }))}
                     path={this.state.path}
                     navigate={this.fetchFiles}
                     page={this.state.page}
@@ -123,7 +141,11 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
                 homeFolder={Cloud.homeFolder}
                 currentPath={props.path}
                 navigate={path => props.fetchFiles(path, props.page.pageNumber, props.page.itemsPerPage)} />}
-            right={<Refresh spin={props.loading} onClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)} />}
+            right={<>
+                {props.isFavorites ? <Icon name="ftFolder" cursor="pointer" mr="10px" title="To home" onClick={() => props.fetchFiles(Cloud.homeFolder, props.page.pageNumber, props.page.itemsPerPage)} /> :
+                    <Icon name="starFilled" cursor="pointer" mr="10px" title="Show favorites" onClick={() => props.fetchFavorites(props.page.pageNumber, props.page.itemsPerPage)} />}
+                <Refresh spin={props.loading} onClick={() => props.fetchFiles(props.path, props.page.pageNumber, props.page.itemsPerPage)} />
+            </>}
         />
         <PaginationList
             customEntriesPerPage
@@ -131,15 +153,19 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             onErrorDismiss={props.onErrorDismiss}
             pageRenderer={page =>
                 <FileSelectorBody
+                    omitRelativeFolders={props.isFavorites}
                     canSelectFolders={!!canSelectFolders}
                     {...props}
                     page={page}
                     fetchFiles={path => props.fetchFiles(path, page.pageNumber, page.itemsPerPage)}
                 />
             }
-            page={props.page}
-            onPageChanged={pageNumber => props.fetchFiles(props.path, pageNumber, props.page.itemsPerPage)}
             loading={props.loading}
+            page={props.page}
+            onPageChanged={pageNumber => !props.isFavorites ?
+                props.fetchFiles(props.path, pageNumber, props.page.itemsPerPage) :
+                props.fetchFavorites(pageNumber, props.page.itemsPerPage)
+            }
         />
     </ReactModal>
 );
@@ -155,8 +181,8 @@ const FileSelectorBody = ({ disallowedPaths = [], onlyAllowFolders = false, canS
     const relativeFolders: File[] = [];
 
     const p = props.path.startsWith("/") ? addTrailingSlash(props.path) : `/${addTrailingSlash(props.path)}`
-    if (p !== Cloud.homeFolder) relativeFolders.push(newMockFolder(`${addTrailingSlash(props.path)}..`, false));
-    if (canSelectFolders) relativeFolders.push(newMockFolder(`${addTrailingSlash(props.path)}/.`, false));
+    if (p !== Cloud.homeFolder && !props.omitRelativeFolders) relativeFolders.push(newMockFolder(`${addTrailingSlash(props.path)}..`, false));
+    if (canSelectFolders && !props.omitRelativeFolders) relativeFolders.push(newMockFolder(`${addTrailingSlash(props.path)}/.`, false));
     const ops: FileOperation[] = [];
     if (canSelectFolders) {
         ops.push({
