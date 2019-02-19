@@ -118,6 +118,11 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                 continue
             }
 
+            if (resp.status.value in 500..599) {
+                log.info("[$callId] Failed with status ${resp.status}. Retrying...")
+                continue
+            }
+
             val result = parseResponse(resp, call, callId)
             val end = System.currentTimeMillis()
             log.debug("[$callId] (Time: ${end - start}ms. Attempts: $attempts) <- ${result.toString().take(100)}")
