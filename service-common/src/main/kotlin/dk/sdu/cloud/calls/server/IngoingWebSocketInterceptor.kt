@@ -1,22 +1,26 @@
 package dk.sdu.cloud.calls.server
 
+import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.websocket
 import dk.sdu.cloud.calls.websocketOrNull
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.install
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.readText
+import io.ktor.http.cio.websocket.send
 import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
+import io.ktor.websocket.WebSocketServerSession
 import io.ktor.websocket.WebSockets
 import io.ktor.websocket.webSocket
-import kotlinx.coroutines.channels.consumeEach
-import kotlinx.coroutines.channels.consumeEachIndexed
-import kotlinx.coroutines.channels.mapNotNull
 
-class WSCall : IngoingCall {
+class WSCall internal constructor(
+    val session: WebSocketServerSession,
+    internal val frameNode: JsonNode
+) : IngoingCall {
     override val attributes = AttributeContainer()
 
     companion object : IngoingCallCompanion<WSCall> {
@@ -24,6 +28,8 @@ class WSCall : IngoingCall {
         override val attributes = AttributeContainer()
     }
 }
+
+internal data class WSResponse<T>(val status: Int, val payload: T)
 
 class IngoingWebSocketInterceptor(
     private val engine: ApplicationEngine,
@@ -38,18 +44,37 @@ class IngoingWebSocketInterceptor(
         engine.application.install(WebSockets)
 
         engine.application.routing {
-            handlers.forEach { path, handlers ->
+            handlers.forEach { path, calls ->
                 webSocket(path) {
-                    log.info("Would install ${handlers.size} for $path")
-                    log.info("Instead we are just echoing")
+                    val session: WebSocketServerSession = this
+                    val callsByName = calls.associateBy { it.fullName }
 
                     while (true) {
                         val frame = incoming.receive()
-                        when (frame) {
-                            is Frame.Text -> {
-                                val text = frame.readText()
-                                outgoing.send(Frame.Text("Echo: $text"))
+                        if (frame is Frame.Text) {
+                            val text = frame.readText()
+
+                            @Suppress("BlockingMethodInNonBlockingContext")
+                            val parsedMessage = defaultMapper.readTree(text)
+
+                            // We silently discard messages that don't follow the correct format
+                            val requestedCall =
+                                parsedMessage["call"].takeIf { !it.isNull && it.isTextual }?.textValue() ?: continue
+
+                            if (parsedMessage["payload"].isNull) continue
+
+                            // We alert the caller if the send a well-formed message that we cannot handle
+                            val call = callsByName[requestedCall]
+                            if (call == null) {
+                                send(defaultMapper.writeValueAsString(WSResponse(HttpStatusCode.NotFound.value, Unit)))
+                                continue
                             }
+
+                            rpcServer.handleIncomingCall(
+                                this@IngoingWebSocketInterceptor,
+                                call,
+                                WSCall(session, parsedMessage)
+                            )
                         }
                     }
                 }
@@ -67,7 +92,10 @@ class IngoingWebSocketInterceptor(
     }
 
     override suspend fun <R : Any> parseRequest(ctx: WSCall, call: CallDescription<R, *, *>): R {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        val reader = defaultMapper.readerFor(call.requestType)
+
+        @Suppress("BlockingMethodInNonBlockingContext")
+        return reader.readValue<R>(ctx.frameNode["payload"])
     }
 
     override suspend fun <R : Any, S : Any, E : Any> produceResponse(
@@ -75,7 +103,26 @@ class IngoingWebSocketInterceptor(
         call: CallDescription<R, S, E>,
         callResult: OutgoingCallResponse<S, E>
     ) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        val typeRef = when (callResult) {
+            is OutgoingCallResponse.Ok -> call.successType
+            is OutgoingCallResponse.Error -> call.errorType
+            is OutgoingCallResponse.AlreadyDelivered -> null
+        }
+
+        val response = when (callResult) {
+            is OutgoingCallResponse.Ok -> WSResponse(callResult.statusCode.value, callResult.result)
+            is OutgoingCallResponse.Error -> WSResponse(callResult.statusCode.value, callResult.error)
+            is OutgoingCallResponse.AlreadyDelivered -> null
+        }
+
+        if (response != null && typeRef != null) {
+            val responseType = defaultMapper.typeFactory.constructParametricType(
+                WSResponse::class.java,
+                defaultMapper.typeFactory.constructType(typeRef)
+            )
+
+            ctx.session.send(defaultMapper.writerFor(responseType).writeValueAsString(response))
+        }
     }
 
     companion object : Loggable {

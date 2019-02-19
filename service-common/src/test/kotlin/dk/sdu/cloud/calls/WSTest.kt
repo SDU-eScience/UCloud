@@ -2,6 +2,7 @@ package dk.sdu.cloud.calls
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.CallTracing
@@ -18,6 +19,7 @@ import dk.sdu.cloud.micro.runScriptHandler
 import dk.sdu.cloud.micro.server
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import java.util.*
 
 data class HelloWorldRequest(val name: String)
@@ -28,10 +30,21 @@ object WSDescriptions : CallDescriptionContainer("test") {
 
     val helloWorld = call<HelloWorldRequest, HelloWorldResponse, CommonErrorMessage>("helloWorld") {
         auth {
+            roles = Roles.PUBLIC
             access = AccessRight.READ
         }
 
         websocket(baseContext)
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
     }
 }
 

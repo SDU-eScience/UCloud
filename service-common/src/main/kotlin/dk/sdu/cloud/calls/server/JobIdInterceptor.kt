@@ -24,7 +24,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
                         log.warn("Missing Job ID (required)")
                     }
 
-                    context.jobId = "MISSING-${UUID.randomUUID()}"
+                    context.jobId = UUID.randomUUID().toString()
                 }
 
                 if (readCausedBy != null) context.causedBy = readCausedBy
@@ -35,6 +35,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
     private fun readJobId(context: IngoingCall): String? {
         return when (context) {
             is HttpCall -> context.call.request.header(HttpHeaders.JobId)
+            is WSCall -> null
             else -> throw IllegalStateException("Unable to read job id for context: $context")
         }
     }
@@ -42,6 +43,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
     private fun readCausedBy(context: IngoingCall): String? {
         return when (context) {
             is HttpCall -> context.call.request.header(HttpHeaders.CausedBy)
+            is WSCall -> null // TODO!!!
             else -> throw IllegalStateException("Unable to read caused by for context: $context")
         }
     }
