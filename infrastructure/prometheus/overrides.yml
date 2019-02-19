@@ -1,0 +1,12 @@
+---
+alertmanager:
+  enabled: false
+
+pushgateway:
+  enabled: false
+
+server:
+  persistentVolume:
+    storageClass: rbd
+    size: 25Gi
+    replicaCount: 2
