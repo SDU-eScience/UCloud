@@ -3,6 +3,7 @@ package dk.sdu.cloud.micro
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.server.AuditToKafkaStream
 import dk.sdu.cloud.calls.server.AuthInterceptor
+import dk.sdu.cloud.calls.server.ClientInfoInterceptor
 import dk.sdu.cloud.calls.server.IngoingHttpInterceptor
 import dk.sdu.cloud.calls.server.IngoingWebSocketInterceptor
 import dk.sdu.cloud.calls.server.JobIdInterceptor
@@ -22,6 +23,7 @@ class ServerFeature : MicroFeature {
         this.ctx = ctx
         log.info("Installing server...")
 
+        ClientInfoInterceptor().register(server)
         JobIdInterceptor(!ctx.developmentModeEnabled).register(server)
         AuditToKafkaStream(ctx.serviceInstance, ctx.kafka, ctx.tokenValidation).register(server)
         AuthInterceptor(ctx.tokenValidation).register(server)

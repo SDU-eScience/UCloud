@@ -46,12 +46,12 @@ class WSSession internal constructor(val id: String, val underlyingSession: WebS
         onCloseHandlers.add(handler)
     }
 
-    suspend fun rawSend(text: String) {
+    internal suspend fun rawSend(text: String) {
         underlyingSession.send(text)
     }
 
-    suspend fun sendPayload(message: Any) {
-        rawSend(defaultMapper.writeValueAsString(message))
+    suspend fun sendPayload(streamId: String, message: Any, statusCode: HttpStatusCode = HttpStatusCode.OK) {
+        rawSend(defaultMapper.writeValueAsString(WSResponse(statusCode.value, streamId, message)))
     }
 
     suspend fun close(reason: String? = null) {
