@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.HttpQueryParameter
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.companionInstance
 import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.httpOrNull
 import dk.sdu.cloud.calls.toKtorTemplate
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -47,7 +48,7 @@ class IngoingHttpInterceptor(
     }
 
     override fun addCallListenerForCall(call: CallDescription<*, *, *>) {
-        val httpDescription = call.http
+        val httpDescription = call.httpOrNull ?: return
 
         engine.application.routing {
             route(httpDescription.path.toKtorTemplate(fullyQualified = true)) {

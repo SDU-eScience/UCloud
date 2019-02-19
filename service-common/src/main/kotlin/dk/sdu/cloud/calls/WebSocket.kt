@@ -15,7 +15,7 @@ val <R : Any, S : Any, E : Any> CallDescription<R, S, E>.websocket: WebSocketReq
 
 @Suppress("UNCHECKED_CAST")
 val <R : Any, S : Any, E : Any> CallDescription<R, S, E>.websocketOrNull: WebSocketRequest<R, S, E>?
-    get() = attributes.getOrNull(WebSocketRequest.callKey) as? WebSocketRequest<R, S, E>
+    get() = attributes.getOrNull(WebSocketRequest.callKey) as WebSocketRequest<R, S, E>?
 
 // Builders
 
@@ -27,7 +27,7 @@ class WebSocketBuilder<R : Any, S : Any, E : Any>(val context: CallDescription<R
 
 fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.websocket(
     path: String,
-    handler: WebSocketBuilder<R, S, E>.() -> Unit
+    handler: WebSocketBuilder<R, S, E>.() -> Unit = {}
 ) {
     attributes[WebSocketRequest.callKey] = WebSocketBuilder(this, path).also(handler).build()
 }
