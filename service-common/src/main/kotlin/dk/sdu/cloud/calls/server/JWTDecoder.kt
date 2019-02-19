@@ -14,6 +14,7 @@ import io.ktor.request.ApplicationRequest
 import io.ktor.request.header
 import org.slf4j.LoggerFactory
 
+@Deprecated("Use ctx.bearer instead")
 val ApplicationRequest.bearer: String?
     get() {
         val header = header(HttpHeaders.Authorization) ?: return null

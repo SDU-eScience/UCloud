@@ -13,7 +13,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
         server.attachFilter(object : IngoingCallFilter.BeforeParsing() {
             override fun canUseContext(ctx: IngoingCall): Boolean = true
 
-            override fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
+            override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
                 val readJobId = readJobId(context)
                 val readCausedBy = readCausedBy(context)
 
@@ -35,7 +35,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
     private fun readJobId(context: IngoingCall): String? {
         return when (context) {
             is HttpCall -> context.call.request.header(HttpHeaders.JobId)
-            is WSCall -> null
+            is WSCall -> UUID.randomUUID().toString()
             else -> throw IllegalStateException("Unable to read job id for context: $context")
         }
     }
@@ -43,7 +43,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
     private fun readCausedBy(context: IngoingCall): String? {
         return when (context) {
             is HttpCall -> context.call.request.header(HttpHeaders.CausedBy)
-            is WSCall -> null // TODO!!!
+            is WSCall -> context.frameNode["causedBy"]?.takeIf { it.isNull && it.isTextual }?.textValue()
             else -> throw IllegalStateException("Unable to read caused by for context: $context")
         }
     }

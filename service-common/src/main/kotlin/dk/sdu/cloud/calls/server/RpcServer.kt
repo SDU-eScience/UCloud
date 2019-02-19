@@ -29,7 +29,7 @@ sealed class IngoingCallFilter : IngoingContextFilter {
      * It is possible to stop the pipeline from progressing at this point by throwing an exception.
      */
     abstract class BeforeParsing : IngoingCallFilter() {
-        abstract fun run(context: IngoingCall, call: CallDescription<*, *, *>)
+        abstract suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>)
     }
 
     /**
@@ -40,7 +40,7 @@ sealed class IngoingCallFilter : IngoingContextFilter {
      * It is possible to stop the pipeline from progressing at this point by throwing an exception.
      */
     abstract class AfterParsing : IngoingCallFilter() {
-        abstract fun run(context: IngoingCall, call: CallDescription<*, *, *>, request: Any)
+        abstract suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>, request: Any)
     }
 
     /**
@@ -51,7 +51,7 @@ sealed class IngoingCallFilter : IngoingContextFilter {
      * It is possible to stop the pipeline from progressing at this point by throwing an exception.
      */
     abstract class BeforeResponse : IngoingCallFilter() {
-        abstract fun run(
+        abstract suspend fun run(
             context: IngoingCall,
             call: CallDescription<*, *, *>,
             request: Any,
@@ -69,7 +69,7 @@ sealed class IngoingCallFilter : IngoingContextFilter {
      * It is _not_ possible to stop the pipeline from progressing at this point.
      */
     abstract class AfterResponse : IngoingCallFilter() {
-        abstract fun run(
+        abstract suspend fun run(
             context: IngoingCall,
             call: CallDescription<*, *, *>,
             request: Any?,
@@ -80,14 +80,14 @@ sealed class IngoingCallFilter : IngoingContextFilter {
     companion object {
         fun <Ctx : IngoingCall, Companion : IngoingCallCompanion<Ctx>> beforeParsing(
             companion: Companion,
-            handler: Ctx.(call: CallDescription<*, *, *>) -> Unit
+            handler: suspend Ctx.(call: CallDescription<*, *, *>) -> Unit
         ): BeforeParsing {
             return object : BeforeParsing() {
                 override fun canUseContext(ctx: IngoingCall): Boolean {
                     return companion.klass.isInstance(ctx)
                 }
 
-                override fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
+                override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
                     @Suppress("UNCHECKED_CAST")
                     context as Ctx
                     handler(context, call)
@@ -97,14 +97,14 @@ sealed class IngoingCallFilter : IngoingContextFilter {
 
         fun <Ctx : IngoingCall, Companion : IngoingCallCompanion<Ctx>> afterParsing(
             companion: Companion,
-            handler: Ctx.(call: CallDescription<*, *, *>, request: Any) -> Unit
+            handler: suspend Ctx.(call: CallDescription<*, *, *>, request: Any) -> Unit
         ): AfterParsing {
             return object : AfterParsing() {
                 override fun canUseContext(ctx: IngoingCall): Boolean {
                     return companion.klass.isInstance(ctx)
                 }
 
-                override fun run(context: IngoingCall, call: CallDescription<*, *, *>, request: Any) {
+                override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>, request: Any) {
                     @Suppress("UNCHECKED_CAST")
                     context as Ctx
                     handler(context, call, request)
@@ -114,14 +114,14 @@ sealed class IngoingCallFilter : IngoingContextFilter {
 
         fun <Ctx : IngoingCall, Companion : IngoingCallCompanion<Ctx>> beforeResponse(
             companion: Companion,
-            handler: Ctx.(call: CallDescription<*, *, *>, request: Any, result: OutgoingCallResponse<*, *>) -> Unit
+            handler: suspend Ctx.(call: CallDescription<*, *, *>, request: Any, result: OutgoingCallResponse<*, *>) -> Unit
         ): BeforeResponse {
             return object : BeforeResponse() {
                 override fun canUseContext(ctx: IngoingCall): Boolean {
                     return companion.klass.isInstance(ctx)
                 }
 
-                override fun run(
+                override suspend fun run(
                     context: IngoingCall,
                     call: CallDescription<*, *, *>,
                     request: Any,
@@ -136,14 +136,14 @@ sealed class IngoingCallFilter : IngoingContextFilter {
 
         fun <Ctx : IngoingCall, Companion : IngoingCallCompanion<Ctx>> afterResponse(
             companion: Companion,
-            handler: Ctx.(call: CallDescription<*, *, *>, request: Any?, result: OutgoingCallResponse<*, *>) -> Unit
+            handler: suspend Ctx.(call: CallDescription<*, *, *>, request: Any?, result: OutgoingCallResponse<*, *>) -> Unit
         ): AfterResponse {
             return object : AfterResponse() {
                 override fun canUseContext(ctx: IngoingCall): Boolean {
                     return companion.klass.isInstance(ctx)
                 }
 
-                override fun run(
+                override suspend fun run(
                     context: IngoingCall,
                     call: CallDescription<*, *, *>,
                     request: Any?,

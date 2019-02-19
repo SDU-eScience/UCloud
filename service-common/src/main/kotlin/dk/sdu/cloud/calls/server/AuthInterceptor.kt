@@ -6,9 +6,9 @@ import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.authDescription
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.TokenValidation
 import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
@@ -18,7 +18,7 @@ class AuthInterceptor(private val tokenValidator: TokenValidation<Any>) {
         server.attachFilter(object : IngoingCallFilter.BeforeParsing() {
             override fun canUseContext(ctx: IngoingCall): Boolean = true
 
-            override fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
+            override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
                 val auth = call.authDescription
 
                 val tokenMustValidate = Role.GUEST !in auth.roles
@@ -38,6 +38,7 @@ class AuthInterceptor(private val tokenValidator: TokenValidation<Any>) {
                     } else if (validatedToken != null) {
                         val token = tokenValidator.decodeToken(validatedToken)
                         context.securityToken = token
+                        context.bearer = bearer
 
                         if (context.securityPrincipal.role !in auth.roles) {
                             log.debug("Security principal is not authorized for this call")
@@ -67,6 +68,7 @@ class AuthInterceptor(private val tokenValidator: TokenValidation<Any>) {
         override val log = logger()
 
         internal val tokenKey = AttributeKey<SecurityPrincipalToken>("security-principal-token")
+        internal val bearerKey = AttributeKey<String>("bearer-token")
     }
 }
 
@@ -78,6 +80,13 @@ var IngoingCall.securityToken: SecurityPrincipalToken
 
 val IngoingCall.securityPrincipal: SecurityPrincipal
     get() = securityToken.principal
+
+var IngoingCall.bearer: String?
+    get() = attributes.getOrNull(AuthInterceptor.bearerKey)
+    internal set(value) {
+        if (value != null) attributes[AuthInterceptor.bearerKey] = value
+        else attributes.remove(AuthInterceptor.bearerKey)
+    }
 
 val CallDescription<*, *, *>.requiredAuthScope: SecurityScope
     get() = authDescription.requiredScope

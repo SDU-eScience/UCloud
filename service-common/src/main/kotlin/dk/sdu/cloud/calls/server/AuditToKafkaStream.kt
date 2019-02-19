@@ -22,12 +22,10 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.TokenValidation
 import io.ktor.application.call
-import io.ktor.features.origin
 import io.ktor.http.HttpHeaders
-import io.ktor.request.ApplicationRequest
 import io.ktor.request.header
-import io.ktor.request.userAgent
 import io.ktor.util.date.toGMTDate
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
@@ -67,89 +65,95 @@ class AuditToKafkaStream(
         }
     }
 
-    private val ApplicationRequest.bearer: String?
-        get() {
-            val header = header(HttpHeaders.Authorization) ?: return null
-            if (!header.startsWith("Bearer ")) {
-                return null
-            }
-            return header.substringAfter("Bearer ")
-        }
-
     fun register(server: RpcServer) {
-        server.attachFilter(IngoingCallFilter.beforeParsing(HttpCall) { _ ->
-            audit = AuditData(System.currentTimeMillis())
+        server.attachFilter(object : IngoingCallFilter.BeforeParsing() {
+            override fun canUseContext(ctx: IngoingCall): Boolean = true
+
+            override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
+                context.audit = AuditData(System.currentTimeMillis())
+            }
         })
 
-        server.attachFilter(IngoingCallFilter.afterResponse(HttpCall) { callDescription, request, result ->
-            val auditDescription = callDescription.auditOrNull
-            val auditData = audit
-            val eventProducer = httpEventProducer(callDescription)
-            val auditProducer = auditProducer(callDescription)
+        server.attachFilter(object : IngoingCallFilter.AfterResponse() {
+            override fun canUseContext(ctx: IngoingCall): Boolean = true
+            override suspend fun run(
+                context: IngoingCall,
+                call: CallDescription<*, *, *>,
+                request: Any?,
+                result: OutgoingCallResponse<*, *>
+            ) {
+                val auditDescription = call.auditOrNull
+                val auditData = context.audit
+                val eventProducer = httpEventProducer(call)
+                val auditProducer = auditProducer(call)
 
-            val bearerToken = call.request.bearer
-            val requestContentLength = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull() ?: 0
-            val causedBy = call.request.header(HttpHeaders.CausedBy)
-            val remoteOrigin = call.request.origin.remoteHost
-            val userAgent = call.request.userAgent()
+                val bearerToken = context.bearer
+                val requestContentLength =
+                    (context as? HttpCall)?.call?.request?.header(HttpHeaders.ContentLength)?.toLongOrNull() ?: 0
+                val causedBy = context.causedBy
+                val remoteOrigin = context.remoteHost
+                val userAgent = context.userAgent
 
-            val startTime = auditData.requestStart
-            val responseTime = System.currentTimeMillis() - startTime
+                val startTime = auditData.requestStart
+                val responseTime = System.currentTimeMillis() - startTime
 
-            val responseCode = result.statusCode.value
+                val responseCode = result.statusCode.value
 
-            val token = run {
-                val principalFromBearerToken = bearerToken
-                    ?.let { tokenValidation.validateOrNull(it) }
-                    ?.let { tokenValidation.decodeToken(it) }
+                val token = run {
+                    val principalFromBearerToken = bearerToken
+                        ?.let { tokenValidation.validateOrNull(it) }
+                        ?.let { tokenValidation.decodeToken(it) }
 
-                val principalFromOverride = auditData.securityPrincipalTokenToAudit
-                principalFromOverride ?: principalFromBearerToken
-            }
+                    val principalFromOverride = auditData.securityPrincipalTokenToAudit
+                    principalFromOverride ?: principalFromBearerToken
+                }
 
-            val auditPayload = auditData.requestToAudit ?: request
+                val auditPayload = auditData.requestToAudit ?: request
 
-            if (auditDescription != null) {
-                if (auditPayload == null) {
-                    // We can, in this case, still produce a message. But only because the audit payload will be null.
-                } else {
-                    val expectedType = auditDescription.auditType.type.jvmClass
-                    if (expectedType != auditPayload.javaClass) {
-                        repeat(5) {
-                            log.warn(
-                                "Audit payload does not match the expected type. " +
-                                        "We got ${auditPayload.javaClass} but expected $expectedType"
-                            )
-                            log.warn("No audit trace has been produced")
+                if (auditDescription != null) {
+                    if (auditPayload == null) {
+                        // We can, in this case, still produce a message. But only because the audit payload will be null.
+                    } else {
+                        val expectedType = auditDescription.auditType.type.jvmClass
+                        if (expectedType != auditPayload.javaClass) {
+                            repeat(5) {
+                                log.warn(
+                                    "Audit payload does not match the expected type. " +
+                                            "We got ${auditPayload.javaClass} but expected $expectedType"
+                                )
+                                log.warn("No audit trace has been produced")
+                            }
+                            // We cannot create an audit track since it will mess up the resulting elastic
+                            // index (bad type)
+                            return
                         }
-                        // We cannot create an audit track since it will mess up the resulting elastic
-                        // index (bad type)
-                        return@afterResponse
                     }
                 }
-            }
 
-            val expiresPeriod = auditDescription?.retentionPeriod ?: AuditDescription.DEFAULT_RETENTION_PERIOD
-            val expiry = ZonedDateTime.now().plus(expiresPeriod).toGMTDate().timestamp
+                val expiresPeriod = auditDescription?.retentionPeriod ?: AuditDescription.DEFAULT_RETENTION_PERIOD
+                val expiry = ZonedDateTime.now().plus(expiresPeriod).toGMTDate().timestamp
 
-            launch {
-                val entry = HttpCallLogEntry(
-                    jobId = jobId,
-                    handledBy = instance,
-                    causedBy = causedBy,
-                    requestName = callDescription.fullName,
-                    userAgent = userAgent,
-                    remoteOrigin = remoteOrigin,
-                    token = token,
-                    requestSize = requestContentLength,
-                    requestJson = auditPayload,
-                    responseCode = responseCode,
-                    responseTime = responseTime,
-                    expiry = expiry
-                )
+                coroutineScope {
+                    launch {
+                        val entry = HttpCallLogEntry(
+                            jobId = context.jobId,
+                            handledBy = instance,
+                            causedBy = causedBy,
+                            requestName = call.fullName,
+                            userAgent = userAgent,
+                            remoteOrigin = remoteOrigin ?: throw IllegalStateException("Unknown remote origin"),
+                            token = token,
+                            requestSize = requestContentLength,
+                            requestJson = auditPayload,
+                            responseCode = responseCode,
+                            responseTime = responseTime,
+                            expiry = expiry
+                        )
 
-                eventProducer.emit(jobId, entry)
-                auditProducer.emit(AuditEvent(entry, auditPayload))
+                        eventProducer.emit(context.jobId, entry)
+                        auditProducer.emit(AuditEvent(entry, auditPayload))
+                    }
+                }
             }
         })
     }
@@ -182,7 +186,8 @@ private val CallDescription<*, *, *>.auditStreamProducersOnly:
 private val auditSerdeCache: MutableMap<String, Serde<AuditEvent<*>>> =
     Collections.synchronizedMap(HashMap<String, Serde<AuditEvent<*>>>())
 
-private val auditJavaTypeCache: MutableMap<String, JavaType> = Collections.synchronizedMap(HashMap<String, JavaType>())
+private val auditJavaTypeCache: MutableMap<String, JavaType> =
+    Collections.synchronizedMap(HashMap<String, JavaType>())
 
 @Suppress("UNCHECKED_CAST")
 private val CallDescription<*, *, *>.auditSerde: Serde<AuditEvent<*>>
