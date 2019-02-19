@@ -1,7 +1,5 @@
 package dk.sdu.cloud.calls
 
-import io.ktor.http.cio.websocket.WebSocketSession
-
 class WebSocketRequest<R : Any, S : Any, E : Any> internal constructor(
     val context: CallDescription<R, S, E>,
     val path: String
