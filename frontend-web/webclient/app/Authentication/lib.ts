@@ -158,7 +158,7 @@ export default class SDUCloud {
     /**
      * Calls with the POST HTTP method. See call(method, path, body)
      */
-    async post<T = any>(path, body?: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
+    async post<T = any>(path: string, body?: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call("POST", path, body, context);
     }
 
@@ -172,28 +172,28 @@ export default class SDUCloud {
     /**
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
-    async delete(path: string, body: object, context = this.apiContext): Promise<any> {
+    async delete<T = any>(path: string, body: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call("DELETE", path, body, context);
     }
 
     /**
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
-    async patch(path: string, body: object, context = this.apiContext): Promise<any> {
+    async patch<T = any>(path: string, body: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call("PATCH", path, body, context);
     }
 
     /**
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
-    async options(path: string, body: object, context = this.apiContext): Promise<any> {
+    async options<T = any>(path: string, body: object, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call("OPTIONS", path, body, context);
     }
 
     /**
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
-    async head(path: string, context = this.apiContext): Promise<any> {
+    async head<T = any>(path: string, context = this.apiContext): Promise<{ request: XMLHttpRequest, response: T }> {
         return this.call("HEAD", path, undefined, context);
     }
 
