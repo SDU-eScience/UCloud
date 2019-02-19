@@ -2,7 +2,6 @@ package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
-import dk.sdu.cloud.auth.api.AuthenticationTokens
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.TokenService
@@ -65,23 +64,33 @@ class LoginResponder<DBSession>(
         }
     }
 
+    private fun twoFactorJsonChallenge(loginChallenge: String): Map<String, Any> = mapOf("2fa" to loginChallenge)
+
     suspend fun handleSuccessfulLogin(call: ApplicationCall, service: String, user: Principal) {
+        val resolvedService = ServiceDAO.findByName(service) ?: return run {
+            log.info("Given service '$service' was invalid!")
+            call.respondRedirect("/")
+        }
+
         val loginChallenge = twoFactorChallengeService.createLoginChallengeOrNull(user.id, service)
         if (loginChallenge != null) {
             if (shouldRespondWithJson(call)) {
                 call.respond(
                     TextContent(
-                        defaultMapper.writeValueAsString(
-                            mapOf<String, Any>("2fa" to loginChallenge)
-                        ),
+                        defaultMapper.writeValueAsString(twoFactorJsonChallenge(loginChallenge)),
                         ContentType.Application.Json
                     )
                 )
             } else {
-                call.respondRedirect(
-                    "/auth/2fa?" +
-                            "&challengeId=${loginChallenge.urlEncoded}"
-                )
+                if (resolvedService.endpointAcceptsStateViaCookie) {
+                    appendAuthStateInCookie(call, twoFactorJsonChallenge(loginChallenge))
+                    call.respondRedirect(resolvedService.endpoint)
+                } else {
+                    call.respondRedirect(
+                        "/auth/2fa?" +
+                                "&challengeId=${loginChallenge.urlEncoded}"
+                    )
+                }
             }
         } else {
             handleCompletedLogin(call, service, user)
@@ -94,26 +103,16 @@ class LoginResponder<DBSession>(
 
     private suspend fun handleCompletedLogin(call: ApplicationCall, service: String, user: Principal) {
         val resolvedService = ServiceDAO.findByName(service) ?: return run {
-            log.info("Missing service")
-            call.respondRedirect("/auth/login")
+            log.info("Missing service: '$service'")
+            call.respondRedirect("/")
         }
-        val expiry = resolvedService.refreshTokenExpiresAfter?.let { System.currentTimeMillis() + it }
 
+        val expiry = resolvedService.refreshTokenExpiresAfter?.let { System.currentTimeMillis() + it }
         val (token, refreshToken, csrfToken) = tokenService.createAndRegisterTokenFor(user, refreshTokenExpiry = expiry)
 
         if (shouldRespondWithJson(call)) {
             call.response.header(HttpHeaders.AccessControlAllowCredentials, "true")
-            call.response.cookies.append(
-                name = CoreAuthController.REFRESH_WEB_REFRESH_TOKEN_COOKIE,
-                value = refreshToken,
-                secure = call.request.origin.scheme == "https",
-                httpOnly = true,
-                expires = GMTDate(expiry ?: System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
-                path = "/",
-                extensions = mapOf(
-                    "SameSite" to "strict"
-                )
-            )
+            appendRefreshToken(call, refreshToken, expiry)
 
             call.respond(
                 TextContent(
@@ -122,47 +121,77 @@ class LoginResponder<DBSession>(
                 )
             )
         } else {
-            call.respondHtml {
-                head {
-                    meta("charset", "UTF-8")
-                    title("SDU Login Redirection")
-                }
-
-                body {
-                    p {
-                        +("If your browser does not automatically redirect you, then please " +
-                                "click submit.")
+            if (resolvedService.endpointAcceptsStateViaCookie) {
+                appendAuthStateInCookie(call, AccessTokenAndCsrf(token, csrfToken))
+                appendRefreshToken(call, refreshToken, expiry)
+                call.respondRedirect(resolvedService.endpoint)
+            } else {
+                call.respondHtml {
+                    head {
+                        meta("charset", "UTF-8")
+                        title("SDU Login Redirection")
                     }
 
-                    form {
-                        method = FormMethod.post
-                        action = resolvedService.endpoint
-                        id = "form"
-
-                        input(InputType.hidden) {
-                            name = "accessToken"
-                            value = token.escapeHTML()
+                    body {
+                        p {
+                            +("If your browser does not automatically redirect you, then please " +
+                                    "click submit.")
                         }
 
-                        input(InputType.hidden) {
-                            name = "refreshToken"
-                            value = refreshToken.escapeHTML()
+                        form {
+                            method = FormMethod.post
+                            action = resolvedService.endpoint
+                            id = "form"
+
+                            input(InputType.hidden) {
+                                name = "accessToken"
+                                value = token.escapeHTML()
+                            }
+
+                            input(InputType.hidden) {
+                                name = "refreshToken"
+                                value = refreshToken.escapeHTML()
+                            }
+
+                            input(InputType.hidden) {
+                                name = "csrfToken"
+                                value = csrfToken.escapeHTML()
+                            }
+
+                            input(InputType.submit) {
+                                value = "Submit"
+                            }
                         }
 
-                        input(InputType.hidden) {
-                            name = "csrfToken"
-                            value = csrfToken.escapeHTML()
-                        }
-
-                        input(InputType.submit) {
-                            value = "Submit"
-                        }
+                        script(src = "/auth/redirect.js") {}
                     }
-
-                    script(src = "/auth/redirect.js") {}
                 }
             }
         }
+    }
+
+    private fun appendAuthStateInCookie(call: ApplicationCall, value: Any) {
+        call.response.cookies.append(
+            name = CoreAuthController.REFRESH_WEB_AUTH_STATE_COOKIE,
+            value = defaultMapper.writeValueAsString(value),
+            httpOnly = false,
+            expires = GMTDate(System.currentTimeMillis() + 1000L * 60 * 5),
+            path = "/"
+        )
+    }
+
+    private fun appendRefreshToken(call: ApplicationCall, refreshToken: String, expiry: Long?) {
+        call.response.cookies.append(
+            name = CoreAuthController.REFRESH_WEB_REFRESH_TOKEN_COOKIE,
+            value = refreshToken,
+            secure = call.request.origin.scheme == "https",
+            httpOnly = true,
+            expires = GMTDate(expiry ?: System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
+            path = "/",
+            extensions = mapOf(
+                "SameSite" to "strict"
+            )
+        )
     }
 
     companion object : Loggable {

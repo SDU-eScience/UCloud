@@ -533,6 +533,7 @@ class CoreAuthController<DBSession>(
     companion object {
         const val REFRESH_WEB_CSRF_TOKEN = "X-CSRFToken"
         const val REFRESH_WEB_REFRESH_TOKEN_COOKIE = "refreshToken"
+        const val REFRESH_WEB_AUTH_STATE_COOKIE = "authState"
 
         const val MAX_EXTENSION_TIME_IN_MS = 1000 * 60 * 60 * 24
     }

@@ -64,13 +64,28 @@ data class AuthConfiguration(
     val production: Boolean = true,
     val tokenExtension: List<ServiceTokenExtension> = emptyList(),
     val trustedOrigins: List<String> = listOf("cloud.sdu.dk", "localhost"),
-    val services: List<Service> = listOf(
-        Service("web", "https://cloud.sdu.dk/api/auth-callback"),
-        Service("sync", "https://cloud.sdu.dk/api/sync-callback"),
-        Service("local-dev", "http://localhost:9000/api/auth-callback"),
-        Service("web-csrf", "https://cloud.sdu.dk/api/auth-callback-csrf", 1000L * 60 * 60 * 24 * 30),
-        Service("local-dev-csrf", "http://localhost:9000/api/auth-callback-csrf", 1000L * 60 * 60 * 24 * 30)
-    )
+    val services: List<Service> = run {
+        val DEFAULT_EXPIRY = 1000L * 60 * 60 * 24 * 30
+
+        listOf(
+            Service("web-csrf", "https://cloud.sdu.dk/api/auth-callback-csrf", DEFAULT_EXPIRY),
+            Service("local-dev-csrf", "http://localhost:9000/api/auth-callback-csrf", DEFAULT_EXPIRY),
+
+            Service(
+                "web",
+                "https://cloud.sdu.dk/app/login/wayf",
+                refreshTokenExpiresAfter = DEFAULT_EXPIRY,
+                endpointAcceptsStateViaCookie = true
+            ),
+
+            Service(
+                "dev-web",
+                "http://localhost:9000/app/login/wayf",
+                refreshTokenExpiresAfter = DEFAULT_EXPIRY,
+                endpointAcceptsStateViaCookie = true
+            )
+        )
+    }
 )
 
 fun main(args: Array<String>) {
