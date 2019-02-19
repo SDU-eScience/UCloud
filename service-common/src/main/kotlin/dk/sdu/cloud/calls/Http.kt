@@ -108,4 +108,4 @@ val <R : Any, S : Any, E : Any> CallDescription<R, S, E>.http: HttpRequest<R, S,
 
 @Suppress("UNCHECKED_CAST")
 val <R : Any, S : Any, E : Any> CallDescription<R, S, E>.httpOrNull: HttpRequest<R, S, E>?
-    get() = attributes.getOrNull(HttpRequest.callKey) as HttpRequest<R, S, E>
+    get() = attributes.getOrNull(HttpRequest.callKey) as HttpRequest<R, S, E>?

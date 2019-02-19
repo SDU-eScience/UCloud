@@ -4,6 +4,7 @@ import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.server.AuditToKafkaStream
 import dk.sdu.cloud.calls.server.AuthInterceptor
 import dk.sdu.cloud.calls.server.IngoingHttpInterceptor
+import dk.sdu.cloud.calls.server.IngoingWebSocketInterceptor
 import dk.sdu.cloud.calls.server.JobIdInterceptor
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Loggable
@@ -37,6 +38,7 @@ class ServerFeature : MicroFeature {
             engine.start(wait = false)
             ktorApplicationEngine = engine
             server.attachRequestInterceptor(IngoingHttpInterceptor(engine, server))
+            server.attachRequestInterceptor(IngoingWebSocketInterceptor(engine, server))
         }
     }
 
