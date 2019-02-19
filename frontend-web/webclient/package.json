@@ -1,6 +1,6 @@
 {
   "name": "sducloud",
-  "version": "0.14.4",
+  "version": "0.14.5",
   "description": "SDU Cloud",
   "author": "IMADA - eScience Center, SDU",
   "jest": {
