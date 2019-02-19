@@ -95,6 +95,7 @@ dependencies {
     compile group: "io.ktor", name: "ktor-server-core", version: "$ktor_version"
     compile group: "io.ktor", name: "ktor-jackson", version: "$ktor_version"
     compile group: "io.ktor", name: "ktor-server-host-common", version: "$ktor_version"
+    compile "io.ktor:ktor-websockets:$ktor_version"
 
     // db
     compile group: 'org.postgresql', name: 'postgresql', version: '42.2.5'
@@ -112,6 +113,8 @@ dependencies {
     compile "io.ktor:ktor-client-json:$ktor_version"
     compile "io.ktor:ktor-client-json-jvm:$ktor_version"
     compile "io.ktor:ktor-client-jackson:$ktor_version"
+    compile "io.ktor:ktor-client-websocket:$ktor_version"
+    compile "io.ktor:ktor-client-cio:$ktor_version"
 
     // JWTs
     compile "com.auth0:java-jwt:3.7.0"

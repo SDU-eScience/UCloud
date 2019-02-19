@@ -8,20 +8,19 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auditOrNull
 import dk.sdu.cloud.calls.jvmClass
-import dk.sdu.cloud.calls.kClass
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.kafka.EventProducer
 import dk.sdu.cloud.kafka.JsonSerde.jsonSerdeFromJavaType
-import dk.sdu.cloud.micro.KafkaServices
-import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.kafka.MappedEventProducer
 import dk.sdu.cloud.kafka.MappedStreamDescription
-import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.kafka.SimpleStreamDescription
 import dk.sdu.cloud.kafka.StreamDescription
-import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.kafka.defaultSerdeOrJson
 import dk.sdu.cloud.kafka.forStream
+import dk.sdu.cloud.micro.KafkaServices
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.ServiceInstance
+import dk.sdu.cloud.service.TokenValidation
 import io.ktor.application.call
 import io.ktor.features.origin
 import io.ktor.http.HttpHeaders
@@ -32,8 +31,6 @@ import io.ktor.util.date.toGMTDate
 import kotlinx.coroutines.launch
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.common.serialization.Serdes
-import java.lang.reflect.ParameterizedType
-import java.lang.reflect.Type
 import java.time.ZonedDateTime
 import java.util.*
 
@@ -124,10 +121,10 @@ class AuditToKafkaStream(
                                         "We got ${auditPayload.javaClass} but expected $expectedType"
                             )
                             log.warn("No audit trace has been produced")
-                            // We cannot create an audit track since it will mess up the resulting elastic
-                            // index (bad type)
-                            return@afterResponse
                         }
+                        // We cannot create an audit track since it will mess up the resulting elastic
+                        // index (bad type)
+                        return@afterResponse
                     }
                 }
             }
