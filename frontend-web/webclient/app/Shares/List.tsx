@@ -17,7 +17,7 @@ import { FileIcon } from "UtilityComponents";
 import { SidebarPages } from "ui-components/Sidebar";
 import { Spacer } from "ui-components/Spacer";
 import { ReduxObject, SharesReduxObject } from "DefaultObjects";
-import { retrieveShares, receiveShares, setErrorMessage, setShareState, fetchSharesByPath } from "./Redux/SharesActions";
+import { retrieveShares, receiveShares, setErrorMessage, setShareState, fetchSharesByPath, setLoading } from "./Redux/SharesActions";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { useState } from "react";
 import { SearchOptions, SelectableText } from "Search/Search";
@@ -434,9 +434,15 @@ const mapDispatchToProps = (dispatch: Dispatch): SharesOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("Shares")),
     setActivePage: () => dispatch(setActivePage(SidebarPages.Shares)),
     setError: error => dispatch(setErrorMessage(error)),
-    retrieveShares: async (page, itemsPerPage, byState) => dispatch(await retrieveShares(page, itemsPerPage, byState)),
+    retrieveShares: async (page, itemsPerPage, byState) => {
+        dispatch(setLoading(true));
+        dispatch(await retrieveShares(page, itemsPerPage, byState))
+        dispatch(setLoading(false));
+    },
     receiveShares: page => dispatch(receiveShares(page)),
-    fetchSharesByPath: async path => dispatch(await fetchSharesByPath(path)),
+    fetchSharesByPath: async path => {
+        dispatch(await fetchSharesByPath(path))
+    },
     setShareState: shareState => dispatch(setShareState(shareState)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
