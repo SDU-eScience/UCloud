@@ -4,19 +4,32 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.calls.client.ClientAndBackend
+import dk.sdu.cloud.calls.client.FixedOutgoingHostResolver
+import dk.sdu.cloud.calls.client.HostInfo
+import dk.sdu.cloud.calls.client.OutgoingHostResolverInterceptor
+import dk.sdu.cloud.calls.client.OutgoingWSCall
+import dk.sdu.cloud.calls.client.OutgoingWSRequestInterceptor
+import dk.sdu.cloud.calls.client.RpcClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.server.WSCall
-import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
-import dk.sdu.cloud.calls.server.wsServerConfig
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.runScriptHandler
 import dk.sdu.cloud.micro.server
 import io.ktor.http.HttpMethod
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.io.File
+import kotlin.system.measureTimeMillis
 
 data class HelloWorldRequest(val name: String)
 data class HelloWorldResponse(val greeting: String)
@@ -60,34 +73,55 @@ fun main(args: Array<String>) {
 
     with(server) {
         implement(WSDescriptions.helloWorld) {
-            withContext<WSCall> {
-                ctx.session.addOnCloseHandler {
-                    println("Done")
-                }
-            }
-
+            /*
             coroutineScope {
                 launch {
                     withContext<WSCall> {
                         repeat(5) {
                             delay(1000)
-
-                            println(ctx.bearer)
                             sendWSMessage(ctx, HelloWorldResponse("Hi!"))
                         }
                     }
                 }
             }
+            */
 
             ok(HelloWorldResponse("Hello, ${request.name}!"))
         }
 
-        with(WSDescriptions.helloWorld.wsServerConfig) {
-            onClose = {
-                println("Closing session: $it")
+        server.start()
+    }
+
+    val client = RpcClient()
+    client.attachFilter(
+        OutgoingHostResolverInterceptor(
+            FixedOutgoingHostResolver(
+                HostInfo(
+                    host = "localhost",
+                    port = 8080,
+                    scheme = "ws"
+                )
+            )
+        )
+    )
+    client.attachRequestInterceptor(OutgoingWSRequestInterceptor())
+
+    runBlocking {
+        GlobalScope.launch {
+            coroutineScope {
+                val time = measureTimeMillis {
+                    (1..100_000).map {
+                        launch {
+                            WSDescriptions.helloWorld.call(
+                                HelloWorldRequest("Dan"),
+                                ClientAndBackend(client, OutgoingWSCall)
+                            )
+                        }
+                    }.joinAll()
+                }
+
+                println("It took $time")
             }
         }
-
-        server.start()
     }
 }

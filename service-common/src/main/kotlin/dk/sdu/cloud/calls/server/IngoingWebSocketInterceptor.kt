@@ -37,7 +37,7 @@ class WSCall internal constructor(
     private var hasSentResponse = false
     private val mutex = Mutex()
 
-    internal suspend fun messageHasBeenSent() {
+    internal suspend fun responseHasBeenSent() {
         mutex.withLock {
             hasSentResponse = true
         }
@@ -109,6 +109,7 @@ class IngoingWebSocketInterceptor(
         engine.application.routing {
             handlers.forEach { path, calls ->
                 webSocket(path) {
+                    log.info("New websocket connection at $path")
                     val session = WSSession(UUID.randomUUID().toString(), this)
                     val callsByName = calls.associateBy { it.fullName }
 
@@ -217,7 +218,7 @@ class IngoingWebSocketInterceptor(
                 defaultMapper.typeFactory.constructType(typeRef)
             )
 
-            ctx.messageHasBeenSent()
+            ctx.responseHasBeenSent()
             ctx.session.rawSend(defaultMapper.writerFor(responseType).writeValueAsString(response))
         }
     }
