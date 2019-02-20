@@ -1,15 +1,13 @@
 package dk.sdu.cloud.calls.server
 
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.WSMessage
 import dk.sdu.cloud.calls.websocketOrNull
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.TYPE_PROPERTY
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.cio.websocket.CloseReason
@@ -25,6 +23,9 @@ import io.ktor.websocket.webSocket
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import java.lang.IllegalStateException
 import java.util.*
 
 class WSCall internal constructor(
@@ -33,40 +34,27 @@ class WSCall internal constructor(
     val streamId: String
 ) : IngoingCall {
     override val attributes = AttributeContainer()
+    private var hasSentResponse = false
+    private val mutex = Mutex()
 
-    suspend fun sendMessage(message: Any) {
-        session.sendMessage(streamId, message)
+    internal suspend fun messageHasBeenSent() {
+        mutex.withLock {
+            hasSentResponse = true
+        }
+    }
+
+    internal suspend fun sendMessage(message: Any) {
+        mutex.withLock {
+            if (hasSentResponse) throw IllegalStateException("Cannot send messages after response!")
+
+            session.sendMessage(streamId, message)
+        }
     }
 
     companion object : IngoingCallCompanion<WSCall> {
         override val klass = WSCall::class
         override val attributes = AttributeContainer()
     }
-}
-
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = TYPE_PROPERTY
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = WSMessage.Response::class, name = "response"),
-    JsonSubTypes.Type(value = WSMessage.Message::class, name = "message")
-)
-internal sealed class WSMessage<T> {
-    abstract val payload: T
-    abstract val streamId: String
-
-    internal data class Response<T>(
-        override val streamId: String,
-        override val payload: T,
-        val status: Int
-    ) : WSMessage<T>()
-
-    internal data class Message<T>(
-        override val streamId: String,
-        override val payload: T
-    ) : WSMessage<T>()
 }
 
 class WSSession internal constructor(val id: String, val underlyingSession: WebSocketServerSession) {
@@ -229,6 +217,7 @@ class IngoingWebSocketInterceptor(
                 defaultMapper.typeFactory.constructType(typeRef)
             )
 
+            ctx.messageHasBeenSent()
             ctx.session.rawSend(defaultMapper.writerFor(responseType).writeValueAsString(response))
         }
     }
@@ -252,3 +241,7 @@ val CallDescription<*, *, *>.wsServerConfig: WebsocketServerCallConfig
         attributes[IngoingWebSocketInterceptor.callConfigKey] = config
         return config
     }
+
+suspend fun <S : Any> CallHandler<*, S, *>.sendWSMessage(ctx: WSCall, message: S) {
+    ctx.sendMessage(message)
+}

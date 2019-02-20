@@ -6,6 +6,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.bearer
+import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.calls.server.wsServerConfig
 import dk.sdu.cloud.micro.Micro
@@ -13,7 +14,7 @@ import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.runScriptHandler
 import dk.sdu.cloud.micro.server
 import io.ktor.http.HttpMethod
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -65,18 +66,20 @@ fun main(args: Array<String>) {
                 }
             }
 
-            ok(HelloWorldResponse("Hello, ${request.name}!"))
+            coroutineScope {
+                launch {
+                    withContext<WSCall> {
+                        repeat(5) {
+                            delay(1000)
 
-            GlobalScope.launch {
-                withContext<WSCall> {
-                    repeat(5) {
-                        delay(1000)
-
-                        println(ctx.bearer)
-                        ctx.sendMessage(42)
+                            println(ctx.bearer)
+                            sendWSMessage(ctx, HelloWorldResponse("Hi!"))
+                        }
                     }
                 }
             }
+
+            ok(HelloWorldResponse("Hello, ${request.name}!"))
         }
 
         with(WSDescriptions.helloWorld.wsServerConfig) {
@@ -85,7 +88,6 @@ fun main(args: Array<String>) {
             }
         }
 
+        server.start()
     }
-
-    server.start()
 }
