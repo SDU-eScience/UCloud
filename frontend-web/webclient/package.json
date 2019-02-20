@@ -21,7 +21,7 @@
       "^.+\\.css$": "css-loader",
       "Authentication/SDUCloudObject": "<rootDir>/__tests__/mock/Cloud.ts"
     },
-    "testRegex": "(/__tests__/.*|(\\.|/)\\.(test|spec))\\.(jsx?|tsx?)$",
+    "testRegex": "(/__tests__/.*|(\\.|/)\\.(test|spec))\\.(j|t)sx?$",
     "moduleFileExtensions": [
       "ts",
       "tsx",
@@ -59,7 +59,7 @@
     "avataaars": "^1.2.1",
     "fuse.js": "^3.4.2",
     "install": "^0.12.2",
-    "jsonwebtoken": "8.4.0",
+    "jsonwebtoken": "8.5.0",
     "moment": "~2.24.0",
     "moment-timezone": "^0.5.23",
     "npm": "^6.8.0",
@@ -102,7 +102,7 @@
     "@types/json-schema": "^7.0.3",
     "@types/jsonwebtoken": "^8.3.0",
     "@types/moment-timezone": "^0.5.10",
-    "@types/react": "16.8.3",
+    "@types/react": "16.8.4",
     "@types/react-datepicker": "2.0.3",
     "@types/react-dom": "^16.8.2",
     "@types/react-modal": "3.8.1",
@@ -116,7 +116,7 @@
     "babel-loader": "8.0.5",
     "babel-plugin-styled-components": "^1.10.0",
     "compression-webpack-plugin": "^2.0.0",
-    "copy-webpack-plugin": "4.6.0",
+    "copy-webpack-plugin": "5.0.0",
     "css-loader": "^2.1.0",
     "empty-module": "~0.0.2",
     "enzyme": "^3.9.0",
@@ -141,7 +141,7 @@
     "url-loader": "1.1.2",
     "webpack": "4.29.5",
     "webpack-cli": "^3.2.3",
-    "webpack-dev-server": "3.1.14",
+    "webpack-dev-server": "3.2.0",
     "webpack-merge": "4.2.1"
   }
 }
