@@ -11,7 +11,9 @@ import dk.sdu.cloud.calls.client.OutgoingHostResolverInterceptor
 import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.calls.client.OutgoingWSRequestInterceptor
 import dk.sdu.cloud.calls.client.RpcClient
+import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.subscribe
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.calls.server.withContext
@@ -73,7 +75,6 @@ fun main(args: Array<String>) {
 
     with(server) {
         implement(WSDescriptions.helloWorld) {
-            /*
             coroutineScope {
                 launch {
                     withContext<WSCall> {
@@ -84,7 +85,6 @@ fun main(args: Array<String>) {
                     }
                 }
             }
-            */
 
             ok(HelloWorldResponse("Hello, ${request.name}!"))
         }
@@ -108,19 +108,28 @@ fun main(args: Array<String>) {
 
     runBlocking {
         GlobalScope.launch {
+            val clientAndBackend = ClientAndBackend(client, OutgoingWSCall)
             coroutineScope {
-                val time = measureTimeMillis {
-                    (1..100_000).map {
-                        launch {
-                            WSDescriptions.helloWorld.call(
-                                HelloWorldRequest("Dan"),
-                                ClientAndBackend(client, OutgoingWSCall)
-                            )
-                        }
-                    }.joinAll()
-                }
+                WSDescriptions.helloWorld.subscribe(
+                    HelloWorldRequest("Dan"),
+                    clientAndBackend.bearerAuth(""),
+                    handler = {
+                        println(it)
+                    }
+                )
 
-                println("It took $time")
+//                val time = measureTimeMillis {
+//                    (1..100_000).map {
+//                        launch {
+//                            WSDescriptions.helloWorld.call(
+//                                HelloWorldRequest("Dan"),
+//                                clientAndBackend
+//                            )
+//                        }
+//                    }.joinAll()
+//                }
+//
+//                println("It took $time")
             }
         }
     }

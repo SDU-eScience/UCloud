@@ -4,6 +4,7 @@ package dk.sdu.cloud.calls.client
 
 import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.calls.AttributeContainer
+import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.WSMessage
 import dk.sdu.cloud.calls.WSRequest
@@ -42,6 +43,8 @@ class OutgoingWSCall : OutgoingCall {
     companion object : OutgoingCallCompanion<OutgoingWSCall> {
         override val klass = OutgoingWSCall::class
         override val attributes = AttributeContainer()
+
+        internal val SUBSCRIPTION_HANDLER_KEY = AttributeKey<suspend (Any) -> Unit>("ws-subscription-handler")
     }
 }
 
@@ -83,6 +86,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         val subscription = session.subscribe(streamId)
         session.underlyingSession.outgoing.send(Frame.Text(writer.writeValueAsString(wsRequest)))
 
+        val handler = ctx.attributes.getOrNull(OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY)
+
         val response = coroutineScope {
             lateinit var response: WSMessage.Response<Any>
             val channel = processMessagesFromStream(call, subscription, streamId)
@@ -92,6 +97,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
                     channel.cancel()
                     session.unsubscribe(streamId)
                     break
+                } else if (message is WSMessage.Message && handler != null) {
+                    handler(message.payload)
                 }
             }
             response
@@ -237,4 +244,28 @@ internal class WSConnectionPool {
             return wrappedSession
         }
     }
+}
+
+suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.subscribe(
+    request: R,
+    authenticatedClient: AuthenticatedClient,
+    handler: suspend (S) -> Unit
+): IngoingCallResponse<S, E> {
+    if (authenticatedClient.companion != OutgoingWSCall) {
+        throw IllegalArgumentException("subscribe call not supported for backend '${authenticatedClient.companion}'")
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    return authenticatedClient.client.call(
+        this,
+        request,
+        authenticatedClient.companion as OutgoingCallCompanion<OutgoingCall>,
+        beforeFilters = { ctx ->
+            authenticatedClient.authenticator(ctx)
+
+            ctx.attributes[OutgoingWSCall.SUBSCRIPTION_HANDLER_KEY] = {
+                handler(it as S)
+            }
+        }
+    )
 }
