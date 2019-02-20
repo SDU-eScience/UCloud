@@ -1,5 +1,3 @@
-@file:UseExperimental(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
-
 package dk.sdu.cloud.calls.client
 
 import com.fasterxml.jackson.databind.JsonNode
@@ -12,6 +10,7 @@ import dk.sdu.cloud.calls.websocket
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.features.websocket.ClientWebSocketSession
@@ -48,6 +47,7 @@ class OutgoingWSCall : OutgoingCall {
     }
 }
 
+@UseExperimental(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
 class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, OutgoingWSCall.Companion> {
     override val companion = OutgoingWSCall
     private val connectionPool = WSConnectionPool()
@@ -76,7 +76,13 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         val streamId = streamId.getAndIncrement().toString()
 
         val session = connectionPool.retrieveConnection(url)
-        val wsRequest = WSRequest(call.fullName, streamId, request)
+        val wsRequest = WSRequest(
+            call.fullName,
+            streamId,
+            request,
+            bearer = ctx.attributes.outgoingAuthToken,
+            causedBy = ctx.causedBy
+        )
         val writer = defaultMapper.writerFor(
             defaultMapper.typeFactory.constructParametricType(
                 WSRequest::class.java,
@@ -120,8 +126,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         val errorReader = defaultMapper.readerFor(call.errorType)
 
         for (message in channel) {
-            if (message.streamId != streamId) continue
-
+            @Suppress("BlockingMethodInNonBlockingContext")
             val result = when (message.type) {
                 WSMessage.MESSAGE_TYPE -> {
                     val payload = successReader.readValue<Any>(message.payload)
@@ -149,6 +154,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
     }
 }
 
+@UseExperimental(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
 internal class WSClientSession constructor(
     val underlyingSession: ClientWebSocketSession
 ) {
@@ -173,29 +179,33 @@ internal class WSClientSession constructor(
                     messagesReceived++
                     if (frame is Frame.Text) {
                         val text = frame.readText()
-                        val frameNode = defaultMapper.readTree(text)
+                        @Suppress("BlockingMethodInNonBlockingContext") val frameNode = defaultMapper.readTree(text)
                         val type = frameNode[TYPE_PROPERTY]
                             ?.takeIf { !it.isNull && it.isTextual }
                             ?.textValue() ?: continue
 
-                        val status = frameNode[WSMessage.Response<*>::status.name]
+                        val status = frameNode[WSMessage.STATUS_FIELD]
                             ?.takeIf { !it.isNull && it.isIntegralNumber }
                             ?.intValue() ?: -1
 
-                        val incomingStreamId = frameNode[WSMessage<*>::streamId.name]
+                        val incomingStreamId = frameNode[WSMessage.STREAM_ID_FIELD]
                             ?.takeIf { !it.isNull && it.isTextual }
                             ?.textValue() ?: continue
 
-                        val payload = frameNode["payload"]
+                        val payload = frameNode[WSMessage.PAYLOAD_FIELD]
 
                         val channel = channels[incomingStreamId] ?: continue
                         channel.send(WSRawMessage(type, status, incomingStreamId, payload))
                     }
                 }
             } catch (ex: Exception) {
-                ex.printStackTrace()
+                log.info(ex.stackTraceToString())
             }
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
@@ -206,6 +216,7 @@ internal data class WSRawMessage(
     val payload: JsonNode
 )
 
+@UseExperimental(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
 internal class WSConnectionPool {
     private val connectionPool = HashMap<String, WSClientSession>()
     private val mutex = Mutex()
