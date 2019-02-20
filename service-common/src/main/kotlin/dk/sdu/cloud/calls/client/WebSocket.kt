@@ -25,11 +25,10 @@ import io.ktor.util.KtorExperimentalAPI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.channels.BroadcastChannel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -84,7 +83,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         val subscription = session.subscribe(streamId)
         session.underlyingSession.outgoing.send(Frame.Text(writer.writeValueAsString(wsRequest)))
 
-        val response = GlobalScope.async {
+        val response = coroutineScope {
             lateinit var response: WSMessage.Response<Any>
             val channel = processMessagesFromStream(call, subscription, streamId)
             for (message in channel) {
@@ -96,7 +95,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
                 }
             }
             response
-        }.await()
+        }
 
         @Suppress("UNCHECKED_CAST")
         return when (response.status) {
