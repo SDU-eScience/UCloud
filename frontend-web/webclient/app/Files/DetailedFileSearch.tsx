@@ -148,7 +148,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                             <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
                             <InputGroup>
                                 <DatePicker
-                                    popperPlacement="left"
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
@@ -163,11 +162,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                                     selectsStart
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
-                                    timeCaption="time"
-                                    withPortal
                                 />
                                 <DatePicker
-                                    popperPlacement="left"
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
@@ -182,14 +178,11 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                                     isClearable
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
-                                    timeCaption="time"
-                                    withPortal
                                 />
                             </InputGroup>
                             <Heading.h5 pb="0.3em" pt="0.5em">Modified at</Heading.h5>
                             <InputGroup>
                                 <DatePicker
-                                    popperPlacement="left"
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
@@ -204,11 +197,8 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                                     isClearable
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
-                                    timeCaption="time"
-                                    withPortal
                                 />
                                 <DatePicker
-                                    popperPlacement="left"
                                     pb="6px"
                                     pt="8px"
                                     mt="-2px"
@@ -223,8 +213,6 @@ class DetailedFileSearch extends React.Component<DetailedFileSearchProps & { his
                                     isClearable
                                     timeFormat="HH:mm"
                                     dateFormat="dd/MM/yy HH:mm"
-                                    timeCaption="time"
-                                    withPortal
                                 />
                             </InputGroup>
                             <Heading.h5 pb="0.3em" pt="0.5em">File Types</Heading.h5>
