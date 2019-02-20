@@ -34,6 +34,7 @@ describe("Initialize Redux Objects", () => {
             fileSelectorPath: homeFolder,
             fileSelectorCallback: () => null,
             fileSelectorError: undefined,
+            fileSelectorIsFavorites: false,
             disallowedPaths: []
         })))
     });

@@ -26,6 +26,7 @@ import styled from "styled-components";
 import { GridCardGroup } from "ui-components/Grid";
 import { SidebarPages } from "ui-components/Sidebar";
 import { setActivePage } from "Navigation/Redux/StatusActions";
+import { Spacer } from "ui-components/Spacer";
 
 interface SearchPane {
     headerType: HeaderSearchType
@@ -78,7 +79,7 @@ class Search extends React.Component<SearchProps> {
             fileTypes,
             createdAt: typeof createdAt.after === "number" || typeof createdAt.before === "number" ? createdAt : undefined,
             modifiedAt: typeof modifiedAt.after === "number" || typeof modifiedAt.before === "number" ? modifiedAt : undefined,
-            itemsPerPage: 25,
+            itemsPerPage: this.props.files.itemsPerPage || 25,
             page: 0
         }
     }
@@ -112,12 +113,12 @@ class Search extends React.Component<SearchProps> {
         this.props.history.push(searchPage(text.toLocaleLowerCase(), this.props.search));
     }
 
-    fetchAll(search: string) {
+    fetchAll(search: string, itemsPerPage?: number) {
         const { ...props } = this.props;
         props.setError();
-        props.searchFiles({ ...this.fileSearchBody, fileName: search });
-        props.searchApplications(search, this.props.applications.pageNumber, this.props.applications.itemsPerPage);
-        props.searchProjects(search, this.props.projects.pageNumber, this.props.projects.itemsPerPage);
+        props.searchFiles({ ...this.fileSearchBody, fileName: search, itemsPerPage: itemsPerPage || this.props.files.itemsPerPage });
+        props.searchApplications(search, this.props.applications.pageNumber, itemsPerPage || this.props.applications.itemsPerPage);
+        props.searchProjects(search, this.props.projects.pageNumber, itemsPerPage || this.props.projects.itemsPerPage);
     }
 
     search() {
@@ -218,6 +219,15 @@ class Search extends React.Component<SearchProps> {
                         <SearchOptions>
                             {panes.map((pane, index) => <Tab pane={pane} index={index} key={index} />)}
                         </SearchOptions>
+                        <Spacer left={null} right={<Pagination.EntriesPerPageSelector
+                            onChange={itemsPerPage => this.fetchAll(this.props.search, itemsPerPage)}
+                            content={`${panes[activeIndex].menuItem} per page`}
+                            entriesPerPage={
+                                activeIndex === 0 ? this.props.files.itemsPerPage : (
+                                    activeIndex === 1 ? this.props.projects.itemsPerPage :
+                                        this.props.applications.itemsPerPage)
+                            }
+                        />} />
                     </React.Fragment>
                 }
                 main={panes[activeIndex].render()}

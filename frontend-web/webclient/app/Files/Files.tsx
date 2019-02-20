@@ -26,6 +26,7 @@ import { FilesTable, ContextBar } from "./FilesTable";
 import { MainContainer } from "MainContainer/MainContainer";
 import { setFileSelectorLoading } from "./Redux/FilesActions";
 import { SidebarPages } from "ui-components/Sidebar";
+import { Spacer } from "ui-components/Spacer";
 
 class Files extends React.Component<FilesProps> {
     componentDidMount() {
@@ -133,7 +134,16 @@ class Files extends React.Component<FilesProps> {
         const selectedFiles = page.items.filter(file => file.isChecked);
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
         const favoriteFile = async (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
-        const header = (<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />);
+        const header = (
+            <Spacer
+                left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />}
+                right={<Pagination.EntriesPerPageSelector
+                    content="Files per page"
+                    entriesPerPage={page.itemsPerPage}
+                    onChange={itemsPerPage => fetchFiles(path, itemsPerPage, page.pageNumber, sortOrder, sortBy)}
+                />}
+            />
+        );
         const main = (
             <Pagination.List
                 loading={loading}
@@ -161,7 +171,6 @@ class Files extends React.Component<FilesProps> {
                         onCheckFile={(checked, file) => checkFile(checked, file.path)}
                     />
                 )}
-                customEntriesPerPage
                 page={page}
                 onPageChanged={pageNumber => fetchFiles(path, page.itemsPerPage, pageNumber, sortOrder, sortBy)}
             />
@@ -248,7 +257,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
     fetchFileSelectorFavorites: async (pageNumber, itemsPerPage) => {
         dispatch(setFileSelectorLoading());
         dispatch(await Actions.fetchFileSelectorFavorites(pageNumber, itemsPerPage))
-    },  
+    },
     showFileSelector: open => dispatch(Actions.fileSelectorShown(open)),
     setFileSelectorCallback: callback => dispatch(Actions.setFileSelectorCallback(callback)),
     checkFile: (checked, path) => dispatch(Actions.checkFile(checked, path)),

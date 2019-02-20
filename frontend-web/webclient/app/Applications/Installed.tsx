@@ -14,6 +14,7 @@ import * as Actions from "./Redux/FavoriteActions";
 import { Type as ReduxType } from "./Redux/FavoriteObject";
 import { loadingEvent } from "LoadableContent";
 import { Box } from "ui-components";
+import { Spacer } from "ui-components/Spacer";
 
 interface InstalledOperations {
     onInit: () => void
@@ -53,14 +54,22 @@ class Installed extends React.Component<InstalledProps & { header: any }> {
     render() {
         const { props } = this;
         const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
+        const itemsPerPage = !!page ? page.itemsPerPage : 25;  
+        const pageNumber = !!page ? page.pageNumber : 0;
         const main = (
-            <Pagination.List
-                loading={props.applications.loading}
-                page={page}
-                customEntriesPerPage
-                onPageChanged={pageNumber => props.fetchItems(pageNumber, page.itemsPerPage)}
-                pageRenderer={page => <Box mt="5px"><InstalledPage page={page} /></Box>}
-            />
+            <>
+                <Spacer left={null} right={props.applications.loading ? null : <Pagination.EntriesPerPageSelector
+                    content="Apps per page"
+                    entriesPerPage={itemsPerPage}
+                    onChange={itemsPerPage => props.fetchItems(pageNumber, itemsPerPage)}
+                />} />
+                <Pagination.List
+                    loading={props.applications.loading}
+                    page={page}
+                    onPageChanged={pageNumber => props.fetchItems(pageNumber, page.itemsPerPage)}
+                    pageRenderer={page => <Box mt="5px"><InstalledPage page={page} /></Box>}
+                />
+            </>
         );
         return (
             <LoadingMainContainer

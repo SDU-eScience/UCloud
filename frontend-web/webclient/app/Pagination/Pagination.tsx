@@ -1,6 +1,6 @@
 import * as React from "react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Text, Flex, Button, theme } from "ui-components";
+import { Text, Flex, Button, theme, Box, Input, OutlineButton } from "ui-components";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 
@@ -14,9 +14,16 @@ const EntriesPerPageSelectorOptions = [
 interface PaginationButtons { totalPages: number, currentPage: number, toPage: (p: number) => void }
 export function PaginationButtons({ totalPages, currentPage, toPage }: PaginationButtons) {
     if (totalPages <= 1) return null;
-    const half = (totalPages - 1) / 2 | 0;
-    const upperQuarter = (half + half / 2) | 0;
-    const lowerQuarter = (half - half / 2) | 0;
+    const ref = React.useRef<HTMLInputElement>(null)
+    const inputField = totalPages > 20 ? (
+        <Flex ml="15px" width="75px">
+            <Input defaultValue={"1"} autoComplete="off" type="number" min={1} max={totalPages} ref={ref} onChange={e => console.log(e.target)} />
+            <OutlineButton ml="2px" fullWidth onClick={() => toPage(ref.current && parseInt(ref.current.value) - 1 || 0)}>→</OutlineButton>
+        </Flex>
+    ) : null;
+    const half = Math.floor((totalPages - 1) / 2);
+    const upperQuarter = Math.floor(half + half / 2);
+    const lowerQuarter = Math.floor(half - half / 2);
     const pages = [...new Set([0, totalPages - 1, currentPage - 1, currentPage, currentPage + 1, half, upperQuarter, lowerQuarter].sort((a, b) => a - b))];
     const buttons = pages.filter(i => i >= 0 && i < totalPages).map((it, i, arr) =>
         it - arr[i + 1] < -1 ? ( // If the two numbers do not immediately follow each other, insert ellipses
@@ -33,6 +40,7 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
             <PaginationButton onClick={() => toPage(currentPage - 1)} unclickable={currentPage === 0}>{"⟨"}</PaginationButton>
             {buttons}
             <PaginationButton onClick={() => toPage(currentPage + 1)} unclickable={currentPage === totalPages - 1}>{"⟩"}</PaginationButton>
+            {inputField}
         </PaginationGroup>
     );
 };
@@ -66,13 +74,15 @@ PaginationButtonBase.defaultProps = {
 
 const PaginationGroup = styled(Flex)`
     & > ${PaginationButtonBase} {
-        width: 42px;
+        width: auto;
+        min-width: 42px;
+
         padding-left: 0px;
         padding-right: 0px;
         border-radius: 0px;
     }
 
-    & > ${PaginationButtonBase}:last-child {
+    & > ${PaginationButtonBase}:nth-last-child(2) {
         border-radius: 0 3px 3px 0;
         border-right-width: 1px;
     }

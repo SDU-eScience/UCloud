@@ -70,7 +70,7 @@ const FilesTable = ({
 
 interface FileOperationWrapper { files: File[], fileOperations: FileOperation[] }
 const FileOperationsWrapper = ({ files, fileOperations }: FileOperationWrapper) => fileOperations.length > 1 ?
-    <ClickableDropdown width="175px" trigger={<Icon name="ellipsis" size="1em" rotation="90" />}>
+    <ClickableDropdown width="175px" left="-160px" trigger={<Icon name="ellipsis" size="1em" rotation="90" />}>
         <FileOperations files={files} fileOperations={fileOperations} As={Box} ml="-17px" mr="-17px" pl="15px" />
     </ClickableDropdown> :
     <FileOperations files={files} fileOperations={fileOperations} As={OutlineButton} />;
@@ -94,20 +94,20 @@ const ResponsiveTableColumn = ({
     sortOrder,
     notSticky
 }: ResponsiveTableColumnProps) => (
-        <FileTableHeaderCell notSticky={notSticky} width="10rem" >
-            <Flex alignItems="center" cursor="pointer" justifyContent="left">
-                <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
-                    <Arrow name={iconName} />
-                </Box>
-                <SortByDropdown
-                    isSortedBy={isSortedBy}
-                    onSelect={onSelect}
-                    asDropdown={asDropdown}
-                    currentSelection={currentSelection}
-                    sortOrder={sortOrder} />
-            </Flex>
-        </FileTableHeaderCell>
-    );
+    <FileTableHeaderCell notSticky={notSticky} width="10rem" >
+        <Flex alignItems="center" cursor="pointer" justifyContent="left">
+            <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
+                <Arrow name={iconName} />
+            </Box>
+            <SortByDropdown
+                isSortedBy={isSortedBy}
+                onSelect={onSelect}
+                asDropdown={asDropdown}
+                currentSelection={currentSelection}
+                sortOrder={sortOrder} />
+        </Flex>
+    </FileTableHeaderCell>
+);
 
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
     sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
