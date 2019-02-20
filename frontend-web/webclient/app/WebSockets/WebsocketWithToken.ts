@@ -2,11 +2,12 @@ import { Cloud } from "Authentication/SDUCloudObject";
 
 class WebsocketWithToken<T = string> {
     private socket: WebSocket;
-    private nameSpace: string
+    private namespace: string;
+    private streamIdOperationPair: Map<string, () => void> = new Map(); 
 
-    constructor(nameSpace: string) {
-        this.socket = new WebSocket("ws://localhost:8080");
-        this.nameSpace = nameSpace
+    constructor(namespace: string) {
+        this.socket = new WebSocket(`ws://localhost:8080/${namespace}`);
+        this.namespace = namespace
     }
 
     public addEventListener(event: WebSocketEvent, operation: (this: WebSocket, ev: Event | MessageEvent | CloseEvent) => void) {
@@ -15,8 +16,8 @@ class WebsocketWithToken<T = string> {
 
     public async send(operation: T, payload: object) {
         this.socket.send(JSON.stringify({
-            streamId: 43, // FIXME
-            call: `${this.nameSpace}.${operation}`,
+            streamId: "43", // FIXME
+            call: `${this.namespace}.${operation}`,
             bearer: await Cloud.receiveAccessTokenOrRefreshIt,
             payload
         }));
@@ -32,7 +33,7 @@ type WebSocketEvent = "open" | "message" | "error" | "close";
 interface WebSocketMessage<T = any> {
     type: "message"
     streamId: string
-    payload: T 
+    payload: T
 }
 
 interface WebSocketResponse<T = any> {
@@ -40,4 +41,10 @@ interface WebSocketResponse<T = any> {
     streamId: string
     payload: T
     status: number
+}
+
+interface WebSocketMessageCall {
+    streamId: string
+    call: string
+    
 }
