@@ -39,6 +39,14 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.websocket(
     attributes[WebSocketRequest.callKey] = WebSocketBuilder(this, path).also(handler).build()
 }
 
+internal data class WSRequest<T>(
+    val call: String,
+    val streamId: String,
+    val payload: T,
+    val bearer: String? = null,
+    val causedBy: String? = null
+)
+
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
