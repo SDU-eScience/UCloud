@@ -45,7 +45,14 @@ internal data class WSRequest<T>(
     val payload: T,
     val bearer: String? = null,
     val causedBy: String? = null
-)
+) {
+    companion object {
+        val CALL_FIELD = WSRequest<*>::call.name
+        val STREAM_ID_FIELD = WSRequest<*>::streamId.name
+        val PAYLOAD_FIELD = WSRequest<*>::payload.name
+        val CAUSED_BY_FIELD = WSRequest<*>::causedBy.name
+    }
+}
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -80,5 +87,9 @@ internal sealed class WSMessage<T> {
     companion object {
         const val RESPONSE_TYPE = "response"
         const val MESSAGE_TYPE = "message"
+
+        val PAYLOAD_FIELD = WSMessage<*>::payload.name
+        val STREAM_ID_FIELD = WSMessage<*>::streamId.name
+        val STATUS_FIELD = WSMessage.Response<*>::status.name
     }
 }

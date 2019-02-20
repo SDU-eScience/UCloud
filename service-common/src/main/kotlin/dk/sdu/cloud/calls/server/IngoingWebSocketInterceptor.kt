@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.WSMessage
+import dk.sdu.cloud.calls.WSRequest
 import dk.sdu.cloud.calls.websocketOrNull
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -25,7 +26,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.lang.IllegalStateException
 import java.util.*
 
 class WSCall internal constructor(
@@ -124,13 +124,13 @@ class IngoingWebSocketInterceptor(
 
                                 // We silently discard messages that don't follow the correct format
                                 val requestedCall =
-                                    parsedMessage["call"]?.takeIf { !it.isNull && it.isTextual }?.textValue()
+                                    parsedMessage[WSRequest.CALL_FIELD]?.takeIf { !it.isNull && it.isTextual }?.textValue()
                                         ?: continue
 
-                                if (parsedMessage["payload"]?.isNull != false) continue
+                                if (parsedMessage[WSRequest.PAYLOAD_FIELD]?.isNull != false) continue
 
                                 val streamId =
-                                    parsedMessage["streamId"]?.takeIf { !it.isNull && it.isTextual }?.textValue()
+                                    parsedMessage[WSRequest.STREAM_ID_FIELD]?.takeIf { !it.isNull && it.isTextual }?.textValue()
                                         ?: continue
 
                                 // We alert the caller if the send a well-formed message that we cannot handle
@@ -184,7 +184,7 @@ class IngoingWebSocketInterceptor(
         val reader = defaultMapper.readerFor(call.requestType)
 
         @Suppress("BlockingMethodInNonBlockingContext")
-        return reader.readValue<R>(ctx.frameNode["payload"])
+        return reader.readValue<R>(ctx.frameNode[WSRequest.PAYLOAD_FIELD])
     }
 
     override suspend fun <R : Any, S : Any, E : Any> produceResponse(
