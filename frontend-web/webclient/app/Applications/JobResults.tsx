@@ -17,6 +17,8 @@ import { ReduxObject } from "DefaultObjects";
 import { SidebarPages } from "ui-components/Sidebar";
 import * as Heading from "ui-components/Heading";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
+import { EntriesPerPageSelector } from "Pagination";
+import { Spacer } from "ui-components/Spacer";
 
 class JobResults extends React.Component<AnalysesProps & { history: History }, AnalysesState> {
     constructor(props: Readonly<AnalysesProps & { history: History }>) {
@@ -61,7 +63,6 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
             loading={loading}
             onErrorDismiss={onErrorDismiss}
             errorMessage={error}
-            customEntriesPerPage
             pageRenderer={(page) =>
                 <Table>
                     <Header />
@@ -77,7 +78,13 @@ class JobResults extends React.Component<AnalysesProps & { history: History }, A
         />;
 
         return (<MainContainer
-            header={<Heading.h1>Job Results</Heading.h1>}
+            header={<Spacer left={<Heading.h1>Job Results</Heading.h1>} right={
+                <EntriesPerPageSelector
+                    content="Jobs per page"
+                    entriesPerPage={page.itemsPerPage}
+                    onChange={itemsPerPage => fetchAnalyses(itemsPerPage, page.pageNumber)}
+                />
+            } />}
             main={content}
         />);
     }

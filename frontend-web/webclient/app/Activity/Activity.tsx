@@ -20,6 +20,7 @@ import { MainContainer } from "MainContainer/MainContainer";
 import styled from "styled-components";
 import { SidebarPages } from "ui-components/Sidebar";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
+import { Spacer } from "ui-components/Spacer";
 
 class Activity extends React.Component<ActivityProps> {
     public componentDidMount() {
@@ -42,16 +43,21 @@ class Activity extends React.Component<ActivityProps> {
                     loading={loading}
                     errorMessage={error}
                     onErrorDismiss={setError}
-                    customEntriesPerPage
                     pageRenderer={page => <ActivityFeedGrouped activity={groupedEntries ? groupedEntries : []} />}
                     page={page}
-                    // FIXME: setting refresh in "componentWillReceiveProps" causes infinite rerenders. Likely some other error not evident in other components
-                    onPageChanged={pageNumber => (fetchActivity(pageNumber, page.itemsPerPage), this.props.setRefresh(() => fetchActivity(page.pageNumber, page.itemsPerPage)))}
+                    // FIXME: setting refresh in "componentWillReceiveProps" causes infinite rerenders. Likely some other error not immediately evident in other components
+                    onPageChanged={pageNumber => (fetchActivity(pageNumber, page.itemsPerPage), this.props.setRefresh(() => fetchActivity(pageNumber, page.itemsPerPage)))}
                 />
             </React.StrictMode>
         );
 
-        const header = (<Heading.h2>File Activity</Heading.h2>);
+        const header = (<Spacer left={<Heading.h2>File Activity</Heading.h2>} right={
+            <Pagination.EntriesPerPageSelector 
+                onChange={itemsPerPage => (fetchActivity(page.pageNumber, itemsPerPage), this.props.setRefresh(() => fetchActivity(page.pageNumber, itemsPerPage)))}
+                content="Activity per page"
+                entriesPerPage={page.itemsPerPage}
+            />
+        }/>);
 
         return (
             <MainContainer

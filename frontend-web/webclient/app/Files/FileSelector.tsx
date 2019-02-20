@@ -148,7 +148,6 @@ export const FileSelectorModal = ({ canSelectFolders, ...props }: FileSelectorMo
             </>}
         />
         <PaginationList
-            customEntriesPerPage
             errorMessage={props.errorMessage}
             onErrorDismiss={props.onErrorDismiss}
             pageRenderer={page =>

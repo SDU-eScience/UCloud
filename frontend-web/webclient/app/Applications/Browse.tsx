@@ -21,6 +21,7 @@ import { loadingEvent } from "LoadableContent";
 import { favoriteApplicationFromPage } from "Utilities/ApplicationUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { SidebarPages } from "ui-components/Sidebar";
+import { Spacer } from "ui-components/Spacer";
 
 const CategoryList = styled.ul`
     padding: 0;
@@ -112,7 +113,7 @@ class Applications extends React.Component<ApplicationsProps> {
         }
     }
 
-    updatePage(newPage: number): string {
+    private updatePage(newPage: number): string {
         const tag = this.tag();
         if (tag === null) {
             return Pages.browse(this.itemsPerPage(), newPage);
@@ -121,7 +122,7 @@ class Applications extends React.Component<ApplicationsProps> {
         }
     }
 
-    fetch(props: ApplicationsProps) {
+    private fetch(props: ApplicationsProps) {
         const itemsPerPage = this.itemsPerPage(props);
         const pageNumber = this.pageNumber(props);
         const tag = this.tag(props);
@@ -133,11 +134,10 @@ class Applications extends React.Component<ApplicationsProps> {
         }
     }
 
-    render() {
+    public render() {
         const main = (
             <Pagination.List
                 loading={this.props.applications.loading}
-                customEntriesPerPage
                 pageRenderer={(page: Page<WithAppMetadata & WithAppFavorite>) =>
                     <GridCardGroup>
                         {page.items.map((app, index) =>
@@ -160,7 +160,13 @@ class Applications extends React.Component<ApplicationsProps> {
 
         return (
             <LoadingMainContainer
-                header={<Heading.h1>Browse</Heading.h1>}
+                header={<Spacer left={<Heading.h1>Browse</Heading.h1>} right={
+                    <Pagination.EntriesPerPageSelector
+                        content="Apps per page"
+                        entriesPerPage={this.itemsPerPage()}
+                        onChange={itemsPerPage => this.updateItemsPerPage(itemsPerPage)}
+                    />
+                } />}
                 loadable={this.props.applications}
                 main={main}
                 fallbackSidebar={<Sidebar />}

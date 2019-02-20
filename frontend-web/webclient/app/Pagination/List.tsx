@@ -15,7 +15,6 @@ interface ListProps<T> {
 
     // Page results
     page: Page<T>
-    customEntriesPerPage?: boolean
 
     // Error properties  
     errorMessage?: string | (() => React.ReactNode | null)

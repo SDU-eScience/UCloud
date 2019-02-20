@@ -57,7 +57,7 @@ export type ZenodoHomeProps = ZenodoHomeStateProps & ZenodoHomeOperations
 
 export interface ZenodoHomeOperations {
     onErrorDismiss: () => void
-    fetchPublications: (pageNo: Number, pageSize: number) => void
+    fetchPublications: (page: Number, itemsPerPage: number) => void
     updatePageTitle: () => void
 }
 

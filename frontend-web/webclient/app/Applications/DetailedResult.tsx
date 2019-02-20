@@ -25,6 +25,7 @@ import Icon, { IconName } from "ui-components/Icon";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
 import { FileSelectorModal } from "Files/FileSelector";
 import { Page } from "Types";
+import * as Heading from "ui-components/Heading";
 
 class DetailedResult extends React.Component<DetailedResultProps, DetailedResultState> {
     private stdoutEl: StdElement;
@@ -166,7 +167,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                 fsPage: result.response
             }));
         } catch (e) {
-            this.setState(() => ({ fsError: errorMessageOrDefault(e, "An error occurred fetching favorites")}));
+            this.setState(() => ({ fsError: errorMessageOrDefault(e, "An error occurred fetching favorites") }));
         } finally {
             this.setState(() => ({ fsLoading: false }))
         }
@@ -305,8 +306,8 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
         if (!page.items.length) return null;
         const { state } = this;
         return (
-            <div>
-                <h4>Output Files</h4>
+            <Box>
+                <Heading.h4>Output Files</Heading.h4>
                 <PaginationList
                     loading={this.props.loading}
                     page={page}
@@ -323,7 +324,6 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                             sortingColumns={[SortBy.MODIFIED_AT, SortBy.ACL]}
                             onFavoriteFile={(files: File[]) => this.favoriteFile(files[0])}
                         />}
-                    customEntriesPerPage
                     onPageChanged={pageNumber => this.retrieveFilesPage(pageNumber, page.itemsPerPage)}
                 />
                 <FileSelectorModal
@@ -342,7 +342,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
                     setSelectedFile={state.fsCallback}
                     disallowedPaths={state.fsDisallowedPaths}
                 />
-            </div>
+            </Box>
         );
     }
     fetchSelectorFiles(path: string, pageNumber: number, itemsPerPage: number): void {

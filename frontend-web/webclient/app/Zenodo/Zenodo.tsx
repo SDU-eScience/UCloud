@@ -17,6 +17,8 @@ import Table, { TableHeaderCell, TableRow, TableCell, TableBody, TableHeader } f
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import { ReduxObject } from "DefaultObjects";
 import { setRefreshFunction } from "Navigation/Redux/HeaderActions";
+import { Spacer } from "ui-components/Spacer";
+import { EntriesPerPageSelector } from "Pagination";
 
 /* FIXME some overlap with interfaces reuse */
 class ZenodoHome extends React.Component<ZenodoHomeProps & ZenodoOperations, ZenodoHomeState> {
@@ -48,14 +50,20 @@ class ZenodoHome extends React.Component<ZenodoHomeProps & ZenodoOperations, Zen
     }
 
     render() {
-        const { connected, loading, fetchPublications, page, error, onErrorDismiss, setRefresh } = this.props;
+        const { connected, loading, fetchPublications, page, error, onErrorDismiss } = this.props;
         if (!connected && !loading) {
             return (<MainContainer main={<NotConnectedToZenodo />} />);
         } else {
             return (
                 <MainContainer
-                    header={<Box><Heading.h2>Upload progress</Heading.h2>
-                        <Heading.h5>Connected to Zenodo</Heading.h5></Box>}
+                    header={<Spacer left={<Box><Heading.h2>Upload progress</Heading.h2>
+                        <Heading.h5>Connected to Zenodo</Heading.h5></ Box>}
+                        right={<EntriesPerPageSelector
+                            onChange={itemsPerPage => fetchPublications(page.pageNumber, itemsPerPage)}
+                            content="Publications per page"
+                            entriesPerPage={page.itemsPerPage}
+                        />}
+                    />}
                     main={
                         <List
                             loading={loading}
@@ -79,7 +87,6 @@ class ZenodoHome extends React.Component<ZenodoHomeProps & ZenodoOperations, Zen
                                 </Table>
                             )}
                             page={page}
-                            customEntriesPerPage
                             onPageChanged={pageNumber => fetchPublications(pageNumber, page.itemsPerPage)}
                         />}
                     sidebar={
