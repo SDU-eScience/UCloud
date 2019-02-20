@@ -2,12 +2,15 @@ package dk.sdu.cloud.file.services.unixfs
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.services.CommandRunner
+import dk.sdu.cloud.file.services.FSCommandRunnerException
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.StorageUserDao
 import dk.sdu.cloud.file.util.BoundaryContainedStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.GuardedOutputStream
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.io.OutputStream
@@ -39,6 +42,8 @@ class UnixFSCommandRunner(
 
     private val clientBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
     private val serverBoundary = UUID.randomUUID().toString().toByteArray(Charsets.UTF_8)
+
+    private val mutex = Mutex()
 
     private val interpreter: Process = run {
         val command = listOf(
@@ -121,35 +126,37 @@ class UnixFSCommandRunner(
         writer: suspend (OutputStream) -> Unit = {},
         consumer: suspend (UnixFSCommandRunner) -> T
     ): T {
-        log.debug("Running command: $command ${args.joinToString(" ")}")
+        mutex.withLock {
+            log.debug("Running command: $command ${args.joinToString(" ")}")
 
-        if (!interpreter.isAlive) throw IllegalStateException("Unexpected EOF")
+            if (!interpreter.isAlive) throw FSCommandRunnerException.DeadChannel()
 
-        val serializedCommand = StringBuilder().apply {
-            append(command.command)
-            append("\n")
-            if (args.isNotEmpty()) {
-                append(args.joinToString("\n"))
+            val serializedCommand = StringBuilder().apply {
+                append(command.command)
                 append("\n")
+                if (args.isNotEmpty()) {
+                    append(args.joinToString("\n"))
+                    append("\n")
+                }
+            }.toString().toByteArray()
+            outputStream.write(serializedCommand)
+            outputStream.flush()
+            outputStream.use {
+                writer(GuardedOutputStream(it))
             }
-        }.toString().toByteArray()
-        outputStream.write(serializedCommand)
-        outputStream.flush()
-        outputStream.use {
-            writer(GuardedOutputStream(it))
-        }
 
-        return try {
-            consumer(this)
-        } finally {
-            if (!interpreter.isAlive) throw IllegalStateException("Unexpected EOF (after consumer)")
+            return try {
+                consumer(this)
+            } finally {
+                if (!interpreter.isAlive) throw FSCommandRunnerException.DeadChannel()
 
-            wrappedStdout.discardAndReset()
+                wrappedStdout.discardAndReset()
 
-            if (log.isDebugEnabled) {
-                wrappedStderr.bufferedReader().readText().lines().forEach { log.debug(it) }
+                if (log.isDebugEnabled) {
+                    wrappedStderr.bufferedReader().readText().lines().forEach { log.debug(it) }
+                }
+                wrappedStderr.discardAndReset()
             }
-            wrappedStderr.discardAndReset()
         }
     }
 

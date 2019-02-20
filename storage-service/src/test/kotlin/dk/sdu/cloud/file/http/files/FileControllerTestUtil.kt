@@ -10,7 +10,10 @@ import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageEventProducer
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.homeDirectory
-import dk.sdu.cloud.file.http.FilesController
+import dk.sdu.cloud.file.http.ActionController
+import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
+import dk.sdu.cloud.file.http.FileSecurityController
+import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.services.ACLService
 import dk.sdu.cloud.file.services.BackgroundScope
 import dk.sdu.cloud.file.services.CoreFileSystemService
@@ -19,6 +22,7 @@ import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.UIDLookupService
+import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunner
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
@@ -26,7 +30,6 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TokenValidationMock
@@ -76,6 +79,7 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
     val sensitivityService = FileSensitivityService(fs, eventProducer)
     val aclService = ACLService(fs)
     val homeFolderService = mockk<HomeFolderService>()
+    val callRunner = CommandRunnerFactoryForCalls(runner, WSFileSessionService(runner))
     coEvery { homeFolderService.findHomeFolder(any()) } coAnswers { homeDirectory(it.invocation.args.first() as String) }
 
     val ctx = FileControllerContext(
@@ -90,19 +94,30 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
         lookupService = FileLookupService(coreFs)
     )
 
-    micro.server.configureControllers(
-        with(ctx) {
-            FilesController(
-                runner,
+    with(ctx) {
+        micro.server.configureControllers(
+            ActionController(
+                callRunner,
                 coreFs,
-                annotationService,
-                lookupService,
                 sensitivityService,
-                aclService,
+                lookupService,
+                annotationService
+            ),
+
+            LookupController(
+                callRunner,
+                lookupService,
                 homeFolderService
+            ),
+
+            FileSecurityController(
+                callRunner,
+                coreFs,
+                aclService,
+                sensitivityService
             )
-        }
-    )
+        )
+    }
 
     return additional(ctx)
 }

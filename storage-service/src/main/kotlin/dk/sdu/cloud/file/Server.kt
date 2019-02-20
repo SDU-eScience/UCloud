@@ -7,9 +7,12 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.IngoingCallFilter
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.http.ActionController
+import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.ExtractController
-import dk.sdu.cloud.file.http.FilesController
+import dk.sdu.cloud.file.http.FileSecurityController
 import dk.sdu.cloud.file.http.IndexingController
+import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
 import dk.sdu.cloud.file.processors.UserProcessor
@@ -25,6 +28,7 @@ import dk.sdu.cloud.file.services.FileScanner
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.unixfs.FileAttributeParser
 import dk.sdu.cloud.file.services.unixfs.UnixFSCommandRunnerFactory
 import dk.sdu.cloud.file.services.unixfs.UnixFileSystem
@@ -54,13 +58,6 @@ class Server(
 ) : CommonServer, WithKafkaStreams {
     override val log: Logger = logger()
     override lateinit var kStreams: KafkaStreams
-
-    private val allProcessors = ArrayList<EventConsumer<*>>()
-
-    private fun addProcessors(processors: List<EventConsumer<*>>) {
-        processors.forEach { it.installShutdownHandler(this) }
-        allProcessors.addAll(processors)
-    }
 
     override fun start() {
         val kafka = micro.kafka
@@ -102,6 +99,11 @@ class Server(
         val sensitivityService = FileSensitivityService(fs, storageEventProducer)
         val homeFolderService = HomeFolderService(cloud)
 
+        // RPC services
+        val wsService = WSFileSessionService(processRunner)
+        val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
+
+
         coreFileSystem.setOnStorageEventExceptionHandler {
             log.warn("Caught exception while emitting a storage event!")
             log.warn(it.stackTraceToString())
@@ -133,14 +135,25 @@ class Server(
             })
 
             configureControllers(
-                FilesController(
-                    processRunner,
+                ActionController(
+                    commandRunnerForCalls,
                     coreFileSystem,
-                    annotationService,
-                    fileLookupService,
                     sensitivityService,
+                    fileLookupService,
+                    annotationService
+                ),
+
+                LookupController(
+                    commandRunnerForCalls,
+                    fileLookupService,
+                    homeFolderService
+                ),
+
+                FileSecurityController(
+                    commandRunnerForCalls,
+                    coreFileSystem,
                     aclService,
-                    homeFolderService,
+                    sensitivityService,
                     config.filePermissionAcl
                 ),
 
@@ -178,7 +191,6 @@ class Server(
 
     override fun stop() {
         super.stop()
-        allProcessors.forEach { it.close() }
         BackgroundScope.stop()
     }
 }
