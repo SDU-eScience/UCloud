@@ -75,6 +75,7 @@ fun main(args: Array<String>) {
 
     with(server) {
         implement(WSDescriptions.helloWorld) {
+            /*
             coroutineScope {
                 launch {
                     withContext<WSCall> {
@@ -85,6 +86,7 @@ fun main(args: Array<String>) {
                     }
                 }
             }
+            */
 
             ok(HelloWorldResponse("Hello, ${request.name}!"))
         }
@@ -110,6 +112,7 @@ fun main(args: Array<String>) {
         GlobalScope.launch {
             val clientAndBackend = ClientAndBackend(client, OutgoingWSCall)
             coroutineScope {
+                /*
                 WSDescriptions.helloWorld.subscribe(
                     HelloWorldRequest("Dan"),
                     clientAndBackend.bearerAuth(""),
@@ -117,19 +120,20 @@ fun main(args: Array<String>) {
                         println(it)
                     }
                 )
+                */
 
-//                val time = measureTimeMillis {
-//                    (1..100_000).map {
+                val time = measureTimeMillis {
+                    (1..100_000).map {
 //                        launch {
-//                            WSDescriptions.helloWorld.call(
-//                                HelloWorldRequest("Dan"),
-//                                clientAndBackend
-//                            )
+                            WSDescriptions.helloWorld.call(
+                                HelloWorldRequest("Dan"),
+                                clientAndBackend
+                            )
 //                        }
-//                    }.joinAll()
-//                }
-//
-//                println("It took $time")
+                    }//.joinAll()
+                }
+
+                println("It took $time")
             }
         }
     }
