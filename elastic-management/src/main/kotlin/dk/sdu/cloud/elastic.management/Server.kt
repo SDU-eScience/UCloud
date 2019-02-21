@@ -1,12 +1,9 @@
 package dk.sdu.cloud.elastic.management
 
-import dk.sdu.cloud.elastic.management.http.ManagementController
 import dk.sdu.cloud.elastic.management.services.DeleteService
 import dk.sdu.cloud.elastic.management.services.ShrinkService
 import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
 import org.apache.http.HttpHost
 import org.elasticsearch.client.RestClient
@@ -46,13 +43,6 @@ class Server(
                 ex.printStackTrace()
                 exitProcess(1)
             }
-        }
-
-
-        with(micro.server) {
-            configureControllers(
-                ManagementController()
-            )
         }
 
         startServices()

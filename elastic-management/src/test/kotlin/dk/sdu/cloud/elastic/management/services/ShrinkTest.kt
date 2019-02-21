@@ -1,7 +1,6 @@
 package dk.sdu.cloud.elastic.management.services
 
 import org.apache.http.HttpHost
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.client.RequestOptions
@@ -9,6 +8,7 @@ import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.xcontent.XContentType
 import org.junit.Test
+import java.util.*
 
 class ShrinkTest {
 
@@ -22,7 +22,8 @@ class ShrinkTest {
         )
     )
 
-    fun createDocuments(index: String, numberOfDocuments: Int){
+    private fun createDocuments(index: String, numberOfDocuments: Int){
+        val date = Date().time
         val bulkRequest = BulkRequest()
         for (i in 0 until numberOfDocuments) {
             val request = IndexRequest("${index}-2019.02.20", "_doc")
@@ -30,7 +31,8 @@ class ShrinkTest {
                 {
                     "user":"kimchy",
                     "postDate": "$i",
-                    "message": "This is message $i!"
+                    "message": "This is message $i!",
+                    "expiry": $date
                 }
             """.trimIndent()
             request.source(jsonString, XContentType.JSON)
@@ -39,31 +41,13 @@ class ShrinkTest {
         elastic.bulk(bulkRequest, RequestOptions.DEFAULT)
     }
 
-    @Test
-    fun `test settings`() {
-        val shrinkService = ShrinkService(elastic)
-        shrinkService.prepareSourceIndex("hello-2019.02.20")
-    }
-
-    @Test
-    fun `test shrink`() {
-        val shrinkService = ShrinkService(elastic)
-        shrinkService.shrinkIndex("hello")
-    }
-
-    @Test
-    fun `test delete`() {
-        val shrinkService = ShrinkService(elastic)
-        shrinkService.deleteIndex("hello")
-    }
 
     @Test
     fun `full shrink procedure`() {
-        createDocuments("hello", 30000)
-        createDocuments("ahello", 30000)
-        println("Done Creating")
-        val shrinkService = ShrinkService(elastic)
-        shrinkService.shrink()
+        //createDocuments("hello", 30000)
+        val shrinkService = DeleteService(elastic)
+        shrinkService.findExpired("hello")
+        //shrinkService.cleanUp()
     }
 
 }
