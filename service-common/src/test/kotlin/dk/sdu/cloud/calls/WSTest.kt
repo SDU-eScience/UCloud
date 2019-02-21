@@ -1,40 +1,47 @@
 package dk.sdu.cloud.calls
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.FixedOutgoingHostResolver
 import dk.sdu.cloud.calls.client.HostInfo
 import dk.sdu.cloud.calls.client.OutgoingHostResolverInterceptor
-import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.calls.client.OutgoingWSRequestInterceptor
 import dk.sdu.cloud.calls.client.RpcClient
-import dk.sdu.cloud.calls.client.bearerAuth
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.subscribe
-import dk.sdu.cloud.calls.server.WSCall
-import dk.sdu.cloud.calls.server.sendWSMessage
-import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.runScriptHandler
 import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.service.TYPE_PROPERTY
 import io.ktor.http.HttpMethod
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import java.io.File
-import kotlin.system.measureTimeMillis
 
 data class HelloWorldRequest(val name: String)
 data class HelloWorldResponse(val greeting: String)
+
+// TODO Create sealed and make it work here
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.PROPERTY,
+    property = TYPE_PROPERTY
+)
+@JsonSubTypes(
+    JsonSubTypes.Type(value = LongRunningResponse.Timeout::class, name = "timeout"),
+    JsonSubTypes.Type(value = LongRunningResponse.Result::class, name = "result")
+)
+sealed class LongRunningResponse<T> {
+    data class Timeout<T>(
+        val why: String = "The operation has timed out and will continue in the background"
+    ) : LongRunningResponse<T>()
+
+    data class Result<T>(
+        val item: T
+    ) : LongRunningResponse<T>()
+}
 
 object WSDescriptions : CallDescriptionContainer("test") {
     private const val baseContext = "/api/ws"
@@ -57,9 +64,37 @@ object WSDescriptions : CallDescriptionContainer("test") {
             body { bindEntireRequestFromBody() }
         }
     }
+
+    val bug = call<Unit, LongRunningResponse<Int>, CommonErrorMessage>("bug") {
+        auth {
+            roles = Roles.PUBLIC
+            access = AccessRight.READ
+        }
+
+        websocket(baseContext)
+    }
 }
 
 fun main(args: Array<String>) {
+    if (true) {
+        val jacksonTypeRef = jacksonTypeRef<LongRunningResponse<Int>>()
+        val node = defaultMapper.readerFor(jacksonTypeRef).readTree(
+            defaultMapper
+                .writerFor(jacksonTypeRef)
+                .writeValueAsString(LongRunningResponse.Result(42))
+        )
+
+        println(
+            defaultMapper.writeValueAsString(
+                mapOf<String, Any>(
+                    WSMessage.STATUS_FIELD to 200,
+                    WSMessage.PAYLOAD_FIELD to node
+                )
+            )
+        )
+        return
+    }
+
     val description = object : ServiceDescription {
         override val name: String = "test"
         override val version: String = "1.0.0"
@@ -91,6 +126,10 @@ fun main(args: Array<String>) {
             ok(HelloWorldResponse("Hello, ${request.name}!"))
         }
 
+        implement(WSDescriptions.bug) {
+            ok(LongRunningResponse.Result(42))
+        }
+
         server.start()
     }
 
@@ -108,6 +147,7 @@ fun main(args: Array<String>) {
     )
     client.attachRequestInterceptor(OutgoingWSRequestInterceptor())
 
+    /*
     runBlocking {
         GlobalScope.launch {
             val clientAndBackend = ClientAndBackend(client, OutgoingWSCall)
@@ -137,4 +177,5 @@ fun main(args: Array<String>) {
             }
         }
     }
+    */
 }

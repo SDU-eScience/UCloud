@@ -195,6 +195,7 @@ data class DeliverMaterializedFileSystemResponse(
 
 object FileDescriptions : CallDescriptionContainer("files") {
     val baseContext = "/api/files"
+    val wsBaseContext = "$baseContext/ws"
 
     val listAtPath = call<ListDirectoryRequest, Page<StorageFile>, CommonErrorMessage>("listAtPath") {
         audit<SingleFileAudit<ListDirectoryRequest>>()
@@ -203,7 +204,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             access = AccessRight.READ
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
 
         http {
             path { using(baseContext) }
@@ -230,7 +231,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 access = AccessRight.READ
             }
 
-            websocket(baseContext)
+            websocket(wsBaseContext)
 
             http {
                 path {
@@ -261,7 +262,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             access = AccessRight.READ
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
 
         http {
             path {
@@ -285,7 +286,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 access = AccessRight.READ_WRITE
             }
 
-            websocket(baseContext)
+            websocket(wsBaseContext)
 
             http {
                 method = HttpMethod.Post
@@ -308,7 +309,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             access = AccessRight.READ_WRITE
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
 
         http {
             method = HttpMethod.Delete
@@ -350,7 +351,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             access = AccessRight.READ_WRITE
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
 
         http {
             method = HttpMethod.Post
@@ -375,7 +376,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             access = AccessRight.READ_WRITE
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
 
         http {
             method = HttpMethod.Post
@@ -423,7 +424,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             access = AccessRight.READ_WRITE
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
 
         http {
             method = HttpMethod.Post
@@ -487,7 +488,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             access = AccessRight.READ_WRITE
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
         http {
             method = HttpMethod.Post
 
@@ -507,7 +508,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             access = AccessRight.READ_WRITE
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
         http {
             method = HttpMethod.Post
 
@@ -530,7 +531,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             access = AccessRight.READ_WRITE
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
 
         http {
             method = HttpMethod.Post
@@ -554,7 +555,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             access = AccessRight.READ_WRITE
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
         http {
             method = HttpMethod.Post
             path {
@@ -594,7 +595,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             roles = Roles.PRIVILEDGED
         }
 
-        websocket(baseContext)
+        websocket(wsBaseContext)
 
         http {
             method = HttpMethod.Get

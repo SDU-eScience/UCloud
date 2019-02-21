@@ -66,10 +66,7 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
 
                 select<Unit> {
                     result.onAwait {
-                        when (it) {
-                            is CallResult.Success -> ok(LongRunningResponse.Result(it.item), it.status)
-                            is CallResult.Error -> error(it.item, it.status)
-                        }
+                        handleCallResult(it)
                     }
 
                     timeout.onAwait {
@@ -79,8 +76,19 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
             }
 
             withContext<WSCall> {
-                websocketSessionService.submitJob(ctx, user = user) { job(it) }
+                websocketSessionService.submitJob(ctx, user = user) {
+                    handleCallResult(job(it))
+                }
             }
+        }
+    }
+
+    private fun <S> CallHandler<*, LongRunningResponse<S>, CommonErrorMessage>.handleCallResult(
+        it: CallResult<S, CommonErrorMessage>
+    ) {
+        when (it) {
+            is CallResult.Success -> ok(LongRunningResponse.Result(it.item), it.status)
+            is CallResult.Error -> error(it.item, it.status)
         }
     }
 

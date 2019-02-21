@@ -1,5 +1,6 @@
 package dk.sdu.cloud.calls.server
 
+import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.JsonNode
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.AttributeKey
@@ -9,6 +10,7 @@ import dk.sdu.cloud.calls.WSRequest
 import dk.sdu.cloud.calls.websocketOrNull
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.TYPE_PROPERTY
 import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.cio.websocket.CloseReason
@@ -43,11 +45,11 @@ class WSCall internal constructor(
         }
     }
 
-    internal suspend fun sendMessage(message: Any) {
+    internal suspend fun sendMessage(message: Any, typeRef: TypeReference<*>) {
         mutex.withLock {
             if (hasSentResponse) throw IllegalStateException("Cannot send messages after response!")
 
-            session.sendMessage(streamId, message)
+            session.sendMessage(streamId, message, typeRef)
         }
     }
 
@@ -68,8 +70,22 @@ class WSSession internal constructor(val id: String, val underlyingSession: WebS
         underlyingSession.send(text)
     }
 
-    suspend fun sendMessage(streamId: String, message: Any) {
-        rawSend(defaultMapper.writeValueAsString(WSMessage.Message(streamId, message)))
+    internal suspend fun sendMessage(
+        streamId: String,
+        message: Any,
+        typeRef: TypeReference<*>
+    ) {
+        val node = defaultMapper.readerFor(typeRef).readTree(
+            defaultMapper.writerFor(typeRef).writeValueAsString(message)
+        )
+
+        val payloadTree = defaultMapper.writeValueAsString(mapOf<String, Any>(
+            TYPE_PROPERTY to WSMessage.MESSAGE_TYPE,
+            WSMessage.STREAM_ID_FIELD to streamId,
+            WSMessage.PAYLOAD_FIELD to node
+        ))
+
+        rawSend(payloadTree)
     }
 
     suspend fun close(reason: String? = null) {
@@ -198,28 +214,31 @@ class IngoingWebSocketInterceptor(
             is OutgoingCallResponse.AlreadyDelivered -> null
         }
 
-        val response = when (callResult) {
-            is OutgoingCallResponse.Ok -> WSMessage.Response(
-                ctx.streamId,
-                callResult.result,
-                callResult.statusCode.value
-            )
-            is OutgoingCallResponse.Error -> WSMessage.Response(
-                ctx.streamId,
-                callResult.error,
-                callResult.statusCode.value
-            )
-            is OutgoingCallResponse.AlreadyDelivered -> null
+        val payload: Any? = when (callResult) {
+            is OutgoingCallResponse.Ok -> callResult.result
+            is OutgoingCallResponse.Error -> callResult.error
+            is OutgoingCallResponse.AlreadyDelivered -> return
         }
 
-        if (response != null && typeRef != null) {
-            val responseType = defaultMapper.typeFactory.constructParametricType(
-                WSMessage::class.java,
-                defaultMapper.typeFactory.constructType(typeRef)
+        log.debug("payload=$payload")
+
+        if (payload != null && typeRef != null) {
+            val node = defaultMapper.readerFor(typeRef).readTree(
+                defaultMapper.writerFor(typeRef).writeValueAsString(payload)
             )
 
+            val response = defaultMapper.writeValueAsString(
+                mapOf(
+                    WSMessage.STREAM_ID_FIELD to ctx.streamId,
+                    TYPE_PROPERTY to WSMessage.RESPONSE_TYPE,
+                    WSMessage.STATUS_FIELD to callResult.statusCode.value,
+                    WSMessage.PAYLOAD_FIELD to node
+                )
+            )
+
+            log.debug(response)
             ctx.responseHasBeenSent()
-            ctx.session.rawSend(defaultMapper.writerFor(responseType).writeValueAsString(response))
+            ctx.session.rawSend(response)
         }
     }
 
@@ -243,6 +262,7 @@ val CallDescription<*, *, *>.wsServerConfig: WebsocketServerCallConfig
         return config
     }
 
+// TODO This is not using the correct writer
 suspend fun <S : Any> CallHandler<*, S, *>.sendWSMessage(ctx: WSCall, message: S) {
-    ctx.sendMessage(message)
+    ctx.sendMessage(message, description.successType)
 }

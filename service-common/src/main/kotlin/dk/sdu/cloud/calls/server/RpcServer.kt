@@ -186,9 +186,10 @@ sealed class OutgoingCallResponse<S : Any, E : Any> {
     }
 }
 
-class CallHandler<R : Any, S : Any, E : Any>(
+class CallHandler<R : Any, S : Any, E : Any> internal constructor(
     val ctx: IngoingCall,
-    val request: R
+    val request: R,
+    val description: CallDescription<R, S, E>
 ) {
     internal var result: OutgoingCallResponse<S, E>? = null
 
@@ -357,7 +358,7 @@ class RpcServer {
             afterParsing.filter { it.canUseContext(ctx) }.forEach { it.run(ctx, call, capturedRequest) }
 
             log.info("Incoming call: $call ($request)")
-            val callHandler = CallHandler<R, S, E>(ctx, capturedRequest).also { handler(it) }
+            val callHandler = CallHandler(ctx, capturedRequest, call).also { handler(it) }
 
             val responseResult = callHandler.result
             response = responseResult

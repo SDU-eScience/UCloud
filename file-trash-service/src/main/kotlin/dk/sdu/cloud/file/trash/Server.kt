@@ -2,6 +2,10 @@ package dk.sdu.cloud.file.trash
 
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.OutgoingWSCall
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.trash.http.FileTrashController
 import dk.sdu.cloud.file.trash.services.TrashDirectoryService
 import dk.sdu.cloud.file.trash.services.TrashService
@@ -12,6 +16,8 @@ import dk.sdu.cloud.service.EventConsumer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
+import kotlinx.coroutines.runBlocking
+import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro
@@ -26,7 +32,7 @@ class Server(
     }
 
     override fun start() {
-        val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val client = micro.authenticator.authenticateClient(OutgoingWSCall)
         val trashDirectoryService = TrashDirectoryService(client)
         val trashService = TrashService(trashDirectoryService)
         with(micro.server) {

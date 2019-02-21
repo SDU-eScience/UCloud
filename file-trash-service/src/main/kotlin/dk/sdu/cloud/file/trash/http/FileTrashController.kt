@@ -17,7 +17,7 @@ import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
 
 class FileTrashController(
-    private val serviceCloud: AuthenticatedClient,
+    private val wsServiceCloud: AuthenticatedClient,
     private val trashService: TrashService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
@@ -27,7 +27,7 @@ class FileTrashController(
                     trashService.moveFilesToTrash(
                         request.files,
                         ctx.securityPrincipal.username,
-                        userCloud()
+                        userCloudWs()
                     )
                 )
             )
@@ -37,17 +37,15 @@ class FileTrashController(
             ok(
                 trashService.emptyTrash(
                     ctx.securityPrincipal.username,
-                    userCloud()
+                    userCloudWs()
                 ),
                 HttpStatusCode.Accepted
             )
         }
     }
 
-    private fun CallHandler<*, *, *>.userCloud(): AuthenticatedClient {
-        return with(ctx as HttpCall) {
-            serviceCloud.withoutAuthentication().bearerAuth(call.request.bearer!!)
-        }
+    private fun CallHandler<*, *, *>.userCloudWs(): AuthenticatedClient {
+        return wsServiceCloud.withoutAuthentication().bearerAuth(ctx.bearer!!)
     }
 
     companion object : Loggable {
