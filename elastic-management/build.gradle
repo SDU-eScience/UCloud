@@ -14,7 +14,7 @@ dependencies {
     // Internal services
 
     compile 'mbuhot:eskotlin:0.4.0'
-    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.2.4'
+    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.1'
     compile 'dk.sdu.cloud:service-common:1.0.2'
     testCompile 'dk.sdu.cloud:service-common-test:1.0.2'
 }

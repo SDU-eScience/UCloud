@@ -41,8 +41,6 @@ fun main(args: Array<String>) {
 
     if (micro.runScriptHandler()) return
 
-    if (micro.runScriptHandler()) return
-
     val elasticLocation = micro.configuration.requestChunkAtOrNull("elastic") ?: ElasticHostAndPort.guessDefaults()
 
     Server(elasticLocation, micro).start()
