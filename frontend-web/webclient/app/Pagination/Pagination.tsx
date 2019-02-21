@@ -11,14 +11,19 @@ const EntriesPerPageSelectorOptions = [
     { key: 4, text: "100", value: 100 }
 ];
 
+const handleBoundaries = (page: string, maxPage: number) => 
+    Math.max(Math.min(parseInt(page), maxPage - 1), 0)
+
 interface PaginationButtons { totalPages: number, currentPage: number, toPage: (p: number) => void }
 export function PaginationButtons({ totalPages, currentPage, toPage }: PaginationButtons) {
     if (totalPages <= 1) return null;
-    const ref = React.useRef<HTMLInputElement>(null)
+    const ref = React.useRef<HTMLInputElement>(null);
     const inputField = (
         <Flex ml="15px" width="75px">
-            {totalPages > 20 ? (<><Input defaultValue={"1"} autoComplete="off" type="number" min={1} max={totalPages} ref={ref} onChange={e => console.log(e.target)} />
-                <OutlineButton ml="2px" fullWidth onClick={() => toPage(ref.current && parseInt(ref.current.value) - 1 || 0)}>→</OutlineButton></>) : null}
+            {totalPages > 20 ? (<>
+                <Input defaultValue={"1"} autoComplete="off" type="number" min={1} max={totalPages} ref={ref} />
+                <OutlineButton ml="2px" fullWidth onClick={() => toPage(ref.current && handleBoundaries(ref.current.value, totalPages) || 0)}>→</OutlineButton>
+            </>) : null}
         </Flex>)
     const half = Math.floor((totalPages - 1) / 2);
     const upperQuarter = Math.floor(half + half / 2);
