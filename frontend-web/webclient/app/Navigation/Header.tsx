@@ -25,22 +25,22 @@ import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
 import { SearchOptions, SelectableText } from "Search/Search";
 
-interface HeaderState {
-    searchText: string
+interface HeaderProps extends HeaderStateToProps, HeaderOperations {
+    history: History
 }
 
-class Header extends React.Component<HeaderStateToProps & HeaderOperations & { history: History }, HeaderState> {
+// FIXME Ideal for hooks, if useRouter ever happens
+class Header extends React.Component<HeaderProps, any> {
+
+    private searchRef = React.createRef<HTMLInputElement>();
+
     constructor(props) {
         super(props);
-        this.state = {
-            searchText: ""
-        };
         props.fetchLoginStatus();
         props.fetchAvatar();
     }
 
     public render() {
-        const { searchText } = this.state;
         const { prioritizedSearch, history, refresh, spin } = this.props;
         if (!Cloud.isLoggedIn) return null;
         return (
@@ -49,9 +49,8 @@ class Header extends React.Component<HeaderStateToProps & HeaderOperations & { h
                 <Box ml="auto" />
                 <Search
                     searchType={this.props.prioritizedSearch}
-                    onChange={searchText => this.setState(() => ({ searchText }))}
-                    navigate={() => history.push(searchPage(prioritizedSearch, searchText))}
-                    searchText={searchText}
+                    navigate={() => history.push(searchPage(prioritizedSearch, this.searchRef.current && this.searchRef.current.value || ""))}
+                    searchRef={this.searchRef}
                     setSearchType={st => this.props.setSearchType(st)}
                 />
                 <Box mr="auto" />
@@ -152,23 +151,21 @@ const SearchInput = styled(Flex)`
 
 
 interface Search {
-    searchText: string
+    searchRef: React.RefObject<HTMLInputElement>
     searchType: HeaderSearchType
-    onChange: (input: string) => void
     navigate: () => void
     setSearchType: (st: HeaderSearchType) => void
 }
-const Search = ({ searchText, onChange, navigate, searchType, setSearchType }: Search) => (
-    <Relative>
+const Search = ({ searchRef, navigate, searchType, setSearchType }: Search) => {
+    return (<Relative>
         <SearchInput>
             <Input
                 pl="30px"
                 id="search_input"
-                value={searchText}
                 type="text"
+                ref={searchRef}
                 noBorder
-                onChange={e => onChange(e.target.value)}
-                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) navigate(); }}
+                onKeyDown={e => { console.log(e.keyCode, searchRef.current && searchRef.current.value); if (e.keyCode === KeyCode.ENTER && !!(searchRef.current && searchRef.current.value)) navigate(); }}
             />
             <Absolute left="6px" top="7px">
                 <Label htmlFor="search_input">
@@ -197,14 +194,15 @@ const Search = ({ searchText, onChange, navigate, searchType, setSearchType }: S
                     )}
                     <Box mr="auto" />
                 </SearchOptions>
-                {searchType === "files" ? <DetailedFileSearch defaultFilename={searchText} cantHide /> :
-                    searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchText} /> :
-                        searchType === "projects" ? <DetailedProjectSearch defaultProjectName={searchText} /> : null}
+                {searchType === "files" ? <DetailedFileSearch defaultFilename={searchRef.current && searchRef.current.value} cantHide /> :
+                    searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchRef.current && searchRef.current.value} /> :
+                        searchType === "projects" ? <DetailedProjectSearch defaultProjectName={searchRef.current && searchRef.current.value} /> : null}
             </ClickableDropdown>
             {!Cloud.isLoggedIn ? <Login /> : null}
         </SearchInput>
     </Relative >
-);
+    )
+};
 
 const searchTypes: HeaderSearchType[] = ["files", "projects", "applications"]
 
