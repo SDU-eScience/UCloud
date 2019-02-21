@@ -8,7 +8,7 @@ import { History } from "history";
 import { HeaderStateToProps } from "Navigation";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { ReduxObject, KeyCode, HeaderSearchType } from "DefaultObjects";
-import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Divider, Support } from "ui-components";
+import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, OutlineButton } from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -19,17 +19,18 @@ import DetailedFileSearch from "Files/DetailedFileSearch";
 import { Dropdown } from "ui-components/Dropdown";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch"
-import { prettierString } from "UtilityFunctions";
+import { prettierString, infoNotification } from "UtilityFunctions";
 import { AvatarType } from "UserSettings/Avataaar";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
 import { SearchOptions, SelectableText } from "Search/Search";
+import { EllipsedText } from "ui-components/Text";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     history: History
 }
 
-// FIXME Ideal for hooks, if useRouter ever happens
+// NOTE: Ideal for hooks, if useRouter ever happens
 class Header extends React.Component<HeaderProps, any> {
 
     private searchRef = React.createRef<HTMLInputElement>();
@@ -46,6 +47,7 @@ class Header extends React.Component<HeaderProps, any> {
         return (
             <HeaderContainer color="headerText" bg="headerBg">
                 <Logo />
+                <ContextSwitcher />
                 <Box ml="auto" />
                 <Search
                     searchType={this.props.prioritizedSearch}
@@ -231,6 +233,29 @@ export const UserAvatar = ({ avatar }: UserAvatar) => Cloud.isLoggedIn ? (
             skinColor={avatar.skinColors}
         />
     </ClippedBox>) : null;
+
+const inDevEnvironment = process.env.NODE_ENV === "development"
+
+const ContextSwitcher = props => {
+    if (!inDevEnvironment) return null;
+    const [userContext, setUserContext] = React.useState(Cloud.username);
+    return (<Box ml="6px">
+        <ClickableDropdown trigger={
+            <Flex style={{
+                borderRadius: "4px",
+                border: "1px solid white"
+            }}>
+                <EllipsedText pl="8px" pr="6px" width="150px" title={userContext}>{userContext}</EllipsedText>
+                <Box cursor="pointer" pr="8px"><Icon size={"10"} name={"chevronDown"} /></Box>
+            </Flex>
+        } width="174px">
+            {[Cloud.username, "Project 1", "Project 2"].filter(it => it !== userContext).map(it => (
+                <EllipsedText key={it} onClick={() => (infoNotification("Not yet."), setUserContext(it))} width="150px">{it}</EllipsedText>
+            ))}
+        </ClickableDropdown>
+    </Box>);
+}
+
 
 interface HeaderOperations {
     fetchLoginStatus: () => void

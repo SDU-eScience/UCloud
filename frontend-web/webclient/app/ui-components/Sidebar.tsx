@@ -125,7 +125,6 @@ const SidebarElement = ({ icon, label, to, activePage }: SidebarElement) => (
 
 function enumToLabel(value: SidebarPages): string {
     switch (value) {
-        /* case SidebarPages.Dashboard: return "Dashboard"; */
         case SidebarPages.Files: return "Files";
         case SidebarPages.Shares: return "Shares";
         case SidebarPages.Favorites: return "Favorites";
@@ -202,7 +201,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) =
 
             {Cloud.isLoggedIn ? <TextLabel height="25px" hover={false} icon="id" iconSize="1em" textSize={1} space=".5em" title={Cloud.username || ""}>
                 <Tooltip top mb="35px" trigger={<EllipsedText cursor="pointer" onClick={() => copyToClipboard(Cloud.username, "Username copied to clipboard")} width={"140px"}>{Cloud.username}</EllipsedText>}>
-                    Click to copy to clipboard
+                    {`Click to copy "${Cloud.username}" to clipboard`}
                 </Tooltip>
             </TextLabel> : null}
 
