@@ -129,7 +129,13 @@ class FileAttributeParser(
                             if (hasWrite) rights += AccessRight.WRITE
                             if (hasExecute) rights += AccessRight.EXECUTE
 
-                            AccessEntry(aclEntity, isGroup, rights)
+                            val aclUsername = if (!isGroup) {
+                                runBlocking { uidLookupService.reverseLookup(aclEntity.toLong()) } ?: aclEntity
+                            } else {
+                                aclEntity
+                            }
+
+                            AccessEntry(aclUsername, isGroup, rights)
                         }
                     }
 
