@@ -1,0 +1,10 @@
+daemonSet: true
+replicaCount: 1
+adminService:
+  create: false
+service:
+  enableHttps: false
+  http: 
+    port: 8888
+  type: NodePort
+

@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.client.OutgoingCall
 import dk.sdu.cloud.calls.client.OutgoingCallCompanion
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
+import dk.sdu.cloud.calls.client.outgoingAuthToken
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import io.ktor.client.request.header
@@ -85,11 +86,7 @@ class RefreshingJWTAuthenticator(
 
     suspend fun authenticateCall(ctx: OutgoingCall) {
         val token = retrieveTokenRefreshIfNeeded()
-        when (ctx) {
-            is OutgoingHttpCall -> {
-                ctx.builder.header(HttpHeaders.Authorization, "Bearer $token")
-            }
-        }
+        ctx.attributes.outgoingAuthToken = token
     }
 
     companion object : Loggable {

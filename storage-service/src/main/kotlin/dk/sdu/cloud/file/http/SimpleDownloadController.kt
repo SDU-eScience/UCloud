@@ -54,13 +54,11 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                 audit(BulkFileAudit(filesDownloaded, FindByPath(request.path)))
 
                 val hasTokenFromUrl = request.token != null
-                log.debug("1")
                 val bearer = request.token ?: call.request.bearer ?: return@implement error(
                     CommonErrorMessage("Unauthorized"),
                     HttpStatusCode.Unauthorized
                 )
 
-                log.debug("2")
                 val principal = (if (hasTokenFromUrl) {
                     tokenValidation.validateAndClaim(bearer, listOf(DOWNLOAD_FILE_SCOPE), cloud)
                 } else {
@@ -70,7 +68,6 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                     HttpStatusCode.Unauthorized
                 )
 
-                log.debug("3")
                 if (hasTokenFromUrl) {
                     ctx.audit.securityPrincipalTokenToAudit = principal.toSecurityToken()
                 }

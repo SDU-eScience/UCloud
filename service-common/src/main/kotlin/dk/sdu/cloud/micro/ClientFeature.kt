@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.client.FixedOutgoingHostResolver
 import dk.sdu.cloud.calls.client.HostInfo
 import dk.sdu.cloud.calls.client.OutgoingHostResolver
 import dk.sdu.cloud.calls.client.OutgoingHttpRequestInterceptor
+import dk.sdu.cloud.calls.client.OutgoingWSRequestInterceptor
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.service.DevelopmentOutgoingHostResolver
 import dk.sdu.cloud.service.Loggable
@@ -21,6 +22,7 @@ class ClientFeature : MicroFeature {
         val clientConfig = ctx.rpcConfiguration?.client
         val defaultHost = clientConfig?.host ?: HostInfo(scheme = "https", host = "cloud.sdu.dk", port = 443)
         val installHttp = clientConfig?.http != false
+        val installWebsockets = clientConfig?.websockets != false && installHttp
 
         val defaultOutgoingHostResolver = FixedOutgoingHostResolver(defaultHost)
 
@@ -41,6 +43,10 @@ class ClientFeature : MicroFeature {
                     client,
                     hostResolver
                 )
+        }
+
+        if (installWebsockets) {
+            client.attachRequestInterceptor(OutgoingWSRequestInterceptor())
         }
     }
 

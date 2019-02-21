@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.0.0'
+version '1.1.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"
@@ -7,14 +7,14 @@ mainClassName = "dk.sdu.cloud.file.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.6/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.0.0"
+    ext.serviceCommonVersion = "1.1.0"
 }
 
 dependencies {
     compile group: 'org.kamranzafar', name: 'jtar', version: '2.3'
 
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
-    compile "dk.sdu.cloud:auth-api:1.17.0"
+    compile "dk.sdu.cloud:auth-api:1.18.1"
     compile "dk.sdu.cloud:notification-api:1.0.0"
 
     compile group: 'com.h2database', name: 'h2', version: '1.4.196'

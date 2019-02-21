@@ -8,6 +8,7 @@ import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPath
+import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.api.MoveRequest
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileName
@@ -18,6 +19,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 
 class TrashService(
@@ -27,13 +29,31 @@ class TrashService(
         validateTrashDirectory(username, userCloud)
         GlobalScope.launch {
             runCatching {
-                FileDescriptions.deleteFile
-                    .call(
-                        DeleteFileRequest(
-                            trashDirectoryService.findTrashDirectory(username)
+                while (true) {
+                    val filesResp = FileDescriptions.listAtPath.call(
+                        ListDirectoryRequest(
+                            trashDirectoryService.findTrashDirectory(username),
+                            itemsPerPage = 100,
+                            page = 0,
+                            order = null,
+                            sortBy = null
                         ),
                         userCloud
                     )
+
+                    if (filesResp.statusCode == HttpStatusCode.NotFound) return@launch
+                    val files = filesResp.orThrow()
+                    if (files.items.isEmpty()) return@launch
+
+                    files.items.map {
+                        launch {
+                            FileDescriptions.deleteFile.call(
+                                DeleteFileRequest(it.path),
+                                userCloud
+                            )
+                        }
+                    }.joinAll()
+                }
             }
         }
     }

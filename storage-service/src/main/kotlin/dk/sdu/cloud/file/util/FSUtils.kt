@@ -88,6 +88,7 @@ sealed class FSException(why: String, httpStatusCode: HttpStatusCode) : RPCExcep
     class IsDirectoryConflict : FSException("File cannot overwrite directory.", HttpStatusCode.Conflict)
 }
 
+@Deprecated("Deprecated")
 suspend inline fun CallHandler<*, *, CommonErrorMessage>.tryWithFS(
     body: () -> Unit
 ) {
@@ -100,6 +101,7 @@ suspend inline fun CallHandler<*, *, CommonErrorMessage>.tryWithFS(
     }
 }
 
+@Deprecated("Deprecated")
 suspend inline fun <Ctx : FSUserContext> CallHandler<*, *, CommonErrorMessage>.tryWithFS(
     factory: FSCommandRunnerFactory<Ctx>,
     user: String,
@@ -119,38 +121,7 @@ sealed class CallResult<S, E>(val status: HttpStatusCode) {
     class Error<S, E>(val item: E, status: HttpStatusCode) : CallResult<S, E>(status)
 }
 
-private const val DELAY_IN_MILLIS = 10_000L
-
-suspend fun <Ctx : FSUserContext, S> CallHandler<*, LongRunningResponse<S>, CommonErrorMessage>.tryWithFSAndTimeout(
-    factory: FSCommandRunnerFactory<Ctx>,
-    user: String,
-    job: suspend (Ctx) -> CallResult<S, CommonErrorMessage>
-) {
-    val result: Deferred<CallResult<S, CommonErrorMessage>> = GlobalScope.async {
-        try {
-            factory.withContext(user) { job(it) }
-        } catch (ex: Exception) {
-            val (msg, status) = handleFSException(ex)
-            CallResult.Error<S, CommonErrorMessage>(msg, status)
-        }
-    }
-
-    val timeout = GlobalScope.async { delay(DELAY_IN_MILLIS) }
-
-    select<Unit> {
-        result.onAwait {
-            when (it) {
-                is CallResult.Success -> ok(LongRunningResponse.Result(it.item), it.status)
-                is CallResult.Error -> error(it.item, it.status)
-            }
-        }
-
-        timeout.onAwait {
-            ok(LongRunningResponse.Timeout(), HttpStatusCode.Accepted)
-        }
-    }
-}
-
+@Deprecated("Deprecated")
 fun handleFSException(ex: Exception): Pair<CommonErrorMessage, HttpStatusCode> {
     return when (ex) {
         is IllegalArgumentException -> {

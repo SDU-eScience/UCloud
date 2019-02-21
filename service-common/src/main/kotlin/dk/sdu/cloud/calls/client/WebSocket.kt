@@ -35,6 +35,7 @@ import kotlinx.coroutines.sync.withLock
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.random.Random
 
 class OutgoingWSCall : OutgoingCall {
     override val attributes = AttributeContainer()
@@ -65,16 +66,27 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         request: R,
         ctx: OutgoingWSCall
     ): IngoingCallResponse<S, E> {
+        val callId = Random.nextInt(10000) // Non unique ID for logging
+        val start = System.currentTimeMillis()
+        val shortRequestMessage = request.toString().take(100)
+
         val targetHost = ctx.attributes.outgoingTargetHost
         val host = targetHost.host.removeSuffix("/")
-        val scheme = targetHost.scheme ?: "ws"
-        val port = targetHost.port ?: if (scheme == "wss") 443 else 80
-        val path = call.websocket.path.removeSuffix("/")
+//        val scheme = targetHost.scheme?.replace("http", "ws") ?: "ws"
+//        val port = targetHost.port ?: if (targetHost.scheme == "https") 443 else 80
+
+        // For some reason ktor's websocket client does not currently work when pointed at WSS, but works fine
+        // when redirected from WS to WSS.
+        val port = 80
+        val scheme = "ws"
+
+        val path = call.websocket.path.removePrefix("/")
 
         val url = "$scheme://$host:$port/$path"
 
         val streamId = streamId.getAndIncrement().toString()
 
+        log.info("[$callId] -> $url (${call.fullName}, $streamId): $shortRequestMessage")
         val session = connectionPool.retrieveConnection(url)
         val wsRequest = WSRequest(
             call.fullName,
@@ -99,11 +111,13 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             val channel = processMessagesFromStream(call, subscription, streamId)
             for (message in channel) {
                 if (message is WSMessage.Response) {
+                    log.info("[$callId] <- $url (${call.fullName}, $streamId) RESPONSE ${System.currentTimeMillis() - start}ms")
                     response = message
                     channel.cancel()
                     session.unsubscribe(streamId)
                     break
                 } else if (message is WSMessage.Message && handler != null) {
+                    log.info("[$callId] <- $url (${call.fullName}, $streamId) MESSAGE ${System.currentTimeMillis() - start}ms")
                     handler(message.payload)
                 }
             }
