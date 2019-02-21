@@ -15,12 +15,11 @@ interface PaginationButtons { totalPages: number, currentPage: number, toPage: (
 export function PaginationButtons({ totalPages, currentPage, toPage }: PaginationButtons) {
     if (totalPages <= 1) return null;
     const ref = React.useRef<HTMLInputElement>(null)
-    const inputField = totalPages > 20 ? (
+    const inputField = (
         <Flex ml="15px" width="75px">
-            <Input defaultValue={"1"} autoComplete="off" type="number" min={1} max={totalPages} ref={ref} onChange={e => console.log(e.target)} />
-            <OutlineButton ml="2px" fullWidth onClick={() => toPage(ref.current && parseInt(ref.current.value) - 1 || 0)}>→</OutlineButton>
-        </Flex>
-    ) : null;
+            {totalPages > 20 ? (<><Input defaultValue={"1"} autoComplete="off" type="number" min={1} max={totalPages} ref={ref} onChange={e => console.log(e.target)} />
+                <OutlineButton ml="2px" fullWidth onClick={() => toPage(ref.current && parseInt(ref.current.value) - 1 || 0)}>→</OutlineButton></>) : null}
+        </Flex>)
     const half = Math.floor((totalPages - 1) / 2);
     const upperQuarter = Math.floor(half + half / 2);
     const lowerQuarter = Math.floor(half - half / 2);
@@ -32,8 +31,8 @@ export function PaginationButtons({ totalPages, currentPage, toPage }: Paginatio
                 <PaginationButton onClick={() => undefined} unclickable>{"..."}</PaginationButton>
             </React.Fragment>
         ) : (
-            <PaginationButton key={it} unclickable={currentPage === it} color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
-        )
+                <PaginationButton key={it} unclickable={currentPage === it} color={currentPage === it ? "gray" : "black"} onClick={() => toPage(it)}>{it + 1}</PaginationButton>
+            )
     );
     return (
         <PaginationGroup justifyContent="center" my="1em">
