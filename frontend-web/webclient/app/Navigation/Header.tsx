@@ -8,7 +8,7 @@ import { History } from "history";
 import { HeaderStateToProps } from "Navigation";
 import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
 import { ReduxObject, KeyCode, HeaderSearchType } from "DefaultObjects";
-import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Divider, Support } from "ui-components";
+import { Flex, Box, Text, Icon, Relative, Absolute, Input, Label, Support, OutlineButton } from "ui-components";
 import Notification from "Notifications";
 import styled from "styled-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -19,39 +19,40 @@ import DetailedFileSearch from "Files/DetailedFileSearch";
 import { Dropdown } from "ui-components/Dropdown";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import DetailedProjectSearch from "Project/DetailedProjectSearch"
-import { prettierString } from "UtilityFunctions";
+import { prettierString, infoNotification } from "UtilityFunctions";
 import { AvatarType } from "UserSettings/Avataaar";
 import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 import { setPrioritizedSearch } from "./Redux/HeaderActions";
 import { SearchOptions, SelectableText } from "Search/Search";
+import { EllipsedText } from "ui-components/Text";
 
-interface HeaderState {
-    searchText: string
+interface HeaderProps extends HeaderStateToProps, HeaderOperations {
+    history: History
 }
 
-class Header extends React.Component<HeaderStateToProps & HeaderOperations & { history: History }, HeaderState> {
+// NOTE: Ideal for hooks, if useRouter ever happens
+class Header extends React.Component<HeaderProps, any> {
+
+    private searchRef = React.createRef<HTMLInputElement>();
+
     constructor(props) {
         super(props);
-        this.state = {
-            searchText: ""
-        };
         props.fetchLoginStatus();
         props.fetchAvatar();
     }
 
     public render() {
-        const { searchText } = this.state;
         const { prioritizedSearch, history, refresh, spin } = this.props;
         if (!Cloud.isLoggedIn) return null;
         return (
             <HeaderContainer color="headerText" bg="headerBg">
                 <Logo />
+                <ContextSwitcher />
                 <Box ml="auto" />
                 <Search
                     searchType={this.props.prioritizedSearch}
-                    onChange={searchText => this.setState(() => ({ searchText }))}
-                    navigate={() => history.push(searchPage(prioritizedSearch, searchText))}
-                    searchText={searchText}
+                    navigate={() => history.push(searchPage(prioritizedSearch, this.searchRef.current && this.searchRef.current.value || ""))}
+                    searchRef={this.searchRef}
                     setSearchType={st => this.props.setSearchType(st)}
                 />
                 <Box mr="auto" />
@@ -152,23 +153,21 @@ const SearchInput = styled(Flex)`
 
 
 interface Search {
-    searchText: string
+    searchRef: React.RefObject<HTMLInputElement>
     searchType: HeaderSearchType
-    onChange: (input: string) => void
     navigate: () => void
     setSearchType: (st: HeaderSearchType) => void
 }
-const Search = ({ searchText, onChange, navigate, searchType, setSearchType }: Search) => (
-    <Relative>
+const Search = ({ searchRef, navigate, searchType, setSearchType }: Search) => {
+    return (<Relative>
         <SearchInput>
             <Input
                 pl="30px"
                 id="search_input"
-                value={searchText}
                 type="text"
+                ref={searchRef}
                 noBorder
-                onChange={e => onChange(e.target.value)}
-                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!searchText) navigate(); }}
+                onKeyDown={e => { console.log(e.keyCode, searchRef.current && searchRef.current.value); if (e.keyCode === KeyCode.ENTER && !!(searchRef.current && searchRef.current.value)) navigate(); }}
             />
             <Absolute left="6px" top="7px">
                 <Label htmlFor="search_input">
@@ -197,14 +196,15 @@ const Search = ({ searchText, onChange, navigate, searchType, setSearchType }: S
                     )}
                     <Box mr="auto" />
                 </SearchOptions>
-                {searchType === "files" ? <DetailedFileSearch defaultFilename={searchText} cantHide /> :
-                    searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchText} /> :
-                        searchType === "projects" ? <DetailedProjectSearch defaultProjectName={searchText} /> : null}
+                {searchType === "files" ? <DetailedFileSearch defaultFilename={searchRef.current && searchRef.current.value} cantHide /> :
+                    searchType === "applications" ? <DetailedApplicationSearch defaultAppName={searchRef.current && searchRef.current.value} /> :
+                        searchType === "projects" ? <DetailedProjectSearch defaultProjectName={searchRef.current && searchRef.current.value} /> : null}
             </ClickableDropdown>
             {!Cloud.isLoggedIn ? <Login /> : null}
         </SearchInput>
     </Relative >
-);
+    )
+};
 
 const searchTypes: HeaderSearchType[] = ["files", "projects", "applications"]
 
@@ -234,6 +234,29 @@ export const UserAvatar = ({ avatar }: UserAvatar) => Cloud.isLoggedIn ? (
         />
     </ClippedBox>) : null;
 
+const inDevEnvironment = process.env.NODE_ENV === "development"
+
+const ContextSwitcher = props => {
+    if (!inDevEnvironment) return null;
+    const [userContext, setUserContext] = React.useState(Cloud.username);
+    return (<Box ml="6px">
+        <ClickableDropdown trigger={
+            <Flex style={{
+                borderRadius: "4px",
+                border: "1px solid white"
+            }}>
+                <EllipsedText pl="8px" pr="6px" width="150px" title={userContext}>{userContext}</EllipsedText>
+                <Box cursor="pointer" pr="8px"><Icon size={"10"} name={"chevronDown"} /></Box>
+            </Flex>
+        } width="174px">
+            {[Cloud.username, "Project 1", "Project 2"].filter(it => it !== userContext).map(it => (
+                <EllipsedText key={it} onClick={() => (infoNotification("Not yet."), setUserContext(it))} width="150px">{it}</EllipsedText>
+            ))}
+        </ClickableDropdown>
+    </Box>);
+}
+
+
 interface HeaderOperations {
     fetchLoginStatus: () => void
     fetchAvatar: () => void
@@ -257,5 +280,6 @@ const anyLoading = (rO: ReduxObject): boolean =>
     || rO.simpleSearch.applicationsLoading || rO.simpleSearch.projectsLoading || rO.zenodo.loading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.recentLoading || rO.dashboard.analysesLoading || rO.dashboard.favoriteLoading
     || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.applications.loading || rO.favorites.loading
+    || rO.shares.loading
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(withRouter(Header));

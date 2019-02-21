@@ -100,9 +100,9 @@ interface FavoritesOperations {
 const mapDispatchToProps = (dispatch: Dispatch): FavoritesOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     fetchFileFavorites: async (pageNumber, itemsPerPage) => {
-        setLoading(true);
+        dispatch(setLoading(true));
         dispatch(await fetchFavorites(pageNumber, itemsPerPage))
-        setLoading(false);
+        dispatch(setLoading(false));
     },
     receiveFavorites: page => dispatch(receiveFavorites(page)),
     setLoading: loading => dispatch(setLoading(loading))

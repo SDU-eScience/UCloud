@@ -1,10 +1,10 @@
 import { SharesByPath, ShareState } from "Shares";
-import { Page, PayloadAction, Error } from "Types";
+import { Page, PayloadAction, Error, SetLoadingAction } from "Types";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { sharesByPathQuery } from "Utilities/SharesUtilities";
-import { RECEIVE_SHARES, SET_SHARES_ERROR, SET_SHARE_STATE } from "./SharesReducer";
+import { RECEIVE_SHARES, SET_SHARES_ERROR, SET_SHARE_STATE, SET_SHARES_LOADING } from "./SharesReducer";
 
-export type SharesActions = ReceiveShares | SetErrorMessage | SetShareState;
+export type SharesActions = ReceiveShares | SetErrorMessage | SetShareState | SetLoading;
 
 type ReceiveShares = PayloadAction<typeof RECEIVE_SHARES, { page: Page<SharesByPath> }>
 export const receiveShares = (page: Page<SharesByPath>): ReceiveShares => ({
@@ -49,4 +49,10 @@ type SetErrorMessage = Error<typeof SET_SHARES_ERROR>
 export const setErrorMessage = (error?: string): SetErrorMessage => ({
     type: SET_SHARES_ERROR,
     payload: { error }
+});
+
+type SetLoading = SetLoadingAction<typeof SET_SHARES_LOADING>
+export const setLoading = (loading: boolean): SetLoading => ({
+    type: SET_SHARES_LOADING,
+    payload: { loading }
 });
