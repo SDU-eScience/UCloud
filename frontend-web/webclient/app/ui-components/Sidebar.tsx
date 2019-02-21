@@ -9,7 +9,7 @@ import Divider from "./Divider";
 import { Cloud } from "Authentication/SDUCloudObject";
 import { fileTablePage } from "Utilities/FileUtilities";
 import ExternalLink from "./ExternalLink";
-import  RatingBadge from "./RatingBadge"
+import RatingBadge from "./RatingBadge"
 import Tooltip from "./Tooltip";
 import RBox from "./RBox";
 import { ReduxObject } from "DefaultObjects"
@@ -98,7 +98,7 @@ const TextLabel = ({ icon, children, title, height = "30px", color = "iconColor"
         </SidebarElementContainer>
     );
 
-const SidebarLink = styled(Link)`
+const SidebarLink = styled(Link) <{ active?: boolean }>`
     ${props => props.active ?
         `&:not(:hover) > * > ${Text} { 
             color: ${props.theme.colors.blue};

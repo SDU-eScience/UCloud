@@ -115,7 +115,9 @@ const Login = () => (
 
 
 const SearchInput = styled(Flex)`
-    width: 350px;
+    min-width: 250px;
+    width: 450px;
+    max-width: 450px;
     height: 36px;
     align-items: center;
     color: white;
@@ -167,7 +169,7 @@ const Search = ({ searchRef, navigate, searchType, setSearchType }: Search) => {
                 type="text"
                 ref={searchRef}
                 noBorder
-                onKeyDown={e => { console.log(e.keyCode, searchRef.current && searchRef.current.value); if (e.keyCode === KeyCode.ENTER && !!(searchRef.current && searchRef.current.value)) navigate(); }}
+                onKeyDown={e => { if (e.keyCode === KeyCode.ENTER && !!(searchRef.current && searchRef.current.value)) navigate(); }}
             />
             <Absolute left="6px" top="7px">
                 <Label htmlFor="search_input">
@@ -178,7 +180,7 @@ const Search = ({ searchRef, navigate, searchType, setSearchType }: Search) => {
                 overflow={"visible"}
                 left={-350}
                 top={15}
-                width="350px"
+                width="450px"
                 colorOnHover={false}
                 keepOpenOnClick
                 squareTop
@@ -255,7 +257,6 @@ const ContextSwitcher = props => {
         </ClickableDropdown>
     </Box>);
 }
-
 
 interface HeaderOperations {
     fetchLoginStatus: () => void

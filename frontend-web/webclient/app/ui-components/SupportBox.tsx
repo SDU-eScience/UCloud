@@ -78,11 +78,11 @@ function Support() {
                 <Heading.h3>Support Form</Heading.h3>
                 <Flex mt="3px">
                     <Label>
-                        <Radio checked={type === SupportType.SUGGESTION} onClick={() => setType(SupportType.SUGGESTION)} />
+                        <Radio checked={type === SupportType.SUGGESTION} onChange={() => setType(SupportType.SUGGESTION)} />
                         Suggestion
                     </Label>
                     <Label>
-                        <Radio checked={type === SupportType.BUG} onClick={() => setType(SupportType.BUG)} />
+                        <Radio checked={type === SupportType.BUG} onChange={() => setType(SupportType.BUG)} />
                         Bug
                     </Label>
                 </Flex>
