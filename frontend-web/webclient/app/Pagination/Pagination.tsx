@@ -1,6 +1,6 @@
 import * as React from "react";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Text, Flex, Button, theme, Box, Input, OutlineButton } from "ui-components";
+import { Text, Flex, Button, theme, Input, OutlineButton } from "ui-components";
 import styled from "styled-components";
 import { TextSpan } from "ui-components/Text";
 
