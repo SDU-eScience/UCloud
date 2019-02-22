@@ -48,11 +48,11 @@ export const View = (props: ViewProps) => {
             <>
                 <Link to={projectEditPage(metadata.sduCloudRoot)}>
                     <Button color="blue" fullWidth>
-                        <Icon name="edit" mr="0.5em" my="0.15em" size="1em"/>
+                        <Icon name="edit" mr="0.5em" my="0.15em" size="1em" />
                         Edit
                     </Button>
                 </Link>
-                <Box mb="3em"/>
+                <Box mb="3em" />
             </>
             : null
         }
@@ -64,7 +64,7 @@ export const View = (props: ViewProps) => {
             {license ?
                 <ExternalLink href={license.link}>
                     <Button color="blue" lineHeight="0.3" size="small" fullWidth>
-                        <Text color="white"><Icon name="license" mr="0.5em" size="1.5em"/>{license.identifier} License</Text>
+                        <Text color="white"><Icon name="license" mr="0.5em" size="1.5em" />{license.identifier} License</Text>
                     </Button>
                 </ExternalLink> : null
             }
@@ -107,7 +107,7 @@ export const View = (props: ViewProps) => {
 
 const SectionHeader = ({ iconClass, title }: { iconClass: IconName, title: string }) => (
     <Heading.h4>
-        <TextSpan><Icon name={iconClass} size="1.1em" my="0.2em" color2="lightGray"/> {title}</TextSpan>
+        <TextSpan><Icon name={iconClass} size="1.1em" my="0.2em" color2="lightGray" /> {title}</TextSpan>
     </Heading.h4>
 )
 
@@ -196,9 +196,7 @@ const handleNullArrays = (metadata: ProjectMetadata): ProjectMetadata => {
     return mData;
 };
 
-const isIdentifierDOI = (identifier: string): boolean => {
-    return /^10\..+\/.+$/.test(identifier);
-};
+const isIdentifierDOI = (identifier: string): boolean => /^10\..+\/.+$/.test(identifier);
 
 const DOIBadge = (props: { identifier: string }) => {
     const { identifier } = props;

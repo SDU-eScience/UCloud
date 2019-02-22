@@ -31,6 +31,7 @@ import Snackbars from "Snackbar/Snackbars";
 import Favorites from "Favorites/Favorites";
 import { LoginPage } from "Login/Login";
 import Wayf from "Login/Wayf";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
@@ -39,7 +40,8 @@ const Core = () => (
         <Snackbars />
         <Header />
         <Uploader />
-        <Sidebar />
+        {/* FIXME: boolean logic should not be here */}
+        {Cloud.isLoggedIn ? <Sidebar /> : null}
         <Switch>
             <Route exact path="/login" component={LoginPage} />
             <Route exact path="/wayf" component={Wayf} />

@@ -135,13 +135,13 @@ export const LoginPage = (props: { history: History }) => {
 }
 
 export const TwoFactor = ({ enabled2fa, inputRef }) => enabled2fa ? (
-    <Input ref={inputRef} mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
+    <Input ref={inputRef} autoFocus mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
 ) : null;
 
 export const Login = ({ enabled2fa, usernameRef, passwordRef }) => !enabled2fa ? (
     <>
         <Input type="hidden" value="web-csrf" name="service" />
-        <Input ref={usernameRef} mb="0.5em" type="text" name="username" id="username" placeholder="Username" />
+        <Input ref={usernameRef} autoFocus mb="0.5em" type="text" name="username" id="username" placeholder="Username" />
         <Input ref={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
     </>
 ) : null;

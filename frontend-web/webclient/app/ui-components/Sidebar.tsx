@@ -179,7 +179,6 @@ interface SidebarProps extends SidebarStateProps {
 }
 
 const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) => {
-    if (!Cloud.isLoggedIn) return null;
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
         .filter(it => it.predicate());

@@ -57,11 +57,11 @@ export default class SDUCloud {
         this.serviceName = serviceName;
 
         this.apiContext = "/api";
-        this.authContext = "/auth";
+        this.authContext = process.env.NODE_ENV === "development" ? "/app" : "/auth";
 
         this.decodedToken = null;
         // FIXME: Set to false when login page is part of app
-        this.redirectOnInvalidTokens = true;
+        this.redirectOnInvalidTokens = false;
 
         let accessToken = SDUCloud.storedAccessToken;
         let csrfToken = SDUCloud.storedCsrfToken;
