@@ -1,5 +1,6 @@
 package dk.sdu.cloud.elastic.management
 
+import dk.sdu.cloud.elastic.management.services.BackupService
 import dk.sdu.cloud.elastic.management.services.DeleteService
 import dk.sdu.cloud.elastic.management.services.ShrinkService
 import dk.sdu.cloud.micro.Micro
@@ -38,6 +39,18 @@ class Server(
                 deleteService.cleanUp()
                 val shrinkService = ShrinkService(elastic)
                 shrinkService.shrink()
+                exitProcess(0)
+            } catch (ex: Exception) {
+                ex.printStackTrace()
+                exitProcess(1)
+            }
+        }
+
+        if (micro.commandLineArguments.contains("--backup")) {
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                val backupService = BackupService(elastic)
+                backupService.start()
                 exitProcess(0)
             } catch (ex: Exception) {
                 ex.printStackTrace()

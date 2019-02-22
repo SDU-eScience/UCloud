@@ -1,0 +1,110 @@
+package dk.sdu.cloud.elastic.management.services
+
+import org.apache.http.HttpHost
+import org.elasticsearch.action.admin.indices.flush.FlushRequest
+import org.elasticsearch.action.bulk.BulkRequest
+import org.elasticsearch.action.index.IndexRequest
+import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.client.RestClient
+import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.common.xcontent.XContentType
+import org.junit.Ignore
+import org.junit.Test
+import java.time.LocalDate
+import java.util.*
+
+class ManagementTest {
+
+    private val elastic = RestHighLevelClient(
+        RestClient.builder(
+            HttpHost(
+                "localhost",
+                9200,
+                "http"
+            )
+        )
+    )
+
+    private fun createDocuments(
+        index: String,
+        numberOfDaysBeforeNow: Long,
+        numberOfDocuments: Int,
+        expired: Boolean = true
+    ): String{
+        val date = Date().time
+        val pastdate = LocalDate.now().minusDays(numberOfDaysBeforeNow).toString().replace("-","." )
+
+        var bulkRequest = BulkRequest()
+        for (i in 0 until numberOfDocuments) {
+            val request = IndexRequest("$index-$pastdate", "doc")
+            val jsonString = """
+                {
+                    "user":"kimchy",
+                    "postDate": "$i",
+                    "message": "This is message $i!",
+                    "expiry": ${ if (expired) date-22222 else date+date}
+                }
+            """.trimIndent()
+            request.source(jsonString, XContentType.JSON)
+            bulkRequest.add(request)
+            if (i.rem(10000) == 0) {
+                elastic.bulk(bulkRequest, RequestOptions.DEFAULT)
+                bulkRequest = BulkRequest()
+            }
+        }
+       /* val request = IndexRequest("$index-$pastdate", "doc")
+        val jsonString = """
+                {
+                    "user":"kimchy",
+                    "postDate": "j",
+                    "message": "This is message ddd!",
+                    "expiry": ${date+date}
+                }
+            """.trimIndent()
+        request.source(jsonString, XContentType.JSON)
+        bulkRequest.add(request)*/
+        elastic.bulk(bulkRequest, RequestOptions.DEFAULT)
+        return "$index-$pastdate"
+    }
+
+    @Ignore
+    @Test
+    fun `Multiple index find and delete test`() {
+        val startCreateTime = Date().time
+        var indices = "${createDocuments("hello", 0, 50000)},"
+        indices += "${createDocuments("hello", 1, 50000)},"
+        indices += "${createDocuments("hello", 2, 50000)},"
+        indices += "${createDocuments("hello", 3, 50000)},"
+        indices += createDocuments("hello", 4, 50000)
+        val endCreateTime = Date().time
+        println("Time to create: ${endCreateTime-startCreateTime} millsec")
+
+        elastic.indices().flush(FlushRequest(indices), RequestOptions.DEFAULT)
+
+        val deleteService = DeleteService(elastic)
+
+        val starttime = Date().time
+        deleteService.cleanUp()
+        val endtime = Date().time
+
+        println("Took: ${endtime-starttime} millsec")
+    }
+
+    @Test
+    fun `Multiple index shrink test`() {
+        var indices = "${createDocuments("hello", 1, 100000)},"
+        indices += "${createDocuments("mojn", 1, 100000)},"
+        indices += "${createDocuments("hi", 1, 100000)},"
+        indices += "${createDocuments("goddag", 2, 100000)},"
+        indices += createDocuments("dav", 1, 100000)
+        println("Created")
+
+        elastic.indices().flush(FlushRequest(indices), RequestOptions.DEFAULT)
+
+        val shrinkService = ShrinkService(elastic)
+
+        shrinkService.shrink()
+
+    }
+
+}

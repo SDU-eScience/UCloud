@@ -2,13 +2,13 @@ package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
+import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.admin.indices.get.GetIndexRequest
-import org.elasticsearch.action.bulk.BulkRequest
-import org.elasticsearch.action.delete.DeleteRequest
-import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.client.core.CountRequest
 import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.index.reindex.DeleteByQueryRequest
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.slf4j.Logger
 import java.util.*
@@ -17,58 +17,52 @@ class DeleteService(
     private val elastic: RestHighLevelClient
 ){
 
-    fun findExpired(index: String) {
+    private fun deleteExpired(index: String) {
         val date = Date().time
-        val request = SearchRequest(index)
-        val query = SearchSourceBuilder().query(
+
+        val expiredCount = elastic.count(CountRequest().source(
+                SearchSourceBuilder().query(
+                    QueryBuilders.rangeQuery("expiry")
+                        .lte(date)
+                )
+            )
+            .indices(index),
+            RequestOptions.DEFAULT
+        ).count
+
+        val sizeOfIndex = elastic.count(CountRequest().source(
+                SearchSourceBuilder().query(
+                    QueryBuilders.matchAllQuery()
+                )
+            ).indices(index),
+            RequestOptions.DEFAULT
+        ).count
+
+        if (sizeOfIndex == expiredCount) {
+            log.info("All doc expired - faster to delete index")
+            deleteFullIndex(index)
+        }
+        else {
+            val request = DeleteByQueryRequest(index)
+            request.setQuery(
                 QueryBuilders.rangeQuery("expiry")
                     .lte(date)
             )
-        request.source(query)
 
-        val results = elastic.search(request, RequestOptions.DEFAULT)
-        val expiredDocumentsIdsList = results.hits.map { it.id }.toList()
-
-        if (expiredDocumentsIdsList.isEmpty()) {
-            log.info("No documents to be deleted from index: $index")
-            return
+            elastic.deleteByQuery(request, RequestOptions.DEFAULT)
+            elastic.indices().flush(FlushRequest(index), RequestOptions.DEFAULT)
         }
-
-        deleteDocuments(index, expiredDocumentsIdsList)
     }
 
     private fun deleteFullIndex(index: String){
-        log.info("Deleting entire index: $index")
         elastic.indices().delete(DeleteIndexRequest(index), RequestOptions.DEFAULT)
-    }
-
-    private fun getSizeOfIndex(index: String): Long {
-        val request = SearchRequest(index)
-        request.source(
-            SearchSourceBuilder().query(
-                QueryBuilders.matchAllQuery()
-            )
-        )
-        return elastic.search(request, RequestOptions.DEFAULT).hits.totalHits
-    }
-
-    private fun deleteDocuments(index: String, listOfIds: List<String>) {
-        if (getSizeOfIndex(index) == listOfIds.size.toLong()) {
-            deleteFullIndex(index)
-        } else {
-            log.info("Deleting ${listOfIds.size} documents from index: $index")
-            val bulkRequest = BulkRequest()
-            listOfIds.forEach {
-                bulkRequest.add(DeleteRequest(index, DOC_TYPE, it))
-            }
-            elastic.bulk(bulkRequest, RequestOptions.DEFAULT)
-        }
+        log.info("Index: $index deleted")
     }
 
     fun cleanUp() {
         val list = elastic.indices().get(GetIndexRequest().indices("*"), RequestOptions.DEFAULT).indices
         list.forEach {
-            findExpired(it)
+            deleteExpired(it)
         }
     }
 

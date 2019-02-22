@@ -16,7 +16,7 @@ class ShrinkService(
     private val elastic: RestHighLevelClient
 ) {
 
-    fun deleteIndex(index: String) {
+    private fun deleteIndex(index: String) {
         val request = DeleteIndexRequest(index)
         elastic.indices().delete(request, RequestOptions.DEFAULT)
     }
