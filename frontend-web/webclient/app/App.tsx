@@ -35,6 +35,8 @@ import { configureStore } from "Utilities/ReduxUtilities";
 import { responsiveStoreEnhancer, createResponsiveStateReducer } from 'redux-responsive';
 import { responsiveBP } from "ui-components/theme";
 
+export const inDevEnvironment = process.env.NODE_ENV === "development"
+
 const store = configureStore(initObject(Cloud.homeFolder), {
     activity,
     files,
