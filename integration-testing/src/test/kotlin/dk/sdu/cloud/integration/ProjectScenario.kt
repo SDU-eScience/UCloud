@@ -1,5 +1,6 @@
 package dk.sdu.cloud.integration
 
+/*
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.CreateSingleUserRequest
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
@@ -16,7 +17,6 @@ import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.UploadRequest
 import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.integration.testing.api.IntegrationTestingServiceDescription
 import dk.sdu.cloud.project.api.AddMemberRequest
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.project.api.ProjectDescriptions
@@ -27,7 +27,6 @@ import dk.sdu.cloud.project.auth.api.FetchTokenRequest
 import dk.sdu.cloud.project.auth.api.ProjectAuthDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.cloudContext
 import dk.sdu.cloud.service.configuration
 import dk.sdu.cloud.service.initWithDefaultFeatures
@@ -37,7 +36,6 @@ import dk.sdu.cloud.service.test.assertThatProperty
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.retrySection
 import dk.sdu.cloud.service.tokenValidation
-import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.runBlocking
 import java.nio.file.Files
 import java.util.*
@@ -57,7 +55,7 @@ class ProjectScenario {
         log.info("Creating the following users: $names")
         val users = UserDescriptions.createNewUser.call(
             names.map { CreateSingleUserRequest(it, password, Role.USER) },
-            adminCloud
+            adminClient
         ).orThrow()
 
         val userClouds = users.map { it.cloud() }
@@ -67,7 +65,7 @@ class ProjectScenario {
         log.info("Creating project with $piUsername as the PI")
         val projectId = ProjectDescriptions.create.call(
             CreateProjectRequest("Integration Test", piUsername),
-            adminCloud
+            adminClient
         ).orThrow().id
 
         log.info("Project ID: $projectId")
@@ -194,3 +192,4 @@ class ProjectScenario {
         override val log = logger()
     }
 }
+*/

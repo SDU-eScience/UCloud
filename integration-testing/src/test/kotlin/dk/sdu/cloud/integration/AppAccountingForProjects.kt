@@ -1,5 +1,6 @@
 package dk.sdu.cloud.integration
 
+/*
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.UsageRequest
 import dk.sdu.cloud.accounting.compute.api.ComputeAccountingTimeDescriptions
@@ -39,7 +40,7 @@ class AppAccountingForProjects {
         log.info("Creating the following users: $names")
         val users = UserDescriptions.createNewUser.call(
             names.map { CreateSingleUserRequest(it, password, Role.USER) },
-            adminCloud
+            adminClient
         ).orThrow()
 
         val userClouds = users.map { it.cloud() }
@@ -48,7 +49,7 @@ class AppAccountingForProjects {
         log.info("Creating project with $piUsername as the PI")
         val projectId = ProjectDescriptions.create.call(
             CreateProjectRequest("Integration Test", piUsername),
-            adminCloud
+            adminClient
         ).orThrow().id
 
         log.info("Project ID: $projectId")
@@ -111,3 +112,4 @@ class AppAccountingForProjects {
         override val log = logger()
     }
 }
+*/

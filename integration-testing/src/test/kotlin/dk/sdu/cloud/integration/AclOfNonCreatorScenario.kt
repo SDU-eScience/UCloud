@@ -3,11 +3,12 @@ package dk.sdu.cloud.integration
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.CreateSingleUserRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.orThrow
 import dk.sdu.cloud.service.test.retrySection
 import dk.sdu.cloud.share.api.AcceptShareRequest
 import dk.sdu.cloud.share.api.CreateShareRequest
@@ -25,8 +26,8 @@ class AclOfNonCreatorScenario {
 
         val clouds = UserDescriptions.createNewUser.call(
             users.map { CreateSingleUserRequest(it, password, Role.USER) },
-            adminCloud
-        ).orThrow().map { it.cloud() }
+            adminClient
+        ).orThrow().map { it.client() }
 
         val homeDir = "/home/${users[0]}"
         val filePath = "$homeDir/foo"
@@ -40,7 +41,7 @@ class AclOfNonCreatorScenario {
             ).orThrow().id
 
             ShareDescriptions.accept.call(
-                AcceptShareRequest(share),
+                AcceptShareRequest(share, createLink = null),
                 clouds[1]
             ).orThrow()
         }
@@ -58,7 +59,7 @@ class AclOfNonCreatorScenario {
         ).orThrow().id
 
         ShareDescriptions.accept.call(
-            AcceptShareRequest(reshare),
+            AcceptShareRequest(reshare, createLink = null),
             clouds[2]
         ).orThrow()
 
