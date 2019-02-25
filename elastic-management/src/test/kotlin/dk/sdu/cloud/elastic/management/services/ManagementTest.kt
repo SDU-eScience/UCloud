@@ -47,7 +47,7 @@ class ManagementTest {
             """.trimIndent()
             request.source(jsonString, XContentType.JSON)
             bulkRequest.add(request)
-            if (i.rem(10000) == 0) {
+            if (i%10000 == 0) {
                 elastic.bulk(bulkRequest, RequestOptions.DEFAULT)
                 bulkRequest = BulkRequest()
             }
@@ -90,6 +90,7 @@ class ManagementTest {
         println("Took: ${endtime-starttime} millsec")
     }
 
+    @Ignore
     @Test
     fun `Multiple index shrink test`() {
         var indices = "${createDocuments("hello", 1, 100000)},"
@@ -105,6 +106,13 @@ class ManagementTest {
 
         shrinkService.shrink()
 
+    }
+
+    @Test
+    fun `backup test`() {
+        val backupService = BackupService(elastic)
+        backupService.start()
+        backupService.deleteBackup()
     }
 
 }

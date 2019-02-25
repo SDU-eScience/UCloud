@@ -49,8 +49,9 @@ class Server(
         if (micro.commandLineArguments.contains("--backup")) {
             @Suppress("TooGenericExceptionCaught")
             try {
+                log.info("NOT SETUP YET")
                 val backupService = BackupService(elastic)
-                backupService.start()
+               // backupService.start()
                 exitProcess(0)
             } catch (ex: Exception) {
                 ex.printStackTrace()
