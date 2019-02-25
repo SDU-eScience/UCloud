@@ -249,7 +249,7 @@ class UnixFileSystem(
         return ctx.runCommand(
             InterpreterCommand.GET_XATTR,
             absolutePath,
-            attribute,
+            attribute.removePrefix(ATTRIBUTE_PREFIX).let { "$ATTRIBUTE_PREFIX$it" },
 
             consumer = {
                 var value: String? = null
