@@ -128,7 +128,7 @@ export const LoginPage = (props: { history: History }) => {
                         <Box><Text fontSize={1} color="textColor">Under construction - Not yet available to the public.</Text></Box>
                     </Flex>
                 </Card>
-                <Flex mt="0.3em"><Box ml="auto" /><Image width="80px" src={sduPlainBlack} /></Flex>
+                <Flex mt="0.3em"><Box ml="auto" /><Box width="80px" height="21.3667px"><Image width="80px" src={sduPlainBlack} /></Box></Flex>
             </CenteredBox>
         </Box>
     </>);
