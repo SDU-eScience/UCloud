@@ -9,7 +9,7 @@ import { Cloud } from "Authentication/SDUCloudObject";
 import { initObject } from "DefaultObjects";
 import Core from "Core";
 import avatar from "UserSettings/Redux/AvataaarReducer";
-import header from "Navigation/Redux/HeaderReducer";
+import header, { USER_LOGIN, USER_LOGOUT, CONTEXT_SWITCH } from "Navigation/Redux/HeaderReducer";
 import files from "Files/Redux/FilesReducer";
 import status from "Navigation/Redux/StatusReducer";
 import applications from "Applications/Redux/BrowseReducer";
@@ -34,6 +34,8 @@ import * as FavoritesRedux from "Favorites/Redux";
 import { configureStore } from "Utilities/ReduxUtilities";
 import { responsiveStoreEnhancer, createResponsiveStateReducer } from 'redux-responsive';
 import { responsiveBP } from "ui-components/theme";
+import { fetchLoginStatus } from "Zenodo/Redux/ZenodoActions";
+import { findAvatar } from "UserSettings/Redux/AvataaarActions";
 
 export const inDevEnvironment = process.env.NODE_ENV === "development"
 
@@ -66,6 +68,15 @@ const store = configureStore(initObject(Cloud.homeFolder), {
         responsiveBP,
         { infinity: "xxl" }),
 }, responsiveStoreEnhancer);
+
+export function DispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH) {
+    store.dispatch({ type })
+}
+
+export async function onLogin() {
+    store.dispatch(await fetchLoginStatus());
+    store.dispatch(await findAvatar());
+}
 
 const GlobalStyle = createGlobalStyle`
   ${() => UIGlobalStyle}

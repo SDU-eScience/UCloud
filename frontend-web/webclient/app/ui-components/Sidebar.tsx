@@ -143,7 +143,7 @@ const SidebarPushToBottom = styled.div`
     flex-grow: 1;
 `;
 
-type MenuElement = { icon: IconName, label: string, to: string };
+type MenuElement = { icon: IconName, label: string, to: string | (() => string) };
 type SidebarMenuElements = {
     items: MenuElement[]
     predicate: () => boolean
@@ -159,7 +159,7 @@ export const sideBarMenuElements: { guest: SidebarMenuElements, general: Sidebar
     },
     general: {
         items: [
-            { icon: "files", label: "Files", to: fileTablePage(Cloud.homeFolder) },
+            { icon: "files", label: "Files", to: () => fileTablePage(Cloud.homeFolder) },
             { icon: "share", label: "Shares", to: "/shares/" },
             { icon: "starFilled", label: "Favorites", to: "/favorites" },
             { icon: "appStore", label: "App Store", to: "/applications/" },
@@ -189,7 +189,7 @@ const Sidebar = ({ sideBarEntries = sideBarMenuElements, page }: SidebarProps) =
                     {category.items.map(({ icon, label, to }: MenuElement) => (
                         <React.Fragment key={label}>
                             {categoryIdx === 0 ? <SidebarSpacer /> : null}
-                            <SidebarElement icon={icon} activePage={page} label={label} to={to} />
+                            <SidebarElement icon={icon} activePage={page} label={label} to={typeof to === "function" ? to() : to} />
                         </React.Fragment>))}
                     {categoryIdx !== sidebar.length - 1 ? (<Divider mt="10px" mb="10px" />) : null}
                 </React.Fragment>

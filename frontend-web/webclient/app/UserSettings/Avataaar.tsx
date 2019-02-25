@@ -23,21 +23,19 @@ interface AvataaarModificationOperations {
 }
 
 function Modification(props: AvataaarModificationOperations) {
-    const [state, setState] = React.useState({ ...defaultAvatar, loading: true })
+    const [avatar, setAvatar] = React.useState({ ...defaultAvatar })
+    const [loading, setLoading] = React.useState(true)
     React.useEffect(() => {
         const promises = new PromiseKeeper();
         promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery)).promise
-            .then(it => setState({ ...it.response, loading: false }))
+            .then(it => setAvatar({ ...it.response }))
             .catch(it => {
                 if (!it.isCanceled) {
                     failureNotification("An error occurred fetching current Avatar");
-                    setState({ ...state, loading: false });
                 }
-            });
+            }).finally(() => setLoading(false));
         return () => promises.cancelPromises();
     }, []);
-
-    const { loading, ...avatar } = state;
 
     return (
         <MainContainer
@@ -78,86 +76,86 @@ function Modification(props: AvataaarModificationOperations) {
                 loading ? (<Spinner size={24} />) : <>
                     <AvatarSelect
                         defaultValue={avatar.top}
-                        update={value => setState({ loading, ...avatar, top: value })}
+                        update={value => setAvatar({ ...avatar, top: value })}
                         options={Options.Top}
                         title="Top"
                         disabled={false}
                     />
                     <AvatarSelect
-                        defaultValue={state.topAccessory}
-                        update={value => setState({ loading, ...avatar, topAccessory: value })}
+                        defaultValue={avatar.topAccessory}
+                        update={value => setAvatar({ ...avatar, topAccessory: value })}
                         options={Options.TopAccessory}
                         title="Accessories"
-                        disabled={state.top === "Eyepatch"}
+                        disabled={avatar.top === "Eyepatch"}
                     />
                     <AvatarSelect
-                        defaultValue={state.hairColor}
-                        update={value => setState({ loading, ...avatar, hairColor: value })}
+                        defaultValue={avatar.hairColor}
+                        update={value => setAvatar({ ...avatar, hairColor: value })}
                         options={Options.HairColor}
                         title="Hair color"
-                        disabled={!state.top.includes("Hair") || state.top === "LongHairFrida"}
+                        disabled={!avatar.top.includes("Hair") || avatar.top === "LongHairFrida"}
                     />
                     <AvatarSelect
-                        defaultValue={state.facialHair}
-                        update={value => setState({ loading, ...avatar, facialHair: value })}
+                        defaultValue={avatar.facialHair}
+                        update={value => setAvatar({ ...avatar, facialHair: value })}
                         options={Options.FacialHair}
                         title="Facial Hair"
-                        disabled={state.top === "Hijab"}
+                        disabled={avatar.top === "Hijab"}
                     />
                     <AvatarSelect
-                        defaultValue={state.facialHairColor}
-                        update={value => setState({ loading, ...avatar, facialHairColor: value })}
+                        defaultValue={avatar.facialHairColor}
+                        update={value => setAvatar({ ...avatar, facialHairColor: value })}
                         options={Options.FacialHairColor}
                         title="Facial Hair Color"
-                        disabled={state.facialHair === "Blank"}
+                        disabled={avatar.facialHair === "Blank"}
                     />
                     <AvatarSelect
-                        defaultValue={state.clothes}
-                        update={value => setState({ loading, ...avatar, clothes: value })}
+                        defaultValue={avatar.clothes}
+                        update={value => setAvatar({ ...avatar, clothes: value })}
                         options={Options.Clothes}
                         title="Clothes"
                         disabled={false}
                     />
                     <AvatarSelect
-                        defaultValue={state.colorFabric}
+                        defaultValue={avatar.colorFabric}
                         title="Clothes Fabric"
                         options={Options.ColorFabric}
-                        update={value => setState({ loading, ...avatar, colorFabric: value })}
-                        disabled={state.clothes === "BlazerShirt" || state.clothes === "BlazerSweater"}
+                        update={value => setAvatar({ ...avatar, colorFabric: value })}
+                        disabled={avatar.clothes === "BlazerShirt" || avatar.clothes === "BlazerSweater"}
                     />
                     <AvatarSelect
-                        defaultValue={state.clothesGraphic}
+                        defaultValue={avatar.clothesGraphic}
                         title="Graphic"
-                        update={value => setState({ loading, ...avatar, clothesGraphic: value })}
+                        update={value => setAvatar({ ...avatar, clothesGraphic: value })}
                         options={Options.ClothesGraphic}
-                        disabled={state.clothes !== "GraphicShirt"}
+                        disabled={avatar.clothes !== "GraphicShirt"}
                     />
                     <AvatarSelect
-                        defaultValue={state.eyes}
+                        defaultValue={avatar.eyes}
                         title="Eyes"
                         options={Options.Eyes}
-                        update={value => setState({ loading, ...avatar, eyes: value })}
+                        update={value => setAvatar({ ...avatar, eyes: value })}
                         disabled={false}
                     />
                     <AvatarSelect
-                        defaultValue={state.eyebrows}
+                        defaultValue={avatar.eyebrows}
                         title="Eyebrow"
                         options={Options.Eyebrows}
-                        update={value => setState({ loading, ...avatar, eyebrows: value })}
+                        update={value => setAvatar({ ...avatar, eyebrows: value })}
                         disabled={false}
                     />
                     <AvatarSelect
-                        defaultValue={state.mouthTypes}
+                        defaultValue={avatar.mouthTypes}
                         title="Mouth type"
                         options={Options.MouthTypes}
-                        update={value => setState({ loading, ...avatar, mouthTypes: value })}
+                        update={value => setAvatar({ ...avatar, mouthTypes: value })}
                         disabled={false}
                     />
                     <AvatarSelect
-                        defaultValue={state.skinColors}
+                        defaultValue={avatar.skinColors}
                         title={"Skin color"}
                         options={Options.SkinColors}
-                        update={value => setState({ loading, ...avatar, skinColors: value })}
+                        update={value => setAvatar({ ...avatar, skinColors: value })}
                         disabled={false}
                     />
                 </>

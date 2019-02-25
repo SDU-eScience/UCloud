@@ -60,7 +60,7 @@ class Header extends React.Component<HeaderProps, any> {
                 <Refresh spin={spin} onClick={refresh} />
                 <Support />
                 <Notification />
-                <ClickableDropdown width="200px" left="-180%" trigger={<Flex><UserAvatar avatar={this.props.avatar} /></Flex>}>
+                <ClickableDropdown width="200px" left="-180%" trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={this.props.avatar} /> : null}</Flex>}>
                     <Box ml="-17px" mr="-17px" pl="15px">
                         <Link color="black" to={"/users/settings"}>
                             <Flex>
@@ -217,7 +217,7 @@ const ClippedBox = styled(Flex)`
 `;
 
 interface UserAvatar { avatar: AvatarType }
-export const UserAvatar = ({ avatar }: UserAvatar) => Cloud.isLoggedIn ? (
+export const UserAvatar = ({ avatar }: UserAvatar) => (
     <ClippedBox mx="8px" width="60px">
         <Avatar
             avatarStyle="Circle"
@@ -234,7 +234,7 @@ export const UserAvatar = ({ avatar }: UserAvatar) => Cloud.isLoggedIn ? (
             mouthType={avatar.mouthTypes}
             skinColor={avatar.skinColors}
         />
-    </ClippedBox>) : null;
+    </ClippedBox>);
 
 const inDevEnvironment = process.env.NODE_ENV === "development"
 

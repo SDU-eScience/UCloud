@@ -57,7 +57,7 @@ export default class SDUCloud {
         this.serviceName = serviceName;
 
         this.apiContext = "/api";
-        this.authContext = process.env.NODE_ENV === "development" ? "/app" : "/auth";
+        this.authContext = "/auth";
 
         this.decodedToken = null;
         // FIXME: Set to false when login page is part of app
@@ -202,7 +202,7 @@ export default class SDUCloud {
      * redirect back to the correct service (using serviceName).
      */
     openBrowserLoginPage() {
-        window.location.href = this.context + this.authContext + "/login?service=" + encodeURIComponent(this.serviceName);
+        window.location.href = this.context + "/app/login?service=" + encodeURIComponent(this.serviceName);
     }
 
     /**
