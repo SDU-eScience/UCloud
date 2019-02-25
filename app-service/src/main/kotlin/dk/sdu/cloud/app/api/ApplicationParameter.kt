@@ -2,6 +2,8 @@ package dk.sdu.cloud.app.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import java.math.BigDecimal
+import java.math.BigInteger
 
 private const val TYPE_INPUT_FILE = "input_file"
 private const val TYPE_INPUT_DIRECTORY = "input_directory"
@@ -105,13 +107,13 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         override val defaultValue: IntApplicationParameter? = null,
         override val title: String = name,
         override val description: String = "",
-        val min: Int? = null,
-        val max: Int? = null,
-        val step: Int? = null,
+        val min: BigInteger? = null,
+        val max: BigInteger? = null,
+        val step: BigInteger? = null,
         val unitName: String? = null
     ) : ApplicationParameter<IntApplicationParameter>(TYPE_INTEGER) {
         override fun internalMap(inputParameter: Any): IntApplicationParameter =
-            IntApplicationParameter((inputParameter as? Int) ?: inputParameter.toString().toInt())
+            IntApplicationParameter((inputParameter as? BigInteger) ?: inputParameter.toString().toBigInteger())
 
         override fun toInvocationArgument(entry: IntApplicationParameter): String = entry.value.toString()
     }
@@ -122,13 +124,13 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         override val defaultValue: DoubleApplicationParameter? = null,
         override val title: String = name,
         override val description: String = "",
-        val min: Double? = null,
-        val max: Double? = null,
-        val step: Double? = null,
+        val min: BigDecimal? = null,
+        val max: BigDecimal? = null,
+        val step: BigDecimal? = null,
         val unitName: String? = null
     ) : ApplicationParameter<DoubleApplicationParameter>(TYPE_FLOATING_POINT) {
         override fun internalMap(inputParameter: Any): DoubleApplicationParameter =
-            DoubleApplicationParameter((inputParameter as? Double) ?: inputParameter.toString().toDouble())
+            DoubleApplicationParameter((inputParameter as? BigDecimal) ?: inputParameter.toString().toBigDecimal())
 
         override fun toInvocationArgument(entry: DoubleApplicationParameter): String = entry.value.toString()
     }
@@ -174,11 +176,11 @@ data class BooleanApplicationParameter(val value: Boolean) : ParsedApplicationPa
     override val type = TYPE_BOOLEAN
 }
 
-data class IntApplicationParameter(val value: Int) : ParsedApplicationParameter() {
+data class IntApplicationParameter(val value: BigInteger) : ParsedApplicationParameter() {
     override val type = TYPE_INTEGER
 }
 
-data class DoubleApplicationParameter(val value: Double) : ParsedApplicationParameter() {
+data class DoubleApplicationParameter(val value: BigDecimal) : ParsedApplicationParameter() {
     override val type = TYPE_FLOATING_POINT
 }
 
