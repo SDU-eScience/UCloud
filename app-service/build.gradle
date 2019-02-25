@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.0.1'
+version '1.0.2'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.MainKt"
@@ -14,8 +14,8 @@ dokka {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.0.0"
-    ext.fileApiVersion = "1.0.0"
+    ext.serviceCommonVersion = "1.1.1"
+    ext.fileApiVersion = "1.1.3"
 }
 
 dependencies {

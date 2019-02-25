@@ -19,6 +19,8 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 class SlurmJobTracker<DBSession>(
@@ -31,19 +33,21 @@ class SlurmJobTracker<DBSession>(
     val listener: SlurmEventListener = {
         @Suppress("TooGenericExceptionCaught")
         runBlocking {
-            val systemId = try {
-                resolveSlurmIdToSystemId(it.jobId)
-            } catch (ex: Exception) {
-                log.warn("Received slurm event for job we don't know about!")
-                log.warn("Event was $it")
-                return@runBlocking
-            }
+            GlobalScope.launch {
+                val systemId = try {
+                    resolveSlurmIdToSystemId(it.jobId)
+                } catch (ex: Exception) {
+                    log.warn("Received slurm event for job we don't know about!")
+                    log.warn("Event was $it")
+                    return@launch
+                }
 
-            try {
-                processEvent(systemId, it)
-            } catch (ex: Exception) {
-                handleException(ex, systemId, it)
-            }
+                try {
+                    processEvent(systemId, it)
+                } catch (ex: Exception) {
+                    handleException(ex, systemId, it)
+                }
+            }.join()
         }
     }
 
@@ -65,12 +69,17 @@ class SlurmJobTracker<DBSession>(
                 }
             }
 
-            is SlurmEventEnded -> {
+            is SlurmEventEnded, is SlurmEventFailed, is SlurmEventTimeout -> {
+                val success = event is SlurmEventEnded
+                val completedText =
+                    if (success) "Job has completed. We are now transferring your files back to SDUCloud."
+                    else "Job failed. We are now transferring back files to SDUCloud."
+
                 ComputationCallbackDescriptions.requestStateChange.call(
                     StateChangeRequest(
                         systemId,
                         JobState.TRANSFER_SUCCESS,
-                        "Job has completed. We are now transferring your files back to SDUCloud."
+                        completedText
                     ),
                     cloud
                 ).orThrow()
@@ -81,11 +90,7 @@ class SlurmJobTracker<DBSession>(
                 ).orThrow()
 
                 jobFileService.transferForJob(verifiedJob)
-                sendComplete(systemId, event.jobId, true)
-            }
-
-            is SlurmEventFailed, is SlurmEventTimeout -> {
-                sendComplete(systemId, event.jobId, false)
+                sendComplete(systemId, event.jobId, success)
             }
         }
     }

@@ -18,17 +18,19 @@ import dk.sdu.cloud.app.api.SubmitComputationResult
 import dk.sdu.cloud.app.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.types.StreamingFile
 import dk.sdu.cloud.calls.types.StreamingRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
+import io.ktor.util.cio.readChannel
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.jvm.javaio.copyTo
 import java.io.File
+import java.nio.file.Files
 
 /**
  * Manages file associated to a job
@@ -141,39 +143,43 @@ class JobFileService(
         originalFileName: String,
         length: Long
     ) {
-        val transferStatus =
-            @Suppress("TooGenericExceptionCaught")
-            try {
-                val parsedFilePath = File(filePath)
-                val filesRoot = filesDirectoryForJob(jobId)
-                val relativePath = parsedFilePath.relativeTo(filesRoot).path
+        val temporaryFile = Files.createTempFile("", "'").toFile()
+        @Suppress("TooGenericExceptionCaught")
+        try {
+            val parsedFilePath = File(filePath)
+            val filesRoot = filesDirectoryForJob(jobId)
+            val relativePath = parsedFilePath.relativeTo(filesRoot).path
 
-                scpDownload(filePath) { ins ->
-                    ComputationCallbackDescriptions.submitFile.call(
-                        StreamingRequest.Outgoing(
-                            @Suppress("DEPRECATION")
-                            SubmitComputationResult(
-                                jobId,
-                                relativePath,
-                                StreamingFile(
-                                    ContentType.Application.OctetStream,
-                                    length,
-                                    relativePath,
-                                    ins
-                                )
-                            )
-                        ),
-                        cloud
-                    ) as? IngoingCallResponse.Ok ?: throw JobFileException.UploadToCloudFailed(originalFileName)
-                }
-            } catch (ex: Exception) {
-                log.warn("Caught exception while uploading file to SDUCloud")
-                log.warn(ex.stackTraceToString())
-                throw JobFileException.UploadToCloudFailed(originalFileName)
+            val status = scpDownload(filePath) { ins ->
+                ins.copyTo(temporaryFile.outputStream())
             }
 
-        if (transferStatus != 0) {
+            if (status != 0) throw JobFileException.UploadToCloudFailed(originalFileName)
+
+            ComputationCallbackDescriptions.submitFile
+                .call(
+                    StreamingRequest.Outgoing(
+                        @Suppress("DEPRECATION")
+                        SubmitComputationResult(
+                            jobId,
+                            relativePath,
+                            StreamingFile(
+                                ContentType.Application.OctetStream,
+                                length,
+                                relativePath,
+                                temporaryFile.readChannel()
+                            )
+                        )
+                    ),
+                    cloud
+                )
+                .orRethrowAs { throw JobFileException.UploadToCloudFailed(originalFileName) }
+        } catch (ex: Exception) {
+            log.warn("Caught exception while uploading file to SDUCloud")
+            log.warn(ex.stackTraceToString())
             throw JobFileException.UploadToCloudFailed(originalFileName)
+        } finally {
+            temporaryFile.delete()
         }
     }
 

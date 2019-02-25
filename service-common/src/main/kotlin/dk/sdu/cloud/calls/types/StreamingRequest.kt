@@ -5,13 +5,13 @@ import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.module.kotlin.isKotlinClass
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpBody
-import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.calls.server.HttpCall
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.HttpClientConverter
+import dk.sdu.cloud.calls.http
+import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.HttpServerConverter
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.ApplicationCall
 import io.ktor.http.ContentDisposition
@@ -25,11 +25,13 @@ import io.ktor.util.KtorExperimentalAPI
 import io.ktor.util.cio.readChannel
 import io.ktor.util.pipeline.PipelineContext
 import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.io.ByteWriteChannel
+import kotlinx.coroutines.io.copyTo
 import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
-import kotlinx.coroutines.io.jvm.javaio.toOutputStream
 import kotlinx.coroutines.io.readRemaining
 import kotlinx.io.core.ExperimentalIoApi
+import kotlinx.io.core.IoBuffer
 import java.io.File
 import java.io.InputStream
 import java.lang.reflect.ParameterizedType
@@ -341,7 +343,7 @@ sealed class StreamingRequest<Request : Any> {
                                 },
 
                                 writer = {
-                                    propValue.channel.toInputStream().copyTo(toOutputStream())
+                                    propValue.channel.copyTo(this, Long.MAX_VALUE)
                                 }
                             )
                         }
@@ -358,7 +360,40 @@ sealed class StreamingRequest<Request : Any> {
                 }
             }
         }
+
+
+        private suspend fun ByteReadChannel.copyToImpl(dst: ByteWriteChannel, limit: Long): Long {
+            val buffer = IoBuffer.Pool.borrow()
+            val dstNeedsFlush = !dst.autoFlush
+
+            try {
+                var copied = 0L
+
+                while (true) {
+                    val remaining = limit - copied
+                    if (remaining == 0L) break
+                    buffer.resetForWrite(minOf(buffer.capacity.toLong(), remaining).toInt())
+
+                    val size = readAvailable(buffer)
+                    if (size == -1) break
+
+                    dst.writeFully(buffer)
+                    copied += size
+
+                    if (dstNeedsFlush && availableForRead == 0) {
+                        dst.flush()
+                    }
+                }
+                return copied
+            } catch (t: Throwable) {
+                dst.close(t)
+                throw t
+            } finally {
+                buffer.release(IoBuffer.Pool)
+            }
+        }
     }
+
 
     fun asIngoing(): StreamingRequest.Ingoing<Request> = this as StreamingRequest.Ingoing<Request>
 

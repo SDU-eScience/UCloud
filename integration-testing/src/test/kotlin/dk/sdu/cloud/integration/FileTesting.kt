@@ -135,25 +135,25 @@ class FileTesting {
         awaitFSReady(users)
 
         with(users[0]) {
-            createDirectoryTest()
+//            createDirectoryTest()
             smallFileUploadTest()
-            largeFileUploadTest()
-            copyFilesTest()
-            moveFilesTest()
-            deleteDirectTest()
-            deleteTrashTest()
-            simpleArchiveTest()
-            complexArchiveTest()
-            favoritesTest()
-            sensitivityTest()
-            singleDownloadTest()
-            bulkDownloadTest()
-            accountingTest()
-            searchTest()
-            activityTest()
+//            largeFileUploadTest()
+//            copyFilesTest()
+//            moveFilesTest()
+//            deleteDirectTest()
+//            deleteTrashTest()
+//            simpleArchiveTest()
+//            complexArchiveTest()
+//            favoritesTest()
+//            sensitivityTest()
+//            singleDownloadTest()
+//            bulkDownloadTest()
+//            accountingTest()
+//            searchTest()
+//            activityTest()
         }
 
-        shareTest(users[0], users[1])
+//        shareTest(users[0], users[1])
 
         return@runBlocking
     }
@@ -756,7 +756,7 @@ class FileTesting {
         object SmallFileUpload {
             const val DIR = "SmallFileUpload"
             const val NAME = "file.txt"
-            const val CONTENTS = "Hello, World 🎉!"
+            val CONTENTS = "Hello, World 🎉!".repeat(100_000)
         }
 
         object LargeFileUpload {

@@ -67,7 +67,11 @@ class SlurmScheduler<DBSession>(
 
         val filesRoot = jobFileService.filesDirectoryForJob(job.id)
         val stdoutFile = Files.createTempFile("stdout", ".txt").toFile().also {
-            it.writeText("This is the stdout.txt file")
+            it.printWriter().use { writer ->
+                repeat(10_000) {
+                    writer.println("This is the stdout.txt file")
+                }
+            }
         }
 
         val stderrFile = Files.createTempFile("stderr", ".txt").toFile().also {
