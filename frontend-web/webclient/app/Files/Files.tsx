@@ -133,7 +133,6 @@ class Files extends React.Component<FilesProps> {
             rightSortingColumn, setDisallowedPaths, setFileSelectorCallback, showFileSelector, ...props } = this.props;
         const selectedFiles = page.items.filter(file => file.isChecked);
         const navigate = (path: string) => history.push(fileTablePage(path)); // FIXME Is this necessary?
-        const favoriteFile = async (files: File[]) => updateFiles(favoriteFileFromPage(page, files, Cloud));
         const header = (
             <Spacer
                 left={<BreadCrumbs currentPath={path} navigate={newPath => navigate(newPath)} homeFolder={Cloud.homeFolder} />}
@@ -152,7 +151,7 @@ class Files extends React.Component<FilesProps> {
                 customEmptyPage={!this.props.error ? <Heading.h3>No files in current folder</Heading.h3> : <Box />}
                 pageRenderer={page => (
                     <FilesTable
-                        onFavoriteFile={favoriteFile}
+                        onFavoriteFile={files => updateFiles(favoriteFileFromPage(page, files, Cloud))}
                         fileOperations={this.fileOperations}
                         sortFiles={(sortOrder, sortBy) => fetchFiles(path, page.itemsPerPage, page.pageNumber, sortOrder, sortBy)}
                         sortingIcon={name => UF.getSortingIcon(sortBy, sortOrder, name)}

@@ -3,7 +3,7 @@ import * as Pagination from "Pagination";
 import { connect } from "react-redux";
 import { ApplicationCard } from "Applications/Card";
 import { SearchItem } from "Project/Search";
-import { AllFileOperations } from "Utilities/FileUtilities";
+import { AllFileOperations, favoriteFileFromPage } from "Utilities/FileUtilities";
 import { SearchProps, SimpleSearchOperations, SimpleSearchStateProps } from ".";
 import { HeaderSearchType, ReduxObject, emptyPage } from "DefaultObjects";
 import { setPrioritizedSearch, setRefreshFunction } from "Navigation/Redux/HeaderActions";
@@ -27,6 +27,7 @@ import { GridCardGroup } from "ui-components/Grid";
 import { SidebarPages } from "ui-components/Sidebar";
 import { setActivePage } from "Navigation/Redux/StatusActions";
 import { Spacer } from "ui-components/Spacer";
+import { Cloud } from "Authentication/SDUCloudObject";
 
 interface SearchPane {
     headerType: HeaderSearchType
@@ -39,6 +40,7 @@ class Search extends React.Component<SearchProps> {
     componentDidMount() {
         this.props.toggleAdvancedSearch();
         this.props.setActivePage();
+
         const query = this.query;
         this.props.setSearch(query);
         this.props.setPrioritizedSearch(this.props.match.params.priority as HeaderSearchType);
@@ -114,7 +116,7 @@ class Search extends React.Component<SearchProps> {
     }
 
     fetchAll(search: string, itemsPerPage?: number) {
-        const { ...props } = this.props;
+        const { props } = this;
         props.setError();
         props.searchFiles({ ...this.fileSearchBody, fileName: search, itemsPerPage: itemsPerPage || this.props.files.itemsPerPage });
         props.searchApplications(search, this.props.applications.pageNumber, itemsPerPage || this.props.applications.itemsPerPage);
@@ -127,10 +129,14 @@ class Search extends React.Component<SearchProps> {
     }
 
     render() {
+        const refreshFiles = () => this.props.searchFiles({ ...this.fileSearchBody })
         const { search, files, projects, applications, filesLoading, applicationsLoading, projectsLoading, errors } = this.props;
         const fileOperations = AllFileOperations({
             stateless: true,
             history: this.props.history,
+            onDeleted: () => refreshFiles(),
+            onExtracted: () => refreshFiles(),
+            onLinkCreate: () => refreshFiles(),
             setLoading: () => this.props.setFilesLoading(true)
         });
         // FIXME: Search Pane approach is obsolete
@@ -150,6 +156,7 @@ class Search extends React.Component<SearchProps> {
                                 onCheckFile={() => undefined}
                                 refetchFiles={() => this.props.searchFiles(this.fileSearchBody)}
                                 sortBy={SortBy.PATH}
+                                onFavoriteFile={files => this.props.setFilesPage(favoriteFileFromPage(this.props.files, files, Cloud))}
                                 fileOperations={fileOperations}
                             />
                         )}
@@ -252,8 +259,6 @@ SelectableText.defaultProps = {
     theme
 }
 
-type MenuItemName = "Files" | "Projects" | "Applications";
-
 const SearchPriorityToNumber = (search: string): number => {
     if (search.toLocaleLowerCase() === "projects") return 1;
     else if (search.toLocaleLowerCase() === "applications") return 2;
@@ -294,8 +299,9 @@ const mapDispatchToProps = (dispatch: Dispatch): SimpleSearchOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
-const mapStateToProps = ({ simpleSearch, detailedFileSearch, detailedApplicationSearch }: ReduxObject): SimpleSearchStateProps => ({
+const mapStateToProps = ({ simpleSearch, detailedFileSearch, detailedApplicationSearch }: ReduxObject): SimpleSearchStateProps & { favFilesCount: number } => ({
     ...simpleSearch,
+    favFilesCount: simpleSearch.files.items.filter(it => it.favorited).length,
     fileSearch: detailedFileSearch,
     applicationSearch: detailedApplicationSearch
 });

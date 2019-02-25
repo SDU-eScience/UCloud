@@ -81,8 +81,7 @@ class FavoriteFiles extends React.Component<FavoritesOperations & ReduxType & { 
                                 checked={page.items.length === selectedFiles.length && page.items.length > 0}
                             />}
                     />}
-            />
-            }
+            />}
             sidebar={
                 <FileOptions files={this.props.page.items.filter(it => it.isChecked)} fileOperations={fileoperations} />
             }
