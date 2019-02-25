@@ -8,14 +8,23 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 
 buildscript {
     ext.serviceCommonVersion = "1.0.2"
+    ext.accountingVersion = "1.0.0"
 }
 
 dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:1.17.0"
-    compile "dk.sdu.cloud:accounting-api:1.0.0"
+    compile "dk.sdu.cloud:accounting-api:${accountingVersion}"
     compile "dk.sdu.cloud:indexing-api:1.10.0"
     compile "dk.sdu.cloud:file-api:1.0.0"
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
+
+
+sduCloud.createTasksForApiJar(
+        "accounting.storage",
+        [
+                "dk.sdu.cloud:accounting-api:${accountingVersion}"
+        ]
+)

@@ -23,8 +23,13 @@ dependencies {
     compile 'dk.sdu.cloud:file-api:1.0.0'
     compile 'dk.sdu.cloud:app-api:1.0.0'
     compile 'dk.sdu.cloud:share-api:1.0.0'
-//    compile 'dk.sdu.cloud:share-api:0.2.0-SNAPSHOT'
+    compile 'dk.sdu.cloud:file-favorite-api:1.0.1'
     compile 'dk.sdu.cloud:accounting-compute-api:1.0.0'
+    compile "dk.sdu.cloud:accounting-storage-api:1.0.1"
+    compile "dk.sdu.cloud:filesearch-api:1.0.0"
+    compile "dk.sdu.cloud:activity-api:1.0.0"
+    compile "dk.sdu.cloud:notification-api:1.0.0"
+    compile "dk.sdu.cloud:file-trash-api:1.1.0"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 

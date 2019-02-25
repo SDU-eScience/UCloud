@@ -19,3 +19,8 @@ dependencies {
 
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
+
+sduCloud.createTasksForApiJar(
+        "activity",
+        []
+)
