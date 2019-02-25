@@ -1,0 +1,21 @@
+group 'dk.sdu.cloud'
+version '0.1.0-SNAPSHOT'
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.alerting.MainKt"
+
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.5/sdu-cloud.gradle"
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    // Internal services
+    compile 'dk.sdu.cloud:service-common:1.0.2'
+    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:6.6.1'
+    compile 'dk.sdu.cloud:auth-api:1.14.0'
+    testCompile 'dk.sdu.cloud:service-common-test:1.0.2'
+}
+
+sduCloud.createTasksForApiJar("alerting", [])
