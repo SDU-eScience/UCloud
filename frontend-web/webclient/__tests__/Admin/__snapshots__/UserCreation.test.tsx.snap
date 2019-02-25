@@ -4,22 +4,22 @@ exports[`UserCreation Mount 1`] = `
 .c0 {
   cursor: auto;
   margin-left: 68px;
+  padding-top: 48px;
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
-  padding-top: 48px;
 }
 
 .c3 {
   cursor: auto;
-  padding-right: 14px;
   padding-top: 120px;
+  padding-right: 14px;
 }
 
 .c2 {
   cursor: inherit;
   font-size: 48px;
-  margin: 0px;
+  margin: 0;
 }
 
 .c6 {
@@ -127,10 +127,10 @@ exports[`UserCreation Mount 1`] = `
 
 .c1 {
   cursor: auto;
-  padding-left: 82px;
-  padding-right: 14px;
   padding-top: 14px;
   padding-bottom: 14px;
+  padding-left: 82px;
+  padding-right: 14px;
   width: 100%;
   height: 120px;
   background-color: #fff;
