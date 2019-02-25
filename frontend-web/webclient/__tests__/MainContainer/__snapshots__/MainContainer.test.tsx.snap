@@ -4,24 +4,24 @@ exports[`Main container Main container with header 1`] = `
 .c0 {
   cursor: auto;
   margin-left: 190px;
+  padding-top: 48px;
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
-  padding-top: 48px;
 }
 
 .c2 {
   cursor: auto;
-  padding-right: 14px;
   padding-top: 96px;
+  padding-right: 14px;
 }
 
 .c1 {
   cursor: auto;
-  padding-left: 204px;
-  padding-right: 14px;
   padding-top: 14px;
   padding-bottom: 14px;
+  padding-left: 204px;
+  padding-right: 14px;
   width: 100%;
   height: 96px;
   background-color: #fff;
@@ -57,16 +57,16 @@ exports[`Main container Main container with sidebar 1`] = `
 .c0 {
   cursor: auto;
   margin-left: 190px;
+  padding-top: 48px;
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
-  padding-top: 48px;
 }
 
 .c2 {
   cursor: auto;
-  padding-right: 240px;
   padding-top: 14px;
+  padding-right: 240px;
 }
 
 .c1 {
@@ -109,16 +109,16 @@ exports[`Main container Only main container 1`] = `
 .c0 {
   cursor: auto;
   margin-left: 190px;
+  padding-top: 48px;
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
-  padding-top: 48px;
 }
 
 .c1 {
   cursor: auto;
-  padding-right: 14px;
   padding-top: 14px;
+  padding-right: 14px;
 }
 
 <div

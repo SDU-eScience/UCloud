@@ -36,7 +36,7 @@ const enabledWayf = false;
 const wayfService = inDevEnvironment ? "web-dev" : "web";
 
 export const LoginPage = (props: { history: History }) => {
-    if (Cloud.isLoggedIn) {   
+    if (Cloud.isLoggedIn) {
         props.history.push("/");
         return <div />;
     }
@@ -74,7 +74,7 @@ export const LoginPage = (props: { history: History }) => {
                 setChallengeID(result["2fa"]);
             } else {
                 Cloud.setTokens(result.accessToken, result.csrfToken);
-                props.history.push("/");
+                props.history.push("/loginRedirect");
             }
         } catch (e) {
             setError(errorMessageOrDefault(e, "An error occurred"))
@@ -99,7 +99,7 @@ export const LoginPage = (props: { history: History }) => {
                 body: formData
             }).then(it => it.json()); /* FIXME: add error handling */
             Cloud.setTokens(result.accessToken, result.csrfToken);
-            props.history.push("/");
+            props.history.push("/loginRedirect");
         } catch (e) {
             setError(errorMessageOrDefault(e, "Could not submit verification code. Try again later"));
         }
@@ -135,18 +135,16 @@ export const LoginPage = (props: { history: History }) => {
 }
 
 export const TwoFactor = ({ enabled2fa, inputRef }) => enabled2fa ? (
-    <Input ref={inputRef} mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
+    <Input ref={inputRef} autoFocus mb="0.5em" type="text" name="2fa" id="2fa" placeholder="6-digit code" />
 ) : null;
 
 export const Login = ({ enabled2fa, usernameRef, passwordRef }) => !enabled2fa ? (
     <>
         <Input type="hidden" value="web-csrf" name="service" />
-        <Input ref={usernameRef} mb="0.5em" type="text" name="username" id="username" placeholder="Username" />
+        <Input ref={usernameRef} autoFocus mb="0.5em" type="text" name="username" id="username" placeholder="Username" />
         <Input ref={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
     </>
 ) : null;
-
-
 
 const CenteredBox = styled(Box)`
     margin: 0;

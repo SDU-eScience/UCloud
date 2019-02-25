@@ -4,16 +4,16 @@ exports[`Zenodo Publish Mount Zenodo component 1`] = `
 .c0 {
   cursor: auto;
   margin-left: 190px;
+  padding-top: 48px;
   padding-bottom: 14px;
   padding-left: 14px;
   padding-right: 0;
-  padding-top: 48px;
 }
 
 .c1 {
   cursor: auto;
-  padding-right: 14px;
   padding-top: 14px;
+  padding-right: 14px;
 }
 
 .c2 {

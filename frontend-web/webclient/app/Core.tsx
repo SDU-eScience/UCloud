@@ -31,6 +31,9 @@ import Snackbars from "Snackbar/Snackbars";
 import Favorites from "Favorites/Favorites";
 import { LoginPage } from "Login/Login";
 import Wayf from "Login/Wayf";
+import { Cloud } from "Authentication/SDUCloudObject";
+import { DispatchUserAction, onLogin } from "App";
+import { USER_LOGIN } from "Navigation/Redux/HeaderReducer";
 
 const NotFound = () => (<div><h1>Not found.</h1></div>);
 
@@ -39,9 +42,11 @@ const Core = () => (
         <Snackbars />
         <Header />
         <Uploader />
-        <Sidebar />
+        {/* FIXME: boolean logic should not be here */}
+        {Cloud.isLoggedIn ? <Sidebar /> : null}
         <Switch>
             <Route exact path="/login" component={LoginPage} />
+            <Route exact path="/loginRedirect" component={LoginEndpoint} />
             <Route exact path="/wayf" component={Wayf} />
             <Route exact path="/" component={Dashboard} />
             <Route exact path="/dashboard" component={Dashboard} />
@@ -82,5 +87,12 @@ const Core = () => (
         </Switch>
     </>
 );
+
+const LoginEndpoint = props => {
+    DispatchUserAction(USER_LOGIN);
+    onLogin();
+    props.history.push("/");
+    return null;
+}
 
 export default Core;

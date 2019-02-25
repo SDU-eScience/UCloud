@@ -52,12 +52,12 @@ class Activity extends React.Component<ActivityProps> {
         );
 
         const header = (<Spacer left={<Heading.h2>File Activity</Heading.h2>} right={
-            <Pagination.EntriesPerPageSelector 
+            <Pagination.EntriesPerPageSelector
                 onChange={itemsPerPage => (fetchActivity(page.pageNumber, itemsPerPage), this.props.setRefresh(() => fetchActivity(page.pageNumber, itemsPerPage)))}
                 content="Activity per page"
                 entriesPerPage={page.itemsPerPage}
             />
-        }/>);
+        } />);
 
         return (
             <MainContainer
@@ -72,9 +72,11 @@ class Activity extends React.Component<ActivityProps> {
 const ActivityFeedGrouped = ({ activity }: { activity: GroupedActivity[] }) => activity.length ? (
     <Table>
         <TableHeader>
-            <TableHeaderCell width="7em" />
-            <TableHeaderCell width="10.5em" />
-            <TableHeaderCell width="99%" />
+            <TFRow>
+                <TableHeaderCell width="7em" />
+                <TableHeaderCell width="10.5em" />
+                <TableHeaderCell width="99%" />
+            </TFRow>
         </TableHeader>
         <TableBody>
             {activity.map((a, i) => <TrackedFeedActivity key={i} activity={a} />)}

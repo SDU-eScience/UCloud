@@ -64,7 +64,7 @@ const Progress = ({ color, percent, active, label }: Progress) => (
     <>
         <ProgressBase height="30px" width="100%" color="lightGray">
             <ProgressBase height="30px" color={color} width={`${percent}% `}>
-                {active ? <ProgressBase height="30px" active={true} width="100%" color="black" /> : null}
+                {active ? <ProgressBase height="30px" active width="100%" color="black" /> : null}
             </ProgressBase>
         </ProgressBase>
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
