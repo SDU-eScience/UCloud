@@ -1,30 +1,47 @@
 package dk.sdu.cloud.alerting
 
-import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.auth.api.refreshingJwtCloud
 import dk.sdu.cloud.alerting.api.AlertingServiceDescription
-import dk.sdu.cloud.service.configuration
-import dk.sdu.cloud.service.initWithDefaultFeatures
-import dk.sdu.cloud.service.install
-import dk.sdu.cloud.service.kafka
-import dk.sdu.cloud.service.runScriptHandler
-import dk.sdu.cloud.service.serverProvider
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.HibernateFeature
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.initWithDefaultFeatures
+import dk.sdu.cloud.micro.runScriptHandler
+import java.net.InetAddress
+import java.net.UnknownHostException
+
+data class ElasticHostAndPort(
+    val host: String,
+    val port: Int = 9200
+) {
+    companion object {
+        fun guessDefaults() =
+            ElasticHostAndPort(
+                host = findValidHostname(listOf("elasticsearch", "localhost"))!!,
+                port = 9200
+            )
+
+        private fun testHostname(hostname: String): Boolean {
+            return try {
+                InetAddress.getByName(hostname)
+                true
+            } catch (ex: UnknownHostException) {
+                false
+            }
+        }
+
+        private fun findValidHostname(hostnames: List<String>): String? {
+            return hostnames.find { testHostname(it) }
+        }
+    }
+}
 
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(AlertingServiceDescription, args)
-        install(HibernateFeature)
-        install(RefreshingJWTCloudFeature)
     }
 
     if (micro.runScriptHandler()) return
 
-    Server(
-        micro.kafka,
-        micro.serverProvider,
-        micro.refreshingJwtCloud,
-        micro
-    ).start()
+    val elasticLocation = micro.configuration.requestChunkAtOrNull("elastic") ?: ElasticHostAndPort.guessDefaults()
+
+    Server(elasticLocation, micro).start()
 }

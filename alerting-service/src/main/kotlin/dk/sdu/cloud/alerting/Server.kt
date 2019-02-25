@@ -1,60 +1,40 @@
 package dk.sdu.cloud.alerting
 
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticatedCloud
-import dk.sdu.cloud.alerting.http.AlertingController
+import dk.sdu.cloud.alerting.services.ElasticAlerting
+import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.EventConsumer
-import dk.sdu.cloud.service.HttpServerProvider
-import dk.sdu.cloud.service.KafkaServices
-import dk.sdu.cloud.service.Micro
-import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.installDefaultFeatures
-import dk.sdu.cloud.service.installShutdownHandler
 import dk.sdu.cloud.service.startServices
-import io.ktor.routing.routing
-import io.ktor.server.engine.ApplicationEngine
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.apache.http.HttpHost
-import org.apache.kafka.streams.KafkaStreams
+import org.elasticsearch.client.RestClient
+import org.elasticsearch.client.RestHighLevelClient
 
 class Server(
-    override val kafka: KafkaServices,
-    private val ktor: HttpServerProvider,
-    private val cloud: RefreshingJWTAuthenticatedCloud,
-    private val micro: Micro
+    private val elasticHostAndPort: ElasticHostAndPort,
+    override val micro: Micro
 ) : CommonServer {
-    override lateinit var httpServer: ApplicationEngine
-    override val kStreams: KafkaStreams? = null
-    private val eventConsumers = ArrayList<EventConsumer<*>>()
+    private lateinit var elastic: RestHighLevelClient
 
     override val log = logger()
 
-    private fun addConsumers(consumers: List<EventConsumer<*>>) {
-        consumers.forEach { it.installShutdownHandler(this) }
-        eventConsumers.addAll(consumers)
-    }
-
     override fun start() {
-        // Initialize services here
 
-        // Initialize consumers here:
-        // addConsumers(...)
-
-        // Initialize server
-        httpServer = ktor {
-            installDefaultFeatures(micro)
-
-            routing {
-                configureControllers(
-                        AlertingController()
+        elastic = RestHighLevelClient(
+            RestClient.builder(
+                HttpHost(
+                    elasticHostAndPort.host,
+                    elasticHostAndPort.port,
+                    "http"
                 )
+            )
+        )
+        GlobalScope.launch {
+            try {
+                ElasticAlerting(elastic).start(5000)
+            } catch (ex: Exception) {
+                println("finaly1")
             }
         }
-
-        startServices()
-    }
-
-    override fun stop() {
-        super.stop()
-        eventConsumers.forEach { it.close() }
     }
 }
