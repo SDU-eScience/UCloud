@@ -27,10 +27,27 @@ import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.io.jvm.javaio.copyTo
+import kotlinx.coroutines.io.writer
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.io.core.ExperimentalIoApi
+import kotlinx.io.core.IoBuffer
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.channels.AsynchronousFileChannel
+import java.nio.channels.CompletionHandler
 import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardOpenOption
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+import kotlin.coroutines.suspendCoroutine
 
 /**
  * Manages file associated to a job
@@ -111,11 +128,11 @@ class JobFileService(
                 .flatMap { lsWithGlob(directory.absolutePath, it) }
                 .map { File(it.fileName).absolutePath }
 
-            for (transfer in outputs) {
+            outputs.mapNotNull { transfer ->
                 val source = directory.resolve(transfer)
                 if (!source.path.startsWith(directory.path)) {
                     log.warn("File $transfer did not resolve to be within working directory. $source versus $directory")
-                    continue
+                    return@mapNotNull null
                 }
 
                 val sourceFile = stat(source.path).also { sourceFile ->
@@ -125,14 +142,16 @@ class JobFileService(
 
                 if (sourceFile == null) {
                     log.info("Could not find output file at: ${source.path}. Skipping file")
-                    continue
+                    return@mapNotNull null
                 }
 
                 val (fileToTransferFromHPC, fileLength) = prepareForTransfer(sourceFile, source, transfer)
                 log.debug("Downloading file from $fileToTransferFromHPC")
 
-                transferFileFromCompute(job.id, fileToTransferFromHPC, transfer, fileLength)
-            }
+                GlobalScope.launch {
+                    transferFileFromCompute(job.id, fileToTransferFromHPC, transfer)
+                }
+            }.joinAll()
         }
 
     }
@@ -140,8 +159,7 @@ class JobFileService(
     private suspend fun SSHConnection.transferFileFromCompute(
         jobId: String,
         filePath: String,
-        originalFileName: String,
-        length: Long
+        originalFileName: String
     ) {
         val temporaryFile = Files.createTempFile("", "'").toFile()
         @Suppress("TooGenericExceptionCaught")
@@ -151,7 +169,9 @@ class JobFileService(
             val relativePath = parsedFilePath.relativeTo(filesRoot).path
 
             val status = scpDownload(filePath) { ins ->
-                ins.copyTo(temporaryFile.outputStream())
+                temporaryFile.outputStream().use { outs ->
+                    ins.copyTo(outs)
+                }
             }
 
             if (status != 0) throw JobFileException.UploadToCloudFailed(originalFileName)
@@ -165,7 +185,7 @@ class JobFileService(
                             relativePath,
                             StreamingFile(
                                 ContentType.Application.OctetStream,
-                                length,
+                                temporaryFile.length(),
                                 relativePath,
                                 temporaryFile.readChannel()
                             )
