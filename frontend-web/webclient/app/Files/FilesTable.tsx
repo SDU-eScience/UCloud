@@ -43,7 +43,7 @@ const FilesTable = ({
             </FilesTableHeader>
             <TableBody>
                 {files.map((file, i) => (
-                    <TableRow highlighted={file.isChecked} key={i}>
+                    <TableRow highlighted={file.isChecked} key={i} data-tag={"fileRow"}>
                         <FilenameAndIcons
                             onNavigationClick={onNavigationClick}
                             file={file}
@@ -94,20 +94,20 @@ const ResponsiveTableColumn = ({
     sortOrder,
     notSticky
 }: ResponsiveTableColumnProps) => (
-    <FileTableHeaderCell notSticky={notSticky} width="10rem" >
-        <Flex alignItems="center" cursor="pointer" justifyContent="left">
-            <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
-                <Arrow name={iconName} />
-            </Box>
-            <SortByDropdown
-                isSortedBy={isSortedBy}
-                onSelect={onSelect}
-                asDropdown={asDropdown}
-                currentSelection={currentSelection}
-                sortOrder={sortOrder} />
-        </Flex>
-    </FileTableHeaderCell>
-);
+        <FileTableHeaderCell notSticky={notSticky} width="10rem" >
+            <Flex alignItems="center" cursor="pointer" justifyContent="left">
+                <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
+                    <Arrow name={iconName} />
+                </Box>
+                <SortByDropdown
+                    isSortedBy={isSortedBy}
+                    onSelect={onSelect}
+                    asDropdown={asDropdown}
+                    currentSelection={currentSelection}
+                    sortOrder={sortOrder} />
+            </Flex>
+        </FileTableHeaderCell>
+    );
 
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
     sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
@@ -188,8 +188,10 @@ export const ContextBar = ({ files, ...props }: ContextBarProps) => (
 export const ContextButtons = ({ createFolder, showUploader, inTrashFolder, toHome }: ContextButtonsProps) => (
     <VerticalButtonGroup>
         {!inTrashFolder ?
-            <><Button color="blue" onClick={showUploader}>Upload Files</Button>
-                <OutlineButton color="blue" onClick={createFolder}>New folder</OutlineButton></> :
+            <>
+                <Button color="blue" onClick={showUploader} data-tag="uploadButton">Upload Files</Button>
+                <OutlineButton color="blue" onClick={createFolder} data-tag="newFolder">New folder</OutlineButton>
+            </> :
             <Button color="red" onClick={() => clearTrash(Cloud, () => toHome())}>
                 Empty trash
             </Button>}
@@ -274,7 +276,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
         </Box>;
 
     const fileBox = (<>
-        <Flex flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
+        <Flex data-tag={"fileName"} flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
             {nameLink}
         </Flex>
         <GroupIcon isProject={isProject(file)} />

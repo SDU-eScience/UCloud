@@ -37,3 +37,4 @@ val adminClient = RefreshingJWTAuthenticator(
 
 fun CreateSingleUserResponse.client(): AuthenticatedClient =
     RefreshingJWTAuthenticator(micro.client, refreshToken, tokenValidation).authenticateClient(OutgoingHttpCall)
+
