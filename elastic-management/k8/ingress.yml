@@ -1,0 +1,16 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: elastic.management
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: ""
+spec:
+  rules:
+  - host: cloud.sdu.dk
+    http:
+      paths:
+      - path: /api/elastic.management
+        backend:
+          serviceName: elastic.management
+          servicePort: 8080
