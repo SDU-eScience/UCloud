@@ -1,12 +1,15 @@
 package dk.sdu.cloud.integration.e2e
 
+import dk.sdu.cloud.service.test.retrySection
 import org.openqa.selenium.By
 import org.openqa.selenium.Keys
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.WebElement
 import org.openqa.selenium.firefox.FirefoxDriver
+import org.openqa.selenium.interactions.Actions
 import java.io.File
 import java.nio.file.Files
+import java.util.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -16,8 +19,7 @@ lateinit var driver: WebDriver
 class EndToEndTest {
     @Test
     fun runTest() {
-        val passwordFile = File("/tmp/cloud-test.txt").readLines()
-        val (username, password) = passwordFile
+        val (username, password) = File("/tmp/cloud-test.txt").readLines()
         driver = FirefoxDriver()
         with(driver) {
             get(HOST)
@@ -25,6 +27,10 @@ class EndToEndTest {
 
             login(username, password)
             goToFiles()
+
+            val folderName = UUID.randomUUID().toString()
+            createDirectory(folderName)
+            openFolder(folderName)
             uploadFile()
             uploadArchive()
         }
@@ -42,6 +48,22 @@ class EndToEndTest {
         val selector = byTag("fileRow")
         println(selector)
         awaitElements(selector)
+    }
+
+    fun WebDriver.createDirectory(name: String) {
+        findElement(byTag("newFolder")).click()
+        val inputField = awaitElement(byTag("renameField"))
+        inputField.sendKeys(name + Keys.ENTER)
+    }
+
+    fun WebDriver.openFolder(name: String) {
+        retrySection {
+            val rows = findElements(byTag("fileRow"))
+            val row = rows.find { it.findElementOrNull(byTag("fileName"))?.text == name }!!
+            val findElement = row.findElement(By.tagName("a")).findElement(By.tagName("div"))
+            // Correct element will for some reason not be clicked
+            findElement.click()
+        }
     }
 
     fun WebDriver.uploadFile() {
@@ -66,7 +88,7 @@ class EndToEndTest {
         }
 
         with(UploadDialog) {
-           open()
+            open()
             selectFile(file.absolutePath)
 
             val uploadRow = rows.single()

@@ -252,6 +252,7 @@ function FilenameAndIcons({ file, size = "big", onRenameFile = () => null, onChe
             type="text"
             width="100%"
             autoFocus
+            data-tag="renameField"
             onKeyDown={e => { if (!!onRenameFile) onRenameFile(e.keyCode, file, (e.target as any).value) }}
         />
         <Icon size={"1em"} color="red" ml="9px" name="close" onClick={() => onRenameFile(KeyCode.ESC, file, "")} />
