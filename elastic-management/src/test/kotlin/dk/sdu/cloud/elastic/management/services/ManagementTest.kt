@@ -13,7 +13,11 @@ import org.junit.Test
 import java.time.LocalDate
 import java.util.*
 
+
 class ManagementTest {
+
+    private val node = ""
+    private val mount = ""
 
     private val elastic = RestHighLevelClient(
         RestClient.builder(
@@ -81,7 +85,7 @@ class ManagementTest {
 
         elastic.indices().flush(FlushRequest(indices), RequestOptions.DEFAULT)
 
-        val deleteService = DeleteService(elastic)
+        val deleteService = ExpiredEntriesDeleteService(elastic)
 
         val starttime = Date().time
         deleteService.cleanUp()
@@ -102,15 +106,16 @@ class ManagementTest {
 
         elastic.indices().flush(FlushRequest(indices), RequestOptions.DEFAULT)
 
-        val shrinkService = ShrinkService(elastic)
+        val shrinkService = ShrinkService(elastic, node)
 
         shrinkService.shrink()
 
     }
 
+    @Ignore
     @Test
     fun `backup test`() {
-        val backupService = BackupService(elastic)
+        val backupService = BackupService(elastic, mount)
         backupService.start()
         backupService.deleteBackup()
     }

@@ -8,6 +8,11 @@ import dk.sdu.cloud.micro.runScriptHandler
 import java.net.InetAddress
 import java.net.UnknownHostException
 
+data class Configuration(
+    val mount: String,
+    val gatherNode: String
+)
+
 data class ElasticHostAndPort(
     val host: String,
     val port: Int = 9200
@@ -42,6 +47,7 @@ fun main(args: Array<String>) {
     if (micro.runScriptHandler()) return
 
     val elasticLocation = micro.configuration.requestChunkAtOrNull("elastic") ?: ElasticHostAndPort.guessDefaults()
+    val config = micro.configuration.requestChunkAt<Configuration>("elasticBackup")
 
-    Server(elasticLocation, micro).start()
+    Server(elasticLocation, config, micro).start()
 }

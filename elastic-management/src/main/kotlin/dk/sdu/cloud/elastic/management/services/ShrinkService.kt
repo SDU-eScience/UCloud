@@ -13,7 +13,8 @@ import org.slf4j.Logger
 import java.time.LocalDate
 
 class ShrinkService(
-    private val elastic: RestHighLevelClient
+    private val elastic: RestHighLevelClient,
+    private val gatherNode: String
 ) {
 
     private fun deleteIndex(index: String) {
@@ -26,18 +27,26 @@ class ShrinkService(
         val request = ResizeRequest(targetIndex, sourceIndex)
         request.targetIndexRequest.settings(
             Settings.builder()
+                //Set number of shards in new shrinked index.
+                //Should always be a factor the original. 15 -> 5,3,1.
                 .put("index.number_of_shards", 1)
+                //Makes sure that the new index is writable
                 .put("index.blocks.write", false)
+                //Set the number of replicas in the new shrinked index.
                 .put("index.number_of_replicas", 1)
+                //Choose that the index should use best_compression strategy.
+                //Slower search, but less space usage
                 .put("index.codec", "best_compression")
         )
         elastic.indices().shrink(request, RequestOptions.DEFAULT)
     }
 
     private fun prepareSourceIndex(index: String) {
+        //What node should the shards be collected on before shrink is performed
         val setNodeSettingKey = "index.routing.allocation.require._name"
-        val setNodeSettingValue = "elasticsearch-data-0"
+        val setNodeSettingValue = gatherNode
 
+        //Make sure that no more is being written to the index. Block writing.
         val setBlockSettingKey = "index.blocks.write"
         val setBlockSettingValue = true
 

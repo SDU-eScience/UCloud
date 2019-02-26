@@ -2,6 +2,7 @@ package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
+import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.admin.cluster.repositories.put.PutRepositoryRequest
 import org.elasticsearch.action.admin.cluster.repositories.verify.VerifyRepositoryRequest
 import org.elasticsearch.action.admin.cluster.snapshots.create.CreateSnapshotRequest
@@ -13,17 +14,17 @@ import org.elasticsearch.repositories.fs.FsRepository
 import org.slf4j.Logger
 import java.time.LocalDate
 
-private const val MOUNT_LOCATION = "/Users/henrikschulz/Desktop/mount"
 private const val REPO_NAME = "backup"
 
 
-class BackupService(private val elastic: RestHighLevelClient) {
+class BackupService(private val elastic: RestHighLevelClient, private val mountLocation: String) {
 
     fun start() {
         val exists = try {
             !elastic.snapshot().verifyRepository(
                 VerifyRepositoryRequest(REPO_NAME), RequestOptions.DEFAULT).nodes.isEmpty()
-        } catch (ex: Exception) {
+        } catch (ex: ElasticsearchStatusException) {
+            log.warn(ex.stackTraceToString())
             false
         }
         if (!exists) {
@@ -48,7 +49,7 @@ class BackupService(private val elastic: RestHighLevelClient) {
         request.type(FsRepository.TYPE)
 
         val locationKey = FsRepository.LOCATION_SETTING.key
-        val locationValue = MOUNT_LOCATION
+        val locationValue = mountLocation
         val compressKey = FsRepository.COMPRESS_SETTING.key
         val compressValue = true
 
@@ -63,6 +64,7 @@ class BackupService(private val elastic: RestHighLevelClient) {
     }
 
     fun deleteBackup() {
+        //Always generate a date in the format YYYY.MM.dd
         val date = LocalDate.now().toString().replace("-","." )
 
         val request = DeleteSnapshotRequest(REPO_NAME, "snapshot_$date")
@@ -71,6 +73,6 @@ class BackupService(private val elastic: RestHighLevelClient) {
 
 
     companion object : Loggable {
-        override val log: Logger = DeleteService.logger()
+        override val log: Logger = ExpiredEntriesDeleteService.logger()
     }
 }

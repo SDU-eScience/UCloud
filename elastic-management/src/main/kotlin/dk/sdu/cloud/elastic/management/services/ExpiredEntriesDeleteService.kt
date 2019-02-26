@@ -13,7 +13,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.slf4j.Logger
 import java.util.*
 
-class DeleteService(
+class ExpiredEntriesDeleteService(
     private val elastic: RestHighLevelClient
 ){
 
@@ -41,8 +41,7 @@ class DeleteService(
         if (sizeOfIndex == expiredCount) {
             log.info("All doc expired - faster to delete index")
             deleteFullIndex(index)
-        }
-        else {
+        } else {
             val request = DeleteByQueryRequest(index)
             request.setQuery(
                 QueryBuilders.rangeQuery("expiry")
