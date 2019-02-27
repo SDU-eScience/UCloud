@@ -4,6 +4,7 @@ import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
@@ -94,14 +95,25 @@ class FileLookupService<Ctx : FSUserContext>(
         val cached = cache[realPath]
         if (cached != null) return cached
 
-        val stat = coreFs.stat(ctx, realPath, setOf(FileAttribute.PATH, FileAttribute.SENSITIVITY))
-        val sensitivity = stat.sensitivityLevel ?: lookupInheritedSensitivity(ctx, stat.path.parent(), cache)
+        val components = realPath.components()
+        val sensitivity = if (components.size == 2 && components[0] == "home") {
+            SensitivityLevel.PRIVATE
+        } else {
+            run {
+                val stat = coreFs.stat(ctx, realPath, setOf(FileAttribute.PATH, FileAttribute.SENSITIVITY))
+                stat.sensitivityLevel ?: lookupInheritedSensitivity(ctx, stat.path.parent(), cache)
+            }
+        }
 
         cache[realPath] = sensitivity
         return sensitivity
     }
 
-    private suspend fun readStorageFile(ctx: Ctx, row: FileRow, cache: MutableMap<String, SensitivityLevel> = HashMap()): StorageFile =
+    private suspend fun readStorageFile(
+        ctx: Ctx,
+        row: FileRow,
+        cache: MutableMap<String, SensitivityLevel> = HashMap()
+    ): StorageFile =
         StorageFile(
             fileType = row.fileType,
             path = row.rawPath,

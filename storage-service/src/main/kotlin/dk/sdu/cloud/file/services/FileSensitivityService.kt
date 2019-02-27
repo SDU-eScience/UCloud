@@ -13,7 +13,7 @@ class FileSensitivityService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val storageEventProducer: StorageEventProducer
 ) {
-    suspend fun setSensitivityLevel(ctx: Ctx, path: String, level: SensitivityLevel, eventCausedBy: String?) {
+    suspend fun setSensitivityLevel(ctx: Ctx, path: String, level: SensitivityLevel, eventCausedBy: String? = null) {
         log.debug("setSensitivityLevel(path = $path, level = $level)")
         fs.setExtendedAttribute(ctx, path, XATTRIBUTE, level.name)
         val stat = fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap()

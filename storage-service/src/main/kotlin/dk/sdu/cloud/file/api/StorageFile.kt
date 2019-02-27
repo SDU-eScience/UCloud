@@ -87,14 +87,6 @@ fun StorageFile(
  */
 enum class SensitivityLevel {
     /**
-     * Open access means that a file can be read by the public.
-     *
-     * Having this classification requires the data to be non-sensitive. This classification will also change the
-     * access permissions of the file.
-     */
-    OPEN_ACCESS,
-
-    /**
      * The default sensitivity level. The file is private, but doesn't contain any confidential/sensitive information.
      *
      * The file can only be read by you (or anyone you share it with).

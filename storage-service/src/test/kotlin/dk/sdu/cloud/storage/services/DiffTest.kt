@@ -61,7 +61,7 @@ class DiffTest {
                 createdAt = timestamps().created,
                 modifiedAt = timestamps().modified,
                 size = length(),
-                creator = "user",
+                creator = FILE_OWNER,
                 ownSensitivityLevel = null
             )
     }
@@ -383,13 +383,13 @@ class DiffTest {
                     val diff = indexingService.calculateDiff(
                         ctx,
                         "/home",
-                        listOf(realFile.asMaterialized().copy(sensitivityLevel = SensitivityLevel.SENSITIVE))
+                        listOf(realFile.asMaterialized().copy(ownSensitivityLevel = SensitivityLevel.SENSITIVE))
                     )
 
                     assertCollectionHasItem(diff.diff) {
                         it is StorageEvent.CreatedOrRefreshed &&
                                 it.path == "/home/a" &&
-                                it.sensitivityLevel == SensitivityLevel.PRIVATE &&
+                                it.sensitivityLevel == null &&
                                 it.id == realFile.inode()
                     }
 
