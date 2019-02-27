@@ -3,6 +3,8 @@ import { failureNotification, inSuccessRange } from "UtilityFunctions";
 import { STATUS_CODES } from "http";
 import { Sensitivity } from "DefaultObjects";
 
+const timeBetweenUpdates = 150;
+
 export const multipartUpload = async (location: string, file: File, sensitivity: Sensitivity, policy: UploadPolicy, onProgress?: (e: ProgressEvent) => void, onError?: (error: string) => void): Promise<XMLHttpRequest> => {
     const newFile = new File([file], "ignored");
     const token = await Cloud.receiveAccessTokenOrRefreshIt();
@@ -20,9 +22,15 @@ export const multipartUpload = async (location: string, file: File, sensitivity:
         }
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
+    let nextProgressUpdate = new Date().getTime();
     request.upload.onprogress = (e: ProgressEvent) => {
-        if (!!onProgress)
-            onProgress(e);
+        if (!!onProgress) {
+            const now = new Date().getTime();
+            if (nextProgressUpdate < now || e.loaded / e.total === 1) {
+                nextProgressUpdate = now + timeBetweenUpdates;
+                onProgress(e);
+            }
+        }
     };
     request.responseType = "text";
     request.send(formData);
@@ -47,11 +55,16 @@ export const bulkUpload = async (location: string, file: File, sensitivity: Sens
                 failureNotification(statusToError(request.status))
     }
     request.setRequestHeader("Authorization", `Bearer ${token}`);
+    let nextProgressUpdate = new Date().getTime();
     request.upload.onprogress = (e: ProgressEvent) => {
-        if (!!onProgress)
-            onProgress(e);
+        if (!!onProgress) {
+            const now = new Date().getTime();
+            if (nextProgressUpdate < now || e.loaded / e.total === 1) {
+                nextProgressUpdate = now + timeBetweenUpdates;
+                onProgress(e);
+            }
+        }
     };
-
     request.responseType = "text";
     request.send(formData);
     return request;
