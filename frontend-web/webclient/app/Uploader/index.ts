@@ -16,6 +16,7 @@ export interface Upload {
     resolution: UploadPolicy
     uploadEvents: { progressInBytes: number, timestamp: number }[]
     isPending: boolean
+    conflictError: boolean
 }
 
 export interface UploaderStateProps {
