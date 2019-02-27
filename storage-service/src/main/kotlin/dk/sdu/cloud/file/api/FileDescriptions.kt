@@ -79,7 +79,8 @@ enum class SortOrder {
     DESCENDING
 }
 
-data class ReclassifyRequest(val path: String, val sensitivity: SensitivityLevel?)
+data class ReclassifyRequest(val path: String, val sensitivity: SensitivityLevel? = null)
+
 
 /**
  * Audit entry for operations that work with a single file

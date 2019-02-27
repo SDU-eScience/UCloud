@@ -459,12 +459,13 @@ export const favoriteFileAsync = async (file: File, cloud: SDUCloud): Promise<Fi
 const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURIComponent(path)}`;
 
 export const reclassifyFile = async (file: File, sensitivity: SensitivityLevelMap, cloud: SDUCloud): Promise<File> => {
-    const callResult = await unwrap(cloud.post<void>("/files/reclassify", { path: file.path, sensitivity }));
+    const serializedSensitivity = sensitivity === SensitivityLevelMap.INHERIT ? null : sensitivity;
+    const callResult = await unwrap(cloud.post<void>("/files/reclassify", { path: file.path, sensitivity: serializedSensitivity }));
     if (isError(callResult)) {
         UF.failureNotification((callResult as ErrorMessage).errorMessage)
         return file;
     }
-    return { ...file, sensitivityLevel: sensitivity };
+    return { ...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity };
 }
 
 export const canBeProject = (files: File[], homeFolder: string): boolean =>

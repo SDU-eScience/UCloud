@@ -265,4 +265,21 @@ class SensitivityTest {
             }
         }
     }
+
+    @Test
+    fun `test clearing sensitivity`() {
+        val root = createRoot()
+        with(initTest(root.absolutePath)) {
+            root.mkdir("home") {
+                mkdir("user") {
+                    touch("f")
+                }
+            }
+
+            runner.withBlockingContext(user) { ctx ->
+                sensitivityService.setSensitivityLevel(ctx, "/home/user/f", SensitivityLevel.PRIVATE)
+                sensitivityService.clearSensitivityLevel(ctx, "/home/user/f")
+            }
+        }
+    }
 }

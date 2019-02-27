@@ -310,6 +310,7 @@ class UnixFileSystem(
         return ctx.runCommand(
             InterpreterCommand.DELETE_XATTR,
             absolutePath,
+            attribute.removePrefix(ATTRIBUTE_PREFIX).let { "$ATTRIBUTE_PREFIX$it"},
             consumer = this::consumeStatusCode
         )
     }

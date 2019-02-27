@@ -1,6 +1,8 @@
 package dk.sdu.cloud.file.api
 
+import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import com.fasterxml.jackson.annotation.JsonValue
 
 enum class AccessRight {
     READ,
@@ -103,4 +105,5 @@ enum class SensitivityLevel {
      */
     SENSITIVE
 }
+
 
