@@ -15,6 +15,7 @@ import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.tryWithFS
 import dk.sdu.cloud.service.Controller
@@ -25,7 +26,8 @@ class ExtractController<Ctx : FSUserContext>(
     private val serviceCloud: AuthenticatedClient,
     private val coreFs: CoreFileSystemService<Ctx>,
     private val fileLookupService: FileLookupService<Ctx>,
-    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>
+    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val sensitivityService: FileSensitivityService<Ctx>
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileDescriptions.extract) {
@@ -56,7 +58,9 @@ class ExtractController<Ctx : FSUserContext>(
                             { commandRunnerFactory(user) },
                             request.path.parent(),
                             WriteConflictPolicy.RENAME,
-                            fileInputStream
+                            fileInputStream,
+                            null,
+                            sensitivityService
                         )
                     }
                 }

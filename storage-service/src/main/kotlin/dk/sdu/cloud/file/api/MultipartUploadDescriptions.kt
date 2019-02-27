@@ -27,6 +27,7 @@ data class BulkUploadRequest(
     val location: String,
     val policy: WriteConflictPolicy,
     val format: String,
+    val sensitivity: SensitivityLevel? = null,
     val upload: StreamingFile
 )
 

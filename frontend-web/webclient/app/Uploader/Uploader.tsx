@@ -30,7 +30,7 @@ const newUpload = (file: File): Upload => ({
     file,
     conflictFile: undefined,
     resolution: UploadPolicy.RENAME,
-    sensitivity: "PRIVATE",
+    sensitivity: "INHERIT",
     isUploading: false,
     progressPercentage: 0,
     extractArchive: false,
@@ -280,6 +280,7 @@ const DropZoneBox = styled(Box)`
 `;
 
 const privacyOptions = [
+    { text: "Inherit", value: "INHERIT" },
     { text: "Private", value: "PRIVATE" },
     { text: "Confidential", value: "CONFIDENTIAL" },
     { text: "Sensitive", value: "SENSITIVE" }

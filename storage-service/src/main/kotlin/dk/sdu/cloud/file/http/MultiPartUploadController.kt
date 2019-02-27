@@ -55,13 +55,13 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                     commandRunnerFactory.withContext(owner) { ctx ->
                         val policy = req.policy ?: WriteConflictPolicy.OVERWRITE
 
-                        fs.write(ctx, req.location, policy) {
+                        val location = fs.write(ctx, req.location, policy) {
                             val out = this
                             req.upload.channel.copyTo(out)
                         }
 
                         if (sensitivity != null) {
-                            sensitivityService.setSensitivityLevel(ctx, req.location, sensitivity, owner)
+                            sensitivityService.setSensitivityLevel(ctx, location, sensitivity, owner)
                         }
                         Unit
                     }
@@ -91,7 +91,9 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                         { commandRunnerFactory(user) },
                         req.location,
                         req.policy,
-                        outputFile.inputStream()
+                        outputFile.inputStream(),
+                        req.sensitivity,
+                        sensitivityService
                     )
                     try {
                         outputFile.delete()

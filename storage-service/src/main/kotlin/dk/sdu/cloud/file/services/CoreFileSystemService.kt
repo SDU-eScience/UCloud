@@ -36,13 +36,14 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         path: String,
         conflictPolicy: WriteConflictPolicy,
         writer: suspend OutputStream.() -> Unit
-    ) {
+    ): String {
         val normalizedPath = path.normalize()
         val targetPath =
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
         fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
         fs.write(ctx, writer).emitAll()
+        return targetPath
     }
 
     suspend fun <R> read(
