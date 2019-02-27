@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: elastic.management
+  labels:
+    app: elastic.management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elastic.management
+  template:
+    metadata:
+      labels:
+        app: elastic.management
+    spec:
+      containers:
+      - name: elastic.management
+        image: registry.cloud.sdu.dk/sdu-cloud/elastic.management-service:0.1.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: elastic.management-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+
+      imagePullSecrets:
+        - name: esci-docker
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elastic.management
+spec:
+  clusterIP: None
+  type: ClusterIP
+  ports:
+  - name: web
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: elastic.management
