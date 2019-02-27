@@ -10,10 +10,11 @@ import { TextSpan } from "ui-components/Text";
 import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText, filePreviewPage } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
-import { KeyCode, ReduxObject } from "DefaultObjects";
+import { KeyCode, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import styled from "styled-components";
 import { SpaceProps } from "styled-system";
 import { connect } from "react-redux";
+import Theme from "ui-components/theme";
 
 const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, onDropdownSelect, sortingColumns,
@@ -52,6 +53,9 @@ const FilesTable = ({
                             onRenameFile={onRenameFile}
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
+                        <TableCell>
+                            <SensitivityIcon sensitivity={file.sensitivityLevel} />
+                        </TableCell>
                         {sortingColumns.filter(it => it != null).map((sC, i) => (
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                         ))}
@@ -94,20 +98,20 @@ const ResponsiveTableColumn = ({
     sortOrder,
     notSticky
 }: ResponsiveTableColumnProps) => (
-    <FileTableHeaderCell notSticky={notSticky} width="10rem" >
-        <Flex alignItems="center" cursor="pointer" justifyContent="left">
-            <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
-                <Arrow name={iconName} />
-            </Box>
-            <SortByDropdown
-                isSortedBy={isSortedBy}
-                onSelect={onSelect}
-                asDropdown={asDropdown}
-                currentSelection={currentSelection}
-                sortOrder={sortOrder} />
-        </Flex>
-    </FileTableHeaderCell>
-);
+        <FileTableHeaderCell notSticky={notSticky} width="10rem" >
+            <Flex alignItems="center" cursor="pointer" justifyContent="left">
+                <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
+                    <Arrow name={iconName} />
+                </Box>
+                <SortByDropdown
+                    isSortedBy={isSortedBy}
+                    onSelect={onSelect}
+                    asDropdown={asDropdown}
+                    currentSelection={currentSelection}
+                    sortOrder={sortOrder} />
+            </Flex>
+        </FileTableHeaderCell>
+    );
 
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
     sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
@@ -134,6 +138,9 @@ const FilesTableHeader = ({
                         <Arrow name={toSortingIcon(SortBy.PATH)} />
                         <Box cursor="pointer">Filename</Box>
                     </Flex>
+                </FileTableHeaderCell>
+                <FileTableHeaderCell notSticky={notStickyHeader} width={"3em"}>
+                    <Flex />
                 </FileTableHeaderCell>
                 {sortingColumns.filter(it => it != null).map((sC, i) => (
                     <ResponsiveTableColumn
@@ -214,6 +221,34 @@ const PredicatedFavorite = ({ predicate, item, onClick }) => predicate ? (
 
 interface Groupicon { isProject: boolean }
 const GroupIcon = ({ isProject }: Groupicon) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
+
+const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
+    switch (props.sensitivity) {
+        case SensitivityLevelMap.PRIVATE:
+            return null;
+        case SensitivityLevelMap.CONFIDENTIAL:
+//"#bb00ff"
+            return <SensitivityBadge bg={Theme.colors.purple}>C</SensitivityBadge>;
+        case SensitivityLevelMap.SENSITIVE:
+        //"#ff0004"
+            return <SensitivityBadge bg={"#ff0004"}>S</SensitivityBadge>;
+        default:
+            return null;
+    }
+}
+
+const SensitivityBadge = styled.div<{ bg: string }>`
+    content: '';
+    //color: white;
+    height: 2em;
+    width: 2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0.2em solid ${props => props.bg};
+    border-radius: 0.2em;
+    //background-color: 
+`;
 
 const FileLink = ({ file, children }: { file: File, children: any }) => {
     if (isDirectory(file)) {
