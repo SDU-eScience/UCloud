@@ -1,13 +1,11 @@
 package dk.sdu.cloud.storage.services
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
-import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.StorageEventProducer
-import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.StorageFileImpl
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
@@ -54,20 +52,17 @@ class DiffTest {
         val indexingService: IndexingService<Ctx>,
         val commandRunnerFactory: FSCommandRunnerFactory<Ctx>
     ) {
-        fun File.asMaterialized(): EventMaterializedStorageFile =
-            EventMaterializedStorageFile(
-                inode(),
-                absolutePath.removePrefix(fsRoot.absolutePath).removePrefix("/").let { "/$it" },
-                FILE_OWNER,
-                if (isDirectory) FileType.DIRECTORY else FileType.FILE,
-                timestamps(),
-                length(),
-                FileChecksum("", ""),
-                false,
-                null,
-                null,
-                emptySet(),
-                SensitivityLevel.PRIVATE
+        fun File.asMaterialized(): StorageFileImpl =
+            StorageFileImpl(
+                fileType = if (isDirectory) FileType.DIRECTORY else FileType.FILE,
+                fileId = inode(),
+                path = absolutePath.removePrefix(fsRoot.absolutePath).removePrefix("/").let { "/$it" },
+                ownerName = FILE_OWNER,
+                createdAt = timestamps().created,
+                modifiedAt = timestamps().modified,
+                size = length(),
+                creator = "user",
+                ownSensitivityLevel = null
             )
     }
 
@@ -98,20 +93,17 @@ class DiffTest {
 
     private fun File.resolvePath(path: String): File = File(absolutePath + path)
 
-    private fun fakeMaterializedFile(id: String, path: String, fileType: FileType): EventMaterializedStorageFile {
-        return EventMaterializedStorageFile(
-            id,
-            path,
-            FILE_OWNER,
-            fileType,
-            Timestamps(0L, 0L, 0L),
-            0L,
-            FileChecksum("", ""),
-            false,
-            null,
-            null,
-            emptySet(),
-            SensitivityLevel.PRIVATE
+    private fun fakeMaterializedFile(id: String, path: String, fileType: FileType): StorageFileImpl {
+        return StorageFileImpl(
+            fileId = id,
+            path = path,
+            fileType = fileType,
+            createdAt = 0L,
+            modifiedAt = 0L,
+            creator = "user",
+            ownerName = "user",
+            size = 0L,
+            ownSensitivityLevel = null
         )
     }
 

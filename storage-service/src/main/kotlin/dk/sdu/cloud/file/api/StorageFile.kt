@@ -26,6 +26,7 @@ interface StorageFile {
     val size: Long
     val acl: List<AccessEntry>?
     val sensitivityLevel: SensitivityLevel
+    val ownSensitivityLevel: SensitivityLevel?
     val link: Boolean
     val annotations: Set<String>
     val fileId: String
@@ -39,12 +40,13 @@ data class StorageFileImpl(
     override val modifiedAt: Long,
     override val ownerName: String,
     override val size: Long,
-    override val acl: List<AccessEntry>?,
-    override val sensitivityLevel: SensitivityLevel,
-    override val link: Boolean,
-    override val annotations: Set<String>,
+    override val acl: List<AccessEntry>? = emptyList(),
+    override val sensitivityLevel: SensitivityLevel = SensitivityLevel.PRIVATE,
+    override val link: Boolean = false,
+    override val annotations: Set<String> = emptySet(),
     override val fileId: String,
-    override val creator: String
+    override val creator: String,
+    override val ownSensitivityLevel: SensitivityLevel?
 ) : StorageFile
 
 fun StorageFile(
@@ -59,7 +61,8 @@ fun StorageFile(
     link: Boolean = false,
     annotations: Set<String> = emptySet(),
     fileId: String = "",
-    creator: String = ownerName
+    creator: String = ownerName,
+    ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE
 ): StorageFile {
     return StorageFileImpl(
         fileType,
@@ -73,7 +76,8 @@ fun StorageFile(
         link,
         annotations,
         fileId,
-        creator
+        creator,
+        ownSensitivityLevel
     )
 }
 

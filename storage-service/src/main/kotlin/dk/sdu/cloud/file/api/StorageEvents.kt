@@ -109,7 +109,7 @@ sealed class StorageEvent {
 
         val annotations: Set<String>,
 
-        val sensitivityLevel: SensitivityLevel,
+        val sensitivityLevel: SensitivityLevel?,
 
         override val creator: String = owner,
         override val eventCausedBy: String? = null
@@ -198,71 +198,6 @@ sealed class StorageEvent {
 
 data class Timestamps(val accessed: Long, val created: Long, val modified: Long)
 data class FileChecksum(val algorithm: String, val checksum: String)
-
-/**
- * Represents a [StorageFile] materialized from a stream of [StorageEvent]s.
- *
- * Now deprecated and serves only as a compatibility layer for the old one.
- */
-@Deprecated(
-    "EventMaterializedStorageFile is now compatible with StorageFile",
-    ReplaceWith("StorageFile")
-)
-data class EventMaterializedStorageFile(
-    override val fileType: FileType,
-    override val path: String,
-    override val createdAt: Long,
-    override val modifiedAt: Long,
-    override val ownerName: String,
-    override val size: Long,
-    override val acl: List<AccessEntry>?,
-    override val sensitivityLevel: SensitivityLevel,
-    override val link: Boolean,
-    override val annotations: Set<String>,
-    override val fileId: String,
-    override val creator: String
-) : StorageFile {
-    val id: String = fileId
-    val owner: String = ownerName
-    val fileTimestamps: Timestamps = Timestamps(modifiedAt, createdAt, modifiedAt)
-    val checksum: FileChecksum = FileChecksum("", "")
-    val linkTarget: String? = if (link) "FAKE_VALUE" else null
-    val linkTargetId: String? = if (link) "FAKE_VALUE" else null
-    val isLink: Boolean = link
-
-    @Suppress("UNUSED_PARAMETER")
-    constructor(
-        id: String,
-        path: String,
-        owner: String,
-        fileType: FileType,
-
-        fileTimestamps: Timestamps,
-        size: Long,
-        checksum: FileChecksum,
-
-        isLink: Boolean,
-        linkTarget: String?,
-        linkTargetId: String?,
-
-        annotations: Set<String>,
-
-        sensitivityLevel: SensitivityLevel
-    ) : this(
-        fileType,
-        path,
-        fileTimestamps.created,
-        fileTimestamps.modified,
-        owner,
-        size,
-        null,
-        sensitivityLevel,
-        isLink,
-        annotations,
-        id,
-        owner
-    )
-}
 
 typealias StorageEventProducer = MappedEventProducer<String, StorageEvent>
 typealias StorageEventStream = KStream<String, StorageEvent>
