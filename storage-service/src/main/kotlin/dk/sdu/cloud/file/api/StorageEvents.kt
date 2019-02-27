@@ -124,7 +124,7 @@ sealed class StorageEvent {
         override val owner: String,
         override val timestamp: Long,
 
-        val sensitivityLevel: SensitivityLevel,
+        val sensitivityLevel: SensitivityLevel?,
 
         override val creator: String = owner,
         override val eventCausedBy: String? = null

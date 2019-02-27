@@ -33,6 +33,25 @@ class FileSensitivityService<Ctx : FSUserContext>(
         }
     }
 
+    suspend fun clearSensitivityLevel(ctx: Ctx, path: String, eventCausedBy: String? = null) {
+        fs.deleteExtendedAttribute(ctx, path, XATTRIBUTE)
+
+        val stat = fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap()
+        BackgroundScope.launch {
+            storageEventProducer.emit(
+                StorageEvent.SensitivityUpdated(
+                    id = stat.inode,
+                    path = stat.path,
+                    owner = stat.xowner,
+                    creator = stat.owner,
+                    timestamp = System.currentTimeMillis(),
+                    sensitivityLevel = null,
+                    eventCausedBy = eventCausedBy
+                )
+            )
+        }
+    }
+
     companion object : Loggable {
         override val log: Logger = logger()
 

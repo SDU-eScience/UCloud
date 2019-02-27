@@ -60,7 +60,9 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                             req.upload.channel.copyTo(out)
                         }
 
-                        sensitivityService.setSensitivityLevel(ctx, req.location, req.sensitivity, owner)
+                        if (sensitivity != null) {
+                            sensitivityService.setSensitivityLevel(ctx, req.location, sensitivity, owner)
+                        }
                         Unit
                     }
                 }

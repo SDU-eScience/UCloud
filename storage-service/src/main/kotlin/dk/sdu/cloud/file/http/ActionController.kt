@@ -26,22 +26,27 @@ class ActionController<Ctx : FSUserContext>(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.createDirectory) {
+            val sensitivity = request.sensitivity
             if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.owner != null) {
                 val owner = request.owner!!
                 commandRunnerFactory.withCtxAndTimeout(this, user = owner) {
                     coreFs.makeDirectory(it, request.path)
-                    sensitivityService.setSensitivityLevel(it, request.path, request.sensitivity, null)
+                    if (sensitivity != null) {
+                        sensitivityService.setSensitivityLevel(it, request.path, sensitivity, null)
+                    }
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
             } else {
                 commandRunnerFactory.withCtxAndTimeout(this) {
                     coreFs.makeDirectory(it, request.path)
-                    sensitivityService.setSensitivityLevel(
-                        it,
-                        request.path,
-                        request.sensitivity,
-                        ctx.securityPrincipal.username
-                    )
+                    if (sensitivity != null) {
+                        sensitivityService.setSensitivityLevel(
+                            it,
+                            request.path,
+                            sensitivity,
+                            ctx.securityPrincipal.username
+                        )
+                    }
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
             }

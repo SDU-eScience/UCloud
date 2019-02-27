@@ -56,7 +56,7 @@ data class FindByPath(val path: String)
 data class CreateDirectoryRequest(
     val path: String,
     val owner: String?,
-    val sensitivity: SensitivityLevel = SensitivityLevel.PRIVATE
+    val sensitivity: SensitivityLevel? = null
 )
 
 data class ExtractRequest(
@@ -79,7 +79,7 @@ enum class SortOrder {
     DESCENDING
 }
 
-data class ReclassifyRequest(val path: String, val sensitivity: SensitivityLevel)
+data class ReclassifyRequest(val path: String, val sensitivity: SensitivityLevel?)
 
 /**
  * Audit entry for operations that work with a single file
