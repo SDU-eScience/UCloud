@@ -1,6 +1,5 @@
 package dk.sdu.cloud.alerting.services
 
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
