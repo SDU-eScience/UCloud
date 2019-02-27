@@ -110,7 +110,7 @@
     "@types/react-router": "^4.4.4",
     "@types/react-router-dom": "^4.3.1",
     "@types/react-test-renderer": "16.8.1",
-    "@types/styled-components": "4.1.10",
+    "@types/styled-components": "4.1.11",
     "@types/styled-system": "^3.2.2",
     "babel-jest": "24.1.0",
     "babel-loader": "8.0.5",
