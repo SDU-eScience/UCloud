@@ -39,6 +39,7 @@ class Header extends React.Component<HeaderProps, any> {
         super(props);
         props.fetchLoginStatus();
         props.fetchAvatar();
+        if (!Cloud.isLoggedIn) props.history.push("/login");
     }
 
     public render() {

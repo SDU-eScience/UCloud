@@ -60,7 +60,7 @@ export default class SDUCloud {
         this.authContext = "/auth";
 
         this.decodedToken = null;
-        this.redirectOnInvalidTokens = true;
+        this.redirectOnInvalidTokens = false;
 
         let accessToken = SDUCloud.storedAccessToken;
         let csrfToken = SDUCloud.storedCsrfToken;
