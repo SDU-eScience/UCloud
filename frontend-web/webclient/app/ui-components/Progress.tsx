@@ -6,7 +6,6 @@ import Text from "./Text";
 import { ThemeColor, default as theme } from "./theme";
 
 interface ProgressBaseProps {
-    width?: number | string
     height?: number | string
     value?: number | string
     active?: boolean
@@ -16,8 +15,7 @@ interface ProgressBaseProps {
 const ProgressBase = styled(Box) <ProgressBaseProps>`
     border-radius: 5px;
     background-color: ${props => props.theme.colors[props.color!]};
-    width: ${props => props.width};
-    height: ${props => props.height};
+        height: ${props => props.height};
 
     /* From semantic-ui-css */
     ${props => props.active ?
@@ -62,9 +60,9 @@ interface Progress {
 }
 const Progress = ({ color, percent, active, label }: Progress) => (
     <>
-        <ProgressBase height="30px" width="100%" color="lightGray">
-            <ProgressBase height="30px" color={color} width={`${percent}% `}>
-                {active ? <ProgressBase height="30px" active width="100%" color="black" /> : null}
+        <ProgressBase height="30px" style={{ width: "100%" }} color="lightGray">
+            <ProgressBase height="30px" color={color} style={{ width: `${percent}%` }}>
+                {active ? <ProgressBase height="30px" active style={{ width: "100%" }} color="black" /> : null}
             </ProgressBase>
         </ProgressBase>
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}

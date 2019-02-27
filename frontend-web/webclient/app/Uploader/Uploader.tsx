@@ -223,7 +223,7 @@ class Uploader extends React.Component<UploaderProps> {
                 </OutlineButton>) : null}
                 {uploads.filter(it => !it.isUploading).length >= 5 ?
                     <OutlineButton color="blue" fullWidth mt="4px" mb="4px" onClick={() => this.props.setUploads(uploads.filter(it => it.isUploading))}>
-                        Clear unstarted uploads 
+                        Clear unstarted uploads
                     </OutlineButton> : null}
                 <Box>
                     {uploads.map((upload, index) => (
@@ -346,16 +346,7 @@ const UploaderRow = (p: {
                         <span><Icon name="close" color="red" /> <i>Not</i> extracting archive</span>)
                     : null}
             </Box>
-
-            <Box width={0.45} ml="0.5em" mr="0.5em" pl="0.5" pr="0.5">
-                <Progress
-                    active={p.upload.progressPercentage !== 100}
-                    color="green"
-                    label={`${p.upload.progressPercentage.toFixed(2)}% (${sizeToString(calculateSpeed(p.upload))}/s)`}
-                    percent={p.upload.progressPercentage}
-                />
-            </Box>
-
+            <ProgressBar upload={p.upload} />
             <Box width={0.22}>
                 {!isFinishedUploading(p.upload.uploadXHR) ? <Button
                     fullWidth
@@ -381,6 +372,17 @@ const UploaderRow = (p: {
         </Flex>
     );
 }
+
+const ProgressBar = ({ upload }) => (
+    <Box width={0.45} ml="0.5em" mr="0.5em" pl="0.5" pr="0.5">
+        <Progress
+            active={upload.progressPercentage !== 100}
+            color="green"
+            label={`${upload.progressPercentage.toFixed(2)}% (${sizeToString(calculateSpeed(upload))}/s)`}
+            percent={upload.progressPercentage}
+        />
+    </Box>
+)
 
 interface PolicySelect { setRewritePolicy: (policy: UploadPolicy) => void }
 const PolicySelect = ({ setRewritePolicy }: PolicySelect) =>
