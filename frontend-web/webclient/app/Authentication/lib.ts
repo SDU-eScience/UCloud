@@ -60,8 +60,7 @@ export default class SDUCloud {
         this.authContext = "/auth";
 
         this.decodedToken = null;
-        // FIXME: Set to false when login page is part of app
-        this.redirectOnInvalidTokens = false;
+        this.redirectOnInvalidTokens = true;
 
         let accessToken = SDUCloud.storedAccessToken;
         let csrfToken = SDUCloud.storedCsrfToken;
@@ -202,7 +201,8 @@ export default class SDUCloud {
      * redirect back to the correct service (using serviceName).
      */
     openBrowserLoginPage() {
-        window.location.href = this.context + "/app/login?service=" + encodeURIComponent(this.serviceName);
+        if (window.location.href !== this.context + "/app/login")
+            window.location.href = this.context + "/app/login";
     }
 
     /**
