@@ -154,7 +154,7 @@ export const createFileLink = (file: File, cloud: SDUCloud, setLoading: () => vo
 };
 
 /**
- * @returns Share and Download operations for files
+ * @returns Stateless operations for files
  */
 export const StateLessOperations = (setLoading: () => void): Operation[] => [
     {
@@ -169,6 +169,13 @@ export const StateLessOperations = (setLoading: () => void): Operation[] => [
         onClick: (files: File[], cloud: SDUCloud) => downloadFiles(files, setLoading, cloud),
         disabled: (files: File[], cloud: SDUCloud) => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files),
         icon: "download",
+        color: undefined
+    },
+    {
+        text: "Sensitivity",
+        onClick: (files: File[], cloud: SDUCloud) => updateSensitivity(files, setLoading, cloud),
+        disabled: (files: File[], cloud: SDUCloud) => false,
+        icon: "verified",
         color: undefined
     }
 ];
@@ -542,6 +549,14 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
         }));
 }
 
+
+function updateSensitivity(files: File[], setLoading: () => void, cloud: SDUCloud) {
+    console.log("HI", files);
+    UF.sensitivitySwal().then(input => {
+        console.log("DONE");
+    });
+    console.log("ALSO HI");
+}
 
 export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<Response> => {
     const token = await cloud.createOneTimeTokenWithPermission("files.download:read");
