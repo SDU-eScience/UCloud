@@ -86,6 +86,7 @@ class DetailedResult extends React.Component<DetailedResultProps, DetailedResult
             setFileSelectorCallback: callback => this.setState(() => ({ fsCallback: callback }))
         },
         onDeleted: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
+        onSensitivityChange: () => this.props.fetchPage(this.jobId, 0, this.props.page.itemsPerPage),
         setLoading: () => this.props.setLoading(true)
     });
 

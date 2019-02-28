@@ -94,7 +94,12 @@ class FileSecurityController<Ctx : FSUserContext>(
                 val stat = coreFs.stat(ctx, request.path, setOf(FileAttribute.INODE))
                 audit(SingleFileAudit(stat.inode, request))
 
-                sensitivityService.setSensitivityLevel(ctx, request.path, request.sensitivity, user)
+                val sensitivity = request.sensitivity
+                if (sensitivity != null) {
+                    sensitivityService.setSensitivityLevel(ctx, request.path, sensitivity, user)
+                } else {
+                    sensitivityService.clearSensitivityLevel(ctx, request.path, user)
+                }
             }
             ok(Unit)
         }

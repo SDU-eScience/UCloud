@@ -1,8 +1,10 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
@@ -44,11 +46,12 @@ class FileLookupService<Ctx : FSUserContext>(
         sortBy: FileSortBy,
         order: SortOrder
     ): List<StorageFile> {
+        val cache = HashMap<String, SensitivityLevel>()
         val allResults = coreFs.listDirectory(
             ctx, path,
             STORAGE_FILE_ATTRIBUTES
         ).map {
-            readStorageFile(it)
+            readStorageFile(ctx, it, cache)
         }
 
         return allResults.let { results ->
@@ -84,7 +87,47 @@ class FileLookupService<Ctx : FSUserContext>(
         }
     }
 
-    private fun readStorageFile(row: FileRow): StorageFile =
+    private suspend fun lookupInheritedSensitivity(
+        ctx: Ctx,
+        realPath: String,
+        cache: MutableMap<String, SensitivityLevel>
+    ): SensitivityLevel {
+        val cached = cache[realPath]
+        if (cached != null) return cached
+        if (realPath.components().size < 2) return SensitivityLevel.PRIVATE
+
+        val components = realPath.normalize().components()
+        val sensitivity = if (components.size == 2 && components[0] == "home") {
+            SensitivityLevel.PRIVATE
+        } else {
+            run {
+                val stat = coreFs.stat(
+                    ctx,
+                    realPath,
+                    setOf(
+                        FileAttribute.PATH,
+                        FileAttribute.SENSITIVITY,
+                        FileAttribute.IS_LINK,
+                        FileAttribute.LINK_TARGET
+                    )
+                )
+                if (stat.isLink) {
+                    lookupInheritedSensitivity(ctx, stat.linkTarget, cache)
+                } else {
+                    stat.sensitivityLevel ?: lookupInheritedSensitivity(ctx, stat.path.parent(), cache)
+                }
+            }
+        }
+
+        cache[realPath] = sensitivity
+        return sensitivity
+    }
+
+    private suspend fun readStorageFile(
+        ctx: Ctx,
+        row: FileRow,
+        cache: MutableMap<String, SensitivityLevel> = HashMap()
+    ): StorageFile =
         StorageFile(
             fileType = row.fileType,
             path = row.rawPath,
@@ -93,7 +136,8 @@ class FileLookupService<Ctx : FSUserContext>(
             ownerName = row.xowner.takeIf { it.isNotBlank() } ?: row.owner,
             size = row.size,
             acl = row.shares,
-            sensitivityLevel = row.sensitivityLevel,
+            sensitivityLevel = lookupInheritedSensitivity(ctx, row.path, cache),
+            ownSensitivityLevel = row.sensitivityLevel,
             link = row.isLink,
             annotations = row.annotations,
             fileId = row.inode,
@@ -121,7 +165,7 @@ class FileLookupService<Ctx : FSUserContext>(
         ctx: Ctx,
         path: String
     ): StorageFile {
-        return readStorageFile(coreFs.stat(ctx, path, STORAGE_FILE_ATTRIBUTES))
+        return readStorageFile(ctx, coreFs.stat(ctx, path, STORAGE_FILE_ATTRIBUTES))
     }
 
     companion object : Loggable {

@@ -41,7 +41,7 @@ class FileRow(
     val shares: List<AccessEntry> get() = _shares!!
     val annotations: Set<String> get() = _annotations!!
     val checksum: FileChecksum get() = _checksum!!
-    val sensitivityLevel: SensitivityLevel get() = _sensitivityLevel!!
+    val sensitivityLevel: SensitivityLevel? get() = _sensitivityLevel
     val linkInode: String get() = _linkInode!!
     val xowner: String get() = _xowner!!
 }

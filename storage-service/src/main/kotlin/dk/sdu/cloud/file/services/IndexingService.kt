@@ -72,7 +72,7 @@ class IndexingService<Ctx : FSUserContext>(
             roots.map { root ->
                 val isValid = fs
                     .statOrNull(ctx, root, setOf(FileAttribute.FILE_TYPE, FileAttribute.IS_LINK))
-                    ?.takeIf { it.fileType == FileType.DIRECTORY && !it.isLink} != null
+                    ?.takeIf { it.fileType == FileType.DIRECTORY && !it.isLink } != null
 
                 root to isValid
             }.toMap()
@@ -145,6 +145,7 @@ class IndexingService<Ctx : FSUserContext>(
         val eventCollector = ArrayList<StorageEvent>()
 
         val deletedFiles = referenceById.filter { it.key !in realById }
+        log.debug("The following files were deleted: ${deletedFiles.values.map { it.path }}")
         eventCollector.addAll(deletedFiles.map {
             StorageEvent.Invalidated(
                 id = it.value.fileId,
@@ -162,6 +163,7 @@ class IndexingService<Ctx : FSUserContext>(
         // delete based on file ID).
 
         val newFiles = realById.filter { it.key !in referenceById }
+        log.debug("The following files are new (not in reference): ${newFiles.values.map { it.path }}")
         eventCollector.addAll(newFiles.filter { it.value.fileType == FileType.FILE }.map { it.value.toCreatedEvent() })
 
         // For directories created here we can be pretty sure that the reference system does _not_ already have
@@ -184,6 +186,7 @@ class IndexingService<Ctx : FSUserContext>(
 
                 val events = ArrayList<StorageEvent>()
                 if (referenceFile.path != realFile.path) {
+                    log.debug("Path difference for ${realFile.path}")
                     events.add(
                         StorageEvent.Moved(
                             id = realFile.inode,
@@ -196,6 +199,7 @@ class IndexingService<Ctx : FSUserContext>(
                     )
 
                     if (realFile.fileType == FileType.DIRECTORY) {
+                        log.debug("File type difference for ${realFile.fileType}")
                         // Need to invalidate and re-index
                         //
                         // We don't attempt to just rename children since events are likely missing due to parent being
@@ -218,8 +222,14 @@ class IndexingService<Ctx : FSUserContext>(
                     referenceFile.annotations.sorted() != realFile.annotations.sorted() ||
                     referenceFile.fileType != realFile.fileType ||
                     referenceFile.ownerName != realFile.owner ||
-                    referenceFile.sensitivityLevel != realFile.sensitivityLevel
+                    referenceFile.ownSensitivityLevel != realFile.sensitivityLevel ||
+                    referenceFile.creator != realFile.owner
                 ) {
+                    log.debug("Metadata difference for ${realFile.path}")
+
+                    // Note: The computed sensitivity level is ignored when performing diff checks. We only look for
+                    // information in the StorageEvents which would be the ownSensitivityLevel only.
+
                     // Note: The file type can only be wrong if the client has made an incorrect assumption
                     // (due to missing information). We do not need to perform traversals on the
                     // directory (if applicable)

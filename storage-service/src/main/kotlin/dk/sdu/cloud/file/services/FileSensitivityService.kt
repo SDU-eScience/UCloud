@@ -13,7 +13,7 @@ class FileSensitivityService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val storageEventProducer: StorageEventProducer
 ) {
-    suspend fun setSensitivityLevel(ctx: Ctx, path: String, level: SensitivityLevel, eventCausedBy: String?) {
+    suspend fun setSensitivityLevel(ctx: Ctx, path: String, level: SensitivityLevel, eventCausedBy: String? = null) {
         log.debug("setSensitivityLevel(path = $path, level = $level)")
         fs.setExtendedAttribute(ctx, path, XATTRIBUTE, level.name)
         val stat = fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap()
@@ -27,6 +27,25 @@ class FileSensitivityService<Ctx : FSUserContext>(
                     creator = stat.owner,
                     timestamp = System.currentTimeMillis(),
                     sensitivityLevel = level,
+                    eventCausedBy = eventCausedBy
+                )
+            )
+        }
+    }
+
+    suspend fun clearSensitivityLevel(ctx: Ctx, path: String, eventCausedBy: String? = null) {
+        fs.deleteExtendedAttribute(ctx, path, XATTRIBUTE)
+
+        val stat = fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap()
+        BackgroundScope.launch {
+            storageEventProducer.emit(
+                StorageEvent.SensitivityUpdated(
+                    id = stat.inode,
+                    path = stat.path,
+                    owner = stat.xowner,
+                    creator = stat.owner,
+                    timestamp = System.currentTimeMillis(),
+                    sensitivityLevel = null,
                     eventCausedBy = eventCausedBy
                 )
             )

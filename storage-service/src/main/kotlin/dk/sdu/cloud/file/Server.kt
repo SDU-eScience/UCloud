@@ -181,7 +181,8 @@ class Server(
                     cloud,
                     coreFileSystem,
                     fileLookupService,
-                    processRunner
+                    processRunner,
+                    sensitivityService
                 )
             )
         }

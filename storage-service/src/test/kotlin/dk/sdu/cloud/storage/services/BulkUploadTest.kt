@@ -105,7 +105,9 @@ class BulkUploadTest {
                     { it },
                     "/home/user/",
                     WriteConflictPolicy.OVERWRITE,
-                    tarFile.inputStream()
+                    tarFile.inputStream(),
+                    null,
+                    mockk(relaxed = true)
                 )
             }
 
@@ -155,7 +157,9 @@ class BulkUploadTest {
                         { it },
                         "/home/user/",
                         WriteConflictPolicy.RENAME,
-                        tarFile.inputStream()
+                        tarFile.inputStream(),
+                        null,
+                        mockk(relaxed = true)
                     )
 
                 val homeDir = File(fsRoot, "/home/user")
@@ -212,7 +216,9 @@ class BulkUploadTest {
                         { it },
                         "/home/user/",
                         WriteConflictPolicy.OVERWRITE,
-                        tarFile.inputStream()
+                        tarFile.inputStream(),
+                        null,
+                        mockk(relaxed = true)
                     )
 
                 val homeDir = File(fsRoot, "/home/user")
@@ -262,7 +268,9 @@ class BulkUploadTest {
                     { it },
                     "/home/user/",
                     WriteConflictPolicy.REJECT,
-                    tarFile.inputStream()
+                    tarFile.inputStream(),
+                    null,
+                    mockk(relaxed = true)
                 )
 
             val homeDir = File(fsRoot, "/home/user")
@@ -311,7 +319,9 @@ class BulkUploadTest {
                     { ctx },
                     "/home/user/",
                     WriteConflictPolicy.OVERWRITE,
-                    tarFile.inputStream()
+                    tarFile.inputStream(),
+                    null,
+                    mockk(relaxed = true)
                 )
 
             val homeDir = File(fsRoot, "/home/user")
@@ -358,7 +368,9 @@ class BulkUploadTest {
                     { it },
                     "/home/user/",
                     WriteConflictPolicy.OVERWRITE,
-                    tarFile.inputStream()
+                    tarFile.inputStream(),
+                    null,
+                    mockk(relaxed = true)
                 )
 
             val homeDir = File(fsRoot, "/home/user")
@@ -401,7 +413,9 @@ class BulkUploadTest {
                         { it },
                         "/home/user/",
                         WriteConflictPolicy.OVERWRITE,
-                        tarFile.inputStream()
+                        tarFile.inputStream(),
+                        null,
+                        mockk(relaxed = true)
                     )
 
                 val homeDir = File(fsRoot, "/home/user")

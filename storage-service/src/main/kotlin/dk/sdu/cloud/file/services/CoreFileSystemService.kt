@@ -36,13 +36,14 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         path: String,
         conflictPolicy: WriteConflictPolicy,
         writer: suspend OutputStream.() -> Unit
-    ) {
+    ): String {
         val normalizedPath = path.normalize()
         val targetPath =
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
         fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
         fs.write(ctx, writer).emitAll()
+        return targetPath
     }
 
     suspend fun <R> read(
@@ -60,27 +61,34 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         from: String,
         to: String,
         conflictPolicy: WriteConflictPolicy
-    ) {
+    ): String {
         val normalizedFrom = from.normalize()
         val fromStat = stat(ctx, from, setOf(FileAttribute.FILE_TYPE))
         if (fromStat.fileType != FileType.DIRECTORY) {
             val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
             fs.copy(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+            return targetPath
         } else {
-            tree(ctx, from, setOf(FileAttribute.PATH)).forEach { it ->
-                val currentPath = it.path
+            val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy).normalize()
+            fs.makeDirectory(ctx, newRoot).emitAll()
+
+            tree(ctx, from, setOf(FileAttribute.PATH)).forEach { currentFile ->
+                val currentPath = currentFile.path.normalize()
 
                 retryWithCatch(
                     retryDelayInMs = 0L,
                     exceptionFilter = { it is FSException.AlreadyExists },
                     body = {
-                        val desired = joinPath(to.normalize(), relativize(normalizedFrom, currentPath))
+                        val desired = joinPath(newRoot, relativize(normalizedFrom, currentPath)).normalize()
+                        if (desired == newRoot) return@forEach
                         val targetPath = renameAccordingToPolicy(ctx, desired, conflictPolicy)
 
                         fs.copy(ctx, currentPath, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
                     }
                 )
             }
+
+            return newRoot
         }
     }
 
@@ -139,9 +147,10 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         from: String,
         to: String,
         conflictPolicy: WriteConflictPolicy
-    ) {
+    ): String {
         val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
         fs.move(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
+        return targetPath
     }
 
     suspend fun exists(

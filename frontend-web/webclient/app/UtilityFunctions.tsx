@@ -127,6 +127,25 @@ export function shareSwal() {
     });
 }
 
+export function sensitivitySwal() {
+    return swal({
+        title: "Change Sensitivity",
+        input: "select",
+        inputOptions: {
+            "INHERIT": "Inherit",
+            "PRIVATE": "Private",
+            "CONFIDENTIAL": "Confidential",
+            "SENSITIVE": "Sensitive"
+        },
+        showCloseButton: true,
+        showCancelButton: true,
+        focusConfirm: false,
+        inputValidator: (value: string) => {
+            return null;
+        }
+    });
+}
+
 export const elementValue = (id: string): boolean => (document.getElementById(id) as HTMLInputElement).checked;
 export const selectValue = (id: string): string => (document.getElementById(id) as HTMLSelectElement).value;
 

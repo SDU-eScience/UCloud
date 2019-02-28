@@ -33,7 +33,7 @@ class ElasticIndexingTest {
         null,
         null,
         setOf("A"),
-        SensitivityLevel.OPEN_ACCESS
+        SensitivityLevel.PRIVATE
     )
 
     private val eventDeleted = StorageEvent.Deleted(

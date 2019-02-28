@@ -151,10 +151,14 @@ class FileAttributeParser(
                     }
 
                     FileAttribute.SENSITIVITY -> {
-                        sensitivityLevel = try {
-                            SensitivityLevel.valueOf(currentLine)
-                        } catch (ex: IllegalArgumentException) {
-                            SensitivityLevel.PRIVATE
+                        sensitivityLevel = if (currentLine.isBlank()) {
+                            null
+                        } else {
+                            try {
+                                SensitivityLevel.valueOf(currentLine)
+                            } catch (ex: IllegalArgumentException) {
+                                null
+                            }
                         }
                     }
 
