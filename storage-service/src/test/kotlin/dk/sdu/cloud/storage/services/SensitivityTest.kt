@@ -282,4 +282,45 @@ class SensitivityTest {
             }
         }
     }
+
+    @Test
+    fun `test symlinks`() {
+        val root = createRoot()
+        with(initTest(root.absolutePath)) {
+            root.mkdir("home") {
+                mkdir("user") {
+                    mkdir("confidential") {
+                        touch("file")
+                    }
+                }
+            }
+
+            runner.withBlockingContext(user) { ctx ->
+                sensitivityService.setSensitivityLevel(ctx, "/home/user/confidential", SensitivityLevel.CONFIDENTIAL)
+                coreFs.createSymbolicLink(ctx, "/home/user/confidential/file", "/home/user/link")
+                coreFs.createSymbolicLink(ctx, "/home/user/link", "/home/user/link2")
+                coreFs.createSymbolicLink(ctx, "/home/user/link2", "/home/user/link3")
+
+                assertEquals(
+                    SensitivityLevel.CONFIDENTIAL,
+                    lookupService.stat(ctx, "/home/user/confidential/file").sensitivityLevel
+                )
+
+                assertEquals(
+                    SensitivityLevel.CONFIDENTIAL,
+                    lookupService.stat(ctx, "/home/user/link").sensitivityLevel
+                )
+
+                assertEquals(
+                    SensitivityLevel.CONFIDENTIAL,
+                    lookupService.stat(ctx, "/home/user/link2").sensitivityLevel
+                )
+
+                assertEquals(
+                    SensitivityLevel.CONFIDENTIAL,
+                    lookupService.stat(ctx, "/home/user/link3").sensitivityLevel
+                )
+            }
+        }
+    }
 }

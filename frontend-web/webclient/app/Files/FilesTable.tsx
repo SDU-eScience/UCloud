@@ -243,7 +243,6 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
 
 const SensitivityBadge = styled.div<{ bg: string }>`
     content: '';
-    //color: white;
     height: 2em;
     width: 2em;
     display: flex;
@@ -251,7 +250,6 @@ const SensitivityBadge = styled.div<{ bg: string }>`
     justify-content: center;
     border: 0.2em solid ${props => props.bg};
     border-radius: 0.2em;
-    //background-color: 
 `;
 
 const FileLink = ({ file, children }: { file: File, children: any }) => {

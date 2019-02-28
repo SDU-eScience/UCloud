@@ -100,8 +100,21 @@ class FileLookupService<Ctx : FSUserContext>(
             SensitivityLevel.PRIVATE
         } else {
             run {
-                val stat = coreFs.stat(ctx, realPath, setOf(FileAttribute.PATH, FileAttribute.SENSITIVITY))
-                stat.sensitivityLevel ?: lookupInheritedSensitivity(ctx, stat.path.parent(), cache)
+                val stat = coreFs.stat(
+                    ctx,
+                    realPath,
+                    setOf(
+                        FileAttribute.PATH,
+                        FileAttribute.SENSITIVITY,
+                        FileAttribute.IS_LINK,
+                        FileAttribute.LINK_TARGET
+                    )
+                )
+                if (stat.isLink) {
+                    lookupInheritedSensitivity(ctx, stat.linkTarget, cache)
+                } else {
+                    stat.sensitivityLevel ?: lookupInheritedSensitivity(ctx, stat.path.parent(), cache)
+                }
             }
         }
 
