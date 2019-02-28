@@ -14,7 +14,7 @@ data:
   replicas: 4
   persistence:
     storageClass: rbd
-    size: 50Gi
+    size: 1000Gi
   heapSize: 12288m
   resources:
     limits:

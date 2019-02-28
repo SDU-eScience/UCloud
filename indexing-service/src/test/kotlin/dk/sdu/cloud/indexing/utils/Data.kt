@@ -1,6 +1,5 @@
 package dk.sdu.cloud.indexing.utils
 
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
@@ -54,19 +53,6 @@ val elasticFile = ElasticIndexedFile(
     setOf("P")
 )
 
-val eventMatStorFile = EventMaterializedStorageFile(
-    "id of doc",
-    "/path/to/d",
-    "owner of file",
-    FileType.FILE,
-    Timestamps(12345678, 1234567, 12345678),
-    22,
-    FileChecksum("SHA", "checksumForFile"),
-    false,
-    null,
-    null,
-    setOf("P"),
-    SensitivityLevel.CONFIDENTIAL
-)
+val eventMatStorFile = elasticFile.toMaterializedFile()
 
 

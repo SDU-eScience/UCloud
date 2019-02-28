@@ -137,6 +137,7 @@ class Search extends React.Component<SearchProps> {
             onDeleted: () => refreshFiles(),
             onExtracted: () => refreshFiles(),
             onLinkCreate: () => refreshFiles(),
+            onSensitivityChange: () => refreshFiles(),
             setLoading: () => this.props.setFilesLoading(true)
         });
         // FIXME: Search Pane approach is obsolete

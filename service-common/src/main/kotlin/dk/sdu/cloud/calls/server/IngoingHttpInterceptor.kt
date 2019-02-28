@@ -14,6 +14,7 @@ import dk.sdu.cloud.calls.httpOrNull
 import dk.sdu.cloud.calls.toKtorTemplate
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.ApplicationCall
 import io.ktor.application.call
 import io.ktor.content.TextContent
@@ -31,6 +32,7 @@ import io.ktor.routing.routing
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.util.DataConversionException
 import io.ktor.util.pipeline.PipelineContext
+import kotlinx.io.IOException
 import java.lang.reflect.Type
 import java.util.concurrent.TimeUnit
 import kotlin.reflect.full.companionObjectInstance
@@ -54,12 +56,18 @@ class IngoingHttpInterceptor(
             route(httpDescription.path.toKtorTemplate(fullyQualified = true)) {
                 method(httpDescription.method) {
                     handle {
-                        @Suppress("UNCHECKED_CAST")
-                        rpcServer.handleIncomingCall(
-                            this@IngoingHttpInterceptor,
-                            call,
-                            HttpCall(this as PipelineContext<Any, ApplicationCall>)
-                        )
+                        try {
+                            @Suppress("UNCHECKED_CAST")
+                            rpcServer.handleIncomingCall(
+                                this@IngoingHttpInterceptor,
+                                call,
+                                HttpCall(this as PipelineContext<Any, ApplicationCall>)
+                            )
+                        } catch (ex: IOException) {
+                            log.debug("Caught IOException:")
+                            log.debug(ex.stackTraceToString())
+                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
                     }
                 }
             }

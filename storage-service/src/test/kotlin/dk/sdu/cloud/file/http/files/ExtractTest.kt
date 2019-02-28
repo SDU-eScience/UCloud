@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.http.files
 
 import dk.sdu.cloud.file.http.ExtractController
+import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.withKtorTest
@@ -42,7 +43,15 @@ class ExtractTest {
             },
 
             additional = {
-                listOf(ExtractController(it.authenticatedClient, it.coreFs, it.lookupService, it.runner))
+                listOf(
+                    ExtractController(
+                        it.authenticatedClient,
+                        it.coreFs,
+                        it.lookupService,
+                        it.runner,
+                        FileSensitivityService(it.fs, it.eventProducer)
+                    )
+                )
             }
         )
     }

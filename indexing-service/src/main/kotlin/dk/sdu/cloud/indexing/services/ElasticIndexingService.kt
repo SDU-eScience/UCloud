@@ -186,7 +186,7 @@ class ElasticIndexingService(
         return request
     }
 
-    private fun updateDoc(id: String, updatedFields: Map<String, Any>): UpdateRequest =
+    private fun updateDoc(id: String, updatedFields: Map<String, Any?>): UpdateRequest =
         UpdateRequest(
             FILES_INDEX,
             DOC_TYPE,

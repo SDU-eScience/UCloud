@@ -1,6 +1,5 @@
 package dk.sdu.cloud.indexing.services
 
-import dk.sdu.cloud.file.api.EventMaterializedStorageFile
 import dk.sdu.cloud.file.api.FileChecksum
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
@@ -36,25 +35,21 @@ data class ElasticIndexedFile(
     val linkTarget: String?,
     val linkTargetId: String?,
 
-    val sensitivity: SensitivityLevel,
+    val sensitivity: SensitivityLevel?,
 
     val annotations: Set<String>
 ) {
-    // For compatibility we will return EventMaterializedStorageFile.
-    // This can be changed when we clients have been updated.
-    fun toMaterializedFile(): StorageFile = EventMaterializedStorageFile(
-        id,
-        path,
-        owner,
-        fileType,
-        fileTimestamps,
-        size,
-        checksum,
-        fileIsLink,
-        linkTarget,
-        linkTargetId,
-        annotations,
-        sensitivity
+    fun toMaterializedFile(): StorageFile = StorageFile(
+        fileId = id,
+        path = path,
+        ownerName = owner,
+        fileType = fileType,
+        createdAt = fileTimestamps.created,
+        modifiedAt = fileTimestamps.modified,
+        size = size,
+        link = fileIsLink,
+        annotations = annotations,
+        ownSensitivityLevel = sensitivity
     )
 
     @Suppress("unused")

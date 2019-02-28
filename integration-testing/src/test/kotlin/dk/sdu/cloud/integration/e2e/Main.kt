@@ -69,7 +69,8 @@ class EndToEndTest {
     fun WebDriver.uploadFile() {
         with(UploadDialog) {
             open()
-            selectFile("/tmp/flag")
+            val flag = Files.createTempFile("file", ".txt").toFile().also { it.writeText("Hi!") }
+            selectFile(flag.absolutePath)
 
             val uploadRow = UploadDialog.rows.single()
             uploadRow.start()
@@ -141,12 +142,15 @@ class UploadRow(val element: WebElement) {
     val removeButton: WebElement?
         get() = element.findElementOrNull(byTag("removeUpload"))
 
+    val cancelButton: WebElement?
+        get() = element.findElementOrNull(byTag("cancelButton"))
+
     fun start() {
         startButton!!.click()
     }
 
     fun awaitComplete() {
-        await { startButton == null }
+        await { startButton == null && cancelButton == null && removeButton != null }
     }
 
     fun remove() {

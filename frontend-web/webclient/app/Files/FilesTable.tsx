@@ -3,17 +3,18 @@ import { File, FileOperation, PredicatedOperation } from "Files";
 import { Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader } from "ui-components/Table";
 import { FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps } from "Files";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Input, Truncate } from "ui-components";
+import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Input, Truncate, Tooltip } from "ui-components";
 import * as UF from "UtilityFunctions"
 import { Arrow, FileIcon } from "UtilityComponents";
 import { TextSpan } from "ui-components/Text";
 import { clearTrash, isDirectory, fileTablePage, previewSupportedExtension, getFilenameFromPath, isProject, toFileText, filePreviewPage } from "Utilities/FileUtilities";
 import { Cloud } from "Authentication/SDUCloudObject";
 import * as Heading from "ui-components/Heading"
-import { KeyCode, ReduxObject } from "DefaultObjects";
+import { KeyCode, ReduxObject, SensitivityLevelMap } from "DefaultObjects";
 import styled from "styled-components";
 import { SpaceProps } from "styled-system";
 import { connect } from "react-redux";
+import Theme from "ui-components/theme";
 
 const FilesTable = ({
     files, masterCheckbox, sortingIcon, sortFiles, onRenameFile, onCheckFile, onDropdownSelect, sortingColumns,
@@ -52,6 +53,9 @@ const FilesTable = ({
                             onRenameFile={onRenameFile}
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
+                        <TableCell>
+                            <SensitivityIcon sensitivity={file.sensitivityLevel} />
+                        </TableCell>
                         {sortingColumns.filter(it => it != null).map((sC, i) => (
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                         ))}
@@ -135,6 +139,9 @@ const FilesTableHeader = ({
                         <Box cursor="pointer">Filename</Box>
                     </Flex>
                 </FileTableHeaderCell>
+                <FileTableHeaderCell notSticky={notStickyHeader} width={"3em"}>
+                    <Flex />
+                </FileTableHeaderCell>
                 {sortingColumns.filter(it => it != null).map((sC, i) => (
                     <ResponsiveTableColumn
                         key={i}
@@ -216,6 +223,36 @@ const PredicatedFavorite = ({ predicate, item, onClick }) => predicate ? (
 
 interface Groupicon { isProject: boolean }
 const GroupIcon = ({ isProject }: Groupicon) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
+
+const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
+    type IconDef = { color: string, text: string, shortText: string };
+    let def: IconDef;
+
+    switch (props.sensitivity) {
+        case SensitivityLevelMap.CONFIDENTIAL:
+            def = { color: Theme.colors.purple, text: "Confidential", shortText: "C" };
+            break;
+        case SensitivityLevelMap.SENSITIVE:
+            def = { color: "#ff0004", text: "Sensitive", shortText: "S" };
+            break;
+        default:
+            return null;
+    }
+
+    const badge = <SensitivityBadge bg={def.color}>{def.shortText}</SensitivityBadge>;
+    return <Tooltip top mb={"50px"} trigger={badge}>{def.text}</Tooltip>
+}
+
+const SensitivityBadge = styled.div<{ bg: string }>`
+    content: '';
+    height: 2em;
+    width: 2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0.2em solid ${props => props.bg};
+    border-radius: 0.2em;
+`;
 
 const FileLink = ({ file, children }: { file: File, children: any }) => {
     if (isDirectory(file)) {

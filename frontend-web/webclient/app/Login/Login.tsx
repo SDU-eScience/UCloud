@@ -63,13 +63,15 @@ export const LoginPage = (props: { history: History }) => {
             body.append("service", service);
             body.append("username", usernameInput.current!.value);
             body.append("password", passwordInput.current!.value);
-            const result = await promises.makeCancelable(fetch(`/auth/login?service=${service}`, {
+            const response = await promises.makeCancelable(fetch(`/auth/login?service=${service}`, {
                 method: "POST",
                 headers: {
                     "Accept": "application/json"
                 },
                 body
-            })).promise.then(it => it.json()).catch(it => { if (!it.isCanceled) throw it });
+            })).promise;
+            if (!response.ok) throw response;
+            const result = await response.json();
             if ("2fa" in result) {
                 setChallengeID(result["2fa"]);
             } else {
@@ -77,7 +79,7 @@ export const LoginPage = (props: { history: History }) => {
                 props.history.push("/loginRedirect");
             }
         } catch (e) {
-            setError(errorMessageOrDefault(e, "An error occurred"))
+            setError(errorMessageOrDefault({ request: e, response: await e.json() }, "An error occurred"))
         } finally {
             setLoading(false);
         }
@@ -90,18 +92,21 @@ export const LoginPage = (props: { history: History }) => {
             setLoading(true);
             const formData = new FormData();
             formData.append("challengeId", challengeId);
-            formData.append("verificationCode", verificationCode);
-            const result = await fetch(`/auth/2fa/challenge/form`, {
+            formData.append("verificationCodes", verificationCode);
+            const response = await fetch(`/auth/2fa/challenge/form`, {
                 method: "POST",
                 headers: {
                     "Accept": "application/json"
                 },
                 body: formData
-            }).then(it => it.json()); /* FIXME: add error handling */
+            });
+            if (!response.ok) throw response;
+            const result = await response.json();
+            console.log(result);
             Cloud.setTokens(result.accessToken, result.csrfToken);
             props.history.push("/loginRedirect");
         } catch (e) {
-            setError(errorMessageOrDefault(e, "Could not submit verification code. Try again later"));
+            setError(errorMessageOrDefault({ request: e, response: await e.json() }, "Could not submit verification code. Try again later"));
         }
     }
 

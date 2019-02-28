@@ -47,7 +47,7 @@ class ElasticQueryTest {
             response
         }
         val result = elastic.findFileByIdOrNull("1")
-        assertEquals(eventMatStorFile.owner, result?.ownerName)
+        assertEquals(eventMatStorFile.ownerName, result?.ownerName)
 
 
     }
