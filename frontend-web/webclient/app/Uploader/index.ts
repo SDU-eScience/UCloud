@@ -13,11 +13,13 @@ export interface Upload {
     sensitivity: Sensitivity
     uploadXHR?: XMLHttpRequest
     conflictFile?: SDUCloudFile
-    resolution: UploadPolicy,
+    resolution: UploadPolicy
     uploadEvents: { progressInBytes: number, timestamp: number }[]
+    isPending: boolean
 }
 
 export interface UploaderStateProps {
+    activeUploads: Upload[]
     error?: string
     visible: boolean
     uploads: Upload[]
