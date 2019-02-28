@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileAnnotationService
@@ -67,10 +68,27 @@ class ActionController<Ctx : FSUserContext>(
         implement(FileDescriptions.move) {
             audit(SingleFileAudit(null, request))
             commandRunnerFactory.withCtxAndTimeout(this) {
-                val stat = coreFs.stat(it, request.path, setOf(FileAttribute.INODE))
-                coreFs.move(it, request.path, request.newPath, request.policy ?: WriteConflictPolicy.OVERWRITE)
+                val stat = fileLookupService.stat(it, request.path)
+                val targetPath = coreFs.move(
+                    it,
+                    request.path,
+                    request.newPath,
+                    request.policy ?: WriteConflictPolicy.OVERWRITE
+                )
 
-                audit(SingleFileAudit(stat.inode, request))
+                // Don't change from inherit if we can avoid it.
+                // We don't need to change sensitivity of children (if they inherit they will inherit from us).
+                val newSensitivity = fileLookupService.stat(it, targetPath).sensitivityLevel
+                if (stat.sensitivityLevel != newSensitivity) {
+                    sensitivityService.setSensitivityLevel(
+                        it,
+                        targetPath,
+                        stat.sensitivityLevel,
+                        ctx.securityPrincipal.username
+                    )
+                }
+
+                audit(SingleFileAudit(stat.fileId, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
@@ -79,9 +97,20 @@ class ActionController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, request))
 
             commandRunnerFactory.withCtxAndTimeout(this) {
-                val stat = coreFs.stat(it, request.path, setOf(FileAttribute.INODE))
-                coreFs.copy(it, request.path, request.newPath, request.policy ?: WriteConflictPolicy.OVERWRITE)
-                audit(SingleFileAudit(stat.inode, request))
+                val stat = fileLookupService.stat(it, request.path)
+                val targetPath = coreFs.copy(it, request.path, request.newPath, request.policy ?: WriteConflictPolicy.OVERWRITE)
+
+                val newSensitivity = fileLookupService.stat(it, targetPath).sensitivityLevel
+                if (stat.sensitivityLevel != newSensitivity) {
+                    sensitivityService.setSensitivityLevel(
+                        it,
+                        targetPath,
+                        stat.sensitivityLevel,
+                        ctx.securityPrincipal.username
+                    )
+                }
+
+                audit(SingleFileAudit(stat.fileId, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
