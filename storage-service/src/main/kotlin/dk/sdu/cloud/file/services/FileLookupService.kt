@@ -95,7 +95,7 @@ class FileLookupService<Ctx : FSUserContext>(
         val cached = cache[realPath]
         if (cached != null) return cached
 
-        val components = realPath.components()
+        val components = realPath.normalize().components()
         val sensitivity = if (components.size == 2 && components[0] == "home") {
             SensitivityLevel.PRIVATE
         } else {
