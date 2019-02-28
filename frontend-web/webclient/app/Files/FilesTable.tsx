@@ -3,7 +3,7 @@ import { File, FileOperation, PredicatedOperation } from "Files";
 import { Table, TableBody, TableRow, TableCell, TableHeaderCell, TableHeader } from "ui-components/Table";
 import { FilesTableProps, SortOrder, SortBy, ResponsiveTableColumnProps, FilesTableHeaderProps, SortByDropdownProps, ContextBarProps, ContextButtonsProps, Operation, FileOptionsProps, FilenameAndIconsProps } from "Files";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Input, Truncate } from "ui-components";
+import { Icon, Box, OutlineButton, Flex, Divider, VerticalButtonGroup, Button, Label, Checkbox, Link, Input, Truncate, Tooltip } from "ui-components";
 import * as UF from "UtilityFunctions"
 import { Arrow, FileIcon } from "UtilityComponents";
 import { TextSpan } from "ui-components/Text";
@@ -223,18 +223,22 @@ interface Groupicon { isProject: boolean }
 const GroupIcon = ({ isProject }: Groupicon) => isProject ? (<Icon name="projects" ml=".7em" size="1em" />) : null;
 
 const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap }) => {
+    type IconDef = { color: string, text: string, shortText: string };
+    let def: IconDef;
+
     switch (props.sensitivity) {
-        case SensitivityLevelMap.PRIVATE:
-            return null;
         case SensitivityLevelMap.CONFIDENTIAL:
-//"#bb00ff"
-            return <SensitivityBadge bg={Theme.colors.purple}>C</SensitivityBadge>;
+            def = { color: Theme.colors.purple, text: "Confidential", shortText: "C" };
+            break;
         case SensitivityLevelMap.SENSITIVE:
-        //"#ff0004"
-            return <SensitivityBadge bg={"#ff0004"}>S</SensitivityBadge>;
+            def = { color: "#ff0004", text: "Sensitive", shortText: "S" };
+            break;
         default:
             return null;
     }
+
+    const badge = <SensitivityBadge bg={def.color}>{def.shortText}</SensitivityBadge>;
+    return <Tooltip top mb={"50px"} trigger={badge}>{def.text}</Tooltip>
 }
 
 const SensitivityBadge = styled.div<{ bg: string }>`
