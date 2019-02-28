@@ -23,8 +23,7 @@ const FilesTable = ({
     const checkedFiles = files.filter(it => it.isChecked);
     const checkedCount = checkedFiles.length;
     const columns = responsiveState!.greaterThan.md && sortingColumns.length === 2 ?
-        (responsiveState!.greaterThan.lg ? sortingColumns : [sortingColumns[1]])
-        : []; //on md or smaller display 0 columns
+        (responsiveState!.greaterThan.lg ? sortingColumns : [sortingColumns[1]]) : []; //on md or smaller display 0 columns
     return (
         <Table>
             <FilesTableHeader
@@ -52,7 +51,7 @@ const FilesTable = ({
                             onRenameFile={onRenameFile}
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
-                        {sortingColumns.filter(it => it != null).map((sC, i) => (
+                        {columns.filter(it => it != null).map((sC, i) => (
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                         ))}
                         <TableCell textAlign="center">
@@ -94,20 +93,20 @@ const ResponsiveTableColumn = ({
     sortOrder,
     notSticky
 }: ResponsiveTableColumnProps) => (
-    <FileTableHeaderCell notSticky={notSticky} width="10rem" >
-        <Flex alignItems="center" cursor="pointer" justifyContent="left">
-            <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
-                <Arrow name={iconName} />
-            </Box>
-            <SortByDropdown
-                isSortedBy={isSortedBy}
-                onSelect={onSelect}
-                asDropdown={asDropdown}
-                currentSelection={currentSelection}
-                sortOrder={sortOrder} />
-        </Flex>
-    </FileTableHeaderCell>
-);
+        <FileTableHeaderCell notSticky={notSticky} width="10rem" >
+            <Flex alignItems="center" cursor="pointer" justifyContent="left">
+                <Box onClick={() => onSelect(sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, currentSelection)}>
+                    <Arrow name={iconName} />
+                </Box>
+                <SortByDropdown
+                    isSortedBy={isSortedBy}
+                    onSelect={onSelect}
+                    asDropdown={asDropdown}
+                    currentSelection={currentSelection}
+                    sortOrder={sortOrder} />
+            </Flex>
+        </FileTableHeaderCell>
+    );
 
 const toSortOrder = (sortBy: SortBy, lastSort: SortBy, sortOrder: SortOrder) =>
     sortBy === lastSort ? (sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING) : SortOrder.ASCENDING;
