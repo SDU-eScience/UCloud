@@ -105,6 +105,12 @@ class CopyTest {
             runner.withBlockingContext(user) { ctx ->
                 coreFs.copy(ctx, "/home/user/folder", "/home/user/folder", WriteConflictPolicy.RENAME)
                 val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
+
+                val rootListing = coreFs.listDirectory(ctx, "/home/user", mode)
+                assertEquals(2, rootListing.size)
+                assertThatInstance(rootListing) { it.any { it.path.fileName() == "folder" } }
+                assertThatInstance(rootListing) { it.any { it.path.fileName() == "folder(1)" } }
+
                 val listing =
                     coreFs.listDirectory(ctx, "/home/user/folder(1)", mode)
 

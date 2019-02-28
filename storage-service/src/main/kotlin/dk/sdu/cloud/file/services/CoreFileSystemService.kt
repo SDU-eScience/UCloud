@@ -69,7 +69,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             fs.copy(ctx, from, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
             return targetPath
         } else {
-            val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy)
+            val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy).normalize()
             fs.makeDirectory(ctx, newRoot).emitAll()
 
             tree(ctx, from, setOf(FileAttribute.PATH)).forEach { currentFile ->
@@ -79,7 +79,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                     retryDelayInMs = 0L,
                     exceptionFilter = { it is FSException.AlreadyExists },
                     body = {
-                        val desired = joinPath(newRoot, relativize(normalizedFrom, currentPath))
+                        val desired = joinPath(newRoot, relativize(normalizedFrom, currentPath)).normalize()
                         if (desired == newRoot) return@forEach
                         val targetPath = renameAccordingToPolicy(ctx, desired, conflictPolicy)
 
