@@ -3,6 +3,7 @@ package dk.sdu.cloud.alerting.services
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
+import org.elasticsearch.action.admin.cluster.settings.ClusterGetSettingsRequest
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
@@ -11,9 +12,10 @@ import org.elasticsearch.search.builder.SearchSourceBuilder
 import java.time.LocalDate
 import java.util.*
 
+private const val FIFTEEN_SEC = 15*1000L
 private const val THIRTY_SEC = 30*1000L
 private const val FIVE_MIN = 5*60*1000L
-private const val FIFTHTEEN_MIN = 15*60*1000L
+private const val FIFTEEN_MIN = 15*60*1000L
 private const val LIMIT_5XX_PERCENTAGE = 1
 
 class ElasticAlerting(
@@ -98,12 +100,13 @@ class ElasticAlerting(
     suspend fun alertOnStatusCode() {
         var alertOnStatus = false
         while (true) {
-            val yesterday = LocalDate.now().minusDays(1).toString().replace("-", ".")
-            val today = LocalDate.now().toString().replace("-", ".")
-            val request = SearchRequest()
+            //Period Format = YYYY.MM.dd
+            val yesterdayPeriodFormat = LocalDate.now().minusDays(1).toString().replace("-", ".")
+            val todayPeriodFormat = LocalDate.now().toString().replace("-", ".")
+            val requestFor5xxCodes = SearchRequest()
 
-            request.indices("http_logs_*$yesterday", "http_logs_*$today")
-            request.source(
+            requestFor5xxCodes.indices("http_logs_*$yesterdayPeriodFormat", "http_logs_*$todayPeriodFormat")
+            requestFor5xxCodes.source(
                 SearchSourceBuilder().query(
                     QueryBuilders.boolQuery()
                         .must(
@@ -111,7 +114,7 @@ class ElasticAlerting(
                         )
                         .filter(
                             QueryBuilders.rangeQuery("@timestamp")
-                                .gte(Date(Date().time - FIFTHTEEN_MIN))
+                                .gte(Date(Date().time - FIFTEEN_MIN))
                                 .lt(Date())
                         )
                         .filter(
@@ -120,12 +123,12 @@ class ElasticAlerting(
                         )
                 )
             )
-            val numberOf5XXStatusCodes = elastic.search(request, RequestOptions.DEFAULT).hits.totalHits.toDouble()
+            val numberOf5XXStatusCodes = elastic.search(requestFor5xxCodes, RequestOptions.DEFAULT).hits.totalHits.toDouble()
 
 
             val TotalNumberOfEntriesRequest = SearchRequest()
 
-            TotalNumberOfEntriesRequest.indices("http_logs_*$yesterday", "http_logs_*$today")
+            TotalNumberOfEntriesRequest.indices("http_logs_*$yesterdayPeriodFormat", "http_logs_*$todayPeriodFormat")
             TotalNumberOfEntriesRequest.source(
                 SearchSourceBuilder().query(
                     QueryBuilders.boolQuery()
@@ -134,7 +137,7 @@ class ElasticAlerting(
                         )
                         .filter(
                             QueryBuilders.rangeQuery("@timestamp")
-                                .gte(Date(Date().time - FIFTHTEEN_MIN))
+                                .gte(Date(Date().time - FIFTEEN_MIN))
                                 .lt(Date())
                         )
                 )
