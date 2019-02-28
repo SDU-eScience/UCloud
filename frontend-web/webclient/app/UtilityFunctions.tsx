@@ -318,6 +318,10 @@ const redirectToProject = (path: string, cloud: Cloud, navigate: (path: string) 
     });
 };
 
+/**
+ * 
+ * @param params: { status, min, max } (both inclusive)
+ */
 export const inRange = ({ status, min, max }: { status: number, min: number, max: number }): boolean =>
     status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange({ status, min: 200, max: 299 });

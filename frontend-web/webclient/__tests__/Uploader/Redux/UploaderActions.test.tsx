@@ -54,7 +54,8 @@ describe("Uploader actions", () => {
             progressPercentage: 0,
             extractArchive: false,
             uploadXHR: new XMLHttpRequest(),
-            isPending: false
+            isPending: false,
+            conflictError: false
         }]));
         expect(store.getState().uploader.uploads.length).toBe(1);
     });

@@ -3,7 +3,7 @@ import * as Modal from "react-modal";
 import { Progress, Icon, Button, ButtonGroup, Heading, Divider, OutlineButton, Select } from "ui-components";
 import * as ReactDropzone from "react-dropzone/dist/index";
 import { Cloud } from "Authentication/SDUCloudObject";
-import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal } from "UtilityFunctions";
+import { ifPresent, iconFromFilePath, infoNotification, uploadsNotifications, prettierString, timestampUnixMs, overwriteSwal, inRange } from "UtilityFunctions";
 import { sizeToString, archiveExtensions, isArchiveExtension, statFileQuery } from "Utilities/FileUtilities";
 import { bulkUpload, multipartUpload, UploadPolicy } from "./api";
 import { connect } from "react-redux";
@@ -36,7 +36,8 @@ const newUpload = (file: File): Upload => ({
     extractArchive: false,
     uploadXHR: undefined,
     uploadEvents: [],
-    isPending: false
+    isPending: false,
+    conflictError: false
 });
 
 const addProgressEvent = (upload: Upload, e: ProgressEvent) => {
@@ -73,9 +74,21 @@ class Uploader extends React.Component<UploaderProps> {
         const promises: { request: XMLHttpRequest, response: SDUCloudFile }[] = await Promise.all(filteredFiles.map(file =>
             Cloud.get<SDUCloudFile>(statFileQuery(`${this.props.location}/${file.file.name}`)).then(it => it).catch(it => it)
         ));
+
         promises.forEach((it, index) => {
             if (it.request.status === 200) filteredFiles[index].conflictFile = it.response;
+            if (inRange({ status: it.request.status, min: 500, max: 599 })) filteredFiles[index].conflictError = true;
         });
+
+        /* FIXME: Should be done in Cloud object  */
+        await Promise.all(filteredFiles.filter(it => it.conflictError).map(async file => {
+            try {
+                const it = await Cloud.get<SDUCloudFile>(statFileQuery(`${this.props.location}/${file.file.name}`));
+                file.conflictFile = it.response;
+            } catch (e) {
+                if (e.request.status === 404) file.conflictError = false;
+            }
+        }));
 
         if (this.props.allowMultiple !== false) { // true if no value
             this.props.setUploads(this.props.uploads.concat(filteredFiles))

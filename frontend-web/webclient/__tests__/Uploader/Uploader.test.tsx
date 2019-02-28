@@ -62,7 +62,8 @@ describe("Uploader", () => {
             progressPercentage: 0,
             extractArchive: false,
             uploadXHR: undefined,
-            isPending: false
+            isPending: false,
+            conflictError: false
         }]));
         expect(create(
             <Provider store={store}>

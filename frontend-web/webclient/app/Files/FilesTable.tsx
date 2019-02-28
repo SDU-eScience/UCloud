@@ -24,8 +24,7 @@ const FilesTable = ({
     const checkedFiles = files.filter(it => it.isChecked);
     const checkedCount = checkedFiles.length;
     const columns = responsiveState!.greaterThan.md && sortingColumns.length === 2 ?
-        (responsiveState!.greaterThan.lg ? sortingColumns : [sortingColumns[1]])
-        : []; //on md or smaller display 0 columns
+        (responsiveState!.greaterThan.lg ? sortingColumns : [sortingColumns[1]]) : []; //on md or smaller display 0 columns
     return (
         <Table>
             <FilesTableHeader
@@ -53,10 +52,11 @@ const FilesTable = ({
                             onRenameFile={onRenameFile}
                             onCheckFile={checked => onCheckFile(checked, file)}
                         />
+
                         <TableCell>
                             <SensitivityIcon sensitivity={file.sensitivityLevel} />
                         </TableCell>
-                        {sortingColumns.filter(it => it != null).map((sC, i) => (
+                        {columns.filter(it => it != null).map((sC, i) => (
                             <TableCell key={i} >{sC ? UF.sortingColumnToValue(sC, file) : null}</TableCell>
                         ))}
                         <TableCell textAlign="center">
