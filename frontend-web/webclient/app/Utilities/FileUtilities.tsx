@@ -156,7 +156,7 @@ export const createFileLink = (file: File, cloud: SDUCloud, setLoading: () => vo
 /**
  * @returns Stateless operations for files
  */
-export const StateLessOperations = (setLoading: () => void): Operation[] => [
+export const StateLessOperations = (setLoading: () => void, onSensitivityChange?: () => void): Operation[] => [
     {
         text: "Share",
         onClick: (files: File[], cloud: SDUCloud) => shareFiles(files, setLoading, cloud),
@@ -173,7 +173,7 @@ export const StateLessOperations = (setLoading: () => void): Operation[] => [
     },
     {
         text: "Sensitivity",
-        onClick: (files: File[], cloud: SDUCloud) => updateSensitivity(files, setLoading, cloud),
+        onClick: (files: File[], cloud: SDUCloud) => updateSensitivity(files, cloud, onSensitivityChange),
         disabled: (files: File[], cloud: SDUCloud) => false,
         icon: "verified",
         color: undefined
@@ -304,6 +304,7 @@ interface AllFileOperations {
     onExtracted?: () => void
     onClearTrash?: () => void
     onLinkCreate?: (p: string) => void
+    onSensitivityChange?: () => void
     history?: History,
     setLoading: () => void
 }
@@ -315,9 +316,10 @@ export function AllFileOperations({
     onClearTrash,
     onLinkCreate,
     history,
-    setLoading
+    setLoading,
+    onSensitivityChange
 }: AllFileOperations) {
-    const stateLessOperations = stateless ? StateLessOperations(setLoading) : [];
+    const stateLessOperations = stateless ? StateLessOperations(setLoading, onSensitivityChange) : [];
     const fileSelectorOperations = !!fileSelectorOps ? FileSelectorOperations(fileSelectorOps, setLoading) : [];
     const deleteOperation = !!onDeleted ? MoveFileToTrashOperation(onDeleted, setLoading) : [];
     const clearTrash = !!onClearTrash ? ClearTrashOperations(onClearTrash) : [];
@@ -550,12 +552,14 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
 }
 
 
-function updateSensitivity(files: File[], setLoading: () => void, cloud: SDUCloud) {
-    console.log("HI", files);
+function updateSensitivity(files: File[], cloud: SDUCloud, onSensitivityChange?: () => void) {
     UF.sensitivitySwal().then(input => {
-        console.log("DONE");
+        Promise.all(
+            files.map(file => reclassifyFile(file, input.value as SensitivityLevelMap, cloud))
+        ).catch(e => 
+            UF.errorMessageOrDefault(e, "Could not reclassify file")
+        ).then(() => !!onSensitivityChange ? onSensitivityChange() : null);
     });
-    console.log("ALSO HI");
 }
 
 export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<Response> => {
